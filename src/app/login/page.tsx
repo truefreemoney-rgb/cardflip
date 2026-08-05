@@ -1,0 +1,110 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Logo from "@/components/Logo";
+import Spinner from "@/components/Spinner";
+import { login } from "@/lib/client/auth";
+
+const FIELD =
+  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      router.push("/app");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 text-foreground">
+      <div className="mb-8">
+        <Logo />
+      </div>
+
+      <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface-1 p-8 shadow-xl shadow-black/40">
+        <h1 className="text-xl font-semibold text-white">Welcome back</h1>
+        <p className="mt-1 text-sm text-zinc-400">Log in to your CardFlip account.</p>
+
+        <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-zinc-300">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={FIELD}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-zinc-300">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={FIELD}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <p role="alert" aria-live="polite" className="min-h-0">
+            {error && (
+              <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
+                {error}
+              </span>
+            )}
+          </p>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-1 flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
+          >
+            {submitting && <Spinner className="h-4 w-4" />}
+            {submitting ? "Logging in…" : "Log in"}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-zinc-500">
+          No account?{" "}
+          <Link href="/signup" className="text-brand-300 hover:text-brand-200">
+            Sign up
+          </Link>
+        </p>
+      </div>
+
+      <Link
+        href="/"
+        className="mt-6 text-sm text-zinc-500 transition hover:text-zinc-300"
+      >
+        ← Back to home
+      </Link>
+    </div>
+  );
+}
