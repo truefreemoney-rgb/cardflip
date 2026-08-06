@@ -72,20 +72,72 @@ function getAllNames(lang: CjkLanguage): CjkCardRow[] {
 }
 
 /**
+ * Count of characters shared between two strings regardless of position
+ * (each character in `b` can only be claimed once). Edit distance alone
+ * under-credits this: Tesseract's Chinese model doesn't just substitute a
+ * character, it frequently gets the outer characters wrong while nailing the
+ * middle one (confirmed directly — "皮卡丘" repeatedly came back with the
+ * correct middle character 卡 but two unrelated ones around it), and that
+ * pattern still costs a full edit-distance point per wrong character even
+ * though a real signal survived.
+ */
+function charOverlap(a: string, b: string): number {
+  const remaining = [...b];
+  let overlap = 0;
+  for (const ch of a) {
+    const idx = remaining.indexOf(ch);
+    if (idx !== -1) {
+      overlap++;
+      remaining.splice(idx, 1);
+    }
+  }
+  return overlap;
+}
+
+/**
+ * Characters matching at the *same index* in both strings. OCR reads
+ * left-to-right, so a shared character in the same position is much
+ * stronger evidence than an anywhere-match — it breaks ties correctly where
+ * overlap alone can't (confirmed directly: the OCR misread "皮卡丘" as
+ * "反卡乒", which tied 皮卡丘 itself against an unrelated card that also
+ * happens to contain 卡, just in the wrong slot; position resolves it).
+ */
+function positionalOverlap(a: string, b: string): number {
+  let matches = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    if (a[i] === b[i]) matches++;
+  }
+  return matches;
+}
+
+/**
  * Client-side OCR for CJK scripts is meaningfully less accurate than
- * English — Tesseract routinely swaps or drops individual characters even on
- * clean, large text (confirmed directly for Japanese: "ピカチュウ" came back
- * as "ピカ チュ ワウ") — so an exact-substring match on the OCR'd text misses
- * constantly. This ranks every card name by edit distance and accepts
- * anything close enough that a couple of misread characters won't matter.
+ * English — confirmed directly for both Japanese ("ピカチュウ" → "ピカ チュ
+ * ワウ") and Chinese, where it's worse: "皮卡丘" came back with only one of
+ * three characters correct across repeated tests, even at high resolution
+ * with a proper CJK font. An exact-substring match misses constantly, and
+ * pure edit distance is too strict for that error pattern — a name is
+ * accepted here if it's either close by edit distance *or* shares enough
+ * characters with the query, so a card can still surface even when the
+ * scan got most of its name wrong.
  */
 function fuzzySearch(lang: CjkLanguage, name: string, limit: number): CjkCardRef[] {
-  const maxDistance = Math.max(1, Math.floor(name.length / 2));
+  const maxDistance = Math.max(1, Math.ceil(name.length * 0.6));
+  const minOverlap = Math.max(1, Math.ceil(name.length / 2));
 
   const scored = getAllNames(lang)
-    .map((row) => ({ row, distance: levenshtein(name, row.name) }))
-    .filter((s) => s.distance <= maxDistance)
-    .sort((a, b) => a.distance - b.distance);
+    .map((row) => ({
+      row,
+      distance: levenshtein(name, row.name),
+      overlap: charOverlap(name, row.name),
+      positional: positionalOverlap(name, row.name),
+    }))
+    .filter((s) => s.distance <= maxDistance || s.overlap >= minOverlap)
+    .sort(
+      (a, b) =>
+        b.positional - a.positional || b.overlap - a.overlap || a.distance - b.distance,
+    );
 
   return scored.slice(0, limit).map((s) => toRef(s.row));
 }
