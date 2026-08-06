@@ -90,4 +90,22 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_zh_cards_name ON zh_cards(name);
+
+  -- A growing log of every card looked up on the Price Check page. One row
+  -- per lookup (not per price source) so the history stays readable as a
+  -- simple table; the full source-by-source comparison is kept alongside as
+  -- JSON in case it's needed later.
+  CREATE TABLE IF NOT EXISTS price_checks (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    card_name TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    card_number TEXT NOT NULL,
+    language TEXT NOT NULL,
+    representative_price REAL,
+    prices_json TEXT NOT NULL,
+    checked_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);
 `);
