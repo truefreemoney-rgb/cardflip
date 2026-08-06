@@ -184,6 +184,47 @@ interface TcgdexCardDetail {
   rarity?: string;
   set?: { name?: string };
   pricing?: TcgdexPriceBlock;
+  /** National Pokédex number(s) — present even when TCGdex has no card scan. */
+  dexId?: number[];
+}
+
+/**
+ * TCGdex has no card-scan images at all for "ja"/"zh-tw" (confirmed directly
+ * — the field is simply absent), which left every non-English result showing
+ * a blank placeholder tile. It does return the card's National Pokédex
+ * number even without a scan, so this pulls the official artwork sprite for
+ * that Pokémon as a real, recognizable thumbnail instead of a blank tile —
+ * not the exact card art, but far better than nothing.
+ */
+function dexSprite(dexId?: number[]): string {
+  const id = dexId?.[0];
+  return id
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
+    : "";
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Same reasoning as tcg.ts's retry wrapper: transient upstream failures are
+ * common enough to be worth one or two retries rather than surfacing as a
+ * dead end immediately. */
+async function fetchJsonWithRetry<T>(url: string): Promise<T | null> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) return (await res.json()) as T;
+      if (res.status < 500) return null;
+    } catch {
+      clearTimeout(timeout);
+    }
+    if (attempt < 3) await sleep(250 * attempt);
+  }
+  return null;
 }
 
 function mapCjkPricing(pricing?: TcgdexPriceBlock): CardPrice[] {
@@ -218,25 +259,22 @@ export async function fetchCjkCardDetail(
   lang: CjkLanguage,
   id: string,
 ): Promise<PokemonCard | null> {
-  try {
-    const res = await fetch(`https://api.tcgdex.net/v2/${CONFIG[lang].tcgdexLocale}/cards/${id}`);
-    if (!res.ok) return null;
-    const card: TcgdexCardDetail = await res.json();
+  const card = await fetchJsonWithRetry<TcgdexCardDetail>(
+    `https://api.tcgdex.net/v2/${CONFIG[lang].tcgdexLocale}/cards/${id}`,
+  );
+  if (!card) return null;
 
-    return {
-      id: card.id,
-      name: card.name,
-      setName: card.set?.name ?? "Unknown set",
-      setSeries: "",
-      number: card.localId,
-      rarity: card.rarity ?? null,
-      // TCGdex has no image data at all for the "ja"/"zh-tw" locales
-      // (confirmed directly — the field is simply absent from the response).
-      imageSmall: "",
-      imageLarge: "",
-      prices: mapCjkPricing(card.pricing),
-    };
-  } catch {
-    return null;
-  }
+  const sprite = dexSprite(card.dexId);
+
+  return {
+    id: card.id,
+    name: card.name,
+    setName: card.set?.name ?? "Unknown set",
+    setSeries: "",
+    number: card.localId,
+    rarity: card.rarity ?? null,
+    imageSmall: sprite,
+    imageLarge: sprite,
+    prices: mapCjkPricing(card.pricing),
+  };
 }

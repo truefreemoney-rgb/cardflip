@@ -70,6 +70,51 @@ export function mapCard(card: RawTcgCard): PokemonCard {
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * pokemontcg.io is flaky in practice — confirmed directly by hammering it
+ * with back-to-back requests: 500s came back on 2 of 3 attempts, with a
+ * plain retry succeeding immediately after. A single failed request
+ * shouldn't read as "no cards found" when the very next attempt would have
+ * worked, so this retries transient failures before giving up.
+ */
+async function fetchWithRetry(
+  url: string,
+  headers: Record<string, string>,
+  revalidate: number,
+): Promise<Response> {
+  const attempts = 3;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const res = await fetch(url, {
+        headers,
+        signal: controller.signal,
+        next: { revalidate },
+      });
+      clearTimeout(timeout);
+      if (res.ok) return res;
+      // 4xx won't succeed on retry (bad query) — only 5xx/upstream hiccups are worth retrying.
+      if (res.status < 500) return res;
+      lastError = new Error(`Upstream ${res.status}`);
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err;
+    }
+
+    if (attempt < attempts) await sleep(300 * attempt);
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Upstream request failed");
+}
+
 export async function queryCards(
   q: string,
   pageSize: number,
@@ -82,7 +127,7 @@ export async function queryCards(
     headers["X-Api-Key"] = process.env.POKEMONTCG_API_KEY;
   }
 
-  const res = await fetch(url, { headers, next: { revalidate } });
+  const res = await fetchWithRetry(url, headers, revalidate);
   if (!res.ok) throw new Error(`Upstream ${res.status}`);
 
   const data = await res.json();
