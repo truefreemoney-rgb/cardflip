@@ -67,6 +67,8 @@ export function mapCard(card: RawTcgCard): PokemonCard {
     imageSmall: card.images?.small ?? "",
     imageLarge: card.images?.large ?? "",
     prices: extractPrices(card),
+    // Already English — no overlay needed.
+    englishName: null,
   };
 }
 

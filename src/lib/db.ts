@@ -115,4 +115,12 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);
+
+  -- English species name by National Pokédex number, so a Japanese/Chinese
+  -- card name has a readable overlay ("ピカチュウ" -> "Pikachu") without a
+  -- live translation call. Populated by scripts/sync-species-names.mjs.
+  CREATE TABLE IF NOT EXISTS species_names (
+    dex_id INTEGER PRIMARY KEY,
+    name_en TEXT NOT NULL
+  );
 `);

@@ -23,6 +23,8 @@ export interface PokemonCard {
   imageSmall: string;
   imageLarge: string;
   prices: CardPrice[];
+  /** English species name, for non-English cards ("ピカチュウ" -> "Pikachu"). */
+  englishName: string | null;
 }
 
 export type Condition =

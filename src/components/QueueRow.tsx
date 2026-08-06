@@ -35,6 +35,9 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-white">
             {item.card?.name ?? "Identifying…"}
+            {item.card?.englishName && (
+              <span className="text-zinc-500"> ({item.card.englishName})</span>
+            )}
           </span>
           <span className="block truncate text-xs text-zinc-500">
             {item.card

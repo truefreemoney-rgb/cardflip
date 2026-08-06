@@ -163,6 +163,11 @@ export default function CardEditor({ item, onChange }: Props) {
 
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold text-white">{card.name}</h2>
+          {card.englishName && (
+            <p className="text-sm font-medium text-brand-300">
+              {card.englishName}
+            </p>
+          )}
           <p className="mt-0.5 text-sm text-zinc-400">
             {card.setName} · {card.number}
           </p>

@@ -184,6 +184,23 @@ interface TcgdexCardDetail {
   rarity?: string;
   set?: { name?: string };
   pricing?: TcgdexPriceBlock;
+  /** National Pokédex number(s) — used to resolve a readable English name. */
+  dexId?: number[];
+}
+
+/**
+ * "ピカチュウ" or "皮卡丘" identifies the right card, but doesn't tell an
+ * English-only user what it says. Rather than a live translation call, this
+ * looks up the species' English name locally (see species_names /
+ * scripts/sync-species-names.mjs) so the UI can show it as a plain overlay.
+ */
+function getEnglishName(dexId?: number[]): string | null {
+  const id = dexId?.[0];
+  if (!id) return null;
+  const row = db
+    .prepare("SELECT name_en FROM species_names WHERE dex_id = ?")
+    .get(id) as { name_en: string } | undefined;
+  return row?.name_en ?? null;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -263,5 +280,6 @@ export async function fetchCjkCardDetail(
     imageSmall: "",
     imageLarge: "",
     prices: mapCjkPricing(card.pricing),
+    englishName: getEnglishName(card.dexId),
   };
 }

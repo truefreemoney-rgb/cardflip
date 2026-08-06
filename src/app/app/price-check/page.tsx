@@ -144,6 +144,11 @@ export default function PriceCheckPage() {
                 <span className="w-full truncate text-xs font-medium text-white">
                   {card.name}
                 </span>
+                {card.englishName && (
+                  <span className="w-full truncate text-[11px] font-medium text-brand-300">
+                    {card.englishName}
+                  </span>
+                )}
                 <span className="w-full truncate text-[11px] text-zinc-500">
                   {card.setName} · {card.number}
                 </span>

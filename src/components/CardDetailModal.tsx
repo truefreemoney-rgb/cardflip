@@ -69,6 +69,11 @@ export default function CardDetailModal({ card, logging, onClose }: Props) {
 
           <div className="flex-1 pt-1">
             <h2 className="text-xl font-semibold text-white">{card.name}</h2>
+            {card.englishName && (
+              <p className="text-sm font-medium text-brand-300">
+                {card.englishName}
+              </p>
+            )}
             <p className="text-sm text-zinc-500">
               {card.setName} · {card.number}
               {card.rarity ? ` · ${card.rarity}` : ""}
