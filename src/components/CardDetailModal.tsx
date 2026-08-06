@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
-import type { PokemonCard } from "@/lib/types";
+import { addToWishlist } from "@/lib/client/wishlistApi";
+import { pickPrice } from "@/lib/listing";
+import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
   card: PokemonCard;
+  language: ScanLanguage;
   logging: boolean;
   onClose: () => void;
 }
@@ -16,7 +19,18 @@ interface Props {
  * expanding inline — clicking a thumbnail should feel like stepping into a
  * focused space to inspect that card, not just growing the same page.
  */
-export default function CardDetailModal({ card, logging, onClose }: Props) {
+export default function CardDetailModal({ card, language, logging, onClose }: Props) {
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    const price = pickPrice(card)?.market ?? null;
+    const result = await addToWishlist(card, language, price);
+    setSaving(false);
+    if (result) setSaved(true);
+  }
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -83,6 +97,19 @@ export default function CardDetailModal({ card, logging, onClose }: Props) {
                 <Spinner className="h-3 w-3" /> Saving to history…
               </p>
             )}
+
+            <button
+              onClick={handleSave}
+              disabled={saving || saved}
+              className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-default ${
+                saved
+                  ? "bg-emerald-500/15 text-emerald-400"
+                  : "bg-white/5 text-zinc-200 hover:bg-white/10"
+              }`}
+            >
+              {saving && <Spinner className="h-3.5 w-3.5" />}
+              {saved ? "★ Saved to wishlist" : "☆ Add to wishlist"}
+            </button>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
 import { searchCards } from "@/lib/cards";
+import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
   CONDITIONS,
   buildListing,
@@ -25,6 +26,8 @@ export default function CardEditor({ item, onChange }: Props) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlisting, setWishlisting] = useState(false);
 
   const card = item.card;
 
@@ -152,6 +155,14 @@ export default function CardEditor({ item, onChange }: Props) {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleWishlist() {
+    if (!card) return;
+    setWishlisting(true);
+    const result = await addToWishlist(card, item.language, quote?.base ?? null);
+    setWishlisting(false);
+    if (result) setWishlisted(true);
+  }
+
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row">
@@ -183,6 +194,19 @@ export default function CardEditor({ item, onChange }: Props) {
               </span>
             )}
           </div>
+
+          <button
+            onClick={handleWishlist}
+            disabled={wishlisting || wishlisted}
+            className={`mt-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-default ${
+              wishlisted
+                ? "bg-emerald-500/15 text-emerald-400"
+                : "bg-white/5 text-zinc-300 hover:bg-white/10"
+            }`}
+          >
+            {wishlisting && <Spinner className="h-3 w-3" />}
+            {wishlisted ? "★ Saved to wishlist" : "☆ Add to wishlist"}
+          </button>
 
           {item.candidates.length > 1 && (
             <button

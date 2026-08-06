@@ -160,6 +160,7 @@ export default function PriceCheckPage() {
         {selected && (
           <CardDetailModal
             card={selected}
+            language={language}
             logging={logging}
             onClose={() => setSelected(null)}
           />

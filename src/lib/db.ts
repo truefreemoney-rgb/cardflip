@@ -123,4 +123,24 @@ db.exec(`
     dex_id INTEGER PRIMARY KEY,
     name_en TEXT NOT NULL
   );
+
+  -- Cards a user has saved for later — from either the scanner or the Price
+  -- Check search — distinct from "cards" (the sell pipeline: ready/listed/
+  -- sold). A wishlist entry has no status to progress through, just a card
+  -- someone wants to remember.
+  CREATE TABLE IF NOT EXISTS wishlist_items (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    card_name TEXT NOT NULL,
+    english_name TEXT,
+    set_name TEXT NOT NULL,
+    card_number TEXT NOT NULL,
+    language TEXT NOT NULL,
+    image_url TEXT NOT NULL DEFAULT '',
+    price REAL,
+    added_at INTEGER NOT NULL,
+    UNIQUE (user_id, card_name, set_name, card_number)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id);
 `);
