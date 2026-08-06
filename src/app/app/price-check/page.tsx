@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
+import HoloCard from "@/components/HoloCard";
 import LanguageToggle from "@/components/LanguageToggle";
+import AppTabs from "@/components/AppTabs";
 import { searchCards } from "@/lib/cards";
 import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
 import {
@@ -84,19 +85,12 @@ export default function PriceCheckPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
         <Logo size="sm" />
-        <div className="flex items-center gap-4">
-          <Link
-            href="/app"
-            className="text-sm text-zinc-400 transition hover:text-white"
-          >
-            ← Scanner
-          </Link>
-          <span className="hidden text-sm text-zinc-400 sm:inline">
-            {user.name}
-          </span>
-        </div>
+        <AppTabs />
+        <span className="hidden text-sm text-zinc-400 sm:inline">
+          {user.name}
+        </span>
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
@@ -160,13 +154,21 @@ export default function PriceCheckPage() {
 
         {selected && (
           <div className="rounded-2xl border border-edge bg-surface-1 p-6">
-            <div className="flex items-center gap-4">
-              <CardImage
-                src={selected.imageLarge || selected.imageSmall}
-                alt={selected.name}
-                className="h-32 w-auto rounded-lg shadow-lg"
-              />
-              <div>
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <div className="mx-auto w-full max-w-[220px] shrink-0 sm:mx-0">
+                <HoloCard
+                  src={selected.imageLarge || selected.imageSmall}
+                  alt={selected.name}
+                  className="aspect-[5/7] w-full"
+                />
+                {(selected.imageLarge || selected.imageSmall) && (
+                  <p className="mt-2 text-center text-[11px] text-zinc-600">
+                    Move your cursor over the card
+                  </p>
+                )}
+              </div>
+
+              <div className="flex-1">
                 <h2 className="text-lg font-semibold text-white">
                   {selected.name}
                 </h2>

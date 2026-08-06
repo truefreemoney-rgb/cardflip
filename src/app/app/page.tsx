@@ -8,6 +8,7 @@ import Uploader from "@/components/Uploader";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
 import LanguageToggle from "@/components/LanguageToggle";
+import AppTabs from "@/components/AppTabs";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { buildListing, currentPrice, quotePrice, toCsv } from "@/lib/listing";
@@ -241,15 +242,10 @@ export default function AppPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
         <Logo size="sm" />
+        <AppTabs />
         <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href="/app/price-check"
-            className="text-sm text-zinc-400 transition hover:text-white"
-          >
-            Price check
-          </Link>
           {user.ebayConnected ? (
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
