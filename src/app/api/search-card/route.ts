@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
+import { fetchJpCardDetail, searchJpCardsLocal } from "@/lib/server/jpCards";
 
 /** Strip characters that would break the upstream query grammar. */
 function sanitize(value: string): string {
@@ -16,15 +17,30 @@ function rank(cards: RawTcgCard[], name: string): RawTcgCard[] {
   });
 }
 
+async function searchJapanese(name: string, number: string) {
+  // The local index only has name/set/number; rarity + pricing need one
+  // extra call per card, so that only happens for the handful of candidates
+  // actually being shown, not the whole match set.
+  const refs = searchJpCardsLocal(name, number || null).slice(0, 8);
+  const detailed = await Promise.all(refs.map((r) => fetchJpCardDetail(r.id)));
+  return detailed.filter((c) => c !== null);
+}
+
 export async function GET(req: NextRequest) {
   const name = sanitize(req.nextUrl.searchParams.get("name") ?? "");
   const number = sanitize(req.nextUrl.searchParams.get("number") ?? "");
+  const lang = req.nextUrl.searchParams.get("lang") === "ja" ? "ja" : "en";
 
   if (!name) {
     return NextResponse.json({ error: "Missing name" }, { status: 400 });
   }
 
   try {
+    if (lang === "ja") {
+      const cards = await searchJapanese(name, number);
+      return NextResponse.json({ cards, matchedOn: number ? "name+number" : "name" });
+    }
+
     // The collector number is a strong disambiguator when OCR found one, but
     // it also rules out every result if OCR misread it — so fall back to the
     // name-only search rather than reporting no matches.

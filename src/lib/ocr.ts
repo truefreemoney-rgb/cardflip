@@ -1,4 +1,5 @@
 import { createWorker, type Worker } from "tesseract.js";
+import type { ScanLanguage } from "@/lib/types";
 
 /**
  * Card OCR.
@@ -8,6 +9,8 @@ import { createWorker, type Worker } from "tesseract.js";
  * actually need — the Pokémon name (top band) and the collector number
  * (bottom band). So we crop, enhance and scan those two regions separately.
  */
+
+export type { ScanLanguage };
 
 export interface ScanResult {
   /** Ordered best-guess names, most likely first. */
@@ -47,19 +50,45 @@ const NOISE = new Set([
   "vstar",
 ]);
 
-let workerPromise: Promise<Worker> | null = null;
+/** Same idea as NOISE, for the card furniture printed on Japanese cards. */
+const JP_NOISE = new Set([
+  "たね",
+  "たねポケモン",
+  "1進化",
+  "2進化",
+  "どうぐ",
+  "グッズ",
+  "サポート",
+  "スタジアム",
+  "エネルギー",
+  "ポケモン",
+  "トレーナーズ",
+  "ワザ",
+  "にげる",
+  "弱点",
+  "抵抗力",
+]);
 
-function getWorker(): Promise<Worker> {
-  workerPromise ??= createWorker("eng");
-  return workerPromise;
+const TESSERACT_LANG: Record<ScanLanguage, string> = { en: "eng", ja: "jpn" };
+
+const workers = new Map<ScanLanguage, Promise<Worker>>();
+
+function getWorker(lang: ScanLanguage): Promise<Worker> {
+  let promise = workers.get(lang);
+  if (!promise) {
+    promise = createWorker(TESSERACT_LANG[lang]);
+    workers.set(lang, promise);
+  }
+  return promise;
 }
 
 /**
  * Load the OCR model ahead of time. Callers can fire this when the scanner
- * mounts so the first scan doesn't pay the model-download cost.
+ * mounts (or when the user switches language) so the first scan doesn't pay
+ * the model-download cost.
  */
-export function warmUpOcr(): void {
-  void getWorker();
+export function warmUpOcr(lang: ScanLanguage = "en"): void {
+  void getWorker(lang);
 }
 
 interface Band {
@@ -174,6 +203,37 @@ function extractNameCandidates(lines: string[]): string[] {
   return candidates.slice(0, 6);
 }
 
+/**
+ * Japanese has no spaces between words and a completely different character
+ * set, so the Latin word-count heuristics above don't apply — keep hiragana,
+ * katakana and kanji, drop everything else (Latin OCR garbage, HP numbers).
+ */
+function cleanJpNameLine(line: string): string {
+  return line
+    .replace(/[^぀-ゟ゠-ヿ一-鿿・]/g, "")
+    .trim();
+}
+
+function isPlausibleJpName(candidate: string): boolean {
+  if (candidate.length < 2 || candidate.length > 15) return false;
+  return !JP_NOISE.has(candidate);
+}
+
+function extractJpNameCandidates(lines: string[]): string[] {
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+
+  for (const line of lines) {
+    const cleaned = cleanJpNameLine(line);
+    if (!isPlausibleJpName(cleaned)) continue;
+    if (seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    candidates.push(cleaned);
+  }
+
+  return candidates.slice(0, 6);
+}
+
 /** Collector numbers print as "074/073" — the left half is what we query on. */
 function extractCardNumber(lines: string[]): string | null {
   for (const line of lines) {
@@ -183,8 +243,11 @@ function extractCardNumber(lines: string[]): string | null {
   return null;
 }
 
-export async function scanCard(file: File | Blob): Promise<ScanResult> {
-  const worker = await getWorker();
+export async function scanCard(
+  file: File | Blob,
+  lang: ScanLanguage = "en",
+): Promise<ScanResult> {
+  const worker = await getWorker(lang);
   const bitmap = await createImageBitmap(file);
 
   try {
@@ -197,7 +260,10 @@ export async function scanCard(file: File | Blob): Promise<ScanResult> {
     const numberLines = toLines(numberResult.data.text);
 
     return {
-      nameCandidates: extractNameCandidates(nameLines),
+      nameCandidates:
+        lang === "ja"
+          ? extractJpNameCandidates(nameLines)
+          : extractNameCandidates(nameLines),
       cardNumber: extractCardNumber(numberLines),
       rawLines: [...nameLines, ...numberLines],
     };

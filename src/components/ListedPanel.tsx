@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CardImage from "@/components/CardImage";
 import type { ScanItem } from "@/lib/types";
 
 interface Props {
@@ -32,9 +33,8 @@ export default function ListedPanel({ item, onChange }: Props) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 p-6 text-center sm:p-8">
       <div className="flex flex-col items-center gap-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={card.imageLarge || card.imageSmall}
+        <CardImage
+          src={card.imageLarge || card.imageSmall || item.previewUrl}
           alt={card.name}
           className="h-48 w-auto rounded-xl shadow-2xl shadow-black/50"
         />

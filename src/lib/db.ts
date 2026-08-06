@@ -61,4 +61,19 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_cards_user ON cards(user_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+  -- Mirror of TCGdex's Japanese card names/sets. TCGdex's own name-search
+  -- endpoint doesn't work for the "ja" locale (verified directly — even an
+  -- exact name returns no results), so OCR matches are looked up against
+  -- this local copy instead. Populated by scripts/sync-jp-cards.mjs.
+  CREATE TABLE IF NOT EXISTS jp_cards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    set_id TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    local_id TEXT NOT NULL,
+    synced_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_jp_cards_name ON jp_cards(name);
 `);

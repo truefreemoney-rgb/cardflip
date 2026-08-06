@@ -4,6 +4,7 @@ import { useState } from "react";
 import Spinner from "@/components/Spinner";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
+import CardImage from "@/components/CardImage";
 import { searchCards } from "@/lib/cards";
 import {
   CONDITIONS,
@@ -32,7 +33,7 @@ export default function CardEditor({ item, onChange }: Props) {
     setSearching(true);
     setSearchError(null);
     try {
-      const found = await searchCards(term.trim());
+      const found = await searchCards(term.trim(), null, item.language);
       if (found.length === 0) {
         setSearchError("No cards matched that name.");
       } else {
@@ -154,9 +155,8 @@ export default function CardEditor({ item, onChange }: Props) {
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={card.imageLarge || card.imageSmall}
+        <CardImage
+          src={card.imageLarge || card.imageSmall || item.previewUrl}
           alt={card.name}
           className="h-56 w-auto self-start rounded-xl shadow-2xl shadow-black/50"
         />
@@ -208,8 +208,11 @@ export default function CardEditor({ item, onChange }: Props) {
                   }`}
                   title={`${c.name} — ${c.setName} ${c.number}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.imageSmall} alt={`${c.name}, ${c.setName}`} className="w-full" />
+                  <CardImage
+                    src={c.imageSmall}
+                    alt={`${c.name}, ${c.setName}`}
+                    className="aspect-[5/7] w-full"
+                  />
                 </button>
               ))}
             </div>

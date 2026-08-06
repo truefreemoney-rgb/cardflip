@@ -7,19 +7,21 @@ import Logo from "@/components/Logo";
 import Uploader from "@/components/Uploader";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
+import LanguageToggle from "@/components/LanguageToggle";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { buildListing, currentPrice, quotePrice, toCsv } from "@/lib/listing";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
-import type { ScanItem } from "@/lib/types";
+import type { ScanItem, ScanLanguage } from "@/lib/types";
 
-function createItem(file: File): ScanItem {
+function createItem(file: File, language: ScanLanguage): ScanItem {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     serverId: null,
     file,
     previewUrl: URL.createObjectURL(file),
+    language,
     status: "queued",
     candidates: [],
     card: null,
@@ -42,6 +44,7 @@ export default function AppPage() {
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [language, setLanguage] = useState<ScanLanguage>("en");
 
   // The pump loop reads and writes the queue outside of React's render cycle,
   // so the ref is the source of truth and state is kept in step with it.
@@ -117,11 +120,11 @@ export default function AppPage() {
         patchItem(next.id, { status: "scanning" });
 
         try {
-          const scan = await scanCard(next.file);
+          const scan = await scanCard(next.file, next.language);
           let matches: Awaited<ReturnType<typeof searchCards>> = [];
 
           for (const candidate of scan.nameCandidates) {
-            matches = await searchCards(candidate, scan.cardNumber);
+            matches = await searchCards(candidate, scan.cardNumber, next.language);
             if (matches.length > 0) break;
           }
 
@@ -164,14 +167,19 @@ export default function AppPage() {
     }
   }, [patchItem]);
 
+  const handleLanguageChange = useCallback((lang: ScanLanguage) => {
+    setLanguage(lang);
+    warmUpOcr(lang);
+  }, []);
+
   const addFiles = useCallback(
     (files: File[]) => {
-      const created = files.map(createItem);
+      const created = files.map((file) => createItem(file, language));
       commit([...itemsRef.current, ...created]);
       setSelectedId((current) => current ?? created[0]?.id ?? null);
       void pump();
     },
-    [commit, pump],
+    [commit, pump, language],
   );
 
   const removeItem = useCallback(
@@ -283,6 +291,14 @@ export default function AppPage() {
               gets priced and written up automatically.
             </p>
           </div>
+          <LanguageToggle value={language} onChange={handleLanguageChange} />
+          {language === "ja" && (
+            <p className="max-w-sm text-center text-xs text-zinc-500">
+              Japanese cards identify correctly, but market pricing and photos
+              aren&apos;t available for every card — you may need to set the
+              price yourself.
+            </p>
+          )}
           <Uploader onFiles={addFiles} />
         </main>
       ) : (
@@ -316,6 +332,7 @@ export default function AppPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <LanguageToggle value={language} onChange={handleLanguageChange} />
               <Uploader onFiles={addFiles} variant="compact" />
               <button
                 onClick={exportCsv}

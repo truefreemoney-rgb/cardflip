@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "admin": "node scripts/create-admin.mjs"
+    "admin": "node scripts/create-admin.mjs",
+    "sync:jp": "node scripts/sync-jp-cards.mjs"
   },
   "dependencies": {
     "next": "16.3.0",

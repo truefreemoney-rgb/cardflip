@@ -1,3 +1,5 @@
+export type ScanLanguage = "en" | "ja";
+
 export type PriceSource = "tcgplayer" | "cardmarket";
 
 export interface CardPrice {
@@ -65,6 +67,8 @@ export interface ScanItem {
   serverId: string | null;
   file: File;
   previewUrl: string;
+  /** Language selected when this photo was added, for OCR + lookup. */
+  language: ScanLanguage;
   status: ScanStatus;
   /** Possible matches returned by the lookup, best first. */
   candidates: PokemonCard[];

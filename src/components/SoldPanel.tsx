@@ -1,3 +1,4 @@
+import CardImage from "@/components/CardImage";
 import type { ScanItem } from "@/lib/types";
 
 /**
@@ -29,9 +30,8 @@ export default function SoldPanel({ item }: { item: ScanItem }) {
             className="absolute -inset-8 rounded-full bg-emerald-500/20 blur-2xl"
             aria-hidden
           />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={card.imageLarge || card.imageSmall}
+          <CardImage
+            src={card.imageLarge || card.imageSmall || item.previewUrl}
             alt={card.name}
             className="relative h-48 w-auto rounded-xl shadow-2xl shadow-black/50"
           />
