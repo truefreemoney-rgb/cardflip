@@ -21,7 +21,14 @@ const globalForDb = globalThis as unknown as { __cardflipDb?: DatabaseSync };
 export const db = globalForDb.__cardflipDb ?? new DatabaseSync(DB_PATH);
 globalForDb.__cardflipDb = db;
 
+// Next's build process imports route modules from several parallel workers
+// to collect their config — each one evaluates this module and races to
+// create the schema on the same fresh file (confirmed directly: build failed
+// with "database is locked" once enough routes existed to collide). WAL mode
+// alone doesn't prevent that during concurrent DDL; a busy timeout makes
+// SQLite retry instead of failing immediately.
 db.exec(`
+  PRAGMA busy_timeout = 5000;
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
