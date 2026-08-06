@@ -22,8 +22,8 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/app");
+      const user = await login(email, password);
+      router.push(user.ebayConnected ? "/app" : "/connect-ebay");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
       setSubmitting(false);
