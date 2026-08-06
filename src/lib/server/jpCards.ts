@@ -19,6 +19,59 @@ export interface JpCardRef {
   localId: string;
 }
 
+function toRef(r: JpCardRow): JpCardRef {
+  return { id: r.id, name: r.name, setName: r.set_name, localId: r.local_id };
+}
+
+function levenshtein(a: string, b: string): number {
+  const dp: number[] = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) dp[j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    let prevDiag = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = dp[j];
+      dp[j] =
+        a[i - 1] === b[j - 1]
+          ? prevDiag
+          : 1 + Math.min(prevDiag, dp[j], dp[j - 1]);
+      prevDiag = temp;
+    }
+  }
+  return dp[b.length];
+}
+
+// Reused across requests in the same server process — 8k+ short strings is
+// cheap to hold in memory and avoids re-querying SQLite for every fuzzy scan.
+let allNamesCache: JpCardRow[] | null = null;
+
+function getAllNames(): JpCardRow[] {
+  allNamesCache ??= db
+    .prepare("SELECT id, name, set_id, set_name, local_id FROM jp_cards")
+    .all() as unknown as JpCardRow[];
+  return allNamesCache;
+}
+
+/**
+ * Client-side Japanese OCR is meaningfully less accurate than English —
+ * Tesseract's jpn model routinely swaps or drops individual kana (confirmed
+ * directly: clean, large synthetic text for "ピカチュウ" came back as
+ * "ピカ チュ ワウ") — so an exact-substring match on the OCR'd text misses
+ * constantly. This ranks every card name by edit distance and accepts
+ * anything close enough that a couple of misread characters won't matter.
+ */
+function fuzzySearch(name: string, limit: number): JpCardRef[] {
+  const maxDistance = Math.max(1, Math.floor(name.length / 2));
+
+  const scored = getAllNames()
+    .map((row) => ({ row, distance: levenshtein(name, row.name) }))
+    .filter((s) => s.distance <= maxDistance)
+    .sort((a, b) => a.distance - b.distance);
+
+  return scored.slice(0, limit).map((s) => toRef(s.row));
+}
+
 /**
  * TCGdex's own name-search doesn't work for the "ja" locale (confirmed
  * directly — an exact, verbatim name still returns []), so matches come from
@@ -27,7 +80,7 @@ export interface JpCardRef {
 export function searchJpCardsLocal(name: string, number?: string | null): JpCardRef[] {
   const needle = `%${name}%`;
 
-  const rows = number
+  const exact = number
     ? (db
         .prepare(
           "SELECT id, name, set_id, set_name, local_id FROM jp_cards WHERE name LIKE ? AND local_id = ? LIMIT 12",
@@ -41,16 +94,13 @@ export function searchJpCardsLocal(name: string, number?: string | null): JpCard
 
   // A number filter that matches nothing (misread by OCR) shouldn't hide an
   // otherwise-good name match — fall back to name-only rather than empty.
-  if (number && rows.length === 0) {
+  if (number && exact.length === 0) {
     return searchJpCardsLocal(name, null);
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    setName: r.set_name,
-    localId: r.local_id,
-  }));
+  if (exact.length > 0) return exact.map(toRef);
+
+  return fuzzySearch(name, 8);
 }
 
 interface TcgdexPriceBlock {
