@@ -292,11 +292,11 @@ export default function AppPage() {
             </p>
           </div>
           <LanguageToggle value={language} onChange={handleLanguageChange} />
-          {language === "ja" && (
+          {language !== "en" && (
             <p className="max-w-sm text-center text-xs text-zinc-500">
-              Japanese cards identify correctly, but market pricing and photos
-              aren&apos;t available for every card — you may need to set the
-              price yourself.
+              {language === "ja" ? "Japanese" : "Chinese"} cards identify
+              correctly, but market pricing and photos aren&apos;t available
+              for every card — you may need to set the price yourself.
             </p>
           )}
           <Uploader onFiles={addFiles} />

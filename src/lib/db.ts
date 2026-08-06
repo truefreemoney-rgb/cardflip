@@ -65,7 +65,7 @@ db.exec(`
   -- Mirror of TCGdex's Japanese card names/sets. TCGdex's own name-search
   -- endpoint doesn't work for the "ja" locale (verified directly — even an
   -- exact name returns no results), so OCR matches are looked up against
-  -- this local copy instead. Populated by scripts/sync-jp-cards.mjs.
+  -- this local copy instead. Populated by scripts/sync-cjk-cards.mjs.
   CREATE TABLE IF NOT EXISTS jp_cards (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -76,4 +76,18 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_jp_cards_name ON jp_cards(name);
+
+  -- Same idea as jp_cards, mirroring TCGdex's "zh-tw" (Traditional Chinese)
+  -- locale — its name-search is equally broken there. Populated by
+  -- scripts/sync-cjk-cards.mjs.
+  CREATE TABLE IF NOT EXISTS zh_cards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    set_id TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    local_id TEXT NOT NULL,
+    synced_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_zh_cards_name ON zh_cards(name);
 `);

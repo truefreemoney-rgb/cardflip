@@ -69,7 +69,28 @@ const JP_NOISE = new Set([
   "抵抗力",
 ]);
 
-const TESSERACT_LANG: Record<ScanLanguage, string> = { en: "eng", ja: "jpn" };
+/** Same idea again, for the card furniture printed on Chinese cards. */
+const ZH_NOISE = new Set([
+  "基本",
+  "一階進化",
+  "二階進化",
+  "道具",
+  "訓練家",
+  "支援者",
+  "競技場",
+  "能量",
+  "寶可夢",
+  "招式",
+  "撤退",
+  "弱點",
+  "抵抗力",
+]);
+
+const TESSERACT_LANG: Record<ScanLanguage, string> = {
+  en: "eng",
+  ja: "jpn",
+  zh: "chi_tra",
+};
 
 const workers = new Map<ScanLanguage, Promise<Worker>>();
 
@@ -204,28 +225,30 @@ function extractNameCandidates(lines: string[]): string[] {
 }
 
 /**
- * Japanese has no spaces between words and a completely different character
- * set, so the Latin word-count heuristics above don't apply — keep hiragana,
- * katakana and kanji, drop everything else (Latin OCR garbage, HP numbers).
+ * Japanese and Chinese have no spaces between words and a completely
+ * different character set, so the Latin word-count heuristics above don't
+ * apply — keep hiragana, katakana and CJK ideographs (covers both scripts;
+ * kana ranges are simply unused and harmless when cleaning Chinese text),
+ * drop everything else (Latin OCR garbage, HP numbers).
  */
-function cleanJpNameLine(line: string): string {
+function cleanCjkNameLine(line: string): string {
   return line
     .replace(/[^぀-ゟ゠-ヿ一-鿿・]/g, "")
     .trim();
 }
 
-function isPlausibleJpName(candidate: string): boolean {
+function isPlausibleCjkName(candidate: string, noise: Set<string>): boolean {
   if (candidate.length < 2 || candidate.length > 15) return false;
-  return !JP_NOISE.has(candidate);
+  return !noise.has(candidate);
 }
 
-function extractJpNameCandidates(lines: string[]): string[] {
+function extractCjkNameCandidates(lines: string[], noise: Set<string>): string[] {
   const seen = new Set<string>();
   const candidates: string[] = [];
 
   for (const line of lines) {
-    const cleaned = cleanJpNameLine(line);
-    if (!isPlausibleJpName(cleaned)) continue;
+    const cleaned = cleanCjkNameLine(line);
+    if (!isPlausibleCjkName(cleaned, noise)) continue;
     if (seen.has(cleaned)) continue;
     seen.add(cleaned);
     candidates.push(cleaned);
@@ -259,11 +282,17 @@ export async function scanCard(
     const nameLines = toLines(nameResult.data.text);
     const numberLines = toLines(numberResult.data.text);
 
+    let nameCandidates: string[];
+    if (lang === "ja") {
+      nameCandidates = extractCjkNameCandidates(nameLines, JP_NOISE);
+    } else if (lang === "zh") {
+      nameCandidates = extractCjkNameCandidates(nameLines, ZH_NOISE);
+    } else {
+      nameCandidates = extractNameCandidates(nameLines);
+    }
+
     return {
-      nameCandidates:
-        lang === "ja"
-          ? extractJpNameCandidates(nameLines)
-          : extractNameCandidates(nameLines),
+      nameCandidates,
       cardNumber: extractCardNumber(numberLines),
       rawLines: [...nameLines, ...numberLines],
     };

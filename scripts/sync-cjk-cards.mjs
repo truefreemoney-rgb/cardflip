@@ -1,23 +1,32 @@
 #!/usr/bin/env node
-// Mirrors every Japanese card name/set/number from TCGdex into our own
-// SQLite table, since TCGdex's name-search doesn't work for the "ja" locale
+// Mirrors every card name/set/number from a TCGdex locale into our own
+// SQLite table, since TCGdex's name-search doesn't work for "ja" or "zh-tw"
 // (confirmed directly — even an exact name returns []). Browsing per-set
 // listings does work, so this walks every set once and caches the result.
 //
-// Usage: npm run sync:jp
+// Usage:
+//   npm run sync:jp   (locale=ja, table=jp_cards)
+//   npm run sync:zh   (locale=zh-tw, table=zh_cards)
 
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 
-const API_BASE = "https://api.tcgdex.net/v2/ja";
+const [, , locale, table] = process.argv;
+
+if (!locale || !table) {
+  console.error("Usage: node scripts/sync-cjk-cards.mjs <locale> <table>");
+  process.exit(1);
+}
+
+const API_BASE = `https://api.tcgdex.net/v2/${locale}`;
 
 const dataDir = path.join(process.cwd(), "data");
 fs.mkdirSync(dataDir, { recursive: true });
 const db = new DatabaseSync(path.join(dataDir, "cardflip.db"));
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS jp_cards (
+  CREATE TABLE IF NOT EXISTS ${table} (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     set_id TEXT NOT NULL,
@@ -25,11 +34,11 @@ db.exec(`
     local_id TEXT NOT NULL,
     synced_at INTEGER NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_jp_cards_name ON jp_cards(name);
+  CREATE INDEX IF NOT EXISTS idx_${table}_name ON ${table}(name);
 `);
 
 const upsert = db.prepare(`
-  INSERT INTO jp_cards (id, name, set_id, set_name, local_id, synced_at)
+  INSERT INTO ${table} (id, name, set_id, set_name, local_id, synced_at)
   VALUES (?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     name = excluded.name,
@@ -45,9 +54,9 @@ async function fetchJson(url) {
 }
 
 async function main() {
-  console.log("Fetching Japanese set list...");
+  console.log(`Fetching ${locale} set list...`);
   const sets = await fetchJson(`${API_BASE}/sets`);
-  console.log(`Found ${sets.length} sets. Syncing cards...\n`);
+  console.log(`Found ${sets.length} sets. Syncing cards into ${table}...\n`);
 
   const now = Date.now();
   let totalCards = 0;

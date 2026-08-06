@@ -5,6 +5,7 @@ import type { ScanLanguage } from "@/lib/types";
 const OPTIONS: { value: ScanLanguage; label: string }[] = [
   { value: "en", label: "English" },
   { value: "ja", label: "Japanese" },
+  { value: "zh", label: "Chinese" },
 ];
 
 interface Props {

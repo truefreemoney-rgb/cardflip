@@ -1,4 +1,4 @@
-export type ScanLanguage = "en" | "ja";
+export type ScanLanguage = "en" | "ja" | "zh";
 
 export type PriceSource = "tcgplayer" | "cardmarket";
 
