@@ -184,23 +184,6 @@ interface TcgdexCardDetail {
   rarity?: string;
   set?: { name?: string };
   pricing?: TcgdexPriceBlock;
-  /** National Pokédex number(s) — present even when TCGdex has no card scan. */
-  dexId?: number[];
-}
-
-/**
- * TCGdex has no card-scan images at all for "ja"/"zh-tw" (confirmed directly
- * — the field is simply absent), which left every non-English result showing
- * a blank placeholder tile. It does return the card's National Pokédex
- * number even without a scan, so this pulls the official artwork sprite for
- * that Pokémon as a real, recognizable thumbnail instead of a blank tile —
- * not the exact card art, but far better than nothing.
- */
-function dexSprite(dexId?: number[]): string {
-  const id = dexId?.[0];
-  return id
-    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-    : "";
 }
 
 function sleep(ms: number): Promise<void> {
@@ -264,8 +247,6 @@ export async function fetchCjkCardDetail(
   );
   if (!card) return null;
 
-  const sprite = dexSprite(card.dexId);
-
   return {
     id: card.id,
     name: card.name,
@@ -273,8 +254,14 @@ export async function fetchCjkCardDetail(
     setSeries: "",
     number: card.localId,
     rarity: card.rarity ?? null,
-    imageSmall: sprite,
-    imageLarge: sprite,
+    // TCGdex has no card-scan image data at all for the "ja"/"zh-tw" locales
+    // (confirmed directly — the field is simply absent from every response,
+    // and the asset doesn't exist at the predictable CDN path either). A
+    // stand-in artwork sprite was tried and rejected — it looked like a card
+    // photo without being one, which read as more misleading than a plain
+    // "no image" placeholder.
+    imageSmall: "",
+    imageLarge: "",
     prices: mapCjkPricing(card.pricing),
   };
 }
