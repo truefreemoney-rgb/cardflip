@@ -144,6 +144,21 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id);
 
+  -- Mirror of TCGdex's English catalogue, so identifying a card never depends
+  -- on pokemontcg.io being up. Populated by scripts/sync-cards.mjs.
+  CREATE TABLE IF NOT EXISTS en_cards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    set_id TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    local_id TEXT NOT NULL,
+    set_release_date TEXT NOT NULL DEFAULT '',
+    image_url TEXT NOT NULL DEFAULT '',
+    synced_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_en_cards_name ON en_cards(name);
+  CREATE INDEX IF NOT EXISTS idx_en_cards_local_id ON en_cards(local_id);
+
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
   -- while the upstream is down. See lib/server/cardCache.ts.

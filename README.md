@@ -104,15 +104,33 @@ exercises that filtering against real eBay listing titles.
 
 ## Card data
 
-English cards come from [pokemontcg.io](https://pokemontcg.io). Japanese and
-Chinese cards come from [TCGdex](https://tcgdex.dev), mirrored into local
-SQLite because its name search doesn't work for those locales:
+**Identification is local; pricing is live.** Every card — English, Japanese,
+Chinese — is mirrored from [TCGdex](https://tcgdex.dev) into SQLite, so
+identifying a scan never depends on a third party being up. Prices are layered
+on afterwards from [pokemontcg.io](https://pokemontcg.io) and eBay, and are
+allowed to fail on their own.
+
+That split exists because pokemontcg.io was measured failing **5 of 10
+requests**, which used to fail scans outright on perfectly good photos. It's
+still the best English price source; it just can't be load-bearing for
+identification.
 
 ```bash
+npm run sync:en       # English cards — 218 sets, ~23,400 cards, ~4 MB
 npm run sync:jp       # Japanese cards
 npm run sync:zh       # Traditional Chinese cards
 npm run sync:species  # English species names, for the foreign-card overlay
 ```
+
+Re-run `sync:en` when new sets release. The English mirror also carries set
+release dates and card images, which do two things the price API can't:
+
+- **Rank printings.** A scanned "Charizard #4" is Base Set (1999) rather than
+  one of its reprints, ranked by release date.
+- **Join to pricing safely.** Providers name sets differently — TCGdex's
+  "Base Set" is pokemontcg.io's "Base" — and fuzzy name matching silently
+  paired it with "Base Set 2", pricing a $818 card at $466. Release dates
+  agree exactly across both sources, so they're the join key.
 
 ## Admin
 

@@ -10,7 +10,7 @@ export interface RawTcgCard {
   name: string;
   number: string;
   rarity?: string;
-  set?: { name?: string; series?: string };
+  set?: { name?: string; series?: string; releaseDate?: string };
   images?: { small?: string; large?: string };
   tcgplayer?: {
     prices?: Record<

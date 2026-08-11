@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
 import { fetchCjkCardDetail, searchCjkCardsLocal } from "@/lib/server/cjkCards";
 import { getCachedCards, putCachedCards } from "@/lib/server/cardCache";
+import {
+  enrichWithPricing,
+  hasEnglishMirror,
+  searchEnglishCardsLocal,
+} from "@/lib/server/enCards";
 import type { ScanLanguage } from "@/lib/types";
 
 /** Strip characters that would break the upstream query grammar. */
@@ -72,6 +77,22 @@ export async function GET(req: NextRequest) {
       const cards = await searchCjk(lang, name, number);
       putCachedCards(lang, name, number, cards);
       return NextResponse.json({ cards, matchedOn: number ? "name+number" : "name" });
+    }
+
+    // English identification comes from our own mirror, so a pokemontcg.io
+    // outage can no longer fail a scan. Prices are layered on afterwards and
+    // are allowed to fail on their own.
+    if (hasEnglishMirror()) {
+      const local = searchEnglishCardsLocal(name, number || null);
+      if (local.cards.length > 0) {
+        const cards = await enrichWithPricing(local.cards, local.releaseDates);
+        putCachedCards(lang, name, number, cards);
+        return NextResponse.json({
+          cards,
+          matchedOn: number ? "name+number" : "name",
+          source: "local",
+        });
+      }
     }
 
     // The collector number is a strong disambiguator when OCR found one, but
