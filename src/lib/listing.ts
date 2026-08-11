@@ -1,6 +1,7 @@
 import type {
   CardPrice,
   Condition,
+  Currency,
   EbayComps,
   ListingDraft,
   PokemonCard,
@@ -56,6 +57,31 @@ const STRATEGY_MULTIPLIER: Record<PriceStrategy, number> = {
   market: 1,
 };
 
+const CURRENCY_SYMBOL: Record<Currency, string> = { USD: "$", EUR: "€" };
+
+/**
+ * Renders a price in its own currency. Cardmarket quotes euros, and showing
+ * €4,184 as "$4,184" isn't a cosmetic slip — it invites a seller to list at a
+ * number that was never dollars.
+ */
+export function formatMoney(
+  value: number | null | undefined,
+  currency: Currency = "USD",
+): string {
+  if (value == null) return "—";
+  return `${CURRENCY_SYMBOL[currency]}${value.toFixed(2)}`;
+}
+
+/**
+ * Whether a price can drive the listing. The listing is denominated in USD on
+ * eBay's US marketplace, so a euro figure can be shown for reference but must
+ * never become the asking price — and there's no FX rate in this app to
+ * convert it honestly.
+ */
+export function canPriceListing(price: CardPrice): boolean {
+  return price.currency === "USD";
+}
+
 export function formatVariantLabel(variant: string): string {
   if (variant === "average") return "Average";
   return variant
@@ -83,6 +109,7 @@ export function withEbayPrices(
   if (comps.sold) {
     rows.push({
       source: "ebay",
+      currency: "USD",
       variant: EBAY_SOLD_VARIANT,
       label: `eBay sold (${comps.sold.count} sale${comps.sold.count === 1 ? "" : "s"}, 90d)`,
       market: comps.sold.average,
@@ -93,6 +120,7 @@ export function withEbayPrices(
   if (comps.active) {
     rows.push({
       source: "ebay",
+      currency: "USD",
       variant: EBAY_VARIANT,
       label: `eBay asking (${comps.active.count} listing${comps.active.count === 1 ? "" : "s"})`,
       market: comps.active.average,
@@ -118,7 +146,11 @@ export function withEbayPrices(
  */
 export function pickPrice(card: PokemonCard): CardPrice | null {
   const priced = card.prices.filter(
-    (p) => typeof p.market === "number" && p.market > 0,
+    // Euro prices are reference only — see canPriceListing. A card with
+    // nothing but a Cardmarket figure gets no suggested price, which is the
+    // honest outcome: better the seller sets one than we convert at a rate
+    // we don't have.
+    (p) => typeof p.market === "number" && p.market > 0 && canPriceListing(p),
   );
   if (priced.length === 0) return null;
 
@@ -156,9 +188,13 @@ export function quotePrice(
   strategy: PriceStrategy,
   variantOverride?: string,
 ): PriceQuote | null {
-  const price = variantOverride
-    ? (card.prices.find((p) => p.variant === variantOverride) ?? pickPrice(card))
-    : pickPrice(card);
+  const override = variantOverride
+    ? card.prices.find((p) => p.variant === variantOverride)
+    : undefined;
+
+  // An override in another currency can't set a dollar asking price, so fall
+  // back to the normal pick rather than quietly treating euros as dollars.
+  const price = override && canPriceListing(override) ? override : pickPrice(card);
 
   if (!price?.market) return null;
 

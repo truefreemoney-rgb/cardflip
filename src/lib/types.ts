@@ -2,12 +2,20 @@ export type ScanLanguage = "en" | "ja" | "zh";
 
 export type PriceSource = "tcgplayer" | "cardmarket" | "ebay";
 
+/**
+ * Cardmarket quotes in euros while TCGplayer and eBay quote in dollars, and
+ * the listing this app produces is priced in dollars — so the currency has to
+ * travel with the number rather than being assumed.
+ */
+export type Currency = "USD" | "EUR";
+
 export interface CardPrice {
   source: PriceSource;
   /** Raw variant key, e.g. "holofoil", "reverseHolofoil", "normal". */
   variant: string;
   /** Human label, e.g. "Holofoil". */
   label: string;
+  currency: Currency;
   market: number | null;
   low: number | null;
   high: number | null;

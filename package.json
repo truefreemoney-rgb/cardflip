@@ -13,7 +13,8 @@
     "sync:species": "node scripts/sync-species-names.mjs",
     "test:ebay": "node --experimental-strip-types --no-warnings scripts/test-ebay-comps.mjs",
     "test:ocr": "node --experimental-strip-types --no-warnings scripts/test-ocr-text.mjs",
-    "sync:en": "node scripts/sync-cards.mjs en en_cards"
+    "sync:en": "node scripts/sync-cards.mjs en en_cards",
+    "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

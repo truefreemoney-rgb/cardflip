@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice } from "@/lib/listing";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -134,10 +134,10 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
                     <td className="py-2 pr-4 capitalize text-zinc-300">{p.source}</td>
                     <td className="py-2 pr-4 text-zinc-400">{p.label}</td>
                     <td className="py-2 pr-4 text-right text-zinc-400">
-                      {p.low != null ? `$${p.low.toFixed(2)}` : "—"}
+                      {formatMoney(p.low, p.currency)}
                     </td>
                     <td className="py-2 text-right font-semibold text-emerald-400">
-                      {p.market != null ? `$${p.market.toFixed(2)}` : "—"}
+                      {formatMoney(p.market, p.currency)}
                     </td>
                   </tr>
                 ))}

@@ -1,4 +1,4 @@
-import { buildListing, quotePrice } from "@/lib/listing";
+import { buildListing, formatMoney, quotePrice } from "@/lib/listing";
 import type { PokemonCard } from "@/lib/types";
 
 /**
@@ -48,7 +48,9 @@ export default function HeroShowcase({ card }: { card: PokemonCard | null }) {
               ${price.toFixed(2)}
             </p>
             <p className="text-xs text-zinc-500">
-              {quote ? `Market $${quote.base.toFixed(2)}` : "Set your price"}
+              {quote
+                ? `Market ${formatMoney(quote.base, quote.price.currency)}`
+                : "Set your price"}
             </p>
           </div>
           <div className="text-right">

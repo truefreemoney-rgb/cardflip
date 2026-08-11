@@ -33,6 +33,7 @@ function extractPrices(card: RawTcgCard): CardPrice[] {
   for (const [variant, p] of Object.entries(card.tcgplayer?.prices ?? {})) {
     prices.push({
       source: "tcgplayer",
+        currency: "USD",
       variant,
       label: formatVariantLabel(variant),
       market: p.market ?? p.mid ?? null,
@@ -45,6 +46,7 @@ function extractPrices(card: RawTcgCard): CardPrice[] {
   if (cm) {
     prices.push({
       source: "cardmarket",
+      currency: "EUR",
       variant: "average",
       label: "Average (EUR)",
       market: cm.trendPrice ?? cm.averageSellPrice ?? null,

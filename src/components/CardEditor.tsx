@@ -11,6 +11,8 @@ import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
   CONDITIONS,
   buildListing,
+  canPriceListing,
+  formatMoney,
   ebaySearchUrl,
   ebaySellUrl,
   ebaySoldSearchUrl,
@@ -154,7 +156,12 @@ export default function CardEditor({ item, onChange }: Props) {
 
   const price = item.priceOverride ?? quote?.suggested ?? 0;
   const listing = buildListing(card, price, item.condition, quote?.price.label);
-  const pricedVariants = card.prices.filter((p) => p.market && p.market > 0);
+  // This dropdown chooses what the dollar asking price is derived from, so it
+  // only offers prices that can actually serve as that basis — a euro figure
+  // picked here would silently become a dollar listing price.
+  const pricedVariants = card.prices.filter(
+    (p) => p.market && p.market > 0 && canPriceListing(p),
+  );
 
   function copyListing() {
     navigator.clipboard.writeText(
@@ -220,7 +227,8 @@ export default function CardEditor({ item, onChange }: Props) {
             )}
             {quote && (
               <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400">
-                Market ${quote.base.toFixed(2)} · {quote.price.label}
+                Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
+                {quote.price.label}
               </span>
             )}
             {item.visionStatus === "done" && item.vision && (
@@ -350,7 +358,7 @@ export default function CardEditor({ item, onChange }: Props) {
             >
               {pricedVariants.map((p) => (
                 <option key={`${p.source}-${p.variant}`} value={p.variant}>
-                  {p.label} — ${p.market?.toFixed(2)}
+                  {p.label} — {formatMoney(p.market, p.currency)}
                 </option>
               ))}
             </select>

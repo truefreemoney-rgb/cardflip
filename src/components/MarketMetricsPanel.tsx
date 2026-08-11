@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import Spinner from "@/components/Spinner";
-import { EBAY_SOLD_VARIANT, EBAY_VARIANT, pickPrice } from "@/lib/listing";
+import {
+  EBAY_SOLD_VARIANT,
+  EBAY_VARIANT,
+  formatMoney,
+  pickPrice,
+} from "@/lib/listing";
 import type {
   EbayComps,
   EbayCompsStatus,
@@ -21,8 +26,9 @@ interface Props {
   activeUrl: string;
 }
 
+/** eBay comps are always USD — the client discards other currencies. */
 function money(value: number | null): string {
-  return value == null ? "—" : `$${value.toFixed(2)}`;
+  return formatMoney(value, "USD");
 }
 
 function formatSoldDate(iso: string | null | undefined): string | null {
@@ -189,15 +195,22 @@ export default function MarketMetricsPanel({
         />
         <Metric
           label="TCGplayer"
-          value={money(tcg?.market ?? null)}
+          value={formatMoney(tcg?.market ?? null, tcg?.currency)}
           detail={tcg ? tcg.label : "No price for this card"}
           driving={driving === tcg?.variant && tcg != null}
         />
         <Metric
           label="Cardmarket"
-          value={money(market?.market ?? null)}
-          detail={market ? `${market.label} · EU market` : "No price for this card"}
-          driving={driving === market?.variant && market != null}
+          value={formatMoney(market?.market ?? null, market?.currency)}
+          // Euros, and never the basis for the dollar listing price — say so
+          // rather than letting a number that looks comparable sit next to
+          // three that are.
+          detail={
+            market
+              ? "EU market · reference only, not used for pricing"
+              : "No price for this card"
+          }
+          driving={false}
         />
       </div>
 

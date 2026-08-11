@@ -237,6 +237,7 @@ function mapCjkPricing(pricing?: TcgdexPriceBlock): CardPrice[] {
   return [
     {
       source: "cardmarket",
+      currency: "EUR",
       variant: "average",
       // Cardmarket is a EU marketplace; this is cross-market pricing for a
       // Japanese/Chinese card, not a local-market price — labeled so it
