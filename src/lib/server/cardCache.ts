@@ -31,8 +31,19 @@ export interface CachedLookup {
   stale: boolean;
 }
 
+/**
+ * Bump when the shape of a cached PokemonCard changes.
+ *
+ * Entries are serialized cards, so adding a field leaves old rows structurally
+ * stale in a way the freshness window can't detect — after currency was added
+ * to CardPrice, production kept serving rows with `currency: undefined` and
+ * rendered euros as dollars again. Versioning the key retires them on deploy
+ * instead of relying on someone remembering to clear the table.
+ */
+const CACHE_VERSION = 2;
+
 function keyFor(lang: string, name: string, number: string): string {
-  return `${lang}|${name.toLowerCase().trim()}|${number.trim()}`;
+  return `v${CACHE_VERSION}|${lang}|${name.toLowerCase().trim()}|${number.trim()}`;
 }
 
 /**
