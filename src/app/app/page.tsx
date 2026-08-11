@@ -11,10 +11,11 @@ import LanguageToggle from "@/components/LanguageToggle";
 import AppTabs from "@/components/AppTabs";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
-import { buildListing, currentPrice, quotePrice, toCsv } from "@/lib/listing";
+import { buildListing, currentPrice, quotePrice, toCsv, withEbayPrice } from "@/lib/listing";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
-import type { ScanItem, ScanLanguage } from "@/lib/types";
+import { fetchEbayComps } from "@/lib/client/ebayApi";
+import type { PokemonCard, ScanItem, ScanLanguage } from "@/lib/types";
 
 function createItem(file: File, language: ScanLanguage): ScanItem {
   return {
@@ -30,6 +31,8 @@ function createItem(file: File, language: ScanLanguage): ScanItem {
     strategy: "quick",
     variant: null,
     priceOverride: null,
+    ebay: null,
+    ebayStatus: "idle",
     error: null,
     listedPrice: null,
     listedAt: null,
@@ -51,6 +54,9 @@ export default function AppPage() {
   // so the ref is the source of truth and state is kept in step with it.
   const itemsRef = useRef<ScanItem[]>([]);
   const pumpingRef = useRef(false);
+  // Items with an eBay lookup in flight, so the effect that kicks them off
+  // can't double-fire on a re-render before the status patch lands.
+  const compsInFlight = useRef<Set<string>>(new Set());
 
   const commit = useCallback((next: ScanItem[]) => {
     itemsRef.current = next;
@@ -167,6 +173,59 @@ export default function AppPage() {
       pumpingRef.current = false;
     }
   }, [patchItem]);
+
+  /**
+   * Price the card against what it's actually going for on eBay. Deliberately
+   * not awaited inside the scan loop: a stack of cards should keep moving
+   * through OCR while eBay answers, with each price sharpening as it lands.
+   */
+  const loadEbayComps = useCallback(
+    async (id: string, card: PokemonCard) => {
+      compsInFlight.current.add(id);
+      patchItem(id, { ebayStatus: "loading" });
+
+      try {
+        const result = await fetchEbayComps(card);
+        const item = itemsRef.current.find((i) => i.id === id);
+        // Dropped from the queue, or the seller corrected the match while we
+        // were waiting — either way these comps are for the wrong card now.
+        if (!item || item.card?.id !== card.id) return;
+
+        if (result.status === "done" && result.comps) {
+          const repriced = withEbayPrice(item.card, result.comps);
+          patchItem(id, {
+            ebay: result.comps,
+            ebayStatus: "done",
+            card: repriced,
+          });
+
+          if (item.serverId && item.status !== "listed" && item.status !== "sold") {
+            const quote = quotePrice(repriced, item.condition, item.strategy);
+            if (quote) {
+              void updateServerCard(item.serverId, {
+                price: item.priceOverride ?? quote.suggested,
+              });
+            }
+          }
+        } else {
+          patchItem(id, { ebay: null, ebayStatus: result.status });
+        }
+      } finally {
+        compsInFlight.current.delete(id);
+      }
+    },
+    [patchItem],
+  );
+
+  // One lookup at a time: as each finishes the queue re-settles and the next
+  // idle card is picked up, which also covers cards whose match was corrected
+  // by hand (that patch resets ebayStatus to "idle").
+  useEffect(() => {
+    const pending = items.find(
+      (i) => i.card && i.ebayStatus === "idle" && !compsInFlight.current.has(i.id),
+    );
+    if (pending?.card) void loadEbayComps(pending.id, pending.card);
+  }, [items, loadEbayComps]);
 
   const handleLanguageChange = useCallback((lang: ScanLanguage) => {
     setLanguage(lang);

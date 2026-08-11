@@ -1,6 +1,7 @@
 import type {
   CardPrice,
   Condition,
+  EbayComps,
   ListingDraft,
   PokemonCard,
   PriceQuote,
@@ -10,6 +11,9 @@ import type {
 
 const POKEMON_TCG_CARDS_CATEGORY_ID = "183454";
 
+/** Variant key for the synthesized eBay comps price. */
+export const EBAY_VARIANT = "ebayAverage";
+
 /**
  * Which printing to quote when a card has several.
  *
@@ -18,6 +22,7 @@ const POKEMON_TCG_CARDS_CATEGORY_ID = "183454";
  * Instead we pick one variant deliberately and let the seller switch.
  */
 const VARIANT_PRIORITY = [
+  EBAY_VARIANT,
   "1stEditionHolofoil",
   "holofoil",
   "reverseHolofoil",
@@ -57,16 +62,47 @@ export function formatVariantLabel(variant: string): string {
     .trim();
 }
 
-/** The variant we quote by default, or null when the card has no pricing. */
+/**
+ * Folds an eBay comps average into a card as a regular price source, so every
+ * existing consumer — the variant picker, the quote, the price table — treats
+ * it like any other price rather than needing a parallel code path.
+ */
+export function withEbayPrice(card: PokemonCard, comps: EbayComps): PokemonCard {
+  const ebayPrice: CardPrice = {
+    source: "ebay",
+    variant: EBAY_VARIANT,
+    label: `eBay average (${comps.count} listing${comps.count === 1 ? "" : "s"})`,
+    market: comps.average,
+    low: comps.low,
+    high: comps.high,
+  };
+
+  return {
+    ...card,
+    prices: [ebayPrice, ...card.prices.filter((p) => p.source !== "ebay")],
+  };
+}
+
+/**
+ * The variant we quote by default, or null when the card has no pricing.
+ *
+ * Source order is deliberate: eBay first, because it's where the card is
+ * actually being sold and the seller can click through and verify the number.
+ */
 export function pickPrice(card: PokemonCard): CardPrice | null {
   const priced = card.prices.filter(
     (p) => typeof p.market === "number" && p.market > 0,
   );
   if (priced.length === 0) return null;
 
-  // Prefer TCGplayer (USD, matches eBay's main market) over Cardmarket (EUR).
-  const preferred = priced.filter((p) => p.source === "tcgplayer");
-  const pool = preferred.length > 0 ? preferred : priced;
+  // Cardmarket (EUR) is the last resort — TCGplayer at least matches eBay's
+  // main market in currency and region.
+  const pool =
+    priced.filter((p) => p.source === "ebay").length > 0
+      ? priced.filter((p) => p.source === "ebay")
+      : priced.filter((p) => p.source === "tcgplayer").length > 0
+        ? priced.filter((p) => p.source === "tcgplayer")
+        : priced;
 
   for (const variant of VARIANT_PRIORITY) {
     const hit = pool.find((p) => p.variant === variant);
@@ -166,6 +202,23 @@ export function buildListing(
     categoryId: POKEMON_TCG_CARDS_CATEGORY_ID,
     categoryName: "Collectible Card Games > Pokémon TCG > Individual Cards",
   };
+}
+
+/**
+ * The eBay search a human would run for this card — same query the comps
+ * average is built from, so the seller can click through and check our work.
+ * Lives here rather than in the server eBay client because the UI links to it
+ * even when there are no comps (or no eBay credentials) to show.
+ */
+export function ebaySearchUrl(card: PokemonCard): string {
+  const name = card.englishName || card.name;
+  const params = new URLSearchParams({
+    _nkw: `${name} ${card.number} pokemon`.trim(),
+    _sacat: POKEMON_TCG_CARDS_CATEGORY_ID,
+    // Price + shipping, lowest first — how a seller actually checks comps.
+    _sop: "15",
+  });
+  return `https://www.ebay.com/sch/i.html?${params.toString()}`;
 }
 
 /**

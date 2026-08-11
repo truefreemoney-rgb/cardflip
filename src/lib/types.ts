@@ -1,6 +1,6 @@
 export type ScanLanguage = "en" | "ja" | "zh";
 
-export type PriceSource = "tcgplayer" | "cardmarket";
+export type PriceSource = "tcgplayer" | "cardmarket" | "ebay";
 
 export interface CardPrice {
   source: PriceSource;
@@ -26,6 +26,44 @@ export interface PokemonCard {
   /** English species name, for non-English cards ("ピカチュウ" -> "Pikachu"). */
   englishName: string | null;
 }
+
+/** One live eBay listing that fed a comps average. */
+export interface EbayListing {
+  id: string;
+  title: string;
+  price: number;
+  url: string;
+  imageUrl: string;
+  condition: string | null;
+}
+
+/**
+ * What similar cards are actually selling for on eBay right now, summarized.
+ * `average` is trimmed — see buildComps — so a single mispriced listing can't
+ * drag the number the seller ends up trusting.
+ */
+export interface EbayComps {
+  average: number;
+  median: number;
+  low: number;
+  high: number;
+  /** Listings that survived filtering and fed the average. */
+  count: number;
+  /** Raw results eBay returned, before filtering. */
+  sampled: number;
+  /** The comparable listings themselves, cheapest first. */
+  listings: EbayListing[];
+  /** eBay search this card's comps came from, for the seller to eyeball. */
+  searchUrl: string;
+}
+
+export type EbayCompsStatus =
+  | "idle"
+  | "loading"
+  | "done"
+  | "empty"
+  | "unconfigured"
+  | "error";
 
 export type Condition =
   | "Near Mint"
@@ -81,6 +119,9 @@ export interface ScanItem {
   variant: string | null;
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
+  /** What similar cards are going for on eBay, once looked up. */
+  ebay: EbayComps | null;
+  ebayStatus: EbayCompsStatus;
   error: string | null;
   /** Price the listing went live at, locked in once posted. */
   listedPrice: number | null;

@@ -5,11 +5,13 @@ import Spinner from "@/components/Spinner";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
+import EbayCompsPanel from "@/components/EbayCompsPanel";
 import { searchCards } from "@/lib/cards";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
   CONDITIONS,
   buildListing,
+  ebaySearchUrl,
   ebaySellUrl,
   quotePrice,
 } from "@/lib/listing";
@@ -44,6 +46,10 @@ export default function CardEditor({ item, onChange }: Props) {
           candidates: found,
           card: found[0],
           status: found.length === 1 ? "ready" : "review",
+          // Different card, so the old comps no longer describe it — clearing
+          // the status re-triggers the lookup for the new match.
+          ebay: null,
+          ebayStatus: "idle",
           error: null,
         });
         setShowAlternatives(found.length > 1);
@@ -227,7 +233,14 @@ export default function CardEditor({ item, onChange }: Props) {
                 <button
                   key={c.id}
                   onClick={() => {
-                    onChange({ card: c, status: "ready", priceOverride: null, variant: null });
+                    onChange({
+                      card: c,
+                      status: "ready",
+                      priceOverride: null,
+                      variant: null,
+                      ebay: null,
+                      ebayStatus: "idle",
+                    });
                     setShowAlternatives(false);
                   }}
                   className={`overflow-hidden rounded-md border transition hover:-translate-y-0.5 ${
@@ -254,6 +267,13 @@ export default function CardEditor({ item, onChange }: Props) {
           No market price is available for this card — set your own price below.
         </p>
       )}
+
+      <EbayCompsPanel
+        comps={item.ebay}
+        status={item.ebayStatus}
+        fallbackUrl={ebaySearchUrl(card)}
+      />
+
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
