@@ -11,11 +11,20 @@ import LanguageToggle from "@/components/LanguageToggle";
 import AppTabs from "@/components/AppTabs";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
-import { buildListing, currentPrice, quotePrice, toCsv, withEbayPrice } from "@/lib/listing";
+import { buildListing, currentPrice, quotePrice, toCsv, withEbayPrices } from "@/lib/listing";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
 import { fetchEbayComps } from "@/lib/client/ebayApi";
-import type { PokemonCard, ScanItem, ScanLanguage } from "@/lib/types";
+import { scanCardWithVision } from "@/lib/client/visionApi";
+import { CONDITIONS } from "@/lib/listing";
+import type { Condition, PokemonCard, ScanItem, ScanLanguage } from "@/lib/types";
+
+/** Vision returns a condition string; only accept one the pricing model knows. */
+function asCondition(value: string | null): Condition | null {
+  return value && (CONDITIONS as string[]).includes(value)
+    ? (value as Condition)
+    : null;
+}
 
 function createItem(file: File, language: ScanLanguage): ScanItem {
   return {
@@ -31,8 +40,13 @@ function createItem(file: File, language: ScanLanguage): ScanItem {
     strategy: "quick",
     variant: null,
     priceOverride: null,
+    vision: null,
+    visionStatus: "idle",
     ebay: null,
     ebayStatus: "idle",
+    ebaySold: null,
+    ebaySoldStatus: "unavailable",
+    ebaySoldUrl: null,
     error: null,
     listedPrice: null,
     listedAt: null,
@@ -127,11 +141,42 @@ export default function AppPage() {
         patchItem(next.id, { status: "scanning" });
 
         try {
-          const scan = await scanCard(next.file, next.language);
+          // Vision first, OCR as the fallback. Tesseract misreads CJK badly
+          // enough that the lookup needs fuzzy matching to cope; when vision
+          // is available it reads the card directly and that guesswork goes away.
+          const vision = await scanCardWithVision(next.file, next.language);
+
+          let nameCandidates: string[];
+          let cardNumber: string | null;
+          let language = next.language;
+
+          if (vision.status === "done" && vision.read) {
+            const read = vision.read;
+            // The photo outranks the seller's language toggle — stacks get sorted wrong.
+            language = read.language;
+            nameCandidates = [read.name, read.englishName].filter(
+              (n): n is string => Boolean(n),
+            );
+            cardNumber = read.cardNumber;
+
+            const condition = asCondition(read.condition);
+            patchItem(next.id, {
+              vision: read,
+              visionStatus: "done",
+              language,
+              ...(condition ? { condition } : {}),
+            });
+          } else {
+            patchItem(next.id, { visionStatus: vision.status });
+            const scan = await scanCard(next.file, next.language);
+            nameCandidates = scan.nameCandidates;
+            cardNumber = scan.cardNumber;
+          }
+
           let matches: Awaited<ReturnType<typeof searchCards>> = [];
 
-          for (const candidate of scan.nameCandidates) {
-            matches = await searchCards(candidate, scan.cardNumber, next.language);
+          for (const candidate of nameCandidates) {
+            matches = await searchCards(candidate, cardNumber, language);
             if (matches.length > 0) break;
           }
 
@@ -151,13 +196,17 @@ export default function AppPage() {
               error: null,
             });
 
-            const quote = quotePrice(card, "Near Mint", "quick");
+            // Vision may already have graded the card, so read the condition
+            // back off the item rather than assuming Near Mint.
+            const condition =
+              itemsRef.current.find((i) => i.id === next.id)?.condition ?? "Near Mint";
+            const quote = quotePrice(card, condition, "quick");
             const server = await createServerCard({
               cardName: card.name,
               setName: card.setName,
               cardNumber: card.number,
               imageUrl: card.imageSmall,
-              condition: "Near Mint",
+              condition,
               price: quote?.suggested ?? 0,
             });
             if (server) patchItem(next.id, { serverId: server.id });
@@ -191,11 +240,19 @@ export default function AppPage() {
         // were waiting — either way these comps are for the wrong card now.
         if (!item || item.card?.id !== card.id) return;
 
-        if (result.status === "done" && result.comps) {
-          const repriced = withEbayPrice(item.card, result.comps);
+        // Sold and asking data arrive together but can succeed independently,
+        // so a card can be repriced off either one.
+        if (result.comps || result.sold) {
+          const repriced = withEbayPrices(item.card, {
+            sold: result.sold,
+            active: result.comps,
+          });
           patchItem(id, {
             ebay: result.comps,
-            ebayStatus: "done",
+            ebayStatus: result.comps ? "done" : result.status,
+            ebaySold: result.sold,
+            ebaySoldStatus: result.soldStatus,
+            ebaySoldUrl: result.soldSearchUrl,
             card: repriced,
           });
 
@@ -208,7 +265,13 @@ export default function AppPage() {
             }
           }
         } else {
-          patchItem(id, { ebay: null, ebayStatus: result.status });
+          patchItem(id, {
+            ebay: null,
+            ebayStatus: result.status,
+            ebaySold: null,
+            ebaySoldStatus: result.soldStatus,
+            ebaySoldUrl: result.soldSearchUrl,
+          });
         }
       } finally {
         compsInFlight.current.delete(id);

@@ -1,9 +1,9 @@
 import "server-only";
 import { buildComps, isComparable } from "@/lib/ebayComps";
-import { ebaySearchUrl } from "@/lib/listing";
+import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
 import type { EbayComps, EbayListing, PokemonCard } from "@/lib/types";
 
-export { ebaySearchUrl };
+export { ebaySearchUrl, ebaySoldSearchUrl };
 
 /**
  * Live eBay comps via the Browse API.
@@ -39,12 +39,18 @@ function credentials(): { clientId: string; clientSecret: string } {
   return { clientId, clientSecret };
 }
 
-// eBay app tokens last ~2 hours. Cached in module scope so a batch of scans
-// costs one token call rather than one per card.
-let cachedToken: { value: string; expiresAt: number } | null = null;
+const BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope";
+const INSIGHTS_SCOPE =
+  "https://api.ebay.com/oauth/api_scope/buy.marketplace.insights";
 
-async function getAppToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.value;
+// eBay app tokens last ~2 hours. Cached in module scope so a batch of scans
+// costs one token call rather than one per card. Keyed by scope: a Browse
+// token can't read sold data, and reusing one for the other 403s.
+const tokenCache = new Map<string, { value: string; expiresAt: number }>();
+
+async function getAppToken(scope: string): Promise<string> {
+  const cached = tokenCache.get(scope);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
 
   const { clientId, clientSecret } = credentials();
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -55,25 +61,23 @@ async function getAppToken(): Promise<string> {
       Authorization: `Basic ${basic}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      scope: "https://api.ebay.com/oauth/api_scope",
-    }),
+    body: new URLSearchParams({ grant_type: "client_credentials", scope }),
     signal: AbortSignal.timeout(8000),
   });
 
   if (!res.ok) {
-    cachedToken = null;
+    tokenCache.delete(scope);
+    // A keyset without Marketplace Insights approval fails here, not at search.
     throw new Error(`eBay token request failed (${res.status})`);
   }
 
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cachedToken = {
+  tokenCache.set(scope, {
     value: json.access_token,
     // Retire it a minute early so we never race the expiry mid-request.
     expiresAt: Date.now() + (json.expires_in - 60) * 1000,
-  };
-  return cachedToken.value;
+  });
+  return json.access_token;
 }
 
 interface ItemSummary {
@@ -91,7 +95,7 @@ interface ItemSummary {
  * Returns null when eBay had nothing comparable to say about it.
  */
 export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | null> {
-  const token = await getAppToken();
+  const token = await getAppToken(BROWSE_SCOPE);
   const name = card.englishName || card.name;
   const searchUrl = ebaySearchUrl(card);
 
@@ -112,7 +116,7 @@ export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | nul
 
   if (res.status === 401) {
     // Token rejected — drop it so the next call re-authenticates cleanly.
-    cachedToken = null;
+    tokenCache.delete(BROWSE_SCOPE);
     throw new Error("eBay rejected the access token");
   }
   if (!res.ok) throw new Error(`eBay search failed (${res.status})`);
@@ -136,6 +140,86 @@ export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | nul
       url: item.itemWebUrl ?? searchUrl,
       imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl ?? "",
       condition: item.condition ?? null,
+    });
+  }
+
+  return buildComps(listings, searchUrl, raw.length);
+}
+
+interface ItemSale {
+  itemId?: string;
+  title?: string;
+  lastSoldPrice?: { value?: string; currency?: string };
+  lastSoldDate?: string;
+  itemWebUrl?: string;
+  image?: { imageUrl?: string };
+  thumbnailImages?: { imageUrl?: string }[];
+  condition?: string;
+}
+
+/**
+ * What this card has actually **sold** for on eBay in the last 90 days.
+ *
+ * This is the number that should drive pricing: an asking-price average says
+ * what sellers hope for, a sold average says what buyers paid. It needs the
+ * Marketplace Insights API, which eBay grants separately from the standard
+ * Browse access — without that approval the token request fails and the caller
+ * falls back to active listings.
+ */
+export async function fetchEbaySoldComps(
+  card: PokemonCard,
+): Promise<EbayComps | null> {
+  const token = await getAppToken(INSIGHTS_SCOPE);
+  const name = card.englishName || card.name;
+  const searchUrl = ebaySoldSearchUrl(card);
+
+  const url = new URL(
+    `${EBAY_API}/buy/marketplace_insights/v1_beta/item_sales/search`,
+  );
+  url.searchParams.set("q", `${name} ${card.number}`.trim());
+  url.searchParams.set("category_ids", POKEMON_SINGLES_CATEGORY);
+  url.searchParams.set("limit", "100");
+  // 90 days is the window eBay exposes; anything staler misprices a moving card.
+  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  url.searchParams.set("filter", `lastSoldDate:[${since}..]`);
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-EBAY-C-MARKETPLACE-ID": MARKETPLACE,
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (res.status === 401) {
+    tokenCache.delete(INSIGHTS_SCOPE);
+    throw new Error("eBay rejected the access token");
+  }
+  if (res.status === 403) {
+    throw new Error("eBay keyset lacks Marketplace Insights access");
+  }
+  if (!res.ok) throw new Error(`eBay sold search failed (${res.status})`);
+
+  const json = (await res.json()) as { itemSales?: ItemSale[] };
+  const raw = json.itemSales ?? [];
+
+  const listings: EbayListing[] = [];
+  for (const item of raw) {
+    const title = item.title;
+    const value = Number(item.lastSoldPrice?.value);
+    if (!title || !Number.isFinite(value) || value <= 0) continue;
+    if (item.lastSoldPrice?.currency && item.lastSoldPrice.currency !== "USD") continue;
+    // Same filter as active listings — a sold bulk lot is just as misleading.
+    if (!isComparable(title, card)) continue;
+
+    listings.push({
+      id: item.itemId ?? `${title}-${value}-${item.lastSoldDate ?? ""}`,
+      title,
+      price: value,
+      url: item.itemWebUrl ?? searchUrl,
+      imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl ?? "",
+      condition: item.condition ?? null,
+      soldAt: item.lastSoldDate ?? null,
     });
   }
 

@@ -27,6 +27,26 @@ export interface PokemonCard {
   englishName: string | null;
 }
 
+/** What Claude read off a card photo. */
+export interface VisionCardRead {
+  /** Name exactly as printed, in the card's own language. */
+  name: string;
+  /** English species name when the card isn't English, else null. */
+  englishName: string | null;
+  setName: string | null;
+  /** Collector number as printed, e.g. "199/165" -> "199". */
+  cardNumber: string | null;
+  language: ScanLanguage;
+  /** Condition judged from the photo, or null if the photo can't support a call. */
+  condition: string | null;
+  /** What drove the condition call — edge wear, centering, surface scratches. */
+  conditionNotes: string | null;
+  /** 0-1. Below ~0.5 the scanner should treat this as a guess. */
+  confidence: number;
+}
+
+export type VisionStatus = "idle" | "unconfigured" | "done" | "error";
+
 /** One live eBay listing that fed a comps average. */
 export interface EbayListing {
   id: string;
@@ -35,6 +55,8 @@ export interface EbayListing {
   url: string;
   imageUrl: string;
   condition: string | null;
+  /** ISO date the item sold, for sold comps. Null on active listings. */
+  soldAt?: string | null;
 }
 
 /**
@@ -56,6 +78,12 @@ export interface EbayComps {
   /** eBay search this card's comps came from, for the seller to eyeball. */
   searchUrl: string;
 }
+
+/**
+ * Sold data rides on a separately-approved eBay scope, so it can be
+ * unavailable while active listings work fine.
+ */
+export type EbaySoldStatus = "done" | "empty" | "unconfigured" | "unavailable";
 
 export type EbayCompsStatus =
   | "idle"
@@ -119,9 +147,17 @@ export interface ScanItem {
   variant: string | null;
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
-  /** What similar cards are going for on eBay, once looked up. */
+  /** What Claude read off the photo, when vision is configured. */
+  vision: VisionCardRead | null;
+  visionStatus: VisionStatus;
+  /** What similar cards are being asked for on eBay, once looked up. */
   ebay: EbayComps | null;
   ebayStatus: EbayCompsStatus;
+  /** What similar cards actually sold for in the last 90 days. */
+  ebaySold: EbayComps | null;
+  ebaySoldStatus: EbaySoldStatus;
+  /** eBay's sold-listings search, which works without API access. */
+  ebaySoldUrl: string | null;
   error: string | null;
   /** Price the listing went live at, locked in once posted. */
   listedPrice: number | null;

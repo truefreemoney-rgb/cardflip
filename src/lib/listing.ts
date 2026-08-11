@@ -11,8 +11,10 @@ import type {
 
 const POKEMON_TCG_CARDS_CATEGORY_ID = "183454";
 
-/** Variant key for the synthesized eBay comps price. */
+/** Variant key for the synthesized eBay asking-price average. */
 export const EBAY_VARIANT = "ebayAverage";
+/** Variant key for the synthesized eBay sold-price average. */
+export const EBAY_SOLD_VARIANT = "ebaySoldAverage";
 
 /**
  * Which printing to quote when a card has several.
@@ -22,6 +24,7 @@ export const EBAY_VARIANT = "ebayAverage";
  * Instead we pick one variant deliberately and let the seller switch.
  */
 const VARIANT_PRIORITY = [
+  EBAY_SOLD_VARIANT,
   EBAY_VARIANT,
   "1stEditionHolofoil",
   "holofoil",
@@ -63,31 +66,55 @@ export function formatVariantLabel(variant: string): string {
 }
 
 /**
- * Folds an eBay comps average into a card as a regular price source, so every
- * existing consumer — the variant picker, the quote, the price table — treats
- * it like any other price rather than needing a parallel code path.
+ * Folds eBay comps into a card as regular price sources, so every existing
+ * consumer — the variant picker, the quote, the price table — treats them like
+ * any other price rather than needing a parallel code path.
+ *
+ * Sold and asking averages are kept as separate rows rather than merged: they
+ * answer different questions, and a seller deciding on a price wants to see
+ * the gap between the two rather than an average that hides it.
  */
-export function withEbayPrice(card: PokemonCard, comps: EbayComps): PokemonCard {
-  const ebayPrice: CardPrice = {
-    source: "ebay",
-    variant: EBAY_VARIANT,
-    label: `eBay average (${comps.count} listing${comps.count === 1 ? "" : "s"})`,
-    market: comps.average,
-    low: comps.low,
-    high: comps.high,
-  };
+export function withEbayPrices(
+  card: PokemonCard,
+  comps: { sold?: EbayComps | null; active?: EbayComps | null },
+): PokemonCard {
+  const rows: CardPrice[] = [];
+
+  if (comps.sold) {
+    rows.push({
+      source: "ebay",
+      variant: EBAY_SOLD_VARIANT,
+      label: `eBay sold (${comps.sold.count} sale${comps.sold.count === 1 ? "" : "s"}, 90d)`,
+      market: comps.sold.average,
+      low: comps.sold.low,
+      high: comps.sold.high,
+    });
+  }
+  if (comps.active) {
+    rows.push({
+      source: "ebay",
+      variant: EBAY_VARIANT,
+      label: `eBay asking (${comps.active.count} listing${comps.active.count === 1 ? "" : "s"})`,
+      market: comps.active.average,
+      low: comps.active.low,
+      high: comps.active.high,
+    });
+  }
 
   return {
     ...card,
-    prices: [ebayPrice, ...card.prices.filter((p) => p.source !== "ebay")],
+    prices: [...rows, ...card.prices.filter((p) => p.source !== "ebay")],
   };
 }
 
 /**
  * The variant we quote by default, or null when the card has no pricing.
  *
- * Source order is deliberate: eBay first, because it's where the card is
- * actually being sold and the seller can click through and verify the number.
+ * Source order is deliberate. Sold prices come first because they're the only
+ * number here that reflects a completed transaction — an asking average says
+ * what sellers hope for, including the ones whose cards never sell. Asking
+ * comes next since it's still eBay, then TCGplayer, then Cardmarket last
+ * (EUR, and a different regional market than the seller is listing into).
  */
 export function pickPrice(card: PokemonCard): CardPrice | null {
   const priced = card.prices.filter(
@@ -95,14 +122,17 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
   );
   if (priced.length === 0) return null;
 
-  // Cardmarket (EUR) is the last resort — TCGplayer at least matches eBay's
-  // main market in currency and region.
+  const byVariant = (variant: string) =>
+    priced.filter((p) => p.variant === variant);
+
   const pool =
-    priced.filter((p) => p.source === "ebay").length > 0
-      ? priced.filter((p) => p.source === "ebay")
-      : priced.filter((p) => p.source === "tcgplayer").length > 0
-        ? priced.filter((p) => p.source === "tcgplayer")
-        : priced;
+    byVariant(EBAY_SOLD_VARIANT).length > 0
+      ? byVariant(EBAY_SOLD_VARIANT)
+      : byVariant(EBAY_VARIANT).length > 0
+        ? byVariant(EBAY_VARIANT)
+        : priced.filter((p) => p.source === "tcgplayer").length > 0
+          ? priced.filter((p) => p.source === "tcgplayer")
+          : priced;
 
   for (const variant of VARIANT_PRIORITY) {
     const hit = pool.find((p) => p.variant === variant);
@@ -217,6 +247,26 @@ export function ebaySearchUrl(card: PokemonCard): string {
     _sacat: POKEMON_TCG_CARDS_CATEGORY_ID,
     // Price + shipping, lowest first — how a seller actually checks comps.
     _sop: "15",
+  });
+  return `https://www.ebay.com/sch/i.html?${params.toString()}`;
+}
+
+/**
+ * eBay's *sold* listings for this card — what buyers actually paid, rather
+ * than what sellers are asking.
+ *
+ * Needs no API access, so it's useful even when the Marketplace Insights
+ * average isn't available. Note eBay gates sold search harder than active
+ * search: unauthenticated or automated requests get bounced to sign-in, so a
+ * seller may have to be logged into eBay for this to open directly.
+ */
+export function ebaySoldSearchUrl(card: PokemonCard): string {
+  const name = card.englishName || card.name;
+  const params = new URLSearchParams({
+    _nkw: `${name} ${card.number} pokemon`.trim(),
+    _sacat: POKEMON_TCG_CARDS_CATEGORY_ID,
+    LH_Sold: "1",
+    LH_Complete: "1",
   });
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;
 }

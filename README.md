@@ -12,6 +12,33 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Reading cards with vision
+
+When a photo is scanned, Claude reads the card directly — name, set, collector
+number, language, and a condition grade from the same image. This replaces
+Tesseract OCR, which was the weak link: on Japanese cards it returned "反卡乒"
+for 皮卡丘 (one correct character of three), which is why the CJK lookup needs
+fuzzy matching at all.
+
+Needs an API key from [console.anthropic.com](https://console.anthropic.com):
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+In production:
+
+```bash
+flyctl secrets set ANTHROPIC_API_KEY=sk-ant-... --app cardflip-superior
+```
+
+Without it the scanner falls back to OCR — everything still works, just less
+accurately on foreign cards, and no condition grading.
+
+Photos are downscaled to 1024px on the long edge before upload. Card text is
+legible well below phone-camera resolution and image tokens scale with pixels,
+so the original would cost several times more per scan for no extra accuracy.
+
 ## eBay price comparison
 
 When a card is scanned, CardFlip searches eBay for the same card and prices it
@@ -43,11 +70,25 @@ Only the Browse API scope is needed, which every production keyset has by
 default. No eBay account linking or user OAuth is involved — this is
 application-level access for reading public listings.
 
-### What the average actually means
+### Sold prices vs asking prices
 
-eBay's Browse API exposes *active* listings, so the number is an average of
-current asking prices, not completed sales. (Sold-price data lives behind
-eBay's Marketplace Insights API, which requires separate approval.)
+Two different numbers, from two different eBay APIs:
+
+| | API | Access |
+|---|---|---|
+| **Sold** (90 days) | Marketplace Insights | Requires separate eBay approval |
+| **Asking** (active listings) | Browse | Included with any production keyset |
+
+Sold prices drive the suggested price when available — an asking average tells
+you what sellers *hope* for, including the ones whose cards never sell. The UI
+shows both side by side, because the gap between them is the useful signal.
+
+Marketplace Insights is requested separately from your keyset in the eBay
+developer console. Without it the app prices off asking data and says so; the
+"View sold on eBay" link still works (though eBay may ask the seller to sign in
+— it gates sold search harder than active search).
+
+### What the averages actually mean
 
 A raw search for a card name is mostly noise, so results are filtered before
 averaging — bulk lots, graded slabs, proxies, sealed product, and cards whose

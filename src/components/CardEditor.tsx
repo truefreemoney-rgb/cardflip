@@ -5,7 +5,7 @@ import Spinner from "@/components/Spinner";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
-import EbayCompsPanel from "@/components/EbayCompsPanel";
+import MarketMetricsPanel from "@/components/MarketMetricsPanel";
 import { searchCards } from "@/lib/cards";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
@@ -13,6 +13,7 @@ import {
   buildListing,
   ebaySearchUrl,
   ebaySellUrl,
+  ebaySoldSearchUrl,
   quotePrice,
 } from "@/lib/listing";
 import type { Condition, PokemonCard, PriceStrategy, ScanItem } from "@/lib/types";
@@ -50,6 +51,8 @@ export default function CardEditor({ item, onChange }: Props) {
           // the status re-triggers the lookup for the new match.
           ebay: null,
           ebayStatus: "idle",
+          ebaySold: null,
+          ebaySoldStatus: "unavailable",
           error: null,
         });
         setShowAlternatives(found.length > 1);
@@ -199,7 +202,24 @@ export default function CardEditor({ item, onChange }: Props) {
                 Market ${quote.base.toFixed(2)} · {quote.price.label}
               </span>
             )}
+            {item.visionStatus === "done" && item.vision && (
+              <span className="rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-300">
+                Read from photo
+                {item.vision.confidence < 0.5 ? " · low confidence" : ""}
+              </span>
+            )}
           </div>
+
+          {/* The grade drives the price, so say what the photo showed rather
+              than silently applying a multiplier the seller can't check. */}
+          {item.vision?.conditionNotes && (
+            <p className="mt-2 text-xs leading-snug text-zinc-500">
+              <span className="font-medium text-zinc-400">
+                Graded {item.vision.condition ?? "from photo"}:
+              </span>{" "}
+              {item.vision.conditionNotes}
+            </p>
+          )}
 
           <button
             onClick={handleWishlist}
@@ -240,6 +260,8 @@ export default function CardEditor({ item, onChange }: Props) {
                       variant: null,
                       ebay: null,
                       ebayStatus: "idle",
+          ebaySold: null,
+          ebaySoldStatus: "unavailable",
                     });
                     setShowAlternatives(false);
                   }}
@@ -268,10 +290,14 @@ export default function CardEditor({ item, onChange }: Props) {
         </p>
       )}
 
-      <EbayCompsPanel
-        comps={item.ebay}
-        status={item.ebayStatus}
-        fallbackUrl={ebaySearchUrl(card)}
+      <MarketMetricsPanel
+        card={card}
+        sold={item.ebaySold}
+        soldStatus={item.ebaySoldStatus}
+        soldUrl={item.ebaySoldUrl ?? ebaySoldSearchUrl(card)}
+        active={item.ebay}
+        activeStatus={item.ebayStatus}
+        activeUrl={ebaySearchUrl(card)}
       />
 
 
