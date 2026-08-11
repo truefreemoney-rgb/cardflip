@@ -86,7 +86,15 @@ export async function GET(req: NextRequest) {
       const local = searchEnglishCardsLocal(name, number || null);
       if (local.cards.length > 0) {
         const cards = await enrichWithPricing(local.cards, local.releaseDates);
-        putCachedCards(lang, name, number, cards);
+
+        // Only cache once pricing actually attached. Caching a priceless
+        // result would pin a transient upstream outage in place for a day,
+        // and there's nothing to gain by it — identification already comes
+        // from the local mirror, which is instant either way.
+        if (cards.some((c) => c.prices.some((p) => p.market))) {
+          putCachedCards(lang, name, number, cards);
+        }
+
         return NextResponse.json({
           cards,
           matchedOn: number ? "name+number" : "name",
