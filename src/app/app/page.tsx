@@ -174,13 +174,30 @@ export default function AppPage() {
           }
 
           let matches: Awaited<ReturnType<typeof searchCards>> = [];
+          // One flaky request shouldn't end the scan while a later candidate
+          // would have matched, so a failed lookup moves on to the next name
+          // and only counts as an outage if every one of them failed.
+          let lookupErrors = 0;
 
           for (const candidate of nameCandidates) {
-            matches = await searchCards(candidate, cardNumber, language);
-            if (matches.length > 0) break;
+            try {
+              matches = await searchCards(candidate, cardNumber, language);
+              if (matches.length > 0) break;
+            } catch {
+              lookupErrors++;
+            }
           }
 
-          if (matches.length === 0) {
+          if (matches.length === 0 && lookupErrors === nameCandidates.length) {
+            // Every lookup failed — that's the card database being down, not a
+            // bad photo. Telling the seller to re-shoot would waste their time.
+            patchItem(next.id, {
+              status: "review",
+              candidates: [],
+              card: null,
+              error: "Card lookup is down right now — search by name to retry",
+            });
+          } else if (matches.length === 0) {
             patchItem(next.id, {
               status: "review",
               candidates: [],
@@ -212,9 +229,10 @@ export default function AppPage() {
             if (server) patchItem(next.id, { serverId: server.id });
           }
         } catch {
+          // Reading the image itself failed, which really is about the photo.
           patchItem(next.id, {
             status: "error",
-            error: "Scan failed — try another photo",
+            error: "Couldn't read this photo — try a straighter, brighter shot",
           });
         }
       }

@@ -87,13 +87,17 @@ async function fetchWithRetry(
   url: string,
   headers: Record<string, string>,
   revalidate: number,
+  timeoutMs: number,
 ): Promise<Response> {
-  const attempts = 3;
+  // Measured at ~50% failure during an outage, so 3 attempts still left about
+  // one lookup in eight failing; 5 takes that to roughly one in thirty, and
+  // the cache catches what's left.
+  const attempts = 5;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const res = await fetch(url, {
@@ -129,7 +133,11 @@ export async function queryCards(
     headers["X-Api-Key"] = process.env.POKEMONTCG_API_KEY;
   }
 
-  const res = await fetchWithRetry(url, headers, revalidate);
+  // A full 250-card page is ~200KB and takes noticeably longer than a small
+  // one; the old flat 6s abort killed those requests before they landed.
+  const timeoutMs = pageSize > 50 ? 20000 : 8000;
+
+  const res = await fetchWithRetry(url, headers, revalidate, timeoutMs);
   if (!res.ok) throw new Error(`Upstream ${res.status}`);
 
   const data = await res.json();

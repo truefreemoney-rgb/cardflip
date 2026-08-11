@@ -11,7 +11,8 @@
     "sync:jp": "node scripts/sync-cjk-cards.mjs ja jp_cards",
     "sync:zh": "node scripts/sync-cjk-cards.mjs zh-tw zh_cards",
     "sync:species": "node scripts/sync-species-names.mjs",
-    "test:ebay": "node --experimental-strip-types --no-warnings scripts/test-ebay-comps.mjs"
+    "test:ebay": "node --experimental-strip-types --no-warnings scripts/test-ebay-comps.mjs",
+    "test:ocr": "node --experimental-strip-types --no-warnings scripts/test-ocr-text.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

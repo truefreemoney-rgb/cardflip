@@ -143,4 +143,13 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id);
+
+  -- Local copy of successful card lookups. pokemontcg.io fails often enough
+  -- to break scanning outright, so a card seen once stays available even
+  -- while the upstream is down. See lib/server/cardCache.ts.
+  CREATE TABLE IF NOT EXISTS card_cache (
+    key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL
+  );
 `);

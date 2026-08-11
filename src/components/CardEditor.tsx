@@ -175,11 +175,32 @@ export default function CardEditor({ item, onChange }: Props) {
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row">
-        <CardImage
-          src={card.imageLarge || card.imageSmall || item.previewUrl}
-          alt={card.name}
-          className="h-56 w-auto self-start rounded-xl shadow-2xl shadow-black/50"
-        />
+        {/* The seller's photo stays beside the match. Showing only the matched
+            card's official art made a wrong match invisible — there was
+            nothing left to compare it against. */}
+        <div className="flex shrink-0 items-start gap-3">
+          <div>
+            <CardImage
+              src={card.imageLarge || card.imageSmall || item.previewUrl}
+              alt={card.name}
+              className="h-56 w-auto rounded-xl shadow-2xl shadow-black/50"
+            />
+            <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+              Match
+            </p>
+          </div>
+          <div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.previewUrl}
+              alt="The photo you uploaded"
+              className="h-56 w-auto rounded-xl object-contain opacity-90 shadow-xl shadow-black/40"
+            />
+            <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+              Your photo
+            </p>
+          </div>
+        </div>
 
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold text-white">{card.name}</h2>
