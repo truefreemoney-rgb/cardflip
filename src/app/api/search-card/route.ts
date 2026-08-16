@@ -12,7 +12,7 @@ import {
   hasEnglishMirror,
   searchEnglishCardsLocal,
 } from "@/lib/server/enCards";
-import type { ScanLanguage } from "@/lib/types";
+import type { ArtStyle, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { hasMtgMirror, searchMtgCardsLocal } from "@/lib/server/mtgCards";
 import {
@@ -82,6 +82,8 @@ export async function GET(req: NextRequest) {
   const totalParam = Number(req.nextUrl.searchParams.get("setTotal"));
   const setTotal = Number.isFinite(totalParam) && totalParam > 0 ? totalParam : null;
   const setCode = sanitize(req.nextUrl.searchParams.get("setCode") ?? "") || null;
+  const artParam = req.nextUrl.searchParams.get("art");
+  const art: ArtStyle = artParam === "standard" || artParam === "full-art" ? artParam : null;
   const langParam = req.nextUrl.searchParams.get("lang");
   const lang: ScanLanguage =
     langParam === "ja" || langParam === "zh" ? langParam : "en";
@@ -143,6 +145,7 @@ export async function GET(req: NextRequest) {
   const cacheNumber = [
     setTotal ? `${number}/${setTotal}` : number,
     limit === DEFAULT_LIMIT ? "" : `#${limit}`,
+    art ? `@${art}` : "",
   ].join("");
 
   // What the answer was actually keyed on, so the client can say how sure the
@@ -173,7 +176,7 @@ export async function GET(req: NextRequest) {
     // outage can no longer fail a scan. Prices are layered on afterwards and
     // are allowed to fail on their own.
     if (hasEnglishMirror()) {
-      const local = searchEnglishCardsLocal(name, printed, limit);
+      const local = searchEnglishCardsLocal(name, printed, limit, art);
       if (local.cards.length > 0) {
         const cards = await enrichWithPricing(local.cards, local.releaseDates);
 

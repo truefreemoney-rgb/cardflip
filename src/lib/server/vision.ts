@@ -65,6 +65,11 @@ const CARD_READ_SCHEMA = {
     setCode: nullableString(
       "The short expansion code printed near the collector number, e.g. 'SVI', 'PAF', 'BS'. This is NOT the language code ('EN'), the illustrator, or the regulation mark (a single letter in a black box). Null if not visible.",
     ),
+    artStyle: {
+      anyOf: [{ type: "string", enum: ["standard", "full-art"] }, { type: "null" }],
+      description:
+        "How the card is framed. 'standard': the illustration sits in a box in the upper half and the attacks/text sit on a plain panel below. 'full-art': the illustration covers the whole card and the text is printed over it (full art, illustration rare, special illustration rare, VMAX/VSTAR/ex full-art, gold/rainbow). Null if you can't tell.",
+    },
     language: {
       type: "string",
       enum: ["en", "ja", "zh"],
@@ -103,6 +108,7 @@ const CARD_READ_SCHEMA = {
     "cardNumber",
     "setTotal",
     "setCode",
+    "artStyle",
     "language",
     "condition",
     "conditionNotes",
@@ -233,6 +239,7 @@ export async function analyzeCardImage(
     cardNumber: parsed.cardNumber?.trim() || null,
     setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,
     setCode: parsed.setCode?.trim().toUpperCase() || null,
+    artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     name: parsed.name.trim(),
   };
 }

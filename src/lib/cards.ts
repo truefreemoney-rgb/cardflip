@@ -1,6 +1,6 @@
 import { apiPath } from "@/lib/client/basePath";
 import type { PrintedNumber } from "@/lib/cardNumber";
-import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import type { ArtStyle, GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 /**
  * `printed` carries the whole fraction, not just the collector number. The set
@@ -18,9 +18,12 @@ export async function searchCards(
   /** Omit for the scanner's default (24); search UIs ask for every printing. */
   limit?: number,
   game: GameId = "pokemon",
+  /** Vision's frame read — tiebreak between a full-art and a standard printing when the number is unread. */
+  art: ArtStyle = null,
 ): Promise<PokemonCard[]> {
   const params = new URLSearchParams({ name, lang });
   if (game !== "pokemon") params.set("game", game);
+  if (art) params.set("art", art);
   if (limit) params.set("limit", String(limit));
 
   if (typeof printed === "string") {

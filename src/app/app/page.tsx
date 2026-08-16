@@ -36,6 +36,7 @@ import { scanCardWithVision } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import type {
+  ArtStyle,
   Condition,
   GameId,
   GradedInfo,
@@ -224,11 +225,15 @@ export default function AppPage() {
           let nameCandidates: string[];
           let printed: PrintedNumber | null;
           let language = next.language;
+          // Frame style from the photo — the tiebreak that keeps a full-art
+          // card off its promo/regular printing when the number is unread.
+          let art: ArtStyle = null;
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
             // The photo outranks the seller's language toggle — stacks get sorted wrong.
             language = read.language;
+            art = read.artStyle ?? null;
             nameCandidates = [read.name, read.englishName].filter(
               (n): n is string => Boolean(n),
             );
@@ -270,7 +275,7 @@ export default function AppPage() {
           // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              const found = await searchCards(candidate, printed, language, undefined, next.game);
+              const found = await searchCards(candidate, printed, language, undefined, next.game, art);
               if (found.length === 0) continue;
               if (matches.length === 0) matches = found;
               if (

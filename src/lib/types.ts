@@ -72,6 +72,9 @@ export function gameOf(card: { game?: GameId } | null | undefined): GameId {
 }
 
 /** What Claude read off a card photo. */
+/** How the card is framed, as seen in the photo. Null = couldn't tell. */
+export type ArtStyle = "standard" | "full-art" | null;
+
 export interface VisionCardRead {
   /** Name exactly as printed, in the card's own language. */
   name: string;
@@ -88,6 +91,12 @@ export interface VisionCardRead {
   setTotal: number | null;
   /** The expansion code printed near the number, e.g. "SVI". */
   setCode: string | null;
+  /**
+   * Frame style: "standard" (art in a box, text on a plain panel) or
+   * "full-art" (illustration covers the whole card). Tiebreak when the
+   * number couldn't be read — a full-art Sprigatito is not the promo.
+   */
+  artStyle: ArtStyle;
   language: ScanLanguage;
   /** Condition judged from the photo, or null if the photo can't support a call. */
   condition: string | null;

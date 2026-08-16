@@ -9,7 +9,7 @@ import {
   normalizeNumber,
   type PrintedNumber,
 } from "@/lib/cardNumber";
-import type { PokemonCard } from "@/lib/types";
+import type { ArtStyle, PokemonCard } from "@/lib/types";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -71,14 +71,28 @@ export interface LocalSearchResult {
  * cost anything — a mirror synced before set totals existed returns null for
  * every card, and a scan must still work against it.
  *
- * Both scales stay below NAME_TIER (their worst case sums to 6) so the set
+ * All three scales stay below NAME_TIER (their worst case sums to 7) so the set
  * total can only reorder cards *within* a name/number tier, never lift a
  * substring match above an exact one. The denominator is the most misread
  * glyph run on the card; it earns a tiebreak, not a veto.
+ *
+ * ART_PENALTY is the last tiebreak: when the number couldn't be read at all,
+ * every printing of the name ties and "oldest first" picked the SVP promo for
+ * a full-art Sprigatito (08-16, Chris's phone). The mirror has no rarity
+ * column, but a numerator above the set total *is* the full-art / secret tier
+ * in the modern game, so vision's frame read ("standard" | "full-art") is
+ * checked against isSecretRareNumber. Promos print no denominator and count
+ * as standard-numbered.
  */
 const TOTAL_PENALTY = { match: 0, unknown: 2, mismatch: 4 } as const;
 const CODE_PENALTY = { match: 0, unknown: 1, mismatch: 2 } as const;
+const ART_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
 const NAME_TIER = 8;
+
+function agreesWithArt(art: ArtStyle, secretNumbered: boolean): keyof typeof ART_PENALTY {
+  if (!art) return "unknown";
+  return (art === "full-art") === secretNumbered ? "match" : "mismatch";
+}
 
 /**
  * Find the cards a scan could plausibly be, best first.
@@ -100,6 +114,7 @@ export function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,
   limit = 24,
+  art: ArtStyle = null,
 ): LocalSearchResult {
   const needle = name.trim().toLowerCase();
 
@@ -146,8 +161,9 @@ export function searchEnglishCardsLocal(
       row.set_card_count_official,
     );
     const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
+    const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official));
 
-    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code];
+    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code] + ART_PENALTY[frame];
   };
 
   // Stable sort, so release-date order from the query survives as the final
