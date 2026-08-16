@@ -6,6 +6,7 @@ import {
   isVisionConfigured,
 } from "@/lib/server/vision";
 import type { ScanLanguage } from "@/lib/types";
+import { parseGame } from "@/lib/games";
 
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Image too large" }, { status: 413 });
     }
 
-    const card = await analyzeCardImage(image, mediaType, language);
+    const card = await analyzeCardImage(image, mediaType, language, parseGame(body?.game));
     return NextResponse.json({ status: "done", card });
   } catch (err) {
     if (err instanceof AuthError) {

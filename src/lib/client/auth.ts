@@ -59,7 +59,8 @@ export async function logout(): Promise<void> {
   await fetch(apiPath("/api/auth/logout"), { method: "POST" });
 }
 
-export async function connectEbay(): Promise<void> {
-  const res = await fetch(apiPath("/api/ebay/connect"), { method: "POST" });
-  if (!res.ok) throw new Error("Couldn't connect eBay.");
-}
+// The eBay OAuth connect flow was removed until real API credentials exist:
+// a "connect" endpoint that only flips a flag reads as a fake OAuth claim,
+// which is worse than having none. The real flow (redirect to eBay's
+// authorize URL, exchange the callback code server-side) lands with the
+// production keyset.

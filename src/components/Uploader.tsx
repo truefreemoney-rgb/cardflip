@@ -4,10 +4,16 @@ import { useRef, useState } from "react";
 
 interface Props {
   onFiles: (files: File[]) => void;
+  /**
+   * Owned by the page, not this component: the first capture flips the page
+   * from the hero layout to the queue layout, which unmounts this uploader —
+   * a locally-rendered camera modal would vanish mid-stack.
+   */
+  onOpenCamera?: () => void;
   variant?: "hero" | "compact";
 }
 
-export default function Uploader({ onFiles, variant = "hero" }: Props) {
+export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -40,6 +46,14 @@ export default function Uploader({ onFiles, variant = "hero" }: Props) {
         >
           Add more cards
         </button>
+        {onOpenCamera && (
+          <button
+            onClick={onOpenCamera}
+            className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
+          >
+            📷 Camera
+          </button>
+        )}
         {input}
       </>
     );
@@ -86,12 +100,22 @@ export default function Uploader({ onFiles, variant = "hero" }: Props) {
         </p>
       </div>
 
-      <button
-        onClick={() => inputRef.current?.click()}
-        className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:-translate-y-0.5 hover:bg-brand-400"
-      >
-        Choose photos
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:-translate-y-0.5 hover:bg-brand-400"
+        >
+          Choose photos
+        </button>
+        {onOpenCamera && (
+          <button
+            onClick={onOpenCamera}
+            className="rounded-full border border-edge bg-surface-2 px-6 py-3 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
+          >
+            📷 Use camera
+          </button>
+        )}
+      </div>
 
       <p className="text-xs text-zinc-600">
         Or drag and drop · JPG, PNG, HEIC

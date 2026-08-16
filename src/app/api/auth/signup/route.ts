@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createUser, findUserByEmail, toPublicUser } from "@/lib/server/users";
-import { createSession } from "@/lib/server/sessions";
+import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
@@ -33,12 +33,6 @@ export async function POST(req: Request) {
   const session = createSession(user.id);
 
   const res = NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
-  res.cookies.set(SESSION_COOKIE, session.token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(session.expiresAt),
-  });
+  res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   return res;
 }

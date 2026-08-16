@@ -53,14 +53,24 @@ export function isComparable(title: string, card: PokemonCard): boolean {
   // The collector number is the strongest same-card signal available, so
   // require it when we have one. Matched loosely: sellers write "199/165",
   // "#199", or bare "199", and may or may not zero-pad.
-  if (card.number) {
-    const num = card.number.replace(/^0+/, "");
-    if (num) {
-      const numPattern = new RegExp(`(^|[^0-9])0*${escapeRegex(num)}([^0-9]|$)`);
-      if (!numPattern.test(title)) return false;
-    }
+  const num = card.number ? card.number.replace(/^0+/, "") : "";
+  const numberMatches = num
+    ? new RegExp(`(^|[^0-9])0*${escapeRegex(num)}([^0-9]|$)`).test(title)
+    : true;
+
+  if (card.game === "mtg") {
+    // MTG sellers rarely put the collector number in a title ("Lightning
+    // Bolt LTR Foil NM" is typical), so the set code or set name stands in
+    // for it — a reprinted name without any of the three is another set.
+    if (/\b(deck|precon|commander|secret lair|prerelease|starter kit)\b/i.test(title)) return false;
+    const code = card.setCode?.toLowerCase();
+    const codeMatches = code ? new RegExp(`\\b${escapeRegex(code)}\\b`, "i").test(title) : false;
+    const setWords = card.setName.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    const setMatches = setWords.length > 0 && setWords.every((w) => lower.includes(w));
+    return (num ? numberMatches : false) || codeMatches || setMatches;
   }
 
+  if (num && !numberMatches) return false;
   return true;
 }
 

@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/server/auth";
+import { cookies } from "next/headers";
+import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
 import { toPublicUser } from "@/lib/server/users";
 
+/**
+ * Who's signed in — every app page asks on load. That makes it the natural
+ * place to keep a returning seller signed in: a live session older than a
+ * day gets slid out to a fresh 30 days and the cookie is re-issued to match
+ * (see sessions.ts). Nothing happens for a young session or no session.
+ */
 export async function GET() {
   const user = await getCurrentUser();
-  return NextResponse.json({ user: user ? toPublicUser(user) : null });
+  const res = NextResponse.json({ user: user ? toPublicUser(user) : null });
+  if (user) {
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    const renewed = token ? touchSession(token) : null;
+    if (renewed) {
+      res.cookies.set(SESSION_COOKIE, renewed.token, sessionCookieOptions(renewed.expiresAt));
+    }
+  }
+  return res;
 }

@@ -2,9 +2,25 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/**
+ * Sessions are sliding, not fixed: a seller who opens the app at least once
+ * a month never has to log in again. Every session starts 30 days out, and
+ * `touchSession` pushes it another 30 days whenever the app checks the
+ * signed-in user (each app page load) — throttled to once a day so the
+ * cookie isn't rewritten on every request. On a phone this is what "stay
+ * logged in" means; the cookie itself is a persistent one with the same
+ * expiry (see sessionCookieOptions), never a browser-session cookie.
+ */
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/** Don't bother renewing more often than this. */
+const RENEW_AFTER_MS = 24 * 60 * 60 * 1000; // 1 day
 
-export function createSession(userId: string): { token: string; expiresAt: number } {
+export interface SessionInfo {
+  token: string;
+  expiresAt: number;
+}
+
+export function createSession(userId: string): SessionInfo {
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
   const expiresAt = now + SESSION_TTL_MS;
@@ -29,6 +45,39 @@ export function getSessionUserId(token: string): string | null {
   return row.user_id;
 }
 
+/**
+ * Slide a live session's expiry out to a fresh 30 days. Returns the new
+ * expiry when it actually renewed (caller re-sets the cookie to match), or
+ * null when the session is young enough that nothing changed.
+ */
+export function touchSession(token: string): SessionInfo | null {
+  const row = db
+    .prepare("SELECT expires_at FROM sessions WHERE token = ?")
+    .get(token) as { expires_at: number } | undefined;
+  if (!row) return null;
+  const now = Date.now();
+  if (row.expires_at < now) return null;
+  if (row.expires_at > now + SESSION_TTL_MS - RENEW_AFTER_MS) return null;
+  const expiresAt = now + SESSION_TTL_MS;
+  db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(expiresAt, token);
+  return { token, expiresAt };
+}
+
 export function destroySession(token: string): void {
   db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+}
+
+/**
+ * The one cookie shape every issuer uses (login, signup, demo, reset,
+ * renewal). Persistent (`expires`), httpOnly, Lax so the eBay OAuth
+ * callback and email links land signed in, Secure in production.
+ */
+export function sessionCookieOptions(expiresAt: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(expiresAt),
+  };
 }

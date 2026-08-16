@@ -5,6 +5,7 @@ import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { formatMoney, pickPrice } from "@/lib/listing";
+import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -89,7 +90,8 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
               </p>
             )}
             <p className="text-sm text-zinc-500">
-              {card.setName} · {card.number}
+              {card.setName} · {displayCardNumber(card)}
+              {card.isSecretRare ? " · Secret rare" : ""}
               {card.rarity ? ` · ${card.rarity}` : ""}
             </p>
             {logging && (

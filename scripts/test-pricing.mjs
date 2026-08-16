@@ -8,11 +8,25 @@
  * wearing a dollar sign, one dropdown click away from becoming the listing.
  */
 import {
+  buildListing,
+  buildSealedListing,
+  canBeFirstEdition,
   canPriceListing,
+  describeItemCondition,
+  ebaySoldSearchUrl,
+  firstEditionPrice,
   formatMoney,
   pickPrice,
+  quoteForItem,
   quotePrice,
 } from "../src/lib/listing.ts";
+import {
+  gradeLabel,
+  gradesFor,
+  makeSealedProduct,
+  parseGradeQuery,
+  setLogoFromCardImage,
+} from "../src/lib/grading.ts";
 
 let failures = 0;
 
@@ -106,6 +120,201 @@ console.log("\nCondition and strategy still apply to dollar prices:");
   const q = quotePrice(card([usd(100)]), "Lightly Played", "market");
   check("100 at Lightly Played (0.85)", q?.suggested, 85);
 }
+
+console.log("\n1st Edition is opt-in, never the silent default:");
+{
+  // A Jungle holo as pokemontcg.io actually prices it: both printings, with
+  // the 1st Edition several times the unlimited copy the seller is holding.
+  const jungle = {
+    ...card([usd(37.57, "unlimitedHolofoil"), usd(122.03, "1stEditionHolofoil")]),
+    setName: "Jungle",
+  };
+  check(
+    "default quote is the unlimited printing",
+    pickPrice(jungle)?.variant,
+    "unlimitedHolofoil",
+  );
+  check(
+    "the 1st Edition price is there when asked for",
+    firstEditionPrice(jungle)?.market,
+    122.03,
+  );
+  check(
+    "and drives the quote as an override",
+    quotePrice(jungle, "Near Mint", "market", "1stEditionHolofoil")?.base,
+    122.03,
+  );
+  check(
+    "non-holos use the bare 1stEdition key",
+    firstEditionPrice({
+      ...jungle,
+      prices: [usd(0.3, "unlimited"), usd(3.94, "1stEdition")],
+    })?.market,
+    3.94,
+  );
+}
+
+console.log("\nWhich cards get the 1st Edition toggle:");
+check("Base Set Charizard does", canBeFirstEdition(card([])), true);
+check(
+  "Base Set Machamp does not — every starter deck copy has the stamp",
+  canBeFirstEdition({ ...card([]), name: "Machamp" }),
+  false,
+);
+check(
+  "the Machamp carve-out is Base Set only",
+  canBeFirstEdition({ ...card([]), name: "Machamp", setName: "Neo Genesis" }),
+  true,
+);
+check(
+  "sets that never had a 1st Edition run do not",
+  canBeFirstEdition({ ...card([]), setName: "Base Set 2" }),
+  false,
+);
+check(
+  "every WotC set with a 1st Edition run is covered",
+  [
+    "Base Set", "Jungle", "Fossil", "Team Rocket", "Gym Heroes",
+    "Gym Challenge", "Neo Genesis", "Neo Discovery", "Neo Revelation",
+    "Neo Destiny",
+  ].map((setName) => canBeFirstEdition({ ...card([]), setName })),
+  Array(10).fill(true),
+);
+
+console.log("\nGrading scales are each grader's real ladder, not a merged one:");
+check("PSA has no 9.5", gradesFor("PSA").includes("9.5"), false);
+check("PSA's only half grade is 1.5", gradesFor("PSA").includes("1.5"), true);
+check("CGC half-grades the ladder", gradesFor("CGC").includes("8.5"), true);
+check("CGC tops out at Pristine", gradesFor("CGC")[0], "10 Pristine");
+check("labels read like the slab", gradeLabel({ company: "CGC", grade: "9.5" }), "CGC 9.5");
+
+console.log("\nA slab's grade replaces the condition flow:");
+{
+  const item = {
+    kind: "card",
+    card: card([usd(100)]),
+    condition: "Heavily Played",
+    strategy: "quick",
+    variant: null,
+    firstEdition: false,
+    grading: { company: "PSA", grade: "10" },
+    priceOverride: null,
+  };
+  check(
+    "no condition or strategy multiplier touches a graded quote",
+    quoteForItem(item)?.suggested,
+    100,
+  );
+  check(
+    "the ledger stores the grade as the condition",
+    describeItemCondition(item),
+    "PSA 10",
+  );
+  check(
+    "raw items still store their condition",
+    describeItemCondition({ ...item, grading: null }),
+    "Heavily Played",
+  );
+
+  const listing = buildListing(card([usd(100)]), 100, "Near Mint", undefined, {
+    grading: { company: "PSA", grade: "10" },
+  });
+  check(
+    "the grade is in the title, the condition is not",
+    [listing.title.includes("PSA 10"), listing.title.includes("Near Mint")],
+    [true, false],
+  );
+  check(
+    "sold comps search the grade",
+    ebaySoldSearchUrl(card([]), { grading: { company: "PSA", grade: "10" } }).includes(
+      "PSA+10",
+    ),
+    true,
+  );
+}
+
+console.log("\nSealed product flows through the same listing shapes:");
+{
+  const set = { name: "Evolving Skies", releaseDate: "2021-08-27", logoUrl: "" };
+  const box = makeSealedProduct(set, "Booster Box");
+  check("product name reads naturally", box.name, "Evolving Skies Booster Box");
+  check("no catalogue prices to mis-quote", box.prices, []);
+  check(
+    "sealed rows describe themselves as sealed",
+    describeItemCondition({ kind: "sealed", grading: null, condition: "Near Mint" }),
+    "Factory Sealed",
+  );
+
+  const listing = buildSealedListing(box, 120, "Booster Box");
+  check(
+    "title leads with the product and states sealed",
+    listing.title,
+    "Evolving Skies Booster Box Pokemon TCG Factory Sealed",
+  );
+  check(
+    "boxes list in eBay's sealed-boxes category",
+    buildSealedListing(box, 120, "Booster Box").categoryId,
+    "261044",
+  );
+  check(
+    "loose packs list in the sealed-packs category",
+    buildSealedListing(makeSealedProduct(set, "Booster Pack"), 5, "Booster Pack")
+      .categoryId,
+    "183456",
+  );
+  check(
+    "set logos derive from card image paths",
+    setLogoFromCardImage("https://assets.tcgdex.net/en/swsh/swsh7/4/low.webp"),
+    "https://assets.tcgdex.net/en/swsh/swsh7/logo.webp",
+  );
+  check(
+    "sealed comp searches drop the singles category filter",
+    ebaySoldSearchUrl(box, { sealed: true }).includes("_sacat"),
+    false,
+  );
+}
+
+console.log("\nTyped grades parse out of search queries:");
+check(
+  "grade + card split apart",
+  parseGradeQuery("Charizard 4/102 PSA 10"),
+  { rest: "Charizard 4/102", grading: { company: "PSA", grade: "10" } },
+);
+check(
+  "grade can lead, casing and spacing forgiven",
+  parseGradeQuery("psa10 charizard"),
+  { rest: "charizard", grading: { company: "PSA", grade: "10" } },
+);
+check(
+  "CGC half grades survive as typed",
+  parseGradeQuery("Pikachu 25/102 cgc 9.5"),
+  { rest: "Pikachu 25/102", grading: { company: "CGC", grade: "9.5" } },
+);
+check(
+  "CGC Pristine normalizes to the ladder's label",
+  parseGradeQuery("cgc 10 pristine charizard"),
+  { rest: "charizard", grading: { company: "CGC", grade: "10 Pristine" } },
+);
+check(
+  "PSA's only half step parses",
+  parseGradeQuery("Charizard PSA 1.5"),
+  { rest: "Charizard", grading: { company: "PSA", grade: "1.5" } },
+);
+check(
+  "off-ladder grade leaves the query untouched (PSA has no 9.5)",
+  parseGradeQuery("Charizard PSA 9.5"),
+  { rest: "Charizard PSA 9.5", grading: null },
+);
+check(
+  "plain card queries pass through",
+  parseGradeQuery("Charizard 4/102"),
+  { rest: "Charizard 4/102", grading: null },
+);
+check(
+  "a bare number is not a grade",
+  parseGradeQuery("151"),
+  { rest: "151", grading: null },
+);
 
 console.log(
   failures === 0

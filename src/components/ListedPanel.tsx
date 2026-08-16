@@ -48,6 +48,16 @@ export default function ListedPanel({ item, onChange }: Props) {
             Listed at ${listedPrice.toFixed(2)} ·{" "}
             {item.listedAt ? timeAgo(item.listedAt) : "just now"}
           </p>
+          {item.ebayListingUrl && (
+            <a
+              href={item.ebayListingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-xs font-medium text-sky-300 underline underline-offset-4 hover:text-sky-200"
+            >
+              View on eBay ↗
+            </a>
+          )}
         </div>
       </div>
 

@@ -39,8 +39,15 @@ export interface CachedLookup {
  * to CardPrice, production kept serving rows with `currency: undefined` and
  * rendered euros as dollars again. Versioning the key retires them on deploy
  * instead of relying on someone remembering to clear the table.
+ *
+ * v3 added setTotal/setCode/isSecretRare.
+ *
+ * `number` here is the *printed* number — "4/102", not "4". Two cards can
+ * share a name and a collector number and differ only in their set total
+ * (Base Set vs Base Set 2 Charizard), so keying on the numerator alone would
+ * serve one card's cached entry for the other.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 function keyFor(lang: string, name: string, number: string): string {
   return `v${CACHE_VERSION}|${lang}|${name.toLowerCase().trim()}|${number.trim()}`;

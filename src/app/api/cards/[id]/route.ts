@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { deleteCard, updateCard, type CardStatus } from "@/lib/server/cards";
+import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
+import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -42,6 +43,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     const user = await requireUser();
     const { id } = await params;
+    if (getCardForUser(id, user.id)) deleteCardPhoto(id);
     deleteCard(id, user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {

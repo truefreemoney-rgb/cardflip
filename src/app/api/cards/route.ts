@@ -25,17 +25,25 @@ export async function POST(req: Request) {
     const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : "";
     const condition = typeof body?.condition === "string" ? body.condition : "Near Mint";
     const price = typeof body?.price === "number" ? body.price : 0;
+    // Anything unrecognized stays a plain card — the safe reading of a stale
+    // or hand-rolled client.
+    const kind = body?.kind === "sealed" ? ("sealed" as const) : ("card" as const);
+    const productType =
+      typeof body?.productType === "string" ? body.productType : null;
 
     if (!cardName) {
       return NextResponse.json({ error: "cardName is required" }, { status: 400 });
     }
 
     const card = createCard(user.id, {
+      kind,
+      game: body?.game === "mtg" ? "mtg" : "pokemon",
       cardName,
       setName,
       cardNumber,
       imageUrl,
       condition,
+      productType,
       price,
     });
     return NextResponse.json({ card }, { status: 201 });

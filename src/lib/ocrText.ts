@@ -7,6 +7,10 @@
  * and because noise words were only ever used to *reject* an all-noise line
  * rather than to strip tokens, that whole string went to the API as the query
  * and matched nothing.
+ *
+ * Names only. The collector number lives in src/lib/cardNumber.ts — it has its
+ * own parsing rules and its own test suite, and keeping it out of here is what
+ * lets this module stay import-free and directly runnable.
  */
 
 /** Words that appear on cards but are never part of a Pokémon's name. */
@@ -211,36 +215,3 @@ export function extractCjkNameCandidates(
   return candidates.slice(0, 6);
 }
 
-/**
- * Collector numbers print as "074/073" — the left half is what we query on.
- *
- * The slash is the most-misread glyph on the card. A real scan of a Base Set
- * Charizard came back as "© 1999Wiards. 47102 %" — that's "4/102" with the
- * slash read as a 7, which the strict pattern misses entirely, losing the one
- * field that tells a 1999 Charizard apart from forty later reprints.
- *
- * So: strict slash first, and only if nothing matches anywhere, retry allowing
- * the glyphs "/" is commonly confused with. Requiring a 2-3 digit denominator
- * keeps the loose pass from firing on arbitrary digit runs (set totals are
- * never single digits).
- */
-export function extractCardNumber(lines: string[]): string | null {
-  for (const line of lines) {
-    const match = line.match(/(\d{1,3})\s*\/\s*(\d{1,3})/);
-    if (match) return String(Number(match[1]));
-  }
-
-  // Collector numbers sit at the end of the bottom line, so scan from the
-  // back — the copyright year runs earlier in the line are the main decoys.
-  // The denominator must not start with 0: "47102" is ambiguous between
-  // "4/102" and "47/02", and set totals are never zero-padded, so requiring a
-  // leading 1-9 there forces the reading that's actually printed on cards.
-  const loose = /(\d{1,3})\s*[\/17lI|\\]\s*([1-9]\d{1,2})\b/g;
-  for (const line of [...lines].reverse()) {
-    const matches = [...line.matchAll(loose)];
-    const last = matches[matches.length - 1];
-    if (last) return String(Number(last[1]));
-  }
-
-  return null;
-}

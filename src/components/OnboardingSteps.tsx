@@ -1,4 +1,4 @@
-const STEPS = ["Account", "Connect eBay"];
+const STEPS = ["Account", "eBay setup"];
 
 export default function OnboardingSteps({ current }: { current: 0 | 1 }) {
   return (

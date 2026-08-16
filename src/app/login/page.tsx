@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
+import DemoButton from "@/components/DemoButton";
 import { login } from "@/lib/client/auth";
 
 const FIELD =
@@ -22,8 +23,8 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      router.push(user.ebayConnected ? "/app" : "/connect-ebay");
+      await login(email, password);
+      router.push("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
       setSubmitting(false);
@@ -31,12 +32,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 text-foreground">
-      <div className="mb-8">
+    <div className="hero-mesh grain relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+      <div className="relative mb-8">
         <Logo />
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface-1 p-8 shadow-xl shadow-black/40">
+      <div className="foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
         <h1 className="text-xl font-semibold text-white">Welcome back</h1>
         <p className="mt-1 text-sm text-zinc-400">Log in to your CardFlip account.</p>
 
@@ -58,9 +59,17 @@ export default function LoginPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-zinc-300">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-medium text-zinc-300">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-zinc-500 transition hover:text-zinc-300"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               name="password"
@@ -90,6 +99,17 @@ export default function LoginPage() {
             {submitting ? "Logging in…" : "Log in"}
           </button>
         </form>
+
+        {/* Reviewers (eBay's included) often land here straight from a form
+            field — give them the same no-signup way in as the homepage. */}
+        <div className="mt-5 flex items-center gap-3 text-xs text-zinc-600">
+          <span className="h-px flex-1 bg-white/10" aria-hidden />
+          or
+          <span className="h-px flex-1 bg-white/10" aria-hidden />
+        </div>
+        <div className="mt-4 flex justify-center">
+          <DemoButton />
+        </div>
 
         <p className="mt-6 text-center text-xs text-zinc-500">
           No account?{" "}

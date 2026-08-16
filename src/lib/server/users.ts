@@ -78,6 +78,17 @@ export function createUser(
   };
 }
 
+/**
+ * The shared "Try it now" account. It's public and wiped on every entry, so
+ * it must never hold anything personal — in particular it can't be linked to
+ * a real eBay account (the tokens would be usable by the next visitor).
+ */
+export const DEMO_EMAIL = "demo@cardflip.dev";
+
+export function isDemoUser(user: Pick<User, "email">): boolean {
+  return user.email === DEMO_EMAIL;
+}
+
 export function setEbayConnected(userId: string, connected: boolean): void {
   db.prepare("UPDATE users SET ebay_connected = ? WHERE id = ?").run(
     connected ? 1 : 0,

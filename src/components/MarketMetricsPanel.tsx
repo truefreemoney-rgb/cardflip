@@ -6,9 +6,11 @@ import {
   EBAY_SOLD_VARIANT,
   EBAY_VARIANT,
   formatMoney,
+  isFirstEditionVariant,
   pickPrice,
 } from "@/lib/listing";
 import type {
+  CardPrice,
   EbayComps,
   EbayCompsStatus,
   EbayListing,
@@ -18,6 +20,13 @@ import type {
 
 interface Props {
   card: PokemonCard;
+  /**
+   * The price actually driving the current quote (condition/variant/1st
+   * Edition applied), so the tiles agree with the suggested price instead of
+   * re-deriving a default that ignores the seller's choices. Null when the
+   * card has no usable price.
+   */
+  quoted: CardPrice | null;
   sold: EbayComps | null;
   soldStatus: EbaySoldStatus;
   soldUrl: string | null;
@@ -132,6 +141,7 @@ function ListingRows({ listings }: { listings: EbayListing[] }) {
  */
 export default function MarketMetricsPanel({
   card,
+  quoted,
   sold,
   soldStatus,
   soldUrl,
@@ -139,25 +149,32 @@ export default function MarketMetricsPanel({
   activeStatus,
   activeUrl,
 }: Props) {
+  const [open, setOpen] = useState(false);
   const [showSold, setShowSold] = useState(false);
   const [showActive, setShowActive] = useState(false);
 
-  const driving = pickPrice(card)?.variant ?? null;
-  const tcg = card.prices.find(
+  const driving = (quoted ?? pickPrice(card))?.variant ?? null;
+  // The TCGplayer tile shows the row behind the quote when TCGplayer is the
+  // one driving it; otherwise the printing a seller most likely holds — never
+  // a 1st Edition premium they haven't claimed.
+  const tcgRows = card.prices.filter(
     (p) => p.source === "tcgplayer" && p.market && p.market > 0,
   );
-  const market = card.prices.find(
-    (p) => p.source === "cardmarket" && p.market && p.market > 0,
-  );
+  const tcg =
+    quoted?.source === "tcgplayer"
+      ? quoted
+      : (tcgRows.find((p) => !isFirstEditionVariant(p.variant)) ?? tcgRows[0]);
 
+  // The sold tile exists only once eBay has granted Marketplace Insights
+  // (limited release — applied for, not held). Until then it would sit
+  // permanently empty, so it isn't rendered at all; the plain "View sold on
+  // eBay" link below still gives sellers the sold data by hand. Nothing else
+  // changes when access lands: `sold` arrives and the tile appears.
+  const showSoldTile = sold != null || soldStatus === "empty";
   const soldDetail =
     sold != null
       ? `${sold.count} sale${sold.count === 1 ? "" : "s"} · ${money(sold.low)}–${money(sold.high)}`
-      : soldStatus === "unconfigured"
-        ? "eBay not connected"
-        : soldStatus === "empty"
-          ? "No recent sales found"
-          : "Needs eBay sold-data access";
+      : "No recent sales found";
 
   const activeDetail =
     active != null
@@ -165,28 +182,74 @@ export default function MarketMetricsPanel({
       : activeStatus === "loading"
         ? "Checking eBay…"
         : activeStatus === "unconfigured"
-          ? "eBay not connected"
+          ? "Awaiting eBay API access"
           : activeStatus === "empty"
             ? "No comparable listings"
             : "Couldn't reach eBay";
 
+  // Collapsed by default: the editor is a window to sell, not to study
+  // comps, so the panel is one summary line until the seller asks for the
+  // detail. Price + Send sit higher because of it.
+  const summary = [
+    showSoldTile && sold != null
+      ? `Sold ${money(sold.average)}`
+      : null,
+    active != null ? `Asking ${money(active.average)}` : null,
+    tcg ? `TCGplayer ${formatMoney(tcg.market, tcg.currency)}` : null,
+  ].filter(Boolean) as string[];
+
   return (
     <div className="rounded-xl border border-edge bg-surface-1">
-      <div className="flex items-center justify-between px-4 pt-3.5">
-        <h3 className="text-sm font-semibold text-white">Market value</h3>
-        {activeStatus === "loading" && (
-          <Spinner className="h-3.5 w-3.5 text-zinc-500" />
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60 ${open ? "rounded-t-xl" : "rounded-xl"}`}
+      >
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="text-sm font-semibold text-white">Market value</span>
+          {!open && (
+            <span className="truncate text-xs text-zinc-400">
+              {summary.length > 0
+                ? summary.join(" · ")
+                : activeStatus === "loading"
+                  ? "Checking eBay…"
+                  : "No price data yet"}
+            </span>
+          )}
+        </span>
+        <span className="flex shrink-0 items-center gap-2 text-zinc-500">
+          {activeStatus === "loading" && <Spinner className="h-3.5 w-3.5" />}
+          <svg
+            viewBox="0 0 16 16"
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          >
+            <path
+              d="M3 6l5 5 5-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
 
-      <div className="grid grid-cols-2 gap-2 p-4 pt-2.5 sm:grid-cols-4">
-        <Metric
-          label="eBay sold (90d)"
-          value={money(sold?.average ?? null)}
-          detail={soldDetail}
-          driving={driving === EBAY_SOLD_VARIANT}
-          tone="strong"
-        />
+      {open && (<>
+      <div
+        className={`grid grid-cols-2 gap-2 p-4 pt-2.5 ${showSoldTile ? "sm:grid-cols-3" : ""}`}
+      >
+        {showSoldTile && (
+          <Metric
+            label="eBay sold (90d)"
+            value={money(sold?.average ?? null)}
+            detail={soldDetail}
+            driving={driving === EBAY_SOLD_VARIANT}
+            tone="strong"
+          />
+        )}
         <Metric
           label="eBay asking"
           value={money(active?.average ?? null)}
@@ -198,19 +261,6 @@ export default function MarketMetricsPanel({
           value={formatMoney(tcg?.market ?? null, tcg?.currency)}
           detail={tcg ? tcg.label : "No price for this card"}
           driving={driving === tcg?.variant && tcg != null}
-        />
-        <Metric
-          label="Cardmarket"
-          value={formatMoney(market?.market ?? null, market?.currency)}
-          // Euros, and never the basis for the dollar listing price — say so
-          // rather than letting a number that looks comparable sit next to
-          // three that are.
-          detail={
-            market
-              ? "EU market · reference only, not used for pricing"
-              : "No price for this card"
-          }
-          driving={false}
         />
       </div>
 
@@ -288,6 +338,7 @@ export default function MarketMetricsPanel({
           they don&apos;t reflect what a single raw card is worth.
         </p>
       )}
+      </>)}
     </div>
   );
 }

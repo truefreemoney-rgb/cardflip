@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 data/
+
+# generated MTG mirror seed (npm run export:mtg), ~8 MB, rebuilt on each refresh
+seed/*.gz

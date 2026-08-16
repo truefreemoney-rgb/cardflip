@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+// Packs the local Magic mirror (mtg_sets + mtg_cards, synced by
+// scripts/sync-mtg.mjs) into seed/mtg-mirror.db.gz, which ships in the
+// Docker image and is imported on boot by src/lib/db.ts (seedMtgMirror).
+//
+// Why: Scryfall throttles Fly's egress IP so the sync can't run on the
+// machine; it runs fine from a home connection. Refresh cycle:
+//   npm run sync:mtg && npm run export:mtg && flyctl deploy --app cardflip-superior
+import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+import zlib from "node:zlib";
+
+const src = process.env.CARDFLIP_DB_PATH ?? path.join(process.cwd(), "data", "cardflip.db");
+const seedDir = path.join(process.cwd(), "seed");
+const tmp = path.join(seedDir, "mtg-mirror.db");
+const out = path.join(seedDir, "mtg-mirror.db.gz");
+fs.mkdirSync(seedDir, { recursive: true });
+try { fs.unlinkSync(tmp); } catch {}
+
+const db = new DatabaseSync(tmp);
+db.exec(`ATTACH DATABASE 'file:${src.replace(/\\/g, "/").replace(/'/g, "''")}?mode=ro' AS srcdb`);
+db.exec("CREATE TABLE mtg_sets AS SELECT * FROM srcdb.mtg_sets");
+db.exec("CREATE TABLE mtg_cards AS SELECT * FROM srcdb.mtg_cards");
+db.exec("DETACH DATABASE srcdb");
+db.exec("VACUUM");
+const counts = db.prepare("SELECT (SELECT COUNT(*) FROM mtg_cards) cards, (SELECT COUNT(*) FROM mtg_sets) sets").get();
+db.close();
+if (!counts.cards) {
+  console.error("Local mirror is empty — run npm run sync:mtg first");
+  process.exit(1);
+}
+fs.writeFileSync(out, zlib.gzipSync(fs.readFileSync(tmp), { level: 9 }));
+fs.unlinkSync(tmp);
+console.log(`seed/mtg-mirror.db.gz: ${counts.cards} printings, ${counts.sets} sets, ${(fs.statSync(out).size / 1e6).toFixed(1)} MB`);

@@ -10,11 +10,13 @@
 import {
   JP_NOISE,
   cleanNameLine,
-  extractCardNumber,
   extractCjkNameCandidates,
   extractNameCandidates,
   stripNoiseWords,
 } from "../src/lib/ocrText.ts";
+
+// Collector numbers moved to src/lib/cardNumber.ts, along with their tests —
+// see npm run test:cardnumber.
 
 let failures = 0;
 
@@ -80,31 +82,6 @@ includes(
   extractNameCandidates(["Team Rocket's Meowth 60 HP"]),
   "Team Rocket's Meowth",
 );
-
-console.log("\nCollector numbers:");
-check("slash form", extractCardNumber(["074/073"]), "74");
-check("spaced slash", extractCardNumber(["199 / 165"]), "199");
-check("strips leading zeros", extractCardNumber(["006/165"]), "6");
-check("absent", extractCardNumber(["Illus. Mitsuhiro Arita"]), null);
-
-console.log("\nCollector numbers when OCR mangles the slash:");
-// Verbatim from a real Base Set Charizard scan — "4/102" read as "47102".
-check(
-  "real scan: slash read as 7",
-  extractCardNumber([
-    "Iflus. Mitsuhiro Arita © 1995,96,98.99 Nintendo, Creatures, GAMEFREAK. © 1999Wiards. 47102 %",
-  ]),
-  "4",
-);
-check("slash as 1", extractCardNumber(["25 1 102"]), "25");
-check("slash as l", extractCardNumber(["Illus. Someone 6l165"]), "6");
-check("a real slash still wins over a decoy", extractCardNumber(["1999 12/102"]), "12");
-check(
-  "copyright years alone are not a card number",
-  extractCardNumber(["© 1995,96,98.99 Nintendo, Creatures, GAMEFREAK"]),
-  null,
-);
-check("plain digit runs are not card numbers", extractCardNumber(["1234 5678"]), null);
 
 console.log("\nJapanese still works (unchanged path):");
 check(

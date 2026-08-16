@@ -1,5 +1,7 @@
 "use client";
 
+import { displayCardNumber } from "@/lib/games";
+import CardImage from "@/components/CardImage";
 import StatusChip from "@/components/StatusChip";
 import { currentPrice } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
@@ -26,8 +28,7 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         onClick={onSelect}
         className="flex flex-1 items-center gap-3 text-left"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <CardImage
           src={item.card?.imageSmall || item.previewUrl}
           alt=""
           className="h-14 w-10 shrink-0 rounded-md object-cover shadow-md shadow-black/40"
@@ -41,8 +42,9 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
           </span>
           <span className="block truncate text-xs text-zinc-500">
             {item.card
-              ? `${item.card.setName} · ${item.card.number}`
-              : item.error ?? "Reading card"}
+              ? // Sealed products have no collector number to show.
+                `${item.card.setName}${item.card.number ? ` · ${displayCardNumber(item.card)}` : ""}`
+              : (item.error ?? "Reading card")}
           </span>
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">

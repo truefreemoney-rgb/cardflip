@@ -12,13 +12,19 @@
     "sync:zh": "node scripts/sync-cards.mjs zh-tw zh_cards",
     "sync:species": "node scripts/sync-species-names.mjs",
     "test:ebay": "node --experimental-strip-types --no-warnings scripts/test-ebay-comps.mjs",
+    "test:inventory": "node --experimental-strip-types --no-warnings scripts/test-ebay-inventory.mjs",
     "test:ocr": "node --experimental-strip-types --no-warnings scripts/test-ocr-text.mjs",
+    "test:cardnumber": "node --experimental-strip-types --no-warnings scripts/test-card-number.mjs",
     "sync:en": "node scripts/sync-cards.mjs en en_cards",
-    "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs"
+    "sync:mtg": "node scripts/sync-mtg.mjs",
+    "export:mtg": "node scripts/export-mtg-mirror.mjs",
+    "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
+    "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
     "next": "16.3.0",
+    "nodemailer": "^9.0.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
@@ -27,6 +33,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.13.3",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

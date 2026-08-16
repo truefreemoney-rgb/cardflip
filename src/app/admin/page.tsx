@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Logo from "@/components/Logo";
 import RoleToggle from "@/components/admin/RoleToggle";
+import ResetLinkButton from "@/components/admin/ResetLinkButton";
 import { clearSessionCookie, getCurrentUser } from "@/lib/server/auth";
-import { listAllUsers } from "@/lib/server/users";
+import { isDemoUser, listAllUsers, setUserRole } from "@/lib/server/users";
 import { getPlatformStats, listAllCards } from "@/lib/server/cards";
 
 async function signOutAction() {
@@ -27,11 +28,21 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function AdminPage() {
-  // NOTE: deliberately open with no login check right now, per request, to
-  // make the dashboard reachable while the site has no real users yet.
-  // Re-add `if (!user || user.role !== "admin") redirect(...)` before any
-  // real user data lives here — right now anyone with the URL can view this.
+  // Admin-only: this page shows every user's email and platform revenue.
+  // Bootstrap problem: no signup path ever creates an admin, so the operator
+  // is recognized by ADMIN_EMAIL (a Fly secret) and promoted on first visit —
+  // after that the role lives in the database like any other admin.
   const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "admin") {
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    if (adminEmail && user.email.toLowerCase() === adminEmail) {
+      setUserRole(user.id, "admin");
+      user.role = "admin";
+    } else {
+      redirect("/app");
+    }
+  }
 
   const stats = getPlatformStats();
   const users = listAllUsers();
@@ -129,6 +140,7 @@ export default async function AdminPage() {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">eBay</th>
                   <th className="px-4 py-3 font-medium">Joined</th>
+                  <th className="px-4 py-3 font-medium">Password</th>
                   <th className="px-4 py-3 font-medium text-right">Role</th>
                 </tr>
               </thead>
@@ -148,13 +160,16 @@ export default async function AdminPage() {
                       {formatDate(u.createdAt)}
                     </td>
                     <td className="px-4 py-3">
+                      <ResetLinkButton userId={u.id} disabled={isDemoUser(u)} />
+                    </td>
+                    <td className="px-4 py-3">
                       <RoleToggle userId={u.id} role={u.role} isSelf={u.id === user?.id} />
                     </td>
                   </tr>
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
+                    <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
                       No users yet.
                     </td>
                   </tr>

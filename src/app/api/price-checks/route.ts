@@ -5,8 +5,8 @@ import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 export async function GET() {
   try {
-    await requireUser();
-    return NextResponse.json({ entries: listPriceChecks(100) });
+    const user = await requireUser();
+    return NextResponse.json({ entries: listPriceChecks(user.id, 100) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

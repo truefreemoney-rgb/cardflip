@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
+  DEMO_EMAIL,
   createUser,
   findUserByEmail,
-  setEbayConnected,
   toPublicUser,
 } from "@/lib/server/users";
-import { createSession } from "@/lib/server/sessions";
+import { disconnectEbay } from "@/lib/server/ebayAuth";
+import { deleteCardPhoto } from "@/lib/server/cardPhotos";
+import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
-
-const DEMO_EMAIL = "demo@cardflip.dev";
 
 /**
  * "Try it now" needs an account to attach scans to, but it shouldn't force
@@ -23,19 +23,19 @@ export async function POST() {
     user = createUser("Demo User", DEMO_EMAIL, crypto.randomUUID());
   }
 
-  setEbayConnected(user.id, true);
+  // The demo must never carry an eBay link — it's a shared account and eBay's
+  // own reviewer walks in through this button. Connect is refused for the demo
+  // user, but scrub anyway so nothing can leak between visitors.
+  disconnectEbay(user.id);
+  for (const row of db.prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL").all(user.id) as { id: string }[]) {
+    deleteCardPhoto(row.id);
+  }
   db.prepare("DELETE FROM cards WHERE user_id = ?").run(user.id);
 
   const session = createSession(user.id);
   const res = NextResponse.json({
-    user: toPublicUser({ ...user, ebayConnected: true }),
+    user: toPublicUser({ ...user, ebayConnected: false }),
   });
-  res.cookies.set(SESSION_COOKIE, session.token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(session.expiresAt),
-  });
+  res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   return res;
 }

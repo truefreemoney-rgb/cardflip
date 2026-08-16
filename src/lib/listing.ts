@@ -3,14 +3,30 @@ import type {
   Condition,
   Currency,
   EbayComps,
+  GradedInfo,
   ListingDraft,
   PokemonCard,
   PriceQuote,
   PriceStrategy,
   ScanItem,
 } from "@/lib/types";
+// Relative, with the extension: the "@/" alias only exists under the bundler,
+// and the plain-Node test runner (test-pricing.mjs) imports this module
+// directly — Node's ESM loader needs the real filename.
+import { gradeLabel } from "./grading.ts";
+import { descriptionHtml } from "./ebayInventory.ts";
+import { SITE_URL } from "./siteUrl.ts";
+import { GAMES, MTG_FINISH_LABEL } from "./games.ts";
+import { gameOf } from "./types.ts";
 
-const POKEMON_TCG_CARDS_CATEGORY_ID = "183454";
+// eBay's CCG leaf categories are shared by every game since the 2020
+// restructure — Pokémon and Magic singles both list in "CCG Individual Cards"
+// and the game is an item specific (see lib/games.ts).
+const CCG_CARDS_CATEGORY_ID = "183454";
+// Sealed product lives in different eBay categories than singles: loose packs
+// in one, boxes and boxed sets in another.
+const CCG_SEALED_PACKS_CATEGORY_ID = "183456";
+const CCG_SEALED_BOXES_CATEGORY_ID = "261044";
 
 /** Variant key for the synthesized eBay asking-price average. */
 export const EBAY_VARIANT = "ebayAverage";
@@ -27,15 +43,108 @@ export const EBAY_SOLD_VARIANT = "ebaySoldAverage";
 const VARIANT_PRIORITY = [
   EBAY_SOLD_VARIANT,
   EBAY_VARIANT,
-  "1stEditionHolofoil",
   "holofoil",
   "reverseHolofoil",
-  "1stEditionNormal",
   "unlimitedHolofoil",
   "normal",
   "unlimited",
+  // MTG finishes (Scryfall): the nonfoil is what a seller is almost always
+  // holding; foil/etched sit behind it and are picked explicitly.
+  "nonfoil",
+  "foil",
+  "etched",
+  // 1st Edition prints last: they carry a large premium, so quoting one by
+  // default would overprice the unlimited copy a seller is almost always
+  // holding. They only drive the price via the explicit 1st Edition toggle.
+  "1stEditionHolofoil",
+  "1stEdition",
+  "1stEditionNormal",
   "average",
 ];
+
+/**
+ * WotC-era expansions that had a genuine 1st Edition print run, worth a
+ * multiple of the unlimited printing. Set names as the TCGdex mirror spells
+ * them — this is matched against `card.setName`.
+ */
+const FIRST_EDITION_SETS = new Set([
+  "Base Set",
+  "Jungle",
+  "Fossil",
+  "Team Rocket",
+  "Gym Heroes",
+  "Gym Challenge",
+  "Neo Genesis",
+  "Neo Discovery",
+  "Neo Revelation",
+  "Neo Destiny",
+]);
+
+/** TCGplayer's 1st Edition variant keys, most specific first. */
+const FIRST_EDITION_VARIANTS = ["1stEditionHolofoil", "1stEdition", "1stEditionNormal"];
+
+/**
+ * Whether the 1st Edition toggle applies to this card. Base Set Machamp is
+ * carved out: it shipped 1st-edition-stamped in every 2-Player Starter Set, so
+ * the stamp carries no premium there and offering the toggle would mislead.
+ */
+export function canBeFirstEdition(card: PokemonCard): boolean {
+  // MTG's collectible printings (Alpha/Beta, foil, etched) are separate
+  // Scryfall printings / finishes, not a stamp on the same card.
+  if (gameOf(card) !== "pokemon") return false;
+  if (!FIRST_EDITION_SETS.has(card.setName)) return false;
+  return !(card.setName === "Base Set" && card.name === "Machamp");
+}
+
+/**
+ * The card's real 1st Edition market price, when the price source tracks one.
+ * TCGplayer carries these for Jungle through Neo Destiny; Base Set 1st Edition
+ * is a separate product line pokemontcg.io doesn't expose, so this returns
+ * null there — better no number than a made-up multiplier on a four-figure
+ * card.
+ */
+export function firstEditionPrice(card: PokemonCard): CardPrice | null {
+  for (const variant of FIRST_EDITION_VARIANTS) {
+    const hit = card.prices.find(
+      (p) =>
+        p.variant === variant &&
+        typeof p.market === "number" &&
+        p.market > 0 &&
+        canPriceListing(p),
+    );
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Whether a variant key is one of TCGplayer's 1st Edition printings. */
+export function isFirstEditionVariant(variant: string): boolean {
+  return FIRST_EDITION_VARIANTS.includes(variant);
+}
+
+/**
+ * The variant that should drive an item's quote: an explicit dropdown pick
+ * wins, otherwise the 1st Edition toggle selects the 1st Edition price when
+ * one exists. Shared by the editor, the queue rows, and the CSV export so a
+ * toggled card can't show different prices in different places.
+ */
+export function effectiveVariant(item: ScanItem): string | undefined {
+  if (item.variant) return item.variant;
+  if (item.firstEdition && item.card) {
+    return firstEditionPrice(item.card)?.variant;
+  }
+  return undefined;
+}
+
+/**
+ * MTG: the finish the item is being sold as — the seller's explicit variant
+ * pick, else whichever finish the default quote came from. Null for Pokémon.
+ */
+export function mtgFinishOf(item: ScanItem): string | null {
+  if (!item.card || gameOf(item.card) !== "mtg") return null;
+  const variant = item.variant ?? pickPrice(item.card)?.variant ?? null;
+  return variant && MTG_FINISH_LABEL[variant] ? variant : null;
+}
 
 /**
  * Rough multipliers for card condition. Real sold prices vary by card and
@@ -84,6 +193,7 @@ export function canPriceListing(price: CardPrice): boolean {
 
 export function formatVariantLabel(variant: string): string {
   if (variant === "average") return "Average";
+  if (MTG_FINISH_LABEL[variant]) return MTG_FINISH_LABEL[variant];
   return variant
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (c) => c.toUpperCase())
@@ -220,24 +330,88 @@ export function currentPrice(item: ScanItem): number {
   if (item.status === "listed") return item.listedPrice ?? 0;
   if (!item.card) return 0;
 
-  const quote = quotePrice(
-    item.card,
-    item.condition,
-    item.strategy,
-    item.variant ?? undefined,
-  );
+  const quote = quoteForItem(item);
   return item.priceOverride ?? quote?.suggested ?? 0;
 }
 
+/**
+ * The quote for a queue item, with the item's own facts applied.
+ *
+ * Graded slabs bypass the condition and strategy multipliers: the grade IS
+ * the condition, and no free source prices slabs — so the raw ungraded
+ * market is quoted as a reference floor and the seller prices the slab
+ * against eBay comps. Multiplying a PSA 10 by a "Lightly Played" discount
+ * would be flatly wrong in both directions.
+ *
+ * Sealed items have no catalogue prices at all (empty prices array), so this
+ * returns null and the price is whatever the seller enters.
+ */
+export function quoteForItem(item: ScanItem): PriceQuote | null {
+  if (!item.card) return null;
+  if (item.grading) {
+    return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item));
+  }
+  return quotePrice(item.card, item.condition, item.strategy, effectiveVariant(item));
+}
+
+/**
+ * The condition string the ledger stores and My Cards displays. For a slab
+ * that's the grade ("PSA 10") and for sealed product it's "Factory Sealed" —
+ * "Near Mint" on either would misdescribe what's actually for sale.
+ */
+export function describeItemCondition(item: ScanItem): string {
+  if (item.kind === "sealed") return "Factory Sealed";
+  if (item.grading) return gradeLabel(item.grading);
+  return item.condition;
+}
+
+/** Facts about the specific copy being listed, beyond the catalogue card. */
+export interface ListingFacts {
+  firstEdition?: boolean;
+  grading?: GradedInfo | null;
+  /**
+   * Sealed product: eBay comp searches drop the Individual Cards category
+   * filter, which would exclude every sealed listing from the results.
+   */
+  sealed?: boolean;
+  /** MTG finish of the copy being sold ("nonfoil" | "foil" | "etched"); the priced variant when unset. */
+  finish?: string | null;
+}
+
 /** eBay caps listing titles at 80 characters. */
-function buildTitle(card: PokemonCard, condition: Condition): string {
-  const full = `${card.name} ${card.setName} ${card.number} Pokemon TCG ${condition}`;
+function buildTitle(
+  card: PokemonCard,
+  condition: Condition,
+  facts: ListingFacts = {},
+): string {
+  // "1st Edition" goes right after the name — it's the term buyers search,
+  // and it must survive even when the tail gets trimmed for length.
+  const name = facts.firstEdition ? `${card.name} 1st Edition` : card.name;
+  // A slab's grade replaces the condition outright: "PSA 10 Near Mint" reads
+  // as noise to a buyer, and the grade is the term they search.
+  const tail = facts.grading ? gradeLabel(facts.grading) : condition;
+  const game = GAMES[gameOf(card)];
+  // MTG buyers search by set code + number ("LTR 187") and care whether it's
+  // a foil; those words go before the game token so they survive trimming.
+  const isMtg = game.id === "mtg";
+  const number = isMtg && card.setCode ? `${card.setCode} ${card.number}` : card.number;
+  const finish = isMtg && facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : "";
+  const token = [finish, game.titleToken].filter(Boolean).join(" ");
+
+  const full = `${name} ${card.setName} ${number} ${token} ${tail}`.replace(/\s+/g, " ");
   if (full.length <= 80) return full;
 
-  const withoutCondition = `${card.name} ${card.setName} ${card.number} Pokemon TCG`;
-  if (withoutCondition.length <= 80) return withoutCondition;
+  // When trimming, drop what buyers search for least: for a slab the grade is
+  // the search term so the set name goes; for a raw card the set matters more
+  // than the condition.
+  const trimmed = (
+    facts.grading
+      ? `${name} ${number} ${token} ${tail}`
+      : `${name} ${card.setName} ${number} ${token}`
+  ).replace(/\s+/g, " ");
+  if (trimmed.length <= 80) return trimmed;
 
-  return withoutCondition.slice(0, 80).trim();
+  return trimmed.slice(0, 80).trim();
 }
 
 export function buildListing(
@@ -245,29 +419,121 @@ export function buildListing(
   price: number,
   condition: Condition,
   variantLabel?: string,
+  facts: ListingFacts = {},
 ): ListingDraft {
+  // The synthesized eBay comps rows carry labels like "eBay asking (54
+  // listings)" — a price basis, not a printing. When one of those drives the
+  // quote there is no printing to name, so the line is dropped rather than
+  // telling buyers the card's printing is "eBay asking".
+  const printingLabel =
+    variantLabel && !/^eBay\b/i.test(variantLabel) ? variantLabel : undefined;
+
+  const conditionLine = facts.grading
+    ? `Professionally graded ${gradeLabel(facts.grading)}. The slab in the photos is the exact one you will receive — please verify the cert number.`
+    : `Condition: ${condition}. Graded by eye — please review the photos, which show the exact card you will receive.`;
+
+  const shippingLine = facts.grading
+    ? "Slab shipped between cardboard in a bubble mailer, sent within 1 business day."
+    : "Shipped in a penny sleeve and top loader inside a rigid mailer, sent within 1 business day.";
+
+  const game = GAMES[gameOf(card)];
+  const isMtg = game.id === "mtg";
+  // The finish of an MTG copy is whatever printing drives the quote unless
+  // the caller says otherwise ("Foil" label → foil).
+  if (isMtg && !facts.finish && printingLabel) {
+    const key = Object.entries(MTG_FINISH_LABEL).find(([, label]) => label === printingLabel)?.[0];
+    if (key) facts = { ...facts, finish: key };
+  }
+  const numberLine = isMtg && card.setCode
+    ? `${card.name} — ${card.setName} (${card.setCode}), collector number ${card.number}.`
+    : `${card.name} — ${card.setName}, card ${card.number}.`;
+  const finishLine = isMtg && (facts.finish || printingLabel)
+    ? `Finish: ${MTG_FINISH_LABEL[facts.finish ?? ""] ?? printingLabel ?? "Nonfoil"}.`
+    : null;
+
   const description = [
-    `${card.name} — ${card.setName}, card ${card.number}.`,
+    numberLine,
     [
       card.rarity ? `Rarity: ${card.rarity}.` : null,
-      variantLabel ? `Printing: ${variantLabel}.` : null,
+      isMtg && card.typeLine ? `${card.typeLine}.` : null,
+      // The variant label already names 1st Edition when it drives the price;
+      // the explicit line covers cards priced off another printing.
+      facts.firstEdition && !/1st/i.test(printingLabel ?? "")
+        ? "1st Edition printing."
+        : null,
+      isMtg ? finishLine : printingLabel ? `Printing: ${printingLabel}.` : null,
     ]
       .filter(Boolean)
       .join(" "),
-    `Condition: ${condition}. Graded by eye — please review the photos, which show the exact card you will receive.`,
-    "Shipped in a penny sleeve and top loader inside a rigid mailer, sent within 1 business day.",
+    conditionLine,
+    shippingLine,
     "Happy to combine shipping on multiple cards — message before paying and I'll send an updated invoice.",
   ]
     .filter((line) => line && line.length > 0)
     .join("\n\n");
 
   return {
-    title: buildTitle(card, condition),
+    title: buildTitle(card, condition, facts),
     description,
     price,
-    categoryId: POKEMON_TCG_CARDS_CATEGORY_ID,
-    categoryName: "Collectible Card Games > Pokémon TCG > Individual Cards",
+    categoryId: CCG_CARDS_CATEGORY_ID,
+    categoryName: game.singlesCategoryName,
   };
+}
+
+/**
+ * A sealed product's listing. Separate from buildListing because almost none
+ * of a card's description applies: there's no collector number, rarity,
+ * printing, or condition scale — the one fact that sells sealed product is
+ * that it's factory sealed, so the copy leads with that.
+ */
+export function buildSealedListing(
+  product: PokemonCard,
+  price: number,
+  productType?: string | null,
+): ListingDraft {
+  const game = GAMES[gameOf(product)];
+  const full = `${product.name} ${game.titleToken} Factory Sealed`;
+  const title = full.length <= 80 ? full : full.slice(0, 80).trim();
+
+  const description = [
+    `${product.name} (${game.fullName}) — factory sealed and unopened.`,
+    "Please review the photos, which show the exact item you will receive.",
+    "Shipped boxed with padding, sent within 1 business day.",
+    "Happy to combine shipping on multiple items — message before paying and I'll send an updated invoice.",
+  ].join("\n\n");
+
+  const isLoosePack = /pack$/i.test(productType ?? "");
+
+  return {
+    title,
+    description,
+    price,
+    categoryId: isLoosePack
+      ? CCG_SEALED_PACKS_CATEGORY_ID
+      : CCG_SEALED_BOXES_CATEGORY_ID,
+    categoryName: `${game.sealedCategoryName} > ${isLoosePack ? "Sealed Packs" : "Sealed Boxes"}`,
+  };
+}
+
+/** The buyer-facing search terms for what's actually being sold. */
+function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
+  const name = card.englishName || card.name;
+  const game = GAMES[gameOf(card)];
+  // MTG: the set code is how buyers narrow a reprinted name to one printing;
+  // "foil" only when the copy is one (a nonfoil search would drag foils in).
+  const isMtg = game.id === "mtg";
+  return [
+    name,
+    isMtg && card.setCode ? card.setCode : "",
+    card.number,
+    isMtg && facts.finish && facts.finish !== "nonfoil" ? "foil" : "",
+    facts.firstEdition ? "1st edition" : "",
+    facts.grading ? gradeLabel(facts.grading) : "",
+    game.searchToken,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
@@ -276,14 +542,13 @@ export function buildListing(
  * Lives here rather than in the server eBay client because the UI links to it
  * even when there are no comps (or no eBay credentials) to show.
  */
-export function ebaySearchUrl(card: PokemonCard): string {
-  const name = card.englishName || card.name;
+export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}): string {
   const params = new URLSearchParams({
-    _nkw: `${name} ${card.number} pokemon`.trim(),
-    _sacat: POKEMON_TCG_CARDS_CATEGORY_ID,
+    _nkw: ebayQuery(card, facts),
     // Price + shipping, lowest first — how a seller actually checks comps.
     _sop: "15",
   });
+  if (!facts.sealed) params.set("_sacat", CCG_CARDS_CATEGORY_ID);
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;
 }
 
@@ -296,25 +561,38 @@ export function ebaySearchUrl(card: PokemonCard): string {
  * search: unauthenticated or automated requests get bounced to sign-in, so a
  * seller may have to be logged into eBay for this to open directly.
  */
-export function ebaySoldSearchUrl(card: PokemonCard): string {
-  const name = card.englishName || card.name;
+export function ebaySoldSearchUrl(
+  card: PokemonCard,
+  facts: ListingFacts = {},
+): string {
   const params = new URLSearchParams({
-    _nkw: `${name} ${card.number} pokemon`.trim(),
-    _sacat: POKEMON_TCG_CARDS_CATEGORY_ID,
+    _nkw: ebayQuery(card, facts),
     LH_Sold: "1",
     LH_Complete: "1",
   });
+  if (!facts.sealed) params.set("_sacat", CCG_CARDS_CATEGORY_ID);
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;
 }
 
 /**
- * Opens eBay's sell flow with the title pre-filled. Creating the listing
- * outright needs the eBay Sell API (developer account + OAuth), which isn't
- * wired up yet — see README.
+ * eBay's own listing flow, pre-filled with our title. eBay auto-saves what
+ * this opens under My eBay › Drafts — which is the only way to land there
+ * without the limited-release Listing API (eBay routes it 404 for keysets
+ * it hasn't approved; see createDraft in server/ebaySell.ts).
+ *
+ * URL history (08-16): the old `/sl/list?sr=sell&title=` deep link now dies
+ * in eBay's new listing tool with `MISSING_DRAFT_ID_MODE` (the form wants a
+ * mode or a draft id). eBay's prelist flow still takes `title`:
+ * `/sl/prelist/suggest` shows the box pre-filled (one more tap on the
+ * magnifier), `/sl/prelist/identify` runs the catalog search itself and
+ * lands on the matches — verified 08-16 (page carries the matched catalog
+ * titles + "Continue without match"). With an exact match eBay creates the
+ * draft right there (Chris's Mewtwo ex landed in My eBay › Drafts under
+ * eBay's catalog title) and drops the seller in Seller Hub › Drafts.
  */
-export function ebaySellUrl(listing: ListingDraft): string {
-  const params = new URLSearchParams({ sr: "sell", title: listing.title });
-  return `https://www.ebay.com/sl/list?${params.toString()}`;
+export function ebayDraftFormUrl(listing: ListingDraft): string {
+  const params = new URLSearchParams({ title: listing.title.slice(0, 80) });
+  return `https://www.ebay.com/sl/prelist/identify?${params.toString()}`;
 }
 
 function csvCell(value: string | number): string {
@@ -322,22 +600,63 @@ function csvCell(value: string | number): string {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-/** Draft spreadsheet of the queue, for sellers who list in bulk. */
-export function toCsv(
-  rows: { listing: ListingDraft; card: PokemonCard; condition: Condition }[],
-): string {
-  const header = ["Title", "Price", "Condition", "Set", "Number", "Category"];
-  const lines = rows.map(({ listing, card, condition }) =>
+export interface EbayDraftsCsvRow {
+  listing: ListingDraft;
+  /** Ledger id → our SKU and the public photo URL eBay's importer fetches. */
+  ledgerId: string | null;
+  /** True when the seller's own photo is stored for this card (never send catalogue art — eBay's picture policy). */
+  hasPhoto: boolean;
+  sealed: boolean;
+}
+
+/**
+ * eBay's Seller Hub "Create new drafts" upload file — the bulk road into the
+ * seller's Drafts folder (Seller Hub › Listings › Drafts) that needs no API
+ * approval: CardFlip writes one file for the whole stack, the seller uploads
+ * it once at Seller Hub › Reports › Uploads, and every row lands as a draft
+ * they finish + list from there. Column names, order, the `Draft` action and
+ * the NEW/USED-only Condition ID are eBay's spec (pages.ebay.com/sh/reports/
+ * help/uploadable-file-feeds, "Draft template field definitions"); the #INFO
+ * rows mirror eBay's own template and are ignored by the importer. Card
+ * condition (NM/LP…) doesn't fit their two-value column, so it stays in the
+ * title + description, as on the API road.
+ */
+export function toEbayDraftsCsv(rows: EbayDraftsCsvRow[]): string {
+  const info = [
+    "#INFO,Version=0.0.2,Template= eBay-draft-listings-template_US,,,,,,,,",
+    "#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html,,,,,,,,,,",
+    '"#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts",,,,,,,,,,',
+    "#INFO,,,,,,,,,,",
+  ];
+  const header = [
+    "Action(SiteID=US|Country=US|Currency=USD|Version=1193|CC=UTF-8)",
+    "Custom label (SKU)",
+    "Category ID",
+    "Title",
+    "UPC",
+    "Price",
+    "Quantity",
+    "Item photo URL",
+    "Condition ID",
+    "Description",
+    "Format",
+  ];
+  const lines = rows.map(({ listing, ledgerId, hasPhoto, sealed }) =>
     [
-      listing.title,
+      "Draft",
+      ledgerId ? `cardflip-${ledgerId}` : "",
+      listing.categoryId,
+      listing.title.slice(0, 80),
+      "",
       listing.price.toFixed(2),
-      condition,
-      card.setName,
-      card.number,
-      listing.categoryName,
+      1,
+      ledgerId && hasPhoto ? `${SITE_URL}/api/card-image/${ledgerId}` : "",
+      sealed ? "NEW" : "USED",
+      descriptionHtml(listing.description),
+      "FixedPrice",
     ]
       .map(csvCell)
       .join(","),
   );
-  return [header.join(","), ...lines].join("\n");
+  return [...info, header.join(","), ...lines].join("\r\n") + "\r\n";
 }

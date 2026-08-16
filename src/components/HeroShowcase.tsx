@@ -16,18 +16,20 @@ export default function HeroShowcase({ card }: { card: PokemonCard | null }) {
     <div className="relative mx-auto grid w-full max-w-3xl items-center gap-8 sm:grid-cols-[minmax(0,200px)_1fr]">
       <div className="relative mx-auto w-44 sm:w-full">
         <div
-          className="absolute -inset-6 rounded-full bg-brand-500/25 blur-3xl"
+          className="absolute -inset-6 rounded-full bg-[conic-gradient(from_140deg,rgba(125,211,252,0.25),rgba(167,139,250,0.3),rgba(240,171,252,0.25),rgba(125,211,252,0.25))] blur-3xl"
           aria-hidden
         />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={card.imageLarge || card.imageSmall}
-          alt={`${card.name} — ${card.setName}`}
-          className="relative w-full rounded-xl shadow-2xl shadow-black/60"
-        />
+        <div className="sheen relative rounded-xl transition duration-300 hover:-translate-y-1 hover:rotate-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={card.imageLarge || card.imageSmall}
+            alt={`${card.name} — ${card.setName}`}
+            className="w-full rounded-xl shadow-2xl shadow-black/60"
+          />
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-edge bg-gradient-to-b from-surface-2 to-transparent p-5 backdrop-blur">
+      <div className="foil-edge rounded-2xl p-5 [--foil-fill:#0b0d13]">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
             Generated listing

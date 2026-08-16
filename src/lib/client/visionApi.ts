@@ -1,7 +1,7 @@
 "use client";
 
 import { apiPath } from "@/lib/client/basePath";
-import type { ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
+import type { GameId, ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
 
 export interface VisionScanOutcome {
   status: VisionStatus;
@@ -44,6 +44,7 @@ async function downscale(file: File): Promise<{ base64: string; mediaType: strin
 export async function scanCardWithVision(
   file: File,
   language: ScanLanguage,
+  game: GameId = "pokemon",
 ): Promise<VisionScanOutcome> {
   try {
     const { base64, mediaType } = await downscale(file);
@@ -52,7 +53,7 @@ export async function scanCardWithVision(
     const res = await fetch(apiPath("/api/vision/scan"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64, mediaType, language }),
+      body: JSON.stringify({ image: base64, mediaType, language, game }),
     });
     const data = await res.json().catch(() => null);
 

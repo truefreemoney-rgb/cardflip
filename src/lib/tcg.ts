@@ -153,6 +153,101 @@ export async function queryCards(
  * can never show a card image that 404s, and the price shown is genuine.
  * Returns null on any failure so the page can fall back to static markup.
  */
+/**
+ * A shelf of iconic, genuinely-priced cards for the landing page ticker and
+ * card wall. Same contract as getFeaturedCard: real cards, real prices,
+ * day-long cache, empty array on any failure so the sections just skip.
+ */
+export async function getShowcaseCards(): Promise<PokemonCard[]> {
+  const pokemon = await pokemonShowcase();
+  // Magic joins the ticker from its own mirror (prices come with it) —
+  // interleaved so the strip reads as one market, not two lists.
+  const magic = await mtgShowcaseSafe();
+  if (magic.length === 0) return pokemon;
+  const mixed: PokemonCard[] = [];
+  const max = Math.max(pokemon.length, magic.length);
+  for (let i = 0; i < max; i++) {
+    if (pokemon[i]) mixed.push(pokemon[i]);
+    if (magic[i]) mixed.push(magic[i]);
+  }
+  return mixed.slice(0, 24);
+}
+
+async function pokemonShowcase(): Promise<PokemonCard[]> {
+  try {
+    const raw = await queryCards(
+      "(name:charizard OR name:pikachu OR name:mewtwo OR name:gengar OR name:umbreon OR name:blastoise OR name:gyarados OR name:dragonite OR name:rayquaza OR name:eevee)",
+      60,
+      86400,
+    );
+    const priced = raw
+      .map(mapCard)
+      .filter(
+        (c) =>
+          c.imageSmall &&
+          c.prices.some((p) => p.source === "tcgplayer" && (p.market ?? 0) > 5),
+      )
+      .sort((a, b) => {
+        const price = (c: PokemonCard) =>
+          Math.max(
+            ...c.prices
+              .filter((p) => p.source === "tcgplayer")
+              .map((p) => p.market ?? 0),
+          );
+        return price(b) - price(a);
+      })
+      .slice(0, 18);
+    if (priced.length >= 6) return priced;
+    return await showcaseFromMirror();
+  } catch {
+    return showcaseFromMirror();
+  }
+}
+
+/** Iconic Magic cards from the Scryfall mirror; empty until `npm run sync:mtg` has run. */
+async function mtgShowcaseSafe(): Promise<PokemonCard[]> {
+  try {
+    const { hasMtgMirror, mtgShowcase } = await import("@/lib/server/mtgCards");
+    if (!hasMtgMirror()) return [];
+    return mtgShowcase(9);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Priceless fallback for when pokemontcg.io is down (it fails ~half its
+ * requests): iconic cards straight from the local mirror. Real cards, real
+ * art, no prices — the ticker hides the price and softens its caption
+ * rather than vanishing. Dynamic import keeps the SQLite dependency out of
+ * any non-server bundle that touches this module.
+ */
+async function showcaseFromMirror(): Promise<PokemonCard[]> {
+  try {
+    const { hasEnglishMirror, searchEnglishCardsLocal } = await import(
+      "@/lib/server/enCards"
+    );
+    if (!hasEnglishMirror()) return [];
+    const icons = [
+      "Charizard",
+      "Pikachu",
+      "Mewtwo",
+      "Gengar",
+      "Umbreon",
+      "Blastoise",
+      "Gyarados",
+      "Dragonite",
+      "Rayquaza",
+    ];
+    return icons
+      .flatMap((name) => searchEnglishCardsLocal(name, null, 2).cards)
+      .filter((c) => c.imageSmall)
+      .slice(0, 18);
+  } catch {
+    return [];
+  }
+}
+
 export async function getFeaturedCard(): Promise<PokemonCard | null> {
   try {
     const raw = await queryCards('name:charizard rarity:"Rare Holo"', 20, 86400);

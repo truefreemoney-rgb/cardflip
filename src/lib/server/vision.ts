@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { ScanLanguage, VisionCardRead } from "@/lib/types";
+import type { GameId, ScanLanguage, VisionCardRead } from "@/lib/types";
 
 export type { VisionCardRead };
 
@@ -55,7 +55,15 @@ const CARD_READ_SCHEMA = {
       "The set or expansion name if identifiable, else null.",
     ),
     cardNumber: nullableString(
-      "The collector number as printed, without the set total. From '199/165' return '199'. Null if not visible.",
+      "The collector number — the left half of the fraction at the bottom of the card. From '199/165' return '199'. Null if not visible.",
+    ),
+    setTotal: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description:
+        "The right half of that fraction — the set's card count. From '199/165' return 165. This identifies which expansion the card is from, so read it separately and carefully. Null if the card prints no denominator (promos often don't) or you cannot see it.",
+    },
+    setCode: nullableString(
+      "The short expansion code printed near the collector number, e.g. 'SVI', 'PAF', 'BS'. This is NOT the language code ('EN'), the illustrator, or the regulation mark (a single letter in a black box). Null if not visible.",
     ),
     language: {
       type: "string",
@@ -93,6 +101,8 @@ const CARD_READ_SCHEMA = {
     "englishName",
     "setName",
     "cardNumber",
+    "setTotal",
+    "setCode",
     "language",
     "condition",
     "conditionNotes",
@@ -103,15 +113,45 @@ const CARD_READ_SCHEMA = {
 
 const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
 
-Read what is actually on the card. The name and collector number are what the
-lookup keys on, so getting those exactly right matters more than filling in
-every other field — return null rather than a guess for anything you cannot
-actually see, and let confidence reflect that.
+Read what is actually on the card. The name and the full collector fraction are
+what the lookup keys on, so getting those exactly right matters more than
+filling in every other field — return null rather than a guess for anything you
+cannot actually see, and let confidence reflect that.
+
+Both halves of the fraction matter, and they answer different questions. The
+left half says which card this is; the right half says which set it came from,
+and that is what separates an original from a reprint carrying the same name
+and the same number — Charizard 4/102 is the 1999 Base Set card, Charizard
+4/130 is the 2000 reprint worth roughly half. A number above the set total
+(201/198) is a secret rare, which is normal and usually the valuable one. Read
+the two halves independently rather than assuming a card is numbered within
+its set.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say
 so with a null rather than defaulting to Near Mint.`;
+
+const SYSTEM_MTG = `You identify Magic: The Gathering cards from photos for a seller who is about to list them.
+
+Read what is actually on the card. The lookup keys on three things printed on
+every modern card: the name (top-left of the frame), the collector number and
+the set code — both in the bottom-left corner in small type, e.g.
+"0187/0281 R  LTR • EN" or on older cards "187/281" with the set code on the
+next line, or just "187" on very old cards. Return the collector number as
+printed without leading zeros ("187"; keep suffix letters like "187a" or the ★),
+the denominator as setTotal when printed, and the 3–5 character set code
+("LTR", "MH2", "2X2", "PLST") as setCode. The set code is NOT the language
+code ("EN"), NOT the rarity letter (C/U/R/M) that sits between number and code,
+and NOT the artist credit. Put the full name in "name" exactly as printed; for a
+double-faced or adventure card use the front/main name. Leave englishName null.
+setName is optional — the set code is what identifies the printing.
+
+Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
+sleeve. Judge condition only from what the photo can actually support. Glare is
+not a scratch and a sleeve is not damage; when the photo cannot settle it, say
+so with a null rather than defaulting to Near Mint. Foil treatment is not a
+condition issue.`;
 
 let client: Anthropic | null = null;
 
@@ -138,6 +178,7 @@ export async function analyzeCardImage(
   base64Image: string,
   mediaType: string,
   languageHint: ScanLanguage,
+  game: GameId = "pokemon",
 ): Promise<VisionCardRead> {
   const response = await getClient().messages.create({
     model: "claude-opus-5",
@@ -148,7 +189,7 @@ export async function analyzeCardImage(
       effort: "low",
       format: { type: "json_schema", schema: CARD_READ_SCHEMA },
     },
-    system: SYSTEM,
+    system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
     messages: [
       {
         role: "user",
@@ -190,6 +231,8 @@ export async function analyzeCardImage(
     ...parsed,
     // Schema-constrained, but the number still reaches a regex downstream.
     cardNumber: parsed.cardNumber?.trim() || null,
+    setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,
+    setCode: parsed.setCode?.trim().toUpperCase() || null,
     name: parsed.name.trim(),
   };
 }

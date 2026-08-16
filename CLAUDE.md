@@ -37,9 +37,15 @@ re-derive them.
 | **Cardmarket quotes EUR**; the listing is USD on eBay US. Rendering € as $ once put a €4,184 figure one click from becoming the asking price. | Currency travels on `CardPrice`. Only USD can set a listing price (`canPriceListing`). Render with `formatMoney(value, currency)`. |
 | **OCR noise words were rejected, never stripped** — "b Hp Charizard" went to the API verbatim and matched nothing. | Strip furniture/debris; see `lib/ocrText.ts`. |
 | **OCR reads "/" as 7/1/l/I** — "4/102" arrives as "47102", losing the collector number. | Strict slash first, then a loose pass requiring a non-zero-leading denominator. |
+| **A collector number is only unique inside its own set.** Name + number alone is ambiguous for **1,306 keys / 2,890 cards** in the mirror — "Charizard #4" is both Base Set (~$818) and Base Set 2 (~$466). | Carry the *whole* printed fraction. The denominator is a set fingerprint (4/102 vs 4/130) and settles **94.3%** of those collisions. `lib/cardNumber.ts`. |
+| **The set total must rank, never filter** — it rides on the same misread slash. | Penalties in `enCards.ts` stay below one name tier, so a bad denominator can only reorder candidates, not erase them. Agreement is three-valued: `unknown` ≠ `mismatch`. |
+| **Indexing a column added by an `ALTER` probe** fails inside the same `db.exec` as `CREATE TABLE IF NOT EXISTS` — the CREATE is a no-op on an existing table, so the column isn't there yet. | Create such indexes *after* the ALTER loop. Bit both `db.ts` and `sync-cards.mjs`. |
 | **Raw eBay results are mostly not the card** — bulk lots, graded slabs, proxies, sealed product. Averaging blind describes nothing. | Filter (`lib/ebayComps.ts`) then trim outliers with a Tukey fence. |
 | **TCGdex name-search returns `[]` for `ja` and `zh-tw`** even for exact names. | Those locales search the local mirror only. Verified directly — don't retry it. |
 | **Fetching newest-N and ranking client-side can't find old cards.** A 1999 Charizard is ~100 results deep. | Rank from the local mirror, or fetch a large page before ranking. |
+| **MTG names carry commas** ("Ragavan, Nimble Pilferer") and a typed/read query usually doesn't — a plain LIKE misses. | `mtgCards.ts` compares `REPLACE(name, ',', '')` on both sides. |
+| **MTG: the same name is reprinted across dozens of sets** — name alone never identifies a printing, and a collector-number coincidence in another set is common. | The printed **set code** is decisive: a code mismatch costs more than a whole name tier (9 > 8) in `searchMtgCardsLocal`. Carry `setCode` from vision / `parseMtgQuery` everywhere. |
+| **Everything game-specific lives in `lib/games.ts`** (words, eBay aspects, sealed types, finish labels). eBay's CCG categories are shared by every game — 183454 for singles — the game is an item specific, not a category. | Add per-game facts to the registry; don't sprinkle `if (game === "mtg")` through components. `gameOf(card)` defaults to Pokémon so old rows keep working. |
 
 ---
 
@@ -54,8 +60,9 @@ npm run sync:jp        # Japanese
 npm run sync:zh        # Traditional Chinese
 npm run sync:species   # English species names (foreign-card overlay)
 
-npm run test:ocr       # OCR text parsing — pins the "b Hp Charizard" / "47102" bugs
-npm run test:ebay      # eBay comp filtering + trimmed average
+npm run test:ocr        # OCR name parsing — pins the "b Hp Charizard" bug
+npm run test:cardnumber # the printed fraction — pins "47102" and the 4/102 vs 4/130 split
+npm run test:ebay       # eBay comp filtering + trimmed average
 npm run test:pricing    # currency handling — pins the €/$ bug
 
 npm run admin          # create the admin account (unlocks /admin)
@@ -116,6 +123,13 @@ All three degrade cleanly and need **no code change** to activate.
 | Vision card reading + condition grading | `ANTHROPIC_API_KEY` (instant, console.anthropic.com) | Tesseract OCR |
 | eBay asking-price average | `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | card-market pricing |
 | eBay **sold**-price average | Marketplace Insights approval on the same keyset | asking-price average |
+| "Connect with eBay" (user OAuth, `lib/server/ebayAuth.ts`) | keyset + `EBAY_RU_NAME` (the RuName eBay assigns to the registered callback `/api/ebay/callback`) | /connect-ebay shows honest "not live yet" copy; `/api/ebay/connect` 503s |
+| Account-deletion endpoint validation | `EBAY_VERIFICATION_TOKEN` (32–80 chars, we choose it) | GET challenge 503s |
+
+`EBAY_TOKEN_KEY` is optional — user tokens are AES-GCM encrypted at rest with
+a key derived from the client secret unless it's set. `redirect_uri` in the
+authorize URL is the RuName, **not** a URL. The demo account can never link
+eBay (`isDemoUser`) — it's shared.
 
 ```bash
 flyctl secrets set ANTHROPIC_API_KEY=... --app cardflip-superior
@@ -131,6 +145,17 @@ fallback paths are the likeliest explanation.
 - **pokemontcg.io** — English prices only. Unreliable; never load-bearing.
 - **eBay Browse / Marketplace Insights** — asking and sold comps.
 - **PokeAPI** — English species names for the foreign-card overlay.
+- **Scryfall** (`api.scryfall.com`) — Magic: The Gathering catalogue AND
+  prices (USD nonfoil/foil/etched from TCGplayer, EUR from Cardmarket), one
+  row per paper printing, mirrored into `mtg_cards` + `mtg_sets` by
+  `npm run sync:mtg` (paginated search, ~540 pages, ~6 min from a home IP;
+  the bulk file is too big for the Fly machine's memory). Prices refresh on
+  every sync — there is no live MTG price call. **Scryfall 429s Fly's egress
+  IP** (seen 08-16, retries never clear), so the sync does NOT run on the
+  machine: `npm run export:mtg` packs the local mirror into
+  `seed/mtg-mirror.db.gz` (~9 MB, shipped in the image) and `db.ts`
+  imports it on boot when the volume's copy is empty/older. Refresh =
+  `npm run sync:mtg && npm run export:mtg && flyctl deploy`.
 - **Scrydex was evaluated and rejected**: their robots.txt disallows ClaudeBot
   and they have a paid official API, so scraping was both unnecessary and
   against their stated wishes. Don't revisit it as a scrape target.

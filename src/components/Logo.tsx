@@ -7,7 +7,7 @@ export default function Logo({ size = "md" }: { size?: "sm" | "md" }) {
   return (
     <Link href="/" className="flex items-center gap-2">
       <span
-        className={`flex ${box} items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-violet-600 font-bold text-white shadow-sm shadow-brand-600/40`}
+        className={`flex ${box} items-center justify-center rounded-lg bg-[conic-gradient(from_140deg,#7dd3fc,#a78bfa,#f0abfc,#6366f1,#7dd3fc)] font-bold text-white shadow-sm shadow-brand-600/40`}
         aria-hidden
       >
         ⚡

@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
+import zlib from "node:zlib";
 
 /**
  * A single embedded SQLite database backs the whole app. This is a real,
@@ -146,6 +147,12 @@ db.exec(`
 
   -- Mirror of TCGdex's English catalogue, so identifying a card never depends
   -- on pokemontcg.io being up. Populated by scripts/sync-cards.mjs.
+  -- set_card_count_official is the denominator a card prints ("25/102" -> 102)
+  -- and set_card_count_total includes the secret rares numbered above it, so a
+  -- local_id exceeding the official count identifies one. Both are nullable:
+  -- the columns arrived after the first sync, and a mirror synced before that
+  -- still identifies cards, just without the set-total tiebreak. See
+  -- src/lib/cardNumber.ts.
   CREATE TABLE IF NOT EXISTS en_cards (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -154,10 +161,52 @@ db.exec(`
     local_id TEXT NOT NULL,
     set_release_date TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
+    set_card_count_official INTEGER,
+    set_card_count_total INTEGER,
+    set_code TEXT NOT NULL DEFAULT '',
     synced_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_en_cards_name ON en_cards(name);
   CREATE INDEX IF NOT EXISTS idx_en_cards_local_id ON en_cards(local_id);
+
+  -- Magic: The Gathering mirror (Scryfall, every paper printing; see
+  -- scripts/sync-mtg.mjs). Same identification shape as en_cards — name +
+  -- collector number + set code — plus what Scryfall gives that TCGdex
+  -- doesn't: prices per printing (USD nonfoil/foil/etched, EUR), rarity,
+  -- type line and finishes. Prices refresh on every sync, so MTG pricing is
+  -- served from here rather than a live upstream (see lib/server/mtgCards.ts).
+  CREATE TABLE IF NOT EXISTS mtg_sets (
+    code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    released_at TEXT NOT NULL DEFAULT '',
+    card_count INTEGER,
+    printed_size INTEGER,
+    set_type TEXT NOT NULL DEFAULT '',
+    icon_url TEXT NOT NULL DEFAULT '',
+    synced_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS mtg_cards (
+    id TEXT PRIMARY KEY,
+    oracle_id TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL,
+    set_code TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    collector_number TEXT NOT NULL,
+    set_release_date TEXT NOT NULL DEFAULT '',
+    image_url TEXT NOT NULL DEFAULT '',
+    rarity TEXT NOT NULL DEFAULT '',
+    type_line TEXT NOT NULL DEFAULT '',
+    finishes TEXT NOT NULL DEFAULT '',
+    lang TEXT NOT NULL DEFAULT 'en',
+    price_usd REAL,
+    price_usd_foil REAL,
+    price_usd_etched REAL,
+    price_eur REAL,
+    price_eur_foil REAL,
+    synced_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_name ON mtg_cards(name);
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_number ON mtg_cards(collector_number, set_code);
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
@@ -168,3 +217,149 @@ db.exec(`
     cached_at INTEGER NOT NULL
   );
 `);
+
+/**
+ * Columns added to en_cards after it first shipped.
+ *
+ * CREATE TABLE IF NOT EXISTS silently does nothing on a database that already
+ * has the table, so a mirror synced before these columns existed — production's
+ * included, on the Fly volume — would still be missing them, and the lookup's
+ * SELECT would throw on every scan. The sync script runs the same probe, but
+ * the app must not depend on having been re-synced first: SQLite has no
+ * "ADD COLUMN IF NOT EXISTS", so add and ignore the duplicate-column error.
+ */
+for (const column of [
+  "set_card_count_official INTEGER",
+  "set_card_count_total INTEGER",
+  "set_code TEXT NOT NULL DEFAULT ''",
+]) {
+  try {
+    db.exec(`ALTER TABLE en_cards ADD COLUMN ${column}`);
+  } catch {
+    // Already present.
+  }
+}
+
+// Same probe pattern for the seller ledger: sealed product rows arrived after
+// the table shipped. "kind" tells a booster box from a single; product_type
+// keeps which sealed product it is ("Booster Box", "Elite Trainer Box", ...).
+// Grading needs no column — a slab's grade is stored in `condition` ("PSA 10"),
+// which is already free text the UI displays verbatim.
+//
+// The eBay columns arrived with the Sell Inventory push: the SKU/offer id let a
+// re-push update the same draft instead of creating a second one, and the
+// listing id is what "View on eBay" links to once the offer is published.
+// `photo_at` marks that the seller's own photo of the copy is on disk
+// (data/photos/<id>.jpg) — eBay's picture policy wants the actual item, not
+// catalogue art, so that file is the only listing image ever sent.
+for (const column of [
+  "kind TEXT NOT NULL DEFAULT 'card'",
+  "product_type TEXT",
+  "ebay_sku TEXT",
+  "ebay_offer_id TEXT",
+  "ebay_listing_id TEXT",
+  "ebay_pushed_at INTEGER",
+  "ebay_published_at INTEGER",
+  "photo_at INTEGER",
+  // Listing API draft (the one that shows in My eBay › Drafts) — id + the
+  // URL that opens it in eBay's listing tool.
+  "ebay_draft_id TEXT",
+  "ebay_draft_url TEXT",
+  "ebay_draft_at INTEGER",
+  // Which game the row belongs to ('pokemon' | 'mtg') — drives titles,
+  // eBay aspects and search links when the ledger is re-opened.
+  "game TEXT NOT NULL DEFAULT 'pokemon'",
+]) {
+  try {
+    db.exec(`ALTER TABLE cards ADD COLUMN ${column}`);
+  } catch {
+    // Already present.
+  }
+}
+
+// Created after the columns exist, so it can't live in the block above.
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_en_cards_printed
+    ON en_cards(local_id, set_card_count_official);
+`);
+
+/**
+ * Seed the Magic mirror from the file baked into the deploy.
+ *
+ * Scryfall rate-limits Fly's shared egress IP hard enough that
+ * scripts/sync-mtg.mjs can't finish from the machine (429s that don't clear
+ * on retry — seen 08-16 on page 2), while the same script from a home IP
+ * finishes in six minutes. So the mirror is synced locally, exported with
+ * `npm run export:mtg` to seed/mtg-mirror.db.gz (~9 MB), shipped in the
+ * image, and copied into the live database here on first boot — or whenever
+ * the seed is newer than what the volume holds. Idempotent, a few seconds,
+ * and it never overwrites a mirror that a successful in-place sync made
+ * fresher than the seed.
+ */
+function seedMtgMirror(): void {
+  const seedGz = path.join(process.cwd(), "seed", "mtg-mirror.db.gz");
+  if (!fs.existsSync(seedGz)) return;
+  try {
+    const seedTime = Math.floor(fs.statSync(seedGz).mtimeMs);
+    const current = db
+      .prepare("SELECT COALESCE(MAX(synced_at), 0) AS at, COUNT(*) AS n FROM mtg_cards")
+      .get() as { at: number; n: number };
+    // A live mirror only wins when it is BOTH newer than the seed AND
+    // actually complete. Recency alone was wrong once: an in-place sync that
+    // 429'd on page 2 left 175 rows with a fresh timestamp, the seed was
+    // skipped, and Magic search on prod returned nothing (08-16). Anything
+    // below the floor is a partial run and gets replaced.
+    const FULL_MIRROR_FLOOR = 80_000;
+    if (current.n >= FULL_MIRROR_FLOOR && current.at >= seedTime) return;
+    // Marker written after a successful import of this exact seed file, so
+    // later boots skip the gunzip + compare entirely.
+    const marker = path.join(DATA_DIR, "mtg-seed.imported");
+    if (current.n >= FULL_MIRROR_FLOOR && fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === String(seedTime)) {
+      return;
+    }
+
+    const tmp = path.join(DATA_DIR, "mtg-mirror.seed.db");
+    fs.writeFileSync(tmp, zlib.gunzipSync(fs.readFileSync(seedGz)));
+    const attached = new DatabaseSync(tmp, { readOnly: true });
+    const seed = attached
+      .prepare("SELECT COALESCE(MAX(synced_at), 0) AS at, COUNT(*) AS n FROM mtg_cards")
+      .get() as { at: number; n: number };
+    attached.close();
+    if (current.n >= seed.n && current.at >= seed.at) {
+      fs.unlinkSync(tmp);
+      fs.writeFileSync(marker, String(seedTime));
+      return;
+    }
+
+    db.exec(`ATTACH DATABASE '${tmp.replace(/'/g, "''")}' AS mtgseed`);
+    db.exec("BEGIN");
+    // Wholesale replace: rows from a partial sync would otherwise linger
+    // (a stale price on a printing the seed also has is harmless, but a
+    // printing Scryfall since renamed would never disappear).
+    db.exec("DELETE FROM mtg_cards");
+    db.exec("DELETE FROM mtg_sets");
+    db.exec(`INSERT OR REPLACE INTO mtg_sets (code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at)
+               SELECT code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at FROM mtgseed.mtg_sets`);
+    db.exec(`INSERT OR REPLACE INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
+               image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at)
+               SELECT id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
+               image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
+               FROM mtgseed.mtg_cards`);
+    db.exec("COMMIT");
+    db.exec("DETACH DATABASE mtgseed");
+    fs.unlinkSync(tmp);
+    fs.writeFileSync(marker, String(seedTime));
+    const after = (db.prepare("SELECT COUNT(*) AS n FROM mtg_cards").get() as { n: number }).n;
+    console.info(`MTG mirror seeded from ${path.basename(seedGz)}: ${after} printings`);
+  } catch (err) {
+    // A failed seed must never take the app down — Pokémon still works and
+    // Magic search reports "catalogue isn't loaded" until the next boot.
+    console.error("MTG mirror seed failed:", err);
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // No transaction open.
+    }
+  }
+}
+seedMtgMirror();

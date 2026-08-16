@@ -3,11 +3,11 @@ import type { ScanLanguage } from "@/lib/types";
 import {
   JP_NOISE,
   ZH_NOISE,
-  extractCardNumber,
   extractCjkNameCandidates,
   extractNameCandidates,
   toLines,
 } from "@/lib/ocrText";
+import { extractPrintedNumber, type PrintedNumber } from "@/lib/cardNumber";
 
 /**
  * Card OCR.
@@ -23,8 +23,11 @@ export type { ScanLanguage };
 export interface ScanResult {
   /** Ordered best-guess names, most likely first. */
   nameCandidates: string[];
-  /** Collector number, e.g. "74" from "074/073". */
-  cardNumber: string | null;
+  /**
+   * The whole printed fraction — "074/073" as a collector number *and* the set
+   * total that identifies which expansion it came from.
+   */
+  printed: PrintedNumber | null;
   rawLines: string[];
 }
 
@@ -137,7 +140,7 @@ export async function scanCard(
 
     return {
       nameCandidates,
-      cardNumber: extractCardNumber(numberLines),
+      printed: extractPrintedNumber(numberLines),
       rawLines: [...nameLines, ...numberLines],
     };
   } finally {

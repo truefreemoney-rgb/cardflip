@@ -1,7 +1,8 @@
 import "server-only";
 import { buildComps, isComparable } from "@/lib/ebayComps";
 import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
-import type { EbayComps, EbayListing, PokemonCard } from "@/lib/types";
+import { gameOf, type EbayComps, type EbayListing, type PokemonCard } from "@/lib/types";
+import { GAMES } from "@/lib/games";
 
 export { ebaySearchUrl, ebaySoldSearchUrl };
 
@@ -18,7 +19,28 @@ export { ebaySearchUrl, ebaySoldSearchUrl };
 
 const EBAY_API = "https://api.ebay.com";
 /** Collectible Card Games > Pokémon TCG > Individual Cards. */
-const POKEMON_SINGLES_CATEGORY = "183454";
+// eBay's single leaf for every CCG game (Pokémon and Magic alike); the game
+// itself is an item specific, so the query carries the game word instead.
+const CCG_SINGLES_CATEGORY = "183454";
+
+/**
+ * The comps search text: name + collector number, plus the set code for MTG
+ * (a name is reprinted across dozens of sets; the code pins the printing) and
+ * the game word so a Pokémon "Charizard 4" and an MTG "Charizard" never mix.
+ */
+function compsQuery(card: PokemonCard): string {
+  const name = card.englishName || card.name;
+  const game = GAMES[gameOf(card)];
+  return [
+    name,
+    game.id === "mtg" && card.setCode ? card.setCode : "",
+    card.number,
+    game.id === "mtg" ? game.searchToken : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
 const MARKETPLACE = "EBAY_US";
 
 export class EbayNotConfiguredError extends Error {
@@ -96,12 +118,11 @@ interface ItemSummary {
  */
 export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
-  const name = card.englishName || card.name;
   const searchUrl = ebaySearchUrl(card);
 
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
-  url.searchParams.set("q", `${name} ${card.number}`.trim());
-  url.searchParams.set("category_ids", POKEMON_SINGLES_CATEGORY);
+  url.searchParams.set("q", compsQuery(card));
+  url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
   // An auction mid-flight shows a current bid, not what the card is worth.
   url.searchParams.set("filter", "buyingOptions:{FIXED_PRICE}");
@@ -170,14 +191,13 @@ export async function fetchEbaySoldComps(
   card: PokemonCard,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(INSIGHTS_SCOPE);
-  const name = card.englishName || card.name;
   const searchUrl = ebaySoldSearchUrl(card);
 
   const url = new URL(
     `${EBAY_API}/buy/marketplace_insights/v1_beta/item_sales/search`,
   );
-  url.searchParams.set("q", `${name} ${card.number}`.trim());
-  url.searchParams.set("category_ids", POKEMON_SINGLES_CATEGORY);
+  url.searchParams.set("q", compsQuery(card));
+  url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
   // 90 days is the window eBay exposes; anything staler misprices a moving card.
   const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();

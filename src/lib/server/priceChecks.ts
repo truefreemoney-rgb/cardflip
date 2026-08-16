@@ -80,11 +80,11 @@ export function logPriceCheck(
   };
 }
 
-export function listPriceChecks(limit = 100): PriceCheckEntry[] {
+export function listPriceChecks(userId: string, limit = 100): PriceCheckEntry[] {
   const rows = db
     .prepare(
-      "SELECT * FROM price_checks ORDER BY checked_at DESC LIMIT ?",
+      "SELECT * FROM price_checks WHERE user_id = ? ORDER BY checked_at DESC LIMIT ?",
     )
-    .all(limit) as unknown as PriceCheckRow[];
+    .all(userId, limit) as unknown as PriceCheckRow[];
   return rows.map(fromRow);
 }

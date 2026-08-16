@@ -1,6 +1,14 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { queryCards, mapCard, type RawTcgCard } from "@/lib/tcg";
+import {
+  agreesWithSetCode,
+  agreesWithSetTotal,
+  isSecretRareNumber,
+  normalizeDate,
+  normalizeNumber,
+  type PrintedNumber,
+} from "@/lib/cardNumber";
 import type { PokemonCard } from "@/lib/types";
 
 /**
@@ -23,7 +31,13 @@ interface EnCardRow {
   local_id: string;
   set_release_date: string;
   image_url: string;
+  set_card_count_official: number | null;
+  set_code: string;
 }
+
+/** Every column the ranking needs, in one place — the two queries share it. */
+const CARD_COLUMNS = `id, name, set_name, local_id, set_release_date, image_url,
+                      set_card_count_official, set_code`;
 
 function toCard(row: EnCardRow): PokemonCard {
   return {
@@ -37,46 +51,69 @@ function toCard(row: EnCardRow): PokemonCard {
     imageLarge: row.image_url.replace("/low.webp", "/high.webp"),
     prices: [],
     englishName: null,
+    setTotal: row.set_card_count_official,
+    setCode: row.set_code || null,
+    isSecretRare: isSecretRareNumber(row.local_id, row.set_card_count_official),
   };
 }
 
-/** Normalizes "004" and "4" to the same thing for comparison. */
-function normalizeNumber(value: string): string {
-  return value.replace(/^0+/, "").trim().toLowerCase();
-}
-
-/** TCGdex writes "1999-01-09", pokemontcg.io writes "1999/01/09". */
-function normalizeDate(value: string | undefined): string {
-  return (value ?? "").replace(/\//g, "-").slice(0, 10);
-}
-
-/**
- * Find the cards a scan could plausibly be, best first.
- *
- * Ordering runs exact name + number, then exact name, then a name substring.
- * Within a tier the oldest printing wins: collector numbers were assigned by
- * the original set, so an exact number match on a 1999 card is stronger
- * evidence than the same number landing on a later reprint. Anything genuinely
- * ambiguous comes back as several matches, and the scanner puts those in front
- * of the seller with thumbnails rather than silently committing to one.
- */
 export interface LocalSearchResult {
   cards: PokemonCard[];
   /** Card id -> set release date, the join key for live pricing. */
   releaseDates: Map<string, string>;
 }
 
+/**
+ * How much a candidate loses for disagreeing with the fraction that was read.
+ *
+ * Three-valued on purpose. "We never read a set total" and "this card's set
+ * total contradicts the one we read" are different, and only the second should
+ * cost anything — a mirror synced before set totals existed returns null for
+ * every card, and a scan must still work against it.
+ *
+ * Both scales stay below NAME_TIER (their worst case sums to 6) so the set
+ * total can only reorder cards *within* a name/number tier, never lift a
+ * substring match above an exact one. The denominator is the most misread
+ * glyph run on the card; it earns a tiebreak, not a veto.
+ */
+const TOTAL_PENALTY = { match: 0, unknown: 2, mismatch: 4 } as const;
+const CODE_PENALTY = { match: 0, unknown: 1, mismatch: 2 } as const;
+const NAME_TIER = 8;
+
+/**
+ * Find the cards a scan could plausibly be, best first.
+ *
+ * The primary ordering is unchanged — exact name + number, then exact name,
+ * then a name substring — because a name is the one field OCR gets right most
+ * often. What the set total adds is the tiebreak *inside* the top tier, which
+ * is exactly where the expensive mistakes were happening: "Charizard #4" is
+ * two different cards, Base Set (1999) and Base Set 2 (2000), and the mirror
+ * holds 1,306 such name+number collisions covering 2,890 cards. Ranking by
+ * release date alone guessed; the printed denominator knows, because Base Set
+ * prints 4/102 and Base Set 2 prints 4/130.
+ *
+ * Anything still genuinely ambiguous comes back as several matches, and the
+ * scanner puts those in front of the seller with thumbnails rather than
+ * silently committing to one.
+ */
 export function searchEnglishCardsLocal(
   name: string,
-  number: string | null,
+  printed: PrintedNumber | null,
   limit = 24,
 ): LocalSearchResult {
   const needle = name.trim().toLowerCase();
-  if (!needle) return { cards: [], releaseDates: new Map() };
+
+  // No usable name, but a full fraction is itself an identification — resolve
+  // on the numbers alone rather than giving up.
+  if (!needle) {
+    return printed?.setTotal
+      ? lookupByPrintedNumber(printed, limit)
+      : { cards: [], releaseDates: new Map() };
+  }
 
   const rows = db
     .prepare(
-      `SELECT id, name, set_name, local_id, set_release_date, image_url
+      `SELECT ${CARD_COLUMNS}
          FROM en_cards
         WHERE LOWER(name) = ? OR LOWER(name) LIKE ?
         ORDER BY set_release_date ASC
@@ -84,24 +121,91 @@ export function searchEnglishCardsLocal(
     )
     .all(needle, `%${needle}%`) as unknown as EnCardRow[];
 
-  if (rows.length === 0) return { cards: [], releaseDates: new Map() };
+  // The name was misread badly enough to match nothing. The fraction doesn't
+  // depend on having read the name, so it can still identify the card.
+  if (rows.length === 0) {
+    return printed?.setTotal
+      ? lookupByPrintedNumber(printed, limit)
+      : { cards: [], releaseDates: new Map() };
+  }
 
-  const wanted = number ? normalizeNumber(number) : null;
+  const wanted = printed ? normalizeNumber(printed.number) : null;
 
   const score = (row: EnCardRow): number => {
     const exactName = row.name.trim().toLowerCase() === needle;
     const exactNumber = Boolean(wanted) && normalizeNumber(row.local_id) === wanted;
-    if (exactName && exactNumber) return 0;
-    if (exactName) return 1;
-    if (exactNumber) return 2;
-    return 3;
+
+    let tier: number;
+    if (exactName && exactNumber) tier = 0;
+    else if (exactName) tier = 1;
+    else if (exactNumber) tier = 2;
+    else tier = 3;
+
+    const total = agreesWithSetTotal(
+      printed?.setTotal ?? null,
+      row.set_card_count_official,
+    );
+    const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
+
+    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code];
   };
 
+  // Stable sort, so release-date order from the query survives as the final
+  // tiebreak — the oldest printing still wins a tie the fraction can't settle.
   const ranked = [...rows].sort((a, b) => score(a) - score(b)).slice(0, limit);
 
   return {
     cards: ranked.map(toCard),
     releaseDates: new Map(ranked.map((r) => [r.id, r.set_release_date])),
+  };
+}
+
+/**
+ * Identify a card from its printed fraction alone — "25/102" with no readable
+ * name.
+ *
+ * This is the case a name-keyed lookup simply cannot serve: glare across the
+ * name band, a foil that washes out the top of the card, a language the OCR
+ * model doesn't have. The numerator and denominator sit in a different band
+ * and survive independently, and together they're close to unique — the
+ * denominator picks the expansion, the numerator picks the card out of it.
+ *
+ * A bare numerator is not enough to run this: "25" alone matches one card in
+ * nearly every set ever printed.
+ */
+export function lookupByPrintedNumber(
+  printed: PrintedNumber,
+  limit = 24,
+): LocalSearchResult {
+  if (!printed.setTotal) return { cards: [], releaseDates: new Map() };
+
+  // Bounded by the size of the sets sharing this denominator — a few hundred
+  // rows at worst — so the numerator is matched in JS, where "004" and "4"
+  // normalize the same way they do everywhere else.
+  const rows = (
+    db
+      .prepare(
+        `SELECT ${CARD_COLUMNS}
+           FROM en_cards
+          WHERE set_card_count_official = ?
+          ORDER BY set_release_date ASC`,
+      )
+      .all(printed.setTotal) as unknown as EnCardRow[]
+  ).filter((row) => normalizeNumber(row.local_id) === normalizeNumber(printed.number));
+
+  const ranked = printed.setCode
+    ? [...rows].sort(
+        (a, b) =>
+          CODE_PENALTY[agreesWithSetCode(printed.setCode, a.set_code || null)] -
+          CODE_PENALTY[agreesWithSetCode(printed.setCode, b.set_code || null)],
+      )
+    : rows;
+
+  const limited = ranked.slice(0, limit);
+
+  return {
+    cards: limited.map(toCard),
+    releaseDates: new Map(limited.map((r) => [r.id, r.set_release_date])),
   };
 }
 

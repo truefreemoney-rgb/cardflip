@@ -6,16 +6,18 @@ import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
-import LanguageToggle from "@/components/LanguageToggle";
 import AppTabs from "@/components/AppTabs";
+import GameToggle from "@/components/GameToggle";
 import { searchCards } from "@/lib/cards";
+import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
+import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
 import {
   fetchPriceCheckHistory,
   logPriceCheck,
   type PriceCheckEntry,
 } from "@/lib/client/priceChecksApi";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString(undefined, {
@@ -31,7 +33,17 @@ export default function PriceCheckPage() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [checkedAuth, setCheckedAuth] = useState(false);
 
-  const [language, setLanguage] = useState<ScanLanguage>("en");
+  // English-only for now — the ja/zh pipeline underneath still works;
+  // restoring <LanguageToggle> here re-enables it.
+  const language: ScanLanguage = "en";
+  // Same per-browser game choice as the scanner.
+  const [game, setGameState] = useState<GameId>(readSavedGame);
+  function setGame(next: GameId) {
+    setGameState(next);
+    setResults([]);
+    setSelected(null);
+    saveGame(next);
+  }
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -63,9 +75,30 @@ export default function PriceCheckPage() {
     setSearchError(null);
     setSelected(null);
     try {
-      const found = await searchCards(query.trim(), null, language);
+      // Sellers type what's printed on the card they're holding — "Charizard
+      // 4/102". Splitting the fraction out makes that the most precise query
+      // the lookup can take, instead of a name that matches nothing.
+      let found: PokemonCard[];
+      if (game === "mtg") {
+        const { name, number, setCode } = parseMtgQuery(query);
+        const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
+        found = await searchCards(name, printed, language, 200, "mtg");
+        if (number) {
+          const wanted = number.replace(/^0+(?=d)/, "");
+          const exact = found.filter((c) => c.number.replace(/^0+(?=d)/, "").toLowerCase() === wanted);
+          if (exact.length > 0) found = exact;
+        }
+      } else {
+        const { name, printed } = parseCardQuery(query);
+        // Every printing, not the scanner's top-24 — same as the wishlist search.
+        // But a typed number is deliberate: show only the card it names.
+        found = filterByPrintedNumber(
+          await searchCards(name, printed, language, 200),
+          printed,
+        );
+      }
       setResults(found);
-      if (found.length === 0) setSearchError("No cards matched that name.");
+      if (found.length === 0) setSearchError("No cards matched that search.");
     } catch {
       setSearchError("Search failed — check your connection.");
     } finally {
@@ -85,7 +118,7 @@ export default function PriceCheckPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <span className="hidden text-sm text-zinc-400 sm:inline">
@@ -103,13 +136,13 @@ export default function PriceCheckPage() {
         </div>
 
         <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-5">
-          <LanguageToggle value={language} onChange={setLanguage} />
+          <GameToggle game={game} onChange={setGame} compact />
           <div className="flex gap-2">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="Card name — e.g. Charizard"
+              placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
               className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
             />
             <button
@@ -150,7 +183,7 @@ export default function PriceCheckPage() {
                   </span>
                 )}
                 <span className="w-full truncate text-[11px] text-zinc-500">
-                  {card.setName} · {card.number}
+                  {card.setName} · {displayCardNumber(card)}
                 </span>
               </button>
             ))}

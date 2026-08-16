@@ -5,19 +5,44 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Uploader from "@/components/Uploader";
+import ScannerSearch from "@/components/ScannerSearch";
+import GameToggle from "@/components/GameToggle";
+import SealedProductAdd from "@/components/SealedProductAdd";
+import CameraCapture from "@/components/CameraCapture";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
-import LanguageToggle from "@/components/LanguageToggle";
+import SealedEditor from "@/components/SealedEditor";
 import AppTabs from "@/components/AppTabs";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
-import { buildListing, currentPrice, quotePrice, toCsv, withEbayPrices } from "@/lib/listing";
+import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
+import {
+  buildListing,
+  buildSealedListing,
+  currentPrice,
+  describeItemCondition,
+  effectiveVariant,
+  mtgFinishOf,
+  quotePrice,
+  toEbayDraftsCsv,
+  withEbayPrices,
+} from "@/lib/listing";
+import { gradeLabel, makeSealedProduct, type SetInfo } from "@/lib/grading";
+import { readSavedGame, saveGame } from "@/lib/games";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
-import { fetchEbayComps } from "@/lib/client/ebayApi";
+import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { scanCardWithVision } from "@/lib/client/visionApi";
+import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
-import type { Condition, PokemonCard, ScanItem, ScanLanguage } from "@/lib/types";
+import type {
+  Condition,
+  GameId,
+  GradedInfo,
+  PokemonCard,
+  ScanItem,
+  ScanLanguage,
+} from "@/lib/types";
 
 /** Vision returns a condition string; only accept one the pricing model knows. */
 function asCondition(value: string | null): Condition | null {
@@ -26,12 +51,14 @@ function asCondition(value: string | null): Condition | null {
     : null;
 }
 
-function createItem(file: File, language: ScanLanguage): ScanItem {
+function createItem(file: File | null, language: ScanLanguage, game: GameId): ScanItem {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    kind: "card",
+    game,
     serverId: null,
     file,
-    previewUrl: URL.createObjectURL(file),
+    previewUrl: file ? URL.createObjectURL(file) : "",
     language,
     status: "queued",
     candidates: [],
@@ -39,6 +66,9 @@ function createItem(file: File, language: ScanLanguage): ScanItem {
     condition: "Near Mint",
     strategy: "quick",
     variant: null,
+    firstEdition: false,
+    grading: null,
+    productType: null,
     priceOverride: null,
     vision: null,
     visionStatus: "idle",
@@ -47,6 +77,10 @@ function createItem(file: File, language: ScanLanguage): ScanItem {
     ebaySold: null,
     ebaySoldStatus: "unavailable",
     ebaySoldUrl: null,
+    ebayOfferId: null,
+    ebayListingUrl: null,
+    ebayDraftUrl: null,
+    photoAt: null,
     error: null,
     listedPrice: null,
     listedAt: null,
@@ -62,7 +96,36 @@ export default function AppPage() {
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [language, setLanguage] = useState<ScanLanguage>("en");
+  // English-only for now — the ja/zh pipeline underneath still works;
+  // restoring <LanguageToggle> here re-enables it.
+  const language: ScanLanguage = "en";
+  // Which game the scanner reads: Pokémon or Magic. Remembered per browser;
+  // every item entering the queue carries the game it was scanned under, so
+  // switching mid-session doesn't relabel what's already there.
+  const [game, setGameState] = useState<GameId>(readSavedGame);
+  const setGame = useCallback((next: GameId) => {
+    setGameState(next);
+    saveGame(next);
+  }, []);
+  // Lives here rather than in Uploader: the first capture swaps the page from
+  // the hero layout to the queue layout, and the viewfinder must survive that.
+  const [cameraOpen, setCameraOpen] = useState(false);
+  // The item created by the camera's most recent capture, so the viewfinder
+  // can show that scan's outcome live while the next card is lined up.
+  const [cameraItemId, setCameraItemId] = useState<string | null>(null);
+  // The eBay callback lands here with ?ebay=connected; show it once and
+  // drop the param so a refresh doesn't repeat it. Read at first render (no
+  // useSearchParams — that would force a Suspense boundary on the whole page).
+  const [ebayJustConnected, setEbayJustConnected] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("ebay") === "connected",
+  );
+  useEffect(() => {
+    if (ebayJustConnected) window.history.replaceState(null, "", "/app");
+  }, [ebayJustConnected]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNote, setBulkNote] = useState<string | null>(null);
 
   // The pump loop reads and writes the queue outside of React's render cycle,
   // so the ref is the source of truth and state is kept in step with it.
@@ -96,12 +159,17 @@ export default function AppPage() {
           status: "listed",
           price: item.listedPrice ?? undefined,
           listedAt: item.listedAt,
+          // Grading is chosen in the editor after the draft was created, so
+          // the ledger's condition ("PSA 10", "Factory Sealed") syncs at the
+          // checkpoint rather than at creation.
+          condition: describeItemCondition(item),
         });
       } else if (patch.status === "sold") {
         void updateServerCard(item.serverId, {
           status: "sold",
           soldPrice: item.soldPrice,
           soldAt: item.soldAt,
+          condition: describeItemCondition(item),
         });
       } else if (patch.status === "ready" && "listedAt" in patch) {
         void updateServerCard(item.serverId, { status: "ready", listedAt: null });
@@ -138,16 +206,23 @@ export default function AppPage() {
         const next = itemsRef.current.find((i) => i.status === "queued");
         if (!next) break;
 
+        // Search-added items are born "ready" and never enter the queue; a
+        // queued item without a file would otherwise loop here forever.
+        if (!next.file) {
+          patchItem(next.id, { status: "error", error: "No photo attached" });
+          continue;
+        }
+
         patchItem(next.id, { status: "scanning" });
 
         try {
           // Vision first, OCR as the fallback. Tesseract misreads CJK badly
           // enough that the lookup needs fuzzy matching to cope; when vision
           // is available it reads the card directly and that guesswork goes away.
-          const vision = await scanCardWithVision(next.file, next.language);
+          const vision = await scanCardWithVision(next.file, next.language, next.game);
 
           let nameCandidates: string[];
-          let cardNumber: string | null;
+          let printed: PrintedNumber | null;
           let language = next.language;
 
           if (vision.status === "done" && vision.read) {
@@ -157,7 +232,16 @@ export default function AppPage() {
             nameCandidates = [read.name, read.englishName].filter(
               (n): n is string => Boolean(n),
             );
-            cardNumber = read.cardNumber;
+            // Vision reads the set symbol and the whole fraction, which is what
+            // settles an original against a same-numbered reprint.
+            printed = read.cardNumber
+              ? {
+                  number: read.cardNumber,
+                  setTotal: read.setTotal,
+                  setCode: read.setCode,
+                  isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal),
+                }
+              : null;
 
             const condition = asCondition(read.condition);
             patchItem(next.id, {
@@ -170,7 +254,7 @@ export default function AppPage() {
             patchItem(next.id, { visionStatus: vision.status });
             const scan = await scanCard(next.file, next.language);
             nameCandidates = scan.nameCandidates;
-            cardNumber = scan.cardNumber;
+            printed = scan.printed;
           }
 
           let matches: Awaited<ReturnType<typeof searchCards>> = [];
@@ -179,16 +263,52 @@ export default function AppPage() {
           // and only counts as an outage if every one of them failed.
           let lookupErrors = 0;
 
+          // Substring hits are not a reason to stop: three stray letters of
+          // OCR debris can "match" two dozen unrelated cards (a foil Mewtwo
+          // once came back as Illumise this way) while the candidate that
+          // names the card exactly sits later in the list. A non-exact result
+          // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              matches = await searchCards(candidate, cardNumber, language);
-              if (matches.length > 0) break;
+              const found = await searchCards(candidate, printed, language, undefined, next.game);
+              if (found.length === 0) continue;
+              if (matches.length === 0) matches = found;
+              if (
+                found[0].name.trim().toLowerCase() ===
+                candidate.trim().toLowerCase()
+              ) {
+                matches = found;
+                break;
+              }
             } catch {
               lookupErrors++;
             }
           }
 
-          if (matches.length === 0 && lookupErrors === nameCandidates.length) {
+          // Every name missed, but the fraction came off a different band of
+          // the card and can identify it alone — glare on the name is exactly
+          // when this is worth trying, and it costs one request.
+          // (Pokémon: number + set total; MTG: number + printed set code.)
+          const numbersIdentify =
+            next.game === "mtg"
+              ? Boolean(printed?.setCode)
+              : Boolean(printed?.setTotal) && language === "en";
+          if (matches.length === 0 && printed && numbersIdentify) {
+            try {
+              matches = await searchCards("", printed, language, undefined, next.game);
+            } catch {
+              lookupErrors++;
+            }
+          }
+
+          // >= rather than ==: the number-only fallback above can add an error
+          // of its own, and a scan that produced no name candidates at all
+          // shouldn't read as an outage.
+          if (
+            matches.length === 0 &&
+            lookupErrors > 0 &&
+            lookupErrors >= nameCandidates.length
+          ) {
             // Every lookup failed — that's the card database being down, not a
             // bad photo. Telling the seller to re-shoot would waste their time.
             patchItem(next.id, {
@@ -225,6 +345,7 @@ export default function AppPage() {
               imageUrl: card.imageSmall,
               condition,
               price: quote?.suggested ?? 0,
+              game: next.game,
             });
             if (server) patchItem(next.id, { serverId: server.id });
           }
@@ -303,25 +424,111 @@ export default function AppPage() {
   // by hand (that patch resets ebayStatus to "idle").
   useEffect(() => {
     const pending = items.find(
-      (i) => i.card && i.ebayStatus === "idle" && !compsInFlight.current.has(i.id),
+      (i) =>
+        i.card &&
+        // Sealed items skip comps entirely: the comp filters are built to
+        // *reject* sealed lots when pricing a single card.
+        i.kind !== "sealed" &&
+        i.ebayStatus === "idle" &&
+        !compsInFlight.current.has(i.id),
     );
     if (pending?.card) void loadEbayComps(pending.id, pending.card);
   }, [items, loadEbayComps]);
 
-  const handleLanguageChange = useCallback((lang: ScanLanguage) => {
-    setLanguage(lang);
-    warmUpOcr(lang);
-  }, []);
-
   const addFiles = useCallback(
     (files: File[]) => {
-      const created = files.map((file) => createItem(file, language));
+      const created = files.map((file) => createItem(file, language, game));
       commit([...itemsRef.current, ...created]);
       setSelectedId((current) => current ?? created[0]?.id ?? null);
       void pump();
+      // The camera needs to follow the item its capture created.
+      return created.map((item) => item.id);
     },
-    [commit, pump, language],
+    [commit, pump, language, game],
   );
+
+  // Typed search skips the whole scan pipeline: the card arrives already
+  // identified, so it enters the queue "ready", with the other search results
+  // as candidates in case the wrong printing was picked.
+  const addCardFromSearch = useCallback(
+    async (
+      card: PokemonCard,
+      alternates: PokemonCard[],
+      lang: ScanLanguage,
+      grading: GradedInfo | null = null,
+    ) => {
+      // Always "ready", never "review": review exists for OCR guesses, and
+      // here a human picked the exact card. Alternates stay switchable.
+      // A grade typed into the search ("Charizard 4/102 PSA 10") arrives
+      // parsed — the item enters the queue as a slab, exactly as if the
+      // grade had been set in the editor.
+      const cardGame = card.game ?? "pokemon";
+      const item: ScanItem = {
+        ...createItem(null, lang, cardGame),
+        status: "ready",
+        candidates: alternates,
+        card,
+        grading,
+      };
+      commit([...itemsRef.current, item]);
+      setSelectedId(item.id);
+
+      // Slabs mirror quoteForItem: raw market as a reference floor, never
+      // condition/strategy multipliers, and the grade is the stored condition.
+      const quote = quotePrice(card, "Near Mint", grading ? "market" : "quick");
+      const server = await createServerCard({
+        cardName: card.name,
+        setName: card.setName,
+        cardNumber: card.number,
+        imageUrl: card.imageSmall,
+        condition: grading ? gradeLabel(grading) : "Near Mint",
+        price: quote?.suggested ?? 0,
+        game: cardGame,
+      });
+      if (server) patchItem(item.id, { serverId: server.id });
+    },
+    [commit, patchItem],
+  );
+
+  // Sealed product enters like a search-added card: born "ready", no photo,
+  // no scan. It never gets comps (the comp filters are tuned to reject sealed
+  // lots) and has no catalogue price — the seller prices it in the editor.
+  const addSealedProduct = useCallback(
+    async (set: SetInfo, productType: string) => {
+      const product = makeSealedProduct(set, productType, game);
+      const item: ScanItem = {
+        ...createItem(null, "en", game),
+        kind: "sealed",
+        status: "ready",
+        card: product,
+        productType,
+      };
+      commit([...itemsRef.current, item]);
+      setSelectedId(item.id);
+
+      const server = await createServerCard({
+        kind: "sealed",
+        cardName: product.name,
+        setName: set.name,
+        cardNumber: "",
+        imageUrl: product.imageSmall,
+        condition: "Factory Sealed",
+        productType,
+        price: 0,
+        game,
+      });
+      if (server) patchItem(item.id, { serverId: server.id });
+    },
+    [commit, patchItem, game],
+  );
+
+  const openCamera = useCallback(() => {
+    // A toast left over from the previous session would flash a stale result.
+    setCameraItemId(null);
+    // Inside the tap, so the scan sounds are allowed to play later.
+    void primeScanFx();
+    setCameraOpen(true);
+  }, []);
 
   const removeItem = useCallback(
     (id: string) => {
@@ -340,34 +547,172 @@ export default function AppPage() {
     [commit],
   );
 
+  /**
+   * eBay's bulk drafts file: one row per identified card that isn't already
+   * on eBay, in Seller Hub's "Create new drafts" template. The seller uploads
+   * it once (Seller Hub › Reports › Uploads) and the whole stack appears in
+   * Seller Hub › Listings › Drafts — nothing goes live until they list it.
+   */
   function exportCsv() {
     const rows = items
-      .filter((item) => item.card && item.status !== "sold")
+      .filter((item) => item.card && item.status !== "sold" && item.status !== "listed")
       .map((item) => {
         const quote = quotePrice(
           item.card!,
           item.condition,
           item.strategy,
-          item.variant ?? undefined,
+          effectiveVariant(item),
         );
         const price = currentPrice(item);
         return {
-          card: item.card!,
-          condition: item.condition,
-          listing: buildListing(item.card!, price, item.condition, quote?.price.label),
+          ledgerId: item.serverId,
+          hasPhoto: item.photoAt != null,
+          sealed: item.kind === "sealed",
+          listing:
+            item.kind === "sealed"
+              ? buildSealedListing(item.card!, price, item.productType)
+              : buildListing(item.card!, price, item.condition, quote?.price.label, {
+                  firstEdition: item.firstEdition,
+                  grading: item.grading,
+                }),
         };
       });
+    if (rows.length === 0) return;
 
-    const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([toEbayDraftsCsv(rows)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `cardflip-drafts-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `cardflip-ebay-drafts-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    const photoless = rows.filter((r) => !r.hasPhoto).length;
+    setBulkNote(
+      `${rows.length} ${rows.length === 1 ? "draft" : "drafts"} in the file. Upload it at Seller Hub › Reports › Uploads (ebay.com/sh/reports/uploads) — every card lands in Seller Hub › Listings › Drafts, nothing goes live until you list it there.${
+        photoless > 0
+          ? ` ${photoless} ${photoless === 1 ? "has" : "have"} no photo yet — add your own photo to those in eBay's Drafts (stock art isn't allowed).`
+          : ""
+      }`,
+    );
+  }
+
+  /**
+   * "Send all to eBay": every ready, priced item that isn't on eBay yet gets
+   * pushed as a draft, one after another (eBay rate-limits, and a stack of
+   * 30 cards is a stack of 30 inventory writes). Same payload the editor's
+   * button sends, so a bulk push and a single push can't drift.
+   */
+  async function sendAllToEbay() {
+    if (!user?.ebayConnected) {
+      router.push("/connect-ebay");
+      return;
+    }
+    const targets = itemsRef.current.filter(
+      (item) =>
+        item.card &&
+        item.serverId &&
+        item.status === "ready" &&
+        !item.ebayOfferId &&
+        !item.ebayDraftUrl &&
+        currentPrice(item) > 0,
+    );
+    // eBay's picture policy: only items with the seller's own photo can go.
+    // Search-added / sealed items without one are left for the editor's
+    // "Add photo" — never sent with catalogue art.
+    const noPhoto = targets.filter((item) => !item.file && !item.photoAt).length;
+    const sendable = targets.filter((item) => item.file || item.photoAt);
+    if (sendable.length === 0) {
+      setBulkNote(
+        noPhoto
+          ? `Nothing sent — ${noPhoto} item${noPhoto === 1 ? " needs" : "s need"} your own photo first (eBay doesn't allow stock art). Open each one and add a photo.`
+          : "Nothing to send — every priced card is already on eBay or not ready yet.",
+      );
+      return;
+    }
+    setBulkBusy(true);
+    setBulkNote(null);
+    let sent = 0;
+    let viaInventory = 0;
+    let firstError: string | null = null;
+    for (const item of sendable) {
+      const price = currentPrice(item);
+      const quote = quotePrice(item.card!, item.condition, item.strategy, effectiveVariant(item));
+      const listing =
+        item.kind === "sealed"
+          ? buildSealedListing(item.card!, price, item.productType)
+          : buildListing(item.card!, price, item.condition, quote?.price.label, {
+              firstEdition: item.firstEdition,
+              grading: item.grading,
+            });
+      const result = await sendEbayDraft({
+        cardId: item.serverId!,
+        listing,
+        card: {
+          name: item.card!.name,
+          englishName: item.card!.englishName,
+          setName: item.card!.setName,
+          number: item.card!.number,
+          rarity: item.card!.rarity,
+          imageLarge: item.card!.imageLarge,
+          imageSmall: item.card!.imageSmall,
+          typeLine: item.card!.typeLine ?? null,
+        },
+        game: item.game,
+        finish: mtgFinishOf(item),
+        kind: item.kind,
+        condition: item.condition,
+        grading: item.grading,
+        firstEdition: item.firstEdition,
+        productType: item.productType,
+        language: item.language,
+      }, item.photoAt ? null : item.file);
+      if (result.ok) {
+        sent += 1;
+        if (result.via === "listing") {
+          patchItem(item.id, {
+            ebayDraftUrl: result.draftUrl,
+            ...(result.photoAt ? { photoAt: result.photoAt } : {}),
+          });
+        } else {
+          viaInventory += 1;
+          patchItem(item.id, {
+            ebayOfferId: result.offerId,
+            ebayListingUrl: result.listingUrl,
+            ...(result.photoAt ? { photoAt: result.photoAt } : {}),
+          });
+        }
+      } else {
+        firstError ??= result.message;
+        if (result.code === "not_connected" || result.code === "unconfigured") break;
+      }
+    }
+    setBulkBusy(false);
+    const skipped = noPhoto
+      ? ` ${noPhoto} skipped — ${noPhoto === 1 ? "it needs" : "they need"} your own photo (open the card, Add photo).`
+      : "";
+    // Two roads (see sendEbayDraft): Listing API drafts live in My eBay ›
+    // Drafts; Inventory drafts are saved on eBay but publish from here.
+    const where = viaInventory > 0 ? "saved on eBay — open each card here to publish" : "in your eBay Drafts — finish them on eBay, or open a card here to publish now";
+    setBulkNote(
+      firstError
+        ? `${sent} of ${sendable.length} sent to eBay. First problem: ${firstError}${skipped}`
+        : `${sent} draft${sent === 1 ? "" : "s"} ${where}.${skipped}`,
+    );
   }
 
   if (!checkedAuth || !user) return null;
+
+  const camera = cameraOpen && (
+    <CameraCapture
+      lastScan={items.find((item) => item.id === cameraItemId) ?? null}
+      tally={{
+        count: items.filter((item) => item.card).length,
+        value: items.reduce((sum, item) => sum + (item.card ? currentPrice(item) : 0), 0),
+      }}
+      onCapture={(file) => setCameraItemId(addFiles([file])[0] ?? null)}
+      onClose={() => setCameraOpen(false)}
+    />
+  );
 
   const identified = items.filter((i) => i.card);
   const readyCount = items.filter((i) => i.status === "ready").length;
@@ -382,21 +727,25 @@ export default function AppPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <div className="flex items-center gap-3 sm:gap-4">
           {user.ebayConnected ? (
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-400">
+            <Link
+              href="/connect-ebay"
+              title="Manage your eBay connection"
+              className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               eBay connected
-            </span>
+            </Link>
           ) : (
             <button
               onClick={() => router.push("/connect-ebay")}
               className="rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"
             >
-              Connect eBay
+              eBay setup
             </button>
           )}
           {user.role === "admin" && (
@@ -422,6 +771,25 @@ export default function AppPage() {
         </div>
       </header>
 
+      {ebayJustConnected && (
+        <div
+          role="status"
+          className="mx-auto mt-4 flex w-full max-w-7xl items-center justify-between gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm text-emerald-200 sm:px-6"
+        >
+          <span>
+            <span className="font-semibold text-emerald-300">eBay connected.</span>{" "}
+            Scan a card and use <span className="font-medium text-white">Send draft to eBay</span> — nothing goes live until you publish.
+          </span>
+          <button
+            onClick={() => setEbayJustConnected(false)}
+            aria-label="Dismiss"
+            className="text-emerald-300/70 transition hover:text-emerald-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {items.length === 0 ? (
         <main className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
           <div className="text-center">
@@ -433,15 +801,24 @@ export default function AppPage() {
               gets priced and written up automatically.
             </p>
           </div>
-          <LanguageToggle value={language} onChange={handleLanguageChange} />
-          {language !== "en" && (
-            <p className="max-w-sm text-center text-xs text-zinc-500">
-              {language === "ja" ? "Japanese" : "Chinese"} cards identify
-              correctly, but market pricing and photos aren&apos;t available
-              for every card — you may need to set the price yourself.
+          <GameToggle game={game} onChange={setGame} />
+          <Uploader onFiles={addFiles} onOpenCamera={openCamera} />
+          <div className="flex w-full max-w-2xl flex-col items-center gap-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-600">
+              or add without a photo
             </p>
-          )}
-          <Uploader onFiles={addFiles} />
+            <ScannerSearch
+              language={language}
+              game={game}
+              onPick={(card, alternates, grading) =>
+                void addCardFromSearch(card, alternates, language, grading)
+              }
+            />
+            <p className="mt-2 text-xs uppercase tracking-wide text-zinc-600">
+              or sell sealed product
+            </p>
+            <SealedProductAdd key={game} game={game} onAdd={(set, type) => void addSealedProduct(set, type)} />
+          </div>
         </main>
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
@@ -474,16 +851,62 @@ export default function AppPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <LanguageToggle value={language} onChange={handleLanguageChange} />
-              <Uploader onFiles={addFiles} variant="compact" />
+              <GameToggle game={game} onChange={setGame} compact />
+              <Uploader
+                onFiles={addFiles}
+                onOpenCamera={openCamera}
+                variant="compact"
+              />
               <button
                 onClick={exportCsv}
                 disabled={identified.length === 0}
                 className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Export drafts (CSV)
+                Download eBay drafts file
+              </button>
+              <button
+                onClick={() => void sendAllToEbay()}
+                disabled={bulkBusy || identified.length === 0}
+                title={
+                  user.ebayConnected
+                    ? "Save every ready card as a draft in your eBay account"
+                    : "Connect your eBay account first"
+                }
+                className="rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {bulkBusy
+                  ? "Sending…"
+                  : user.ebayConnected
+                    ? "Send all to eBay"
+                    : "Connect eBay to send"}
               </button>
             </div>
+          </div>
+          {bulkNote && (
+            <p role="status" className="-mt-2 px-1 text-xs text-zinc-400">
+              {bulkNote}{" "}
+              {items.some((item) => item.ebayDraftUrl) && (
+                <a
+                  href={EBAY_DRAFTS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-zinc-200 underline underline-offset-4 transition hover:text-white"
+                >
+                  View my eBay drafts ↗
+                </a>
+              )}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-5 py-4">
+            <ScannerSearch
+              language={language}
+              game={game}
+              onPick={(card, alternates, grading) =>
+                void addCardFromSearch(card, alternates, language, grading)
+              }
+            />
+            <SealedProductAdd key={game} game={game} onAdd={(set, type) => void addSealedProduct(set, type)} />
           </div>
 
           <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -501,11 +924,21 @@ export default function AppPage() {
 
             <section className="min-h-[24rem] rounded-2xl border border-edge bg-surface-1">
               {selected ? (
-                <CardEditor
-                  key={selected.id}
-                  item={selected}
-                  onChange={(patch) => patchItem(selected.id, patch)}
-                />
+                selected.kind === "sealed" ? (
+                  <SealedEditor
+                    key={selected.id}
+                    item={selected}
+                    ebayConnected={user.ebayConnected}
+                    onChange={(patch) => patchItem(selected.id, patch)}
+                  />
+                ) : (
+                  <CardEditor
+                    key={selected.id}
+                    item={selected}
+                    ebayConnected={user.ebayConnected}
+                    onChange={(patch) => patchItem(selected.id, patch)}
+                  />
+                )
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-sm text-zinc-500">
                   Select a card to review its listing.
@@ -515,11 +948,13 @@ export default function AppPage() {
           </div>
 
           <p className="text-center text-xs text-zinc-600">
-            Listings open in eBay pre-filled. One-click bulk posting arrives once
-            the eBay API connection is live.
+            {user.ebayConnected
+              ? "Drafts post straight to your eBay account. Nothing goes live until you publish."
+              : "Connect your eBay account once and every card lists from here — draft, then publish."}
           </p>
         </main>
       )}
+      {camera}
     </div>
   );
 }
