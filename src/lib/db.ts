@@ -322,7 +322,7 @@ function seedMtgMirror(): void {
     // (v2 = the price-history merge, which v1 skipped when the mirror itself
     // was already current — prod v100 shipped 90 days of Magic history that
     // never landed).
-    const SEED_IMPORT_VERSION = 3;
+    const SEED_IMPORT_VERSION = 4;
     const marker = path.join(DATA_DIR, "mtg-seed.imported");
     const markerValue = `${seedTime}:v${SEED_IMPORT_VERSION}`;
     if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === markerValue) return;

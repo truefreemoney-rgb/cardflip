@@ -24,8 +24,8 @@ const HEADERS = {
   "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)",
   Accept: "application/json",
 };
-/** Bulk under 50¢ isn't tracked unless a series already exists (seed rule). */
-const MIN_TRACKED_USD = 0.5;
+/** Bulk under 5¢ isn't tracked unless a series already exists (seed rule). */
+const MIN_TRACKED_USD = 0.05;
 
 interface ScryfallCard {
   id: string;

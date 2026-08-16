@@ -13,7 +13,7 @@
  * Both are hundreds of MB uncompressed, so they are streamed and split at the
  * top-level "data" object's children (one card per JSON.parse) instead of
  * being parsed whole. Only paper TCGplayer retail (USD) is used, and only
- * series that ever reach 50¢ — the row-per-day version of this table hit
+ * series that ever reach 5¢ — the row-per-day version of this table hit
  * 6.4 GB; the compact per-series rows (lib/priceSeries.ts) with those two
  * filters land around 30 MB. Existing rows are replaced (the seed is the
  * authority for Magic history). Sources: https://mtgjson.com/downloads/all-files/
@@ -129,7 +129,7 @@ console.log(`mapped ${uuidToScryfall.size} MTGJSON uuids to mirror printings`);
 // 2. prices — accumulate {day: price} per (card, finish) in memory, then write
 //    one compact row per series.
 const FINISH = { normal: "nonfoil", foil: "foil", etched: "etched" };
-const MIN_TRACKED_USD = 0.5;
+const MIN_TRACKED_USD = 0.05;
 const acc = new Map(); // key card|variant → Map(day → price)
 await streamData(
   "https://mtgjson.com/api/v5/AllPrices.json.gz",

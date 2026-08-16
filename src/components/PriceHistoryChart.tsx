@@ -86,6 +86,29 @@ function pickSeries(all: Series[], prefer: string | null | undefined): Series | 
   return ranked[0] ?? null;
 }
 
+/**
+ * The most recent recorded point for a card (preferring `variant`), from the
+ * same fetch/cache the chart uses — lets the Market panel's TCGplayer tile
+ * fall back to yesterday's recorded price when the live lookup fails
+ * (pokemontcg.io drops about half its requests).
+ */
+export function useLastRecordedPrice(cardId: string, variant?: string | null) {
+  const [state, setState] = useState<{ id: string; point: { price: number; day: string; variant: string; source: string; currency: Currency } | null }>({ id: "", point: null });
+  useEffect(() => {
+    let alive = true;
+    loadSeries(cardId)
+      .then((all) => {
+        if (!alive) return;
+        const s = pickSeries(all, variant);
+        const last = s?.points[s.points.length - 1];
+        setState({ id: cardId, point: last && s ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency } : null });
+      })
+      .catch(() => { if (alive) setState({ id: cardId, point: null }); });
+    return () => { alive = false; };
+  }, [cardId, variant]);
+  return state.id === cardId ? state.point : null;
+}
+
 const dayMs = 86_400_000;
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 function shortDay(day: string, withYear = false): string {

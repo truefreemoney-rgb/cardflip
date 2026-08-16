@@ -220,8 +220,8 @@ console.log(`done: ${total} cards over ${page} pages, ${seenSets.size} sets, rem
 // compact per-series rows (lib/priceSeries.ts). This is the only place Magic
 // history is authored (Fly can't reach Scryfall), so it travels to prod inside
 // the seed — export-mtg-mirror.mjs copies the table. USD/TCGplayer only, and
-// bulk under 50¢ is skipped unless a series already exists: a chart for a
-// 12¢ common isn't worth its bytes in a 94k-card seed.
+// bulk under 5¢ is skipped unless a series already exists: a chart for a
+// 2¢ common isn't worth its bytes in a 94k-card seed.
 db.exec(`
   CREATE TABLE IF NOT EXISTS price_series (
     card_id TEXT NOT NULL, game TEXT NOT NULL, variant TEXT NOT NULL, source TEXT NOT NULL,
@@ -233,7 +233,7 @@ const day = todayUtc(now);
 const selectRow = db.prepare("SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?");
 const upsertRow = db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
                               VALUES (?, 'mtg', ?, 'tcgplayer', 'USD', ?, ?, ?)`);
-const MIN_TRACKED_USD = 0.5;
+const MIN_TRACKED_USD = 0.05;
 let points = 0;
 db.exec("BEGIN");
 for (const row of db.prepare("SELECT id, price_usd, price_usd_foil, price_usd_etched FROM mtg_cards WHERE lang = ?").iterate(lang)) {

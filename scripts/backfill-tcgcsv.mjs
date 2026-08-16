@@ -19,7 +19,7 @@
  *      the seed can carry it to prod.
  *   3. Each day's archive → marketPrice per (product, subType) → compact
  *      price_series rows (game 'pokemon', source 'tcgplayer', USD), merged
- *      by day. Series that never reach 50¢ are skipped (bulk).
+ *      by day. Series that never reach 5¢ are skipped (bulk).
  * Then `npm run export:mtg` (the seed now carries every game's series) and
  * deploy — or let prod's daily job take it from there.
  */
@@ -150,7 +150,7 @@ fs.rmSync(path.join(cacheDir, "x"), { recursive: true, force: true });
 console.log(`\n${acc.size} raw series over ${days} days`);
 
 // 4. write compact rows, merged with whatever exists
-const MIN_TRACKED_USD = 0.5;
+const MIN_TRACKED_USD = 0.05;
 const selectRow = db.prepare("SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = 'tcgplayer'");
 const upsert = db.prepare(
   `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)

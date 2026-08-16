@@ -8,11 +8,11 @@ import { tcgplayerVariantKey } from "@/lib/tcgcsv";
  * that scripts/backfill-tcgcsv.mjs built (`tcgplayer_products`, shipped in
  * the seed), so every mapped card gets today's point in one pass of ~150
  * small requests — no pokemontcg.io involved, which fails half its calls.
- * Same compact price_series rows and 50¢ rule as everything else.
+ * Same compact price_series rows and 5¢ rule as everything else.
  */
 
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)" };
-const MIN_TRACKED_USD = 0.5;
+const MIN_TRACKED_USD = 0.05;
 const PAUSE_MS = 80;
 
 db.exec(`

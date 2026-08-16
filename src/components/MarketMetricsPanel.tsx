@@ -17,7 +17,7 @@ import type {
   EbaySoldStatus,
   PokemonCard,
 } from "@/lib/types";
-import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
+import PriceHistoryChart, { cardTrend, useLastRecordedPrice } from "@/components/PriceHistoryChart";
 
 interface Props {
   card: PokemonCard;
@@ -155,6 +155,8 @@ export default function MarketMetricsPanel({
   const [showActive, setShowActive] = useState(false);
 
   const driving = (quoted ?? pickPrice(card))?.variant ?? null;
+  // Yesterday's recorded TCGplayer point, for when the live lookup came back empty.
+  const recorded = useLastRecordedPrice(card.id, driving);
   // The TCGplayer tile shows the row behind the quote when TCGplayer is the
   // one driving it; otherwise the printing a seller most likely holds — never
   // a 1st Edition premium they haven't claimed.
@@ -265,8 +267,14 @@ export default function MarketMetricsPanel({
         />
         <Metric
           label="TCGplayer"
-          value={formatMoney(tcg?.market ?? null, tcg?.currency)}
-          detail={tcg ? tcg.label : "No price for this card"}
+          value={formatMoney(tcg?.market ?? recorded?.price ?? null, tcg?.currency ?? recorded?.currency)}
+          detail={
+            tcg
+              ? tcg.label
+              : recorded
+                ? `Last recorded ${new Date(`${recorded.day}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} · live price unavailable`
+                : "No price for this card"
+          }
           driving={driving === tcg?.variant && tcg != null}
         />
       </div>
