@@ -311,13 +311,16 @@ function seedMtgMirror(): void {
     // skipped, and Magic search on prod returned nothing (08-16). Anything
     // below the floor is a partial run and gets replaced.
     const FULL_MIRROR_FLOOR = 80_000;
-    if (current.n >= FULL_MIRROR_FLOOR && current.at >= seedTime) return;
     // Marker written after a successful import of this exact seed file, so
-    // later boots skip the gunzip + compare entirely.
+    // later boots skip the gunzip + compare entirely. Versioned: bumping
+    // SEED_IMPORT_VERSION forces every deploy to re-run the import logic once
+    // (v2 = the price-history merge, which v1 skipped when the mirror itself
+    // was already current — prod v100 shipped 90 days of Magic history that
+    // never landed).
+    const SEED_IMPORT_VERSION = 2;
     const marker = path.join(DATA_DIR, "mtg-seed.imported");
-    if (current.n >= FULL_MIRROR_FLOOR && fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === String(seedTime)) {
-      return;
-    }
+    const markerValue = `${seedTime}:v${SEED_IMPORT_VERSION}`;
+    if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === markerValue) return;
 
     const tmp = path.join(DATA_DIR, "mtg-mirror.seed.db");
     fs.writeFileSync(tmp, zlib.gunzipSync(fs.readFileSync(seedGz)));
@@ -326,26 +329,29 @@ function seedMtgMirror(): void {
       .prepare("SELECT COALESCE(MAX(synced_at), 0) AS at, COUNT(*) AS n FROM mtg_cards")
       .get() as { at: number; n: number };
     attached.close();
-    if (current.n >= seed.n && current.at >= seed.at) {
-      fs.unlinkSync(tmp);
-      fs.writeFileSync(marker, String(seedTime));
-      return;
-    }
+    // The mirror (cards + sets) is replaced only when the seed is newer or
+    // more complete than what the volume holds — a live mirror that a
+    // successful in-place sync (or the daily bulk price refresh) made fresher
+    // than the seed stays. Price history below is merged regardless: a seed
+    // can carry new history without new card data (the MTGJSON backfill).
+    const replaceMirror = !(current.n >= FULL_MIRROR_FLOOR && current.n >= seed.n && current.at >= seed.at);
 
     db.exec(`ATTACH DATABASE '${tmp.replace(/'/g, "''")}' AS mtgseed`);
     db.exec("BEGIN");
-    // Wholesale replace: rows from a partial sync would otherwise linger
-    // (a stale price on a printing the seed also has is harmless, but a
-    // printing Scryfall since renamed would never disappear).
-    db.exec("DELETE FROM mtg_cards");
-    db.exec("DELETE FROM mtg_sets");
-    db.exec(`INSERT OR REPLACE INTO mtg_sets (code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at)
-               SELECT code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at FROM mtgseed.mtg_sets`);
-    db.exec(`INSERT OR REPLACE INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
-               image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at)
-               SELECT id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
-               image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
-               FROM mtgseed.mtg_cards`);
+    if (replaceMirror) {
+      // Wholesale replace: rows from a partial sync would otherwise linger
+      // (a stale price on a printing the seed also has is harmless, but a
+      // printing Scryfall since renamed would never disappear).
+      db.exec("DELETE FROM mtg_cards");
+      db.exec("DELETE FROM mtg_sets");
+      db.exec(`INSERT OR REPLACE INTO mtg_sets (code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at)
+                 SELECT code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at FROM mtgseed.mtg_sets`);
+      db.exec(`INSERT OR REPLACE INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
+                 image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at)
+                 SELECT id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
+                 image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
+                 FROM mtgseed.mtg_cards`);
+    }
     // Magic price history rides in the seed as compact per-series rows
     // (lib/priceSeries.ts): the MTGJSON backfill + whatever the PC sync
     // recorded. Prod also writes its own daily points (lib/server/
@@ -388,9 +394,9 @@ function seedMtgMirror(): void {
     db.exec("COMMIT");
     db.exec("DETACH DATABASE mtgseed");
     fs.unlinkSync(tmp);
-    fs.writeFileSync(marker, String(seedTime));
+    fs.writeFileSync(marker, markerValue);
     const after = (db.prepare("SELECT COUNT(*) AS n FROM mtg_cards").get() as { n: number }).n;
-    console.info(`MTG mirror seeded from ${path.basename(seedGz)}: ${after} printings, ${historyRows} price series`);
+    console.info(`MTG seed ${path.basename(seedGz)}: mirror ${replaceMirror ? "replaced" : "kept"} (${after} printings), ${historyRows} price series merged`);
   } catch (err) {
     // A failed seed must never take the app down — Pokémon still works and
     // Magic search reports "catalogue isn't loaded" until the next boot.

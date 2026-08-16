@@ -204,7 +204,7 @@ export default function MarketMetricsPanel({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60 ${open ? "rounded-t-xl" : "rounded-xl"}`}
+        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60 rounded-t-xl`}
       >
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="text-sm font-semibold text-white">Market value</span>
@@ -237,11 +237,14 @@ export default function MarketMetricsPanel({
         </span>
       </button>
 
-      {open && (<>
-      {/* Our own price history — the chart that replaces the sold tile eBay wouldn't give us. */}
-      <div className="px-4 pt-2.5">
+      {/* Our own price history — always visible, not behind the collapse:
+          "where is the chart?" (Chris, 08-16) is a fair question when the
+          only thing that moves is hidden. Tiles below stay collapsible. */}
+      <div className={`px-4 ${open ? "pt-1" : "pb-4"}`}>
         <PriceHistoryChart cardId={card.id} preferVariant={driving} compact />
       </div>
+
+      {open && (<>
       <div
         className={`grid grid-cols-2 gap-2 p-4 pt-2.5 ${showSoldTile ? "sm:grid-cols-3" : ""}`}
       >
