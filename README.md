@@ -102,7 +102,8 @@ npm run sync:zh       # Traditional Chinese
 npm run sync:species  # English species names, for the foreign-card overlay
 npm run sync:mtg      # Magic — Scryfall, ~6 min (rate-limited; run from a PC, not Fly)
 npm run export:mtg    # writes seed/mtg-mirror.db.gz (mirror + Magic price history), imported on boot
-npm run backfill:mtg  # one-off: ~90 days of Magic price history from MTGJSON (~380 MB download)
+npm run backfill:mtg     # one-off: ~90 days of Magic price history from MTGJSON (~380 MB download)
+npm run backfill:pokemon # one-off: ~90 days of Pokémon history from TCGCSV archives (needs 7-Zip)
 ```
 
 Re-run `sync:en` on new Pokémon sets. For Magic, run `sync:mtg && export:mtg`
@@ -119,7 +120,7 @@ Charts come from our own daily snapshots (`price_series`, one compact row per
 card/variant/source — `src/lib/priceSeries.ts`): Magic from every `sync:mtg`
 (shipped in the seed, backfilled 90 days from MTGJSON), Pokémon from every
 fresh pokemontcg.io lookup plus a lazy daily sweep of cards in ledgers and
-wishlists. `/api/price-history?cardId=` serves it; `PriceHistoryChart` draws it.
+wishlists, and every mapped Pokémon card daily from TCGCSV (TCGplayer's prices, `tcgplayer_products` map from `backfill:pokemon`). `/api/price-history?cardId=` serves it; `PriceHistoryChart` draws it.
 
 It updates itself once a day (`src/lib/server/dailyJobs.ts`): an hourly
 in-process timer, the `/api/auth/me` heartbeat, or `GET /api/cron/daily?key=$CRON_SECRET`

@@ -322,7 +322,7 @@ function seedMtgMirror(): void {
     // (v2 = the price-history merge, which v1 skipped when the mirror itself
     // was already current — prod v100 shipped 90 days of Magic history that
     // never landed).
-    const SEED_IMPORT_VERSION = 2;
+    const SEED_IMPORT_VERSION = 3;
     const marker = path.join(DATA_DIR, "mtg-seed.imported");
     const markerValue = `${seedTime}:v${SEED_IMPORT_VERSION}`;
     if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === markerValue) return;
@@ -395,6 +395,16 @@ function seedMtgMirror(): void {
         }
         if (changed) { write.run(row.startDay, encodePrices(row.prices), r.card_id, r.variant, r.source); historyRows++; }
       }
+    }
+    // TCGplayer productId → card map for the daily Pokémon refresh (seed-authored).
+    const seedHasMap = db
+      .prepare("SELECT 1 AS ok FROM mtgseed.sqlite_master WHERE type = 'table' AND name = 'tcgplayer_products'")
+      .get();
+    if (seedHasMap) {
+      db.exec(`CREATE TABLE IF NOT EXISTS tcgplayer_products (
+        product_id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL, card_id TEXT NOT NULL, game TEXT NOT NULL)`);
+      db.exec(`INSERT OR REPLACE INTO tcgplayer_products (product_id, group_id, card_id, game)
+               SELECT product_id, group_id, card_id, game FROM mtgseed.tcgplayer_products`);
     }
     db.exec("COMMIT");
     db.exec("DETACH DATABASE mtgseed");

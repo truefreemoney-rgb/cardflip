@@ -18,6 +18,7 @@ import {
   todayUtc,
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
+import { matchGroupsToSets, normalizeSetName, productNumber, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;
 function check(label, actual, expected) {

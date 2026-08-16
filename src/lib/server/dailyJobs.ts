@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
+import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
 
 /**
  * The once-a-day maintenance run that keeps the charts moving:
  *   1. Magic prices from Scryfall's bulk file (mirror + history point)
- *   2. Pokémon sweep of held / recently looked-up cards (history points)
+ *   2. Pokémon points for every mapped card from TCGCSV (TCGplayer daily)
+ *   3. Pokémon sweep of held / recently looked-up cards via pokemontcg.io
+ *      (adds Cardmarket EUR and covers cards TCGCSV doesn't map)
  *
  * Triggered from three places, all funnelled through `runDailyIfDue` so it
  * can never double-run:
@@ -54,6 +57,7 @@ export function dailyStatus() {
 export interface DailyResult {
   ran: boolean;
   mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
+  pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
   ms?: number;
 }
@@ -73,6 +77,17 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     } catch (err) {
       result.mtg = { error: err instanceof Error ? err.message : String(err) };
       console.error("daily: MTG price refresh failed:", err);
+    }
+    try {
+      if (hasTcgplayerMap()) {
+        const r = await refreshPokemonPricesFromTcgcsv();
+        result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched };
+      } else {
+        result.pokemonTcgcsv = { skipped: "no tcgplayer_products map — run npm run backfill:pokemon and redeploy the seed" };
+      }
+    } catch (err) {
+      result.pokemonTcgcsv = { error: err instanceof Error ? err.message : String(err) };
+      console.error("daily: Pokémon TCGCSV refresh failed:", err);
     }
     try {
       const recorded = await sweepPriceHistory(now);
