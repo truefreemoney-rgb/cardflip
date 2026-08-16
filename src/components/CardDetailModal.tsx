@@ -5,6 +5,7 @@ import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { formatMoney, pickPrice } from "@/lib/listing";
+import PriceHistoryChart from "@/components/PriceHistoryChart";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -115,7 +116,13 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
+        <PriceHistoryChart
+          cardId={card.id}
+          preferVariant={pickPrice(card)?.variant ?? null}
+          className="mt-6"
+        />
+
+        <div className="mt-4 overflow-x-auto">
           {card.prices.length === 0 ? (
             <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
               No price data available for this card from any source.

@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
 import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
 import { toPublicUser } from "@/lib/server/users";
+import { sweepDue, sweepPriceHistory } from "@/lib/server/priceHistory";
 
 /**
  * Who's signed in — every app page asks on load. That makes it the natural
@@ -13,6 +14,11 @@ import { toPublicUser } from "@/lib/server/users";
 export async function GET() {
   const user = await getCurrentUser();
   const res = NextResponse.json({ user: user ? toPublicUser(user) : null });
+  // Every app page load passes through here, which makes it the heartbeat
+  // for the once-a-day price-history sweep — after the response is sent.
+  if (user && sweepDue()) {
+    after(() => sweepPriceHistory().catch((err) => console.error("price sweep failed:", err)));
+  }
   if (user) {
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
     const renewed = token ? touchSession(token) : null;

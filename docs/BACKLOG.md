@@ -79,9 +79,11 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — AbortController on wishlist repricing fan-out; debounce search inputs
 - [ ] S — Tab "Search cards" vs page "Price check" — pick one name
 
-## 7. Market insights / price history (proposed 08-16, after the Insights denial)
+## 7. Market insights / price history — BUILT 08-16 evening (undeployed)
 
-- [ ] M — `price_history(card_id, game, variant, source, price, at)` table; snapshot daily: MTG from `sync:mtg` (or Scryfall bulk `default_cards`), Pokémon from every pokemontcg.io lookup + nightly sweep of ledger/wishlist cards
-- [ ] S — Seed Magic with MTGJSON `AllPrices.json` (~90 days TCGplayer/Cardmarket) so it isn't empty on day one
-- [ ] S — `/api/price-history?cardId=` → 30/90-day high/low + sparkline in `CardDetailModal` / price-check / `MarketMetricsPanel` (takes the slot the sold tile was holding)
+- [x] `price_series` (one compact row per card/variant/source, JSON day array — `lib/priceSeries.ts`; the row-per-day version hit 6.4 GB). MTG recorded by `sync:mtg` and shipped in the seed; Pokémon on every fresh lookup (`putCachedCards`) + lazy daily sweep of ledger/wishlist (`after()` in `/api/auth/me`)
+- [x] `npm run backfill:mtg` — MTGJSON 90 days (May 17 → Aug 15), USD/TCGplayer, series ≥ 50¢: 73k series / 6.3M points, seed 8.3 → 15.6 MB. Re-run monthly-ish if wanted; `sync:mtg` appends daily
+- [x] `/api/price-history?cardId=` (+ 30/90/all stats) → `PriceHistoryChart` (SVG line, crosshair, min/max labels, 30d/90d/All) in `CardDetailModal` and the editor's `MarketMetricsPanel`; 27-test suite `test:pricehistory`
+- [ ] S — Pokémon history only starts accruing on deploy day (no free feed); PriceCharting one-month backfill is the paid option if launch-day Pokémon charts matter
+- [ ] S — Show the chart in `CardPeekModal` (landing) and wishlist rows (sparkline)
 - [ ] — Paid fallback if deeper history is wanted later: PriceCharting API

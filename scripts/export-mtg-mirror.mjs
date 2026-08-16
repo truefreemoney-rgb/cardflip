@@ -22,9 +22,15 @@ const db = new DatabaseSync(tmp);
 db.exec(`ATTACH DATABASE 'file:${src.replace(/\\/g, "/").replace(/'/g, "''")}?mode=ro' AS srcdb`);
 db.exec("CREATE TABLE mtg_sets AS SELECT * FROM srcdb.mtg_sets");
 db.exec("CREATE TABLE mtg_cards AS SELECT * FROM srcdb.mtg_cards");
+// Magic price history rides along (authored by sync-mtg.mjs / backfill-mtgjson.mjs);
+// the app merges it with INSERT OR IGNORE so prod keeps any points it already holds.
+const hasHistory = db.prepare("SELECT 1 FROM srcdb.sqlite_master WHERE type = 'table' AND name = 'price_series'").get();
+db.exec(hasHistory
+  ? "CREATE TABLE price_series AS SELECT * FROM srcdb.price_series WHERE game = 'mtg'"
+  : "CREATE TABLE price_series (card_id TEXT, game TEXT, variant TEXT, source TEXT, currency TEXT, start_day TEXT, prices TEXT, updated_day TEXT)");
 db.exec("DETACH DATABASE srcdb");
 db.exec("VACUUM");
-const counts = db.prepare("SELECT (SELECT COUNT(*) FROM mtg_cards) cards, (SELECT COUNT(*) FROM mtg_sets) sets").get();
+const counts = db.prepare("SELECT (SELECT COUNT(*) FROM mtg_cards) cards, (SELECT COUNT(*) FROM mtg_sets) sets, (SELECT COUNT(*) FROM price_series) series").get();
 db.close();
 if (!counts.cards) {
   console.error("Local mirror is empty — run npm run sync:mtg first");
@@ -32,4 +38,4 @@ if (!counts.cards) {
 }
 fs.writeFileSync(out, zlib.gzipSync(fs.readFileSync(tmp), { level: 9 }));
 fs.unlinkSync(tmp);
-console.log(`seed/mtg-mirror.db.gz: ${counts.cards} printings, ${counts.sets} sets, ${(fs.statSync(out).size / 1e6).toFixed(1)} MB`);
+console.log(`seed/mtg-mirror.db.gz: ${counts.cards} printings, ${counts.sets} sets, ${counts.series} price series, ${(fs.statSync(out).size / 1e6).toFixed(1)} MB`);

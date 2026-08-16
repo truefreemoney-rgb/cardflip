@@ -15,7 +15,9 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION on "lets go" (saved 08-16 evening, cleanup session):**
+**FIRST ACTION on "lets go" (saved 08-16 late evening):** NEWEST = price-history charts BUILT + tsc/lint/`npm test` (8 suites) clean, UNDEPLOYED — see BACKLOG.md §7 for what/where. Deploy ships it: the seed now carries 73k Magic price series (15.6 MB, regenerated 08-16 evening via `backfill:mtg` + `export:mtg`), prod merges them on boot (`seedMtgMirror`) → Magic cards chart 90 days immediately; Pokémon charts start accruing from the deploy (fresh lookups + daily sweep). eBay Marketplace Insights was DENIED (ticket closed) — sold-comps call gated off. Older context follows.
+
+**Earlier that evening (cleanup session):**
 v96 is live and prod Magic search verified (Ragavan → cards). Chris then
 said "do a full overlook … clean up and do what you see fit" → I wrote
 `docs/BACKLOG.md` (the checklist — READ IT for what's next, it's ~80

@@ -17,6 +17,7 @@ import type {
   EbaySoldStatus,
   PokemonCard,
 } from "@/lib/types";
+import PriceHistoryChart from "@/components/PriceHistoryChart";
 
 interface Props {
   card: PokemonCard;
@@ -237,6 +238,10 @@ export default function MarketMetricsPanel({
       </button>
 
       {open && (<>
+      {/* Our own price history — the chart that replaces the sold tile eBay wouldn't give us. */}
+      <div className="px-4 pt-2.5">
+        <PriceHistoryChart cardId={card.id} preferVariant={driving} compact />
+      </div>
       <div
         className={`grid grid-cols-2 gap-2 p-4 pt-2.5 ${showSoldTile ? "sm:grid-cols-3" : ""}`}
       >

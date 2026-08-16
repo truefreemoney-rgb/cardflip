@@ -21,6 +21,7 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
+import { decodePrices, encodePrices, setDay, todayUtc } from "../src/lib/priceSeries.ts";
 
 const lang = process.argv[2] ?? "en";
 const API = "https://api.scryfall.com";
@@ -213,3 +214,37 @@ const stale = db
   .prepare("DELETE FROM mtg_cards WHERE lang = ? AND synced_at < ?")
   .run(lang, now);
 console.log(`done: ${total} cards over ${page} pages, ${seenSets.size} sets, removed ${stale.changes} stale rows`);
+
+// ---------------------------------------------------------------------------
+// Price history: one point per priced finish per printing for today, in the
+// compact per-series rows (lib/priceSeries.ts). This is the only place Magic
+// history is authored (Fly can't reach Scryfall), so it travels to prod inside
+// the seed — export-mtg-mirror.mjs copies the table. USD/TCGplayer only, and
+// bulk under 50¢ is skipped unless a series already exists: a chart for a
+// 12¢ common isn't worth its bytes in a 94k-card seed.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS price_series (
+    card_id TEXT NOT NULL, game TEXT NOT NULL, variant TEXT NOT NULL, source TEXT NOT NULL,
+    currency TEXT NOT NULL, start_day TEXT NOT NULL, prices TEXT NOT NULL, updated_day TEXT NOT NULL,
+    PRIMARY KEY (card_id, variant, source)
+  );
+`);
+const day = todayUtc(now);
+const selectRow = db.prepare("SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?");
+const upsertRow = db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+                              VALUES (?, 'mtg', ?, 'tcgplayer', 'USD', ?, ?, ?)`);
+const MIN_TRACKED_USD = 0.5;
+let points = 0;
+db.exec("BEGIN");
+for (const row of db.prepare("SELECT id, price_usd, price_usd_foil, price_usd_etched FROM mtg_cards WHERE lang = ?").iterate(lang)) {
+  for (const [variant, price] of [["nonfoil", row.price_usd], ["foil", row.price_usd_foil], ["etched", row.price_usd_etched]]) {
+    if (!(price > 0)) continue;
+    const existing = selectRow.get(row.id, variant, "tcgplayer");
+    if (!existing && price < MIN_TRACKED_USD) continue;
+    const next = setDay(existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null, day, price);
+    upsertRow.run(row.id, variant, next.startDay, encodePrices(next.prices), day);
+    points++;
+  }
+}
+db.exec("COMMIT");
+console.log(`price history: ${points} series updated for ${day}`);

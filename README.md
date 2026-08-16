@@ -101,7 +101,8 @@ npm run sync:jp       # Japanese
 npm run sync:zh       # Traditional Chinese
 npm run sync:species  # English species names, for the foreign-card overlay
 npm run sync:mtg      # Magic — Scryfall, ~6 min (rate-limited; run from a PC, not Fly)
-npm run export:mtg    # writes seed/mtg-mirror.db.gz, imported by the app on boot
+npm run export:mtg    # writes seed/mtg-mirror.db.gz (mirror + Magic price history), imported on boot
+npm run backfill:mtg  # one-off: ~90 days of Magic price history from MTGJSON (~380 MB download)
 ```
 
 Re-run `sync:en` on new Pokémon sets. For Magic, run `sync:mtg && export:mtg`
@@ -111,6 +112,14 @@ The English mirror's set release dates rank printings (a scanned "Charizard #4"
 is Base Set, not a reprint) and are the join key to pokemontcg.io pricing —
 set *names* differ between providers and fuzzy-matching them once priced an
 $818 card at $466.
+
+## Price history
+
+Charts come from our own daily snapshots (`price_series`, one compact row per
+card/variant/source — `src/lib/priceSeries.ts`): Magic from every `sync:mtg`
+(shipped in the seed, backfilled 90 days from MTGJSON), Pokémon from every
+fresh pokemontcg.io lookup plus a lazy daily sweep of cards in ledgers and
+wishlists. `/api/price-history?cardId=` serves it; `PriceHistoryChart` draws it.
 
 ## Tests
 
@@ -123,6 +132,7 @@ npm run test:pricing
 npm run test:inventory # eBay Inventory payloads
 npm run test:mtg
 npm run test:ratelimit
+npm run test:pricehistory
 ```
 
 Plain Node scripts under `scripts/test-*.mjs` (`--experimental-strip-types`),

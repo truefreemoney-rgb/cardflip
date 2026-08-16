@@ -345,12 +345,30 @@ function seedMtgMirror(): void {
                SELECT id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
                image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
                FROM mtgseed.mtg_cards`);
+    // Magic price history is authored on the syncing PC (sync-mtg.mjs /
+    // backfill-mtgjson.mjs) and rides in the seed as compact per-series rows
+    // (lib/priceSeries.ts). Prod never writes Magic series itself, so the
+    // seed's rows simply replace them. Older seeds have no such table.
+    const seedHasHistory = db
+      .prepare("SELECT 1 AS ok FROM mtgseed.sqlite_master WHERE type = 'table' AND name = 'price_series'")
+      .get();
+    let historyRows = 0;
+    if (seedHasHistory) {
+      db.exec(`CREATE TABLE IF NOT EXISTS price_series (
+        card_id TEXT NOT NULL, game TEXT NOT NULL, variant TEXT NOT NULL, source TEXT NOT NULL,
+        currency TEXT NOT NULL, start_day TEXT NOT NULL, prices TEXT NOT NULL, updated_day TEXT NOT NULL,
+        PRIMARY KEY (card_id, variant, source))`);
+      historyRows = Number(
+        db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+                    SELECT card_id, game, variant, source, currency, start_day, prices, updated_day FROM mtgseed.price_series`).run().changes,
+      );
+    }
     db.exec("COMMIT");
     db.exec("DETACH DATABASE mtgseed");
     fs.unlinkSync(tmp);
     fs.writeFileSync(marker, String(seedTime));
     const after = (db.prepare("SELECT COUNT(*) AS n FROM mtg_cards").get() as { n: number }).n;
-    console.info(`MTG mirror seeded from ${path.basename(seedGz)}: ${after} printings`);
+    console.info(`MTG mirror seeded from ${path.basename(seedGz)}: ${after} printings, ${historyRows} price series`);
   } catch (err) {
     // A failed seed must never take the app down — Pokémon still works and
     // Magic search reports "catalogue isn't loaded" until the next boot.

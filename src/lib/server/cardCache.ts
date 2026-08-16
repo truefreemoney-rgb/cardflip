@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { recordPrices } from "@/lib/server/priceHistory";
 import type { PokemonCard } from "@/lib/types";
 
 /**
@@ -89,6 +90,12 @@ export function putCachedCards(
   // An empty result is a real answer ("no such card"), but caching it would
   // hide the card once the set is added upstream — only store hits.
   if (cards.length === 0) return;
+  // A fresh, priced lookup is exactly one day's data point for the history.
+  try {
+    recordPrices(cards);
+  } catch (err) {
+    console.error("price history record failed:", err);
+  }
 
   db.prepare(
     `INSERT INTO card_cache (key, payload, cached_at)
