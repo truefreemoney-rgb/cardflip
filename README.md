@@ -121,6 +121,12 @@ card/variant/source — `src/lib/priceSeries.ts`): Magic from every `sync:mtg`
 fresh pokemontcg.io lookup plus a lazy daily sweep of cards in ledgers and
 wishlists. `/api/price-history?cardId=` serves it; `PriceHistoryChart` draws it.
 
+It updates itself once a day (`src/lib/server/dailyJobs.ts`): an hourly
+in-process timer, the `/api/auth/me` heartbeat, or `GET /api/cron/daily?key=$CRON_SECRET`
+from an external pinger — whichever fires first after 20 h. Magic prices come
+from Scryfall's daily bulk file (one CDN download, ~12 s, works from Fly);
+`npm run refresh:prices -- --force` runs the same job by hand.
+
 ## Tests
 
 ```bash

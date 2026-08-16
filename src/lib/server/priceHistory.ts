@@ -128,10 +128,11 @@ export function sweepDue(now = Date.now()): boolean {
 }
 
 /**
- * Re-price every distinct Pokémon card in any ledger or wishlist so held
- * cards get a daily point even when nobody re-scans them. Runs in the
- * background (Next's `after`) at most about once a day, capped so it can't
- * hammer pokemontcg.io. Magic needs no sweep — its history ships in the seed.
+ * Re-price every distinct Pokémon card in any ledger or wishlist, plus
+ * anything price-checked in the last 30 days, so the cards people care about
+ * get a daily point even when nobody re-scans them. Driven by
+ * lib/server/dailyJobs.ts once a day; capped so it can't hammer
+ * pokemontcg.io. Magic is refreshed wholesale from Scryfall's bulk file.
  */
 export async function sweepPriceHistory(now = Date.now()): Promise<number> {
   if (sweeping || !hasEnglishMirror()) return 0;
@@ -143,9 +144,12 @@ export async function sweepPriceHistory(now = Date.now()): Promise<number> {
         `SELECT card_name AS name, card_number AS number FROM cards WHERE game = 'pokemon'
          UNION
          SELECT COALESCE(english_name, card_name) AS name, card_number AS number FROM wishlist_items WHERE language = 'en'
+         UNION
+         SELECT card_name AS name, card_number AS number FROM price_checks
+          WHERE language = 'en' AND checked_at > ?
          LIMIT ${SWEEP_CAP}`,
       )
-      .all() as unknown as { name: string; number: string }[];
+      .all(now - 30 * 86_400_000) as unknown as { name: string; number: string }[];
     let recorded = 0;
     for (const row of rows) {
       const printed = row.number
@@ -153,11 +157,20 @@ export async function sweepPriceHistory(now = Date.now()): Promise<number> {
         : null;
       const local = searchEnglishCardsLocal(row.name, printed, 6);
       if (local.cards.length === 0) continue;
-      try {
-        const priced = await enrichWithPricing(local.cards, local.releaseDates);
-        recorded += recordPrices(priced);
-      } catch {
-        // One upstream failure shouldn't end the sweep.
+      // pokemontcg.io fails roughly half its requests (see enCards.ts) and
+      // enrichWithPricing swallows that into "no prices" — so a card that
+      // comes back unpriced gets one more try after a pause before we give
+      // up on it for today.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const priced = await enrichWithPricing(local.cards, local.releaseDates);
+          const n = recordPrices(priced);
+          recorded += n;
+          if (n > 0) break;
+        } catch {
+          // fall through to the retry
+        }
+        await new Promise((r) => setTimeout(r, 1500));
       }
     }
     if (recorded > 0) console.info(`Price-history sweep: ${recorded} points for ${rows.length} held cards`);

@@ -23,7 +23,8 @@
     "test:ratelimit": "node --experimental-strip-types --no-warnings scripts/test-rate-limit.mjs",
     "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory",
     "backfill:mtg": "node --experimental-strip-types --no-warnings scripts/backfill-mtgjson.mjs",
-    "test:pricehistory": "node --experimental-strip-types --no-warnings scripts/test-price-history.mjs"
+    "test:pricehistory": "node --experimental-strip-types --no-warnings scripts/test-price-history.mjs",
+    "refresh:prices": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/refresh-prices.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

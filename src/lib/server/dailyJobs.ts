@@ -1,0 +1,94 @@
+import { db } from "@/lib/db";
+import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
+import { sweepPriceHistory } from "@/lib/server/priceHistory";
+
+/**
+ * The once-a-day maintenance run that keeps the charts moving:
+ *   1. Magic prices from Scryfall's bulk file (mirror + history point)
+ *   2. Pokémon sweep of held / recently looked-up cards (history points)
+ *
+ * Triggered from three places, all funnelled through `runDailyIfDue` so it
+ * can never double-run:
+ *   - an hourly timer while the machine is awake (instrumentation.ts)
+ *   - the /api/auth/me heartbeat (any app page load, via after())
+ *   - GET /api/cron/daily?key=CRON_SECRET for an external pinger, which is
+ *     what covers a zero-traffic day on a scale-to-zero machine.
+ * "Due" = last successful finish > 20h ago, or a run that started > 45 min
+ * ago and never finished (the machine was suspended mid-way — resume).
+ */
+
+const META = {
+  started: "daily_started_at",
+  finished: "daily_finished_at",
+  lastResult: "daily_last_result",
+};
+const DUE_AFTER_MS = 20 * 60 * 60 * 1000;
+const STALE_START_MS = 45 * 60 * 1000;
+let running = false;
+
+function metaGet(key: string): string | null {
+  const row = db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+function metaSet(key: string, value: string) {
+  db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
+}
+
+export function dailyDue(now = Date.now()): boolean {
+  if (running) return false;
+  const finished = Number(metaGet(META.finished) ?? 0);
+  const started = Number(metaGet(META.started) ?? 0);
+  if (now - finished > DUE_AFTER_MS && now - started > STALE_START_MS) return true;
+  return false;
+}
+
+export function dailyStatus() {
+  return {
+    running,
+    startedAt: Number(metaGet(META.started) ?? 0) || null,
+    finishedAt: Number(metaGet(META.finished) ?? 0) || null,
+    lastResult: metaGet(META.lastResult),
+  };
+}
+
+export interface DailyResult {
+  ran: boolean;
+  mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
+  pokemon?: { recorded: number } | { error: string };
+  ms?: number;
+}
+
+/** Run if due; never throws (errors land in the result and the log). */
+export async function runDailyIfDue(force = false, now = Date.now()): Promise<DailyResult> {
+  if (!force && !dailyDue(now)) return { ran: false };
+  if (running) return { ran: false };
+  running = true;
+  const t0 = Date.now();
+  metaSet(META.started, String(now));
+  const result: DailyResult = { ran: true };
+  try {
+    try {
+      const r = await refreshMtgPricesFromBulk();
+      result.mtg = { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched };
+    } catch (err) {
+      result.mtg = { error: err instanceof Error ? err.message : String(err) };
+      console.error("daily: MTG price refresh failed:", err);
+    }
+    try {
+      const recorded = await sweepPriceHistory(now);
+      result.pokemon = { recorded };
+    } catch (err) {
+      result.pokemon = { error: err instanceof Error ? err.message : String(err) };
+      console.error("daily: Pokémon sweep failed:", err);
+    }
+    result.ms = Date.now() - t0;
+    // Only a run where Magic actually refreshed counts as "finished"; a
+    // failed download leaves it due again on the next trigger.
+    if (result.mtg && !("error" in result.mtg)) metaSet(META.finished, String(Date.now()));
+    metaSet(META.lastResult, JSON.stringify({ at: Date.now(), ...result }));
+    console.info("daily jobs:", JSON.stringify(result));
+    return result;
+  } finally {
+    running = false;
+  }
+}

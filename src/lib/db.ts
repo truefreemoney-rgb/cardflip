@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import zlib from "node:zlib";
+import { decodePrices, encodePrices, setDay, toPoints } from "@/lib/priceSeries";
 
 /**
  * A single embedded SQLite database backs the whole app. This is a real,
@@ -345,10 +346,11 @@ function seedMtgMirror(): void {
                SELECT id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
                image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
                FROM mtgseed.mtg_cards`);
-    // Magic price history is authored on the syncing PC (sync-mtg.mjs /
-    // backfill-mtgjson.mjs) and rides in the seed as compact per-series rows
-    // (lib/priceSeries.ts). Prod never writes Magic series itself, so the
-    // seed's rows simply replace them. Older seeds have no such table.
+    // Magic price history rides in the seed as compact per-series rows
+    // (lib/priceSeries.ts): the MTGJSON backfill + whatever the PC sync
+    // recorded. Prod also writes its own daily points (lib/server/
+    // mtgPriceRefresh.ts), so this is a MERGE by day — prod's points win,
+    // the seed fills the days prod doesn't have. Older seeds have no table.
     const seedHasHistory = db
       .prepare("SELECT 1 AS ok FROM mtgseed.sqlite_master WHERE type = 'table' AND name = 'price_series'")
       .get();
@@ -358,10 +360,30 @@ function seedMtgMirror(): void {
         card_id TEXT NOT NULL, game TEXT NOT NULL, variant TEXT NOT NULL, source TEXT NOT NULL,
         currency TEXT NOT NULL, start_day TEXT NOT NULL, prices TEXT NOT NULL, updated_day TEXT NOT NULL,
         PRIMARY KEY (card_id, variant, source))`);
+      // Rows prod doesn't have at all: straight copy.
       historyRows = Number(
-        db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+        db.prepare(`INSERT OR IGNORE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
                     SELECT card_id, game, variant, source, currency, start_day, prices, updated_day FROM mtgseed.price_series`).run().changes,
       );
+      // Rows both sides have: fill prod's gaps from the seed, never overwrite.
+      const both = db.prepare(`SELECT s.card_id, s.variant, s.source, s.start_day AS seed_start, s.prices AS seed_prices,
+                                      p.start_day AS prod_start, p.prices AS prod_prices
+                                 FROM mtgseed.price_series s
+                                 JOIN price_series p ON p.card_id = s.card_id AND p.variant = s.variant AND p.source = s.source
+                                WHERE s.updated_day <> p.updated_day OR s.start_day <> p.start_day`).all() as unknown as
+        { card_id: string; variant: string; source: string; seed_start: string; seed_prices: string; prod_start: string; prod_prices: string }[];
+      const write = db.prepare("UPDATE price_series SET start_day = ?, prices = ? WHERE card_id = ? AND variant = ? AND source = ?");
+      for (const r of both) {
+        let row = { startDay: r.prod_start, prices: decodePrices(r.prod_prices) };
+        const have = new Set(toPoints(row).map((pt) => pt.day));
+        let changed = false;
+        for (const pt of toPoints({ startDay: r.seed_start, prices: decodePrices(r.seed_prices) })) {
+          if (have.has(pt.day)) continue;
+          row = setDay(row, pt.day, pt.price);
+          changed = true;
+        }
+        if (changed) { write.run(row.startDay, encodePrices(row.prices), r.card_id, r.variant, r.source); historyRows++; }
+      }
     }
     db.exec("COMMIT");
     db.exec("DETACH DATABASE mtgseed");
