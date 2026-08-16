@@ -153,6 +153,6 @@ node scripts/issue-reset-link.mjs <email>    # password-reset link without SMTP
 flyctl deploy --app cardflip-superior        # single machine, volume at /app/data
 ```
 
-`/admin` unlocks for whoever signs in with `ADMIN_EMAIL`. Data (users, ledger,
+`/admin` has its own operator login (`/admin/login`; `ADMIN_PANEL_USER` / `ADMIN_PANEL_PASSWORD`, built-in defaults until set) — KPIs, activity, users, cards, price-data health with a "run daily refresh now" button, integrations status. Data (users, ledger,
 photos, eBay tokens, mirrors) is one SQLite file on the Fly volume — back it
 up before anything destructive.

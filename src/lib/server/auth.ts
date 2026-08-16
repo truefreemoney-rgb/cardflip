@@ -22,10 +22,14 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-export async function requireAdmin(): Promise<User> {
-  const user = await requireUser();
-  if (user.role !== "admin") throw new AuthError("Admin access required");
-  return user;
+/**
+ * Admin API routes: the panel's own signed session (username/password at
+ * /admin/login) is what authorises them — see lib/server/adminGate.ts. Kept
+ * as a thin wrapper so existing routes read the same.
+ */
+export async function requireAdmin(): Promise<void> {
+  const { requireAdminPanel } = await import("@/lib/server/adminGate");
+  await requireAdminPanel();
 }
 
 export async function clearSessionCookie(): Promise<void> {

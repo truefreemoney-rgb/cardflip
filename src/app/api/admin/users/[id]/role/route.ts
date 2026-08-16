@@ -8,7 +8,7 @@ interface RouteParams {
 
 export async function PATCH(req: Request, { params }: RouteParams) {
   try {
-    const admin = await requireAdmin();
+    await requireAdmin();
     const { id } = await params;
     const body = await req.json().catch(() => null);
     const role: Role | undefined =
@@ -16,12 +16,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     if (!role) {
       return NextResponse.json({ error: "role must be 'admin' or 'user'" }, { status: 400 });
-    }
-    if (id === admin.id && role !== "admin") {
-      return NextResponse.json(
-        { error: "You can't remove your own admin access." },
-        { status: 400 },
-      );
     }
 
     setUserRole(id, role);

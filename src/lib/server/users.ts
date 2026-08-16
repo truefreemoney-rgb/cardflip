@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
 
 export type Role = "user" | "admin";
@@ -98,6 +99,20 @@ export function setEbayConnected(userId: string, connected: boolean): void {
 
 export function setUserRole(userId: string, role: Role): void {
   db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, userId);
+}
+
+/**
+ * Remove an account. Foreign keys cascade cards / sessions / wishlist /
+ * price checks; card photos live on disk, so those go first.
+ */
+export function deleteUser(userId: string): void {
+  const photoRows = db
+    .prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL")
+    .all(userId) as { id: string }[];
+  for (const r of photoRows) {
+    try { deleteCardPhoto(r.id); } catch { /* best effort */ }
+  }
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
 }
 
 export function listAllUsers(): User[] {
