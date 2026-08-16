@@ -298,6 +298,11 @@ db.exec(`
  * fresher than the seed.
  */
 function seedMtgMirror(): void {
+  // Never during `next build`: its ~15 parallel workers each evaluate this
+  // module against a throwaway database, and 15 concurrent seed imports
+  // (gunzip + attach + a 73k-row history merge) trip "database is locked" and
+  // failed the Fly build (v102). The real import happens on server start.
+  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build") return;
   const seedGz = path.join(process.cwd(), "seed", "mtg-mirror.db.gz");
   if (!fs.existsSync(seedGz)) return;
   try {
