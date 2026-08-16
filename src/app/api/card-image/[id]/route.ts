@@ -15,7 +15,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const photo = readCardPhoto(id);
+  let photo: ReturnType<typeof readCardPhoto>;
+  try {
+    photo = readCardPhoto(id);
+  } catch (err) {
+    // A disk/DB hiccup should read as a missing photo to eBay's fetcher, not
+    // an opaque 500 that it may cache as a permanent failure.
+    console.error("Card photo read failed:", id, err);
+    return new NextResponse("Not found", { status: 404 });
+  }
   if (!photo) return new NextResponse("Not found", { status: 404 });
   return new NextResponse(new Uint8Array(photo.bytes), {
     status: 200,

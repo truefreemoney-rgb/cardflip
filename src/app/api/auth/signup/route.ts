@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { createUser, findUserByEmail, toPublicUser } from "@/lib/server/users";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
 export async function POST(req: Request) {
+  // Brute-force backstop, per IP.
+  const limited = limitOrRespond(`auth:signup:${clientIp(req)}`, LIMITS.authAttempt);
+  if (limited) return limited;
   const body = await req.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";

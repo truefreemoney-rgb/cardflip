@@ -19,7 +19,9 @@
     "sync:mtg": "node scripts/sync-mtg.mjs",
     "export:mtg": "node scripts/export-mtg-mirror.mjs",
     "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
-    "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs"
+    "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs",
+    "test:ratelimit": "node --experimental-strip-types --no-warnings scripts/test-rate-limit.mjs",
+    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:inventory && npm run test:mtg && npm run test:ratelimit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

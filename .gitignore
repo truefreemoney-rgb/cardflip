@@ -43,3 +43,4 @@ data/
 
 # generated MTG mirror seed (npm run export:mtg), ~8 MB, rebuilt on each refresh
 seed/*.gz
+!.env.example

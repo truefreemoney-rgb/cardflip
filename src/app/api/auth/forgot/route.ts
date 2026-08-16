@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { findUserByEmail, isDemoUser } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
 /**
  * "Forgot password?" — emails a one-time reset link.
@@ -13,6 +14,9 @@ import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
  * promise of an email that will never come.
  */
 export async function POST(req: Request) {
+  // Brute-force backstop, per IP.
+  const limited = limitOrRespond(`auth:forgot:${clientIp(req)}`, LIMITS.authAttempt);
+  if (limited) return limited;
   if (!isMailConfigured()) {
     return NextResponse.json(
       {

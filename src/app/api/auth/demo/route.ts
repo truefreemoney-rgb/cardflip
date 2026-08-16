@@ -10,6 +10,7 @@ import { disconnectEbay } from "@/lib/server/ebayAuth";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
 /**
  * "Try it now" needs an account to attach scans to, but it shouldn't force
@@ -17,7 +18,21 @@ import { SESSION_COOKIE } from "@/lib/server/auth";
  * wipes its card history each time, so nobody lands mid-way through a
  * stranger's test data.
  */
-export async function POST() {
+export async function POST(req: Request) {
+  // Each call wipes the shared demo ledger — cap it so a script can't keep
+  // resetting it under a real visitor (or eBay's reviewer).
+  const limited = limitOrRespond(`auth:demo:${clientIp(req)}`, LIMITS.authAttempt);
+  if (limited) return limited;
+
+  try {
+    return startDemo();
+  } catch (err) {
+    console.error("Demo sign-in failed:", err);
+    return NextResponse.json({ error: "Couldn't start the demo" }, { status: 500 });
+  }
+}
+
+function startDemo() {
   let user = findUserByEmail(DEMO_EMAIL);
   if (!user) {
     user = createUser("Demo User", DEMO_EMAIL, crypto.randomUUID());

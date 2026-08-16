@@ -18,6 +18,15 @@ interface SetRow {
 }
 
 export async function GET(req: NextRequest) {
+  try {
+    return listSets(req);
+  } catch (err) {
+    console.error("Set catalogue failed:", err);
+    return NextResponse.json({ error: "Couldn't load the set list" }, { status: 500 });
+  }
+}
+
+function listSets(req: NextRequest) {
   // ?game=mtg → the Scryfall mirror's sets (with their set icons).
   if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
     return NextResponse.json({ sets: listMtgSets() });

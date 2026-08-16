@@ -32,6 +32,14 @@ export const metadata: Metadata = {
       "Scan your Pokémon and Magic: The Gathering cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
     type: "website",
   },
+  // iOS ignores the manifest's display mode; these meta tags are what make
+  // "Add to Home Screen" open full-screen there. Icons + manifest come from
+  // app/icon.tsx, app/apple-icon.tsx, app/manifest.ts.
+  appleWebApp: {
+    capable: true,
+    title: "CardFlip",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

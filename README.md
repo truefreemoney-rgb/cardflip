@@ -1,141 +1,141 @@
 # CardFlip
 
-Scan Pokémon cards, price them against what they're actually selling for, and
-turn them into eBay listings.
+Scan Pokémon and Magic: The Gathering cards, price them against what they're
+actually selling for, and turn them into eBay listings.
+
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · `node:sqlite` · Fly.io.
+Design system, voice, and motion policy: `docs/DESIGN.md`. Working state and
+backlog: `docs/STATE.md`, `docs/BACKLOG.md`. Architecture traps: `CLAUDE.md`.
 
 ## Getting started
 
 ```bash
 npm install
+cp .env.example .env.local   # every key is optional; see the file
+npm run sync:en              # Pokémon English mirror (~4 MB, a few minutes)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The Magic mirror imports
+itself from `seed/mtg-mirror.db.gz` on first boot; see *Card data* to build
+that seed.
 
-## Reading cards with vision
+## What's in it
 
-When a photo is scanned, Claude reads the card directly — name, set, collector
-number, language, and a condition grade from the same image. This replaces
-Tesseract OCR, which was the weak link: on Japanese cards it returned "反卡乒"
-for 皮卡丘 (one correct character of three), which is why the CJK lookup needs
-fuzzy matching at all.
+- **Scanner** (`/app`) — camera or photo, per-card queue, auto-scan, torch,
+  Pokémon | Magic toggle, English/Japanese/Chinese Pokémon.
+- **Identification** — Claude vision reads name/set/number/language/condition
+  from the photo; Tesseract OCR is the fallback. Matching runs against
+  **local** SQLite mirrors, never a live API.
+- **Pricing** — TCGplayer/Cardmarket via pokemontcg.io (Pokémon) or the
+  Scryfall mirror (Magic), plus eBay asking comps (and sold comps once
+  Marketplace Insights is approved). Foil/etched printings for Magic.
+- **Accounts** — email/password, sessions, per-user ledger, wishlist,
+  price-check history, sealed products, graded slabs, password reset, `/admin`.
+- **eBay** — "Connect with eBay" (user OAuth, tokens encrypted at rest),
+  Inventory-API draft push and publish with the seller's own photo, prelist
+  links, and a bulk "eBay drafts" CSV as the no-API path.
+- **Site** — landing with live price ticker, `/terms`, `/privacy`, sitemap,
+  OG image, installable PWA (manifest + icons).
 
-Needs an API key from [console.anthropic.com](https://console.anthropic.com):
+## Environment
 
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-In production:
+All keys are documented in [`.env.example`](.env.example). Nothing is required
+to boot: each integration answers "unconfigured"/503 honestly when its keys
+are missing. In production set them as Fly secrets, never commit them:
 
 ```bash
 flyctl secrets set ANTHROPIC_API_KEY=sk-ant-... --app cardflip-superior
 ```
 
-Without it the scanner falls back to OCR — everything still works, just less
+Key ones: `ANTHROPIC_API_KEY` (vision), `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`
+(+ `EBAY_RU_NAME` for user OAuth), `POKEMONTCG_API_KEY`, `ADMIN_EMAIL`, `SMTP_*`.
+
+## Reading cards with vision
+
+Claude reads the card directly — name, set, collector number, language, and a
+condition grade from the same image. It replaced Tesseract as the primary
+reader because OCR on Japanese cards returned "反卡乒" for 皮卡丘. Without a
+key the scanner falls back to OCR — everything still works, just less
 accurately on foreign cards, and no condition grading.
 
-Photos are downscaled to 1024px on the long edge before upload. Card text is
-legible well below phone-camera resolution and image tokens scale with pixels,
-so the original would cost several times more per scan for no extra accuracy.
+Photos are downscaled to 1024px on the long edge before upload; card text is
+legible well below phone resolution and image tokens scale with pixels.
 
-## eBay price comparison
+Vision calls cost money, so `/api/vision/scan` is rate-limited per account
+(30/min, 500/day; the shared demo login gets 10/min, 60/day). See
+`src/lib/server/rateLimit.ts` — the same guard covers eBay comps, public
+search, and the sign-in endpoints.
 
-When a card is scanned, CardFlip searches eBay for the same card and prices it
-at the average of the comparable listings it finds. That needs eBay API
-credentials — without them the app still runs and still links out to the eBay
-search for each card, it just falls back to card-market pricing and shows
-"eBay pricing isn't connected yet".
+## eBay
 
-To turn it on:
-
-1. Create a free developer account at
-   [developer.ebay.com](https://developer.ebay.com/), then make a **Production**
-   keyset under *Application Keys*.
-2. Copy the **App ID (Client ID)** and **Cert ID (Client Secret)**.
-3. Locally, put them in `.env.local`:
-
-   ```
-   EBAY_CLIENT_ID=your-app-id
-   EBAY_CLIENT_SECRET=your-cert-id
-   ```
-
-4. In production, set them as secrets instead — never commit them:
-
-   ```bash
-   flyctl secrets set EBAY_CLIENT_ID=your-app-id EBAY_CLIENT_SECRET=your-cert-id --app cardflip-superior
-   ```
-
-Only the Browse API scope is needed, which every production keyset has by
-default. No eBay account linking or user OAuth is involved — this is
-application-level access for reading public listings.
-
-### Sold prices vs asking prices
-
-Two different numbers, from two different eBay APIs:
+**Pricing** needs only an app keyset (Browse API, included with any production
+keyset). **Listing** additionally needs user OAuth (`EBAY_RU_NAME`) so the app
+can act on the seller's account.
 
 | | API | Access |
 |---|---|---|
-| **Sold** (90 days) | Marketplace Insights | Requires separate eBay approval |
-| **Asking** (active listings) | Browse | Included with any production keyset |
+| **Sold** (90 days) | Marketplace Insights | Separate eBay approval |
+| **Asking** (active) | Browse | Any production keyset |
+| **Draft / publish** | Inventory | User OAuth via "Connect with eBay" |
 
-Sold prices drive the suggested price when available — an asking average tells
-you what sellers *hope* for, including the ones whose cards never sell. The UI
-shows both side by side, because the gap between them is the useful signal.
+Sold prices drive the suggested price when available — asking averages include
+cards that never sell. Comps are filtered before averaging (lots, slabs,
+proxies, sealed, wrong collector number) then Tukey-trimmed so one moonshot
+listing can't drag the average.
 
-Marketplace Insights is requested separately from your keyset in the eBay
-developer console. Without it the app prices off asking data and says so; the
-"View sold on eBay" link still works (though eBay may ask the seller to sign in
-— it gates sold search harder than active search).
-
-### What the averages actually mean
-
-A raw search for a card name is mostly noise, so results are filtered before
-averaging — bulk lots, graded slabs, proxies, sealed product, and cards whose
-collector number doesn't match are all dropped, then remaining prices are
-trimmed with a Tukey fence so one moonshot listing can't drag the average.
-The UI reports how many results were filtered out.
-
-```bash
-npm run test:ebay
-```
-
-exercises that filtering against real eBay listing titles.
+Publishing needs the seller's eBay account to have Business Policies and a
+location set, and the listing photo must be the seller's own (eBay's picture
+policy) — the seller-photo pipeline serves it at `/api/card-image/[id]`.
 
 ## Card data
 
-**Identification is local; pricing is live.** Every card — English, Japanese,
-Chinese — is mirrored from [TCGdex](https://tcgdex.dev) into SQLite, so
-identifying a scan never depends on a third party being up. Prices are layered
-on afterwards from [pokemontcg.io](https://pokemontcg.io) and eBay, and are
-allowed to fail on their own.
-
-That split exists because pokemontcg.io was measured failing **5 of 10
-requests**, which used to fail scans outright on perfectly good photos. It's
-still the best English price source; it just can't be load-bearing for
-identification.
+**Identification is local; pricing is live.** Pokémon cards (English,
+Japanese, Chinese) are mirrored from [TCGdex](https://tcgdex.dev); Magic
+printings (94k) and sets from [Scryfall](https://scryfall.com). pokemontcg.io
+was measured failing 5 of 10 requests, so nothing load-bearing depends on it.
 
 ```bash
-npm run sync:en       # English cards — 218 sets, ~23,400 cards, ~4 MB
-npm run sync:jp       # Japanese cards
-npm run sync:zh       # Traditional Chinese cards
+npm run sync:en       # Pokémon English — ~218 sets, ~23,400 cards
+npm run sync:jp       # Japanese
+npm run sync:zh       # Traditional Chinese
 npm run sync:species  # English species names, for the foreign-card overlay
+npm run sync:mtg      # Magic — Scryfall, ~6 min (rate-limited; run from a PC, not Fly)
+npm run export:mtg    # writes seed/mtg-mirror.db.gz, imported by the app on boot
 ```
 
-Re-run `sync:en` when new sets release. The English mirror also carries set
-release dates and card images, which do two things the price API can't:
+Re-run `sync:en` on new Pokémon sets. For Magic, run `sync:mtg && export:mtg`
+then deploy — Scryfall 429s Fly's egress IP, so the seed ships with the image.
 
-- **Rank printings.** A scanned "Charizard #4" is Base Set (1999) rather than
-  one of its reprints, ranked by release date.
-- **Join to pricing safely.** Providers name sets differently — TCGdex's
-  "Base Set" is pokemontcg.io's "Base" — and fuzzy name matching silently
-  paired it with "Base Set 2", pricing a $818 card at $466. Release dates
-  agree exactly across both sources, so they're the join key.
+The English mirror's set release dates rank printings (a scanned "Charizard #4"
+is Base Set, not a reprint) and are the join key to pokemontcg.io pricing —
+set *names* differ between providers and fuzzy-matching them once priced an
+$818 card at $466.
 
-## Admin
+## Tests
 
 ```bash
-npm run admin
+npm test               # all suites
+npm run test:ocr       # OCR text cleanup
+npm run test:cardnumber
+npm run test:ebay      # comps filtering against real listing titles
+npm run test:pricing
+npm run test:inventory # eBay Inventory payloads
+npm run test:mtg
+npm run test:ratelimit
 ```
 
-creates the admin account, which unlocks `/admin`.
+Plain Node scripts under `scripts/test-*.mjs` (`--experimental-strip-types`),
+no framework.
+
+## Operating
+
+```bash
+npm run admin                                # create an admin locally
+node scripts/issue-reset-link.mjs <email>    # password-reset link without SMTP
+flyctl deploy --app cardflip-superior        # single machine, volume at /app/data
+```
+
+`/admin` unlocks for whoever signs in with `ADMIN_EMAIL`. Data (users, ledger,
+photos, eBay tokens, mirrors) is one SQLite file on the Fly volume — back it
+up before anything destructive.

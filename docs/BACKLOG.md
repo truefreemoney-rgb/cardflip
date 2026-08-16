@@ -1,13 +1,13 @@
 # Backlog (checklists)
 
-Written 2026-08-16 from a full project audit. Excludes payment/subscription
+Written 2026-08-16 from a full project audit; ticks = done that evening. Excludes payment/subscription
 billing (Chris: not yet). Sizes S/M/L. "(deferred)" = Chris chose to park it.
 Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## 1. Known bugs / open issues
 
 - [x] Deploy Magic seed fix + camera ✕ + strike — v96 live, prod MTG search verified 08-16
-- [ ] M — Comps filter lets loose number matches through (`Charizard 4` ↔ "Charizard V 004/127"); tighten `isComparable` in `src/lib/ebayComps.ts`
+- [x] M — Comps filter lets loose number matches through — fixed 08-16 (suffix guard + set-total check, 13 tests) (`Charizard 4` ↔ "Charizard V 004/127"); tighten `isComparable` in `src/lib/ebayComps.ts`
 - [ ] S — eBay `program/opt_in` 403: scope added, Chris must reconnect eBay once
 - [ ] M — Bulk drafts CSV (`toEbayDraftsCsv`, `src/lib/listing.ts`) never uploaded to real eBay — validate header/#INFO rows
 - [ ] M — Inventory condition-descriptor IDs unverified (`src/lib/ebayInventory.ts`); graded may need cert descriptor 27503
@@ -30,13 +30,13 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## 3. Product-readiness
 
-- [ ] M — **Rate limiting** on `/api/vision/scan` (paid Anthropic), `/api/ebay/comps`, `/api/search-card` — demo login can drain credit. Highest-value unbuilt item.
+- [x] M — **Rate limiting** — done 08-16, `lib/server/rateLimit.ts`, 26 tests on `/api/vision/scan` (paid Anthropic), `/api/ebay/comps`, `/api/search-card` — demo login can drain credit. Highest-value unbuilt item.
 - [ ] M — Error monitoring (error-only; `/privacy` promises no analytics profile — keep copy true)
 - [ ] M — SQLite backup off the Fly volume (Litestream / nightly export) — users, ledger, photos, eBay tokens are single-copy
-- [ ] S — PWA: `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
+- [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [ ] S — First-scan onboarding / empty-state guidance (OnboardingSteps is signup-only)
-- [ ] S — `.env.example` documenting the 18 env vars
-- [ ] S — README stale: no Magic, auth, sealed/graded, eBay OAuth/push; lists 1 of 6 test suites
+- [x] S — `.env.example` — done 08-16 documenting the 18 env vars
+- [x] S — README stale — rewritten 08-16: no Magic, auth, sealed/graded, eBay OAuth/push; lists 1 of 6 test suites
 - Done: auth + per-user isolation, `/terms` `/privacy`, robots/sitemap/OG, landing, branded 404
 
 ## 4. Testing / quality
@@ -45,13 +45,13 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] M — API-route tests (currently curl-only)
 - [ ] M — Ledger/wishlist/price-check server tests incl. fee math (13.25% + $0.30)
 - [ ] S — Tests for `enCards.ts` ranking, `db.ts` ALTER-probe migrations, `seedMtgMirror` completeness (the code that broke prod)
-- [ ] S — Zero-catch routes: `api/auth/demo`, `auth/logout`, `auth/me`, `card-image/[id]`, `ebay/connect`, `sets`
-- [ ] S — `npm test` aggregate script running all 6 suites
+- [x] S — Zero-catch routes — sets/card-image/demo wrapped 08-16; logout/me/connect are trivial, left: `api/auth/demo`, `auth/logout`, `auth/me`, `card-image/[id]`, `ebay/connect`, `sets`
+- [x] S — `npm test` aggregate — done 08-16 script running all 6 suites
 - [ ] S — No component/E2E tests (Playwright) — manual only
 
 ## 5. Ops / deploy
 
-- [ ] L — **124 uncommitted files, last commit e10482c (Aug 11)** — commit now; no rollback point for 5 days of work
+- [x] L — **124 uncommitted files — committed 08-16 as 3d728a9 + follow-ups, last commit e10482c (Aug 11)** — commit now; no rollback point for 5 days of work
 - [ ] M — Deploy is manual (Chris only), no CI lint/test/build gate
 - [ ] S — MTG mirror refresh is manual from Chris's PC (`sync:mtg && export:mtg && deploy`, Scryfall 429s Fly); Pokémon set sync also manual
 - [ ] S — Single 512 MB machine, scale-to-zero, DB on one volume (see backup)

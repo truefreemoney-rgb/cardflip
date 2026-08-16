@@ -9,10 +9,17 @@ import {
   isEbayConfigured,
 } from "@/lib/server/ebay";
 import type { PokemonCard } from "@/lib/types";
+import {
+  LIMITS,
+  RateLimitError,
+  enforceRateLimit,
+  rateLimitResponse,
+} from "@/lib/server/rateLimit";
 
 export async function POST(req: Request) {
   try {
-    await requireUser();
+    const user = await requireUser();
+    enforceRateLimit(`comps:${user.id}`, ...LIMITS.ebayComps);
     const body = await req.json().catch(() => null);
     const card = body?.card as PokemonCard | undefined;
 
@@ -70,6 +77,7 @@ export async function POST(req: Request) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
     }
+    if (err instanceof RateLimitError) return rateLimitResponse(err);
     if (err instanceof EbayNotConfiguredError) {
       return NextResponse.json({ status: "unconfigured", comps: null, sold: null });
     }

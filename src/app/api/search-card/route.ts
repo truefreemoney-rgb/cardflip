@@ -15,6 +15,13 @@ import {
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { hasMtgMirror, searchMtgCardsLocal } from "@/lib/server/mtgCards";
+import {
+  LIMITS,
+  RateLimitError,
+  clientIp,
+  enforceRateLimit,
+  rateLimitResponse,
+} from "@/lib/server/rateLimit";
 
 /** The scanner's candidate count — search UIs pass a higher `limit`. */
 const DEFAULT_LIMIT = 24;
@@ -60,6 +67,16 @@ async function searchCjk(lang: "ja" | "zh", name: string, number: string) {
 }
 
 export async function GET(req: NextRequest) {
+  // Public route (the landing ticker calls it signed-out) and the Pokémon
+  // path can fan out to pokemontcg.io — per-IP cap keeps a script from
+  // turning it into a free proxy for the upstream API.
+  try {
+    enforceRateLimit(`search:${clientIp(req)}`, ...LIMITS.searchCard);
+  } catch (err) {
+    if (err instanceof RateLimitError) return rateLimitResponse(err);
+    throw err;
+  }
+
   const name = sanitize(req.nextUrl.searchParams.get("name") ?? "");
   const number = sanitize(req.nextUrl.searchParams.get("number") ?? "");
   const totalParam = Number(req.nextUrl.searchParams.get("setTotal"));

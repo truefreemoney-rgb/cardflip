@@ -34,6 +34,31 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Pokémon mechanic suffixes that make "Name X" a different card from "Name". */
+const VARIANT_SUFFIXES = ["vmax", "vstar", "v", "gx", "ex", "lv.x", "break", "prime", "legend"];
+
+/**
+ * Does the title attach a variant suffix to the card's name that the card
+ * itself doesn't have? "charizard v" against a plain Charizard → true;
+ * against "Charizard V" or "Charizard VMAX" (name has its own suffix) → only
+ * true if the title's suffix differs. Only the word right after the name
+ * counts, so "…4/102 EX condition" at the end of a title isn't a suffix.
+ */
+function hasForeignVariantSuffix(lowerTitle: string, lowerName: string): boolean {
+  const own = new Set(
+    VARIANT_SUFFIXES.filter((s) => new RegExp(`\\b${escapeRegex(s)}\\b`).test(lowerName)),
+  );
+  // The name without its own suffix words: "charizard vmax" → "charizard".
+  const baseWords = lowerName.split(/\s+/).filter((w) => !own.has(w));
+  const anchor = baseWords[baseWords.length - 1];
+  if (!anchor || anchor.length < 3) return false;
+  for (const s of VARIANT_SUFFIXES) {
+    if (own.has(s)) continue;
+    if (new RegExp(`\\b${escapeRegex(anchor)}\\s+${escapeRegex(s)}\\b`).test(lowerTitle)) return true;
+  }
+  return false;
+}
+
 /** Is this listing the same product we're pricing? */
 export function isComparable(title: string, card: PokemonCard): boolean {
   for (const pattern of REJECT_PATTERNS) {
@@ -50,6 +75,14 @@ export function isComparable(title: string, card: PokemonCard): boolean {
     return false;
   }
 
+  // "Charizard" and "Charizard V" share a name word and can share a number
+  // (Base Set 4/102 vs Champion's Path 004/127 — $800 vs $300). A mechanic
+  // suffix right after the name that the card itself doesn't carry means a
+  // different card, whatever the number says.
+  if (card.game !== "mtg" && hasForeignVariantSuffix(lower, nameToMatch)) {
+    return false;
+  }
+
   // The collector number is the strongest same-card signal available, so
   // require it when we have one. Matched loosely: sellers write "199/165",
   // "#199", or bare "199", and may or may not zero-pad.
@@ -57,6 +90,15 @@ export function isComparable(title: string, card: PokemonCard): boolean {
   const numberMatches = num
     ? new RegExp(`(^|[^0-9])0*${escapeRegex(num)}([^0-9]|$)`).test(title)
     : true;
+
+  // When the seller wrote the full "4/102" and we know the set's count, the
+  // denominator has to agree — "4/127" is the same number in another set.
+  // Only checked for the card's own number so "1st edition 1/1" style noise
+  // and other numbers in the title don't trip it.
+  if (num && card.setTotal && numberMatches) {
+    const printed = new RegExp(`(^|[^0-9])0*${escapeRegex(num)}\\s*/\\s*0*(\\d{1,3})(?![0-9])`).exec(title);
+    if (printed && Number(printed[2]) !== card.setTotal) return false;
+  }
 
   if (card.game === "mtg") {
     // MTG sellers rarely put the collector number in a title ("Lightning

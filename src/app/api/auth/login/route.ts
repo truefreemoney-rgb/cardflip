@@ -3,8 +3,12 @@ import { findUserByEmail, toPublicUser } from "@/lib/server/users";
 import { verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
 export async function POST(req: Request) {
+  // Brute-force backstop, per IP.
+  const limited = limitOrRespond(`auth:login:${clientIp(req)}`, LIMITS.authAttempt);
+  if (limited) return limited;
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";

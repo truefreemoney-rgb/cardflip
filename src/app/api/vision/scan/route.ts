@@ -7,13 +7,26 @@ import {
 } from "@/lib/server/vision";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
+import { isDemoUser } from "@/lib/server/users";
+import {
+  LIMITS,
+  RateLimitError,
+  enforceRateLimit,
+  rateLimitResponse,
+} from "@/lib/server/rateLimit";
 
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function POST(req: Request) {
   try {
-    await requireUser();
+    const user = await requireUser();
+    // Every call here costs money at Anthropic — per-account burst + daily
+    // caps, tighter for the shared demo login anyone can use.
+    enforceRateLimit(
+      `vision:${user.id}`,
+      ...(isDemoUser(user) ? LIMITS.visionScanDemo : LIMITS.visionScan),
+    );
 
     if (!isVisionConfigured()) {
       return NextResponse.json({ status: "unconfigured", card: null });
@@ -39,6 +52,7 @@ export async function POST(req: Request) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
     }
+    if (err instanceof RateLimitError) return rateLimitResponse(err);
     if (err instanceof VisionNotConfiguredError) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }

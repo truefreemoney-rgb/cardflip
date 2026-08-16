@@ -15,21 +15,28 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION on "lets go" (saved 08-16 ~16:40, Chris said "save,
-/clear and resume"):** three things are BUILT + tsc/lint/tests clean and
-were UNDEPLOYED at save time — (a) the Magic seed-import fix (prod v93
-returned `[]` for Magic search), (b) the camera ✕ close button, (c) the
-lightning strike on match (Chris: "dont go crazy" — leave as is). Step 1:
-`flyctl releases --app cardflip-superior` — if the newest release is
-older than 16:40, tell Chris to deploy (one line:
-`cd C:UsersChriscardflip; flyctl deploy --app cardflip-superior`);
-if he already deployed, verify prod:
-`curl "https://cardflip-superior.fly.dev/api/search-card?game=mtg&name=Ragavan&limit=1"`
-must return cards (not `[]`) — the boot log line is "MTG mirror seeded
-from mtg-mirror.db.gz: 94144 printings". Then wait for his phone test of
-Magic scanning + the ✕ + the strike; ask ONE specific thing if "bad" comes
-back without detail (what the scan showed vs. the card). Full MTG build
-notes follow.
+**FIRST ACTION on "lets go" (saved 08-16 evening, cleanup session):**
+v96 is live and prod Magic search verified (Ragavan → cards). Chris then
+said "do a full overlook … clean up and do what you see fit" → I wrote
+`docs/BACKLOG.md` (the checklist — READ IT for what's next, it's ~80
+lines) and shipped, all tsc/lint/`npm test` clean, committed as two
+commits on top of `3d728a9` but **UNDEPLOYED**: (1) rate limiting
+(`lib/server/rateLimit.ts`; vision 30/min+500/day per user, demo
+10/min+60/day; comps 60/min; search-card 120/min per IP; login/signup/
+forgot/reset/demo 20 per 10 min per IP; 26-test suite), (2) comps filter
+fix — `Charizard 4` no longer matches "Charizard V 004/127" (variant
+suffix guard + set-total denominator check, 13 new tests), (3) PWA
+manifest + generated icons (`app/manifest.ts`, `icon.tsx`,
+`apple-icon.tsx`, `lib/brandIcon.tsx`) + `appleWebApp` meta, (4) try/
+catch on `sets`, `card-image`, `demo`, (5) `.env.example`, README rewrite,
+`npm test` aggregate, `.gitignore` for `seed/*.gz`. Step 1: if Chris
+hasn't deployed since, tell him to (`flyctl deploy --app cardflip-superior`).
+Step 2: pick the next BACKLOG.md item — top candidates needing no
+Chris input: `db.ts`/`seedMtgMirror` tests, auth tests, first-scan
+onboarding. Items needing Chris: SQLite backup (needs an S3/Tigris
+bucket), error monitoring (needs a DSN), governing-law state, eBay
+reconnect for opt_in scope. Still waiting on his phone test of Magic
+scan + ✕ + strike. Full MTG build notes follow.
 
 **Magic build (08-16 ~15:30): MAGIC: THE GATHERING —
 BUILT end to end, UNDEPLOYED, tsc/lint/all 6 suites clean, verified on

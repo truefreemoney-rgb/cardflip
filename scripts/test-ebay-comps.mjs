@@ -112,6 +112,23 @@ check(
   false,
 );
 
+console.log("\nSame number, different card (the $800-vs-$300 Charizard problem):");
+const baseZard = { ...card, name: "Charizard", setName: "Base", number: "4", setTotal: 102, rarity: "Rare Holo" };
+check("Charizard 4/102 Base Set matches", isComparable("Pokemon Charizard 4/102 Base Set Holo Rare 1999", baseZard), true);
+check("bare #4 without a total still matches", isComparable("Charizard #4 Base Set Holo WOTC", baseZard), true);
+check("Charizard V 004/127 rejected (suffix)", isComparable("Charizard V 004/127 Champions Path Holo", baseZard), false);
+check("Charizard VMAX 4/xx rejected (suffix)", isComparable("Pokemon Charizard VMAX 4 Rare", baseZard), false);
+check("Charizard 4/127 rejected (set total)", isComparable("Charizard 4/127 Holo Rare", baseZard), false);
+check("Charizard 004/102 zero-padded total ok", isComparable("Charizard 004/102 Base", baseZard), true);
+check("EX as a condition at the end is not a suffix", isComparable("Charizard 4/102 Base Set EX condition", baseZard), true);
+const zardV = { ...baseZard, name: "Charizard V", number: "79", setTotal: 73 };
+check("Charizard V 079/073 matches Charizard V", isComparable("Charizard V 079/073 Shining Fates", zardV), true);
+check("Charizard VMAX rejected for a Charizard V", isComparable("Charizard VMAX 79 Shining Fates", zardV), false);
+const zardVmax = { ...baseZard, name: "Charizard VMAX", number: "20", setTotal: 189 };
+check("Charizard VMAX 20/189 matches", isComparable("Charizard VMAX 020/189 Darkness Ablaze", zardVmax), true);
+check("Charizard V rejected for a Charizard VMAX", isComparable("Charizard V 20/189 Darkness Ablaze", zardVmax), false);
+check("card without setTotal ignores the denominator", isComparable("Charizard 4/127", { ...baseZard, setTotal: null }), true);
+
 console.log("\nTrims outliers:");
 // A cluster around $300 with one $12 mispriced listing and one $4000 moonshot.
 const prices = [12, 280, 290, 295, 300, 305, 310, 315, 4000];
