@@ -279,6 +279,17 @@ for (const column of [
   }
 }
 
+// Wishlist rows originally stored only name/set/number; the catalog id +
+// game let the page draw price-history sparklines and re-price MTG rows.
+// Older rows keep NULL and the page resolves them lazily.
+for (const column of ["card_id TEXT", "game TEXT"]) {
+  try {
+    db.exec(`ALTER TABLE wishlist_items ADD COLUMN ${column}`);
+  } catch {
+    // Already present.
+  }
+}
+
 // Created after the columns exist, so it can't live in the block above.
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_en_cards_printed

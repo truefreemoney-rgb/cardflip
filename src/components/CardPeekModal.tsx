@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import DemoButton from "@/components/DemoButton";
+import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import type { PokemonCard } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="foil-edge relative w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 [--foil-fill:#0b0d13] sm:p-8"
+        className="foil-edge relative my-auto w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 [--foil-fill:#0b0d13] sm:p-8"
       >
         <button
           onClick={onClose}
@@ -83,6 +84,16 @@ export default function CardPeekModal({ card, onClose }: Props) {
             </p>
           )}
         </div>
+
+        {/* Same 90-day history the app shows — the landing page proves the data
+            exists rather than describing it. Public route, no session needed. */}
+        <PriceHistoryChart
+          cardId={card.id}
+          preferVariant={price?.variant ?? null}
+          trend={cardTrend(card)}
+          compact
+          className="mt-5 text-left"
+        />
 
         <p className="mt-5 text-center text-sm text-zinc-400">
           Got one of these? Scan it and it&apos;s priced, written up and ready

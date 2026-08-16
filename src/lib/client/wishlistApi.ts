@@ -1,7 +1,7 @@
 "use client";
 
 import { apiPath } from "@/lib/client/basePath";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
   id: string;
@@ -14,6 +14,9 @@ export interface WishlistItem {
   imageUrl: string;
   price: number | null;
   addedAt: number;
+  /** Catalog id — null on rows saved before it was stored (resolved lazily by the page). */
+  cardId: string | null;
+  game: GameId | null;
 }
 
 export async function fetchWishlist(): Promise<WishlistItem[]> {

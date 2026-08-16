@@ -21,8 +21,8 @@ import type { Currency, PokemonCard } from "@/lib/types";
  * history from day one.
  */
 
-interface Point { day: string; price: number }
-interface Series {
+export interface Point { day: string; price: number }
+export interface Series {
   variant: string;
   source: string;
   currency: string;
@@ -65,7 +65,8 @@ export function cardTrend(card: Pick<PokemonCard, "prices">): TrendAverages | nu
 
 const cache = new Map<string, Series[]>();
 
-async function loadSeries(cardId: string): Promise<Series[]> {
+/** Fetches (and memoizes per page) every series we hold for a card. Shared with PriceSparkline. */
+export async function loadSeries(cardId: string): Promise<Series[]> {
   const hit = cache.get(cardId);
   if (hit) return hit;
   const res = await fetch(apiPath(`/api/price-history?cardId=${encodeURIComponent(cardId)}`));
@@ -75,7 +76,7 @@ async function loadSeries(cardId: string): Promise<Series[]> {
   return data.series;
 }
 
-function pickSeries(all: Series[], prefer: string | null | undefined): Series | null {
+export function pickSeries(all: Series[], prefer: string | null | undefined): Series | null {
   if (all.length === 0) return null;
   const usd = all.filter((s) => s.currency === "USD");
   const pool = usd.length ? usd : all;

@@ -7,6 +7,7 @@ import CardImage from "@/components/CardImage";
 import AppTabs from "@/components/AppTabs";
 import Spinner from "@/components/Spinner";
 import GameToggle from "@/components/GameToggle";
+import PriceSparkline from "@/components/PriceSparkline";
 import { fetchCurrentUser, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import {
   addToWishlist,
@@ -47,37 +48,44 @@ function formatDate(ts: number): string {
  */
 const REPRICE_LIMIT = 15;
 
-async function fetchCurrentPrices(
-  items: WishlistItem[],
-): Promise<Record<string, number>> {
+interface Repriced {
+  /** item.id → current USD market */
+  prices: Record<string, number>;
+  /** item.id → catalog id, for rows saved before `cardId` was stored (sparklines). */
+  cardIds: Record<string, string>;
+}
+
+async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const targets = items
     .filter((item) => item.language === "en" && item.price != null)
     .slice(0, REPRICE_LIMIT);
 
-  const entries = await Promise.all(
-    targets.map(async (item): Promise<[string, number] | null> => {
+  const prices: Record<string, number> = {};
+  const cardIds: Record<string, string> = {};
+  await Promise.all(
+    targets.map(async (item) => {
       try {
-        const cards = await searchCards(item.cardName, item.cardNumber || null, "en");
+        // MTG rows carry a game; older rows are Pokémon (the only game then).
+        // For MTG the "printed number" is the collector number, same field.
+        const cards = await searchCards(item.cardName, item.cardNumber || null, "en", undefined, item.game ?? "pokemon");
         const match =
+          (item.cardId ? cards.find((c) => c.id === item.cardId) : null) ??
           cards.find(
             (c) =>
               c.name === item.cardName &&
               (!item.cardNumber ||
                 normalizeNumber(c.number) === normalizeNumber(item.cardNumber)),
           ) ?? cards[0];
-        const usd = match?.prices.find(
-          (p) => p.currency === "USD" && p.market != null,
-        );
-        return usd?.market != null ? [item.id, usd.market] : null;
+        if (!match) return;
+        if (!item.cardId && match.id) cardIds[item.id] = match.id;
+        const usd = match.prices.find((p) => p.currency === "USD" && p.market != null);
+        if (usd?.market != null) prices[item.id] = usd.market;
       } catch {
-        return null;
+        // Row keeps its saved price; delta and sparkline just don't show.
       }
     }),
   );
-
-  return Object.fromEntries(
-    entries.filter((e): e is [string, number] => e !== null),
-  );
+  return { prices, cardIds };
 }
 
 /** "Then vs now" for a saved card; quiet when the move is under a dollar and 1%. */
@@ -112,6 +120,8 @@ export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
+  // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
+  const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
 
   // The add flow is search or a dropped image — deliberately no camera here:
   // a wishlisted card is one the user *doesn't* have in hand to scan.
@@ -149,7 +159,10 @@ export default function WishlistPage() {
       .then((list) => {
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
-        void fetchCurrentPrices(list).then(setNowPrices);
+        void fetchCurrentPrices(list).then(({ prices, cardIds }) => {
+          setNowPrices(prices);
+          setResolvedIds(cardIds);
+        });
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -430,6 +443,9 @@ export default function WishlistPage() {
                 )}
                 {item.price != null && nowPrices[item.id] != null && (
                   <PriceDelta saved={item.price} now={nowPrices[item.id]} />
+                )}
+                {(item.cardId ?? resolvedIds[item.id]) && (
+                  <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} className="mt-0.5" />
                 )}
               </div>
             ))}

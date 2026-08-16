@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
   id: string;
@@ -14,6 +14,9 @@ export interface WishlistItem {
   imageUrl: string;
   price: number | null;
   addedAt: number;
+  /** Catalog id (TCGdex / Scryfall) — null on rows saved before it was stored. */
+  cardId: string | null;
+  game: GameId | null;
 }
 
 interface WishlistRow {
@@ -27,6 +30,8 @@ interface WishlistRow {
   image_url: string;
   price: number | null;
   added_at: number;
+  card_id: string | null;
+  game: GameId | null;
 }
 
 function fromRow(row: WishlistRow): WishlistItem {
@@ -41,6 +46,8 @@ function fromRow(row: WishlistRow): WishlistItem {
     imageUrl: row.image_url,
     price: row.price,
     addedAt: row.added_at,
+    cardId: row.card_id ?? null,
+    game: row.game ?? null,
   };
 }
 
@@ -57,8 +64,8 @@ export function addToWishlist(
 
   db.prepare(
     `INSERT INTO wishlist_items
-       (id, user_id, card_name, english_name, set_name, card_number, language, image_url, price, added_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, user_id, card_name, english_name, set_name, card_number, language, image_url, price, added_at, card_id, game)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, card_name, set_name, card_number) DO NOTHING`,
   ).run(
     id,
@@ -71,7 +78,15 @@ export function addToWishlist(
     card.imageSmall || card.imageLarge,
     price,
     addedAt,
+    card.id || null,
+    card.game ?? "pokemon",
   );
+
+  // A row saved before card_id existed learns it when the same card is added again.
+  db.prepare(
+    `UPDATE wishlist_items SET card_id = ?, game = ?
+     WHERE user_id = ? AND card_name = ? AND set_name = ? AND card_number = ? AND card_id IS NULL`,
+  ).run(card.id || null, card.game ?? "pokemon", userId, card.name, card.setName, card.number);
 
   const existing = db
     .prepare(

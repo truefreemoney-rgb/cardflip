@@ -1,6 +1,6 @@
 # Project state
 
-Last updated: 2026-08-16 19:00 (resume = this file only).
+Last updated: 2026-08-16 late (resume = this file only).
 
 **Resume cheap (Chris, 08-16: "keep the context window usage low when we
 resume"): read ONLY the FIRST ACTION block below (through line ~30, use
@@ -15,8 +15,10 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION on "lets go" (saved 08-16 ~19:00, Chris: "save, /clear and resume where we left off"):**
-Prod is v109, healthy (was OOM crash-looping at v106-107 — fixed by streaming the seed gunzip, `6fc338c`; swap added). LAST OPEN THREAD = admin console login: Chris wants **admin / onyx**; the code default is now admin/onyx (`f9f43e6`, deployed in v109) BUT Chris had set Fly secrets `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD` to unknown values which override it → login 401. I told him to run `flyctl secrets set ADMIN_PANEL_USER=admin ADMIN_PANEL_PASSWORD=onyx --app cardflip-superior` (or `secrets unset` both). Step 1: check `curl -s -X POST -H "Content-Type: application/json" -d '{"username":"admin","password":"onyx"}' https://cardflip-superior.fly.dev/api/admin/login` → 200 = fixed; if 401, remind him of that command. Then he opens https://cardflip-superior.fly.dev/admin/login and I verify the console renders (users/cards/prices & data/system). Everything else is committed AND deployed (working tree clean at `f9f43e6`): stock-style price charts, 90-day history both games (Magic via MTGJSON, Pokémon via TCGCSV, 5¢ floor, seed 25.8 MB keyed), daily self-refresh (`dailyJobs.ts`: hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET` — CRON_SECRET IS set on Fly; a pinger is still not configured), admin console overhaul (own login, KPIs, activity bars, users w/ delete, cards, prices&data w/ Run-now, system). Next candidates: BACKLOG.md §6 leftovers (AppHeader/session context, queue persistence), §7 (pinger for zero-traffic days), `CardPeekModal` chart. Do NOT re-read the long notes below unless a task needs them.
+**FIRST ACTION on "lets go" (saved 08-16 late):**
+Prod is v109, healthy; admin login admin/onyx VERIFIED on prod (200; Chris fixed the Fly secrets). ONE COMMIT UNDEPLOYED on top of v109: peek-modal price chart + wishlist sparklines (`PriceSparkline.tsx`; `wishlist_items` gained `card_id`/`game` via ALTER probe; tsc+lint clean, peek chart verified on dev). Step 1: if Chris hasn't deployed since, `flyctl deploy --app cardflip-superior` (his), then he checks a landing card peek + wishlist on prod. Step 2: next BACKLOG.md items needing no Chris input — §6 open QoL (shared `<AppHeader>` + server session, scan-queue persistence in sessionStorage), §4 auth/db tests; §7 pinger needs a scheduled task (ask him). Chris 08-16 late: "ok calm it down" = fewer tool calls / less browser poking per task — verify with tsc+lint and one check, then report. Do NOT re-read the long notes below unless a task needs them.
+
+**Earlier (08-16 ~19:00, resolved):** admin console login 401 was Fly secrets `ADMIN_PANEL_USER/PASSWORD` overriding the admin/onyx code default (`f9f43e6`, v109); Chris reset them; verified 200 + `/admin` renders. Shipped and deployed by v109: stock-style price charts, 90-day history both games (Magic via MTGJSON, Pokémon via TCGCSV, 5¢ floor, seed 25.8 MB keyed), daily self-refresh (`dailyJobs.ts`: hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET` — CRON_SECRET IS set on Fly; pinger not configured), admin console overhaul.
 
 **Earlier that evening (cleanup session):**
 v96 is live and prod Magic search verified (Ragavan → cards). Chris then

@@ -24,7 +24,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — SMTP secrets (`SMTP_HOST/PORT/USER/PASS`) so password reset emails work (deferred)
 - [ ] S — Rotate PRD Cert ID; rotate eBay deletion-endpoint verification token (was pasted in STATE.md)
 - [ ] S — "Identifying…" QueueRow chip pulse (needs reduced-motion exemption)
-- [ ] S — MTG wishlist re-pricing (rows carry no `game`) (deferred)
+- [x] S — MTG wishlist re-pricing — rows now carry `game` + `card_id` (08-16 late); rows saved before then default to Pokémon
 - [ ] S — Root SPF record superiormarketing.com (optional)
 - [ ] — RevealStrike: leave as is. Full RevealScene: reverted, don't rebuild without asking.
 
@@ -87,5 +87,5 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] **Self-updating daily (Chris 08-16: "the charts should update itself once daily")** — `lib/server/dailyJobs.ts` `runDailyIfDue()`: Magic prices from Scryfall's bulk JSONL (`mtgPriceRefresh.ts`, ~12 s, works from Fly — one CDN download) + Pokémon sweep (held + wishlist + last-30-day price checks, retry once). Triggers: hourly timer (`instrumentation.ts`), `/api/auth/me` heartbeat, `GET /api/cron/daily?key=CRON_SECRET` for an external pinger. Seed import now merges history by day. `npm run refresh:prices -- --force` runs it by hand.
 - [ ] S — Set `CRON_SECRET` on Fly + point a pinger at `/api/cron/daily?key=…` once a day (cron-job.org / Claude scheduled task) so zero-traffic days still refresh
 - [x] **Pokémon 90-day history — DONE 08-16 via TCGCSV** (tcgcsv.com daily TCGplayer archives, free, 4 MB/day, 7-Zip on PC): `npm run backfill:pokemon` builds `tcgplayer_products` (153/217 sets, 21k cards) + 20.9k series; prod refreshes daily from TCGCSV live JSON (`pokemonPriceRefresh.ts`, 151 sets, ~15 s). Unmatched: trainer kits / POP / a few promos (~1.1k cards). Threshold lowered 50¢ → 5¢ (Chris: a 32¢ holo with $1.68 eBay asking showed one point) → 34k Pokémon + 142k Magic series, seed 22.6 MB + the product map. TCGplayer tile falls back to the last recorded point when the live lookup fails
-- [ ] S — Show the chart in `CardPeekModal` (landing) and wishlist rows (sparkline)
+- [x] S — Chart in `CardPeekModal` (landing, compact) + 30-day `PriceSparkline` on wishlist rows — done 08-16 late (wishlist rows now store `card_id`/`game`; older rows resolve the id from the repricing pass; MTG rows reprice with `?game=mtg`)
 - [ ] — Paid fallback if deeper history is wanted later: PriceCharting API
