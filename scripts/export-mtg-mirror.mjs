@@ -25,14 +25,18 @@ db.exec("CREATE TABLE mtg_cards AS SELECT * FROM srcdb.mtg_cards");
 // Price history for every game rides along (sync-mtg / backfill-mtgjson / backfill-tcgcsv);
 // the app merges it with INSERT OR IGNORE so prod keeps any points it already holds.
 const hasHistory = db.prepare("SELECT 1 FROM srcdb.sqlite_master WHERE type = 'table' AND name = 'price_series'").get();
-db.exec(hasHistory
-  ? "CREATE TABLE price_series AS SELECT * FROM srcdb.price_series"
-  : "CREATE TABLE price_series (card_id TEXT, game TEXT, variant TEXT, source TEXT, currency TEXT, start_day TEXT, prices TEXT, updated_day TEXT)");
+// Real primary keys, not CREATE ... AS SELECT: the app's import does per-key
+// lookups against this table, and without the index a 176k-series merge is a
+// full scan per row (hours; prod v105 stalled ~2 min on 84k).
+db.exec(`CREATE TABLE price_series (
+  card_id TEXT NOT NULL, game TEXT NOT NULL, variant TEXT NOT NULL, source TEXT NOT NULL,
+  currency TEXT NOT NULL, start_day TEXT NOT NULL, prices TEXT NOT NULL, updated_day TEXT NOT NULL,
+  PRIMARY KEY (card_id, variant, source))`);
+if (hasHistory) db.exec("INSERT INTO price_series SELECT card_id, game, variant, source, currency, start_day, prices, updated_day FROM srcdb.price_series");
 // TCGplayer productId → card map (Pokémon), for the server's daily TCGCSV refresh.
 const hasMap = db.prepare("SELECT 1 FROM srcdb.sqlite_master WHERE type = 'table' AND name = 'tcgplayer_products'").get();
-db.exec(hasMap
-  ? "CREATE TABLE tcgplayer_products AS SELECT * FROM srcdb.tcgplayer_products"
-  : "CREATE TABLE tcgplayer_products (product_id INTEGER, group_id INTEGER, card_id TEXT, game TEXT)");
+db.exec("CREATE TABLE tcgplayer_products (product_id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL, card_id TEXT NOT NULL, game TEXT NOT NULL)");
+if (hasMap) db.exec("INSERT INTO tcgplayer_products SELECT product_id, group_id, card_id, game FROM srcdb.tcgplayer_products");
 db.exec("DETACH DATABASE srcdb");
 db.exec("VACUUM");
 const counts = db.prepare("SELECT (SELECT COUNT(*) FROM mtg_cards) cards, (SELECT COUNT(*) FROM mtg_sets) sets, (SELECT COUNT(*) FROM price_series) series").get();

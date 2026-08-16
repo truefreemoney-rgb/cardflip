@@ -297,14 +297,20 @@ db.exec(`
  * and it never overwrites a mirror that a successful in-place sync made
  * fresher than the seed.
  */
-function seedMtgMirror(): void {
+export async function seedMtgMirror(): Promise<void> {
   // Never during `next build`: its ~15 parallel workers each evaluate this
   // module against a throwaway database, and 15 concurrent seed imports
   // (gunzip + attach + a 73k-row history merge) trip "database is locked" and
-  // failed the Fly build (v102). The real import happens on server start.
+  // failed the Fly build (v102). Called from instrumentation.ts on server
+  // start — NOT at module import: v105 ran an 84k-series merge synchronously
+  // on the event loop after "Ready" and every request hung for ~2 minutes.
+  // The history merge below is batched with yields and short transactions
+  // so the server keeps serving while it runs.
   if (process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build") return;
   const seedGz = path.join(process.cwd(), "seed", "mtg-mirror.db.gz");
   if (!fs.existsSync(seedGz)) return;
+  const tmp = path.join(DATA_DIR, "mtg-mirror.seed.db");
+  let attachedSeed = false;
   try {
     const seedTime = Math.floor(fs.statSync(seedGz).mtimeMs);
     const current = db
@@ -318,16 +324,12 @@ function seedMtgMirror(): void {
     const FULL_MIRROR_FLOOR = 80_000;
     // Marker written after a successful import of this exact seed file, so
     // later boots skip the gunzip + compare entirely. Versioned: bumping
-    // SEED_IMPORT_VERSION forces every deploy to re-run the import logic once
-    // (v2 = the price-history merge, which v1 skipped when the mirror itself
-    // was already current — prod v100 shipped 90 days of Magic history that
-    // never landed).
+    // SEED_IMPORT_VERSION forces every deploy to re-run the import logic once.
     const SEED_IMPORT_VERSION = 4;
     const marker = path.join(DATA_DIR, "mtg-seed.imported");
     const markerValue = `${seedTime}:v${SEED_IMPORT_VERSION}`;
     if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === markerValue) return;
 
-    const tmp = path.join(DATA_DIR, "mtg-mirror.seed.db");
     fs.writeFileSync(tmp, zlib.gunzipSync(fs.readFileSync(seedGz)));
     const attached = new DatabaseSync(tmp, { readOnly: true });
     const seed = attached
@@ -335,18 +337,22 @@ function seedMtgMirror(): void {
       .get() as { at: number; n: number };
     attached.close();
     // The mirror (cards + sets) is replaced only when the seed is newer or
-    // more complete than what the volume holds — a live mirror that a
-    // successful in-place sync (or the daily bulk price refresh) made fresher
-    // than the seed stays. Price history below is merged regardless: a seed
-    // can carry new history without new card data (the MTGJSON backfill).
+    // more complete than what the volume holds. Price history is merged
+    // regardless: a seed can carry new history without new card data.
     const replaceMirror = !(current.n >= FULL_MIRROR_FLOOR && current.n >= seed.n && current.at >= seed.at);
 
     db.exec(`ATTACH DATABASE '${tmp.replace(/'/g, "''")}' AS mtgseed`);
+    attachedSeed = true;
+    // Older seeds were exported without keys; index in place (the tmp file is
+    // ours) so phase 2's per-key reads aren't full scans.
+    try {
+      db.exec("CREATE INDEX IF NOT EXISTS mtgseed.idx_seed_series ON price_series(card_id, variant, source)");
+    } catch { /* read-only or already keyed */ }
+
+    // --- Phase 1 (one short transaction, pure SQL): mirror, new series, map.
     db.exec("BEGIN");
     if (replaceMirror) {
-      // Wholesale replace: rows from a partial sync would otherwise linger
-      // (a stale price on a printing the seed also has is harmless, but a
-      // printing Scryfall since renamed would never disappear).
+      // Wholesale replace: rows from a partial sync would otherwise linger.
       db.exec("DELETE FROM mtg_cards");
       db.exec("DELETE FROM mtg_sets");
       db.exec(`INSERT OR REPLACE INTO mtg_sets (code, name, released_at, card_count, printed_size, set_type, icon_url, synced_at)
@@ -357,11 +363,6 @@ function seedMtgMirror(): void {
                  image_url, rarity, type_line, finishes, lang, price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at
                  FROM mtgseed.mtg_cards`);
     }
-    // Magic price history rides in the seed as compact per-series rows
-    // (lib/priceSeries.ts): the MTGJSON backfill + whatever the PC sync
-    // recorded. Prod also writes its own daily points (lib/server/
-    // mtgPriceRefresh.ts), so this is a MERGE by day — prod's points win,
-    // the seed fills the days prod doesn't have. Older seeds have no table.
     const seedHasHistory = db
       .prepare("SELECT 1 AS ok FROM mtgseed.sqlite_master WHERE type = 'table' AND name = 'price_series'")
       .get();
@@ -376,27 +377,7 @@ function seedMtgMirror(): void {
         db.prepare(`INSERT OR IGNORE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
                     SELECT card_id, game, variant, source, currency, start_day, prices, updated_day FROM mtgseed.price_series`).run().changes,
       );
-      // Rows both sides have: fill prod's gaps from the seed, never overwrite.
-      const both = db.prepare(`SELECT s.card_id, s.variant, s.source, s.start_day AS seed_start, s.prices AS seed_prices,
-                                      p.start_day AS prod_start, p.prices AS prod_prices
-                                 FROM mtgseed.price_series s
-                                 JOIN price_series p ON p.card_id = s.card_id AND p.variant = s.variant AND p.source = s.source
-                                WHERE s.updated_day <> p.updated_day OR s.start_day <> p.start_day`).all() as unknown as
-        { card_id: string; variant: string; source: string; seed_start: string; seed_prices: string; prod_start: string; prod_prices: string }[];
-      const write = db.prepare("UPDATE price_series SET start_day = ?, prices = ? WHERE card_id = ? AND variant = ? AND source = ?");
-      for (const r of both) {
-        let row = { startDay: r.prod_start, prices: decodePrices(r.prod_prices) };
-        const have = new Set(toPoints(row).map((pt) => pt.day));
-        let changed = false;
-        for (const pt of toPoints({ startDay: r.seed_start, prices: decodePrices(r.seed_prices) })) {
-          if (have.has(pt.day)) continue;
-          row = setDay(row, pt.day, pt.price);
-          changed = true;
-        }
-        if (changed) { write.run(row.startDay, encodePrices(row.prices), r.card_id, r.variant, r.source); historyRows++; }
-      }
     }
-    // TCGplayer productId → card map for the daily Pokémon refresh (seed-authored).
     const seedHasMap = db
       .prepare("SELECT 1 AS ok FROM mtgseed.sqlite_master WHERE type = 'table' AND name = 'tcgplayer_products'")
       .get();
@@ -407,7 +388,49 @@ function seedMtgMirror(): void {
                SELECT product_id, group_id, card_id, game FROM mtgseed.tcgplayer_products`);
     }
     db.exec("COMMIT");
+
+    // --- Phase 2 (batched, yielding): series both sides hold — fill prod's
+    // gaps from the seed, never overwrite prod's own points. Keys only are
+    // loaded up front (small); each batch reads, merges and writes ~300 rows
+    // in its own short transaction, then yields to the event loop.
+    if (seedHasHistory) {
+      const keys = db.prepare(`SELECT s.card_id, s.variant, s.source
+                                 FROM mtgseed.price_series s
+                                 JOIN price_series p ON p.card_id = s.card_id AND p.variant = s.variant AND p.source = s.source
+                                WHERE s.updated_day <> p.updated_day OR s.start_day <> p.start_day`)
+        .all() as unknown as { card_id: string; variant: string; source: string }[];
+      const readSeed = db.prepare("SELECT start_day, prices FROM mtgseed.price_series WHERE card_id = ? AND variant = ? AND source = ?");
+      const readProd = db.prepare("SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?");
+      const write = db.prepare("UPDATE price_series SET start_day = ?, prices = ? WHERE card_id = ? AND variant = ? AND source = ?");
+      const BATCH = 300;
+      for (let i = 0; i < keys.length; i += BATCH) {
+        db.exec("BEGIN");
+        try {
+          for (const k of keys.slice(i, i + BATCH)) {
+            const sd = readSeed.get(k.card_id, k.variant, k.source) as { start_day: string; prices: string } | undefined;
+            const pd = readProd.get(k.card_id, k.variant, k.source) as { start_day: string; prices: string } | undefined;
+            if (!sd || !pd) continue;
+            let row = { startDay: pd.start_day, prices: decodePrices(pd.prices) };
+            const have = new Set(toPoints(row).map((pt) => pt.day));
+            let changed = false;
+            for (const pt of toPoints({ startDay: sd.start_day, prices: decodePrices(sd.prices) })) {
+              if (have.has(pt.day)) continue;
+              row = setDay(row, pt.day, pt.price);
+              changed = true;
+            }
+            if (changed) { write.run(row.startDay, encodePrices(row.prices), k.card_id, k.variant, k.source); historyRows++; }
+          }
+          db.exec("COMMIT");
+        } catch (err) {
+          db.exec("ROLLBACK");
+          throw err;
+        }
+        await new Promise<void>((r) => setImmediate(r));
+      }
+    }
+
     db.exec("DETACH DATABASE mtgseed");
+    attachedSeed = false;
     fs.unlinkSync(tmp);
     fs.writeFileSync(marker, markerValue);
     const after = (db.prepare("SELECT COUNT(*) AS n FROM mtg_cards").get() as { n: number }).n;
@@ -416,11 +439,7 @@ function seedMtgMirror(): void {
     // A failed seed must never take the app down — Pokémon still works and
     // Magic search reports "catalogue isn't loaded" until the next boot.
     console.error("MTG mirror seed failed:", err);
-    try {
-      db.exec("ROLLBACK");
-    } catch {
-      // No transaction open.
-    }
+    try { db.exec("ROLLBACK"); } catch { /* no transaction open */ }
+    if (attachedSeed) { try { db.exec("DETACH DATABASE mtgseed"); } catch { /* already detached */ } }
   }
 }
-seedMtgMirror();
