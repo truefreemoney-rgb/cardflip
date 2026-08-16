@@ -20,7 +20,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 2. Deferred features (mostly by choice or blocked on eBay)
 
 - [ ] L — eBay Listing API (`sell.item.draft`) access — apply at developer.ebay.com/my/support (blocked)
-- [ ] M — Marketplace Insights approval → sold comps; then check `pickPrice` prefers sold + `MarketMetricsPanel` copy (blocked)
+- [x] ~~Marketplace Insights~~ — DENIED by eBay 08-16 (partner-only, ticket closed). Sold-comps call now gated off (`EBAY_INSIGHTS_ENABLED`); sold data = price-history route instead (see §7)
 - [ ] S — SMTP secrets (`SMTP_HOST/PORT/USER/PASS`) so password reset emails work (deferred)
 - [ ] S — Rotate PRD Cert ID; rotate eBay deletion-endpoint verification token (was pasted in STATE.md)
 - [ ] S — "Identifying…" QueueRow chip pulse (needs reduced-motion exemption)
@@ -78,3 +78,10 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — Focus trap in CameraCapture/CardDetailModal; `role=dialog` on the panel not the backdrop
 - [ ] S — AbortController on wishlist repricing fan-out; debounce search inputs
 - [ ] S — Tab "Search cards" vs page "Price check" — pick one name
+
+## 7. Market insights / price history (proposed 08-16, after the Insights denial)
+
+- [ ] M — `price_history(card_id, game, variant, source, price, at)` table; snapshot daily: MTG from `sync:mtg` (or Scryfall bulk `default_cards`), Pokémon from every pokemontcg.io lookup + nightly sweep of ledger/wishlist cards
+- [ ] S — Seed Magic with MTGJSON `AllPrices.json` (~90 days TCGplayer/Cardmarket) so it isn't empty on day one
+- [ ] S — `/api/price-history?cardId=` → 30/90-day high/low + sparkline in `CardDetailModal` / price-check / `MarketMetricsPanel` (takes the slot the sold tile was holding)
+- [ ] — Paid fallback if deeper history is wanted later: PriceCharting API

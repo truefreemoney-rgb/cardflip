@@ -43,11 +43,17 @@ export async function POST(req: Request) {
       });
     }
 
-    // Sold data needs a separately-approved eBay scope, so it can fail on its
-    // own while active listings still work — settle them independently.
+    // Sold data (Marketplace Insights) was DENIED by eBay on 2026-08-16 —
+    // "highly limited, reserved for approved partners". The call stays behind
+    // EBAY_INSIGHTS_ENABLED=1 in case that ever changes; by default we don't
+    // spend a request on it per scan, and the UI shows the "View sold on
+    // eBay" link instead. Settled independently so a sold failure never
+    // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
       fetchEbayComps(card),
-      fetchEbaySoldComps(card),
+      process.env.EBAY_INSIGHTS_ENABLED === "1"
+        ? fetchEbaySoldComps(card)
+        : Promise.reject(new Error("Marketplace Insights not enabled")),
     ]);
 
     if (activeResult.status === "rejected") throw activeResult.reason;
@@ -59,10 +65,11 @@ export async function POST(req: Request) {
       sold = soldResult.value;
       soldStatus = sold ? "done" : "empty";
     } else {
-      // Almost always "keyset not approved for Marketplace Insights" — worth
-      // distinguishing from an outage so the UI can say what to do about it.
-      console.error("eBay sold comps unavailable:", soldResult.reason);
       soldStatus = "unavailable";
+      // Only worth a log line when we actually asked eBay and it refused.
+      if (process.env.EBAY_INSIGHTS_ENABLED === "1") {
+        console.error("eBay sold comps unavailable:", soldResult.reason);
+      }
     }
 
     return NextResponse.json({

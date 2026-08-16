@@ -165,11 +165,10 @@ export default function MarketMetricsPanel({
       ? quoted
       : (tcgRows.find((p) => !isFirstEditionVariant(p.variant)) ?? tcgRows[0]);
 
-  // The sold tile exists only once eBay has granted Marketplace Insights
-  // (limited release — applied for, not held). Until then it would sit
-  // permanently empty, so it isn't rendered at all; the plain "View sold on
-  // eBay" link below still gives sellers the sold data by hand. Nothing else
-  // changes when access lands: `sold` arrives and the tile appears.
+  // The sold tile needs eBay's Marketplace Insights, which eBay DENIED on
+  // 2026-08-16 (partner-only). It isn't rendered; the plain "View sold on
+  // eBay" link below still gives sellers the sold data by hand. Kept wired
+  // (EBAY_INSIGHTS_ENABLED) so nothing else changes if that ever reverses.
   const showSoldTile = sold != null || soldStatus === "empty";
   const soldDetail =
     sold != null
