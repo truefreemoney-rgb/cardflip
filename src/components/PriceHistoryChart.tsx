@@ -3,15 +3,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
-import type { Currency } from "@/lib/types";
+import type { Currency, PokemonCard } from "@/lib/types";
 
 /**
- * How a card's market price has moved — our own daily history (see
- * lib/server/priceHistory.ts). One series at a time: the variant/source the
- * quote is built from, falling back to whichever series has the most points.
- * Line chart, one axis, crosshair + tooltip on hover, min/max direct-labelled;
- * range pills for 30d / 90d / all. Honest when young: a single point says
- * "tracking since <day>" instead of drawing a flat line.
+ * A card's price over time, drawn like a stock chart: quote header (current
+ * price, change for the selected range), 1W/1M/3M/1Y/All, price axis with
+ * gridlines, date ticks, line + area coloured by direction (up = emerald,
+ * down = red), crosshair + tooltip on hover, min/max direct-labelled.
+ *
+ * Data is our own daily history (lib/server/priceHistory.ts). One series at
+ * a time: the variant/source the quote is built from, else the longest. A
+ * card with a single point (Pokémon on day one — history accrues from the
+ * deploy) still draws: a flat line at that price with today's dot, so it
+ * reads as a chart that just started rather than a missing feature. When the
+ * source publishes backward-looking averages (Cardmarket 1/7/30-day via
+ * pokemontcg.io) they're shown as a trend strip under the chart — real
+ * history from day one.
  */
 
 interface Point { day: string; price: number }
@@ -20,25 +27,40 @@ interface Series {
   source: string;
   currency: string;
   points: Point[];
-  stats: {
-    current: number;
-    low30: number | null; high30: number | null;
-    low90: number | null; high90: number | null;
-    lowAll: number; highAll: number;
-    change30: number | null;
-    days: number;
-  } | null;
 }
 
-type Range = 30 | 90 | 0;
+type Range = 7 | 30 | 90 | 365 | 0;
+const RANGES: { value: Range; label: string }[] = [
+  { value: 7, label: "1W" },
+  { value: 30, label: "1M" },
+  { value: 90, label: "3M" },
+  { value: 365, label: "1Y" },
+  { value: 0, label: "All" },
+];
+
+export interface TrendAverages {
+  avg1: number | null;
+  avg7: number | null;
+  avg30: number | null;
+  currency: Currency;
+  source: string;
+}
 
 interface Props {
   cardId: string;
   /** The variant the shown quote uses ("holofoil", "nonfoil"…) — chart that series first. */
   preferVariant?: string | null;
+  /** Backward-looking averages from the price source, if it publishes them. */
+  trend?: TrendAverages | null;
   /** Tighter layout for the editor's market panel. */
   compact?: boolean;
   className?: string;
+}
+
+/** The source-published averages for a card, if any (Cardmarket via pokemontcg.io). */
+export function cardTrend(card: Pick<PokemonCard, "prices">): TrendAverages | null {
+  const p = card.prices.find((x) => x.trend && (x.trend.avg30 || x.trend.avg7 || x.trend.avg1));
+  return p?.trend ? { ...p.trend, currency: p.currency, source: p.source } : null;
 }
 
 const cache = new Map<string, Series[]>();
@@ -64,18 +86,43 @@ function pickSeries(all: Series[], prefer: string | null | undefined): Series | 
   return ranked[0] ?? null;
 }
 
-function shortDay(day: string): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+const dayMs = 86_400_000;
+const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
+function shortDay(day: string, withYear = false): string {
+  return new Date(parseDay(day)).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(withYear ? { year: "2-digit" } : {}),
+    timeZone: "UTC",
+  });
+}
+function sourceLabel(s: string): string {
+  return s === "tcgplayer" ? "TCGplayer" : s === "cardmarket" ? "Cardmarket" : s;
+}
+/** Axis-friendly price: whole dollars above $100, cents below. */
+function axisMoney(v: number, currency: Currency): string {
+  const sym = currency === "EUR" ? "€" : "$";
+  if (v >= 1000) return `${sym}${(v / 1000).toFixed(v >= 10_000 ? 0 : 1)}k`;
+  if (v >= 100) return `${sym}${Math.round(v)}`;
+  return `${sym}${v.toFixed(2)}`;
+}
+/** "Nice" tick step so axis labels land on round numbers. */
+function niceStep(range: number, target = 4): number {
+  const raw = range / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  return step * mag;
 }
 
-export default function PriceHistoryChart({ cardId, preferVariant, compact = false, className = "" }: Props) {
+const MONO = "var(--font-geist-mono), ui-monospace, monospace";
+
+export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "" }: Props) {
   const [range, setRange] = useState<Range>(90);
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Keyed by cardId so a re-open of another card starts from the loading state
-  // without a synchronous reset inside the effect.
+  // Keyed by cardId so a re-open of another card starts from the loading state.
   const [loaded, setLoaded] = useState<{ id: string; series: Series[] | null; failed: boolean }>({ id: "", series: null, failed: false });
   useEffect(() => {
     let alive = true;
@@ -90,24 +137,22 @@ export default function PriceHistoryChart({ cardId, preferVariant, compact = fal
   const series = useMemo(() => (all ? pickSeries(all, preferVariant) : null), [all, preferVariant]);
   const currency = (series?.currency ?? "USD") as Currency;
 
-  // "Now" is captured once per mount — the range cut-off doesn't need to tick.
   const [now] = useState(() => Date.now());
   const shown = useMemo(() => {
     if (!series) return [];
     if (range === 0) return series.points;
-    const cutoff = now - range * 86_400_000;
-    return series.points.filter((p) => Date.parse(`${p.day}T00:00:00Z`) >= cutoff);
+    const cutoff = now - range * dayMs;
+    const inRange = series.points.filter((p) => parseDay(p.day) >= cutoff);
+    // A range with nothing in it (young series, "1Y") falls back to everything.
+    return inRange.length >= 1 ? inRange : series.points;
   }, [series, range, now]);
 
-  // Geometry — the viewBox width follows the rendered width so text keeps
-  // its aspect (a fixed 320 letterboxes inside a wide modal), height is fixed.
+  // Width follows the container so text keeps its aspect; height is fixed.
   const boxRef = useRef<HTMLDivElement>(null);
-  const [W, setW] = useState(320);
+  const [W, setW] = useState(360);
   useEffect(() => {
     const el = boxRef.current;
     if (!el) return;
-    // Measure once immediately (ResizeObserver only reports after a layout
-    // pass — a hidden or backgrounded tab may not get one for a while).
     const initial = Math.round(el.getBoundingClientRect().width);
     if (initial > 0) setW(initial);
     const ro = new ResizeObserver(([entry]) => {
@@ -117,27 +162,46 @@ export default function PriceHistoryChart({ cardId, preferVariant, compact = fal
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const H = compact ? 84 : 132;
-  const PAD = { l: 6, r: 6, t: 14, b: 18 };
+
+  const H = compact ? 150 : 200;
+  const PAD = useMemo(() => ({ l: 8, r: 52, t: 12, b: 22 }), []);
+
   const geo = useMemo(() => {
-    if (shown.length < 2) return null;
-    const xs = shown.map((p) => Date.parse(`${p.day}T00:00:00Z`));
-    const ys = shown.map((p) => p.price);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    if (shown.length === 0) return null;
+    const single = shown.length === 1;
+    // A single point is drawn as a flat line across the last 7 days.
+    const xs = single
+      ? [parseDay(shown[0].day) - 7 * dayMs, parseDay(shown[0].day)]
+      : shown.map((p) => parseDay(p.day));
+    const ys = single ? [shown[0].price, shown[0].price] : shown.map((p) => p.price);
+    const x0 = xs[0], x1 = xs[xs.length - 1];
     let lo = Math.min(...ys), hi = Math.max(...ys);
-    if (hi === lo) { lo *= 0.95; hi *= 1.05; }
-    const pad = (hi - lo) * 0.08;
-    lo -= pad; hi += pad;
-    const sx = (x: number) => PAD.l + ((x - x0) / Math.max(1, x1 - x0)) * (W - PAD.l - PAD.r);
-    const sy = (y: number) => PAD.t + (1 - (y - lo) / (hi - lo)) * (H - PAD.t - PAD.b);
-    const pts = shown.map((p, i) => ({ x: sx(xs[i]), y: sy(p.price), p }));
+    if (hi === lo) { lo *= 0.92; hi *= 1.08; }
+    const span = hi - lo;
+    lo -= span * 0.1; hi += span * 0.1;
+    if (lo < 0) lo = 0;
+    const plotW = W - PAD.l - PAD.r;
+    const plotH = H - PAD.t - PAD.b;
+    const sx = (x: number) => PAD.l + ((x - x0) / Math.max(1, x1 - x0)) * plotW;
+    const sy = (y: number) => PAD.t + (1 - (y - lo) / (hi - lo)) * plotH;
+    const pts = xs.map((x, i) => ({ x: sx(x), y: sy(ys[i]), p: shown[single ? 0 : i], t: x }));
     const d = pts.map((q, i) => `${i === 0 ? "M" : "L"}${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ");
-    const area = `${d} L${pts[pts.length - 1].x.toFixed(1)},${(H - PAD.b).toFixed(1)} L${pts[0].x.toFixed(1)},${(H - PAD.b).toFixed(1)} Z`;
+    const base = (H - PAD.b).toFixed(1);
+    const area = `${d} L${pts[pts.length - 1].x.toFixed(1)},${base} L${pts[0].x.toFixed(1)},${base} Z`;
     let minI = 0, maxI = 0;
-    ys.forEach((y, i) => { if (y < ys[minI]) minI = i; if (y > ys[maxI]) maxI = i; });
-    const grid = [0.25, 0.5, 0.75].map((f) => PAD.t + f * (H - PAD.t - PAD.b));
-    return { pts, d, area, minI, maxI, grid, lo, hi };
-  }, [shown, W, H, PAD.b, PAD.l, PAD.r, PAD.t]);
+    if (!single) ys.forEach((y, i) => { if (y < ys[minI]) minI = i; if (y > ys[maxI]) maxI = i; });
+    // Price gridlines on round numbers.
+    const step = niceStep(hi - lo);
+    const yTicks: number[] = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) yTicks.push(v);
+    // Date ticks: ~4 across, at day boundaries.
+    const days = Math.max(1, Math.round((x1 - x0) / dayMs));
+    const every = Math.max(1, Math.round(days / 4));
+    const xTicks: number[] = [];
+    for (let t = x0; t <= x1; t += every * dayMs) xTicks.push(t);
+    if (xTicks[xTicks.length - 1] < x1 - (every * dayMs) / 2) xTicks.push(x1);
+    return { pts, d, area, minI, maxI, single, sx, sy, yTicks, xTicks };
+  }, [shown, W, H, PAD]);
 
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     if (!geo || !svgRef.current) return;
@@ -152,60 +216,79 @@ export default function PriceHistoryChart({ cardId, preferVariant, compact = fal
 
   const first = shown[0];
   const last = shown[shown.length - 1];
-  const change = first && last && first.price > 0 ? ((last.price - first.price) / first.price) * 100 : null;
-  const rangeLo = geo ? shown[geo.minI].price : null;
-  const rangeHi = geo ? shown[geo.maxI].price : null;
-
+  const changeAbs = first && last ? last.price - first.price : null;
+  const changePct = first && last && first.price > 0 ? ((last.price - first.price) / first.price) * 100 : null;
+  const up = (changeAbs ?? 0) >= 0;
+  const stroke = up ? "#34d399" : "#f87171"; // emerald-400 / red-400 — stock convention
+  const rangeLo = geo && !geo.single ? shown[geo.minI].price : null;
+  const rangeHi = geo && !geo.single ? shown[geo.maxI].price : null;
+  const gradId = `ph-fill-${cardId.replace(/[^a-z0-9]/gi, "")}`;
   const label = compact ? "text-[10px]" : "text-[11px]";
+  const hovered = hover !== null && geo ? geo.pts[hover] : null;
+  const rangeLabel = RANGES.find((r) => r.value === range)?.label ?? "";
+
+  // Trend strip (Cardmarket averages) — direction over the last month.
+  const trendPct =
+    trend && trend.avg7 && trend.avg30 && trend.avg30 > 0
+      ? ((trend.avg7 - trend.avg30) / trend.avg30) * 100
+      : null;
 
   return (
     <section className={`rounded-2xl border border-edge bg-surface-1 ${compact ? "p-3" : "p-4"} ${className}`} aria-label="Price history">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <h3 className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</h3>
-          {series && (
-            <span className={`${label} text-zinc-500`}>
-              {series.source === "tcgplayer" ? "TCGplayer" : series.source === "cardmarket" ? "Cardmarket" : series.source}
-              {series.variant && series.variant !== "normal" ? ` · ${series.variant}` : ""}
-            </span>
+      {/* Quote header */}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div>
+          <div className={`flex items-baseline gap-2 ${label} text-zinc-500`}>
+            <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
+            {series && (
+              <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${series.variant}` : ""}</span>
+            )}
+          </div>
+          {last && (
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+              <span className={`font-display ${compact ? "text-xl" : "text-2xl"} font-semibold tabular-nums text-white`}>
+                {formatMoney(hovered ? hovered.p.price : last.price, currency)}
+              </span>
+              {hovered ? (
+                <span className={`${label} text-zinc-400`}>{shortDay(hovered.p.day, true)}</span>
+              ) : changeAbs !== null && shown.length > 1 ? (
+                <span className={`${label} font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+                  {up ? "▲" : "▼"} {formatMoney(Math.abs(changeAbs), currency)} ({Math.abs(changePct ?? 0).toFixed(1)}%)
+                  <span className="ml-1 font-normal text-zinc-500">{rangeLabel === "All" ? "all time" : rangeLabel}</span>
+                </span>
+              ) : (
+                <span className={`${label} text-zinc-500`}>first recorded {shortDay(last.day)}</span>
+              )}
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-1" role="tablist" aria-label="Range">
-          {([30, 90, 0] as Range[]).map((r) => (
+        <div className="flex items-center gap-0.5 rounded-full bg-black/30 p-0.5" role="tablist" aria-label="Range">
+          {RANGES.map((r) => (
             <button
-              key={r}
+              key={r.value}
               role="tab"
-              aria-selected={range === r}
-              onClick={() => { setRange(r); setHover(null); }}
-              className={`rounded-full px-2 py-0.5 ${label} transition ${
-                range === r ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+              aria-selected={range === r.value}
+              onClick={() => { setRange(r.value); setHover(null); }}
+              className={`rounded-full px-2 py-0.5 ${label} font-medium transition ${
+                range === r.value ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
-              {r === 0 ? "All" : `${r}d`}
+              {r.label}
             </button>
           ))}
         </div>
       </div>
 
+      <div ref={boxRef} className="w-full" />
       {failed && <p className={`mt-2 ${label} text-zinc-500`}>Couldn&apos;t load price history.</p>}
       {!failed && all === null && <div className="mt-2 animate-pulse rounded-lg bg-white/5" style={{ height: H }} aria-hidden />}
-
       {all !== null && !series && (
-        <p className={`mt-2 ${label} text-zinc-500`}>
-          No history yet — this card&apos;s price is recorded from today, and a chart appears as points accumulate.
-        </p>
+        <div className="mt-2 flex items-center justify-center rounded-lg border border-dashed border-edge" style={{ height: H }}>
+          <p className={`${label} text-zinc-500`}>No price recorded for this card yet — the first point lands on its next price check.</p>
+        </div>
       )}
 
-      {series && shown.length < 2 && (
-        <p className={`mt-2 ${label} text-zinc-500`}>
-          {series.points.length < 2
-            ? `Tracking since ${shortDay(series.points[0].day)} — one point so far; the chart draws itself as days go by.`
-            : `Only one point in this range. Try a wider range.`}
-        </p>
-      )}
-
-      <div ref={boxRef} className="w-full" />
-      {geo && (
+      {geo && first && last && (
         <>
           <svg
             ref={svgRef}
@@ -213,68 +296,118 @@ export default function PriceHistoryChart({ cardId, preferVariant, compact = fal
             className="mt-2 block w-full touch-none select-none"
             style={{ height: H }}
             role="img"
-            aria-label={`Price from ${formatMoney(first.price, currency)} on ${shortDay(first.day)} to ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`}
+            aria-label={
+              geo.single
+                ? `One price recorded so far: ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
+                : `Price from ${formatMoney(first.price, currency)} on ${shortDay(first.day)} to ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
+            }
             onPointerMove={onMove}
             onPointerLeave={() => setHover(null)}
           >
             <defs>
-              <linearGradient id={`ph-fill-${cardId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-brand-400)" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="var(--color-brand-400)" stopOpacity="0" />
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+                <stop offset="100%" stopColor={stroke} stopOpacity="0" />
               </linearGradient>
             </defs>
-            {geo.grid.map((y) => (
-              <line key={y} x1={PAD.l} x2={W - PAD.r} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+            {/* price gridlines + right-hand axis labels */}
+            {geo.yTicks.map((v) => (
+              <g key={v}>
+                <line x1={PAD.l} x2={W - PAD.r} y1={geo.sy(v)} y2={geo.sy(v)} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+                <text x={W - PAD.r + 6} y={geo.sy(v) + 3} fontSize="10" fill="rgb(113 113 122)" fontFamily={MONO}>
+                  {axisMoney(v, currency)}
+                </text>
+              </g>
             ))}
-            <path d={geo.area} fill={`url(#ph-fill-${cardId})`} />
-            <path d={geo.d} fill="none" stroke="var(--color-brand-400)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-            {/* Direct labels on the range's low and high — the two numbers a seller wants. */}
-            {[geo.maxI, geo.minI].map((i, k) => {
-              const q = geo.pts[i];
-              const isMax = k === 0;
-              const anchor = q.x > W * 0.8 ? "end" : q.x < W * 0.2 ? "start" : "middle";
+            {/* date ticks */}
+            {geo.xTicks.map((t, i) => {
+              const x = geo.sx(t);
+              const anchor = i === 0 ? "start" : i === geo.xTicks.length - 1 ? "end" : "middle";
               return (
-                <g key={isMax ? "max" : "min"}>
-                  <circle cx={q.x} cy={q.y} r="3" fill="var(--color-brand-300)" stroke="#08090d" strokeWidth="2" />
-                  <text
-                    x={q.x}
-                    y={isMax ? q.y - 6 : q.y + 12}
-                    textAnchor={anchor}
-                    fontSize="10"
-                    fill="rgb(212 212 216)"
-                    fontFamily="var(--font-geist-mono), ui-monospace, monospace"
-                  >
-                    {formatMoney(q.p.price, currency)}
-                  </text>
-                </g>
+                <text key={t} x={x} y={H - 6} fontSize="9" fill="rgb(113 113 122)" textAnchor={anchor}>
+                  {shortDay(new Date(t).toISOString().slice(0, 10))}
+                </text>
               );
             })}
-            {/* x-axis: first and last day only; the crosshair gives the rest. */}
-            <text x={PAD.l} y={H - 4} fontSize="9" fill="rgb(113 113 122)">{shortDay(first.day)}</text>
-            <text x={W - PAD.r} y={H - 4} fontSize="9" fill="rgb(113 113 122)" textAnchor="end">{shortDay(last.day)}</text>
-            {hover !== null && geo.pts[hover] && (
+            {geo.single ? (
+              <>
+                <line x1={geo.pts[0].x} x2={geo.pts[1].x} y1={geo.pts[0].y} y2={geo.pts[1].y} stroke={stroke} strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
+                <circle cx={geo.pts[1].x} cy={geo.pts[1].y} r="4" fill={stroke} stroke="#08090d" strokeWidth="2" />
+                <text x={geo.pts[1].x - 8} y={geo.pts[1].y - 9} textAnchor="end" fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
+                  {formatMoney(last.price, currency)} · today
+                </text>
+              </>
+            ) : (
+              <>
+                <path d={geo.area} fill={`url(#${gradId})`} />
+                <path d={geo.d} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                {/* min / max direct labels — the two numbers a seller wants */}
+                {[geo.maxI, geo.minI].map((i, k) => {
+                  const q = geo.pts[i];
+                  const isMax = k === 0;
+                  const anchor = q.x > W - PAD.r - 60 ? "end" : q.x < PAD.l + 60 ? "start" : "middle";
+                  return (
+                    <g key={isMax ? "max" : "min"}>
+                      <circle cx={q.x} cy={q.y} r="3" fill={stroke} stroke="#08090d" strokeWidth="2" />
+                      <text x={q.x} y={isMax ? q.y - 7 : q.y + 13} textAnchor={anchor} fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
+                        {formatMoney(q.p.price, currency)}
+                      </text>
+                    </g>
+                  );
+                })}
+                {/* last price level line + marker, like a quote screen */}
+                <line x1={PAD.l} x2={W - PAD.r} y1={geo.pts[geo.pts.length - 1].y} y2={geo.pts[geo.pts.length - 1].y} stroke={stroke} strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 4" />
+                <circle cx={geo.pts[geo.pts.length - 1].x} cy={geo.pts[geo.pts.length - 1].y} r="3.5" fill={stroke} stroke="#08090d" strokeWidth="2" />
+              </>
+            )}
+            {hovered && !geo.single && (
               <g pointerEvents="none">
-                <line x1={geo.pts[hover].x} x2={geo.pts[hover].x} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
-                <circle cx={geo.pts[hover].x} cy={geo.pts[hover].y} r="4" fill="var(--color-brand-300)" stroke="#08090d" strokeWidth="2" />
+                <line x1={hovered.x} x2={hovered.x} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+                <circle cx={hovered.x} cy={hovered.y} r="4.5" fill={stroke} stroke="#08090d" strokeWidth="2" />
+                {(() => {
+                  const text = `${shortDay(hovered.p.day)}  ${formatMoney(hovered.p.price, currency)}`;
+                  const w = text.length * 6 + 12;
+                  const x = Math.min(Math.max(hovered.x - w / 2, PAD.l), W - PAD.r - w);
+                  const y = Math.max(PAD.t, hovered.y - 30);
+                  return (
+                    <g>
+                      <rect x={x} y={y} width={w} height={18} rx="4" fill="#15161c" stroke="rgba(255,255,255,0.12)" />
+                      <text x={x + w / 2} y={y + 12.5} textAnchor="middle" fontSize="10" fill="rgb(228 228 231)" fontFamily={MONO}>
+                        {text}
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             )}
           </svg>
+
           <div className={`mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${label} text-zinc-500`}>
-            <span aria-live="polite" className="tabular-nums text-zinc-300">
-              {hover !== null && geo.pts[hover]
-                ? `${shortDay(geo.pts[hover].p.day)} · ${formatMoney(geo.pts[hover].p.price, currency)}`
-                : `Now ${formatMoney(last.price, currency)}`}
-            </span>
             <span className="tabular-nums">
-              Low {formatMoney(rangeLo, currency)} · High {formatMoney(rangeHi, currency)}
-              {change !== null && (
-                <span className={`ml-2 ${change > 0 ? "text-emerald-400" : change < 0 ? "text-red-400" : "text-zinc-400"}`}>
-                  {change > 0 ? "▲" : change < 0 ? "▼" : "•"} {Math.abs(change).toFixed(1)}%
-                </span>
-              )}
+              {geo.single
+                ? `Tracking since ${shortDay(last.day)} — a new point lands every day`
+                : `${rangeLabel === "All" ? "All time" : rangeLabel} low ${formatMoney(rangeLo, currency)} · high ${formatMoney(rangeHi, currency)} · ${shown.length} days`}
             </span>
+            {series && series.points.length > 1 && (
+              <span>{shortDay(series.points[0].day, true)} → {shortDay(series.points[series.points.length - 1].day, true)}</span>
+            )}
           </div>
         </>
+      )}
+
+      {/* Backward-looking averages from the source (Cardmarket): real trend on day one. */}
+      {trend && (trend.avg30 || trend.avg7 || trend.avg1) && (
+        <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-black/25 px-2.5 py-1.5 ${label} text-zinc-400`}>
+          <span className="text-zinc-500">{sourceLabel(trend.source)} averages</span>
+          {trend.avg30 != null && <span>30d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg30, trend.currency)}</span></span>}
+          {trend.avg7 != null && <span>7d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg7, trend.currency)}</span></span>}
+          {trend.avg1 != null && <span>1d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg1, trend.currency)}</span></span>}
+          {trendPct !== null && (
+            <span className={`ml-auto font-medium tabular-nums ${trendPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {trendPct >= 0 ? "▲" : "▼"} {Math.abs(trendPct).toFixed(1)}% <span className="font-normal text-zinc-500">7d vs 30d</span>
+            </span>
+          )}
+        </div>
       )}
     </section>
   );

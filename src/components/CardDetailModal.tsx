@@ -5,7 +5,7 @@ import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { formatMoney, pickPrice } from "@/lib/listing";
-import PriceHistoryChart from "@/components/PriceHistoryChart";
+import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -119,6 +119,7 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
         <PriceHistoryChart
           cardId={card.id}
           preferVariant={pickPrice(card)?.variant ?? null}
+          trend={cardTrend(card)}
           className="mt-6"
         />
 

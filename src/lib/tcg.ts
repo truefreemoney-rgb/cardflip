@@ -23,6 +23,12 @@ export interface RawTcgCard {
       averageSellPrice?: number;
       lowPrice?: number;
       trendPrice?: number;
+      avg1?: number;
+      avg7?: number;
+      avg30?: number;
+      reverseHoloAvg1?: number;
+      reverseHoloAvg7?: number;
+      reverseHoloAvg30?: number;
     };
   };
 }
@@ -52,6 +58,7 @@ function extractPrices(card: RawTcgCard): CardPrice[] {
       market: cm.trendPrice ?? cm.averageSellPrice ?? null,
       low: cm.lowPrice ?? null,
       high: null,
+      trend: { avg1: cm.avg1 ?? null, avg7: cm.avg7 ?? null, avg30: cm.avg30 ?? null },
     });
   }
 

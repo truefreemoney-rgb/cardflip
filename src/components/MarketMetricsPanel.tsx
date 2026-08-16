@@ -17,7 +17,7 @@ import type {
   EbaySoldStatus,
   PokemonCard,
 } from "@/lib/types";
-import PriceHistoryChart from "@/components/PriceHistoryChart";
+import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 
 interface Props {
   card: PokemonCard;
@@ -241,7 +241,7 @@ export default function MarketMetricsPanel({
           "where is the chart?" (Chris, 08-16) is a fair question when the
           only thing that moves is hidden. Tiles below stay collapsible. */}
       <div className={`px-4 ${open ? "pt-1" : "pb-4"}`}>
-        <PriceHistoryChart cardId={card.id} preferVariant={driving} compact />
+        <PriceHistoryChart cardId={card.id} preferVariant={driving} trend={cardTrend(card)} compact />
       </div>
 
       {open && (<>

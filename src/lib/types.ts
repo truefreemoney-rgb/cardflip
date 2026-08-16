@@ -28,6 +28,12 @@ export interface CardPrice {
   market: number | null;
   low: number | null;
   high: number | null;
+  /**
+   * Backward-looking averages the source publishes (Cardmarket via
+   * pokemontcg.io: 1-, 7- and 30-day). Real history from day one, before our
+   * own daily snapshots have accumulated — see PriceHistoryChart.
+   */
+  trend?: { avg1: number | null; avg7: number | null; avg30: number | null };
 }
 
 export interface PokemonCard {
