@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import zlib from "node:zlib";
+import { pipeline } from "node:stream/promises";
 import { decodePrices, encodePrices, setDay, toPoints } from "@/lib/priceSeries";
 
 /**
@@ -330,7 +331,10 @@ export async function seedMtgMirror(): Promise<void> {
     const markerValue = `${seedTime}:v${SEED_IMPORT_VERSION}`;
     if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === markerValue) return;
 
-    fs.writeFileSync(tmp, zlib.gunzipSync(fs.readFileSync(seedGz)));
+    // Stream the gunzip to disk — the seed is ~26 MB gzipped / ~250 MB raw,
+    // and gunzipSync into a Buffer OOM-killed the 512 MB Fly machine in a
+    // crash loop (v106/107, 08-16). Streaming keeps memory flat.
+    await pipeline(fs.createReadStream(seedGz), zlib.createGunzip(), fs.createWriteStream(tmp));
     const attached = new DatabaseSync(tmp, { readOnly: true });
     const seed = attached
       .prepare("SELECT COALESCE(MAX(synced_at), 0) AS at, COUNT(*) AS n FROM mtg_cards")
