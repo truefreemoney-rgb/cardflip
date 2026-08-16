@@ -1,6 +1,6 @@
 # Project state
 
-Last updated: 2026-08-16 16:40 (resume = this file only).
+Last updated: 2026-08-16 19:00 (resume = this file only).
 
 **Resume cheap (Chris, 08-16: "keep the context window usage low when we
 resume"): read ONLY the FIRST ACTION block below (through line ~30, use
@@ -15,7 +15,8 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION on "lets go" (saved 08-16 late evening):** NEWEST = ADMIN CONSOLE OVERHAUL (own login admin/onyx → set ADMIN_PANEL_* secrets to change; see BACKLOG §1) + async seed import (no boot stall) + price-history charts (stock-style) + 90-DAY HISTORY FOR BOTH GAMES (Magic via MTGJSON, Pokémon via TCGCSV) + SELF-UPDATING DAILY REFRESH (Chris: "charts should update itself once daily") BUILT + tsc/lint/`npm test` (8 suites) clean, UNDEPLOYED — see BACKLOG.md §7 for what/where. Deploy ships it: the seed now carries 73k Magic price series (15.6 MB, regenerated 08-16 evening via `backfill:mtg` + `export:mtg`), prod merges them on boot (`seedMtgMirror`) → Magic cards chart 90 days immediately and refresh daily from Scryfall bulk on prod (`dailyJobs.ts`; hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET`); Pokémon charts accrue from the deploy (fresh lookups + daily sweep). Ask Chris to `flyctl secrets set CRON_SECRET=<random>` and pick a pinger (BACKLOG §7). eBay Marketplace Insights was DENIED (ticket closed) — sold-comps call gated off. Older context follows.
+**FIRST ACTION on "lets go" (saved 08-16 ~19:00, Chris: "save, /clear and resume where we left off"):**
+Prod is v109, healthy (was OOM crash-looping at v106-107 — fixed by streaming the seed gunzip, `6fc338c`; swap added). LAST OPEN THREAD = admin console login: Chris wants **admin / onyx**; the code default is now admin/onyx (`f9f43e6`, deployed in v109) BUT Chris had set Fly secrets `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD` to unknown values which override it → login 401. I told him to run `flyctl secrets set ADMIN_PANEL_USER=admin ADMIN_PANEL_PASSWORD=onyx --app cardflip-superior` (or `secrets unset` both). Step 1: check `curl -s -X POST -H "Content-Type: application/json" -d '{"username":"admin","password":"onyx"}' https://cardflip-superior.fly.dev/api/admin/login` → 200 = fixed; if 401, remind him of that command. Then he opens https://cardflip-superior.fly.dev/admin/login and I verify the console renders (users/cards/prices & data/system). Everything else is committed AND deployed (working tree clean at `f9f43e6`): stock-style price charts, 90-day history both games (Magic via MTGJSON, Pokémon via TCGCSV, 5¢ floor, seed 25.8 MB keyed), daily self-refresh (`dailyJobs.ts`: hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET` — CRON_SECRET IS set on Fly; a pinger is still not configured), admin console overhaul (own login, KPIs, activity bars, users w/ delete, cards, prices&data w/ Run-now, system). Next candidates: BACKLOG.md §6 leftovers (AppHeader/session context, queue persistence), §7 (pinger for zero-traffic days), `CardPeekModal` chart. Do NOT re-read the long notes below unless a task needs them.
 
 **Earlier that evening (cleanup session):**
 v96 is live and prod Magic search verified (Ragavan → cards). Chris then
