@@ -7,7 +7,7 @@ import CardImage from "@/components/CardImage";
 import AppTabs from "@/components/AppTabs";
 import Spinner from "@/components/Spinner";
 import GameToggle from "@/components/GameToggle";
-import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
+import { fetchCurrentUser, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import {
   addToWishlist,
   fetchWishlist,
@@ -139,7 +139,7 @@ export default function WishlistPage() {
   useEffect(() => {
     fetchCurrentUser().then((current) => {
       if (!current) {
-        router.replace("/signup");
+        router.replace(loginPathFor(window.location.pathname));
         return;
       }
       setUser(current);
@@ -155,8 +155,20 @@ export default function WishlistPage() {
   }, [router]);
 
   async function handleRemove(id: string) {
+    // Optimistic; put it back where it was if the server didn't delete it.
+    const index = items.findIndex((i) => i.id === id);
+    const item = items[index];
+    setAddError(null);
     setItems((prev) => prev.filter((i) => i.id !== id));
-    await removeFromWishlist(id);
+    const ok = await removeFromWishlist(id);
+    if (!ok && item) {
+      setItems((prev) => {
+        const next = prev.filter((i) => i.id !== id);
+        next.splice(Math.min(index, next.length), 0, item);
+        return next;
+      });
+      setAddError(`Couldn't remove ${item.cardName ?? "that card"} — check your connection and try again.`);
+    }
   }
 
   async function handleSearch() {
@@ -211,7 +223,10 @@ export default function WishlistPage() {
     if (addedIds.has(card.id)) return;
     const price = pickPrice(card)?.market ?? null;
     const item = await addToWishlist(card, resultsLanguage, price);
-    if (!item) return;
+    if (!item) {
+      setAddError(`Couldn't add ${card.name} — check your connection and try again.`);
+      return;
+    }
     setAddedIds((prev) => new Set(prev).add(card.id));
     // The server no-ops on duplicates and returns the existing row, so only
     // prepend when it isn't already in the grid.
@@ -225,8 +240,8 @@ export default function WishlistPage() {
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <span className="hidden text-sm text-zinc-400 sm:inline">
@@ -379,7 +394,7 @@ export default function WishlistPage() {
                 <button
                   onClick={() => handleRemove(item.id)}
                   aria-label={`Remove ${item.cardName} from wishlist`}
-                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-zinc-400 opacity-0 transition hover:bg-black/80 hover:text-white group-hover:opacity-100"
+                  className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                 >
                   <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />

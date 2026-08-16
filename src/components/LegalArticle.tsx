@@ -25,7 +25,7 @@ export default function LegalArticle({
   sections,
 }: Props) {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <MarketingNav />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">

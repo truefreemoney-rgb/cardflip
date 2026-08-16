@@ -15,6 +15,25 @@ async function readJson(res: Response) {
   return res.json().catch(() => ({}));
 }
 
+/**
+ * Where to go after signing in: the `?next=` the app pages set when they
+ * bounced an expired session, if it's a safe in-app path; else the scanner.
+ * Read from location (not useSearchParams) so the login page needs no
+ * Suspense boundary.
+ */
+export function afterLoginPath(fallback = "/app"): string {
+  if (typeof window === "undefined") return fallback;
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
+}
+
+/** The login URL that brings the seller back to `pathname` afterwards. */
+export function loginPathFor(pathname: string): string {
+  return pathname && pathname !== "/app"
+    ? `/login?next=${encodeURIComponent(pathname)}`
+    : "/login";
+}
+
 export async function fetchCurrentUser(): Promise<SessionUser | null> {
   const res = await fetch(apiPath("/api/auth/me"));
   if (!res.ok) return null;

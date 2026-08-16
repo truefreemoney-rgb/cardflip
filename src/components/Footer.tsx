@@ -26,7 +26,7 @@ export default function Footer() {
           </a>
         </nav>
         <span className="text-center">
-          Not affiliated with Nintendo, The Pokémon Company, or eBay Inc.
+          Not affiliated with Nintendo, The Pokémon Company, Wizards of the Coast, or eBay Inc.
         </span>
       </div>
     </footer>

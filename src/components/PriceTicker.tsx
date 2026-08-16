@@ -17,7 +17,14 @@ function marketPrice(card: PokemonCard): number | null {
  * a CardPeekModal. Renders nothing when the showcase fetch came back empty,
  * so the landing page never shows placeholder data.
  */
-export default function PriceTicker({ cards }: { cards: PokemonCard[] }) {
+export default function PriceTicker({
+  cards,
+  catalogLabel,
+}: {
+  cards: PokemonCard[];
+  /** "115,000+" — computed server-side from the mirrors. */
+  catalogLabel?: string;
+}) {
   const [selected, setSelected] = useState<PokemonCard | null>(null);
 
   if (cards.length < 6) return null;
@@ -54,7 +61,9 @@ export default function PriceTicker({ cards }: { cards: PokemonCard[] }) {
           </span>
           {price !== null && (
             <span className="text-sm font-semibold text-emerald-400">
-              ${price >= 100 ? Math.round(price) : price.toFixed(2)}
+              ${price >= 100
+                ? Math.round(price).toLocaleString("en-US")
+                : price.toFixed(2)}
             </span>
           )}
         </button>
@@ -72,7 +81,7 @@ export default function PriceTicker({ cards }: { cards: PokemonCard[] }) {
       <p className="mt-3 text-center text-[11px] text-zinc-500">
         {anyPriced
           ? "Live TCGplayer market prices, straight from the catalog. Tap a card for a closer look."
-          : "Straight from the 20,000-card catalog. Tap a card for a closer look."}
+          : `Straight from the ${catalogLabel ? `${catalogLabel}-printing` : ""} catalog. Tap a card for a closer look.`}
       </p>
 
       {selected && (

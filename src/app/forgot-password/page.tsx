@@ -7,7 +7,7 @@ import Spinner from "@/components/Spinner";
 import { apiPath } from "@/lib/client/basePath";
 
 const FIELD =
-  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
+  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
 
 /**
  * "Forgot password?" — asks for the email and requests a one-time reset link.
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="hero-mesh grain relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+    <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
       <div className="relative mb-8">
         <Logo />
       </div>
@@ -83,6 +83,9 @@ export default function ForgotPasswordPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
+                  inputMode="email"
+                  enterKeyHint="send"
+                  autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={FIELD}

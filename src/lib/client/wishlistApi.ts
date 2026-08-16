@@ -42,10 +42,12 @@ export async function addToWishlist(
   }
 }
 
-export async function removeFromWishlist(id: string): Promise<void> {
+export async function removeFromWishlist(id: string): Promise<boolean> {
+  // Resolves false (never throws) so the caller can put the item back.
   try {
-    await fetch(apiPath(`/api/wishlist/${id}`), { method: "DELETE" });
+    const res = await fetch(apiPath(`/api/wishlist/${id}`), { method: "DELETE" });
+    return res.ok || res.status === 404;
   } catch {
-    // Best-effort — the caller already removed it optimistically.
+    return false;
   }
 }

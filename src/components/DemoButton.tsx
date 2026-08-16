@@ -13,7 +13,7 @@ export default function DemoButton() {
     setLoading(true);
     try {
       await startDemoSession();
-      router.push("/app");
+      router.replace("/app");
     } catch {
       setLoading(false);
     }

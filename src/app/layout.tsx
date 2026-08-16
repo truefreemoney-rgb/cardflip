@@ -45,6 +45,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#08090d",
   colorScheme: "dark",
+  // Lets the app paint under the iOS notch/home bar; headers pad with
+  // env(safe-area-inset-*) so content stays clear of them.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -61,7 +61,7 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-3">
           <Logo size="sm" />

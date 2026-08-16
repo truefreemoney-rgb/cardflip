@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <MarketingNav />
       <main className="hero-mesh grain relative flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
         <p className="holo-text text-5xl font-bold">404</p>

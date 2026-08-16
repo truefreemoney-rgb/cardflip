@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import CardImage from "@/components/CardImage";
 import AppTabs from "@/components/AppTabs";
-import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
+import { fetchCurrentUser, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import {
   deleteServerCard,
   fetchServerCards,
@@ -78,11 +78,12 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentUser().then((current) => {
       if (!current) {
-        router.replace("/signup");
+        router.replace(loginPathFor(window.location.pathname));
         return;
       }
       setUser(current);
@@ -99,28 +100,35 @@ export default function CollectionPage() {
     );
   }
 
-  function markListed(card: ServerCard) {
-    const patch = listedNowPatch();
+  // Optimistic status changes, rolled back if the server didn't take them —
+  // otherwise the page can claim "sold" for a card the ledger still has as a
+  // draft, and the seller only finds out on the next refresh.
+  async function applyPatch(card: ServerCard, patch: Partial<ServerCard>) {
+    const before: Partial<ServerCard> = {};
+    for (const key of Object.keys(patch) as (keyof ServerCard)[]) {
+      (before as Record<string, unknown>)[key] = card[key];
+    }
+    setSyncError(null);
     patchCard(card.id, patch);
-    void updateServerCard(card.id, patch);
+    const ok = await updateServerCard(card.id, patch);
+    if (!ok) {
+      patchCard(card.id, before);
+      setSyncError(`Couldn't save the change to ${card.cardName} — check your connection and try again.`);
+    }
+  }
+
+  function markListed(card: ServerCard) {
+    void applyPatch(card, listedNowPatch());
   }
 
   function markSold(card: ServerCard) {
     // The listing price is the best default for what it actually sold for;
     // a different final price can be set from the scanner's editor.
-    const patch = soldNowPatch(card.price);
-    patchCard(card.id, patch);
-    void updateServerCard(card.id, patch);
+    void applyPatch(card, soldNowPatch(card.price));
   }
 
   function backToDraft(card: ServerCard) {
-    patchCard(card.id, {
-      status: "ready",
-      listedAt: null,
-      soldPrice: null,
-      soldAt: null,
-    });
-    void updateServerCard(card.id, {
+    void applyPatch(card, {
       status: "ready",
       listedAt: null,
       soldPrice: null,
@@ -128,9 +136,22 @@ export default function CollectionPage() {
     });
   }
 
-  function remove(card: ServerCard) {
+  async function remove(card: ServerCard) {
+    // Deleting is the one action here with no undo — say so once.
+    const label = card.status === "sold" ? "this sold record" : "this card";
+    if (!window.confirm(`Remove ${label} (${card.cardName}) from your collection? This can't be undone.`)) return;
+    const index = cards.findIndex((c) => c.id === card.id);
+    setSyncError(null);
     setCards((prev) => prev.filter((c) => c.id !== card.id));
-    void deleteServerCard(card.id);
+    const ok = await deleteServerCard(card.id);
+    if (!ok) {
+      setCards((prev) => {
+        const next = prev.filter((c) => c.id !== card.id);
+        next.splice(Math.min(index, next.length), 0, card);
+        return next;
+      });
+      setSyncError(`Couldn't remove ${card.cardName} — check your connection and try again.`);
+    }
   }
 
   const stats = useMemo(() => {
@@ -172,8 +193,8 @@ export default function CollectionPage() {
   if (!checkedAuth || !user) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <span className="hidden text-sm text-zinc-400 sm:inline">
@@ -189,6 +210,15 @@ export default function CollectionPage() {
             to sold.
           </p>
         </div>
+
+        {syncError && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
+          >
+            {syncError}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-edge bg-surface-1 p-4">
@@ -242,10 +272,12 @@ export default function CollectionPage() {
             ))}
           </div>
           <input
+            type="search"
+            aria-label="Filter cards by name or set"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name or set"
-            className="w-full max-w-xs rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none"
+            className="w-full max-w-xs rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:text-sm"
           />
         </div>
 

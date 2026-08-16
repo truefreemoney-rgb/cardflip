@@ -7,6 +7,7 @@ import HoloCard from "@/components/HoloCard";
 import PriceTicker from "@/components/PriceTicker";
 import CardWall from "@/components/CardWall";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
+import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { formatMoney, quotePrice } from "@/lib/listing";
 
 const steps = [
@@ -31,7 +32,7 @@ const features = [
   },
   {
     title: "Prices per printing",
-    body: "Holo, reverse holo and 1st edition are priced separately — never averaged into a number that matches nothing.",
+    body: "Holo, reverse holo, 1st edition, foil and etched are priced separately — never averaged into a number that matches nothing.",
   },
   {
     title: "Built to sell fast",
@@ -73,6 +74,7 @@ export default async function Home() {
     getFeaturedCard(),
     getShowcaseCards(),
   ]);
+  const catalogLabel = catalogSizeLabel();
 
   // Hero card falls back to a mirror showcase card when the price API is
   // down — the price chip hides itself, but the 3D card never disappears.
@@ -84,7 +86,7 @@ export default async function Home() {
     : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <MarketingNav />
 
       <main className="flex w-full flex-1 flex-col">
@@ -143,7 +145,7 @@ export default async function Home() {
                 style={{ animationDelay: "240ms" }}
               >
                 {[
-                  ["20,000+", "cards in the catalog"],
+                  [catalogLabel, "printings in the catalog"],
                   ["Every printing", "priced separately"],
                   ["100%", "of the payout is yours"],
                 ].map(([value, label]) => (
@@ -189,7 +191,7 @@ export default async function Home() {
         </section>
 
         {/* ======================== Live price ticker ======================= */}
-        <PriceTicker cards={showcase} />
+        <PriceTicker cards={showcase} catalogLabel={catalogLabel} />
 
         {/* =========================== How it works ========================= */}
         <section

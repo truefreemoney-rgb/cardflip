@@ -299,9 +299,33 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     else fxMatch(revealTierNow ?? "plain");
   }, [revealed, revealTierNow]);
 
+  // Same modal manners as CardDetailModal: Escape closes, the page behind
+  // doesn't scroll, and focus goes back to whatever opened the scanner.
+  // onClose is an inline arrow on the page, so it goes through a ref — the
+  // effect must run once per open, not once per parent render.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseRef.current();
+    }
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      opener?.focus?.();
+    };
+  }, []);
+
   return (
     <div
       role="dialog"
+      aria-modal="true"
       aria-label="Camera scanner"
       onPointerDown={() => void primeScanFx()}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
@@ -316,7 +340,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
             ref={videoRef}
             playsInline
             muted
-            className="max-h-[60vh] min-h-64 w-full object-contain"
+            className="max-h-[60dvh] min-h-64 w-full object-contain"
           />
 
           {/* Card-shaped framing guide: real cards are 63×88mm, and a guide

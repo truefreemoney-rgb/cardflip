@@ -6,10 +6,10 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DemoButton from "@/components/DemoButton";
-import { login } from "@/lib/client/auth";
+import { afterLoginPath, login } from "@/lib/client/auth";
 
 const FIELD =
-  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
+  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,10 +21,15 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/app");
+      await login(email.trim(), password);
+      // replace, not push: Back from the app must not land on a login form.
+      router.replace(afterLoginPath());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
       setSubmitting(false);
@@ -32,7 +37,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="hero-mesh grain relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+    <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
       <div className="relative mb-8">
         <Logo />
       </div>
@@ -51,6 +56,10 @@ export default function LoginPage() {
               name="email"
               type="email"
               autoComplete="email"
+              inputMode="email"
+              enterKeyHint="next"
+              autoFocus
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={FIELD}
@@ -75,6 +84,8 @@ export default function LoginPage() {
               name="password"
               type="password"
               autoComplete="current-password"
+              enterKeyHint="go"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={FIELD}

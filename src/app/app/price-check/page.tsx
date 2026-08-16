@@ -11,7 +11,7 @@ import GameToggle from "@/components/GameToggle";
 import { searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
-import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
+import { fetchCurrentUser, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import {
   fetchPriceCheckHistory,
   logPriceCheck,
@@ -60,7 +60,7 @@ export default function PriceCheckPage() {
   useEffect(() => {
     fetchCurrentUser().then((current) => {
       if (!current) {
-        router.replace("/signup");
+        router.replace(loginPathFor(window.location.pathname));
         return;
       }
       setUser(current);
@@ -117,8 +117,8 @@ export default function PriceCheckPage() {
   if (!checkedAuth || !user) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <span className="hidden text-sm text-zinc-400 sm:inline">

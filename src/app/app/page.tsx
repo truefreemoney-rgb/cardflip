@@ -29,7 +29,7 @@ import {
 } from "@/lib/listing";
 import { gradeLabel, makeSealedProduct, type SetInfo } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
-import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
+import { fetchCurrentUser, logout, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { scanCardWithVision } from "@/lib/client/visionApi";
@@ -181,7 +181,7 @@ export default function AppPage() {
   useEffect(() => {
     fetchCurrentUser().then((current) => {
       if (!current) {
-        router.replace("/signup");
+        router.replace(loginPathFor(window.location.pathname));
         return;
       }
       setUser(current);
@@ -338,7 +338,7 @@ export default function AppPage() {
             const condition =
               itemsRef.current.find((i) => i.id === next.id)?.condition ?? "Near Mint";
             const quote = quotePrice(card, condition, "quick");
-            const server = await createServerCard({
+            const input = {
               cardName: card.name,
               setName: card.setName,
               cardNumber: card.number,
@@ -346,7 +346,10 @@ export default function AppPage() {
               condition,
               price: quote?.suggested ?? 0,
               game: next.game,
-            });
+            };
+            // Without a server row the card can't be published or appear in
+            // the collection — one retry covers the usual flaky-network blip.
+            const server = (await createServerCard(input)) ?? (await createServerCard(input));
             if (server) patchItem(next.id, { serverId: server.id });
           }
         } catch {
@@ -726,8 +729,8 @@ export default function AppPage() {
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
         <Logo size="sm" />
         <AppTabs />
         <div className="flex items-center gap-3 sm:gap-4">
@@ -910,7 +913,7 @@ export default function AppPage() {
           </div>
 
           <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
-            <aside className="flex max-h-[70vh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
+            <aside className="flex max-h-[70dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
               {items.map((item) => (
                 <QueueRow
                   key={item.id}

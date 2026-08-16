@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import OnboardingSteps from "@/components/OnboardingSteps";
 import EbayConnectCard from "@/components/EbayConnectCard";
-import { fetchCurrentUser } from "@/lib/client/auth";
+import { fetchCurrentUser, loginPathFor } from "@/lib/client/auth";
 
 export default function ConnectEbayPage() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function ConnectEbayPage() {
   useEffect(() => {
     fetchCurrentUser().then((user) => {
       if (!user) {
-        router.replace("/signup");
+        router.replace(loginPathFor(window.location.pathname));
         return;
       }
       setUserName(user.name.split(" ")[0]);
@@ -22,7 +22,7 @@ export default function ConnectEbayPage() {
   }, [router]);
 
   return (
-    <div className="hero-mesh grain relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+    <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
       <div className="relative mb-8">
         <Logo />
       </div>

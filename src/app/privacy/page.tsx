@@ -21,7 +21,7 @@ const sections: LegalSection[] = [
     paragraphs: [
       "To run the service: identifying the cards in your photos, quoting prices, generating listings, and keeping your ledger. Nothing else — we do not sell your data, share it with advertisers, or use it to build profiles.",
       "When you use photo scanning, the card photo is sent to our AI image-reading provider (Anthropic) to read the card's name, number, and visible condition. Photos are sent for that reading only; under the provider's API terms they are not used to train their models.",
-      "Card names and numbers you search are matched against our own card catalogue, which is built from open catalogue sources (TCGdex and pokemontcg.io). Price data comes from public market sources (such as TCGplayer's published prices); your personal information is never sent to any of them.",
+      "Card names and numbers you search are matched against our own card catalogue, which is built from open catalogue sources (TCGdex and pokemontcg.io for Pokémon, Scryfall for Magic: The Gathering). Price data comes from public market sources (such as TCGplayer's published prices); your personal information is never sent to any of them.",
     ],
   },
   {

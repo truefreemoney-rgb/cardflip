@@ -51,7 +51,7 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
             onClick={onOpenCamera}
             className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
           >
-            📷 Camera
+            <span aria-hidden>📷</span> Camera
           </button>
         )}
         {input}
@@ -112,7 +112,7 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
             onClick={onOpenCamera}
             className="rounded-full border border-edge bg-surface-2 px-6 py-3 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
           >
-            📷 Use camera
+            <span aria-hidden>📷</span> Use camera
           </button>
         )}
       </div>

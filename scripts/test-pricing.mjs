@@ -73,7 +73,9 @@ const card = (prices) => ({
 
 console.log("\nMoney renders in its own currency:");
 check("dollars", formatMoney(818.65, "USD"), "$818.65");
-check("euros", formatMoney(4184.6, "EUR"), "€4184.60");
+check("euros", formatMoney(4184.6, "EUR"), "€4,184.60");
+check("thousands grouped", formatMoney(1499, "USD"), "$1,499.00");
+check("small values unchanged", formatMoney(9.5, "USD"), "$9.50");
 check("defaults to USD", formatMoney(10), "$10.00");
 check("absent", formatMoney(null, "EUR"), "—");
 

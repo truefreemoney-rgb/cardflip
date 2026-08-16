@@ -55,3 +55,26 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] M — Deploy is manual (Chris only), no CI lint/test/build gate
 - [ ] S — MTG mirror refresh is manual from Chris's PC (`sync:mtg && export:mtg && deploy`, Scryfall 429s Fly); Pokémon set sync also manual
 - [ ] S — Single 512 MB machine, scale-to-zero, DB on one volume (see backup)
+
+## 6. QoL pass (08-16 evening) — done
+
+- [x] Auth forms: 16px inputs on mobile (no iOS zoom), autoFocus first field, required/inputMode/enterKeyHint, client-side empty check, `name` on reset fields, titles for forgot/reset
+- [x] Login/demo/reset use `router.replace` (Back never lands on a login form); expired sessions bounce to `/login?next=<path>` and return there
+- [x] Collection: confirm before delete; optimistic status/delete rolled back with a visible error when the server write fails; filter input labelled + `type=search`
+- [x] Wishlist: remove rolled back on failure, add failure surfaced
+- [x] eBay disconnect confirms first and shows failure; "Copied ✓" only after the clipboard write succeeds (prompt fallback)
+- [x] Camera modal: Escape closes, body scroll locked, focus returns to opener, `aria-modal`
+- [x] `createServerCard` retried once; editor explains when a card has no server row (was misleading "Connect eBay")
+- [x] Landing "20,000+" → computed `catalogSizeLabel()` (130,000+); foil/etched in feature copy; WotC in public footer; Scryfall in privacy
+- [x] `formatMoney` groups thousands ($1,499.00); ticker "$1,499"
+- [x] `min-h-screen`→`min-h-dvh`, `70vh/60vh`→dvh, safe-area top padding on app headers, `viewportFit: cover`
+- [x] Remove buttons visible on touch (hover-only fade gated on `@media(hover:hover)`), bigger tap targets; camera emoji hidden from screen readers; "Price check" title casing
+
+### QoL still open (from the audit, not done)
+- [ ] M — Shared `<AppHeader>` + server-side session in `app/layout.tsx` (kills 4× `/api/auth/me` and the blank flash; adds sign-out/eBay/admin links to collection/wishlist/price-check)
+- [ ] M — Persist scan queue ids in sessionStorage so a refresh doesn't lose an in-progress stack
+- [ ] S — Signup account→eBay phase in the URL (`?step=ebay`) so Back/refresh behave
+- [ ] S — Password show/hide toggle + live min-length hint on signup/reset
+- [ ] S — Focus trap in CameraCapture/CardDetailModal; `role=dialog` on the panel not the backdrop
+- [ ] S — AbortController on wishlist repricing fan-out; debounce search inputs
+- [ ] S — Tab "Search cards" vs page "Price check" — pick one name

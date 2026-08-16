@@ -86,11 +86,18 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   }
 
   function copyListing() {
-    navigator.clipboard.writeText(
-      `${listing.title}\n\n${listing.description}\n\nPrice: $${price.toFixed(2)}`,
-    );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    // Only claim "Copied" once the write actually landed — the clipboard API
+    // refuses on insecure origins and when permission is denied.
+    const text = `${listing.title}\n\n${listing.description}\n\nPrice: $${price.toFixed(2)}`;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        window.prompt("Copy the listing text:", text);
+      });
   }
 
   /** The draft link was tapped: eBay's form is opening in a new tab. */
@@ -316,7 +323,9 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             ? pushed
               ? "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts. This card also has a saved draft here — Publish lists it live. eBay's selling fees apply."
               : "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts to finish there. Publish now lists it live from here — eBay's selling fees apply."
-            : "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts to finish there. Connect eBay once to publish straight from here."}
+            : ebayConnected && item.card && !item.serverId
+              ? "This card didn't save to your collection (a connection blip while scanning), so it can't be published from here yet — Send draft still works, or scan it again to retry."
+              : "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts to finish there. Connect eBay once to publish straight from here."}
       </p>
 
       {notice && (

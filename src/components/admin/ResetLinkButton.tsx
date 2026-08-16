@@ -43,9 +43,13 @@ export default function ResetLinkButton({ userId, disabled }: Props) {
 
   function copy() {
     if (!link) return;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(link)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => window.prompt("Copy the reset link:", link));
   }
 
   if (disabled) return <span className="text-zinc-600">—</span>;

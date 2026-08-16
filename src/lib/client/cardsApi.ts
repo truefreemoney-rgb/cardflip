@@ -83,22 +83,26 @@ export async function createServerCard(
 export async function updateServerCard(
   id: string,
   patch: UpdateCardInput,
-): Promise<void> {
+): Promise<boolean> {
+  // Resolves false (never throws) so callers can keep the optimistic update
+  // and only roll back / warn when the write actually didn't land.
   try {
-    await fetch(apiPath(`/api/cards/${id}`), {
+    const res = await fetch(apiPath(`/api/cards/${id}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    return res.ok;
   } catch {
-    // Best-effort sync — the local queue stays the source of truth for the UI.
+    return false;
   }
 }
 
-export async function deleteServerCard(id: string): Promise<void> {
+export async function deleteServerCard(id: string): Promise<boolean> {
   try {
-    await fetch(apiPath(`/api/cards/${id}`), { method: "DELETE" });
+    const res = await fetch(apiPath(`/api/cards/${id}`), { method: "DELETE" });
+    return res.ok || res.status === 404;
   } catch {
-    // Best-effort — local removal already happened.
+    return false;
   }
 }

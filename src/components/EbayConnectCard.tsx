@@ -64,6 +64,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
   const pathname = usePathname();
   const [status, setStatus] = useState<EbayLinkStatus | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
   const outcomeKey = search.get("connected") ? "connected" : search.get("error");
   const outcome = outcomeKey ? OUTCOMES[outcomeKey] : null;
@@ -73,9 +74,16 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
   }, []);
 
   async function handleDisconnect() {
+    // Reconnecting means going back through eBay's consent screen — worth
+    // one confirmation before throwing the tokens away.
+    if (!window.confirm("Disconnect your eBay account? You can reconnect any time, but you'll go through eBay's sign-in again.")) return;
+    setDisconnectError(null);
     setBusy(true);
     const ok = await disconnectEbay();
     setBusy(false);
+    if (!ok) {
+      setDisconnectError("Couldn't disconnect just now — check your connection and try again.");
+    }
     if (ok) {
       setStatus((s) => (s ? { ...s, connected: false, ebayUsername: null } : s));
       // Drop any ?connected=1 so the banner doesn't contradict the card.
@@ -197,6 +205,11 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
         >
           {busy ? "Disconnecting…" : "Disconnect eBay"}
         </button>
+      )}
+      {disconnectError && (
+        <p role="alert" className="mt-3 text-xs text-red-400">
+          {disconnectError}
+        </p>
       )}
 
       <button

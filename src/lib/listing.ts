@@ -178,7 +178,9 @@ export function formatMoney(
   currency: Currency = "USD",
 ): string {
   if (value == null) return "—";
-  return `${CURRENCY_SYMBOL[currency]}${value.toFixed(2)}`;
+  // Grouped thousands: "$1,499.00" reads as a price, "$1499.00" as a typo.
+  const digits = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${CURRENCY_SYMBOL[currency]}${digits}`;
 }
 
 /**

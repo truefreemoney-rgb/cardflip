@@ -10,7 +10,7 @@ import EbayConnectCard from "@/components/EbayConnectCard";
 import { signup } from "@/lib/client/auth";
 
 const FIELD =
-  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
+  "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
 
 type Phase = "account" | "ebay";
 
@@ -49,7 +49,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="hero-mesh grain relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+    <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
       <div className="relative mb-8">
         <Logo />
       </div>
@@ -73,6 +73,8 @@ export default function SignupPage() {
                 name="name"
                 type="text"
                 autoComplete="name"
+                autoFocus
+                enterKeyHint="next"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={FIELD}
@@ -89,6 +91,8 @@ export default function SignupPage() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                inputMode="email"
+                enterKeyHint="next"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={FIELD}
@@ -105,6 +109,7 @@ export default function SignupPage() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
+                enterKeyHint="go"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={FIELD}
