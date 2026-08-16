@@ -20,7 +20,7 @@ export interface AdminCredentials {
   password: string;
 }
 
-const DEFAULTS: AdminCredentials = { user: "admin", password: "Access1" };
+const DEFAULTS: AdminCredentials = { user: "admin", password: "onyx" };
 
 export function adminCredentials(env: NodeJS.ProcessEnv = process.env): AdminCredentials {
   return {

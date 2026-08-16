@@ -15,7 +15,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — Keldeo listing 5230387616323 live with no photo — end it
 - [ ] S — `/terms` governing-law state placeholder — need real state from Chris
 - [ ] S — Untested on hardware: auto-scan thresholds, torch, iOS reveal/chime/haptics, ✕, real MTG photo via vision, HEIC
-- [x] `/admin` overhauled 08-16 (Chris: "go crazy"): own operator login (`/admin/login`, `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD`, defaults admin/Access1 per Chris — override on Fly), signed 12 h cookie, rate-limited; console = KPIs, 30-day activity bars (scans/sign-ups/price checks/sold), searchable+sortable users w/ rollups + delete, recent cards, prices & data (series counts, daily-job status + Run now, mirrors, storage), system (integrations configured, process). `test:admin` 16 checks
+- [x] `/admin` overhauled 08-16 (Chris: "go crazy"): own operator login (`/admin/login`, `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD`, defaults admin/onyx per Chris — override on Fly), signed 12 h cookie, rate-limited; console = KPIs, 30-day activity bars (scans/sign-ups/price checks/sold), searchable+sortable users w/ rollups + delete, recent cards, prices & data (series counts, daily-job status + Run now, mirrors, storage), system (integrations configured, process). `test:admin` 16 checks
 
 ## 2. Deferred features (mostly by choice or blocked on eBay)
 
