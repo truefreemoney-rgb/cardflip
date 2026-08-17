@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Logo from "@/components/Logo";
 import Uploader from "@/components/Uploader";
 import ScannerSearch from "@/components/ScannerSearch";
 import GameToggle from "@/components/GameToggle";
@@ -12,7 +10,8 @@ import CameraCapture from "@/components/CameraCapture";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
-import AppTabs from "@/components/AppTabs";
+import PageSkeleton from "@/components/PageSkeleton";
+import { useSession } from "@/components/SessionProvider";
 import { scanCard, warmUpOcr } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
@@ -29,7 +28,6 @@ import {
 } from "@/lib/listing";
 import { gradeLabel, makeSealedProduct, type SetInfo } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
-import { fetchCurrentUser, logout, type SessionUser, loginPathFor } from "@/lib/client/auth";
 import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { scanCardWithVision } from "@/lib/client/visionApi";
@@ -92,8 +90,7 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
 
 export default function AppPage() {
   const router = useRouter();
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [checkedAuth, setCheckedAuth] = useState(false);
+  const { user } = useSession();
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -180,16 +177,8 @@ export default function AppPage() {
   );
 
   useEffect(() => {
-    fetchCurrentUser().then((current) => {
-      if (!current) {
-        router.replace(loginPathFor(window.location.pathname));
-        return;
-      }
-      setUser(current);
-      setCheckedAuth(true);
-    });
     warmUpOcr();
-  }, [router]);
+  }, []);
 
   // Release the object URLs held by previews when the page goes away.
   useEffect(() => {
@@ -708,7 +697,7 @@ export default function AppPage() {
     );
   }
 
-  if (!checkedAuth || !user) return null;
+  if (!user) return <PageSkeleton />;
 
   const camera = cameraOpen && (
     <CameraCapture
@@ -734,51 +723,7 @@ export default function AppPage() {
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-        <Logo size="sm" />
-        <AppTabs />
-        <div className="flex items-center gap-3 sm:gap-4">
-          {user.ebayConnected ? (
-            <Link
-              href="/connect-ebay"
-              title="Manage your eBay connection"
-              className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              eBay connected
-            </Link>
-          ) : (
-            <button
-              onClick={() => router.push("/connect-ebay")}
-              className="rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"
-            >
-              eBay setup
-            </button>
-          )}
-          {user.role === "admin" && (
-            <Link
-              href="/admin"
-              className="rounded-full border border-edge px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-surface-2"
-            >
-              Admin
-            </Link>
-          )}
-          <span className="hidden text-sm text-zinc-400 sm:inline">
-            {user.name}
-          </span>
-          <button
-            onClick={async () => {
-              await logout();
-              router.push("/");
-            }}
-            className="text-xs text-zinc-500 transition hover:text-zinc-300"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <>
       {ebayJustConnected && (
         <div
           role="status"
@@ -808,6 +753,16 @@ export default function AppPage() {
               Scan cards one at a time or drop in a whole stack — everything
               gets priced and written up automatically.
             </p>
+            {/* First-scan guidance: what happens after the photo, in three beats. */}
+            <ol className="mx-auto mt-4 flex max-w-lg flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-zinc-500">
+              {["Snap or drop a photo", "We match, grade & price it", "One tap drafts it on eBay"].map((step, i) => (
+                <li key={step} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 font-mono text-[10px] font-semibold text-brand-300">{i + 1}</span>
+                  <span>{step}</span>
+                  {i < 2 && <span aria-hidden className="ml-1 hidden text-zinc-700 sm:inline">→</span>}
+                </li>
+              ))}
+            </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
           <Uploader onFiles={addFiles} onOpenCamera={openCamera} />
@@ -963,6 +918,6 @@ export default function AppPage() {
         </main>
       )}
       {camera}
-    </div>
+    </>
   );
 }

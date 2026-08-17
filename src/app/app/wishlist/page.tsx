@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Logo from "@/components/Logo";
 import CardImage from "@/components/CardImage";
-import AppTabs from "@/components/AppTabs";
 import Spinner from "@/components/Spinner";
 import GameToggle from "@/components/GameToggle";
 import PriceSparkline from "@/components/PriceSparkline";
-import { fetchCurrentUser, type SessionUser, loginPathFor } from "@/lib/client/auth";
+import { toast } from "@/components/Toaster";
+import PageSkeleton from "@/components/PageSkeleton";
+import { useSession } from "@/components/SessionProvider";
 import {
   addToWishlist,
   fetchWishlist,
@@ -114,9 +113,7 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
 }
 
 export default function WishlistPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [checkedAuth, setCheckedAuth] = useState(false);
+  const { user } = useSession();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
@@ -146,26 +143,28 @@ export default function WishlistPage() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const userId = user?.id;
   useEffect(() => {
-    fetchCurrentUser().then((current) => {
-      if (!current) {
-        router.replace(loginPathFor(window.location.pathname));
-        return;
-      }
-      setUser(current);
-      setCheckedAuth(true);
-    });
+    if (!userId) return;
+    let cancelled = false;
     fetchWishlist()
       .then((list) => {
+        if (cancelled) return;
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
         void fetchCurrentPrices(list).then(({ prices, cardIds }) => {
+          if (cancelled) return;
           setNowPrices(prices);
           setResolvedIds(cardIds);
         });
       })
-      .finally(() => setLoading(false));
-  }, [router]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   async function handleRemove(id: string) {
     // Optimistic; put it back where it was if the server didn't delete it.
@@ -241,6 +240,7 @@ export default function WishlistPage() {
       return;
     }
     setAddedIds((prev) => new Set(prev).add(card.id));
+    toast(`${card.name} added to your wishlist`);
     // The server no-ops on duplicates and returns the existing row, so only
     // prepend when it isn't already in the grid.
     setItems((prev) =>
@@ -248,210 +248,200 @@ export default function WishlistPage() {
     );
   }
 
-  if (!checkedAuth || !user) return null;
+  if (!user) return <PageSkeleton />;
 
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-        <Logo size="sm" />
-        <AppTabs />
-        <span className="hidden text-sm text-zinc-400 sm:inline">
-          {user.name}
-        </span>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-white">Wishlist</h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Cards you&apos;re hunting for — search the database or drop a
-              picture to add one.
-            </p>
-          </div>
-          {items.length > 0 && (
-            <div className="text-right">
-              <p className="text-lg font-semibold text-emerald-400">
-                ${total.toFixed(2)}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {items.length} card{items.length === 1 ? "" : "s"} saved
-              </p>
-            </div>
-          )}
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Wishlist</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Cards you&apos;re hunting for — search the database or drop a
+            picture to add one.
+          </p>
         </div>
-
-        <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-5">
-          <GameToggle game={game} onChange={setGame} compact />
-          <div className="flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
-              className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={busy !== null}
-              className="flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
-            >
-              {busy === "search" && <Spinner className="h-4 w-4" />}
-              Search
-            </button>
-          </div>
-
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragActive(false);
-              void handleImage(e.dataTransfer.files?.[0]);
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-            className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-6 text-sm transition ${
-              dragActive
-                ? "border-brand-400 bg-brand-500/10 text-brand-300"
-                : "border-edge-strong text-zinc-500 hover:border-brand-400/50 hover:text-zinc-400"
-            }`}
-          >
-            {busy === "identify" ? (
-              <>
-                <Spinner className="h-4 w-4" /> Identifying…
-              </>
-            ) : (
-              <>Drop a picture of the card here — or click to browse</>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              void handleImage(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-
-          {addError && <p className="text-xs text-red-400">{addError}</p>}
-
-          {results.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-              {results.map((card) => {
-                const added = addedIds.has(card.id);
-                return (
-                  <button
-                    key={card.id}
-                    onClick={() => handleAdd(card)}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-left transition ${
-                      added
-                        ? "border-emerald-500/40 bg-emerald-500/10"
-                        : "border-edge bg-black/20 hover:-translate-y-0.5 hover:border-edge-strong"
-                    }`}
-                  >
-                    <CardImage
-                      src={card.imageSmall}
-                      alt={card.name}
-                      className="aspect-[5/7] w-full rounded-lg"
-                    />
-                    <span className="w-full truncate text-center text-xs font-medium text-white">
-                      {card.name}
-                    </span>
-                    <span className="w-full truncate text-center text-[11px] text-zinc-500">
-                      {card.setName} · {displayCardNumber(card)}
-                    </span>
-                    <span
-                      className={`text-[11px] font-semibold ${
-                        added ? "text-emerald-400" : "text-brand-300"
-                      }`}
-                    >
-                      {added ? "★ On wishlist" : "☆ Add to wishlist"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {loading ? (
-          <p className="text-sm text-zinc-500">Loading…</p>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
-            <div className="text-3xl">☆</div>
-            <p className="text-sm font-medium text-white">
-              Your wishlist is empty
+        {items.length > 0 && (
+          <div className="text-right">
+            <p className="text-lg font-semibold text-emerald-400">
+              ${total.toFixed(2)}
             </p>
-            <p className="max-w-xs text-xs text-zinc-500">
-              Search for a card above or drop a picture of one — no need to
-              have it in hand.
+            <p className="text-xs text-zinc-500">
+              {items.length} card{items.length === 1 ? "" : "s"} saved
             </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-3"
-              >
-                <button
-                  onClick={() => handleRemove(item.id)}
-                  aria-label={`Remove ${item.cardName} from wishlist`}
-                  className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
-                >
-                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
-                  </svg>
-                </button>
-
-                <CardImage
-                  src={item.imageUrl}
-                  alt={item.cardName}
-                  className="aspect-[5/7] w-full rounded-lg"
-                />
-                <span className="w-full truncate text-center text-xs font-medium text-white">
-                  {item.cardName}
-                </span>
-                {item.englishName && (
-                  <span className="w-full truncate text-center text-[11px] font-medium text-brand-300">
-                    {item.englishName}
-                  </span>
-                )}
-                <span className="w-full truncate text-center text-[11px] text-zinc-500">
-                  {item.setName} · {item.cardNumber}
-                </span>
-                <span className="w-full truncate text-center text-[10px] text-zinc-600">
-                  {LANGUAGE_LABEL[item.language]} · {formatDate(item.addedAt)}
-                </span>
-                {item.price != null && (
-                  <span className="text-sm font-semibold text-emerald-400">
-                    ${item.price.toFixed(2)}
-                    <span className="ml-1 text-[10px] font-normal text-zinc-600">
-                      saved
-                    </span>
-                  </span>
-                )}
-                {item.price != null && nowPrices[item.id] != null && (
-                  <PriceDelta saved={item.price} now={nowPrices[item.id]} />
-                )}
-                {(item.cardId ?? resolvedIds[item.id]) && (
-                  <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} className="mt-0.5" />
-                )}
-              </div>
-            ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-5">
+        <GameToggle game={game} onChange={setGame} compact />
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
+            className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={busy !== null}
+            className="flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
+          >
+            {busy === "search" && <Spinner className="h-4 w-4" />}
+            Search
+          </button>
+        </div>
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragActive(false);
+            void handleImage(e.dataTransfer.files?.[0]);
+          }}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+          className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-6 text-sm transition ${
+            dragActive
+              ? "border-brand-400 bg-brand-500/10 text-brand-300"
+              : "border-edge-strong text-zinc-500 hover:border-brand-400/50 hover:text-zinc-400"
+          }`}
+        >
+          {busy === "identify" ? (
+            <>
+              <Spinner className="h-4 w-4" /> Identifying…
+            </>
+          ) : (
+            <>Drop a picture of the card here — or click to browse</>
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            void handleImage(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+
+        {addError && <p className="text-xs text-red-400">{addError}</p>}
+
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
+            {results.map((card) => {
+              const added = addedIds.has(card.id);
+              return (
+                <button
+                  key={card.id}
+                  onClick={() => handleAdd(card)}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-left transition ${
+                    added
+                      ? "border-emerald-500/40 bg-emerald-500/10"
+                      : "border-edge bg-black/20 hover:-translate-y-0.5 hover:border-edge-strong"
+                  }`}
+                >
+                  <CardImage
+                    src={card.imageSmall}
+                    alt={card.name}
+                    className="aspect-[5/7] w-full rounded-lg"
+                  />
+                  <span className="w-full truncate text-center text-xs font-medium text-white">
+                    {card.name}
+                  </span>
+                  <span className="w-full truncate text-center text-[11px] text-zinc-500">
+                    {card.setName} · {displayCardNumber(card)}
+                  </span>
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      added ? "text-emerald-400" : "text-brand-300"
+                    }`}
+                  >
+                    {added ? "★ On wishlist" : "☆ Add to wishlist"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-zinc-500">Loading…</p>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
+          <div className="text-3xl">☆</div>
+          <p className="text-sm font-medium text-white">
+            Your wishlist is empty
+          </p>
+          <p className="max-w-xs text-xs text-zinc-500">
+            Search for a card above or drop a picture of one — no need to
+            have it in hand.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-3"
+            >
+              <button
+                onClick={() => handleRemove(item.id)}
+                aria-label={`Remove ${item.cardName} from wishlist`}
+                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+              >
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              <CardImage
+                src={item.imageUrl}
+                alt={item.cardName}
+                className="aspect-[5/7] w-full rounded-lg"
+              />
+              <span className="w-full truncate text-center text-xs font-medium text-white">
+                {item.cardName}
+              </span>
+              {item.englishName && (
+                <span className="w-full truncate text-center text-[11px] font-medium text-brand-300">
+                  {item.englishName}
+                </span>
+              )}
+              <span className="w-full truncate text-center text-[11px] text-zinc-500">
+                {item.setName} · {item.cardNumber}
+              </span>
+              <span className="w-full truncate text-center text-[10px] text-zinc-600">
+                {LANGUAGE_LABEL[item.language]} · {formatDate(item.addedAt)}
+              </span>
+              {item.price != null && (
+                <span className="text-sm font-semibold text-emerald-400">
+                  ${item.price.toFixed(2)}
+                  <span className="ml-1 text-[10px] font-normal text-zinc-600">
+                    saved
+                  </span>
+                </span>
+              )}
+              {item.price != null && nowPrices[item.id] != null && (
+                <PriceDelta saved={item.price} now={nowPrices[item.id]} />
+              )}
+              {(item.cardId ?? resolvedIds[item.id]) && (
+                <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} className="mt-0.5" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
   );
 }

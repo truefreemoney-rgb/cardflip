@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/client/useFocusTrap";
+import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
@@ -30,7 +32,12 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
     const price = pickPrice(card)?.market ?? null;
     const result = await addToWishlist(card, language, price);
     setSaving(false);
-    if (result) setSaved(true);
+    if (result) {
+      setSaved(true);
+      toast(`${card.name} added to your wishlist`);
+    } else {
+      toast("Couldn't save to wishlist — try again", "err");
+    }
   }
 
   useEffect(() => {
@@ -46,18 +53,22 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
   }, [onClose]);
 
   const hasImage = Boolean(card.imageLarge || card.imageSmall);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
 
   return (
     <div
       className="animate-fade-up fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${card.name} details`}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${card.name} details`}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl rounded-2xl border border-edge bg-surface-1 p-6 shadow-2xl shadow-black/60 sm:p-8"
+        className="relative my-auto w-full max-w-2xl rounded-2xl border border-edge bg-surface-1 p-6 shadow-2xl shadow-black/60 outline-none sm:p-8"
       >
         <button
           onClick={onClose}

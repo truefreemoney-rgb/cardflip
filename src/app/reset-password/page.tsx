@@ -1,5 +1,7 @@
 "use client";
 
+import PasswordField from "@/components/PasswordField";
+
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -108,10 +110,9 @@ function ResetPasswordForm() {
             <label htmlFor="password" className="text-sm font-medium text-zinc-300">
               New password
             </label>
-            <input
+            <PasswordField
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               autoFocus
               enterKeyHint="next"
@@ -119,16 +120,16 @@ function ResetPasswordForm() {
               onChange={(e) => setPassword(e.target.value)}
               className={FIELD}
               placeholder="At least 6 characters"
+              hint
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="confirm" className="text-sm font-medium text-zinc-300">
               Confirm password
             </label>
-            <input
+            <PasswordField
               id="confirm"
               name="confirm"
-              type="password"
               autoComplete="new-password"
               enterKeyHint="go"
               value={confirm}
@@ -136,6 +137,9 @@ function ResetPasswordForm() {
               className={FIELD}
               placeholder="••••••••"
             />
+            {confirm.length > 0 && confirm !== password && (
+              <span className="text-[11px] text-amber-300">Doesn&apos;t match yet</span>
+            )}
           </div>
 
           <p role="alert" aria-live="polite" className="min-h-0">

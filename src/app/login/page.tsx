@@ -1,5 +1,7 @@
 "use client";
 
+import PasswordField from "@/components/PasswordField";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -79,10 +81,9 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <input
+            <PasswordField
               id="password"
               name="password"
-              type="password"
               autoComplete="current-password"
               enterKeyHint="go"
               required

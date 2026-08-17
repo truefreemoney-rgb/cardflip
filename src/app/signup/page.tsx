@@ -1,13 +1,15 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import PasswordField from "@/components/PasswordField";
+
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import OnboardingSteps from "@/components/OnboardingSteps";
 import EbayConnectCard from "@/components/EbayConnectCard";
-import { signup } from "@/lib/client/auth";
+import { fetchCurrentUser, signup } from "@/lib/client/auth";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -26,6 +28,19 @@ export default function SignupPage() {
 
   const [firstName, setFirstName] = useState("");
 
+  // `?step=ebay` + a live session = the account already exists; resume on
+  // the eBay step instead of asking them to sign up again.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("step") !== "ebay") return;
+    let alive = true;
+    fetchCurrentUser().then((u) => {
+      if (!alive || !u) return;
+      setFirstName(u.name.split(" ")[0]);
+      setPhase("ebay");
+    });
+    return () => { alive = false; };
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -42,6 +57,9 @@ export default function SignupPage() {
       // no separate route, so linking eBay reads as part of signing up.
       setFirstName(user.name.split(" ")[0]);
       setPhase("ebay");
+      // Mark the step in the URL so a refresh (or coming back from eBay's
+      // sign-in) lands on step 2, not on an empty account form.
+      window.history.replaceState(null, "", "/signup?step=ebay");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed.");
       setSubmitting(false);
@@ -104,16 +122,16 @@ export default function SignupPage() {
               <label htmlFor="password" className="text-sm font-medium text-zinc-300">
                 Password
               </label>
-              <input
+              <PasswordField
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 enterKeyHint="go"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={FIELD}
                 placeholder="At least 6 characters"
+                hint
               />
             </div>
 

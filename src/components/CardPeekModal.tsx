@@ -1,7 +1,8 @@
 "use client";
 
 import { displayCardNumber } from "@/lib/games";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
@@ -34,6 +35,8 @@ export default function CardPeekModal({ card, onClose }: Props) {
   }, [onClose]);
 
   const price = pickPrice(card);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
 
   // Portal to <body>: the triggers live inside containers with mask-image /
   // overflow:hidden (marquee, sheen tiles), which visually clip a fixed
@@ -42,13 +45,15 @@ export default function CardPeekModal({ card, onClose }: Props) {
     <div
       className="animate-fade-up fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${card.name} details`}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${card.name} details`}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="foil-edge relative my-auto w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 [--foil-fill:#0b0d13] sm:p-8"
+        className="foil-edge relative my-auto w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 outline-none [--foil-fill:#0b0d13] sm:p-8"
       >
         <button
           onClick={onClose}

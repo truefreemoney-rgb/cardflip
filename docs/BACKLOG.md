@@ -36,7 +36,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] M — SQLite backup off the Fly volume (Litestream / nightly export) — users, ledger, photos, eBay tokens are single-copy
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
-- [ ] S — First-scan onboarding / empty-state guidance (OnboardingSteps is signup-only)
+- [x] S — Scanner empty state has a 3-step strip (snap → match/price → draft on eBay) (08-17)
 - [x] S — `.env.example` — done 08-16 documenting the 18 env vars
 - [x] S — README stale — rewritten 08-16: no Magic, auth, sealed/graded, eBay OAuth/push; lists 1 of 6 test suites
 - Done: auth + per-user isolation, `/terms` `/privacy`, robots/sitemap/OG, landing, branded 404
@@ -73,13 +73,13 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Remove buttons visible on touch (hover-only fade gated on `@media(hover:hover)`), bigger tap targets; camera emoji hidden from screen readers; "Price check" title casing
 
 ### QoL still open (from the audit, not done)
-- [ ] M — Shared `<AppHeader>` + server-side session in `app/layout.tsx` (kills 4× `/api/auth/me` and the blank flash; adds sign-out/eBay/admin links to collection/wishlist/price-check)
+- [x] M — Shared `<AppHeader>` + `SessionProvider` in `app/app/layout.tsx` (08-17): one `/api/auth/me`, header renders instantly, pages show `PageSkeleton` not blank; sign-out/eBay/admin/account links on every app page. Toast bus `components/Toaster.tsx` (`toast()`), wired to wishlist add, detail-modal save, copy listing
 - [ ] M — Persist scan queue ids in sessionStorage so a refresh doesn't lose an in-progress stack
-- [ ] S — Signup account→eBay phase in the URL (`?step=ebay`) so Back/refresh behave
-- [ ] S — Password show/hide toggle + live min-length hint on signup/reset
-- [ ] S — Focus trap in CameraCapture/CardDetailModal; `role=dialog` on the panel not the backdrop
+- [x] S — Signup `?step=ebay` (08-17): refresh/back resumes on step 2 when signed in
+- [x] S — `PasswordField` (eye toggle + live length hint) on signup/reset/login (08-17)
+- [x] S — `useFocusTrap` on CameraCapture/CardDetailModal/CardPeekModal; `role=dialog` on the panel (08-17)
 - [ ] S — AbortController on wishlist repricing fan-out; debounce search inputs
-- [ ] S — Tab "Search cards" vs page "Price check" — pick one name
+- [x] S — Page/title now "Search cards" like the tab (08-17)
 
 ## 7. Market insights / price history — BUILT 08-16 evening (undeployed)
 

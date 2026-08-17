@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import {
@@ -303,6 +304,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   // doesn't scroll, and focus goes back to whatever opened the scanner.
   // onClose is an inline arrow on the page, so it goes through a ref — the
   // effect must run once per open, not once per parent render.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -324,13 +327,17 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Camera scanner"
       onPointerDown={() => void primeScanFx()}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
     >
-      <div className="flex w-full max-w-lg flex-col gap-4 rounded-3xl border border-edge bg-surface-1 p-4">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Camera scanner"
+        tabIndex={-1}
+        className="flex w-full max-w-lg flex-col gap-4 rounded-3xl border border-edge bg-surface-1 p-4 outline-none"
+      >
         {/* .scanner-hud: this overlay's motion is exempt from the
             reduced-motion kill in globals.css — see the motion policy. */}
         <div className="scanner-hud relative overflow-hidden rounded-2xl bg-black">

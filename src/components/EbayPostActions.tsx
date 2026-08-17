@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
+import { toast } from "@/components/Toaster";
 import {
   EBAY_DRAFTS_URL,
   publishEbayDraft,
@@ -93,6 +94,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       .writeText(text)
       .then(() => {
         setCopied(true);
+        toast("Listing text copied");
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
