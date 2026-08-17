@@ -35,6 +35,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] M — Error monitoring (error-only; `/privacy` promises no analytics profile — keep copy true)
 - [ ] M — SQLite backup off the Fly volume (Litestream / nightly export) — users, ledger, photos, eBay tokens are single-copy
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
+- [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
 - [ ] S — First-scan onboarding / empty-state guidance (OnboardingSteps is signup-only)
 - [x] S — `.env.example` — done 08-16 documenting the 18 env vars
 - [x] S — README stale — rewritten 08-16: no Magic, auth, sealed/graded, eBay OAuth/push; lists 1 of 6 test suites

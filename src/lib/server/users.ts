@@ -101,6 +101,50 @@ export function setUserRole(userId: string, role: Role): void {
   db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, userId);
 }
 
+/** Account page: rename / change sign-in email. Email is normalised like signup. */
+export function updateUserProfile(
+  userId: string,
+  patch: { name?: string; email?: string },
+): void {
+  if (patch.name !== undefined) {
+    db.prepare("UPDATE users SET name = ? WHERE id = ?").run(patch.name.trim(), userId);
+  }
+  if (patch.email !== undefined) {
+    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(
+      patch.email.trim().toLowerCase(),
+      userId,
+    );
+  }
+}
+
+export function updateUserPassword(userId: string, password: string): void {
+  db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
+    hashPassword(password),
+    userId,
+  );
+}
+
+/** What the account page shows as "your data" — counts only; all of it cascade-deletes with the user. */
+export function userDataSummary(userId: string): {
+  cards: number;
+  listed: number;
+  sold: number;
+  wishlist: number;
+  priceChecks: number;
+  sessions: number;
+} {
+  const n = (sql: string, ...args: (string | number)[]) =>
+    (db.prepare(sql).get(userId, ...args) as { n: number }).n;
+  return {
+    cards: n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ?"),
+    listed: n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ? AND status = 'listed'"),
+    sold: n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ? AND status = 'sold'"),
+    wishlist: n("SELECT COUNT(*) AS n FROM wishlist_items WHERE user_id = ?"),
+    priceChecks: n("SELECT COUNT(*) AS n FROM price_checks WHERE user_id = ?"),
+    sessions: n("SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND expires_at > ?", Date.now()),
+  };
+}
+
 /**
  * Remove an account. Foreign keys cascade cards / sessions / wishlist /
  * price checks; card photos live on disk, so those go first.

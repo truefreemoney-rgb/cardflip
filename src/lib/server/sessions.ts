@@ -68,6 +68,17 @@ export function destroySession(token: string): void {
 }
 
 /**
+ * "Sign out everywhere else" / after a password change: drop every session
+ * for the user except the one making the request. Returns how many went.
+ */
+export function destroyOtherSessions(userId: string, keepToken: string | null): number {
+  const res = keepToken
+    ? db.prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?").run(userId, keepToken)
+    : db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+  return Number(res.changes);
+}
+
+/**
  * The one cookie shape every issuer uses (login, signup, demo, reset,
  * renewal). Persistent (`expires`), httpOnly, Lax so the eBay OAuth
  * callback and email links land signed in, Secure in production.
