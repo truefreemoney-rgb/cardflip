@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
@@ -9,6 +10,7 @@ import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/po
  *   2. Pokémon points for every mapped card from TCGCSV (TCGplayer daily)
  *   3. Pokémon sweep of held / recently looked-up cards via pokemontcg.io
  *      (adds Cardmarket EUR and covers cards TCGCSV doesn't map)
+ *   4. SQLite backup to the Tigris bucket (lib/server/backup.ts)
  *
  * Triggered from three places, all funnelled through `runDailyIfDue` so it
  * can never double-run:
@@ -59,6 +61,7 @@ export interface DailyResult {
   mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
   pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
+  backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
   ms?: number;
 }
 
@@ -95,6 +98,17 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     } catch (err) {
       result.pokemon = { error: err instanceof Error ? err.message : String(err) };
       console.error("daily: Pokémon sweep failed:", err);
+    }
+    try {
+      if (backupConfigured()) {
+        const r = await runNightlyBackup();
+        result.backup = { key: r.key, bytes: r.bytes };
+      } else {
+        result.backup = { skipped: "AWS_*/BUCKET_NAME not set — flyctl storage create" };
+      }
+    } catch (err) {
+      result.backup = { error: err instanceof Error ? err.message : String(err) };
+      console.error("daily: backup failed:", err);
     }
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
