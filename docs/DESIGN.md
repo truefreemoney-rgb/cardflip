@@ -61,8 +61,14 @@ point (marketing nav pill).
 
 ## Motion policy
 
+- 08-25 "soulless" pass: static amplitude raised across the board (surfaces
+  7/10/14.5%, edges 14/24%, foil-edge alphas ~doubled, hero mesh/aurora/halo
+  brighter, holo-text gets a drop-shadow glow, body ambient stronger with a
+  top-lightening band). Tune DOWN from here only with Chris's eyes on it.
 - `prefers-reduced-motion: reduce` kills all animation site-wide, with
-  deliberate exceptions: `.reveal` is removed via `animation: none`
+  deliberate exceptions: `.holo-text` and `.foil-edge-live` are exempt
+  (owner's call 08-25 — color-only animations, zero spatial movement, and
+  they ARE the identity); control hover/focus transitions stay at 150ms; `.reveal` is removed via `animation: none`
   (timeline animations ignore duration zeroing); `.marquee-track` is
   exempted — Chris's call, the price ticker always runs like a stock ticker;
   and `.scanner-hud` (the camera viewfinder overlay) keeps its pulse, bracket

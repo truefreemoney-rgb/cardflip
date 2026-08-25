@@ -13,11 +13,11 @@
      the old values had almost no contrast against the background, so with
      animations off (Chris's Windows) the whole site read as one flat murky
      sheet. These separate crisply without motion. */
-  --surface-1: rgba(170, 180, 255, 0.055);
-  --surface-2: rgba(175, 185, 255, 0.085);
-  --surface-3: rgba(185, 195, 255, 0.12);
-  --edge: rgba(255, 255, 255, 0.11);
-  --edge-strong: rgba(255, 255, 255, 0.19);
+  --surface-1: rgba(175, 185, 255, 0.07);
+  --surface-2: rgba(180, 190, 255, 0.1);
+  --surface-3: rgba(190, 200, 255, 0.145);
+  --edge: rgba(255, 255, 255, 0.14);
+  --edge-strong: rgba(255, 255, 255, 0.24);
 }
 
 @theme inline {
@@ -59,8 +59,10 @@ body {
      top and a faint warm wash from the corner, fixed so scrolling moves
      content through the light instead of dragging the light along. */
   background:
-    radial-gradient(80rem 42rem at 50% -12rem, rgba(99, 102, 241, 0.13), transparent 60%),
-    radial-gradient(60rem 42rem at 108% 108%, rgba(240, 171, 252, 0.05), transparent 60%),
+    radial-gradient(80rem 42rem at 50% -12rem, rgba(99, 102, 241, 0.2), transparent 60%),
+    radial-gradient(50rem 50rem at -10% 40%, rgba(167, 139, 250, 0.07), transparent 60%),
+    radial-gradient(60rem 42rem at 108% 108%, rgba(240, 171, 252, 0.07), transparent 60%),
+    linear-gradient(180deg, #0e1020 0%, var(--background) 32rem),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);
@@ -124,20 +126,20 @@ p {
    --------------------------------------------------------------- */
 .bg-brand-500 {
   background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 48%),
-    linear-gradient(135deg, #6c6bf9, #7c5cf0);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(135deg, #6d6af9, #9d5cf0);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 8px 24px -10px rgba(99, 102, 241, 0.55);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 30px -8px rgba(124, 92, 240, 0.65);
 }
 
 .bg-brand-500:hover {
   background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02) 48%),
-    linear-gradient(135deg, #7d7cfa, #8d6ef4);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.02) 48%),
+    linear-gradient(135deg, #7e7bfa, #ad6ef4);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 10px 28px -10px rgba(99, 102, 241, 0.65);
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 12px 34px -8px rgba(124, 92, 240, 0.75);
 }
 
 /* ---------------------------------------------------------------
@@ -168,6 +170,9 @@ p {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* Luminosity is part of the identity — clipped text can't cast a
+     text-shadow, so the glow comes from a drop-shadow filter. */
+  filter: drop-shadow(0 0 16px rgba(167, 139, 250, 0.4));
   animation: holo-shift 10s linear infinite;
 }
 
@@ -190,11 +195,11 @@ p {
       padding-box,
     linear-gradient(
         var(--foil-angle),
-        rgba(125, 211, 252, 0.5),
-        rgba(167, 139, 250, 0.45) 30%,
-        rgba(255, 255, 255, 0.08) 55%,
-        rgba(240, 171, 252, 0.4) 78%,
-        rgba(252, 211, 77, 0.35)
+        rgba(125, 211, 252, 0.85),
+        rgba(167, 139, 250, 0.8) 30%,
+        rgba(255, 255, 255, 0.18) 55%,
+        rgba(240, 171, 252, 0.75) 78%,
+        rgba(252, 211, 77, 0.6)
       )
       border-box;
 }
@@ -207,13 +212,14 @@ p {
       padding-box,
     conic-gradient(
         from var(--foil-angle),
-        rgba(125, 211, 252, 0.9),
-        rgba(167, 139, 250, 0.85),
-        rgba(240, 171, 252, 0.8),
-        rgba(252, 211, 77, 0.6),
-        rgba(125, 211, 252, 0.9)
+        rgba(125, 211, 252, 1),
+        rgba(167, 139, 250, 0.95),
+        rgba(240, 171, 252, 0.9),
+        rgba(252, 211, 77, 0.75),
+        rgba(125, 211, 252, 1)
       )
       border-box;
+  box-shadow: 0 0 32px -8px rgba(167, 139, 250, 0.35);
   animation: foil-spin 7s linear infinite;
 }
 
@@ -230,17 +236,17 @@ p {
   background:
     radial-gradient(
       42% 55% at 16% 4%,
-      rgba(125, 211, 252, 0.17),
+      rgba(125, 211, 252, 0.25),
       transparent 70%
     ),
     radial-gradient(
       50% 60% at 84% 10%,
-      rgba(167, 139, 250, 0.21),
+      rgba(167, 139, 250, 0.3),
       transparent 70%
     ),
     radial-gradient(
       46% 50% at 50% 100%,
-      rgba(240, 171, 252, 0.12),
+      rgba(240, 171, 252, 0.18),
       transparent 70%
     );
 }
@@ -271,9 +277,9 @@ p {
   background: conic-gradient(
     from 220deg at 50% -10%,
     transparent 40%,
-    rgba(125, 211, 252, 0.08) 47%,
-    rgba(167, 139, 250, 0.12) 52%,
-    rgba(240, 171, 252, 0.08) 57%,
+    rgba(125, 211, 252, 0.13) 47%,
+    rgba(167, 139, 250, 0.19) 52%,
+    rgba(240, 171, 252, 0.13) 57%,
     transparent 64%
   );
   filter: blur(28px);
@@ -749,6 +755,31 @@ p {
   .marquee-track {
     animation-duration: 55s !important;
     animation-iteration-count: infinite !important;
+  }
+
+  /* Fourth exemption (owner's call, 08-25 "the site looks soulless"): the
+     two color-only identity animations. Neither moves a single pixel —
+     holo-text slides a background gradient through clipped glyphs and
+     foil-edge-live rotates a border hue — so they carry no vestibular
+     trigger, and without them the entire holo identity is a freeze-frame
+     on any machine with animations off (including Chris's). */
+  .holo-text {
+    animation-duration: 10s !important;
+    animation-iteration-count: infinite !important;
+  }
+  /* Full shorthand, not just duration: elements that also carry .reveal had
+     their animation-name zeroed by the .reveal kill above, and this rule
+     sits later with equal specificity so the shorthand wins it back. */
+  .foil-edge-live {
+    animation: foil-spin 7s linear infinite !important;
+  }
+
+  /* Hover/focus feedback on controls stays eased rather than snapping —
+     color and shadow fades are feedback, not motion. */
+  a,
+  button,
+  summary {
+    transition-duration: 150ms !important;
   }
 
   /* Third exemption (same rationale, 08-17): the queue row's "Scanning" chip

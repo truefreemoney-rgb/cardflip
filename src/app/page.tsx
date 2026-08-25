@@ -165,7 +165,7 @@ export default async function Home() {
                 style={{ animationDelay: "150ms" }}
               >
                 <div
-                  className="absolute -inset-10 rounded-full bg-[conic-gradient(from_140deg,rgba(125,211,252,0.22),rgba(167,139,250,0.28),rgba(240,171,252,0.22),rgba(252,211,77,0.14),rgba(125,211,252,0.22))] blur-3xl"
+                  className="absolute -inset-12 rounded-full bg-[conic-gradient(from_140deg,rgba(125,211,252,0.35),rgba(167,139,250,0.45),rgba(240,171,252,0.35),rgba(252,211,77,0.22),rgba(125,211,252,0.35))] blur-3xl"
                   aria-hidden
                 />
                 <HoloCard
