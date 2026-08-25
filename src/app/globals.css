@@ -5,15 +5,19 @@
    The product is dark-only by design, so there is no light palette.
    --------------------------------------------------------------- */
 :root {
-  --background: #08090d;
+  --background: #0a0b11;
   --foreground: #ededf2;
 
-  /* Layered surfaces — each step reads as "closer to the viewer". */
-  --surface-1: rgba(255, 255, 255, 0.03);
-  --surface-2: rgba(255, 255, 255, 0.05);
-  --surface-3: rgba(255, 255, 255, 0.08);
-  --edge: rgba(255, 255, 255, 0.09);
-  --edge-strong: rgba(255, 255, 255, 0.16);
+  /* Layered surfaces — each step reads as "closer to the viewer".
+     Cool blue-tinted fills at higher alpha than the original white 3/5/8%:
+     the old values had almost no contrast against the background, so with
+     animations off (Chris's Windows) the whole site read as one flat murky
+     sheet. These separate crisply without motion. */
+  --surface-1: rgba(170, 180, 255, 0.055);
+  --surface-2: rgba(175, 185, 255, 0.085);
+  --surface-3: rgba(185, 195, 255, 0.12);
+  --edge: rgba(255, 255, 255, 0.11);
+  --edge-strong: rgba(255, 255, 255, 0.19);
 }
 
 @theme inline {
@@ -51,7 +55,14 @@ html {
 }
 
 body {
-  background: var(--background);
+  /* Ambient depth that needs no motion: a brand glow bleeding in from the
+     top and a faint warm wash from the corner, fixed so scrolling moves
+     content through the light instead of dragging the light along. */
+  background:
+    radial-gradient(80rem 42rem at 50% -12rem, rgba(99, 102, 241, 0.13), transparent 60%),
+    radial-gradient(60rem 42rem at 108% 108%, rgba(240, 171, 252, 0.05), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   /* Must stay in sync with --font-sans; a hardcoded stack here would
      silently override the webfont loaded in layout.tsx. */
@@ -100,6 +111,33 @@ p {
   outline: 2px solid var(--color-brand-400);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------
+   Primary-button finish
+   Every primary CTA in the codebase is `bg-brand-500`. Tailwind's
+   utility only sets background-color, so layering a gradient +
+   bevel + glow here upgrades all of them at once — flat solid
+   buttons were the single biggest "dated" tell with animations
+   off. Chips use bg-brand-500/15 etc., which are different class
+   names and stay untouched.
+   --------------------------------------------------------------- */
+.bg-brand-500 {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(135deg, #6c6bf9, #7c5cf0);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 8px 24px -10px rgba(99, 102, 241, 0.55);
+}
+
+.bg-brand-500:hover {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02) 48%),
+    linear-gradient(135deg, #7d7cfa, #8d6ef4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 10px 28px -10px rgba(99, 102, 241, 0.65);
 }
 
 /* ---------------------------------------------------------------
@@ -187,20 +225,22 @@ p {
 
 /* Layered radial mesh behind the hero. */
 .hero-mesh {
+  /* Alphas tuned for the static frame — with animations off this IS the
+     hero backdrop, so it has to carry the depth on its own. */
   background:
     radial-gradient(
       42% 55% at 16% 4%,
-      rgba(125, 211, 252, 0.13),
+      rgba(125, 211, 252, 0.17),
       transparent 70%
     ),
     radial-gradient(
       50% 60% at 84% 10%,
-      rgba(167, 139, 250, 0.16),
+      rgba(167, 139, 250, 0.21),
       transparent 70%
     ),
     radial-gradient(
       46% 50% at 50% 100%,
-      rgba(240, 171, 252, 0.09),
+      rgba(240, 171, 252, 0.12),
       transparent 70%
     );
 }

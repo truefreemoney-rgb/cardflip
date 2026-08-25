@@ -13,9 +13,20 @@ product.
 
 ## Tokens (globals.css)
 
-- Background `#08090d`; panels use `--surface-1/2/3` (white at 3/5/8%),
-  hairlines `--edge` / `--edge-strong` (white at 9/16%).
+- Background `#0a0b11` with a fixed two-radial ambient on `body` (indigo
+  glow from the top, faint pink from the corner) — depth that needs no
+  motion. Panels use `--surface-1/2/3` (blue-tinted `#aab4ff`-ish at
+  5.5/8.5/12%), hairlines `--edge` / `--edge-strong` (white at 11/19%).
+  Raised 08-25 ("refined dark" pass, Chris: theme looked dated): the old
+  white 3/5/8% surfaces had no contrast, and with animations off the site
+  read as one flat sheet. **The static frame must carry the design** —
+  Chris never sees the animated layer.
 - Brand indigo `--color-brand-300..600` — buttons, links, focus rings.
+  Primary CTAs: a global un-layered rule on `.bg-brand-500` layers an
+  indigo→violet gradient + top bevel + glow shadow onto every primary
+  button at once (Tailwind's utility only sets background-color, so the
+  rule composes; `bg-brand-500/15` chips are different class names and
+  unaffected). Don't add per-button gradients — it's already global.
 - Holo spectrum: `--color-holo-sky #7dd3fc`, `-violet #a78bfa`,
   `-pink #f0abfc`, `-gold #fcd34d`. Iridescence always cycles in that order.
 - Marketplace blue `--color-ebay #0284c7` is deliberately NOT eBay's trade
