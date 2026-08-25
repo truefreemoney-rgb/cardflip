@@ -33,7 +33,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 - [x] M — **Rate limiting** — done 08-16, `lib/server/rateLimit.ts`, 26 tests on `/api/vision/scan` (paid Anthropic), `/api/ebay/comps`, `/api/search-card` — demo login can drain credit. Highest-value unbuilt item.
 - [ ] M — Error monitoring (error-only; `/privacy` promises no analytics profile — keep copy true)
-- [ ] M — SQLite backup off the Fly volume (Litestream / nightly export) — users, ledger, photos, eBay tokens are single-copy
+- [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`, deploy pending): `lib/server/backup.ts` nightly VACUUM INTO → gzip → Tigris `cardflip-backups` (SigV4, no SDK), 7 weekday + monthly copies, step 4 of `dailyJobs.ts`
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
 - [x] S — Scanner empty state has a 3-step strip (snap → match/price → draft on eBay) (08-17)
