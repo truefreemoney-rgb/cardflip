@@ -16,7 +16,9 @@ export default function StatusChip({ status }: { status: ScanStatus }) {
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${className}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+        status === "scanning" ? "chip-working animate-pulse" : ""
+      } ${className}`}
     >
       {status === "scanning" && <Spinner className="h-3 w-3" />}
       {(status === "ready" || status === "listed") && (

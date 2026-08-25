@@ -28,7 +28,15 @@ import {
 } from "@/lib/listing";
 import { gradeLabel, makeSealedProduct, type SetInfo } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
-import { createServerCard, deleteServerCard, updateServerCard } from "@/lib/client/cardsApi";
+import {
+  createServerCard,
+  deleteServerCard,
+  fetchServerCards,
+  updateServerCard,
+  type ServerCard,
+} from "@/lib/client/cardsApi";
+import { loadQueue, saveQueue, type SavedQueueEntry } from "@/lib/client/queuePersistence";
+import { toast } from "@/components/Toaster";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { scanCardWithVision } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
@@ -88,6 +96,79 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
   };
 }
 
+/**
+ * Rebuild one queue item from its ledger row after a page refresh. The photo,
+ * its object URL and the vision read are gone for good; the catalogue card is
+ * re-fetched by name + number (the same match the wishlist's repricing pass
+ * uses) and the ledger supplies everything it owns — status, prices, eBay
+ * links. Returns null when the card can't be identified anymore.
+ */
+async function rebuildSavedItem(
+  entry: SavedQueueEntry,
+  row: ServerCard,
+): Promise<ScanItem | null> {
+  const game = row.game ?? "pokemon";
+
+  let card: PokemonCard | null;
+  let candidates: PokemonCard[] = [];
+  if (row.kind === "sealed") {
+    // Faithful enough: makeSealedProduct only reads the set name and logo,
+    // and the row stored both (imageUrl is the set logo for sealed rows).
+    card = makeSealedProduct(
+      { name: row.setName, releaseDate: "", logoUrl: row.imageUrl },
+      row.productType ?? "Sealed Product",
+      game,
+    );
+  } else {
+    try {
+      const printed = row.cardNumber
+        ? { number: row.cardNumber, setTotal: null, setCode: null, isSecretRare: false }
+        : null;
+      const found = await searchCards(row.cardName, printed, "en", undefined, game);
+      card =
+        found.find((c) => c.name === row.cardName && c.number === row.cardNumber) ??
+        found[0] ??
+        null;
+      candidates = found;
+    } catch {
+      card = null;
+    }
+    // Without the catalogue card there's nothing to price or list — count it
+    // among the losses rather than restoring a dead row.
+    if (!card) return null;
+  }
+
+  return {
+    ...createItem(null, "en", game),
+    id: entry.id,
+    kind: row.kind,
+    serverId: row.id,
+    // The seller's photo didn't survive; the catalogue image still previews.
+    previewUrl: row.imageUrl,
+    status: row.status,
+    candidates,
+    card,
+    condition: asCondition(row.condition) ?? "Near Mint",
+    strategy: entry.strategy,
+    variant: entry.variant,
+    firstEdition: entry.firstEdition,
+    grading: entry.grading,
+    productType: row.productType,
+    // Sealed product has no catalogue price, so the row's price stands in
+    // when no manual override was saved.
+    priceOverride:
+      entry.priceOverride ??
+      (row.kind === "sealed" && row.price > 0 ? row.price : null),
+    ebayOfferId: row.ebayOfferId,
+    ebayListingUrl: row.ebayListingUrl,
+    ebayDraftUrl: row.ebayDraftUrl,
+    listedPrice: row.status === "ready" ? null : row.price,
+    listedAt: row.listedAt,
+    soldPrice: row.soldPrice,
+    soldAt: row.soldAt,
+  };
+}
+
 export default function AppPage() {
   const router = useRouter();
   const { user } = useSession();
@@ -136,6 +217,9 @@ export default function AppPage() {
   const commit = useCallback((next: ScanItem[]) => {
     itemsRef.current = next;
     setItems(next);
+    // Every queue write lands in sessionStorage too, so a refresh can rebuild
+    // the stack; an empty write naturally clears it.
+    saveQueue(next);
   }, []);
 
   const patchItem = useCallback(
@@ -179,6 +263,52 @@ export default function AppPage() {
   useEffect(() => {
     warmUpOcr();
   }, []);
+
+  // Bring the queue back after a refresh: items that reached the ledger are
+  // rebuilt from their server rows; anything still mid-scan went down with
+  // its object URL and can only be counted. Runs once, only while the queue
+  // is empty — a scan started before the fetch answers wins.
+  const restoredRef = useRef(false);
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId || restoredRef.current) return;
+    restoredRef.current = true;
+
+    const saved = loadQueue();
+    if (!saved || saved.total === 0 || itemsRef.current.length !== 0) return;
+
+    void fetchServerCards().then(async (rows) => {
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const rebuilt = await Promise.all(
+        saved.entries.map((entry) => {
+          const row = byId.get(entry.serverId);
+          return row ? rebuildSavedItem(entry, row) : Promise.resolve(null);
+        }),
+      );
+      const restored = rebuilt.filter((item): item is ScanItem => item !== null);
+      if (itemsRef.current.length !== 0) return;
+
+      const lost = saved.total - restored.length;
+      if (restored.length > 0) {
+        commit(restored);
+        setSelectedId((current) => current ?? restored[0].id);
+        toast(
+          lost > 0
+            ? `Restored ${restored.length} card${restored.length === 1 ? "" : "s"} — ${lost} unsaved scan${lost === 1 ? " was" : "s were"} lost in the refresh`
+            : `Restored ${restored.length} card${restored.length === 1 ? "" : "s"} from your last session`,
+          lost > 0 ? "info" : "ok",
+        );
+      } else if (lost > 0) {
+        // Nothing came back — say so once, then stop the message repeating
+        // on the next refresh.
+        toast(
+          `${lost} unsaved scan${lost === 1 ? " was" : "s were"} lost in the refresh`,
+          "info",
+        );
+        saveQueue([]);
+      }
+    });
+  }, [userId, commit]);
 
   // Release the object URLs held by previews when the page goes away.
   useEffect(() => {

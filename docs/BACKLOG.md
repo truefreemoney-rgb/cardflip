@@ -24,7 +24,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] ~~Marketplace Insights~~ — DENIED by eBay 08-16 (partner-only, ticket closed). Sold-comps call now gated off (`EBAY_INSIGHTS_ENABLED`); sold data = price-history route instead (see §7)
 - [ ] S — SMTP secrets (`SMTP_HOST/PORT/USER/PASS`) so password reset emails work (deferred)
 - [ ] S — Rotate PRD Cert ID; rotate eBay deletion-endpoint verification token (was pasted in STATE.md)
-- [ ] S — "Identifying…" QueueRow chip pulse (needs reduced-motion exemption)
+- [x] S — "Scanning" chip pulses + spinner spins under reduced motion (.chip-working exemption, 08-17)
 - [x] S — MTG wishlist re-pricing — rows now carry `game` + `card_id` (08-16 late); rows saved before then default to Pokémon
 - [ ] S — Root SPF record superiormarketing.com (optional)
 - [ ] — RevealStrike: leave as is. Full RevealScene: reverted, don't rebuild without asking.
@@ -74,11 +74,11 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### QoL still open (from the audit, not done)
 - [x] M — Shared `<AppHeader>` + `SessionProvider` in `app/app/layout.tsx` (08-17): one `/api/auth/me`, header renders instantly, pages show `PageSkeleton` not blank; sign-out/eBay/admin/account links on every app page. Toast bus `components/Toaster.tsx` (`toast()`), wired to wishlist add, detail-modal save, copy listing
-- [ ] M — Persist scan queue ids in sessionStorage so a refresh doesn't lose an in-progress stack
+- [x] M — Scan queue survives refresh (08-17): `queuePersistence.ts` sessionStorage + restore from ledger rows (photo/vision unrecoverable; unsaved scans counted in a toast). Verified on dev: search-add → refresh → card restored
 - [x] S — Signup `?step=ebay` (08-17): refresh/back resumes on step 2 when signed in
 - [x] S — `PasswordField` (eye toggle + live length hint) on signup/reset/login (08-17)
 - [x] S — `useFocusTrap` on CameraCapture/CardDetailModal/CardPeekModal; `role=dialog` on the panel (08-17)
-- [ ] S — AbortController on wishlist repricing fan-out; debounce search inputs
+- [x] S — Stale-search guard: seq counter on Search-cards page (Enter could overlap); ScannerSearch/wishlist already busy-guarded. Card grid images lazy-load (08-17)
 - [x] S — Page/title now "Search cards" like the tab (08-17)
 
 ## 7. Market insights / price history — BUILT 08-16 evening (undeployed)

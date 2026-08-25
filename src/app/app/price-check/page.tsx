@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
@@ -48,6 +48,9 @@ export default function PriceCheckPage() {
   const [logging, setLogging] = useState(false);
 
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
+  // Search sequence: a slow older response must not overwrite a newer one
+  // (fire two searches fast and the first can land last).
+  const searchSeq = useRef(0);
 
   const loadHistory = useCallback(() => {
     fetchPriceCheckHistory().then(setHistory);
@@ -61,6 +64,7 @@ export default function PriceCheckPage() {
 
   async function handleSearch() {
     if (!query.trim()) return;
+    const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
     setSelected(null);
@@ -87,12 +91,14 @@ export default function PriceCheckPage() {
           printed,
         );
       }
+      if (seq !== searchSeq.current) return;
       setResults(found);
       if (found.length === 0) setSearchError("No cards matched that search.");
     } catch {
+      if (seq !== searchSeq.current) return;
       setSearchError("Search failed — check your connection.");
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
   }
 

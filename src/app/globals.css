@@ -711,6 +711,17 @@ p {
     animation-iteration-count: infinite !important;
   }
 
+  /* Third exemption (same rationale, 08-17): the queue row's "Scanning" chip
+     and its spinner — that's the only signal a card is being worked on. */
+  .chip-working,
+  .chip-working .animate-spin {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .chip-working .animate-spin {
+    animation-duration: 1s !important;
+  }
+
   /* Second exemption (owner's call, 08-16): the camera scanner's overlay.
      Its motion is feedback, not decoration — the "hold still" pulse, the
      bracket colour change, the match chip arriving — and without it the

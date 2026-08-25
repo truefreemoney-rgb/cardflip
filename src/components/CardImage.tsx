@@ -47,6 +47,8 @@ export default function CardImage({ src, alt, className = "" }: Props) {
     <img
       src={src}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       className={className}
       onError={() => setFailedSrc(src)}
     />
