@@ -51,6 +51,9 @@ export const USER_SCOPES = [
   "https://api.ebay.com/oauth/api_scope/sell.account",
   // The seller's eBay username, so the UI can say which account is linked.
   "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
+  // Read the seller's orders so a card that sells on eBay flips itself to
+  // "sold" in the ledger instead of waiting on a manual button.
+  "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
 ];
 
 export class EbayOAuthNotConfiguredError extends Error {

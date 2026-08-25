@@ -62,11 +62,12 @@ export default function ListedPanel({ item, onChange }: Props) {
       </div>
 
       <div className="w-full max-w-xs rounded-2xl border border-edge bg-surface-1 p-5">
-        <p className="mb-3 flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Simulate a sale
-          <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] normal-case text-zinc-400">
-            demo
-          </span>
+        <p className="mb-1.5 text-center text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Record the sale
+        </p>
+        <p className="mb-3 text-center text-[11px] leading-snug text-zinc-600">
+          Sold on eBay through CardFlip? It&apos;s marked automatically when
+          the order comes in. This covers sales made anywhere else.
         </p>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Final sale price

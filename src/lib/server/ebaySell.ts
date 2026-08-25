@@ -77,7 +77,7 @@ export class EbayNotConnectedError extends Error {
   }
 }
 
-async function ebayFetch(
+export async function ebayFetch(
   token: string,
   method: "GET" | "PUT" | "POST",
   path: string,

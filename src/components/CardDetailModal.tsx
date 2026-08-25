@@ -6,7 +6,7 @@ import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { formatMoney, pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice, plausiblePrices } from "@/lib/listing";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -150,7 +150,7 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
                 </tr>
               </thead>
               <tbody>
-                {card.prices.map((p, i) => (
+                {plausiblePrices(card.prices).map((p, i) => (
                   <tr key={i} className="border-b border-white/5 last:border-0">
                     <td className="py-2 pr-4 capitalize text-zinc-300">{p.source}</td>
                     <td className="py-2 pr-4 text-zinc-400">{p.label}</td>

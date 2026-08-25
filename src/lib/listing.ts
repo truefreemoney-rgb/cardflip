@@ -519,6 +519,27 @@ export function buildSealedListing(
 }
 
 /**
+ * Price rows fit to show a seller. Cardmarket's product averages sometimes
+ * blend 1st Edition / graded sales into one figure (Base Set Charizard:
+ * "Average (EUR)" €4,184 next to an $855 TCGplayer market) — a row that far
+ * off the best USD market discredits the whole table, so it's dropped at
+ * display time (cached rows predate the fetch-time guard in lib/tcg.ts).
+ */
+export function plausiblePrices(prices: CardPrice[]): CardPrice[] {
+  const usdMarket = prices.reduce<number | null>(
+    (best, p) =>
+      p.currency === "USD" && p.market != null && (best == null || p.market > best)
+        ? p.market
+        : best,
+    null,
+  );
+  if (usdMarket == null) return prices;
+  return prices.filter(
+    (p) => p.currency === "USD" || p.market == null || p.market <= usdMarket * 4,
+  );
+}
+
+/**
  * The seller's own words win over the generated copy. Overrides live on the
  * queue item so every posting road — the editor's buttons, "Send all", and
  * the CSV export — ships the same text the editor showed.

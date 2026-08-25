@@ -80,11 +80,12 @@ export function seedDemoCards(userId: string): void {
     if (seed.status === "listed") {
       updateCard(record.id, userId, { status: "listed", listedAt: now - (SEEDS.length - i) * DAY + DAY / 2 });
     } else if (seed.status === "sold") {
+      const createdAt = now - (SEEDS.length - i) * DAY;
       updateCard(record.id, userId, {
         status: "sold",
-        listedAt: now - (SEEDS.length - i) * DAY + DAY / 2,
+        listedAt: createdAt + DAY / 2,
         soldPrice: Math.round(seed.price * 0.94 * 100) / 100,
-        soldAt: now - DAY * (1 + i),
+        soldAt: createdAt + DAY,
       });
     }
   }

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
+import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
@@ -11,6 +12,8 @@ import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/po
  *   3. Pokémon sweep of held / recently looked-up cards via pokemontcg.io
  *      (adds Cardmarket EUR and covers cards TCGCSV doesn't map)
  *   4. SQLite backup to the Tigris bucket (lib/server/backup.ts)
+ *   5. eBay sales sweep for every seller with live listings, so sold cards
+ *      flip even when the seller doesn't open the app (lib/server/ebayOrders.ts)
  *
  * Triggered from three places, all funnelled through `runDailyIfDue` so it
  * can never double-run:
@@ -62,6 +65,7 @@ export interface DailyResult {
   pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
   backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
+  ebaySales?: { sellers: number; sold: number } | { error: string };
   ms?: number;
 }
 
@@ -98,6 +102,23 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     } catch (err) {
       result.pokemon = { error: err instanceof Error ? err.message : String(err) };
       console.error("daily: Pokémon sweep failed:", err);
+    }
+    try {
+      const sellers = db
+        .prepare(
+          `SELECT DISTINCT user_id FROM cards
+           WHERE status = 'listed' AND (ebay_listing_id IS NOT NULL OR ebay_sku IS NOT NULL)`,
+        )
+        .all() as { user_id: string }[];
+      let soldCount = 0;
+      for (const seller of sellers) {
+        const r = await syncEbaySales(seller.user_id, true);
+        soldCount += r.sold.length;
+      }
+      result.ebaySales = { sellers: sellers.length, sold: soldCount };
+    } catch (err) {
+      result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
+      console.error("daily: eBay sales sweep failed:", err);
     }
     try {
       if (backupConfigured()) {

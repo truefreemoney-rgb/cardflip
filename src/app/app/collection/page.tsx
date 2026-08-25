@@ -10,6 +10,7 @@ import {
   updateServerCard,
   type ServerCard,
 } from "@/lib/client/cardsApi";
+import { syncEbaySales } from "@/lib/client/ebayApi";
 
 /**
  * Every card the seller has ever scanned, with where it is in its life:
@@ -77,6 +78,7 @@ export default function CollectionPage() {
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const userId = user?.id;
+  const [saleNote, setSaleNote] = useState<string | null>(null);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -87,6 +89,24 @@ export default function CollectionPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // After the ledger renders, ask eBay whether any listed card has actually
+    // sold — the server matches recent orders and flips them, so "sold" stops
+    // being a manual button for connected sellers.
+    void syncEbaySales().then((result) => {
+      if (cancelled || !result) return;
+      if (result.sold.length > 0) {
+        setCards((prev) =>
+          prev.map((card) => result.sold.find((s) => s.id === card.id) ?? card),
+        );
+        setSaleNote(
+          `${result.sold.length} ${result.sold.length === 1 ? "card" : "cards"} marked sold from your eBay orders.`,
+        );
+      } else if (result.skipped === "no_scope") {
+        setSaleNote(
+          "Reconnect eBay (Account settings → eBay) to let CardFlip mark sold cards automatically — your current link predates that permission.",
+        );
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -206,6 +226,12 @@ export default function CollectionPage() {
           className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
         >
           {syncError}
+        </p>
+      )}
+
+      {saleNote && (
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300">
+          {saleNote}
         </p>
       )}
 

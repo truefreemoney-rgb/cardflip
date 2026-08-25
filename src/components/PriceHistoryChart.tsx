@@ -57,10 +57,37 @@ interface Props {
   className?: string;
 }
 
-/** The source-published averages for a card, if any (Cardmarket via pokemontcg.io). */
+/**
+ * The source-published averages for a card, if any (Cardmarket via
+ * pokemontcg.io). Sanitized here — the display side — because cached price
+ * rows predate the fetch-time guard in lib/tcg.ts: Cardmarket's product
+ * averages sometimes blend 1st Edition / graded sales (Base Set Charizard's
+ * 1d was €14,950 next to an $855 TCGplayer market), and one absurd figure
+ * discredits the whole panel. The strip is dropped entirely when its 30d
+ * baseline is >4x the best USD market; 1d/7d values >3x off that baseline
+ * are hidden individually.
+ */
 export function cardTrend(card: Pick<PokemonCard, "prices">): TrendAverages | null {
   const p = card.prices.find((x) => x.trend && (x.trend.avg30 || x.trend.avg7 || x.trend.avg1));
-  return p?.trend ? { ...p.trend, currency: p.currency, source: p.source } : null;
+  if (!p?.trend) return null;
+  const usdMarket = card.prices.reduce<number | null>(
+    (best, x) =>
+      x.currency === "USD" && x.market != null && (best == null || x.market > best)
+        ? x.market
+        : best,
+    null,
+  );
+  const base = p.trend.avg30 ?? p.trend.avg7;
+  if (base != null && usdMarket != null && base > usdMarket * 4) return null;
+  const steady = (v: number | null) =>
+    v == null ? null : base != null && (v > base * 3 || v < base / 3) ? null : v;
+  return {
+    avg1: steady(p.trend.avg1),
+    avg7: steady(p.trend.avg7),
+    avg30: p.trend.avg30 ?? null,
+    currency: p.currency,
+    source: p.source,
+  };
 }
 
 const cache = new Map<string, Series[]>();

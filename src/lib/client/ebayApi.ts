@@ -95,6 +95,25 @@ export async function disconnectEbay(): Promise<boolean> {
   }
 }
 
+export interface SalesSyncResponse {
+  sold: import("@/lib/client/cardsApi").ServerCard[];
+  skipped?: "not_connected" | "no_scope" | "no_listings" | "throttled" | "error";
+}
+
+/**
+ * Ask the server to pull recent eBay orders and flip sold cards. Safe to call
+ * on every ledger load — the server throttles the real eBay work.
+ */
+export async function syncEbaySales(): Promise<SalesSyncResponse | null> {
+  try {
+    const res = await fetch(apiPath("/api/ebay/sync-sales"), { method: "POST" });
+    if (!res.ok) return null;
+    return (await res.json()) as SalesSyncResponse;
+  } catch {
+    return null;
+  }
+}
+
 /** The seller's My eBay › Drafts page — where Listing API drafts land. */
 export const EBAY_DRAFTS_URL = "https://www.ebay.com/mye/myebay/drafts";
 

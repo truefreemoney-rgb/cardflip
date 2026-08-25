@@ -18,6 +18,7 @@ const PERMISSIONS = [
   "Publish a listing from CardFlip when you choose to",
   "Read your shipping, payment and return policies so listings are complete",
   "See your eBay username so we can show which account is linked",
+  "See your orders so sold cards are marked sold here automatically",
 ];
 
 const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {
