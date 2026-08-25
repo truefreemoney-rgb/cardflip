@@ -4,10 +4,12 @@ import CardImage from "@/components/CardImage";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import EbayPostActions from "@/components/EbayPostActions";
+import ListingCopyFields from "@/components/ListingCopyFields";
 import {
   buildSealedListing,
   ebaySearchUrl,
   ebaySoldSearchUrl,
+  withListingOverrides,
 } from "@/lib/listing";
 import { updateServerCard } from "@/lib/client/cardsApi";
 import type { ScanItem } from "@/lib/types";
@@ -33,7 +35,8 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
   if (item.status === "sold") return <SoldPanel item={item} />;
 
   const price = item.priceOverride ?? 0;
-  const listing = buildSealedListing(product, price, item.productType);
+  const generated = buildSealedListing(product, price, item.productType);
+  const listing = withListingOverrides(generated, item);
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
@@ -104,26 +107,7 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
         </div>
       </label>
 
-      <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-        Listing title
-        <input
-          readOnly
-          value={listing.title}
-          className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-zinc-200"
-        />
-        <span className="text-[11px] text-zinc-600">
-          {listing.title.length}/80 characters
-        </span>
-      </label>
-
-      <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-        Description
-        <textarea
-          readOnly
-          value={listing.description}
-          className="min-h-36 resize-y rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm leading-relaxed text-zinc-200"
-        />
-      </label>
+      <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 
       <EbayPostActions
         item={item}

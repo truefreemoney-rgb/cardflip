@@ -22,6 +22,9 @@ export interface SavedQueueEntry {
   priceOverride: number | null;
   strategy: PriceStrategy;
   grading: GradedInfo | null;
+  /** Absent in payloads saved before listing copy became editable. */
+  titleOverride?: string | null;
+  descriptionOverride?: string | null;
 }
 
 export interface SavedQueue {
@@ -43,6 +46,8 @@ export function saveQueue(items: ScanItem[]): void {
         priceOverride: item.priceOverride,
         strategy: item.strategy,
         grading: item.grading,
+        titleOverride: item.titleOverride,
+        descriptionOverride: item.descriptionOverride,
       })),
     total: items.length,
   };

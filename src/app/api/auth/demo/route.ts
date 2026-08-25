@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/users";
 import { disconnectEbay } from "@/lib/server/ebayAuth";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
+import { seedDemoCards } from "@/lib/server/demoSeed";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
@@ -46,6 +47,11 @@ function startDemo() {
     deleteCardPhoto(row.id);
   }
   db.prepare("DELETE FROM cards WHERE user_id = ?").run(user.id);
+  db.prepare("DELETE FROM price_checks WHERE user_id = ?").run(user.id);
+  db.prepare("DELETE FROM wishlist_items WHERE user_id = ?").run(user.id);
+  // A fresh visitor should see the product, not blank states — seed a small
+  // ledger of real catalog cards across draft/listed/sold.
+  seedDemoCards(user.id);
 
   const session = createSession(user.id);
   const res = NextResponse.json({

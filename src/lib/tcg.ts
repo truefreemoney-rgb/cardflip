@@ -48,18 +48,33 @@ function extractPrices(card: RawTcgCard): CardPrice[] {
     });
   }
 
+  // Cardmarket's product averages sometimes blend 1st Edition / graded sales
+  // into one number (Base Set Charizard: avg1 €14,950 next to a $855 TCGplayer
+  // market). A wildly divergent Cardmarket figure erodes trust in the whole
+  // panel, so sanity-check it against the steadier baselines before showing it.
   const cm = card.cardmarket?.prices;
   if (cm) {
-    prices.push({
-      source: "cardmarket",
-      currency: "EUR",
-      variant: "average",
-      label: "Average (EUR)",
-      market: cm.trendPrice ?? cm.averageSellPrice ?? null,
-      low: cm.lowPrice ?? null,
-      high: null,
-      trend: { avg1: cm.avg1 ?? null, avg7: cm.avg7 ?? null, avg30: cm.avg30 ?? null },
-    });
+    const market = cm.trendPrice ?? cm.averageSellPrice ?? null;
+    const tcgMarket = prices.reduce<number | null>(
+      (best, p) => (p.market != null && (best == null || p.market > best) ? p.market : best),
+      null,
+    );
+    const plausible = market == null || tcgMarket == null || market <= tcgMarket * 4;
+    if (plausible) {
+      const base = cm.avg30 ?? cm.avg7 ?? null;
+      const steady = (v: number | undefined) =>
+        v == null ? null : base != null && (v > base * 3 || v < base / 3) ? null : v;
+      prices.push({
+        source: "cardmarket",
+        currency: "EUR",
+        variant: "average",
+        label: "Average (EUR)",
+        market,
+        low: cm.lowPrice ?? null,
+        high: null,
+        trend: { avg1: steady(cm.avg1), avg7: steady(cm.avg7), avg30: cm.avg30 ?? null },
+      });
+    }
   }
 
   return prices;

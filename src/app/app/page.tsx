@@ -18,6 +18,7 @@ import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
 import {
   buildListing,
   buildSealedListing,
+  withListingOverrides,
   currentPrice,
   describeItemCondition,
   effectiveVariant,
@@ -77,6 +78,8 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     grading: null,
     productType: null,
     priceOverride: null,
+    titleOverride: null,
+    descriptionOverride: null,
     vision: null,
     visionStatus: "idle",
     ebay: null,
@@ -159,6 +162,8 @@ async function rebuildSavedItem(
     priceOverride:
       entry.priceOverride ??
       (row.kind === "sealed" && row.price > 0 ? row.price : null),
+    titleOverride: entry.titleOverride ?? null,
+    descriptionOverride: entry.descriptionOverride ?? null,
     ebayOfferId: row.ebayOfferId,
     ebayListingUrl: row.ebayListingUrl,
     ebayDraftUrl: row.ebayDraftUrl,
@@ -695,13 +700,15 @@ export default function AppPage() {
           ledgerId: item.serverId,
           hasPhoto: item.photoAt != null,
           sealed: item.kind === "sealed",
-          listing:
+          listing: withListingOverrides(
             item.kind === "sealed"
               ? buildSealedListing(item.card!, price, item.productType)
               : buildListing(item.card!, price, item.condition, quote?.price.label, {
                   firstEdition: item.firstEdition,
                   grading: item.grading,
                 }),
+            item,
+          ),
         };
       });
     if (rows.length === 0) return;
@@ -764,13 +771,15 @@ export default function AppPage() {
     for (const item of sendable) {
       const price = currentPrice(item);
       const quote = quotePrice(item.card!, item.condition, item.strategy, effectiveVariant(item));
-      const listing =
+      const listing = withListingOverrides(
         item.kind === "sealed"
           ? buildSealedListing(item.card!, price, item.productType)
           : buildListing(item.card!, price, item.condition, quote?.price.label, {
               firstEdition: item.firstEdition,
               grading: item.grading,
-            });
+            }),
+        item,
+      );
       const result = await sendEbayDraft({
         cardId: item.serverId!,
         listing,

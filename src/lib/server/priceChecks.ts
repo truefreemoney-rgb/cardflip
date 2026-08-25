@@ -42,6 +42,11 @@ function fromRow(row: PriceCheckRow): PriceCheckEntry {
   };
 }
 
+/** Re-checking the same card back-to-back shouldn't stack duplicate rows —
+ * refresh the existing entry instead when the last lookup of this exact card
+ * is recent. (The demo account used to show 40+ identical rows.) */
+const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
+
 export function logPriceCheck(
   userId: string,
   card: PokemonCard,
@@ -50,6 +55,33 @@ export function logPriceCheck(
   const id = randomUUID();
   const checkedAt = Date.now();
   const representativePrice = pickPrice(card)?.market ?? null;
+
+  const recent = db
+    .prepare(
+      `SELECT id FROM price_checks
+       WHERE user_id = ? AND card_name = ? AND set_name = ? AND card_number = ? AND language = ?
+         AND checked_at > ?
+       ORDER BY checked_at DESC LIMIT 1`,
+    )
+    .get(userId, card.name, card.setName, card.number, language, checkedAt - DEDUPE_WINDOW_MS) as
+    | { id: string }
+    | undefined;
+  if (recent) {
+    db.prepare(
+      "UPDATE price_checks SET representative_price = ?, prices_json = ?, checked_at = ? WHERE id = ?",
+    ).run(representativePrice, JSON.stringify(card.prices), checkedAt, recent.id);
+    return {
+      id: recent.id,
+      userId,
+      cardName: card.name,
+      setName: card.setName,
+      cardNumber: card.number,
+      language,
+      representativePrice,
+      prices: card.prices,
+      checkedAt,
+    };
+  }
 
   db.prepare(
     `INSERT INTO price_checks

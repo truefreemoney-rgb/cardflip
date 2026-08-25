@@ -7,6 +7,7 @@ import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
 import MarketMetricsPanel from "@/components/MarketMetricsPanel";
 import EbayPostActions from "@/components/EbayPostActions";
+import ListingCopyFields from "@/components/ListingCopyFields";
 import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
@@ -24,6 +25,7 @@ import {
   isFirstEditionVariant,
   quoteForItem,
   quotePrice,
+  withListingOverrides,
 } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import type {
@@ -262,13 +264,14 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
 
   const facts = { firstEdition: item.firstEdition, grading: item.grading };
   const price = item.priceOverride ?? quote?.suggested ?? 0;
-  const listing = buildListing(
+  const generated = buildListing(
     card,
     price,
     item.condition,
     quote?.price.label,
     facts,
   );
+  const listing = withListingOverrides(generated, item);
   // This dropdown chooses what the dollar asking price is derived from, so it
   // only offers prices that can actually serve as that basis — a euro figure
   // picked here would silently become a dollar listing price. On eligible
@@ -657,26 +660,7 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
         </div>
       </label>
 
-      <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-        Listing title
-        <input
-          readOnly
-          value={listing.title}
-          className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-zinc-200"
-        />
-        <span className="text-[11px] text-zinc-600">
-          {listing.title.length}/80 characters
-        </span>
-      </label>
-
-      <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-        Description
-        <textarea
-          readOnly
-          value={listing.description}
-          className="min-h-36 resize-y rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm leading-relaxed text-zinc-200"
-        />
-      </label>
+      <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 
       <EbayPostActions
         item={item}

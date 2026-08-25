@@ -243,6 +243,10 @@ export interface ScanItem {
   productType: string | null;
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
+  /** Seller-edited listing title, or null to use the generated one. */
+  titleOverride: string | null;
+  /** Seller-edited listing description, or null to use the generated one. */
+  descriptionOverride: string | null;
   /** What Claude read off the photo, when vision is configured. */
   vision: VisionCardRead | null;
   visionStatus: VisionStatus;

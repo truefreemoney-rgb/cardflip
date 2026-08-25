@@ -518,6 +518,21 @@ export function buildSealedListing(
   };
 }
 
+/**
+ * The seller's own words win over the generated copy. Overrides live on the
+ * queue item so every posting road — the editor's buttons, "Send all", and
+ * the CSV export — ships the same text the editor showed.
+ */
+export function withListingOverrides(
+  listing: ListingDraft,
+  item: { titleOverride: string | null; descriptionOverride: string | null },
+): ListingDraft {
+  const title = item.titleOverride?.trim() ? item.titleOverride.slice(0, 80) : listing.title;
+  const description = item.descriptionOverride?.trim() ? item.descriptionOverride : listing.description;
+  if (title === listing.title && description === listing.description) return listing;
+  return { ...listing, title, description };
+}
+
 /** The buyer-facing search terms for what's actually being sold. */
 function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
   const name = card.englishName || card.name;
