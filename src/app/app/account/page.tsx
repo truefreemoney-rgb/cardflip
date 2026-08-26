@@ -368,7 +368,11 @@ function AccountSettings({
       {/* Two-step verification */}
       <Section
         title="Two-step verification"
-        hint="A 6-digit code from an authenticator app is asked for at every sign-in, on top of your password."
+        hint={
+          user.role === "admin"
+            ? "Admin accounts sign in with password only — codes are never asked for."
+            : "A 6-digit code from an authenticator app is asked for at every sign-in, on top of your password."
+        }
       >
         {user.totpEnabled ? (
           <div className="flex flex-col gap-3">

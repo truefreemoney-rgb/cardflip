@@ -1,7 +1,6 @@
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
-import DemoButton from "@/components/DemoButton";
 import HeroShowcase from "@/components/HeroShowcase";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
@@ -136,7 +135,6 @@ export default async function Home() {
                 >
                   Start selling free
                 </Link>
-                <DemoButton />
               </div>
 
               <dl

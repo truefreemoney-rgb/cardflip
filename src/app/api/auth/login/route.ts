@@ -11,8 +11,12 @@ export async function POST(req: Request) {
   const limited = limitOrRespond(`auth:login:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   const body = await req.json().catch(() => null);
-  const email = typeof body?.email === "string" ? body.email.trim() : "";
+  let email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
+
+  // Dev/test convenience (Chris, 08-26): typing just "admin" signs into the
+  // admin account without the email dance. Any other input is an email.
+  if (email.toLowerCase() === "admin") email = "admin@cardflip.dev";
 
   const user = email ? await findUserByEmail(email) : null;
 
@@ -29,7 +33,8 @@ export async function POST(req: Request) {
   // same credentials with the 6-digit authenticator code once prompted.
   // Stateless on purpose (no pending-login token to store or expire); the
   // per-IP limiter above is the brute-force backstop for codes too.
-  if (totpEnabled(user)) {
+  // Admins skip it (Chris, 08-26: dev-test accounts shouldn't need a phone).
+  if (user.role !== "admin" && totpEnabled(user)) {
     const code = typeof body?.code === "string" ? body.code : "";
     if (!code) {
       return NextResponse.json({ totpRequired: true, error: "Enter your authenticator code." }, { status: 401 });
