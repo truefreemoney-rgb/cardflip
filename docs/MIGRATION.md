@@ -43,6 +43,17 @@ cutover step.
    (branch), env vars copied from Fly secrets, Turso seeded from a fresh
    SQLite export, full test pass on the vercel.app preview URL including
    scan→price→draft.
+   **Pre-work ✅ DONE 08-25:** Turso provisioned via Platform API (org
+   `cardflipper`, group `default` @ aws-us-east-1, db `cardflip`, url
+   `libsql://cardflip-cardflipper.aws-us-east-1.turso.io`; db auth token
+   minted full-access/never-expires — session-local, becomes a Vercel env
+   var; Chris's platform token was pasted in chat 08-25 → revoke it at
+   app.turso.tech after cutover). Seeded 330,471 rows from the local file
+   in 89s via scripts/seed-turso.mjs (counts verified table-by-table),
+   and the whole app ran against Turso locally — demo wipe+reseed
+   (writes), Pokémon + MTG search, price history all clean. Cutover
+   re-seed: copy prod's volume file local, `--wipe` run of the same
+   script.
 5. **Cutover.** Brief write freeze → final data delta → Dynadot DNS from
    Fly IPs to Vercel (A 76.76.21.21 / CNAME www) → Chris updates eBay dev
    portal (RuName callback + account-deletion endpoint) → Fly kept warm
