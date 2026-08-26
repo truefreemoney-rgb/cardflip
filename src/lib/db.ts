@@ -312,6 +312,17 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_ebay_tokens_ebay_user ON ebay_tokens(ebay_user_id);
 
+  -- The seller's own photo of each ledger card (cardPhotos.ts): ≤1600px
+  -- client-re-encoded JPEGs, so a row is a few hundred KB. In the DB on
+  -- purpose — serverless hosting then needs no separate file store, and
+  -- the whole product lives in Turso. Explicitly deleted with the card;
+  -- the CASCADE is only a backstop (unverified over HTTP, see header).
+  CREATE TABLE IF NOT EXISTS card_photos (
+    card_id TEXT PRIMARY KEY REFERENCES cards(id) ON DELETE CASCADE,
+    bytes BLOB NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
   -- TCGplayer productId -> card map from scripts/backfill-tcgcsv.mjs
   -- (pokemonPriceRefresh.ts).
   CREATE TABLE IF NOT EXISTS tcgplayer_products (

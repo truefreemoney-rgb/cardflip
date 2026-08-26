@@ -10,7 +10,7 @@ cutover step.
 | Today (Fly) | After (Vercel) |
 |---|---|
 | SQLite file on volume (`node:sqlite`, sync) | **Turso** (libSQL — same SQL dialect, async client) |
-| Card photos on disk (`cardPhotos.ts`) | **Tigris S3 bucket** (reuse the existing `backup.ts` SigV4 client — no new vendor) |
+| Card photos on disk (`cardPhotos.ts`) | **Blobs in Turso** (`card_photos` table — Chris 08-26: no Tigris/Fly dependency left after cutover, everything lives in the one database) |
 | `instrumentation.ts` hourly timer + heartbeat | **Vercel Cron** → split cron endpoints |
 | In-memory rate limiting (single machine) | DB-backed buckets in Turso (best-effort per-route) |
 | `backup.ts` VACUUM INTO → Tigris | Retired — Turso has point-in-time restore |
@@ -31,9 +31,12 @@ cutover step.
    closed (beforeExit hook in db.ts). Verified: tsc/lint clean, all 9
    suites pass, dev-server e2e (demo seed, Pokémon+MTG search, history,
    wishlist, price checks) clean on the file backend.
-2. **Photos → Tigris.** `cardPhotos.ts` reads/writes S3 objects instead of
-   `data/photos/`; `/api/card-image/[id]` streams from the bucket. One-time
-   copy script for existing photos.
+2. **Photos → the database.** ✅ DONE 08-26. `cardPhotos.ts` reads/writes
+   the `card_photos` blob table instead of `data/photos/` (both dev and
+   prod — no fs path left); `scripts/migrate-photos.mjs` copies the
+   existing volume photos in at cutover (idempotent, `--dry-run`).
+   First plan was a Tigris S3 backend (briefly committed as `770d482`);
+   Chris redirected: no Fly-hosted anything after cutover.
 3. **Jobs → Vercel Cron.** `dailyJobs.ts` splits into per-step endpoints
    (`/api/cron/mtg-prices`, `/pokemon-prices`, `/sweep`, `/ebay-sales`),
    each under the function time limit (Fluid compute, maxDuration raised;
@@ -72,7 +75,8 @@ cutover step.
 5. **Cutover.** Brief write freeze → final data delta → Dynadot DNS from
    Fly IPs to Vercel (A 76.76.21.21 / CNAME www) → Chris updates eBay dev
    portal (RuName callback + account-deletion endpoint) → Fly kept warm
-   one week as rollback → decommission Fly machine + volume.
+   one week as rollback → decommission Fly machine + volume + the Tigris
+   bucket (nothing references it after cutover; Turso PITR is the backup).
 
 ## Rollback
 

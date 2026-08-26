@@ -1,87 +1,60 @@
-// Copy every card photo from data/photos/ into the Tigris S3 bucket.
+// Copy every card photo from data/photos/ into the card_photos table.
 //
-//   AWS_ENDPOINT_URL_S3=... BUCKET_NAME=... AWS_ACCESS_KEY_ID=... \
-//   AWS_SECRET_ACCESS_KEY=... node scripts/migrate-photos.mjs [--dry-run]
+//   TURSO_DATABASE_URL=libsql://... TURSO_AUTH_TOKEN=... \
+//   node scripts/migrate-photos.mjs [--dry-run]
 //
 // One-time cutover step for the Fly -> Vercel migration: photos live on the
-// Fly volume today and on Tigris after (keys `photos/<id>.jpg`, matching
-// lib/server/cardPhotos.ts). Idempotent — a re-run just overwrites the same
-// keys. Run with the photo dir copied local (like the DB re-seed), or on the
-// Fly machine itself since the AWS_* secrets are already set there.
+// Fly volume today and inside the database after (cardPhotos.ts). Without
+// TURSO_* set it writes to the local data/cardflip.db instead. Idempotent —
+// a re-run overwrites the same rows. Run with the photo dir copied local
+// (like the DB re-seed): PHOTO_SOURCE=path overrides the default dir.
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
+import { createClient } from "@libsql/client";
 
-const env = {
-  endpoint: process.env.AWS_ENDPOINT_URL_S3,
-  bucket: process.env.BUCKET_NAME,
-  keyId: process.env.AWS_ACCESS_KEY_ID,
-  secret: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || "auto",
-};
-if (!env.endpoint || !env.bucket || !env.keyId || !env.secret) {
-  console.error("Set AWS_ENDPOINT_URL_S3, BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY");
-  process.exit(1);
-}
+const url = process.env.TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 const dryRun = process.argv.includes("--dry-run");
-
 const PHOTO_DIR = process.env.PHOTO_SOURCE ?? path.join(process.cwd(), "data", "photos");
+const DB_PATH = path.join(process.cwd(), "data", "cardflip.db").replace(/\\/g, "/");
 
-const hmac = (key, data) => crypto.createHmac("sha256", key).update(data).digest();
-const sha256Hex = (data) => crypto.createHash("sha256").update(data).digest("hex");
-
-// Same hand-rolled SigV4 PUT as src/lib/server/backup.ts (kept dependency-free).
-async function putObject(key, body) {
-  const url = new URL(`${env.endpoint}/${env.bucket}/${key}`);
-  const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const date = amzDate.slice(0, 8);
-  const payloadHash = sha256Hex(body);
-  const headers = {
-    "content-type": "image/jpeg",
-    host: url.host,
-    "x-amz-content-sha256": payloadHash,
-    "x-amz-date": amzDate,
-  };
-  const signedNames = Object.keys(headers).sort();
-  const canonicalHeaders = signedNames.map((n) => `${n}:${headers[n].trim()}\n`).join("");
-  const signedHeaders = signedNames.join(";");
-  const canonicalRequest = ["PUT", encodeURI(url.pathname), "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
-  const scope = `${date}/${env.region}/s3/aws4_request`;
-  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256Hex(canonicalRequest)].join("\n");
-  const signingKey = hmac(hmac(hmac(hmac(`AWS4${env.secret}`, date), env.region), "s3"), "aws4_request");
-  const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: {
-      ...headers,
-      authorization: `AWS4-HMAC-SHA256 Credential=${env.keyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-    },
-    body: new Uint8Array(body),
-  });
-  if (!res.ok) throw new Error(`PUT ${key} failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
-}
+const db = createClient(url ? { url, authToken } : { url: `file:${DB_PATH}` });
+console.log(`target: ${url ?? DB_PATH}${dryRun ? " (dry run)" : ""}`);
 
 const files = fs.existsSync(PHOTO_DIR)
   ? fs.readdirSync(PHOTO_DIR).filter((f) => /^[0-9a-f-]{36}\.jpg$/i.test(f))
   : [];
-console.log(`${files.length} photo(s) in ${PHOTO_DIR}${dryRun ? " (dry run)" : ""}`);
+console.log(`${files.length} photo file(s) in ${PHOTO_DIR}`);
 
 let done = 0;
+let orphaned = 0;
 let failed = 0;
 for (const f of files) {
-  const key = `photos/${f.toLowerCase()}`;
-  if (dryRun) {
-    console.log(`would PUT ${key}`);
-    continue;
-  }
+  const cardId = f.slice(0, -4);
   try {
-    await putObject(key, fs.readFileSync(path.join(PHOTO_DIR, f)));
+    // The table references cards(id); a photo whose card is gone is junk.
+    const owner = await db.execute({ sql: "SELECT 1 FROM cards WHERE id = ?", args: [cardId] });
+    if (owner.rows.length === 0) {
+      orphaned++;
+      console.log(`skip (no card row): ${cardId}`);
+      continue;
+    }
+    if (dryRun) {
+      console.log(`would copy ${cardId}`);
+      continue;
+    }
+    const bytes = fs.readFileSync(path.join(PHOTO_DIR, f));
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO card_photos (card_id, bytes, updated_at) VALUES (?, ?, ?)",
+      args: [cardId, bytes, Math.floor(fs.statSync(path.join(PHOTO_DIR, f)).mtimeMs)],
+    });
     done++;
     if (done % 25 === 0) console.log(`${done}/${files.length}...`);
   } catch (err) {
     failed++;
-    console.error(`FAILED ${key}: ${err.message}`);
+    console.error(`FAILED ${cardId}: ${err.message}`);
   }
 }
-console.log(`done: ${done} uploaded, ${failed} failed`);
+console.log(`done: ${done} copied, ${orphaned} orphaned, ${failed} failed`);
+db.close();
 process.exit(failed > 0 ? 1 : 0);
