@@ -54,6 +54,21 @@ cutover step.
    (writes), Pokémon + MTG search, price history all clean. Cutover
    re-seed: copy prod's volume file local, `--wipe` run of the same
    script.
+   **Preview deployed ✅ 08-25:** Vercel project `cardflip` (team
+   card-flip1, prj_GlXQxal5IAh2oG0zls2ZGjhK212b) imported by Chris from
+   GitHub; via the Vercel API (token in session scratchpad — Chris should
+   revoke it + the Turso platform token after cutover): wiped the 21
+   placeholder envs auto-imported from .env.example, set
+   TURSO_DATABASE_URL/TURSO_AUTH_TOKEN (prod+preview), disabled
+   deployment protection, deployed the `vercel-migration` branch.
+   Smoke-tested the READY deployment end-to-end (landing, demo
+   login+reseed writes, Pokémon + MTG search, price history, session):
+   ALL PASS. Still absent on the preview (expected): vision scan / eBay
+   / SMTP — their real secrets exist only inside Fly (write-only) and
+   must be re-entered at cutover from their source dashboards (Anthropic
+   console, eBay dev portal, Fastmail); CRON_SECRET/EBAY_TOKEN_KEY can
+   simply be regenerated. Photo upload will 500 until Phase 2 (read-only
+   fs on serverless).
 5. **Cutover.** Brief write freeze → final data delta → Dynadot DNS from
    Fly IPs to Vercel (A 76.76.21.21 / CNAME www) → Chris updates eBay dev
    portal (RuName callback + account-deletion endpoint) → Fly kept warm
