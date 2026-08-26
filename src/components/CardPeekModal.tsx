@@ -6,7 +6,6 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
-import DemoButton from "@/components/DemoButton";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import type { PokemonCard } from "@/lib/types";
@@ -112,7 +111,6 @@ export default function CardPeekModal({ card, onClose }: Props) {
           >
             Price your cards free
           </Link>
-          <DemoButton />
         </div>
       </div>
     </div>,

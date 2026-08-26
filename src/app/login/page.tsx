@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
-import DemoButton from "@/components/DemoButton";
 import { TotpRequiredError, afterLoginPath, login } from "@/lib/client/auth";
 
 const FIELD =
@@ -152,17 +151,6 @@ export default function LoginPage() {
             {submitting ? "Logging in…" : "Log in"}
           </button>
         </form>
-
-        {/* Reviewers (eBay's included) often land here straight from a form
-            field — give them the same no-signup way in as the homepage. */}
-        <div className="mt-5 flex items-center gap-3 text-xs text-zinc-600">
-          <span className="h-px flex-1 bg-white/10" aria-hidden />
-          or
-          <span className="h-px flex-1 bg-white/10" aria-hidden />
-        </div>
-        <div className="mt-4 flex justify-center">
-          <DemoButton />
-        </div>
 
         <p className="mt-6 text-center text-xs text-zinc-500">
           No account?{" "}
