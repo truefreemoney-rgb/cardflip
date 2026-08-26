@@ -34,9 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "New password matches the current one" }, { status: 400 });
     }
 
-    updateUserPassword(user.id, newPassword);
+    await updateUserPassword(user.id, newPassword);
     const store = await cookies();
-    const signedOut = destroyOtherSessions(user.id, store.get(SESSION_COOKIE)?.value ?? null);
+    const signedOut = await destroyOtherSessions(user.id, store.get(SESSION_COOKIE)?.value ?? null);
     return NextResponse.json({ ok: true, signedOutElsewhere: signedOut });
   } catch (err) {
     if (err instanceof AuthError) {

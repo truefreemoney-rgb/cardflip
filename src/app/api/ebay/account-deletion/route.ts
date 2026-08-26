@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   // endpoint failed on anything else.
   const username = typeof data?.username === "string" ? data.username : null;
   const userId = typeof data?.userId === "string" ? data.userId : null;
-  const purged = username || userId ? purgeEbayAccount(userId, username) : 0;
+  const purged = username || userId ? await purgeEbayAccount(userId, username) : 0;
   console.log("[ebay] account deletion notice", { username, userId, purged });
 
   return new NextResponse(null, { status: 200 });

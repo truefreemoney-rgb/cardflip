@@ -53,16 +53,16 @@ function fromRow(row: WishlistRow): WishlistItem {
 
 /** Silently no-ops on a duplicate (same user + card) rather than erroring —
  * clicking "add" on something already saved should just feel like it worked. */
-export function addToWishlist(
+export async function addToWishlist(
   userId: string,
   card: PokemonCard,
   language: ScanLanguage,
   price: number | null,
-): WishlistItem {
+): Promise<WishlistItem> {
   const id = randomUUID();
   const addedAt = Date.now();
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO wishlist_items
        (id, user_id, card_name, english_name, set_name, card_number, language, image_url, price, added_at, card_id, game)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -83,27 +83,27 @@ export function addToWishlist(
   );
 
   // A row saved before card_id existed learns it when the same card is added again.
-  db.prepare(
+  await db.prepare(
     `UPDATE wishlist_items SET card_id = ?, game = ?
      WHERE user_id = ? AND card_name = ? AND set_name = ? AND card_number = ? AND card_id IS NULL`,
   ).run(card.id || null, card.game ?? "pokemon", userId, card.name, card.setName, card.number);
 
-  const existing = db
+  const existing = (await db
     .prepare(
       "SELECT * FROM wishlist_items WHERE user_id = ? AND card_name = ? AND set_name = ? AND card_number = ?",
     )
-    .get(userId, card.name, card.setName, card.number) as unknown as WishlistRow;
+    .get(userId, card.name, card.setName, card.number)) as unknown as WishlistRow;
 
   return fromRow(existing);
 }
 
-export function removeFromWishlist(id: string, userId: string): void {
-  db.prepare("DELETE FROM wishlist_items WHERE id = ? AND user_id = ?").run(id, userId);
+export async function removeFromWishlist(id: string, userId: string): Promise<void> {
+  await db.prepare("DELETE FROM wishlist_items WHERE id = ? AND user_id = ?").run(id, userId);
 }
 
-export function listWishlist(userId: string): WishlistItem[] {
-  const rows = db
+export async function listWishlist(userId: string): Promise<WishlistItem[]> {
+  const rows = (await db
     .prepare("SELECT * FROM wishlist_items WHERE user_id = ? ORDER BY added_at DESC")
-    .all(userId) as unknown as WishlistRow[];
+    .all(userId)) as unknown as WishlistRow[];
   return rows.map(fromRow);
 }

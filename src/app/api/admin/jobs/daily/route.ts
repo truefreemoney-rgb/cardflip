@@ -6,7 +6,7 @@ import { dailyStatus, runDailyIfDue } from "@/lib/server/dailyJobs";
 export async function GET() {
   try {
     await requireAdmin();
-    return NextResponse.json({ status: dailyStatus() });
+    return NextResponse.json({ status: await dailyStatus() });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;
@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST() {
   try {
     await requireAdmin();
-    const status = dailyStatus();
+    const status = await dailyStatus();
     if (status.running) return NextResponse.json({ started: false, status });
     after(() => runDailyIfDue(true));
     return NextResponse.json({ started: true, status: { ...status, running: true } });

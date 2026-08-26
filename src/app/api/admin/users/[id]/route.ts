@@ -11,10 +11,10 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     await requireAdmin();
     const { id } = await params;
-    const user = findUserById(id);
+    const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
     if (isDemoUser(user)) return NextResponse.json({ error: "The demo account can't be deleted." }, { status: 400 });
-    deleteUser(id);
+    await deleteUser(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });

@@ -34,10 +34,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid", message: "Enter your email." }, { status: 400 });
   }
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (user && !isDemoUser(user)) {
     try {
-      const { url } = issueResetToken(user);
+      const { url } = await issueResetToken(user);
       await sendPasswordResetEmail(user.email, url);
     } catch (err) {
       // Logged, not surfaced: surfacing "send failed" only for real accounts

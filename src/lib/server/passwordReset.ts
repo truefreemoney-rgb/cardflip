@@ -21,16 +21,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 
 const RESET_TTL_MS = 60 * 60 * 1000;
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS password_resets (
-    token_hash TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL,
-    used_at INTEGER
-  );
-  CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
-`);
+// Schema (password_resets) lives in lib/db.ts behind the adapter's schema gate.
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -51,25 +42,25 @@ export interface IssuedReset {
  * live link per user keeps "I clicked the old email" failures explainable.
  * The demo account is never resettable: it's shared and wiped on entry.
  */
-export function issueResetToken(user: Pick<User, "id" | "email">): IssuedReset {
+export async function issueResetToken(user: Pick<User, "id" | "email">): Promise<IssuedReset> {
   if (isDemoUser(user)) throw new Error("The demo account has no password to reset");
   const token = randomBytes(32).toString("base64url");
   const now = Date.now();
   const expiresAt = now + RESET_TTL_MS;
-  db.prepare("DELETE FROM password_resets WHERE user_id = ? AND used_at IS NULL").run(user.id);
-  db.prepare(
+  await db.prepare("DELETE FROM password_resets WHERE user_id = ? AND used_at IS NULL").run(user.id);
+  await db.prepare(
     "INSERT INTO password_resets (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
   ).run(hashToken(token), user.id, now, expiresAt);
   return { token, url: resetUrl(token), expiresAt };
 }
 
 /** Which user a link belongs to, if it's still good. Doesn't consume it. */
-export function peekResetToken(token: string): User | null {
-  const row = db
+export async function peekResetToken(token: string): Promise<User | null> {
+  const row = (await db
     .prepare(
       "SELECT user_id, expires_at, used_at FROM password_resets WHERE token_hash = ?",
     )
-    .get(hashToken(token)) as
+    .get(hashToken(token))) as
     | { user_id: string; expires_at: number; used_at: number | null }
     | undefined;
   if (!row || row.used_at != null || row.expires_at < Date.now()) return null;
@@ -80,20 +71,20 @@ export function peekResetToken(token: string): User | null {
  * Set the new password and burn the link. Returns the user (so the caller can
  * log them straight in) or null when the link is unknown, used, or expired.
  */
-export function consumeResetToken(token: string, newPassword: string): User | null {
-  const user = peekResetToken(token);
+export async function consumeResetToken(token: string, newPassword: string): Promise<User | null> {
+  const user = await peekResetToken(token);
   if (!user) return null;
   const now = Date.now();
-  db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
+  await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
     hashPassword(newPassword),
     user.id,
   );
-  db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ?").run(
+  await db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ?").run(
     now,
     hashToken(token),
   );
   // Every other device is signed out; the caller issues a fresh session.
-  db.prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);
+  await db.prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);
   return findUserById(user.id);
 }
 

@@ -6,7 +6,7 @@ import { disconnectEbay } from "@/lib/server/ebayAuth";
 export async function POST() {
   try {
     const user = await requireUser();
-    disconnectEbay(user.id);
+    await disconnectEbay(user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {

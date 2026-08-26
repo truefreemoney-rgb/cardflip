@@ -55,47 +55,19 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok || !res.body) throw new Error(`Scryfall bulk download: HTTP ${res.status}`);
 
-  const update = db.prepare(
-    `UPDATE mtg_cards SET price_usd = ?, price_usd_foil = ?, price_usd_etched = ?, price_eur = ?, price_eur_foil = ?
-      WHERE id = ?`,
-  );
-  const selectRow = db.prepare(
-    "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?",
-  );
-  const upsertRow = db.prepare(
-    `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-     VALUES (?, 'mtg', ?, 'tcgplayer', 'USD', ?, ?, ?)`,
-  );
+  const UPDATE = `UPDATE mtg_cards SET price_usd = ?, price_usd_foil = ?, price_usd_etched = ?, price_eur = ?, price_eur_foil = ?
+      WHERE id = ?`;
+  const SELECT_ROW =
+    "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?";
+  const UPSERT_ROW = `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+     VALUES (?, 'mtg', ?, 'tcgplayer', 'USD', ?, ?, ?)`;
 
   let scanned = 0, updated = 0, seriesTouched = 0;
-  // Short transactions in batches: the stream takes minutes, and a single
-  // long write lock would make every other write in the app hit busy_timeout.
+  // The stream is collected first, then written in short per-batch
+  // transactions: with the async adapter a write can't be interleaved into
+  // the stream callback, and ~90k parsed price rows are only a few MB.
   const BATCH = 500;
-  let pending: { id: string; usd: number | null; foil: number | null; etched: number | null; eur: number | null; eurFoil: number | null }[] = [];
-  const flush = () => {
-    if (pending.length === 0) return;
-    db.exec("BEGIN");
-    try {
-      for (const c of pending) {
-        const r = update.run(c.usd, c.foil, c.etched, c.eur, c.eurFoil, c.id);
-        if (Number(r.changes) === 0) continue; // not a printing we carry
-        updated++;
-        for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
-          if (price == null) continue;
-          const existing = selectRow.get(c.id, variant, "tcgplayer") as { start_day: string; prices: string } | undefined;
-          if (!existing && price < MIN_TRACKED_USD) continue;
-          const next = setDay(existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null, day, price);
-          upsertRow.run(c.id, variant, next.startDay, encodePrices(next.prices), day);
-          seriesTouched++;
-        }
-      }
-      db.exec("COMMIT");
-    } catch (err) {
-      db.exec("ROLLBACK");
-      throw err;
-    }
-    pending = [];
-  };
+  const pending: { id: string; usd: number | null; foil: number | null; etched: number | null; eur: number | null; eurFoil: number | null }[] = [];
   const onCard = (obj: unknown) => {
     const c = obj as ScryfallCard;
     if (!c?.id || c.lang !== "en" || !c.prices) return;
@@ -105,7 +77,6 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
       usd: num(c.prices.usd), foil: num(c.prices.usd_foil), etched: num(c.prices.usd_etched),
       eur: num(c.prices.eur), eurFoil: num(c.prices.eur_foil),
     });
-    if (pending.length >= BATCH) flush();
   };
   if (url.endsWith(".jsonl.gz") || url.endsWith(".jsonl")) {
     // One JSON object per line; gunzip if the CDN handed us the .gz as-is.
@@ -118,6 +89,28 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } else {
     await streamJsonObjects(res.body, 2, onCard);
   }
-  flush();
+  // Short transactions in batches: a single long write lock would make every
+  // other write in the app wait the whole pass out.
+  for (let i = 0; i < pending.length; i += BATCH) {
+    const slice = pending.slice(i, i + BATCH);
+    await db.transaction(async (tx) => {
+      const update = tx.prepare(UPDATE);
+      const selectRow = tx.prepare(SELECT_ROW);
+      const upsertRow = tx.prepare(UPSERT_ROW);
+      for (const c of slice) {
+        const r = await update.run(c.usd, c.foil, c.etched, c.eur, c.eurFoil, c.id);
+        if (Number(r.changes) === 0) continue; // not a printing we carry
+        updated++;
+        for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
+          if (price == null) continue;
+          const existing = (await selectRow.get(c.id, variant, "tcgplayer")) as { start_day: string; prices: string } | undefined;
+          if (!existing && price < MIN_TRACKED_USD) continue;
+          const next = setDay(existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null, day, price);
+          await upsertRow.run(c.id, variant, next.startDay, encodePrices(next.prices), day);
+          seriesTouched++;
+        }
+      }
+    });
+  }
   return { scanned, updated, seriesTouched, day };
 }

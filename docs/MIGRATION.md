@@ -18,10 +18,19 @@ cutover step.
 
 ## Phases
 
-1. **Async DB layer** (the long pole — 105 sync call sites / 22 files).
-   Replace `node:sqlite` with `@libsql/client`; every `db.prepare().get/
-   all/run` becomes `await`. Mechanical but wide: every server lib and
-   route goes async-aware. Schema DDL unchanged (SQLite dialect).
+1. **Async DB layer** — ✅ DONE 08-25 (this branch). `@libsql/client`
+   adapter in lib/db.ts keeps the `db.prepare().get/all/run` shape (plus
+   `db.transaction()` — the HTTP client rejects raw BEGIN); backend picked
+   by env (TURSO_DATABASE_URL → remote, else the same local file). All
+   scattered module-load DDL folded behind one schema gate. seedMtgMirror
+   keeps its own sync node:sqlite connection, file-mode only. Gotchas
+   found the hard way: (a) `as unknown as` casts and Promises passed into
+   NextResponse.json() hide missing awaits from tsc — swept both classes
+   by grep, verify with runtime smoke tests not just tsc; (b) the libsql
+   native binding asserts at Windows process exit unless the client is
+   closed (beforeExit hook in db.ts). Verified: tsc/lint clean, all 9
+   suites pass, dev-server e2e (demo seed, Pokémon+MTG search, history,
+   wishlist, price checks) clean on the file backend.
 2. **Photos → Tigris.** `cardPhotos.ts` reads/writes S3 objects instead of
    `data/photos/`; `/api/card-image/[id]` streams from the bucket. One-time
    copy script for existing photos.

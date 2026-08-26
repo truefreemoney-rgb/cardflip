@@ -60,12 +60,12 @@ function levenshtein(a: string, b: string): number {
 // SQLite for every fuzzy scan.
 const allNamesCache = new Map<CjkLanguage, CjkCardRow[]>();
 
-function getAllNames(lang: CjkLanguage): CjkCardRow[] {
+async function getAllNames(lang: CjkLanguage): Promise<CjkCardRow[]> {
   let cached = allNamesCache.get(lang);
   if (!cached) {
-    cached = db
+    cached = (await db
       .prepare(`SELECT id, name, set_id, set_name, local_id FROM ${CONFIG[lang].table}`)
-      .all() as unknown as CjkCardRow[];
+      .all()) as unknown as CjkCardRow[];
     allNamesCache.set(lang, cached);
   }
   return cached;
@@ -122,11 +122,11 @@ function positionalOverlap(a: string, b: string): number {
  * characters with the query, so a card can still surface even when the
  * scan got most of its name wrong.
  */
-function fuzzySearch(lang: CjkLanguage, name: string, limit: number): CjkCardRef[] {
+async function fuzzySearch(lang: CjkLanguage, name: string, limit: number): Promise<CjkCardRef[]> {
   const maxDistance = Math.max(1, Math.ceil(name.length * 0.6));
   const minOverlap = Math.max(1, Math.ceil(name.length / 2));
 
-  const scored = getAllNames(lang)
+  const scored = (await getAllNames(lang))
     .map((row) => ({
       row,
       distance: levenshtein(name, row.name),
@@ -142,25 +142,25 @@ function fuzzySearch(lang: CjkLanguage, name: string, limit: number): CjkCardRef
   return scored.slice(0, limit).map((s) => toRef(s.row));
 }
 
-export function searchCjkCardsLocal(
+export async function searchCjkCardsLocal(
   lang: CjkLanguage,
   name: string,
   number?: string | null,
-): CjkCardRef[] {
+): Promise<CjkCardRef[]> {
   const table = CONFIG[lang].table;
   const needle = `%${name}%`;
 
   const exact = number
-    ? (db
+    ? ((await db
         .prepare(
           `SELECT id, name, set_id, set_name, local_id FROM ${table} WHERE name LIKE ? AND local_id = ? LIMIT 12`,
         )
-        .all(needle, number.padStart(3, "0")) as unknown as CjkCardRow[])
-    : (db
+        .all(needle, number.padStart(3, "0"))) as unknown as CjkCardRow[])
+    : ((await db
         .prepare(
           `SELECT id, name, set_id, set_name, local_id FROM ${table} WHERE name LIKE ? LIMIT 12`,
         )
-        .all(needle) as unknown as CjkCardRow[]);
+        .all(needle)) as unknown as CjkCardRow[]);
 
   // A number filter that matches nothing (misread by OCR) shouldn't hide an
   // otherwise-good name match — fall back to name-only rather than empty.
@@ -194,12 +194,12 @@ interface TcgdexCardDetail {
  * looks up the species' English name locally (see species_names /
  * scripts/sync-species-names.mjs) so the UI can show it as a plain overlay.
  */
-function getEnglishName(dexId?: number[]): string | null {
+async function getEnglishName(dexId?: number[]): Promise<string | null> {
   const id = dexId?.[0];
   if (!id) return null;
-  const row = db
+  const row = (await db
     .prepare("SELECT name_en FROM species_names WHERE dex_id = ?")
-    .get(id) as { name_en: string } | undefined;
+    .get(id)) as { name_en: string } | undefined;
   return row?.name_en ?? null;
 }
 
@@ -281,6 +281,6 @@ export async function fetchCjkCardDetail(
     imageSmall: "",
     imageLarge: "",
     prices: mapCjkPricing(card.pricing),
-    englishName: getEnglishName(card.dexId),
+    englishName: await getEnglishName(card.dexId),
   };
 }

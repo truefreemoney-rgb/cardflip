@@ -22,5 +22,5 @@ export async function GET(req: NextRequest) {
   // Awaited on purpose: the pinger's timeout is the only thing keeping the
   // machine awake long enough to finish, and its log shows the result.
   const result = await runDailyIfDue(force);
-  return NextResponse.json({ ...result, status: dailyStatus() });
+  return NextResponse.json({ ...result, status: await dailyStatus() });
 }

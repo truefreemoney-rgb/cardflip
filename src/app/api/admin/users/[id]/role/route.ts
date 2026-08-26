@@ -18,8 +18,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "role must be 'admin' or 'user'" }, { status: 400 });
     }
 
-    setUserRole(id, role);
-    const updated = findUserById(id);
+    await setUserRole(id, role);
+    const updated = await findUserById(id);
     if (!updated) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

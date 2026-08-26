@@ -19,20 +19,20 @@ interface SetRow {
 
 export async function GET(req: NextRequest) {
   try {
-    return listSets(req);
+    return await listSets(req);
   } catch (err) {
     console.error("Set catalogue failed:", err);
     return NextResponse.json({ error: "Couldn't load the set list" }, { status: 500 });
   }
 }
 
-function listSets(req: NextRequest) {
+async function listSets(req: NextRequest) {
   // ?game=mtg → the Scryfall mirror's sets (with their set icons).
   if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
-    return NextResponse.json({ sets: listMtgSets() });
+    return NextResponse.json({ sets: await listMtgSets() });
   }
 
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT set_name,
               MIN(set_release_date) AS release_date,
@@ -42,7 +42,7 @@ function listSets(req: NextRequest) {
         GROUP BY set_name
         ORDER BY release_date DESC`,
     )
-    .all() as unknown as SetRow[];
+    .all()) as unknown as SetRow[];
 
   const sets: SetInfo[] = rows.map((row) => ({
     name: row.set_name,

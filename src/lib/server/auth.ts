@@ -10,7 +10,7 @@ export async function getCurrentUser(): Promise<User | null> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const userId = getSessionUserId(token);
+  const userId = await getSessionUserId(token);
   if (!userId) return null;
 
   return findUserById(userId);
@@ -35,7 +35,7 @@ export async function requireAdmin(): Promise<void> {
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  if (token) destroySession(token);
+  if (token) await destroySession(token);
   store.delete(SESSION_COOKIE);
 }
 

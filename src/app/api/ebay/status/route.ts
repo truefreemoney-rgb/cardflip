@@ -11,7 +11,7 @@ import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 export async function GET() {
   try {
     const user = await requireUser();
-    const link = getEbayLink(user.id);
+    const link = await getEbayLink(user.id);
     return NextResponse.json({
       available: isEbayOAuthConfigured(),
       demo: isDemoUser(user),

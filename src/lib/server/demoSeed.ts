@@ -37,36 +37,36 @@ interface CatalogHit {
   image_url: string;
 }
 
-function findCatalog(seed: Seed): CatalogHit | null {
+async function findCatalog(seed: Seed): Promise<CatalogHit | null> {
   const order = seed.pick === "earliest" ? "ASC" : "DESC";
   if (seed.game === "mtg") {
-    const row = db
+    const row = (await db
       .prepare(
         `SELECT set_name, collector_number AS local_id, image_url FROM mtg_cards
          WHERE name = ? AND (? = '' OR collector_number = ?) AND image_url != '' AND price_usd IS NOT NULL
          ORDER BY set_release_date ${order} LIMIT 1`,
       )
-      .get(seed.name, seed.number, seed.number) as CatalogHit | undefined;
+      .get(seed.name, seed.number, seed.number)) as CatalogHit | undefined;
     return row ?? null;
   }
-  const row = db
+  const row = (await db
     .prepare(
       `SELECT set_name, local_id, image_url FROM en_cards
        WHERE name = ? AND local_id = ? AND image_url != ''
        ORDER BY set_release_date ${order} LIMIT 1`,
     )
-    .get(seed.name, seed.number) as CatalogHit | undefined;
+    .get(seed.name, seed.number)) as CatalogHit | undefined;
   return row ?? null;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export function seedDemoCards(userId: string): void {
+export async function seedDemoCards(userId: string): Promise<void> {
   const now = Date.now();
   for (const [i, seed] of SEEDS.entries()) {
-    const hit = findCatalog(seed);
+    const hit = await findCatalog(seed);
     if (!hit) continue;
-    const record = createCard(userId, {
+    const record = await createCard(userId, {
       game: seed.game,
       cardName: seed.name,
       setName: hit.set_name,
@@ -76,12 +76,12 @@ export function seedDemoCards(userId: string): void {
       price: seed.price,
     });
     // Stagger created_at so the ledger doesn't read as one instant burst.
-    db.prepare("UPDATE cards SET created_at = ? WHERE id = ?").run(now - (SEEDS.length - i) * DAY, record.id);
+    await db.prepare("UPDATE cards SET created_at = ? WHERE id = ?").run(now - (SEEDS.length - i) * DAY, record.id);
     if (seed.status === "listed") {
-      updateCard(record.id, userId, { status: "listed", listedAt: now - (SEEDS.length - i) * DAY + DAY / 2 });
+      await updateCard(record.id, userId, { status: "listed", listedAt: now - (SEEDS.length - i) * DAY + DAY / 2 });
     } else if (seed.status === "sold") {
       const createdAt = now - (SEEDS.length - i) * DAY;
-      updateCard(record.id, userId, {
+      await updateCard(record.id, userId, {
         status: "sold",
         listedAt: createdAt + DAY / 2,
         soldPrice: Math.round(seed.price * 0.94 * 100) / 100,

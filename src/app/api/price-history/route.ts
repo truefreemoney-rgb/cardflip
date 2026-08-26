@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const cardId = req.nextUrl.searchParams.get("cardId")?.trim() ?? "";
   if (!cardId) return NextResponse.json({ error: "Missing cardId" }, { status: 400 });
   try {
-    const series = getPriceHistory(cardId).map((s) => ({ ...s, stats: summarize(s.points) }));
+    const series = (await getPriceHistory(cardId)).map((s) => ({ ...s, stats: summarize(s.points) }));
     return NextResponse.json({ cardId, series });
   } catch (err) {
     console.error("price history failed:", err);

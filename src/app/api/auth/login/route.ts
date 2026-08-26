@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
 
-  const user = email ? findUserByEmail(email) : null;
+  const user = email ? await findUserByEmail(email) : null;
 
   // Same message whether the email is unknown or the password is wrong, so
   // a login attempt can't be used to enumerate registered accounts.
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const session = createSession(user.id);
+  const session = await createSession(user.id);
   const res = NextResponse.json({ user: toPublicUser(user) });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   return res;

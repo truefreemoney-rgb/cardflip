@@ -47,31 +47,31 @@ interface EbayOrder {
 function metaKey(userId: string): string {
   return `ebay_sales_sync:${userId}`;
 }
-function lastSyncAt(userId: string): number {
-  const row = db
+async function lastSyncAt(userId: string): Promise<number> {
+  const row = (await db
     .prepare("SELECT value FROM price_history_meta WHERE key = ?")
-    .get(metaKey(userId)) as { value: string } | undefined;
+    .get(metaKey(userId))) as { value: string } | undefined;
   return Number(row?.value ?? 0);
 }
-function recordSyncAt(userId: string, at: number) {
-  db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(
+async function recordSyncAt(userId: string, at: number): Promise<void> {
+  await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(
     metaKey(userId),
     String(at),
   );
 }
 
 export async function syncEbaySales(userId: string, force = false): Promise<SalesSyncResult> {
-  const listed = db
+  const listed = (await db
     .prepare(
       `SELECT id, ebay_sku, ebay_listing_id FROM cards
        WHERE user_id = ? AND status = 'listed'
          AND (ebay_listing_id IS NOT NULL OR ebay_sku IS NOT NULL)`,
     )
-    .all(userId) as { id: string; ebay_sku: string | null; ebay_listing_id: string | null }[];
+    .all(userId)) as { id: string; ebay_sku: string | null; ebay_listing_id: string | null }[];
   if (listed.length === 0) return { sold: [], skipped: "no_listings" };
 
   const now = Date.now();
-  if (!force && now - lastSyncAt(userId) < THROTTLE_MS) return { sold: [], skipped: "throttled" };
+  if (!force && now - (await lastSyncAt(userId)) < THROTTLE_MS) return { sold: [], skipped: "throttled" };
 
   const token = await getUserAccessToken(userId);
   if (!token) return { sold: [], skipped: "not_connected" };
@@ -100,7 +100,7 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
             null;
           if (!cardId) continue;
           const soldPrice = Number(line.lineItemCost?.value ?? line.total?.value ?? 0) || null;
-          const updated = updateCard(cardId, userId, { status: "sold", soldPrice, soldAt });
+          const updated = await updateCard(cardId, userId, { status: "sold", soldPrice, soldAt });
           if (updated) {
             sold.push(updated);
             byListingId.delete(line.legacyItemId ?? "");
@@ -120,6 +120,6 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
     return { sold, skipped: "error" };
   }
 
-  recordSyncAt(userId, now);
+  await recordSyncAt(userId, now);
   return { sold };
 }

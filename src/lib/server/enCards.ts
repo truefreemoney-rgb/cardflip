@@ -110,12 +110,12 @@ function agreesWithArt(art: ArtStyle, secretNumbered: boolean): keyof typeof ART
  * scanner puts those in front of the seller with thumbnails rather than
  * silently committing to one.
  */
-export function searchEnglishCardsLocal(
+export async function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,
   limit = 24,
   art: ArtStyle = null,
-): LocalSearchResult {
+): Promise<LocalSearchResult> {
   const needle = name.trim().toLowerCase();
 
   // No usable name, but a full fraction is itself an identification — resolve
@@ -126,7 +126,7 @@ export function searchEnglishCardsLocal(
       : { cards: [], releaseDates: new Map() };
   }
 
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT ${CARD_COLUMNS}
          FROM en_cards
@@ -134,7 +134,7 @@ export function searchEnglishCardsLocal(
         ORDER BY set_release_date ASC
         LIMIT 400`,
     )
-    .all(needle, `%${needle}%`) as unknown as EnCardRow[];
+    .all(needle, `%${needle}%`)) as unknown as EnCardRow[];
 
   // The name was misread badly enough to match nothing. The fraction doesn't
   // depend on having read the name, so it can still identify the card.
@@ -189,24 +189,24 @@ export function searchEnglishCardsLocal(
  * A bare numerator is not enough to run this: "25" alone matches one card in
  * nearly every set ever printed.
  */
-export function lookupByPrintedNumber(
+export async function lookupByPrintedNumber(
   printed: PrintedNumber,
   limit = 24,
-): LocalSearchResult {
+): Promise<LocalSearchResult> {
   if (!printed.setTotal) return { cards: [], releaseDates: new Map() };
 
   // Bounded by the size of the sets sharing this denominator — a few hundred
   // rows at worst — so the numerator is matched in JS, where "004" and "4"
   // normalize the same way they do everywhere else.
   const rows = (
-    db
+    (await db
       .prepare(
         `SELECT ${CARD_COLUMNS}
            FROM en_cards
           WHERE set_card_count_official = ?
           ORDER BY set_release_date ASC`,
       )
-      .all(printed.setTotal) as unknown as EnCardRow[]
+      .all(printed.setTotal)) as unknown as EnCardRow[]
   ).filter((row) => normalizeNumber(row.local_id) === normalizeNumber(printed.number));
 
   const ranked = printed.setCode
@@ -279,9 +279,9 @@ export async function enrichWithPricing(
 }
 
 /** Whether the English mirror has been synced (npm run sync:en). */
-export function hasEnglishMirror(): boolean {
+export async function hasEnglishMirror(): Promise<boolean> {
   try {
-    const row = db.prepare("SELECT COUNT(*) c FROM en_cards").get() as unknown as {
+    const row = (await db.prepare("SELECT COUNT(*) c FROM en_cards").get()) as unknown as {
       c: number;
     };
     return row.c > 0;

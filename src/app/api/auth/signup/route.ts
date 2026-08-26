@@ -26,15 +26,15 @@ export async function POST(req: Request) {
     );
   }
 
-  if (findUserByEmail(email)) {
+  if (await findUserByEmail(email)) {
     return NextResponse.json(
       { error: "An account with that email already exists." },
       { status: 409 },
     );
   }
 
-  const user = createUser(name, email, password);
-  const session = createSession(user.id);
+  const user = await createUser(name, email, password);
+  const session = await createSession(user.id);
 
   const res = NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));

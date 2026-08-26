@@ -35,15 +35,15 @@ function daySeries(rows: { day: string; n: number }[], days: number, now = Date.
   return out;
 }
 
-function perDay(table: string, tsColumn: string, days: number, where = "", now = Date.now()): DaySeries {
+async function perDay(table: string, tsColumn: string, days: number, where = "", now = Date.now()): Promise<DaySeries> {
   const since = now - days * DAY_MS;
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT date(${tsColumn} / 1000, 'unixepoch') AS day, COUNT(*) AS n
          FROM ${table} WHERE ${tsColumn} >= ? ${where ? `AND ${where}` : ""}
         GROUP BY day`,
     )
-    .all(since) as unknown as { day: string; n: number }[];
+    .all(since)) as unknown as { day: string; n: number }[];
   return daySeries(rows, days, now);
 }
 
@@ -85,7 +85,7 @@ export interface AdminOverview {
     tcgplayerMap: number;
     dbBytes: number;
     seedMarker: string | null;
-    daily: ReturnType<typeof dailyStatus>;
+    daily: Awaited<ReturnType<typeof dailyStatus>>;
   };
   system: {
     node: string;
@@ -96,21 +96,21 @@ export interface AdminOverview {
   };
 }
 
-function count(sql: string, ...args: (string | number)[]): number {
+async function count(sql: string, ...args: (string | number)[]): Promise<number> {
   try {
-    const row = db.prepare(sql).get(...args) as { n: number } | undefined;
+    const row = (await db.prepare(sql).get(...args)) as { n: number } | undefined;
     return Number(row?.n ?? 0);
   } catch {
     return 0;
   }
 }
 
-export function getAdminOverview(now = Date.now()): AdminOverview {
-  const base = getPlatformStats();
+export async function getAdminOverview(now = Date.now()): Promise<AdminOverview> {
+  const base = await getPlatformStats();
   const week = now - 7 * DAY_MS;
   const month = now - 30 * DAY_MS;
 
-  const rollupRows = db
+  const rollupRows = (await db
     .prepare(
       `SELECT u.id,
               (SELECT COUNT(*) FROM cards c WHERE c.user_id = u.id) AS cards,
@@ -121,18 +121,18 @@ export function getAdminOverview(now = Date.now()): AdminOverview {
               (SELECT MAX(updated_at) FROM cards c WHERE c.user_id = u.id) AS lastActive
          FROM users u`,
     )
-    .all() as unknown as UserRollup[];
+    .all()) as unknown as UserRollup[];
   const userRollups: Record<string, UserRollup> = {};
   for (const r of rollupRows) userRollups[r.id] = { ...r, lastActive: r.lastActive ?? null };
 
-  const seriesRow = db
+  const seriesRow = (await db
     .prepare(
       `SELECT SUM(game = 'pokemon') AS pokemon, SUM(game = 'mtg') AS mtg, COUNT(*) AS total, MAX(updated_day) AS latest
          FROM price_series`,
     )
-    .get() as { pokemon: number | null; mtg: number | null; total: number; latest: string | null } | undefined;
+    .get()) as { pokemon: number | null; mtg: number | null; total: number; latest: string | null } | undefined;
 
-  const mtgSynced = db.prepare("SELECT MAX(synced_at) AS at FROM mtg_cards").get() as { at: number | null } | undefined;
+  const mtgSynced = (await db.prepare("SELECT MAX(synced_at) AS at FROM mtg_cards").get()) as { at: number | null } | undefined;
 
   const dataDir = path.join(process.cwd(), "data");
   let dbBytes = 0;
@@ -155,27 +155,27 @@ export function getAdminOverview(now = Date.now()): AdminOverview {
   return {
     stats: {
       ...base,
-      newUsers7d: count("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", week),
-      scans7d: count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", week),
-      scans30d: count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", month),
-      priceChecks7d: count("SELECT COUNT(*) AS n FROM price_checks WHERE checked_at >= ?", week),
-      wishlistItems: count("SELECT COUNT(*) AS n FROM wishlist_items"),
-      mtgCards: count("SELECT COUNT(*) AS n FROM cards WHERE game = 'mtg'"),
-      pokemonCards: count("SELECT COUNT(*) AS n FROM cards WHERE game = 'pokemon'"),
+      newUsers7d: await count("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", week),
+      scans7d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", week),
+      scans30d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", month),
+      priceChecks7d: await count("SELECT COUNT(*) AS n FROM price_checks WHERE checked_at >= ?", week),
+      wishlistItems: await count("SELECT COUNT(*) AS n FROM wishlist_items"),
+      mtgCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'mtg'"),
+      pokemonCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'pokemon'"),
     },
     activity: {
-      scans: perDay("cards", "created_at", 30, "", now),
-      signups: perDay("users", "created_at", 30, "", now),
-      priceChecks: perDay("price_checks", "checked_at", 30, "", now),
-      sold: perDay("cards", "sold_at", 30, "status = 'sold'", now),
+      scans: await perDay("cards", "created_at", 30, "", now),
+      signups: await perDay("users", "created_at", 30, "", now),
+      priceChecks: await perDay("price_checks", "checked_at", 30, "", now),
+      sold: await perDay("cards", "sold_at", 30, "status = 'sold'", now),
     },
     userRollups,
     data: {
-      enCards: count("SELECT COUNT(*) AS n FROM en_cards"),
-      jpCards: count("SELECT COUNT(*) AS n FROM jp_cards"),
-      zhCards: count("SELECT COUNT(*) AS n FROM zh_cards"),
-      mtgCards: count("SELECT COUNT(*) AS n FROM mtg_cards"),
-      mtgSets: count("SELECT COUNT(*) AS n FROM mtg_sets"),
+      enCards: await count("SELECT COUNT(*) AS n FROM en_cards"),
+      jpCards: await count("SELECT COUNT(*) AS n FROM jp_cards"),
+      zhCards: await count("SELECT COUNT(*) AS n FROM zh_cards"),
+      mtgCards: await count("SELECT COUNT(*) AS n FROM mtg_cards"),
+      mtgSets: await count("SELECT COUNT(*) AS n FROM mtg_sets"),
       mtgSyncedAt: mtgSynced?.at ?? null,
       priceSeries: {
         pokemon: Number(seriesRow?.pokemon ?? 0),
@@ -183,10 +183,10 @@ export function getAdminOverview(now = Date.now()): AdminOverview {
         total: Number(seriesRow?.total ?? 0),
         latestDay: seriesRow?.latest ?? null,
       },
-      tcgplayerMap: count("SELECT COUNT(*) AS n FROM tcgplayer_products"),
+      tcgplayerMap: await count("SELECT COUNT(*) AS n FROM tcgplayer_products"),
       dbBytes,
       seedMarker,
-      daily: dailyStatus(),
+      daily: await dailyStatus(),
     },
     system: {
       node: process.version,

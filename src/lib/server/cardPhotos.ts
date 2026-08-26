@@ -35,8 +35,8 @@ export type StorePhotoResult =
   | { ok: false; reason: "not_found" | "not_jpeg" | "too_large" | "empty" };
 
 /** Store the seller's photo for a card they own. Replaces any earlier one. */
-export function storeCardPhoto(cardId: string, userId: string, bytes: Buffer): StorePhotoResult {
-  if (!getCardForUser(cardId, userId)) return { ok: false, reason: "not_found" };
+export async function storeCardPhoto(cardId: string, userId: string, bytes: Buffer): Promise<StorePhotoResult> {
+  if (!(await getCardForUser(cardId, userId))) return { ok: false, reason: "not_found" };
   if (bytes.length === 0) return { ok: false, reason: "empty" };
   if (bytes.length > MAX_PHOTO_BYTES) return { ok: false, reason: "too_large" };
   if (!isJpeg(bytes)) return { ok: false, reason: "not_jpeg" };
@@ -47,22 +47,22 @@ export function storeCardPhoto(cardId: string, userId: string, bytes: Buffer): S
   fs.writeFileSync(tmp, bytes);
   fs.renameSync(tmp, target);
   const photoAt = Date.now();
-  setCardPhotoAt(cardId, userId, photoAt);
+  await setCardPhotoAt(cardId, userId, photoAt);
   return { ok: true, photoAt };
 }
 
 /** Does this card (any owner) have a photo on disk? Cheap DB check first. */
-export function hasCardPhoto(cardId: string): boolean {
+export async function hasCardPhoto(cardId: string): Promise<boolean> {
   if (!/^[0-9a-f-]{36}$/i.test(cardId)) return false;
-  if (!cardPhotoAt(cardId)) return false;
+  if (!(await cardPhotoAt(cardId))) return false;
   return fs.existsSync(photoPath(cardId));
 }
 
 /** The stored bytes, or null. Public read — it's the listing's own photo. */
-export function readCardPhoto(cardId: string): { bytes: Buffer; photoAt: number } | null {
-  if (!hasCardPhoto(cardId)) return null;
+export async function readCardPhoto(cardId: string): Promise<{ bytes: Buffer; photoAt: number } | null> {
+  if (!(await hasCardPhoto(cardId))) return null;
   try {
-    return { bytes: fs.readFileSync(photoPath(cardId)), photoAt: cardPhotoAt(cardId) ?? 0 };
+    return { bytes: fs.readFileSync(photoPath(cardId)), photoAt: (await cardPhotoAt(cardId)) ?? 0 };
   } catch {
     return null;
   }

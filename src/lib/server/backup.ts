@@ -3,7 +3,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import crypto from "node:crypto";
 import { pipeline } from "node:stream/promises";
-import { db } from "@/lib/db";
+import { db, dbIsRemote } from "@/lib/db";
 
 /**
  * Nightly off-volume backup of the SQLite database to the Tigris bucket
@@ -24,6 +24,9 @@ const env = () => ({
 });
 
 export function backupConfigured(): boolean {
+  // VACUUM INTO needs the database to be a local file — on Turso this whole
+  // mechanism is retired in favour of the service's point-in-time restore.
+  if (dbIsRemote) return false;
   const e = env();
   return Boolean(e.endpoint && e.bucket && e.keyId && e.secret);
 }
@@ -100,7 +103,7 @@ export async function makeSnapshotGz(): Promise<string> {
   fs.rmSync(raw, { force: true });
   fs.rmSync(gz, { force: true });
   try {
-    db.exec(`VACUUM INTO '${raw.replace(/'/g, "''")}'`);
+    await db.exec(`VACUUM INTO '${raw.replace(/'/g, "''")}'`);
     await pipeline(fs.createReadStream(raw), zlib.createGzip({ level: 6 }), fs.createWriteStream(gz));
     return gz;
   } finally {

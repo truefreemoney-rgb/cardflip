@@ -6,7 +6,7 @@ import type { PokemonCard, ScanLanguage } from "@/lib/types";
 export async function GET() {
   try {
     const user = await requireUser();
-    return NextResponse.json({ items: listWishlist(user.id) });
+    return NextResponse.json({ items: await listWishlist(user.id) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
     }
 
-    const item = addToWishlist(user.id, card, language, price);
+    const item = await addToWishlist(user.id, card, language, price);
     return NextResponse.json({ item }, { status: 201 });
   } catch (err) {
     if (err instanceof AuthError) {

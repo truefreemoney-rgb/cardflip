@@ -20,26 +20,26 @@ export interface SessionInfo {
   expiresAt: number;
 }
 
-export function createSession(userId: string): SessionInfo {
+export async function createSession(userId: string): Promise<SessionInfo> {
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
   const expiresAt = now + SESSION_TTL_MS;
 
-  db.prepare(
-    "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-  ).run(token, userId, now, expiresAt);
+  await db
+    .prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)")
+    .run(token, userId, now, expiresAt);
 
   return { token, expiresAt };
 }
 
-export function getSessionUserId(token: string): string | null {
-  const row = db
+export async function getSessionUserId(token: string): Promise<string | null> {
+  const row = (await db
     .prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?")
-    .get(token) as { user_id: string; expires_at: number } | undefined;
+    .get(token)) as { user_id: string; expires_at: number } | undefined;
 
   if (!row) return null;
   if (row.expires_at < Date.now()) {
-    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    await db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
     return null;
   }
   return row.user_id;
@@ -50,31 +50,31 @@ export function getSessionUserId(token: string): string | null {
  * expiry when it actually renewed (caller re-sets the cookie to match), or
  * null when the session is young enough that nothing changed.
  */
-export function touchSession(token: string): SessionInfo | null {
-  const row = db
+export async function touchSession(token: string): Promise<SessionInfo | null> {
+  const row = (await db
     .prepare("SELECT expires_at FROM sessions WHERE token = ?")
-    .get(token) as { expires_at: number } | undefined;
+    .get(token)) as { expires_at: number } | undefined;
   if (!row) return null;
   const now = Date.now();
   if (row.expires_at < now) return null;
   if (row.expires_at > now + SESSION_TTL_MS - RENEW_AFTER_MS) return null;
   const expiresAt = now + SESSION_TTL_MS;
-  db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(expiresAt, token);
+  await db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(expiresAt, token);
   return { token, expiresAt };
 }
 
-export function destroySession(token: string): void {
-  db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+export async function destroySession(token: string): Promise<void> {
+  await db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 
 /**
  * "Sign out everywhere else" / after a password change: drop every session
  * for the user except the one making the request. Returns how many went.
  */
-export function destroyOtherSessions(userId: string, keepToken: string | null): number {
+export async function destroyOtherSessions(userId: string, keepToken: string | null): Promise<number> {
   const res = keepToken
-    ? db.prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?").run(userId, keepToken)
-    : db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+    ? await db.prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?").run(userId, keepToken)
+    : await db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
   return Number(res.changes);
 }
 

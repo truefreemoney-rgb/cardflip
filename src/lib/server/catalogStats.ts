@@ -10,26 +10,26 @@ import { db } from "@/lib/db";
 let cached: { total: number; at: number } | null = null;
 const TTL_MS = 60 * 60 * 1000;
 
-function count(table: string): number {
+async function count(table: string): Promise<number> {
   try {
-    const row = db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get() as { c: number } | undefined;
+    const row = (await db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get()) as { c: number } | undefined;
     return row?.c ?? 0;
   } catch {
     return 0;
   }
 }
 
-export function catalogSize(): number {
+export async function catalogSize(): Promise<number> {
   const now = Date.now();
   if (cached && now - cached.at < TTL_MS) return cached.total;
-  const total = count("en_cards") + count("jp_cards") + count("zh_cards") + count("mtg_cards");
+  const total = (await count("en_cards")) + (await count("jp_cards")) + (await count("zh_cards")) + (await count("mtg_cards"));
   cached = { total, at: now };
   return total;
 }
 
 /** "115,000+" — rounded down to a clean marketing figure, never over-claimed. */
-export function catalogSizeLabel(): string {
-  const n = catalogSize();
+export async function catalogSizeLabel(): Promise<string> {
+  const n = await catalogSize();
   if (n <= 0) return "Every printing";
   const step = n >= 100_000 ? 5_000 : n >= 10_000 ? 1_000 : 100;
   const floored = Math.floor(n / step) * step;

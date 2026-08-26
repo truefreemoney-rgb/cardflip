@@ -34,28 +34,28 @@ const DUE_AFTER_MS = 20 * 60 * 60 * 1000;
 const STALE_START_MS = 45 * 60 * 1000;
 let running = false;
 
-function metaGet(key: string): string | null {
-  const row = db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key) as { value: string } | undefined;
+async function metaGet(key: string): Promise<string | null> {
+  const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as { value: string } | undefined;
   return row?.value ?? null;
 }
-function metaSet(key: string, value: string) {
-  db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
+async function metaSet(key: string, value: string): Promise<void> {
+  await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
 }
 
-export function dailyDue(now = Date.now()): boolean {
+export async function dailyDue(now = Date.now()): Promise<boolean> {
   if (running) return false;
-  const finished = Number(metaGet(META.finished) ?? 0);
-  const started = Number(metaGet(META.started) ?? 0);
+  const finished = Number((await metaGet(META.finished)) ?? 0);
+  const started = Number((await metaGet(META.started)) ?? 0);
   if (now - finished > DUE_AFTER_MS && now - started > STALE_START_MS) return true;
   return false;
 }
 
-export function dailyStatus() {
+export async function dailyStatus() {
   return {
     running,
-    startedAt: Number(metaGet(META.started) ?? 0) || null,
-    finishedAt: Number(metaGet(META.finished) ?? 0) || null,
-    lastResult: metaGet(META.lastResult),
+    startedAt: Number((await metaGet(META.started)) ?? 0) || null,
+    finishedAt: Number((await metaGet(META.finished)) ?? 0) || null,
+    lastResult: await metaGet(META.lastResult),
   };
 }
 
@@ -71,11 +71,11 @@ export interface DailyResult {
 
 /** Run if due; never throws (errors land in the result and the log). */
 export async function runDailyIfDue(force = false, now = Date.now()): Promise<DailyResult> {
-  if (!force && !dailyDue(now)) return { ran: false };
+  if (!force && !(await dailyDue(now))) return { ran: false };
   if (running) return { ran: false };
   running = true;
   const t0 = Date.now();
-  metaSet(META.started, String(now));
+  await metaSet(META.started, String(now));
   const result: DailyResult = { ran: true };
   try {
     try {
@@ -86,7 +86,7 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
       console.error("daily: MTG price refresh failed:", err);
     }
     try {
-      if (hasTcgplayerMap()) {
+      if (await hasTcgplayerMap()) {
         const r = await refreshPokemonPricesFromTcgcsv();
         result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched };
       } else {
@@ -104,12 +104,12 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
       console.error("daily: Pokémon sweep failed:", err);
     }
     try {
-      const sellers = db
+      const sellers = (await db
         .prepare(
           `SELECT DISTINCT user_id FROM cards
            WHERE status = 'listed' AND (ebay_listing_id IS NOT NULL OR ebay_sku IS NOT NULL)`,
         )
-        .all() as { user_id: string }[];
+        .all()) as { user_id: string }[];
       let soldCount = 0;
       for (const seller of sellers) {
         const r = await syncEbaySales(seller.user_id, true);
@@ -134,8 +134,8 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
     // failed download leaves it due again on the next trigger.
-    if (result.mtg && !("error" in result.mtg)) metaSet(META.finished, String(Date.now()));
-    metaSet(META.lastResult, JSON.stringify({ at: Date.now(), ...result }));
+    if (result.mtg && !("error" in result.mtg)) await metaSet(META.finished, String(Date.now()));
+    await metaSet(META.lastResult, JSON.stringify({ at: Date.now(), ...result }));
     console.info("daily jobs:", JSON.stringify(result));
     return result;
   } finally {

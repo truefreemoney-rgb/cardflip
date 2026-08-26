@@ -58,15 +58,15 @@ function keyFor(lang: string, name: string, number: string): string {
  * `allowStale` is the difference between the two call sites: the fast path
  * only wants a fresh hit, the fallback path will take anything it can get.
  */
-export function getCachedCards(
+export async function getCachedCards(
   lang: string,
   name: string,
   number: string,
   allowStale: boolean,
-): CachedLookup | null {
-  const row = db
+): Promise<CachedLookup | null> {
+  const row = (await db
     .prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?")
-    .get(keyFor(lang, name, number)) as unknown as CacheRow | undefined;
+    .get(keyFor(lang, name, number))) as unknown as CacheRow | undefined;
 
   if (!row) return null;
 
@@ -81,23 +81,23 @@ export function getCachedCards(
   }
 }
 
-export function putCachedCards(
+export async function putCachedCards(
   lang: string,
   name: string,
   number: string,
   cards: PokemonCard[],
-): void {
+): Promise<void> {
   // An empty result is a real answer ("no such card"), but caching it would
   // hide the card once the set is added upstream — only store hits.
   if (cards.length === 0) return;
   // A fresh, priced lookup is exactly one day's data point for the history.
   try {
-    recordPrices(cards);
+    await recordPrices(cards);
   } catch (err) {
     console.error("price history record failed:", err);
   }
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO card_cache (key, payload, cached_at)
      VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,

@@ -5,7 +5,7 @@ import { getPlatformStats } from "@/lib/server/cards";
 export async function GET() {
   try {
     await requireAdmin();
-    return NextResponse.json({ stats: getPlatformStats() });
+    return NextResponse.json({ stats: await getPlatformStats() });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 403 });

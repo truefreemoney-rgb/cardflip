@@ -38,11 +38,11 @@ function unauthorized(err: unknown) {
 export async function GET() {
   try {
     const user = await requireUser();
-    const link = getEbayLink(user.id);
+    const link = await getEbayLink(user.id);
     return NextResponse.json({
       user: toPublicUser(user),
       demo: isDemoUser(user),
-      data: userDataSummary(user.id),
+      data: await userDataSummary(user.id),
       ebay: {
         available: isEbayOAuthConfigured(),
         connected: Boolean(link),
@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest) {
         if (!verifyPassword(currentPassword, user.passwordHash)) {
           return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
         }
-        const taken = findUserByEmail(email);
+        const taken = await findUserByEmail(email);
         if (taken && taken.id !== user.id) {
           return NextResponse.json({ error: "That email is already in use" }, { status: 409 });
         }
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
     if (patch.name === undefined && patch.email === undefined) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
-    updateUserProfile(user.id, patch);
+    await updateUserProfile(user.id, patch);
     return NextResponse.json({
       ok: true,
       user: toPublicUser({ ...user, ...patch }),
@@ -122,8 +122,8 @@ export async function DELETE(req: NextRequest) {
     }
     const store = await cookies();
     const token = store.get(SESSION_COOKIE)?.value ?? null;
-    destroyOtherSessions(user.id, token);
-    deleteUser(user.id); // cascades cards / wishlist / price checks / sessions / eBay tokens; photos removed on disk
+    await destroyOtherSessions(user.id, token);
+    await deleteUser(user.id); // cascades cards / wishlist / price checks / sessions / eBay tokens; photos removed on disk
     await clearSessionCookie();
     return NextResponse.json({ ok: true });
   } catch (err) {

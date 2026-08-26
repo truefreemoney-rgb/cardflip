@@ -5,7 +5,7 @@ import { createCard, listCardsForUser } from "@/lib/server/cards";
 export async function GET() {
   try {
     const user = await requireUser();
-    return NextResponse.json({ cards: listCardsForUser(user.id) });
+    return NextResponse.json({ cards: await listCardsForUser(user.id) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "cardName is required" }, { status: 400 });
     }
 
-    const card = createCard(user.id, {
+    const card = await createCard(user.id, {
       kind,
       game: body?.game === "mtg" ? "mtg" : "pokemon",
       cardName,

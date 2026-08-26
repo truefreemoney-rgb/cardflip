@@ -89,21 +89,7 @@ export function isEbayOAuthConfigured(): boolean {
 // ---------------------------------------------------------------------------
 // Storage
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS ebay_tokens (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    access_token TEXT NOT NULL,
-    access_expires_at INTEGER NOT NULL,
-    refresh_token TEXT NOT NULL,
-    refresh_expires_at INTEGER NOT NULL,
-    ebay_user_id TEXT,
-    ebay_username TEXT,
-    scopes TEXT NOT NULL,
-    connected_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_ebay_tokens_ebay_user ON ebay_tokens(ebay_user_id);
-`);
+// Schema (ebay_tokens) lives in lib/db.ts behind the adapter's schema gate.
 
 interface TokenRow {
   user_id: string;
@@ -163,10 +149,10 @@ export interface EbayLink {
   scopes: string[];
 }
 
-export function getEbayLink(userId: string): EbayLink | null {
-  const row = db
+export async function getEbayLink(userId: string): Promise<EbayLink | null> {
+  const row = (await db
     .prepare("SELECT * FROM ebay_tokens WHERE user_id = ?")
-    .get(userId) as TokenRow | undefined;
+    .get(userId)) as TokenRow | undefined;
   if (!row) return null;
   return {
     ebayUserId: row.ebay_user_id,
@@ -275,7 +261,7 @@ export async function completeEbayConnect(userId: string, code: string): Promise
   });
 
   const now = Date.now();
-  db.prepare(
+  await db.prepare(
     `INSERT INTO ebay_tokens
        (user_id, access_token, access_expires_at, refresh_token, refresh_expires_at,
         ebay_user_id, ebay_username, scopes, connected_at, updated_at)
@@ -302,9 +288,9 @@ export async function completeEbayConnect(userId: string, code: string): Promise
     now,
     now,
   );
-  setEbayConnected(userId, true);
+  await setEbayConnected(userId, true);
 
-  return getEbayLink(userId)!;
+  return (await getEbayLink(userId))!;
 }
 
 async function fetchIdentity(
@@ -325,9 +311,9 @@ async function fetchIdentity(
  * expired, in which case the link is removed so the UI asks to reconnect).
  */
 export async function getUserAccessToken(userId: string): Promise<string | null> {
-  const row = db
+  const row = (await db
     .prepare("SELECT * FROM ebay_tokens WHERE user_id = ?")
-    .get(userId) as TokenRow | undefined;
+    .get(userId)) as TokenRow | undefined;
   if (!row) return null;
 
   const now = Date.now();
@@ -335,7 +321,7 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
   if (row.access_expires_at - 60_000 > now) return open(row.access_token);
 
   if (row.refresh_expires_at <= now) {
-    disconnectEbay(userId);
+    await disconnectEbay(userId);
     return null;
   }
 
@@ -346,16 +332,16 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
       scope: row.scopes,
     }),
   );
-  db.prepare(
+  await db.prepare(
     "UPDATE ebay_tokens SET access_token = ?, access_expires_at = ?, updated_at = ? WHERE user_id = ?",
   ).run(seal(tokens.access_token), now + tokens.expires_in * 1000, now, userId);
   return tokens.access_token;
 }
 
 /** Forget the link. eBay has no revoke endpoint for user tokens; deleting ours is the whole story. */
-export function disconnectEbay(userId: string): void {
-  db.prepare("DELETE FROM ebay_tokens WHERE user_id = ?").run(userId);
-  setEbayConnected(userId, false);
+export async function disconnectEbay(userId: string): Promise<void> {
+  await db.prepare("DELETE FROM ebay_tokens WHERE user_id = ?").run(userId);
+  await setEbayConnected(userId, false);
 }
 
 /**
@@ -363,14 +349,14 @@ export function disconnectEbay(userId: string): void {
  * username, not ours. Drop every link to that eBay account. Returns how many
  * CardFlip users were unlinked, for the log.
  */
-export function purgeEbayAccount(ebayUserId: string | null, username: string | null): number {
-  const rows = db
+export async function purgeEbayAccount(ebayUserId: string | null, username: string | null): Promise<number> {
+  const rows = (await db
     .prepare(
       `SELECT user_id FROM ebay_tokens
        WHERE (? IS NOT NULL AND ebay_user_id = ?)
           OR (? IS NOT NULL AND ebay_username = ?)`,
     )
-    .all(ebayUserId, ebayUserId, username, username) as unknown as { user_id: string }[];
-  for (const row of rows) disconnectEbay(row.user_id);
+    .all(ebayUserId, ebayUserId, username, username)) as unknown as { user_id: string }[];
+  for (const row of rows) await disconnectEbay(row.user_id);
   return rows.length;
 }

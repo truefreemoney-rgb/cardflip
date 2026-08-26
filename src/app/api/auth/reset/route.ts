@@ -12,7 +12,7 @@ import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 /** Is this link still good? Lets the page say so before the seller types a password. */
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token") ?? "";
-  const user = token ? peekResetToken(token) : null;
+  const user = token ? await peekResetToken(token) : null;
   return NextResponse.json({ valid: Boolean(user), email: user?.email ?? null });
 }
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = consumeResetToken(token, password);
+  const user = await consumeResetToken(token, password);
   if (!user) {
     return NextResponse.json(
       {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const session = createSession(user.id);
+  const session = await createSession(user.id);
   const res = NextResponse.json({ user: toPublicUser(user) });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   return res;

@@ -61,7 +61,7 @@ async function searchCjk(lang: "ja" | "zh", name: string, number: string) {
   // The local index only has name/set/number; rarity + pricing need one
   // extra call per card, so that only happens for the handful of candidates
   // actually being shown, not the whole match set.
-  const refs = searchCjkCardsLocal(lang, name, number || null).slice(0, 8);
+  const refs = (await searchCjkCardsLocal(lang, name, number || null)).slice(0, 8);
   const detailed = await Promise.all(refs.map((r) => fetchCjkCardDetail(lang, r.id)));
   return detailed.filter((c) => c !== null);
 }
@@ -107,13 +107,13 @@ export async function GET(req: NextRequest) {
         { status: 400 },
       );
     }
-    if (!hasMtgMirror()) {
+    if (!(await hasMtgMirror())) {
       return NextResponse.json(
         { error: "The Magic catalogue isn't loaded on this server yet" },
         { status: 503 },
       );
     }
-    const cards = searchMtgCardsLocal(name, number || null, setCode, limit);
+    const cards = await searchMtgCardsLocal(name, number || null, setCode, limit);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }
@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
 
   // A fresh local hit skips the network entirely — which also means rescanning
   // the same card twice never depends on the upstream being up.
-  const fresh = getCachedCards(lang, name, cacheNumber, false);
+  const fresh = await getCachedCards(lang, name, cacheNumber, false);
   if (fresh) {
     return NextResponse.json({ cards: fresh.cards, matchedOn, cached: true });
   }
@@ -168,15 +168,15 @@ export async function GET(req: NextRequest) {
   try {
     if (lang === "ja" || lang === "zh") {
       const cards = await searchCjk(lang, name, number);
-      putCachedCards(lang, name, cacheNumber, cards);
+      await putCachedCards(lang, name, cacheNumber, cards);
       return NextResponse.json({ cards, matchedOn });
     }
 
     // English identification comes from our own mirror, so a pokemontcg.io
     // outage can no longer fail a scan. Prices are layered on afterwards and
     // are allowed to fail on their own.
-    if (hasEnglishMirror()) {
-      const local = searchEnglishCardsLocal(name, printed, limit, art);
+    if (await hasEnglishMirror()) {
+      const local = await searchEnglishCardsLocal(name, printed, limit, art);
       if (local.cards.length > 0) {
         const cards = await enrichWithPricing(local.cards, local.releaseDates);
 
@@ -185,7 +185,7 @@ export async function GET(req: NextRequest) {
         // and there's nothing to gain by it — identification already comes
         // from the local mirror, which is instant either way.
         if (cards.some((c) => c.prices.some((p) => p.market))) {
-          putCachedCards(lang, name, cacheNumber, cards);
+          await putCachedCards(lang, name, cacheNumber, cards);
         }
 
         return NextResponse.json({ cards, matchedOn, source: "local" });
@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
       );
       if (narrowed.length > 0) {
         const cards = rank(narrowed, name, number).map(mapCard);
-        putCachedCards(lang, name, cacheNumber, cards);
+        await putCachedCards(lang, name, cacheNumber, cards);
         return NextResponse.json({ cards, matchedOn });
       }
     }
@@ -220,12 +220,12 @@ export async function GET(req: NextRequest) {
     // back as "Mega Charizard Y ex". Fetch the field, then rank it ourselves.
     const results = await queryCards(`name:*${name}*`, 250);
     const cards = rank(results, name, number).map(mapCard).slice(0, limit);
-    putCachedCards(lang, name, cacheNumber, cards);
+    await putCachedCards(lang, name, cacheNumber, cards);
     return NextResponse.json({ cards, matchedOn: "name" });
   } catch (err) {
     // Upstream is down. A stale copy is a far better answer than losing the
     // scan — names, sets and numbers don't change, only prices drift.
-    const stale = getCachedCards(lang, name, cacheNumber, true);
+    const stale = await getCachedCards(lang, name, cacheNumber, true);
     if (stale) {
       return NextResponse.json({
         cards: stale.cards,

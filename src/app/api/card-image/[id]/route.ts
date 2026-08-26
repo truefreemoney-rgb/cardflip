@@ -15,9 +15,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let photo: ReturnType<typeof readCardPhoto>;
+  let photo: Awaited<ReturnType<typeof readCardPhoto>>;
   try {
-    photo = readCardPhoto(id);
+    photo = await readCardPhoto(id);
   } catch (err) {
     // A disk/DB hiccup should read as a missing photo to eBay's fetcher, not
     // an opaque 500 that it may cache as a permanent failure.

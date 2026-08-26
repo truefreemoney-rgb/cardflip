@@ -354,9 +354,9 @@ export async function createDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
 ): Promise<DraftResult> {
-  const card = getCardForUser(draft.cardId, userId);
+  const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
-  const input: DraftInput = { ...draft, hasPhoto: hasCardPhoto(card.id) };
+  const input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
   if (!input.hasPhoto) {
     throw new EbayPublishNeedsError(
       "photo",
@@ -394,7 +394,7 @@ export async function createDraft(
   }
   if (!json?.itemDraftId) throw new EbaySellError("eBay returned no draft id", 502);
   const draftUrl = json.sellFlowUrl ?? json.itemWebUrl ?? null;
-  const saved = setCardEbayDraft(card.id, userId, { draftId: json.itemDraftId, draftUrl });
+  const saved = await setCardEbayDraft(card.id, userId, { draftId: json.itemDraftId, draftUrl });
   return { card: saved ?? card, draftId: json.itemDraftId, draftUrl };
 }
 
@@ -402,12 +402,12 @@ export async function pushDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
 ): Promise<PushResult> {
-  const card = getCardForUser(draft.cardId, userId);
+  const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
 
   // The listing photo is the seller's own, stored server-side; the client
   // never gets to claim one exists. Missing → the client shows the picker.
-  const input: DraftInput = { ...draft, hasPhoto: hasCardPhoto(card.id) };
+  const input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
   if (!input.hasPhoto) {
     throw new EbayPublishNeedsError(
       "photo",
@@ -448,7 +448,7 @@ export async function pushDraft(
     offerId = created.offerId;
   }
 
-  const saved = setCardEbayListing(card.id, userId, {
+  const saved = await setCardEbayListing(card.id, userId, {
     sku,
     offerId,
     pushedAt: Date.now(),
@@ -522,7 +522,7 @@ export async function publishDraft(
   cardId: string,
   opts: PublishOptions = {},
 ): Promise<PublishResult> {
-  const card = getCardForUser(cardId, userId);
+  const card = await getCardForUser(cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
   if (!card.ebayOfferId) throw new EbaySellError("Send the draft to eBay first", 409);
 
@@ -578,13 +578,13 @@ export async function publishDraft(
   if (!json?.listingId) throw new EbaySellError("eBay published no listing id", 502);
 
   const now = Date.now();
-  setCardEbayListing(card.id, userId, {
+  await setCardEbayListing(card.id, userId, {
     sku: skuForCard(card.id),
     offerId: card.ebayOfferId,
     listingId: json.listingId,
     publishedAt: now,
   });
-  const saved = updateCard(card.id, userId, { status: "listed", listedAt: now });
+  const saved = await updateCard(card.id, userId, { status: "listed", listedAt: now });
 
   return {
     card: saved ?? card,

@@ -10,7 +10,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     const user = await requireUser();
     const { id } = await params;
-    removeFromWishlist(id, user.id);
+    await removeFromWishlist(id, user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {

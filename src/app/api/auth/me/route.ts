@@ -16,12 +16,12 @@ export async function GET() {
   const res = NextResponse.json({ user: user ? toPublicUser(user) : null });
   // Every app page load passes through here, which makes it a heartbeat for
   // the once-a-day price refresh — kicked off after the response is sent.
-  if (user && dailyDue()) {
+  if (user && (await dailyDue())) {
     after(() => runDailyIfDue());
   }
   if (user) {
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
-    const renewed = token ? touchSession(token) : null;
+    const renewed = token ? await touchSession(token) : null;
     if (renewed) {
       res.cookies.set(SESSION_COOKIE, renewed.token, sessionCookieOptions(renewed.expiresAt));
     }

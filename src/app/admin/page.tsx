@@ -50,11 +50,11 @@ const NAV = [
 export default async function AdminPage() {
   if (!(await hasAdminSession())) redirect("/admin/login");
 
-  const o = getAdminOverview();
-  const users = listAllUsers().map((u) => ({
+  const o = await getAdminOverview();
+  const users = (await listAllUsers()).map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
   }));
-  const cards = listAllCards(60);
+  const cards = await listAllCards(60);
   const userById = new Map(users.map((u) => [u.id, u]));
   const s = o.stats;
 

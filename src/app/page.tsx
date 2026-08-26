@@ -74,7 +74,7 @@ export default async function Home() {
     getFeaturedCard(),
     getShowcaseCards(),
   ]);
-  const catalogLabel = catalogSizeLabel();
+  const catalogLabel = await catalogSizeLabel();
 
   // Hero card falls back to a mirror showcase card when the price API is
   // down — the price chip hides itself, but the 3D card never disappears.

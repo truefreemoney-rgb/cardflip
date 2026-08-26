@@ -47,27 +47,27 @@ function fromRow(row: PriceCheckRow): PriceCheckEntry {
  * is recent. (The demo account used to show 40+ identical rows.) */
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
 
-export function logPriceCheck(
+export async function logPriceCheck(
   userId: string,
   card: PokemonCard,
   language: ScanLanguage,
-): PriceCheckEntry {
+): Promise<PriceCheckEntry> {
   const id = randomUUID();
   const checkedAt = Date.now();
   const representativePrice = pickPrice(card)?.market ?? null;
 
-  const recent = db
+  const recent = (await db
     .prepare(
       `SELECT id FROM price_checks
        WHERE user_id = ? AND card_name = ? AND set_name = ? AND card_number = ? AND language = ?
          AND checked_at > ?
        ORDER BY checked_at DESC LIMIT 1`,
     )
-    .get(userId, card.name, card.setName, card.number, language, checkedAt - DEDUPE_WINDOW_MS) as
+    .get(userId, card.name, card.setName, card.number, language, checkedAt - DEDUPE_WINDOW_MS)) as
     | { id: string }
     | undefined;
   if (recent) {
-    db.prepare(
+    await db.prepare(
       "UPDATE price_checks SET representative_price = ?, prices_json = ?, checked_at = ? WHERE id = ?",
     ).run(representativePrice, JSON.stringify(card.prices), checkedAt, recent.id);
     return {
@@ -83,7 +83,7 @@ export function logPriceCheck(
     };
   }
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO price_checks
        (id, user_id, card_name, set_name, card_number, language, representative_price, prices_json, checked_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -112,11 +112,11 @@ export function logPriceCheck(
   };
 }
 
-export function listPriceChecks(userId: string, limit = 100): PriceCheckEntry[] {
-  const rows = db
+export async function listPriceChecks(userId: string, limit = 100): Promise<PriceCheckEntry[]> {
+  const rows = (await db
     .prepare(
       "SELECT * FROM price_checks WHERE user_id = ? ORDER BY checked_at DESC LIMIT ?",
     )
-    .all(userId, limit) as unknown as PriceCheckRow[];
+    .all(userId, limit)) as unknown as PriceCheckRow[];
   return rows.map(fromRow);
 }

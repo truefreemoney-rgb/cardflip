@@ -25,34 +25,40 @@ export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHisto
  * series is at most one point per day.
  */
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS price_series (
-    card_id TEXT NOT NULL,
-    game TEXT NOT NULL,
-    variant TEXT NOT NULL,
-    source TEXT NOT NULL,
-    currency TEXT NOT NULL,
-    start_day TEXT NOT NULL,
-    prices TEXT NOT NULL,
-    updated_day TEXT NOT NULL,
-    PRIMARY KEY (card_id, variant, source)
-  );
-  CREATE TABLE IF NOT EXISTS price_history_meta (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-`);
+// Schema (price_series, price_history_meta) lives in lib/db.ts behind the
+// adapter's schema gate.
 
-const selectRow = db.prepare(
-  "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?",
-);
-const upsertRow = db.prepare(
-  `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-);
+const SELECT_ROW =
+  "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?";
+const UPSERT_ROW = `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-/** Write one day's price into a series (read-modify-write of one compact row). */
-export function recordPoint(
+/** The read-modify-write of one compact row, against db or an open tx. */
+async function recordPointOn(
+  q: { prepare(sql: string): ReturnType<typeof db.prepare> },
+  cardId: string,
+  game: GameId,
+  variant: string,
+  source: string,
+  currency: string,
+  price: number,
+  day: string,
+): Promise<void> {
+  const existing = (await q.prepare(SELECT_ROW).get(cardId, variant, source)) as
+    | { start_day: string; prices: string }
+    | undefined;
+  const row = setDay(
+    existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null,
+    day,
+    price,
+  );
+  await q
+    .prepare(UPSERT_ROW)
+    .run(cardId, game, variant, source, currency, row.startDay, encodePrices(row.prices), day);
+}
+
+/** Write one day's price into a series. */
+export async function recordPoint(
   cardId: string,
   game: GameId,
   variant: string,
@@ -60,42 +66,31 @@ export function recordPoint(
   currency: string,
   price: number,
   day = todayUtc(),
-): void {
-  const existing = selectRow.get(cardId, variant, source) as { start_day: string; prices: string } | undefined;
-  const row = setDay(
-    existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null,
-    day,
-    price,
-  );
-  upsertRow.run(cardId, game, variant, source, currency, row.startDay, encodePrices(row.prices), day);
+): Promise<void> {
+  await recordPointOn(db, cardId, game, variant, source, currency, price, day);
 }
 
 /** Record today's market price for every priced variant of each card. */
-export function recordPrices(cards: PokemonCard[], day = todayUtc()): number {
-  let n = 0;
-  db.exec("BEGIN");
-  try {
+export async function recordPrices(cards: PokemonCard[], day = todayUtc()): Promise<number> {
+  return db.transaction(async (tx) => {
+    let n = 0;
     for (const card of cards) {
       const game: GameId = card.game ?? "pokemon";
       for (const p of card.prices) {
         if (p.market == null || !(p.market > 0)) continue;
-        recordPoint(card.id, game, p.variant, p.source, p.currency, p.market, day);
+        await recordPointOn(tx, card.id, game, p.variant, p.source, p.currency, p.market, day);
         n++;
       }
     }
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
-  return n;
+    return n;
+  });
 }
 
 /** Every series we hold for a card, oldest point first. */
-export function getPriceHistory(cardId: string): HistorySeries[] {
-  const rows = db
+export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> {
+  const rows = (await db
     .prepare("SELECT variant, source, currency, start_day, prices FROM price_series WHERE card_id = ?")
-    .all(cardId) as unknown as { variant: string; source: string; currency: string; start_day: string; prices: string }[];
+    .all(cardId)) as unknown as { variant: string; source: string; currency: string; start_day: string; prices: string }[];
   return rows.map((r) => ({
     variant: r.variant,
     source: r.source,
@@ -112,18 +107,18 @@ const SWEEP_EVERY_MS = 20 * 60 * 60 * 1000; // ~daily, tolerant of scale-to-zero
 const SWEEP_CAP = 150;
 let sweeping = false;
 
-function metaGet(key: string): string | null {
-  const row = db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key) as { value: string } | undefined;
+async function metaGet(key: string): Promise<string | null> {
+  const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as { value: string } | undefined;
   return row?.value ?? null;
 }
-function metaSet(key: string, value: string) {
-  db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
+async function metaSet(key: string, value: string): Promise<void> {
+  await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
 }
 
 /** True if a sweep is due — cheap enough to ask on every /api/auth/me. */
-export function sweepDue(now = Date.now()): boolean {
+export async function sweepDue(now = Date.now()): Promise<boolean> {
   if (sweeping) return false;
-  const last = Number(metaGet(SWEEP_KEY) ?? 0);
+  const last = Number((await metaGet(SWEEP_KEY)) ?? 0);
   return now - last > SWEEP_EVERY_MS;
 }
 
@@ -135,11 +130,11 @@ export function sweepDue(now = Date.now()): boolean {
  * pokemontcg.io. Magic is refreshed wholesale from Scryfall's bulk file.
  */
 export async function sweepPriceHistory(now = Date.now()): Promise<number> {
-  if (sweeping || !hasEnglishMirror()) return 0;
+  if (sweeping || !(await hasEnglishMirror())) return 0;
   sweeping = true;
-  metaSet(SWEEP_KEY, String(now));
+  await metaSet(SWEEP_KEY, String(now));
   try {
-    const rows = db
+    const rows = (await db
       .prepare(
         `SELECT card_name AS name, card_number AS number FROM cards WHERE game = 'pokemon'
          UNION
@@ -149,13 +144,13 @@ export async function sweepPriceHistory(now = Date.now()): Promise<number> {
           WHERE language = 'en' AND checked_at > ?
          LIMIT ${SWEEP_CAP}`,
       )
-      .all(now - 30 * 86_400_000) as unknown as { name: string; number: string }[];
+      .all(now - 30 * 86_400_000)) as unknown as { name: string; number: string }[];
     let recorded = 0;
     for (const row of rows) {
       const printed = row.number
         ? { number: normalizeNumber(row.number), setTotal: null, setCode: null, isSecretRare: false }
         : null;
-      const local = searchEnglishCardsLocal(row.name, printed, 6);
+      const local = await searchEnglishCardsLocal(row.name, printed, 6);
       if (local.cards.length === 0) continue;
       // pokemontcg.io fails roughly half its requests (see enCards.ts) and
       // enrichWithPricing swallows that into "no prices" — so a card that
@@ -164,7 +159,7 @@ export async function sweepPriceHistory(now = Date.now()): Promise<number> {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const priced = await enrichWithPricing(local.cards, local.releaseDates);
-          const n = recordPrices(priced);
+          const n = await recordPrices(priced);
           recorded += n;
           if (n > 0) break;
         } catch {

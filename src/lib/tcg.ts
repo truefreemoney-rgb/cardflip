@@ -249,7 +249,7 @@ async function showcaseFromMirror(): Promise<PokemonCard[]> {
     const { hasEnglishMirror, searchEnglishCardsLocal } = await import(
       "@/lib/server/enCards"
     );
-    if (!hasEnglishMirror()) return [];
+    if (!(await hasEnglishMirror())) return [];
     const icons = [
       "Charizard",
       "Pikachu",
@@ -261,8 +261,9 @@ async function showcaseFromMirror(): Promise<PokemonCard[]> {
       "Dragonite",
       "Rayquaza",
     ];
-    return icons
-      .flatMap((name) => searchEnglishCardsLocal(name, null, 2).cards)
+    const results = await Promise.all(icons.map((name) => searchEnglishCardsLocal(name, null, 2)));
+    return results
+      .flatMap((r) => r.cards)
       .filter((c) => c.imageSmall)
       .slice(0, 18);
   } catch {

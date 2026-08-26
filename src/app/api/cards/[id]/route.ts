@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ? body.status
         : undefined;
 
-    const card = updateCard(id, user.id, {
+    const card = await updateCard(id, user.id, {
       condition: typeof body?.condition === "string" ? body.condition : undefined,
       price: typeof body?.price === "number" ? body.price : undefined,
       status,
@@ -43,8 +43,8 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     const user = await requireUser();
     const { id } = await params;
-    if (getCardForUser(id, user.id)) deleteCardPhoto(id);
-    deleteCard(id, user.id);
+    if (await getCardForUser(id, user.id)) deleteCardPhoto(id);
+    await deleteCard(id, user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {

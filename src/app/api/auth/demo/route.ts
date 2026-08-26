@@ -26,34 +26,34 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   try {
-    return startDemo();
+    return await startDemo();
   } catch (err) {
     console.error("Demo sign-in failed:", err);
     return NextResponse.json({ error: "Couldn't start the demo" }, { status: 500 });
   }
 }
 
-function startDemo() {
-  let user = findUserByEmail(DEMO_EMAIL);
+async function startDemo() {
+  let user = await findUserByEmail(DEMO_EMAIL);
   if (!user) {
-    user = createUser("Demo User", DEMO_EMAIL, crypto.randomUUID());
+    user = await createUser("Demo User", DEMO_EMAIL, crypto.randomUUID());
   }
 
   // The demo must never carry an eBay link — it's a shared account and eBay's
   // own reviewer walks in through this button. Connect is refused for the demo
   // user, but scrub anyway so nothing can leak between visitors.
-  disconnectEbay(user.id);
-  for (const row of db.prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL").all(user.id) as { id: string }[]) {
+  await disconnectEbay(user.id);
+  for (const row of (await db.prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL").all(user.id)) as { id: string }[]) {
     deleteCardPhoto(row.id);
   }
-  db.prepare("DELETE FROM cards WHERE user_id = ?").run(user.id);
-  db.prepare("DELETE FROM price_checks WHERE user_id = ?").run(user.id);
-  db.prepare("DELETE FROM wishlist_items WHERE user_id = ?").run(user.id);
+  await db.prepare("DELETE FROM cards WHERE user_id = ?").run(user.id);
+  await db.prepare("DELETE FROM price_checks WHERE user_id = ?").run(user.id);
+  await db.prepare("DELETE FROM wishlist_items WHERE user_id = ?").run(user.id);
   // A fresh visitor should see the product, not blank states — seed a small
   // ledger of real catalog cards across draft/listed/sold.
-  seedDemoCards(user.id);
+  await seedDemoCards(user.id);
 
-  const session = createSession(user.id);
+  const session = await createSession(user.id);
   const res = NextResponse.json({
     user: toPublicUser({ ...user, ebayConnected: false }),
   });

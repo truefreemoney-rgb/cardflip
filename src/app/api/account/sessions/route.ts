@@ -8,7 +8,7 @@ export async function DELETE() {
   try {
     const user = await requireUser();
     const store = await cookies();
-    const signedOut = destroyOtherSessions(user.id, store.get(SESSION_COOKIE)?.value ?? null);
+    const signedOut = await destroyOtherSessions(user.id, store.get(SESSION_COOKIE)?.value ?? null);
     return NextResponse.json({ ok: true, signedOut });
   } catch (err) {
     if (err instanceof AuthError) {

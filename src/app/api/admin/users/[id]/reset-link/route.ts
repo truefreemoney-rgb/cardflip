@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: RouteParams) {
   try {
     await requireAdmin();
     const { id } = await params;
-    const user = findUserById(id);
+    const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
     if (isDemoUser(user)) {
       return NextResponse.json(
@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const body = await req.json().catch(() => ({}));
     const wantEmail = Boolean(body?.send) && isMailConfigured();
 
-    const issued = issueResetToken(user);
+    const issued = await issueResetToken(user);
     let emailed = false;
     if (wantEmail) {
       try {

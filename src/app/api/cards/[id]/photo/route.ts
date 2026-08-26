@@ -22,7 +22,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Photo too large" }, { status: 413 });
     }
     const bytes = Buffer.from(await req.arrayBuffer());
-    const result = storeCardPhoto(id, user.id, bytes);
+    const result = await storeCardPhoto(id, user.id, bytes);
     if (!result.ok) {
       const status =
         result.reason === "not_found" ? 404 : result.reason === "too_large" ? 413 : 400;

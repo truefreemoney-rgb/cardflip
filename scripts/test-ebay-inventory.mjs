@@ -70,7 +70,7 @@ console.log("Raw card");
   check(
     "images: only the seller's own photo, from our origin (eBay picture policy — no stock art)",
     item.product.imageUrls,
-    [`https://cardflip-superior.fly.dev/api/card-image/${base.cardId}`],
+    [`https://cardflip.io/api/card-image/${base.cardId}`],
   );
   check(
     "no seller photo → no images at all (catalogue art never sent)",
@@ -169,7 +169,7 @@ console.log("Item draft (Listing API)");
   check("price as string", d.pricingSummary.price, { currency: "USD", value: "818.00" });
   check("condition + descriptors as the inventory item", [d.condition, d.conditionDescriptors], ["USED_VERY_GOOD", [{ name: "40001", values: ["400010"] }]]);
   check("description is HTML", d.product.description.startsWith("<p>"), true);
-  check("same photo rule", d.product.imageUrls, [`https://cardflip-superior.fly.dev/api/card-image/${base.cardId}`]);
+  check("same photo rule", d.product.imageUrls, [`https://cardflip.io/api/card-image/${base.cardId}`]);
   check("aspects carried", d.product.aspects["Card Name"], ["Charizard"]);
 }
 

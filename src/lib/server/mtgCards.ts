@@ -102,12 +102,12 @@ const NAME_TIER = 8;
  * Cards a scan / search could be, best first. `number` and `setCode` come
  * from vision (or the typed query); either can be null.
  */
-export function searchMtgCardsLocal(
+export async function searchMtgCardsLocal(
   name: string,
   number: string | null,
   setCode: string | null,
   limit = 24,
-): PokemonCard[] {
+): Promise<PokemonCard[]> {
   // Commas are punctuation, not identity: "Ragavan Nimble Pilferer" must
   // find "Ragavan, Nimble Pilferer".
   const needle = name.trim().toLowerCase().replace(/,/g, "");
@@ -117,7 +117,7 @@ export function searchMtgCardsLocal(
   let rows: MtgCardRow[];
   if (needle) {
     // Double-faced cards are stored as "Front // Back"; match either face.
-    rows = db
+    rows = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS}
            FROM mtg_cards
@@ -127,28 +127,28 @@ export function searchMtgCardsLocal(
           ORDER BY set_release_date DESC
           LIMIT 600`,
       )
-      .all(needle, `${needle}%`, `%${needle}%`) as unknown as MtgCardRow[];
+      .all(needle, `${needle}%`, `%${needle}%`)) as unknown as MtgCardRow[];
   } else if (wantedNumber && wantedCode) {
     // No name but number + set code is itself an identification.
-    rows = db
+    rows = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS} FROM mtg_cards
           WHERE LOWER(set_code) = ? AND LOWER(collector_number) = ?
           LIMIT 50`,
       )
-      .all(wantedCode, wantedNumber) as unknown as MtgCardRow[];
+      .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
   } else {
     return [];
   }
 
   if (rows.length === 0 && wantedNumber && wantedCode) {
-    rows = db
+    rows = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS} FROM mtg_cards
           WHERE LOWER(set_code) = ? AND LOWER(collector_number) = ?
           LIMIT 50`,
       )
-      .all(wantedCode, wantedNumber) as unknown as MtgCardRow[];
+      .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
   }
 
   const score = (row: MtgCardRow): number => {
@@ -182,8 +182,8 @@ export function searchMtgCardsLocal(
 }
 
 /** One row per set with a card in the mirror, newest first — for the sealed picker. */
-export function listMtgSets(): SetInfo[] {
-  const rows = db
+export async function listMtgSets(): Promise<SetInfo[]> {
+  const rows = (await db
     .prepare(
       `SELECT s.code, s.name, s.released_at, s.icon_url
          FROM mtg_sets s
@@ -191,14 +191,14 @@ export function listMtgSets(): SetInfo[] {
           AND s.set_type NOT IN ('token', 'memorabilia', 'minigame', 'alchemy')
         ORDER BY s.released_at DESC`,
     )
-    .all() as unknown as { code: string; name: string; released_at: string; icon_url: string }[];
+    .all()) as unknown as { code: string; name: string; released_at: string; icon_url: string }[];
   return rows.map((r) => ({ name: r.name, releaseDate: r.released_at, logoUrl: r.icon_url, code: r.code }));
 }
 
 /** True once scripts/sync-mtg.mjs has populated the mirror. */
-export function hasMtgMirror(): boolean {
+export async function hasMtgMirror(): Promise<boolean> {
   try {
-    const row = db.prepare("SELECT 1 AS ok FROM mtg_cards LIMIT 1").get() as { ok: number } | undefined;
+    const row = (await db.prepare("SELECT 1 AS ok FROM mtg_cards LIMIT 1").get()) as { ok: number } | undefined;
     return Boolean(row);
   } catch {
     return false;
@@ -206,7 +206,7 @@ export function hasMtgMirror(): boolean {
 }
 
 /** A handful of iconic, priced cards for the landing showcase. */
-export function mtgShowcase(limit = 12): PokemonCard[] {
+export async function mtgShowcase(limit = 12): Promise<PokemonCard[]> {
   const names = [
     "Black Lotus",
     "Ragavan, Nimble Pilferer",
@@ -228,7 +228,7 @@ export function mtgShowcase(limit = 12): PokemonCard[] {
   );
   const out: PokemonCard[] = [];
   for (const n of names) {
-    const row = stmt.get(n.toLowerCase()) as unknown as MtgCardRow | undefined;
+    const row = (await stmt.get(n.toLowerCase())) as unknown as MtgCardRow | undefined;
     if (row) out.push(toCard(row));
     if (out.length >= limit) break;
   }
