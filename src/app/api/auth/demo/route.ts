@@ -44,7 +44,7 @@ async function startDemo() {
   // user, but scrub anyway so nothing can leak between visitors.
   await disconnectEbay(user.id);
   for (const row of (await db.prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL").all(user.id)) as { id: string }[]) {
-    deleteCardPhoto(row.id);
+    await deleteCardPhoto(row.id);
   }
   await db.prepare("DELETE FROM cards WHERE user_id = ?").run(user.id);
   await db.prepare("DELETE FROM price_checks WHERE user_id = ?").run(user.id);

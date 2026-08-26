@@ -12,6 +12,9 @@ export async function register() {
   // Seed import first (async, batched — see db.ts), then the daily ticks.
   const { seedMtgMirror } = await import("@/lib/db");
   await seedMtgMirror();
+  // On Vercel there is no long-lived process — Vercel Cron hits the split
+  // /api/cron/* routes instead, so the in-process ticks stay off.
+  if (process.env.VERCEL) return;
   const { runDailyIfDue } = await import("@/lib/server/dailyJobs");
   const tick = () => {
     runDailyIfDue().catch((err) => console.error("daily tick failed:", err));

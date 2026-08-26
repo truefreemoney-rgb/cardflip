@@ -16,7 +16,9 @@ export async function GET() {
   const res = NextResponse.json({ user: user ? toPublicUser(user) : null });
   // Every app page load passes through here, which makes it a heartbeat for
   // the once-a-day price refresh — kicked off after the response is sent.
-  if (user && (await dailyDue())) {
+  // Not on Vercel: the refresh would blow the request function's time
+  // budget there; Vercel Cron owns the schedule instead.
+  if (!process.env.VERCEL && user && (await dailyDue())) {
     after(() => runDailyIfDue());
   }
   if (user) {

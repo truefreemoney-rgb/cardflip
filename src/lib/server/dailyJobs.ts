@@ -69,6 +69,77 @@ export interface DailyResult {
   ms?: number;
 }
 
+/** Step 1 alone: Magic prices from Scryfall's bulk file. Never throws. */
+export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
+  try {
+    const r = await refreshMtgPricesFromBulk();
+    return { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched };
+  } catch (err) {
+    console.error("daily: MTG price refresh failed:", err);
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
+export async function runPokemonSteps(
+  now = Date.now(),
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales"> = {};
+  try {
+    if (await hasTcgplayerMap()) {
+      const r = await refreshPokemonPricesFromTcgcsv();
+      result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched };
+    } else {
+      result.pokemonTcgcsv = { skipped: "no tcgplayer_products map — run npm run backfill:pokemon and redeploy the seed" };
+    }
+  } catch (err) {
+    result.pokemonTcgcsv = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: Pokémon TCGCSV refresh failed:", err);
+  }
+  try {
+    const recorded = await sweepPriceHistory(now);
+    result.pokemon = { recorded };
+  } catch (err) {
+    result.pokemon = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: Pokémon sweep failed:", err);
+  }
+  try {
+    const sellers = (await db
+      .prepare(
+        `SELECT DISTINCT user_id FROM cards
+         WHERE status = 'listed' AND (ebay_listing_id IS NOT NULL OR ebay_sku IS NOT NULL)`,
+      )
+      .all()) as { user_id: string }[];
+    let soldCount = 0;
+    for (const seller of sellers) {
+      const r = await syncEbaySales(seller.user_id, true);
+      soldCount += r.sold.length;
+    }
+    result.ebaySales = { sellers: sellers.length, sold: soldCount };
+  } catch (err) {
+    result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: eBay sales sweep failed:", err);
+  }
+  return result;
+}
+
+/**
+ * Merge a split cron run's partial result into the same meta keys the
+ * all-in-one run writes, so the admin console shows one coherent "last
+ * daily" picture whichever host ran it. `markFinished` only when the step
+ * that must succeed daily (the MTG refresh) actually did.
+ */
+export async function recordCronResult(partial: Partial<DailyResult>, markFinished: boolean): Promise<void> {
+  let prev: Record<string, unknown> = {};
+  try {
+    prev = JSON.parse((await metaGet(META.lastResult)) ?? "{}") as Record<string, unknown>;
+  } catch {
+    // Corrupt/absent — start fresh.
+  }
+  await metaSet(META.lastResult, JSON.stringify({ ...prev, ran: true, at: Date.now(), ...partial }));
+  if (markFinished) await metaSet(META.finished, String(Date.now()));
+}
+
 /** Run if due; never throws (errors land in the result and the log). */
 export async function runDailyIfDue(force = false, now = Date.now()): Promise<DailyResult> {
   if (!force && !(await dailyDue(now))) return { ran: false };
@@ -78,48 +149,8 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
   await metaSet(META.started, String(now));
   const result: DailyResult = { ran: true };
   try {
-    try {
-      const r = await refreshMtgPricesFromBulk();
-      result.mtg = { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched };
-    } catch (err) {
-      result.mtg = { error: err instanceof Error ? err.message : String(err) };
-      console.error("daily: MTG price refresh failed:", err);
-    }
-    try {
-      if (await hasTcgplayerMap()) {
-        const r = await refreshPokemonPricesFromTcgcsv();
-        result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched };
-      } else {
-        result.pokemonTcgcsv = { skipped: "no tcgplayer_products map — run npm run backfill:pokemon and redeploy the seed" };
-      }
-    } catch (err) {
-      result.pokemonTcgcsv = { error: err instanceof Error ? err.message : String(err) };
-      console.error("daily: Pokémon TCGCSV refresh failed:", err);
-    }
-    try {
-      const recorded = await sweepPriceHistory(now);
-      result.pokemon = { recorded };
-    } catch (err) {
-      result.pokemon = { error: err instanceof Error ? err.message : String(err) };
-      console.error("daily: Pokémon sweep failed:", err);
-    }
-    try {
-      const sellers = (await db
-        .prepare(
-          `SELECT DISTINCT user_id FROM cards
-           WHERE status = 'listed' AND (ebay_listing_id IS NOT NULL OR ebay_sku IS NOT NULL)`,
-        )
-        .all()) as { user_id: string }[];
-      let soldCount = 0;
-      for (const seller of sellers) {
-        const r = await syncEbaySales(seller.user_id, true);
-        soldCount += r.sold.length;
-      }
-      result.ebaySales = { sellers: sellers.length, sold: soldCount };
-    } catch (err) {
-      result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
-      console.error("daily: eBay sales sweep failed:", err);
-    }
+    result.mtg = await runMtgStep();
+    Object.assign(result, await runPokemonSteps(now));
     try {
       if (backupConfigured()) {
         const r = await runNightlyBackup();

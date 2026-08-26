@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dailyStatus, runDailyIfDue } from "@/lib/server/dailyJobs";
+import { cronAuthError } from "@/lib/server/cronAuth";
 
 /**
  * External trigger for the once-a-day price refresh — for the days nobody
@@ -14,10 +15,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
-  const key = req.nextUrl.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (key !== secret) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = cronAuthError(req);
+  if (denied) return denied;
   const force = req.nextUrl.searchParams.get("force") === "1";
   // Awaited on purpose: the pinger's timeout is the only thing keeping the
   // machine awake long enough to finish, and its log shows the result.

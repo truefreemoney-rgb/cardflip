@@ -156,7 +156,7 @@ export async function deleteUser(userId: string): Promise<void> {
     .prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL")
     .all(userId)) as { id: string }[];
   for (const r of photoRows) {
-    try { deleteCardPhoto(r.id); } catch { /* best effort */ }
+    try { await deleteCardPhoto(r.id); } catch { /* best effort */ }
   }
   await db.prepare("DELETE FROM users WHERE id = ?").run(userId);
 }

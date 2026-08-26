@@ -43,7 +43,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     const user = await requireUser();
     const { id } = await params;
-    if (await getCardForUser(id, user.id)) deleteCardPhoto(id);
+    if (await getCardForUser(id, user.id)) await deleteCardPhoto(id);
     await deleteCard(id, user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
