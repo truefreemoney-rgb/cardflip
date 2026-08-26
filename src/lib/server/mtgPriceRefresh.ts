@@ -1,9 +1,15 @@
 import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
-import { db } from "@/lib/db";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
+import {
+  readMtgCardIds,
+  readSeriesMap,
+  updateMtgPriceColumns,
+  upsertSeriesRows,
+  type SeriesUpsert,
+} from "@/lib/server/priceBulkWrite";
 
 /**
  * Nightly Magic price refresh that works FROM FLY.
@@ -55,18 +61,11 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok || !res.body) throw new Error(`Scryfall bulk download: HTTP ${res.status}`);
 
-  const UPDATE = `UPDATE mtg_cards SET price_usd = ?, price_usd_foil = ?, price_usd_etched = ?, price_eur = ?, price_eur_foil = ?
-      WHERE id = ?`;
-  const SELECT_ROW =
-    "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?";
-  const UPSERT_ROW = `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-     VALUES (?, 'mtg', ?, 'tcgplayer', 'USD', ?, ?, ?)`;
-
-  let scanned = 0, updated = 0, seriesTouched = 0;
-  // The stream is collected first, then written in short per-batch
-  // transactions: with the async adapter a write can't be interleaved into
-  // the stream callback, and ~90k parsed price rows are only a few MB.
-  const BATCH = 500;
+  let scanned = 0;
+  // The stream is collected first (with the async adapter a write can't be
+  // interleaved into the stream callback; ~90k parsed rows are a few MB),
+  // then everything is diffed in memory and written back in multi-row
+  // batches — per-row statements were ~200k round trips on Turso.
   const pending: { id: string; usd: number | null; foil: number | null; etched: number | null; eur: number | null; eurFoil: number | null }[] = [];
   const onCard = (obj: unknown) => {
     const c = obj as ScryfallCard;
@@ -89,28 +88,26 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } else {
     await streamJsonObjects(res.body, 2, onCard);
   }
-  // Short transactions in batches: a single long write lock would make every
-  // other write in the app wait the whole pass out.
-  for (let i = 0; i < pending.length; i += BATCH) {
-    const slice = pending.slice(i, i + BATCH);
-    await db.transaction(async (tx) => {
-      const update = tx.prepare(UPDATE);
-      const selectRow = tx.prepare(SELECT_ROW);
-      const upsertRow = tx.prepare(UPSERT_ROW);
-      for (const c of slice) {
-        const r = await update.run(c.usd, c.foil, c.etched, c.eur, c.eurFoil, c.id);
-        if (Number(r.changes) === 0) continue; // not a printing we carry
-        updated++;
-        for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
-          if (price == null) continue;
-          const existing = (await selectRow.get(c.id, variant, "tcgplayer")) as { start_day: string; prices: string } | undefined;
-          if (!existing && price < MIN_TRACKED_USD) continue;
-          const next = setDay(existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null, day, price);
-          await upsertRow.run(c.id, variant, next.startDay, encodePrices(next.prices), day);
-          seriesTouched++;
-        }
-      }
-    });
+  // Only printings we carry get written; the id set stands in for the old
+  // per-row UPDATE's changes==0 check.
+  const ids = await readMtgCardIds();
+  const kept = pending.filter((c) => ids.has(c.id));
+  await updateMtgPriceColumns(kept);
+
+  const existingSeries = await readSeriesMap("mtg", "tcgplayer");
+  const upserts: SeriesUpsert[] = [];
+  for (const c of kept) {
+    for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
+      if (price == null) continue;
+      const existing = existingSeries.get(`${c.id}|${variant}`);
+      if (!existing && price < MIN_TRACKED_USD) continue;
+      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+      upserts.push({
+        cardId: c.id, game: "mtg", variant, source: "tcgplayer", currency: "USD",
+        startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
+      });
+    }
   }
-  return { scanned, updated, seriesTouched, day };
+  await upsertSeriesRows(upserts);
+  return { scanned, updated: kept.length, seriesTouched: upserts.length, day };
 }

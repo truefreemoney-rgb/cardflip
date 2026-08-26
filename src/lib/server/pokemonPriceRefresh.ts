@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
+import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import { tcgplayerVariantKey } from "@/lib/tcgcsv";
 
 /**
@@ -38,11 +39,14 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   for (const r of (await db.prepare("SELECT product_id, card_id FROM tcgplayer_products WHERE game = 'pokemon'").all()) as { product_id: number; card_id: string }[]) {
     productToCard.set(r.product_id, r.card_id);
   }
-  const SELECT_ROW = "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = 'tcgplayer'";
-  const UPSERT_ROW = `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-     VALUES (?, 'pokemon', ?, 'tcgplayer', 'USD', ?, ?, ?)`;
+  // One bulk read of the whole family, all diffs computed in memory, one
+  // batched write-back at the end — per-row SELECT+UPSERT was ~60k Turso
+  // round trips and timed out Vercel's function limit (08-26).
+  const existingSeries = await readSeriesMap("pokemon", "tcgplayer");
 
-  let seriesTouched = 0, groupsFailed = 0;
+  let groupsFailed = 0;
+  const upserts: SeriesUpsert[] = [];
+  const touched = new Set<string>();
   for (const gid of groups) {
     let results: { productId: number; marketPrice?: number | null; subTypeName?: string | null }[];
     try {
@@ -54,23 +58,24 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       console.warn(`tcgcsv group ${gid}:`, err instanceof Error ? err.message : err);
       continue;
     }
-    // One short transaction per set keeps the write lock brief.
-    await db.transaction(async (tx) => {
-      const selectRow = tx.prepare(SELECT_ROW);
-      const upsertRow = tx.prepare(UPSERT_ROW);
-      for (const r of results) {
-        const cardId = productToCard.get(r.productId);
-        const price = r.marketPrice ?? null;
-        if (!cardId || price == null || !(price > 0)) continue;
-        const variant = tcgplayerVariantKey(r.subTypeName);
-        const existing = (await selectRow.get(cardId, variant)) as { start_day: string; prices: string } | undefined;
-        if (!existing && price < MIN_TRACKED_USD) continue;
-        const next = setDay(existing ? { startDay: existing.start_day, prices: decodePrices(existing.prices) } : null, day, price);
-        await upsertRow.run(cardId, variant, next.startDay, encodePrices(next.prices), day);
-        seriesTouched++;
-      }
-    });
+    for (const r of results) {
+      const cardId = productToCard.get(r.productId);
+      const price = r.marketPrice ?? null;
+      if (!cardId || price == null || !(price > 0)) continue;
+      const variant = tcgplayerVariantKey(r.subTypeName);
+      const key = `${cardId}|${variant}`;
+      if (touched.has(key)) continue;
+      const existing = existingSeries.get(key);
+      if (!existing && price < MIN_TRACKED_USD) continue;
+      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+      upserts.push({
+        cardId, game: "pokemon", variant, source: "tcgplayer", currency: "USD",
+        startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
+      });
+      touched.add(key);
+    }
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
-  return { groups: groups.length, groupsFailed, seriesTouched, day };
+  await upsertSeriesRows(upserts);
+  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length, day };
 }
