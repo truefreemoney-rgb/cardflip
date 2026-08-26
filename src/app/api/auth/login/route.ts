@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail, toPublicUser } from "@/lib/server/users";
+import { findUserByEmail, toPublicUser, totpEnabled } from "@/lib/server/users";
+import { verifyTotp } from "@/lib/server/totp";
 import { verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
@@ -22,6 +23,20 @@ export async function POST(req: Request) {
       { error: "Incorrect email or password." },
       { status: 401 },
     );
+  }
+
+  // Two-step: the password alone doesn't sign in — the client re-submits the
+  // same credentials with the 6-digit authenticator code once prompted.
+  // Stateless on purpose (no pending-login token to store or expire); the
+  // per-IP limiter above is the brute-force backstop for codes too.
+  if (totpEnabled(user)) {
+    const code = typeof body?.code === "string" ? body.code : "";
+    if (!code) {
+      return NextResponse.json({ totpRequired: true, error: "Enter your authenticator code." }, { status: 401 });
+    }
+    if (!verifyTotp(user.totpSecret!, code)) {
+      return NextResponse.json({ totpRequired: true, error: "That code didn't match. Codes change every 30 seconds — try the current one." }, { status: 401 });
+    }
   }
 
   const session = await createSession(user.id);

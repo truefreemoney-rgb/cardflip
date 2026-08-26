@@ -87,7 +87,12 @@ const SCHEMA = `
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     ebay_connected INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    -- Two-step verification (TOTP, totp.ts): secret set at setup, enabled_at
+    -- stamped once the first code is confirmed. Secret without enabled_at =
+    -- abandoned setup, ignored at login.
+    totp_secret TEXT,
+    totp_enabled_at INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
@@ -368,6 +373,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     ],
   ],
   ["wishlist_items", ["card_id TEXT", "game TEXT"]],
+  ["users", ["totp_secret TEXT", "totp_enabled_at INTEGER"]],
 ];
 
 async function initSchema(): Promise<void> {

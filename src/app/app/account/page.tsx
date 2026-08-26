@@ -12,8 +12,12 @@ import {
   deleteAccount,
   fetchAccount,
   signOutOtherDevices,
+  totpConfirm,
+  totpDisable,
+  totpSetup,
   updateProfile,
   type AccountOverview,
+  type TotpSetup,
 } from "@/lib/client/accountApi";
 
 /**
@@ -152,6 +156,61 @@ function AccountSettings({
       setPwMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't change password" });
     } finally {
       setPwBusy(false);
+    }
+  }
+
+  // --- Two-step verification ---------------------------------------------
+  const [totpEnroll, setTotpEnroll] = useState<TotpSetup | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpOffOpen, setTotpOffOpen] = useState(false);
+  const [totpOffPw, setTotpOffPw] = useState("");
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [totpMsg, setTotpMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  async function startTotp() {
+    setTotpBusy(true);
+    setTotpMsg(null);
+    try {
+      setTotpEnroll(await totpSetup());
+      setTotpCode("");
+    } catch (err) {
+      setTotpMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't start setup" });
+    } finally {
+      setTotpBusy(false);
+    }
+  }
+
+  async function confirmTotp(e: FormEvent) {
+    e.preventDefault();
+    setTotpBusy(true);
+    setTotpMsg(null);
+    try {
+      await totpConfirm(totpCode.trim());
+      setTotpEnroll(null);
+      setTotpCode("");
+      setUser({ ...user, totpEnabled: true });
+      setTotpMsg({ kind: "ok", text: "Two-step verification is on. You'll be asked for a code at every sign-in." });
+    } catch (err) {
+      setTotpMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't confirm the code" });
+    } finally {
+      setTotpBusy(false);
+    }
+  }
+
+  async function disableTotpNow(e: FormEvent) {
+    e.preventDefault();
+    setTotpBusy(true);
+    setTotpMsg(null);
+    try {
+      await totpDisable(totpOffPw);
+      setTotpOffOpen(false);
+      setTotpOffPw("");
+      setUser({ ...user, totpEnabled: false });
+      setTotpMsg({ kind: "ok", text: "Two-step verification is off." });
+    } catch (err) {
+      setTotpMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't turn it off" });
+    } finally {
+      setTotpBusy(false);
     }
   }
 
@@ -304,6 +363,91 @@ function AccountSettings({
           </div>
           {pwMsg && <Notice kind={pwMsg.kind}>{pwMsg.text}</Notice>}
         </form>
+      </Section>
+
+      {/* Two-step verification */}
+      <Section
+        title="Two-step verification"
+        hint="A 6-digit code from an authenticator app is asked for at every sign-in, on top of your password."
+      >
+        {user.totpEnabled ? (
+          <div className="flex flex-col gap-3">
+            <p className="flex items-center gap-2 text-sm text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              On — your authenticator app holds the code.
+            </p>
+            {!totpOffOpen ? (
+              <div>
+                <button type="button" className={ghostBtn} onClick={() => { setTotpOffOpen(true); setTotpMsg(null); }} disabled={totpBusy}>
+                  Turn off…
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={disableTotpNow} className="flex flex-col gap-3">
+                <label className={labelCls}>
+                  Your password <span className="text-zinc-600">(required to turn two-step off)</span>
+                  <input type="password" className={`${inputCls} mt-1`} value={totpOffPw} onChange={(e) => setTotpOffPw(e.target.value)} required autoComplete="current-password" disabled={totpBusy} />
+                </label>
+                <div className="flex items-center gap-3">
+                  <button type="submit" className={primaryBtn} disabled={totpBusy || !totpOffPw}>
+                    {totpBusy ? "Turning off…" : "Turn off two-step"}
+                  </button>
+                  <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpOffOpen(false); setTotpOffPw(""); }} disabled={totpBusy}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : totpEnroll ? (
+          <form onSubmit={confirmTotp} className="flex flex-col gap-4">
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-400">
+              <li>Open your authenticator app (Google Authenticator, Authy, 1Password…).</li>
+              <li>Scan this QR code, or type the setup key below into the app.</li>
+              <li>Enter the 6-digit code the app shows to finish.</li>
+            </ol>
+            <div className="flex flex-wrap items-center gap-5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- data URL QR, no optimizer involved */}
+              <img src={totpEnroll.qrDataUrl} alt="QR code for your authenticator app" width={160} height={160} className="rounded-lg bg-white p-2" />
+              <div className="min-w-0 flex-1">
+                <p className={labelCls}>Setup key (if you can&apos;t scan)</p>
+                <p className="mt-1 break-all font-mono text-xs text-zinc-300">{totpEnroll.secret}</p>
+              </div>
+            </div>
+            <label className={labelCls}>
+              6-digit code from the app
+              <input
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                autoComplete="one-time-code"
+                className={`${inputCls} mt-1 max-w-40 text-center tracking-[0.4em]`}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                required
+                disabled={totpBusy}
+              />
+            </label>
+            <div className="flex items-center gap-3">
+              <button type="submit" className={primaryBtn} disabled={totpBusy || totpCode.length !== 6}>
+                {totpBusy ? "Checking…" : "Turn on two-step"}
+              </button>
+              <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpEnroll(null); setTotpCode(""); setTotpMsg(null); }} disabled={totpBusy}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-zinc-400">
+              {demo ? "The demo account can't use two-step verification." : "Off — only your password protects this account."}
+            </p>
+            <button type="button" className={primaryBtn} onClick={startTotp} disabled={demo || totpBusy}>
+              {totpBusy ? "Starting…" : "Set up two-step"}
+            </button>
+          </div>
+        )}
+        {totpMsg && <Notice kind={totpMsg.kind}>{totpMsg.text}</Notice>}
       </Section>
 
       {/* eBay */}

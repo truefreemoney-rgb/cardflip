@@ -4,7 +4,6 @@ import Footer from "@/components/Footer";
 import DemoButton from "@/components/DemoButton";
 import HeroShowcase from "@/components/HeroShowcase";
 import HoloCard from "@/components/HoloCard";
-import PriceTicker from "@/components/PriceTicker";
 import CardWall from "@/components/CardWall";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
@@ -189,9 +188,6 @@ export default async function Home() {
             )}
           </div>
         </section>
-
-        {/* ======================== Live price ticker ======================= */}
-        <PriceTicker cards={showcase} catalogLabel={catalogLabel} />
 
         {/* =========================== How it works ========================= */}
         <section

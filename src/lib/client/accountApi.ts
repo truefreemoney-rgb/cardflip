@@ -74,3 +74,29 @@ export async function deleteAccount(password: string): Promise<void> {
   });
   await expectOk(res);
 }
+
+// --- Two-step verification (TOTP) ------------------------------------------
+
+export interface TotpSetup {
+  secret: string;
+  otpauthUrl: string;
+  qrDataUrl: string;
+}
+
+async function totpAction<T>(body: Record<string, string>): Promise<T> {
+  const res = await fetch(apiPath("/api/account/totp"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return expectOk<T>(res);
+}
+
+/** Begin enrollment: a fresh secret plus the QR the authenticator app scans. */
+export const totpSetup = () => totpAction<TotpSetup>({ action: "setup" });
+
+/** Confirm the first code; two-step is on from the next sign-in. */
+export const totpConfirm = (code: string) => totpAction<{ ok: true }>({ action: "confirm", code });
+
+/** Turn two-step off (needs the account password, not a code). */
+export const totpDisable = (password: string) => totpAction<{ ok: true }>({ action: "disable", password });

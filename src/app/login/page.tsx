@@ -8,7 +8,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DemoButton from "@/components/DemoButton";
-import { afterLoginPath, login } from "@/lib/client/auth";
+import { TotpRequiredError, afterLoginPath, login } from "@/lib/client/auth";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -17,6 +17,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,13 +29,25 @@ export default function LoginPage() {
       setError("Enter your email and password.");
       return;
     }
+    if (needsCode && !/^\d{6}$/.test(code.trim())) {
+      setError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, needsCode ? code.trim() : undefined);
       // replace, not push: Back from the app must not land on a login form.
       router.replace(afterLoginPath());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed.");
+      if (err instanceof TotpRequiredError) {
+        // Password was right; the account has two-step on. First time through
+        // is a prompt, not an error — only a wrong code reads as one.
+        if (needsCode) setError(err.message);
+        setNeedsCode(true);
+        setCode("");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed.");
+      }
       setSubmitting(false);
     }
   }
@@ -93,6 +107,33 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
           </div>
+
+          {needsCode && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="totp-code" className="text-sm font-medium text-zinc-300">
+                Two-step code
+              </label>
+              <input
+                id="totp-code"
+                name="totp-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                enterKeyHint="go"
+                autoFocus
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className={`${FIELD} text-center text-lg tracking-[0.4em]`}
+                placeholder="123456"
+              />
+              <p className="text-xs text-zinc-500">
+                Open your authenticator app and enter the current 6-digit code for CardFlip.
+              </p>
+            </div>
+          )}
 
           <p role="alert" aria-live="polite" className="min-h-0">
             {error && (

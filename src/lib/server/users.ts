@@ -14,6 +14,9 @@ export interface User {
   role: Role;
   ebayConnected: boolean;
   createdAt: number;
+  /** Set during two-step setup; only counts once totpEnabledAt is stamped. */
+  totpSecret: string | null;
+  totpEnabledAt: number | null;
 }
 
 interface UserRow {
@@ -24,6 +27,8 @@ interface UserRow {
   role: Role;
   ebay_connected: number;
   created_at: number;
+  totp_secret: string | null;
+  totp_enabled_at: number | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -35,7 +40,27 @@ function fromRow(row: UserRow): User {
     role: row.role,
     ebayConnected: row.ebay_connected === 1,
     createdAt: row.created_at,
+    totpSecret: row.totp_secret ?? null,
+    totpEnabledAt: row.totp_enabled_at ?? null,
   };
+}
+
+export function totpEnabled(user: Pick<User, "totpSecret" | "totpEnabledAt">): boolean {
+  return Boolean(user.totpSecret && user.totpEnabledAt);
+}
+
+/** Two-step setup: store the fresh secret, not yet enabled. */
+export async function setTotpSecret(userId: string, secret: string): Promise<void> {
+  await db.prepare("UPDATE users SET totp_secret = ?, totp_enabled_at = NULL WHERE id = ?").run(secret, userId);
+}
+
+/** First code confirmed — two-step is on from the next sign-in. */
+export async function enableTotp(userId: string): Promise<void> {
+  await db.prepare("UPDATE users SET totp_enabled_at = ? WHERE id = ?").run(Date.now(), userId);
+}
+
+export async function disableTotp(userId: string): Promise<void> {
+  await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL WHERE id = ?").run(userId);
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
@@ -78,6 +103,8 @@ export async function createUser(
     role,
     ebayConnected: false,
     createdAt,
+    totpSecret: null,
+    totpEnabledAt: null,
   };
 }
 
@@ -182,10 +209,11 @@ export interface PublicUser {
   role: Role;
   ebayConnected: boolean;
   createdAt: number;
+  totpEnabled: boolean;
 }
 
-/** Strips the password hash before a user record ever reaches the client. */
+/** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
 export function toPublicUser(user: User): PublicUser {
   const { id, name, email, role, ebayConnected, createdAt } = user;
-  return { id, name, email, role, ebayConnected, createdAt };
+  return { id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user) };
 }

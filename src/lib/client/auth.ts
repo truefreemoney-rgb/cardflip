@@ -9,6 +9,15 @@ export interface SessionUser {
   role: "user" | "admin";
   ebayConnected: boolean;
   createdAt: number;
+  totpEnabled?: boolean;
+}
+
+/** Login needs a 6-digit authenticator code (two-step verification). */
+export class TotpRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TotpRequiredError";
+  }
 }
 
 async function readJson(res: Response) {
@@ -56,14 +65,17 @@ export async function signup(
   return data.user;
 }
 
-export async function login(email: string, password: string): Promise<SessionUser> {
+export async function login(email: string, password: string, code?: string): Promise<SessionUser> {
   const res = await fetch(apiPath("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(code ? { email, password, code } : { email, password }),
   });
   const data = await readJson(res);
-  if (!res.ok) throw new Error(data.error ?? "Login failed.");
+  if (!res.ok) {
+    if (data.totpRequired) throw new TotpRequiredError(data.error ?? "Enter your authenticator code.");
+    throw new Error(data.error ?? "Login failed.");
+  }
   return data.user;
 }
 
