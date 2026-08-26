@@ -38,8 +38,14 @@ function sha256Hex(data: crypto.BinaryLike): string {
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
+/** True when the Tigris bucket creds are in the environment. */
+export function s3Configured(): boolean {
+  const e = env();
+  return Boolean(e.endpoint && e.bucket && e.keyId && e.secret);
+}
+
 async function s3Request(
-  method: "PUT" | "HEAD" | "DELETE",
+  method: "GET" | "PUT" | "HEAD" | "DELETE",
   key: string,
   body?: Buffer,
   extraHeaders: Record<string, string> = {},
@@ -86,6 +92,14 @@ export async function putObject(key: string, body: Buffer, contentType = "applic
 export async function deleteObject(key: string): Promise<void> {
   const res = await s3Request("DELETE", key);
   if (!res.ok && res.status !== 404) throw new Error(`backup: DELETE ${key} failed: ${res.status}`);
+}
+
+/** The object's bytes, or null when it doesn't exist. */
+export async function getObject(key: string): Promise<Buffer | null> {
+  const res = await s3Request("GET", key);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`backup: GET ${key} failed: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
 }
 
 /** Server-side copy inside the bucket — no re-upload of the payload. */
