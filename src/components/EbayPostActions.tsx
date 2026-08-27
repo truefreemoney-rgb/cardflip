@@ -274,9 +274,29 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
         </p>
       )}
       <div className="flex flex-col gap-2">
+        {/* Which button gets the eBay-blue primary style is the whole
+            routing decision: sellers click the prominent one. Connected,
+            the API publish must be primary -- it is the only road that
+            carries the seller's photo (eBay's manual form takes a title in
+            the URL and nothing else; its uploader is sealed to outsiders).
+            08-27: with the form link styled primary, Chris kept landing on
+            eBay's empty 0/25 photo grid and read it as a broken app. The
+            manual form stays available, quiet, for the unconnected. */}
         <div className="flex flex-col gap-2 sm:flex-row">
+          {canPost ? (
+            <button onClick={() => void publishDirect()} disabled={busy !== null} className={ebayButton}>
+              <span className="inline-flex items-center justify-center gap-2">
+                {busy !== null && <Spinner className="h-3.5 w-3.5" />}
+                {pushed ? "Publish on eBay" : "Publish on eBay — photo included"}
+              </span>
+            </button>
+          ) : (
+            <Link href="/connect-ebay" className={ebayButton + " text-center"}>
+              Connect eBay to publish from here
+            </Link>
+          )}
           {item.ebayDraftUrl ? (
-            <a href={item.ebayDraftUrl} target="_blank" rel="noopener noreferrer" className={ebayButton}>
+            <a href={item.ebayDraftUrl} target="_blank" rel="noopener noreferrer" className={quietButton + " text-center"}>
               Open draft on eBay ↗
             </a>
           ) : (
@@ -285,22 +305,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               target="_blank"
               rel="noopener noreferrer"
               onClick={draftOpened}
-              className={ebayButton}
+              className={quietButton + " text-center"}
             >
-              Send draft to eBay ↗
+              eBay&apos;s form instead (no photo) ↗
             </a>
-          )}
-          {canPost ? (
-            <button onClick={() => void publishDirect()} disabled={busy !== null} className={quietButton}>
-              <span className="inline-flex items-center justify-center gap-2">
-                {busy !== null && <Spinner className="h-3.5 w-3.5" />}
-                {pushed ? "Publish on eBay" : "Publish now (skip the form)"}
-              </span>
-            </button>
-          ) : (
-            <Link href="/connect-ebay" className={quietButton + " text-center"}>
-              Connect eBay to publish from here
-            </Link>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
