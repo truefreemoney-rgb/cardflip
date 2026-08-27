@@ -32,15 +32,22 @@ export default function SignupPage() {
   // `?step=ebay` + a live session = the account already exists; resume on
   // the eBay step instead of asking them to sign up again.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("step") !== "ebay") return;
+    const ebayStep = new URLSearchParams(window.location.search).get("step") === "ebay";
     let alive = true;
     fetchCurrentUser().then((u) => {
       if (!alive || !u) return;
-      setFirstName(u.name.split(" ")[0]);
-      setPhase("ebay");
+      if (ebayStep) {
+        setFirstName(u.name.split(" ")[0]);
+        setPhase("ebay");
+      } else {
+        // Already signed in: the account-creation form would only create a
+        // duplicate (Chris, 08-27, after "Start selling free" handed him a
+        // signup form on a live session). Straight to the app instead.
+        router.replace("/app");
+      }
     });
     return () => { alive = false; };
-  }, []);
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
