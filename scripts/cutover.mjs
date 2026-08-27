@@ -92,8 +92,77 @@ async function syncAdmin(snapshotPath) {
   }
 }
 
+// Read-only: where the admin dashboard's numbers actually come from.
+async function breakdown() {
+  const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+  const rows = await db.execute(`
+    SELECT u.email,
+           u.role,
+           COUNT(c.id)                                        AS cards,
+           SUM(CASE WHEN c.status = 'listed' THEN 1 ELSE 0 END) AS listed,
+           SUM(CASE WHEN c.status = 'sold'   THEN 1 ELSE 0 END) AS sold
+    FROM users u
+    LEFT JOIN cards c ON c.user_id = u.id
+    GROUP BY u.id
+    ORDER BY cards DESC
+  `);
+  console.log("\nemail                              role   cards listed sold");
+  for (const r of rows.rows) {
+    console.log(
+      `${String(r.email).padEnd(34)} ${String(r.role).padEnd(6)} ${String(r.cards).padStart(5)} ${String(r.listed).padStart(6)} ${String(r.sold).padStart(4)}`
+    );
+  }
+
+  const status = await db.execute("SELECT status, COUNT(*) AS n FROM cards GROUP BY status");
+  console.log("\ncards by status:");
+  for (const r of status.rows) console.log(`  ${String(r.status).padEnd(12)} ${r.n}`);
+
+  for (const t of ["price_checks", "wishlist", "sessions", "card_photos", "ebay_tokens"]) {
+    try {
+      const r = await db.execute(`SELECT COUNT(*) AS n FROM "${t}"`);
+      console.log(`${t}: ${r.rows[0].n}`);
+    } catch {
+      /* table may not exist */
+    }
+  }
+}
+
+// Clear every scanned card so the admin dashboard reads zero. Touches only the
+// user-owned card tables — accounts, eBay connections, and the whole card
+// catalog / price history are left alone.
+async function resetCards() {
+  const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+
+  const before = {
+    cards: Number((await db.execute("SELECT COUNT(*) AS n FROM cards")).rows[0].n),
+    photos: Number((await db.execute("SELECT COUNT(*) AS n FROM card_photos")).rows[0].n),
+    users: Number((await db.execute("SELECT COUNT(*) AS n FROM users")).rows[0].n),
+  };
+  console.log(`before: ${before.cards} cards, ${before.photos} photos, ${before.users} users`);
+
+  // Photos first — they hang off card ids.
+  await db.execute("DELETE FROM card_photos");
+  await db.execute("DELETE FROM cards");
+
+  const after = {
+    cards: Number((await db.execute("SELECT COUNT(*) AS n FROM cards")).rows[0].n),
+    photos: Number((await db.execute("SELECT COUNT(*) AS n FROM card_photos")).rows[0].n),
+    users: Number((await db.execute("SELECT COUNT(*) AS n FROM users")).rows[0].n),
+  };
+  console.log(`after:  ${after.cards} cards, ${after.photos} photos, ${after.users} users`);
+
+  // Catalog must be untouched — this is the check that matters.
+  const cat = Number((await db.execute("SELECT COUNT(*) AS n FROM price_series")).rows[0].n);
+  const en = Number((await db.execute("SELECT COUNT(*) AS n FROM en_cards")).rows[0].n);
+  console.log(`catalog intact: price_series=${cat}, en_cards=${en}`);
+}
+
 if (mode === "inspect") {
   await inspect();
+} else if (mode === "resetcards") {
+  await resetCards();
+} else if (mode === "breakdown") {
+  await breakdown();
 } else if (mode === "admin") {
   await syncAdmin(process.argv[3]);
 } else if (mode === "go") {

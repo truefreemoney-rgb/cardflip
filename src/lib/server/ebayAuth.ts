@@ -149,11 +149,29 @@ export interface EbayLink {
   scopes: string[];
 }
 
+/**
+ * True when a stored envelope can still be opened with the current key. A key
+ * rotation (or a restore into an environment with a different EBAY_TOKEN_KEY)
+ * leaves rows that decrypt to nothing — those links are dead and the seller has
+ * to reconnect, so we must not report them as connected.
+ */
+function canOpen(sealed: string): boolean {
+  try {
+    open(sealed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getEbayLink(userId: string): Promise<EbayLink | null> {
   const row = (await db
     .prepare("SELECT * FROM ebay_tokens WHERE user_id = ?")
     .get(userId)) as TokenRow | undefined;
   if (!row) return null;
+  // Report a link we can't actually use as no link at all, so the UI offers
+  // "Connect" instead of a "Connected" badge over a dead token.
+  if (!canOpen(row.refresh_token)) return null;
   return {
     ebayUserId: row.ebay_user_id,
     ebayUsername: row.ebay_username,
@@ -317,8 +335,24 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
   if (!row) return null;
 
   const now = Date.now();
+
+  // Tokens sealed with a previous EBAY_TOKEN_KEY can't be opened. That is not a
+  // server error — it is the same situation as an expired refresh token, so
+  // drop the dead link and report "not connected" rather than throwing a 500
+  // into the caller. (This is what a key rotation, or the Fly -> Vercel move,
+  // leaves behind.)
+  let accessToken: string;
+  let refreshToken: string;
+  try {
+    accessToken = open(row.access_token);
+    refreshToken = open(row.refresh_token);
+  } catch {
+    await disconnectEbay(userId);
+    return null;
+  }
+
   // A minute of slack so we never hand out a token that dies mid-request.
-  if (row.access_expires_at - 60_000 > now) return open(row.access_token);
+  if (row.access_expires_at - 60_000 > now) return accessToken;
 
   if (row.refresh_expires_at <= now) {
     await disconnectEbay(userId);
@@ -328,7 +362,7 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
   const tokens = await tokenRequest(
     new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: open(row.refresh_token),
+      refresh_token: refreshToken,
       scope: row.scopes,
     }),
   );
