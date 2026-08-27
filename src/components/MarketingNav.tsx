@@ -7,7 +7,7 @@ import { fetchCurrentUser } from "@/lib/client/auth";
 
 /**
  * The public-page nav. It checks for a live session so a signed-in seller
- * gets "Open the app" instead of Log in / Get started — before 08-27 it
+ * gets "Logged in — open the app" instead of Log in / Get started — before 08-27 it
  * always showed the logged-out pair, which read as "the homepage logged me
  * out" and sent Chris (and would send any seller) back through the login
  * form on a session that was still perfectly valid. Client-side on purpose:
