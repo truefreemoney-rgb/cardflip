@@ -35,9 +35,14 @@ const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {
     tone: "warn",
     text: "That sign-in attempt expired or didn't match this session. Try again.",
   },
+  // Never invite a retry here. eBay signed the seller in, so the authorize
+  // half worked; the code-for-token swap is what failed, and every cause of
+  // that is server-side config (08-27: a stale EBAY_CLIENT_SECRET returning
+  // 401 invalid_client). Clicking Connect again just walks the same loop,
+  // which is exactly how this read as "a stupid loop" rather than a fault.
   exchange: {
     tone: "warn",
-    text: "eBay accepted the sign-in but we couldn't finish linking. Try again in a moment.",
+    text: "eBay signed you in, but linking failed on our side — this is a problem with CardFlip, not your account, and trying again won't fix it. We've been alerted.",
   },
   unavailable: {
     tone: "warn",
