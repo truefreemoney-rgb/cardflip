@@ -2,13 +2,13 @@
 
 import PasswordField from "@/components/PasswordField";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DevLoginButton from "@/components/DevLoginButton";
-import { TotpRequiredError, afterLoginPath, login } from "@/lib/client/auth";
+import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login } from "@/lib/client/auth";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -21,6 +21,22 @@ export default function LoginPage() {
   const [needsCode, setNeedsCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Already signed in? Straight to the app. Without this the page always
+  // shows the empty form, which -- paired with the old always-logged-out
+  // marketing nav -- convinced signed-in sellers the homepage had logged
+  // them out (Chris, 08-27) and walked them through a pointless login.
+  useEffect(() => {
+    let alive = true;
+    fetchCurrentUser()
+      .then((user) => {
+        if (alive && user) router.replace(afterLoginPath());
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
