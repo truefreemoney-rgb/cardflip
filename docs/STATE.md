@@ -40,9 +40,13 @@ original 200366-byte JPEGs over cardflip.io. The script is idempotent
 2. **Sellers reconnect eBay** — old tokens undecryptable; everyone links once.
 3. ~~**Shut down Fly**~~ — **DONE 08-27.** App destroyed, backed up first,
    and the 21 lost cards restored. See the Fly block above.
-4. **`ADMIN_PANEL_PASSWORD` in Vercel** — `admin`/`password` is now the built-in
-   fallback in a **public** repo, so the console door is effectively open. Set
-   the env var (+ redeploy) and it overrides the fallback.
+4. ~~**`ADMIN_PANEL_PASSWORD` in Vercel**~~ — **DONE 08-27.** Set in Vercel
+   (Production) and redeployed; `POST /api/admin/login` with the public-repo
+   fallback `admin`/`password` now returns **401** on cardflip.io (it returned
+   200 until this landed). Note `adminCredentials()` uses `||`, so an EMPTY
+   value silently falls back to the default — verify with the curl above, not
+   by looking at the dashboard. `ADMIN_PANEL_USER` is still unset (defaults to
+   `admin`), which is fine now the password is real.
 5. Parked by Chris: **`support@cardflip.io`** sending address — BACKLOG §2 has
    the full pickup order. `cardflip.io` has no MX/SPF/DKIM at all, so it is a
    domain-email job, not a `MAIL_FROM` change. SMTP has still never sent a real
