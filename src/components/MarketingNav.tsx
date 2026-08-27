@@ -3,30 +3,28 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { fetchCurrentUser } from "@/lib/client/auth";
+import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 
 /**
  * The public-page nav. It checks for a live session so a signed-in seller
- * gets "Logged in — open the app" instead of Log in / Get started — before 08-27 it
- * always showed the logged-out pair, which read as "the homepage logged me
- * out" and sent Chris (and would send any seller) back through the login
- * form on a session that was still perfectly valid. Client-side on purpose:
+ * sees their own name, a Log out, and a way into the app — before 08-27 it
+ * always showed the logged-out Log in / Get started pair, which read as
+ * "the homepage logged me out" and sent sellers back through the login form
+ * on a session that was still perfectly valid. Client-side on purpose:
  * reading cookies() here would drag every marketing page from static to
  * per-request rendering. Until the check answers, the logged-out pair shows
  * — wrong only for the signed-in minority, and only for a moment.
  */
 export default function MarketingNav() {
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetchCurrentUser()
-      .then((user) => {
-        if (alive) setSignedIn(Boolean(user));
+      .then((u) => {
+        if (alive) setUser(u);
       })
-      .catch(() => {
-        if (alive) setSignedIn(false);
-      });
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -40,13 +38,35 @@ export default function MarketingNav() {
           {/* No admin link here: the dashboard is operator-only (and gated),
               and advertising it on the public nav reads as unfinished. It's
               reachable at /admin and linked from the app for admins. */}
-          {signedIn ? (
-            <Link
-              href="/app"
-              className="sheen rounded-full bg-white px-4 py-2 font-medium text-zinc-900 transition hover:bg-zinc-200"
-            >
-              Open the app
-            </Link>
+          {user ? (
+            <>
+              {/* The identity is the "you're logged in" signal (Chris,
+                  08-27) — a green dot plus the account's own name, not a
+                  generic badge. Hidden on the tightest screens; the Log
+                  out + app buttons still tell the story there. */}
+              <span className="hidden items-center gap-2 text-zinc-300 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                {user.name.split(" ")[0]}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void logout().then(() => {
+                    setUser(null);
+                    window.location.reload();
+                  });
+                }}
+                className="px-2 py-2 text-zinc-400 transition hover:text-white sm:px-0"
+              >
+                Log out
+              </button>
+              <Link
+                href="/app"
+                className="sheen rounded-full bg-white px-4 py-2 font-medium text-zinc-900 transition hover:bg-zinc-200"
+              >
+                Open the app
+              </Link>
+            </>
           ) : (
             <>
               {/* Visible at every width — on a phone this is the only way back
