@@ -1,10 +1,10 @@
 # Project state
 
-Last updated: 2026-08-25 evening (resume = this file only).
+Last updated: 2026-08-27 early hours (resume = this file only).
 
 **Resume cheap (Chris, 08-16: "keep the context window usage low when we
-resume"): read ONLY the FIRST ACTION block below (through line ~30, use
-`limit: 32`) and act on it; everything after is reference for when a task
+resume"): read ONLY the FIRST ACTION block below (through line ~90, use
+`limit: 90`) and act on it; everything after is reference for when a task
 needs it.** This file is the whole orientation — don't read `CLAUDE.md`
 unless the task touches identification/pricing/deploy (its trap table matters
 when *editing* that code), and don't read `docs/HISTORY.md` at all on resume
@@ -15,29 +15,77 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**08-27 — CUTOVER DONE. LIVE ON VERCEL.** `cardflip.io` now resolves to Vercel
-(Dynadot: apex A `76.76.21.21`, `www` CNAME `cname.vercel-dns.com`, TTL 5 min;
-old Fly A/AAAA deleted). Verified live: 200 + `Server: Vercel` + SSL on apex and
-www; Turso reads good (catalog counts render); `card_photos` = 6 rows serving
-real JPEGs via `/api/card-image/<id>`; `admin` / `password` logs in 200 with
-`role=admin` (TOTP skipped by design).
+**FIRST ACTION on "lets go": ask Chris whether the eBay connect test worked.**
+That is the one thing left mid-air. He was about to go to `cardflip.io`, log in
+as `truefreemoney@gmail.com` (NOT demo — demo is blocked from linking), and hit
+Connect with eBay. To check the result yourself:
+`node scripts/cutover.mjs breakdown` — **baseline was `ebay_tokens: 2`** (both
+dead rows from the migration). A real new link shows a row with a fresh
+`connected_at`. If it worked, tick it off and move to REMAINING below.
 
-Turso turned out to be **already seeded** — every table count matched a fresh
-prod snapshot (27 cards, 176,651 price_series, 94,144 mtg_cards), so the
-`seed-turso --wipe` step was skipped as unnecessary. Only the photo migration
-and the admin password sync were actually run (`scripts/cutover.mjs go`).
+**08-27 — CUTOVER DONE, LIVE ON VERCEL.** `cardflip.io` → Vercel (Dynadot: apex
+A `76.76.21.21`, `www` CNAME `cname.vercel-dns.com`, TTL 5 min; Fly A/AAAA
+deleted). Verified: 200 + `Server: Vercel` + SSL on apex and www, Turso reads
+good, `card_photos` = 6 serving real JPEGs, `admin`/`password` logs in 200.
+Production branch is **`main`** — push there and Vercel auto-deploys in ~2 min;
+there is no manual deploy step any more (Chris kept expecting one). Turso was
+**already seeded** (counts matched a fresh prod snapshot), so `seed-turso
+--wipe` was skipped; only photos + admin password sync ran.
+
+**Logins now (both `admin`/`password`):** user login at `/login` (bare `admin`
+aliases to `admin@cardflip.dev`, role=admin skips TOTP) and the operator console
+at `/admin` (fallback in `adminAuth.ts` was changed from `onyx` to match).
+
+**eBay — four stacked bugs, all found and fixed 08-27:**
+1. `EBAY_CLIENT_ID` held the **Cert ID** and `EBAY_RU_NAME` held the **App ID** —
+   they were swapped. Fixed in Vercel. This is why nothing worked.
+2. Cert ID had therefore been leaking in public redirect URLs → **rotated**
+   (old key in 30-day grace).
+3. `EBAY_DELETION_ENDPOINT_URL` held a value that broke the challenge hash while
+   still returning 200 → **deleted**; code derives it from `SITE_URL`. Verified
+   by computing the expected SHA-256 independently and matching it live.
+4. `sell.item.draft` is **not granted to this keyset** — proved by probing each
+   scope separately against `auth.ebay.com` (other four accepted). One ungranted
+   scope fails the *whole* authorize call with `invalid_scope`, so it was
+   blocking every seller from linking at all. Now opt-in behind
+   `EBAY_DRAFT_SCOPE=1`; `createDraft` reports unavailable up front. Inventory/
+   offer publish road is unaffected. See BACKLOG §2 to apply for the scope.
+
+Also fixed: undecryptable tokens (fresh `EBAY_TOKEN_KEY`) used to throw a 500 and
+show a false "Connected" badge — `getEbayLink`/`getUserAccessToken` now treat a
+failed decrypt as "not connected" so the UI offers Connect. Self-healing, covers
+future key rotations.
+
+eBay portal RuName `christopher_wag-christop-TCGCar-qznrbmo`: privacy URL and
+both callback URLs were repointed off `cardflip-superior.fly.dev` to
+`cardflip.io` (accepted and declined both = `https://cardflip.io/api/ebay/callback`).
+Chris did this last; **the connect test above is what confirms it saved.**
 
 **REMAINING (all Chris):**
-1. **eBay dev portal** — RuName callback + deletion endpoint → `cardflip.io`.
-   Now unblocked (deletion endpoint validates against live DNS). Not yet done.
-2. **Sellers reconnect eBay** — `EBAY_TOKEN_KEY` is fresh, old Fly tokens are
-   undecryptable. Every seller must reconnect once.
-3. **Shut down Fly** (`cardflip-superior`) once you've watched Vercel for a day
-   — that's the bill you wanted gone. Fly is still running and still billing.
-4. **Change the admin password off `password`** — it's `admin`/`password` on a
-   public domain and admin bypasses TOTP. Rotate with
-   `node scripts/cutover.mjs admin <snapshot.db>` after regenerating the hash,
-   or just change it in the account page once logged in.
+1. **Confirm the eBay connect test** (see FIRST ACTION).
+2. **Sellers reconnect eBay** — old tokens undecryptable; everyone links once.
+3. **Shut down Fly** (`cardflip-superior`) — still running, still billing, and
+   still answering old eBay redirects, which actively confused this session.
+4. **`ADMIN_PANEL_PASSWORD` in Vercel** — `admin`/`password` is now the built-in
+   fallback in a **public** repo, so the console door is effectively open. Set
+   the env var (+ redeploy) and it overrides the fallback.
+5. Parked by Chris: **`support@cardflip.io`** sending address — BACKLOG §2 has
+   the full pickup order. `cardflip.io` has no MX/SPF/DKIM at all, so it is a
+   domain-email job, not a `MAIL_FROM` change. SMTP has still never sent a real
+   message.
+
+**Session tooling left in the repo (untracked/temp, delete when done):**
+`scripts/cutover.mjs` (modes: `inspect`, `breakdown`, `go`, `admin`, `photos`,
+`seed`, `resetcards`) reads `.env.migration.json` so Turso creds never touch a
+shell. `.claude/settings.local.json` holds a `Bash(node scripts/*)` allow rule —
+**note the classifier still blocks live Turso *writes* even with it**; reads and
+`--dry-run` pass, actual writes have to be run by Chris. `.env.migration.json`
+has a **BOM** — strip `﻿` before `JSON.parse`.
+
+**Chris cleared all 27 cards 08-27** at his request ("all cards, keep accounts"):
+`cards` and `card_photos` emptied, 6 accounts and the whole catalog untouched.
+Dashboard money figures were all demo-seeded anyway. `demoSeed.ts` still re-seeds
+the demo account on demo login, so numbers reappearing is that, not a bug.
 
 Snapshot used lives in this session's scratchpad (`cutover/stage/data/cardflip.db`,
 admin baked in) — gone after cleanup; re-pull anytime with `VACUUM INTO` over
