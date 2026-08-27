@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
+import DevLoginButton from "@/components/DevLoginButton";
 import { TotpRequiredError, afterLoginPath, login } from "@/lib/client/auth";
 
 const FIELD =
@@ -151,6 +152,8 @@ export default function LoginPage() {
             {submitting ? "Logging in…" : "Log in"}
           </button>
         </form>
+
+        <DevLoginButton />
 
         <p className="mt-6 text-center text-xs text-zinc-500">
           No account?{" "}

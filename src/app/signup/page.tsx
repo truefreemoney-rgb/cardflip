@@ -9,6 +9,7 @@ import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import OnboardingSteps from "@/components/OnboardingSteps";
 import EbayConnectCard from "@/components/EbayConnectCard";
+import DevLoginButton from "@/components/DevLoginButton";
 import { fetchCurrentUser, signup } from "@/lib/client/auth";
 
 const FIELD =
@@ -152,6 +153,8 @@ export default function SignupPage() {
               {submitting ? "Creating account…" : "Create account"}
             </button>
           </form>
+
+          <DevLoginButton />
 
           <p className="mt-6 text-center text-xs text-zinc-600">
             By continuing you agree to the{" "}

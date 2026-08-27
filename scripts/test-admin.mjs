@@ -21,7 +21,7 @@ function check(label, actual, expected) {
 const env = { ADMIN_PANEL_USER: "ops", ADMIN_PANEL_PASSWORD: "s3cret", EBAY_TOKEN_KEY: "k" };
 const creds = adminCredentials(env);
 check("env credentials win", creds, { user: "ops", password: "s3cret" });
-check("defaults when unset", adminCredentials({}), { user: "admin", password: "onyx" });
+check("defaults when unset", adminCredentials({}), { user: "admin", password: "password" });
 check("defaults flagged", adminUsingDefaults({}), true);
 check("custom not flagged", adminUsingDefaults(env), false);
 check("correct login", verifyAdminCredentials("ops", "s3cret", creds), true);

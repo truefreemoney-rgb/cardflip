@@ -20,7 +20,12 @@ export interface AdminCredentials {
   password: string;
 }
 
-const DEFAULTS: AdminCredentials = { user: "admin", password: "onyx" };
+// Matches the admin *user* account (admin@cardflip.dev) so there is one set of
+// credentials to remember, not two. This is only the fallback — setting
+// ADMIN_PANEL_USER / ADMIN_PANEL_PASSWORD in the environment overrides it, and
+// that is what should be done before real users are on the site, since this
+// default is visible to anyone reading the repo.
+const DEFAULTS: AdminCredentials = { user: "admin", password: "password" };
 
 export function adminCredentials(env: NodeJS.ProcessEnv = process.env): AdminCredentials {
   return {
