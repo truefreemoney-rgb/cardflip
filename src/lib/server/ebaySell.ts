@@ -1,5 +1,5 @@
 import "server-only";
-import { getUserAccessToken } from "@/lib/server/ebayAuth";
+import { draftScopeEnabled, getUserAccessToken } from "@/lib/server/ebayAuth";
 import {
   getCardForUser,
   setCardEbayDraft,
@@ -365,7 +365,9 @@ export async function createDraft(
   }
   const problem = validateDraftInput(input);
   if (problem) throw new EbaySellError(problem, 400);
-  if (listingApiUnavailable) throw new EbayDraftUnavailableError();
+  // Without the scope the token simply cannot carry this permission, so fail
+  // here rather than making the seller wait for eBay's 403.
+  if (!draftScopeEnabled() || listingApiUnavailable) throw new EbayDraftUnavailableError();
 
   const token = await tokenFor(userId);
   const body = buildItemDraft(input);

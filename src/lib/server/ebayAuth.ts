@@ -41,7 +41,18 @@ const EBAY_IDENTITY_URL = "https://apiz.ebay.com/commerce/identity/v1/user/";
 export const USER_SCOPES = [
   // Create a listing draft that shows in the seller's My eBay › Drafts and
   // opens pre-filled in eBay's listing tool (Listing API createItemDraft).
-  "https://api.ebay.com/oauth/api_scope/sell.item.draft",
+  //
+  // OPT-IN, and deliberately so: sell.item.draft is a restricted scope that
+  // eBay grants per keyset on request. Asking for a scope the keyset does not
+  // hold makes the *entire* authorize call fail with invalid_scope — so one
+  // ungranted scope takes the whole Connect flow down, not just the draft
+  // feature (this is exactly what happened 08-27). Set EBAY_DRAFT_SCOPE=1
+  // once eBay has approved the keyset for it. Until then the "Send draft to
+  // eBay" road reports itself unavailable and the inventory/offer publish
+  // road — which needs no extra scope — keeps working.
+  ...(process.env.EBAY_DRAFT_SCOPE === "1"
+    ? ["https://api.ebay.com/oauth/api_scope/sell.item.draft"]
+    : []),
   // Create/update inventory items and offers (publish-from-CardFlip path).
   "https://api.ebay.com/oauth/api_scope/sell.inventory",
   // Read the seller's business policies (offers need fulfillment/payment/
@@ -55,6 +66,11 @@ export const USER_SCOPES = [
   // "sold" in the ledger instead of waiting on a manual button.
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
 ];
+
+/** Whether this deployment asks for (and so can use) the item-draft scope. */
+export function draftScopeEnabled(): boolean {
+  return process.env.EBAY_DRAFT_SCOPE === "1";
+}
 
 export class EbayOAuthNotConfiguredError extends Error {
   constructor() {
