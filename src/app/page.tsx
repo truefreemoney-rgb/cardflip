@@ -61,11 +61,14 @@ const faqs = [
   },
 ];
 
-// Render at request time: the card mirror lives on the Fly volume, which
-// doesn't exist in the Docker builder — a build-time prerender can bake an
-// empty ticker/hero into the page for up to a revalidation window.
-// (Fetches keep their own data cache; this only moves rendering to runtime.)
-export const dynamic = "force-dynamic";
+// Static with a daily re-render. force-dynamic dated from Fly, where the
+// card mirror lived on a volume the Docker builder could not see, so a
+// build-time prerender baked an empty hero. On Vercel the build reads the
+// same Turso database production does; rendering per request only bought
+// ~1.4s of TTFB on every homepage visit (measured 08-27, part of the
+// "everything is laggy" pass). Revalidate keeps the price chip fresh-ish;
+// the exact number matters much less than not paying a lambda per view.
+export const revalidate = 86400;
 
 export default async function Home() {
   const [featured, showcase] = await Promise.all([

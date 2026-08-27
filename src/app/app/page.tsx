@@ -372,12 +372,16 @@ export default function AppPage() {
               // It is the only image a listing is ever sent (picture policy:
               // the actual item, never catalogue art), and until it reaches
               // the server it exists only in this tab -- a refresh loses it
-              // and the push has to race an upload. Failure is not surfaced:
-              // the send path still falls back to the in-memory file, so a
-              // miss here costs nothing beyond the old behaviour.
+              // and the push has to race an upload. Deliberately NOT awaited:
+              // awaiting stalled the pump ~a second per card while the JPEG
+              // uploaded, which read as "everything is laggy" on a stack
+              // (08-27). Failure is not surfaced: the send path still falls
+              // back to the in-memory file, so a miss costs nothing beyond
+              // the old behaviour.
               if (next.file) {
-                const uploaded = await uploadCardPhoto(server.id, next.file);
-                if (uploaded.ok) patchItem(next.id, { photoAt: uploaded.photoAt });
+                void uploadCardPhoto(server.id, next.file).then((uploaded) => {
+                  if (uploaded.ok) patchItem(next.id, { photoAt: uploaded.photoAt });
+                });
               }
             }
           }
