@@ -774,6 +774,15 @@ p {
     animation: foil-spin 7s linear infinite !important;
   }
 
+  /* Fifth exemption (owner's call, 08-27): the /egg skeleton theater.
+     Reaching it takes knowing the URL and clicking THE SHOW — every bit
+     of motion is explicitly requested. The zeroed durations also broke it
+     outright: the curtain transition wedged at t=0 and never opened. */
+  .egg-root .egg-curtain { transition-duration: 2.2s !important; }
+  .egg-root .egg-skel { transition-duration: 0.18s !important; }
+  .egg-root .egg-spot,
+  .egg-root .egg-title { transition-duration: 1.6s !important; }
+  .egg-root .egg-doot { animation-duration: 1.4s !important; }
   /* Hover/focus feedback on controls stays eased rather than snapping —
      color and shadow fades are feedback, not motion. */
   a,
