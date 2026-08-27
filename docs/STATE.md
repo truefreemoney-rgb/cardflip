@@ -15,6 +15,51 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**08-27 night — FIRST LISTING UNDER CHRIS'S OWN EBAY, PHOTO INCLUDED.**
+Team Rocket's Mewtwo ex is LIVE: eBay listing **237033886027**, published
+19:31 UTC via the API road, with his real scan (345,683 bytes in
+`card_photos`, stored 12s before publish by the scan-time upload). The whole
+chain works end to end: connect → policies → offer → publish → photo.
+
+What it took, in order (each was a REAL bug or gate):
+1. `EBAY_CLIENT_SECRET` in Vercel was stale → every token exchange 401'd
+   `invalid_client` → the "connect loop". Chris pasted the current Cert ID.
+2. Business policies: none on the account. Publish now auto-creates plain
+   defaults (Ground Advantage flat $4.99 buyer pays / managed payments /
+   30-day buyer-pays returns) — `createDefaultPolicies` in ebaySell.ts.
+   NOTE: `buyerResponsibleForShipping` is a freight flag, never "buyer
+   pays"; it fails LSAS validation (LOGISTICS_INFO_IS_MISSING).
+3. Stale offer ids (minted under the broken link) 404 with 25713 — publish
+   now clears them and answers `needs_push`; the client re-pushes and
+   retries invisibly.
+4. eBay error 25002 "create a seller's account": christophis01 had never
+   done eBay seller registration (payout bank etc.). Chris completed it on
+   ebay.com — the one gate no code opens. (The 08-16 listing was Nick's.)
+
+UI overhaul the same night: the eBay-blue button is now the API publish
+("photo included") and the manual form is demoted + labeled "no photo" —
+eBay's own composer can NEVER be given a photo from outside, only a title
+in the URL; Chris kept landing on its empty 0/25 grid via the old primary
+button. Marketing nav is session-aware (green dot + first name + Log out +
+Open the app); /login and /signup bounce signed-in visitors to /app; hero
+has a "Scan now" CTA; the scanner opens EMPTY every visit (queue restore
+removed — Chris: "fresh starts"; ledger keeps everything). Perf: homepage
+was force-dynamic for a dead Fly reason — now static+revalidate 86400
+(1.4s → 0.2s); the scan pump no longer awaits the photo upload (it
+stalled ~1s/card — same-morning regression, caught same day).
+
+Also: `/egg` — secret skeleton-band theater (curtain + WebAudio doots,
+zero assets), fifth reduced-motion exemption in globals.css. And
+`admin`/`password` on the console returns **401** now —
+`ADMIN_PANEL_PASSWORD` is set in Vercel; `adminCredentials()` uses `||`,
+so verify by curl after any rotation, never by the dashboard.
+
+**Open threads:** (a) push warns "saved without condition detail" — eBay
+rejected the condition/grader aspect on the draft; cosmetic for a raw NM
+card but find the right aspect name. (b) cowboyrocks still needs to
+reconnect eBay once. (c) support@cardflip.io still parked (BACKLOG §2).
+(d) eBay portal: apply for `sell.item.draft` scope when wanted.
+
 **08-27 later — FLY IS GONE. VERCEL IS THE ONLY HOST.**
 `flyctl apps destroy cardflip-superior` done; `flyctl apps list` is empty and
 `cardflip-superior.fly.dev` no longer answers. No Fly billing at all now.
