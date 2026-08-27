@@ -193,6 +193,65 @@ async function optIntoBusinessPolicies(token: string): Promise<boolean> {
   }
 }
 
+/**
+ * Create the three default policies for an account that has none. eBay
+ * refuses to publish an offer without fulfillment/payment/return policy
+ * ids, and a brand-new seller has zero even after the opt-in above (seen
+ * 08-27: publish stopped at "create them once in Seller Hub"). These are
+ * deliberately plain defaults -- Ground Advantage at a flat $4.99 the
+ * buyer pays, managed payments, 30-day buyer-pays returns -- created ONLY
+ * when the account has no policy of that kind, never touching existing
+ * ones. The seller can edit or replace them in Seller Hub afterwards;
+ * CardFlip just refuses to make an empty account a dead end.
+ */
+async function createDefaultPolicies(token: string, missing: { f: boolean; p: boolean; r: boolean }): Promise<void> {
+  const base = { marketplaceId: EBAY_MARKETPLACE_ID, categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES" }] };
+  const jobs: Promise<unknown>[] = [];
+  if (missing.f) {
+    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", {
+      ...base,
+      name: "CardFlip shipping",
+      handlingTime: { value: 1, unit: "DAY" },
+      shippingOptions: [
+        {
+          optionType: "DOMESTIC",
+          costType: "FLAT_RATE",
+          shippingServices: [
+            {
+              sortOrder: 1,
+              shippingCarrierCode: "USPS",
+              shippingServiceCode: "USPSGroundAdvantage",
+              shippingCost: { value: "4.99", currency: "USD" },
+              buyerResponsibleForShipping: true,
+            },
+          ],
+        },
+      ],
+    }));
+  }
+  if (missing.p) {
+    // Managed payments: eBay ignores payment methods here, the policy is a shell.
+    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/payment_policy", {
+      ...base,
+      name: "CardFlip payments",
+    }));
+  }
+  if (missing.r) {
+    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/return_policy", {
+      ...base,
+      name: "CardFlip returns",
+      returnsAccepted: true,
+      returnPeriod: { value: 30, unit: "DAY" },
+      returnShippingCostPayer: "BUYER",
+    }));
+  }
+  const results = await Promise.allSettled(jobs);
+  for (const r of results) {
+    if (r.status === "rejected") {
+      console.warn("eBay default policy creation failed:", r.reason instanceof Error ? r.reason.message : r.reason);
+    }
+  }
+}
 async function policyIds(token: string): Promise<ListingPolicies | typeof NOT_OPTED_IN> {
   const mp = `marketplace_id=${EBAY_MARKETPLACE_ID}`;
   const [f, p, r] = await Promise.all([
@@ -533,12 +592,24 @@ export async function publishDraft(
   // The offer was created with whatever defaults existed at push time —
   // usually nothing for a first-time seller. Resolve them now (opting in and
   // creating the location as needed), write them onto the offer, then publish.
-  const defaults = await sellerDefaults(token);
-  const { fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies;
+  let defaults = await sellerDefaults(token);
+  let { fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies;
+  if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
+    // An account with no policies is the normal first-publish state, not an
+    // error: create plain defaults and look again (08-27 -- the Seller Hub
+    // detour stopped Chris cold at the moment of first publish).
+    await createDefaultPolicies(token, {
+      f: !fulfillmentPolicyId,
+      p: !paymentPolicyId,
+      r: !returnPolicyId,
+    });
+    defaults = await sellerDefaults(token);
+    ({ fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies);
+  }
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
     throw new EbayPublishNeedsError(
       "policies",
-      "eBay needs a shipping, payment and return policy on your account before it will list. Create them once in Seller Hub (Account → Business Policies), then publish again.",
+      "eBay needs a shipping, payment and return policy on your account before it will list. CardFlip tried to create default ones and eBay refused -- create them once in Seller Hub (Account → Business Policies), then publish again.",
     );
   }
   let merchantLocationKey = defaults.merchantLocationKey;
