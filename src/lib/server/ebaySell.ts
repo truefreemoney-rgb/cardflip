@@ -208,7 +208,13 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
   const base = { marketplaceId: EBAY_MARKETPLACE_ID, categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES" }] };
   const jobs: Promise<unknown>[] = [];
   if (missing.f) {
-    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", {
+    // eBay's LSAS validator rejected the first shape of this (08-27:
+    // LOGISTICS_INFO_IS_MISSING -- buyerResponsibleForShipping is a
+    // freight/pickup flag, not "buyer pays", and its presence sank the
+    // whole option). Buyer-pays is simply a non-zero flat cost. Some
+    // accounts also refuse specific service codes, so try Ground
+    // Advantage first and fall back to Priority.
+    const fulfillmentBody = (serviceCode: string) => ({
       ...base,
       name: "CardFlip shipping",
       handlingTime: { value: 1, unit: "DAY" },
@@ -220,14 +226,19 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
             {
               sortOrder: 1,
               shippingCarrierCode: "USPS",
-              shippingServiceCode: "USPSGroundAdvantage",
+              shippingServiceCode: serviceCode,
               shippingCost: { value: "4.99", currency: "USD" },
-              buyerResponsibleForShipping: true,
+              freeShipping: false,
             },
           ],
         },
       ],
-    }));
+    });
+    jobs.push(
+      ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody("USPSGroundAdvantage")).catch(() =>
+        ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody("USPSPriority")),
+      ),
+    );
   }
   if (missing.p) {
     // Managed payments: eBay ignores payment methods here, the policy is a shell.
