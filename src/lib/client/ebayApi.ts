@@ -127,6 +127,7 @@ export type EbayPostErrorCode =
   | "auth"
   | "demo"
   | "not_connected"
+  | "needs_push"
   | "needs_location"
   | "needs_policies"
   | "needs_photo"

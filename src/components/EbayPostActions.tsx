@@ -209,10 +209,24 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     setBusy("publish");
     setFailure(null);
     setNotice(null);
-    const result = await publishEbayDraft(
+    let result = await publishEbayDraft(
       item.serverId,
       shipZip.trim() ? { postalCode: shipZip.trim() } : undefined,
     );
+    // needs_push: the stored offer died on eBay (server already cleared the
+    // stale id). Re-push and retry once, invisibly -- the seller clicked
+    // Publish, not "debug my offer id" (08-27: a dead offer from a broken
+    // session 404d every publish until re-pushed).
+    if (!result.ok && result.code === "needs_push") {
+      const repushed = await pushEbayDraft(draftInput(), item.photoAt ? null : item.file);
+      if (repushed.ok) {
+        afterPush(repushed, true);
+        result = await publishEbayDraft(
+          item.serverId,
+          shipZip.trim() ? { postalCode: shipZip.trim() } : undefined,
+        );
+      }
+    }
     setBusy(null);
     if (!result.ok) {
       setFailure(result);

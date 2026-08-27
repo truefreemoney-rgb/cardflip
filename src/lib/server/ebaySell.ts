@@ -8,6 +8,7 @@ import {
   type CardRecord,
 } from "@/lib/server/cards";
 import { hasCardPhoto } from "@/lib/server/cardPhotos";
+import { db } from "@/lib/db";
 import {
   buildInventoryItem,
   buildItemDraft,
@@ -555,8 +556,8 @@ export interface PublishResult {
  * point at the one eBay screen that fixes it (business policies).
  */
 export class EbayPublishNeedsError extends Error {
-  needs: "location" | "policies" | "photo" | "reconnect";
-  constructor(needs: "location" | "policies" | "photo" | "reconnect", message: string) {
+  needs: "location" | "policies" | "photo" | "reconnect" | "push";
+  constructor(needs: "location" | "policies" | "photo" | "reconnect" | "push", message: string) {
     super(message);
     this.name = "EbayPublishNeedsError";
     this.needs = needs;
@@ -636,7 +637,26 @@ export async function publishDraft(
   }
 
   const offerPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}`;
-  const current = (await ebayFetch(token, "GET", offerPath)) as Record<string, unknown> | null;
+  let current: Record<string, unknown> | null;
+  try {
+    current = (await ebayFetch(token, "GET", offerPath)) as Record<string, unknown> | null;
+  } catch (err) {
+    // 25713 "This Offer is not available": the stored offer id points at
+    // nothing -- created under a broken link or expired since (08-27: offer
+    // 247326078011 from an earlier failed session 404'd every publish).
+    // Clear it so the next push mints a fresh offer, and tell the client,
+    // which re-pushes and retries the publish on its own.
+    if (err instanceof EbaySellError && err.errors.some((e) => e.errorId === 25713)) {
+      await db
+        .prepare("UPDATE cards SET ebay_offer_id = NULL, ebay_pushed_at = NULL WHERE id = ? AND user_id = ?")
+        .run(card.id, userId);
+      throw new EbayPublishNeedsError(
+        "push",
+        "That saved eBay draft no longer exists on eBay -- resending it now.",
+      );
+    }
+    throw err;
+  }
   if (current) {
     // updateOffer replaces the offer; send it back whole with the two things
     // filled in, minus the fields eBay forbids re-sending.
