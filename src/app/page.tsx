@@ -129,9 +129,18 @@ export default async function Home() {
                 className="animate-fade-up flex flex-col gap-3 sm:flex-row"
                 style={{ animationDelay: "180ms" }}
               >
+                {/* Straight into the scanner: signed in lands on /app,
+                    signed out gets the login first and then the scanner.
+                    (Chris, 08-27: the homepage needs a Scan Now button.) */}
+                <Link
+                  href="/app"
+                  className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
+                >
+                  Scan now
+                </Link>
                 <Link
                   href="/signup"
-                  className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
+                  className="rounded-full border border-edge px-8 py-3.5 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2"
                 >
                   Start selling free
                 </Link>
