@@ -15,57 +15,31 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION on "lets go": ask Chris whether the eBay connect test worked.**
-That is the one thing left mid-air. He was about to go to `cardflip.io`, log in
-as `truefreemoney@gmail.com` (NOT demo — demo is blocked from linking), and hit
-Connect with eBay. To check the result yourself:
-`node scripts/cutover.mjs breakdown` — **baseline was `ebay_tokens: 2`** (both
-dead rows from the migration). A real new link shows a row with a fresh
-`connected_at`. If it worked, tick it off and move to REMAINING below.
+**08-27 later — FLY IS GONE. VERCEL IS THE ONLY HOST.**
+`flyctl apps destroy cardflip-superior` done; `flyctl apps list` is empty and
+`cardflip-superior.fly.dev` no longer answers. No Fly billing at all now.
+cardflip.io verified 200 + `Server: Vercel` after.
 
-**08-27 — CUTOVER DONE, LIVE ON VERCEL.** `cardflip.io` → Vercel (Dynadot: apex
-A `76.76.21.21`, `www` CNAME `cname.vercel-dns.com`, TTL 5 min; Fly A/AAAA
-deleted). Verified: 200 + `Server: Vercel` + SSL on apex and www, Turso reads
-good, `card_photos` = 6 serving real JPEGs, `admin`/`password` logs in 200.
-Production branch is **`main`** — push there and Vercel auto-deploys in ~2 min;
-there is no manual deploy step any more (Chris kept expecting one). Turso was
-**already seeded** (counts matched a fresh prod snapshot), so `seed-turso
---wipe` was skipped; only photos + admin password sync ran.
+Before destroying, the volume was pulled to `backups/fly-final/`:
+`cardflip-prod.db` (177MB, `PRAGMA integrity_check` = ok) + `photos/` (6 JPEGs,
+all the same test shot) + `photos.tgz`. **Keep this** — it is the only copy of
+the pre-cutover history (163 sessions, and demo had 2 listed + 2 sold).
+Fly sftp from Git Bash needed `MSYS_NO_PATHCONV=1`, else remote paths silently
+became `C:/Program Files/Git/...` and flyctl said "file does not exist".
 
-**Logins now (both `admin`/`password`):** user login at `/login` (bare `admin`
-aliases to `admin@cardflip.dev`, role=admin skips TOTP) and the operator console
-at `/admin` (fallback in `adminAuth.ts` was changed from `onyx` to match).
-
-**eBay — four stacked bugs, all found and fixed 08-27:**
-1. `EBAY_CLIENT_ID` held the **Cert ID** and `EBAY_RU_NAME` held the **App ID** —
-   they were swapped. Fixed in Vercel. This is why nothing worked.
-2. Cert ID had therefore been leaking in public redirect URLs → **rotated**
-   (old key in 30-day grace).
-3. `EBAY_DELETION_ENDPOINT_URL` held a value that broke the challenge hash while
-   still returning 200 → **deleted**; code derives it from `SITE_URL`. Verified
-   by computing the expected SHA-256 independently and matching it live.
-4. `sell.item.draft` is **not granted to this keyset** — proved by probing each
-   scope separately against `auth.ebay.com` (other four accepted). One ungranted
-   scope fails the *whole* authorize call with `invalid_scope`, so it was
-   blocking every seller from linking at all. Now opt-in behind
-   `EBAY_DRAFT_SCOPE=1`; `createDraft` reports unavailable up front. Inventory/
-   offer publish road is unaffected. See BACKLOG §2 to apply for the scope.
-
-Also fixed: undecryptable tokens (fresh `EBAY_TOKEN_KEY`) used to throw a 500 and
-show a false "Connected" badge — `getEbayLink`/`getUserAccessToken` now treat a
-failed decrypt as "not connected" so the UI offers Connect. Self-healing, covers
-future key rotations.
-
-eBay portal RuName `christopher_wag-christop-TCGCar-qznrbmo`: privacy URL and
-both callback URLs were repointed off `cardflip-superior.fly.dev` to
-`cardflip.io` (accepted and declined both = `https://cardflip.io/api/ebay/callback`).
-Chris did this last; **the connect test above is what confirms it saved.**
+**A real gap was caught doing this:** the cutover never carried the cards over.
+Fly had 27, Turso had 2. `scripts/restore-fly-cards.mjs` restored **21**
+(truefreemoney 19, cowboyrocks 2; the 6 demo rows skipped as test data) and
+attached the 6 photos into `card_photos`. Verified: Turso now truefreemoney 19
+/ cowboyrocks 3, `card_photos` 6, and `/api/card-image/<id>` serves the
+original 200366-byte JPEGs over cardflip.io. The script is idempotent
+(INSERT OR IGNORE) and takes `--include-demo` if demo rows are ever wanted.
 
 **REMAINING (all Chris):**
 1. **Confirm the eBay connect test** (see FIRST ACTION).
 2. **Sellers reconnect eBay** — old tokens undecryptable; everyone links once.
-3. **Shut down Fly** (`cardflip-superior`) — still running, still billing, and
-   still answering old eBay redirects, which actively confused this session.
+3. ~~**Shut down Fly**~~ — **DONE 08-27.** App destroyed, backed up first,
+   and the 21 lost cards restored. See the Fly block above.
 4. **`ADMIN_PANEL_PASSWORD` in Vercel** — `admin`/`password` is now the built-in
    fallback in a **public** repo, so the console door is effectively open. Set
    the env var (+ redeploy) and it overrides the fallback.

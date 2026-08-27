@@ -39,6 +39,7 @@ import {
 import { loadQueue, saveQueue, type SavedQueueEntry } from "@/lib/client/queuePersistence";
 import { toast } from "@/components/Toaster";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
+import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
@@ -479,7 +480,20 @@ export default function AppPage() {
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.
             const server = (await createServerCard(input)) ?? (await createServerCard(input));
-            if (server) patchItem(next.id, { serverId: server.id });
+            if (server) {
+              patchItem(next.id, { serverId: server.id });
+              // Persist the seller's own photo now, not at eBay-push time.
+              // It is the only image a listing is ever sent (picture policy:
+              // the actual item, never catalogue art), and until it reaches
+              // the server it exists only in this tab -- a refresh loses it
+              // and the push has to race an upload. Failure is not surfaced:
+              // the send path still falls back to the in-memory file, so a
+              // miss here costs nothing beyond the old behaviour.
+              if (next.file) {
+                const uploaded = await uploadCardPhoto(server.id, next.file);
+                if (uploaded.ok) patchItem(next.id, { photoAt: uploaded.photoAt });
+              }
+            }
           }
         } catch {
           // Reading the image itself failed, which really is about the photo.

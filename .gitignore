@@ -44,3 +44,7 @@ data/
 # generated MTG mirror seed (npm run export:mtg), ~8 MB, rebuilt on each refresh
 seed/*.gz
 !.env.example
+
+# Pre-cutover Fly production data pulled 08-27 (real user rows + photos).
+# Local rollback copy only -- this repo is public, it must never be committed.
+backups/
