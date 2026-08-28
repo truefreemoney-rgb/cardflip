@@ -431,7 +431,13 @@ export default function AppPage() {
             card: repriced,
           });
 
-          if (item.serverId && item.status !== "listed" && item.status !== "sold") {
+          // English scans only: comps for a CJK card are keyword noise
+          // (eBay matched on a Chinese/Japanese name against US listings),
+          // and auto-writing that number over the honest $0.00 is how a
+          // Chinese card "got priced" at nonsense (Chris, 08-28 — "it
+          // needs to be $0.00"). The comps still render as reference;
+          // the seller prices the card themselves.
+          if (item.serverId && item.language === "en" && item.status !== "listed" && item.status !== "sold") {
             const quote = quotePrice(repriced, item.condition, item.strategy);
             if (quote) {
               void updateServerCard(item.serverId, {
