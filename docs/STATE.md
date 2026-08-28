@@ -15,6 +15,13 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**All accounts are Chris.** cowboyrocks25@gmail.com (display name "Nikki
+Torres", eBay ni105494) is Chris's own second identity — there is no other
+person. truefreemoney@gmail.com / christophis01 is the seller-registered
+pair; ni105494 has NOT done eBay seller onboarding (error 25002 on publish)
+and only needs it if he wants to sell from that account too.
+
+
 **08-27 night — FIRST LISTING UNDER CHRIS'S OWN EBAY, PHOTO INCLUDED.**
 Team Rocket's Mewtwo ex is LIVE: eBay listing **237033886027**, published
 19:31 UTC via the API road, with his real scan (345,683 bytes in

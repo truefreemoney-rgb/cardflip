@@ -48,3 +48,6 @@ seed/*.gz
 # Pre-cutover Fly production data pulled 08-27 (real user rows + photos).
 # Local rollback copy only -- this repo is public, it must never be committed.
 backups/
+
+.vercel
+.env*
