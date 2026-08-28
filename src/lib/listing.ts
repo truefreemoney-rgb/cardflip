@@ -381,6 +381,19 @@ export interface ListingFacts {
 }
 
 /** eBay caps listing titles at 80 characters. */
+/**
+ * Which non-English printing this card is, judged from its printed name:
+ * kana means Japanese, Han ideographs without kana mean Chinese. Drives the
+ * translate-before-posting rule (Chris, 08-28): a CJK card lists under its
+ * English name with the language named -- that is both what US buyers
+ * search ("Sylveon V Chinese") and honest disclosure of what ships.
+ */
+function cjkLanguage(card: PokemonCard): "Japanese" | "Chinese" | null {
+  if (/[぀-ヿ]/.test(card.name)) return "Japanese";
+  if (/[一-鿿]/.test(card.name)) return "Chinese";
+  return null;
+}
+
 function buildTitle(
   card: PokemonCard,
   condition: Condition,
@@ -388,7 +401,9 @@ function buildTitle(
 ): string {
   // "1st Edition" goes right after the name — it's the term buyers search,
   // and it must survive even when the tail gets trimmed for length.
-  const name = facts.firstEdition ? `${card.name} 1st Edition` : card.name;
+  const lang = cjkLanguage(card);
+  const baseName = lang && card.englishName ? card.englishName : card.name;
+  const name = facts.firstEdition ? `${baseName} 1st Edition` : baseName;
   // A slab's grade replaces the condition outright: "PSA 10 Near Mint" reads
   // as noise to a buyer, and the grade is the term they search.
   const tail = facts.grading ? gradeLabel(facts.grading) : condition;
@@ -398,9 +413,12 @@ function buildTitle(
   const isMtg = game.id === "mtg";
   const number = isMtg && card.setCode ? `${card.setCode} ${card.number}` : card.number;
   const finish = isMtg && facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : "";
-  const token = [finish, game.titleToken].filter(Boolean).join(" ");
+  const token = [finish, lang ?? "", game.titleToken].filter(Boolean).join(" ");
 
-  const full = `${name} ${card.setName} ${number} ${token} ${tail}`.replace(/\s+/g, " ");
+  // A CJK set name is dead weight in an English-market title; the English
+  // name + number + language identify the card.
+  const setForTitle = lang ? "" : card.setName;
+  const full = `${name} ${setForTitle} ${number} ${token} ${tail}`.replace(/\s+/g, " ");
   if (full.length <= 80) return full;
 
   // When trimming, drop what buyers search for least: for a slab the grade is
@@ -409,7 +427,7 @@ function buildTitle(
   const trimmed = (
     facts.grading
       ? `${name} ${number} ${token} ${tail}`
-      : `${name} ${card.setName} ${number} ${token}`
+      : `${name} ${setForTitle} ${number} ${token}`
   ).replace(/\s+/g, " ");
   if (trimmed.length <= 80) return trimmed;
 
@@ -446,15 +464,19 @@ export function buildListing(
     const key = Object.entries(MTG_FINISH_LABEL).find(([, label]) => label === printingLabel)?.[0];
     if (key) facts = { ...facts, finish: key };
   }
+  const descLang = cjkLanguage(card);
+  const descName = descLang && card.englishName ? `${card.englishName} (${card.name})` : card.name;
   const numberLine = isMtg && card.setCode
-    ? `${card.name} — ${card.setName} (${card.setCode}), collector number ${card.number}.`
-    : `${card.name} — ${card.setName}, card ${card.number}.`;
+    ? `${descName} — ${card.setName} (${card.setCode}), collector number ${card.number}.`
+    : `${descName} — ${card.setName}, card ${card.number}.`;
+  const languageLine = descLang ? `${descLang}-language printing.` : null;
   const finishLine = isMtg && (facts.finish || printingLabel)
     ? `Finish: ${MTG_FINISH_LABEL[facts.finish ?? ""] ?? printingLabel ?? "Nonfoil"}.`
     : null;
 
   const description = [
     numberLine,
+    languageLine,
     [
       card.rarity ? `Rarity: ${card.rarity}.` : null,
       isMtg && card.typeLine ? `${card.typeLine}.` : null,
