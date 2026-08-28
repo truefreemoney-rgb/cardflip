@@ -8,6 +8,8 @@ import CardImage from "@/components/CardImage";
 import MarketMetricsPanel from "@/components/MarketMetricsPanel";
 import EbayPostActions from "@/components/EbayPostActions";
 import ListingCopyFields from "@/components/ListingCopyFields";
+import PriceInput from "@/components/PriceInput";
+import { updateServerCard } from "@/lib/client/cardsApi";
 import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
@@ -647,14 +649,12 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">
             $
           </span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
+          <PriceInput
             value={price}
-            onChange={(e) =>
-              onChange({ priceOverride: parseFloat(e.target.value) || 0 })
-            }
+            onValue={(n) => onChange({ priceOverride: n })}
+            onCommit={(n) => {
+              if (item.serverId) void updateServerCard(item.serverId, { price: n });
+            }}
             className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
           />
         </div>
