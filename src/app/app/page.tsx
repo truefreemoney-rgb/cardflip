@@ -355,7 +355,7 @@ export default function AppPage() {
               itemsRef.current.find((i) => i.id === next.id)?.condition ?? "Near Mint";
             const quote = quotePrice(card, condition, "quick");
             const input = {
-              cardName: card.name,
+              cardName: card.englishName || card.name,
               setName: card.setName,
               cardNumber: card.number,
               imageUrl: card.imageSmall,
@@ -519,7 +519,7 @@ export default function AppPage() {
       // condition/strategy multipliers, and the grade is the stored condition.
       const quote = quotePrice(card, "Near Mint", grading ? "market" : "quick");
       const server = await createServerCard({
-        cardName: card.name,
+        cardName: card.englishName || card.name,
         setName: card.setName,
         cardNumber: card.number,
         imageUrl: card.imageSmall,

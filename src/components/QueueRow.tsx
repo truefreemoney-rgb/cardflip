@@ -35,7 +35,7 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-white">
-            {item.card?.name ?? "Identifying…"}
+            {item.card ? item.card.englishName || item.card.name : "Identifying…"}
             {item.card?.englishName && (
               <span className="text-zinc-500"> ({item.card.englishName})</span>
             )}
@@ -59,7 +59,7 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
 
       <button
         onClick={onRemove}
-        aria-label={`Remove ${item.card?.name ?? "card"}`}
+        aria-label={`Remove ${item.card ? item.card.englishName || item.card.name : "card"}`}
         className="shrink-0 rounded-md p-2 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
       >
         <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">

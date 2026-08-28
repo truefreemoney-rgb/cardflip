@@ -329,7 +329,14 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-semibold text-white">{card.name}</h2>
+          <h2 className="text-xl font-semibold text-white">
+            {card.englishName || card.name}
+            {/* The printed name stays visible when it differs -- it is how
+                the physical card in hand is verified against the match. */}
+            {card.englishName && card.englishName !== card.name && (
+              <span className="ml-2 text-sm font-normal text-zinc-500">{card.name}</span>
+            )}
+          </h2>
           {card.englishName && (
             <p className="text-sm font-medium text-brand-300">
               {card.englishName}
