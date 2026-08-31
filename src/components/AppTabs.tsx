@@ -36,17 +36,19 @@ export default function AppTabs() {
       {/* Account: an icon, not a fifth word — the four text tabs already fill a phone. */}
       <Link
         href="/app/account"
-        aria-label="Account settings"
-        title="Account"
+        aria-label="Profile and account settings"
+        title="Profile"
         aria-current={accountActive ? "page" : undefined}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-full transition sm:w-auto sm:px-3.5 ${
           accountActive ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
         }`}
       >
-        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+        <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
           <circle cx="10" cy="7" r="3.2" />
           <path d="M3.8 17c.9-3 3.3-4.5 6.2-4.5s5.3 1.5 6.2 4.5" strokeLinecap="round" />
         </svg>
+        {/* Icon-only on phones — the four text tabs already fill the pill there. */}
+        <span className="hidden text-sm font-medium sm:inline">Profile</span>
       </Link>
     </nav>
   );
