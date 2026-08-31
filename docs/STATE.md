@@ -15,6 +15,34 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**08-31 — FIRST SALE ON THE BOOKS.** Mewtwo ex sold via ni105494:
+$457.99 gross / ~$397.01 net (fee estimate matched reality to the cent).
+Recorded on cowboyrocks; Sylveon V still live. Both eBay accounts
+reconnected post-rebuild (christophis01 + ni105494, 08-28).
+
+**Since the rebuild, shipped:** CJK support fully on (silent vision
+detection -> zh/jp catalogs; CJK cards price at $0 -- comps never
+auto-price non-en); English everywhere (listings AND UI: englishName in
+queue/editor/ledger, printed name kept as caption); PriceInput (currency
+field, kills 05.00); demo door restored (/login 'Try the demo' -- demo has
+NO password by design, random UUID); Spin Cycle logo in Logo.tsx; My cards
+money design: Earned tile + sold rows lead with NET green, gross as
+caption.
+
+**Open, his:** (a) support@cardflip.io -- BACKLOG item has the exact
+5-step order; needs his Fastmail+Dynadot logins, mail DNS still absent;
+current sender chris@superiormarketing.com. (b) Decide A/B on
+consolidating cowboyrocks cards into truefreemoney (offered, unanswered).
+**Open, mine:** (c) verify S3 backup works against the NEW Turso
+(backup.ts env untested since account swap -- top priority);
+(d) finish my-photo thumbnails on My cards (ServerCard lacks photoAt in
+client type; server already returns it); (e) listed-for price on sold
+rows (parked by Chris, 'for now'); (f) ended-listing sync task chip;
+(g) condition-detail aspect warning on pushes. Turso tokens: both
+chat-exposed, Chris accepted the risk (08-31).
+
+
+
 **All accounts are Chris.** cowboyrocks25@gmail.com (display name "Nikki
 Torres", eBay ni105494) is Chris's own second identity — there is no other
 person. truefreemoney@gmail.com / christophis01 is the seller-registered
@@ -99,6 +127,12 @@ original 200366-byte JPEGs over cardflip.io. The script is idempotent
    value silently falls back to the default — verify with the curl above, not
    by looking at the dashboard. `ADMIN_PANEL_USER` is still unset (defaults to
    `admin`), which is fine now the password is real.
+   **REVERSED 08-28:** Chris lost the password (Vercel secrets are write-only)
+   and, after repeated failed logins, chose to REMOVE `ADMIN_PANEL_PASSWORD`
+   entirely. Redeployed; `admin`/`password` (the public-repo default) returns
+   **200** on cardflip.io again. This is a known security hole with paying
+   users on the site — re-raise setting a real password (and writing it down
+   in his password manager THIS time) at the next calm moment.
 5. Parked by Chris: **`support@cardflip.io`** sending address — BACKLOG §2 has
    the full pickup order. `cardflip.io` has no MX/SPF/DKIM at all, so it is a
    domain-email job, not a `MAIL_FROM` change. SMTP has still never sent a real
