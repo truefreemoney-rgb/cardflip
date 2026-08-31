@@ -20,10 +20,10 @@ export default function AppHeader() {
   const showEbay = !pathname.startsWith("/app/account");
 
   return (
-    <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
       <Logo size="sm" />
       <AppTabs />
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 md:justify-self-end">
         {user && showEbay && (
           user.ebayConnected ? (
             <Link
@@ -42,14 +42,6 @@ export default function AppHeader() {
               eBay setup
             </Link>
           )
-        )}
-        {user?.role === "admin" && (
-          <Link
-            href="/admin"
-            className="rounded-full border border-edge px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-surface-2"
-          >
-            Admin
-          </Link>
         )}
         {user ? (
           <Link
