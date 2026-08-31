@@ -11,6 +11,7 @@ import {
   type ServerCard,
 } from "@/lib/client/cardsApi";
 import { syncEbaySales } from "@/lib/client/ebayApi";
+import { apiPath } from "@/lib/client/basePath";
 
 /**
  * Every card the seller has ever scanned, with where it is in its life:
@@ -322,7 +323,8 @@ export default function CollectionPage() {
                 className="flex flex-wrap items-center gap-4 px-4 py-3"
               >
                 <CardImage
-                  src={card.imageUrl}
+                  // The seller's own scan photo when one is stored; catalog art otherwise.
+                  src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
                   alt={card.cardName}
                   className="h-16 w-12 shrink-0 rounded-md"
                 />

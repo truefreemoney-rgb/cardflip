@@ -29,6 +29,8 @@ export interface ServerCard {
   ebayPublishedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  /** Set when the seller's own scan photo is stored — served by /api/card-image/[id]. */
+  photoAt: number | null;
 }
 
 export interface CreateCardInput {
