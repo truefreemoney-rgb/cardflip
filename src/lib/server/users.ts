@@ -21,6 +21,10 @@ export interface User {
   stripeCustomerId: string | null;
   subStatus: string | null;
   subPeriodEnd: number | null;
+  /** Scan metering: counter month (yyyy-mm), scans used in it, purchased bank. */
+  scanMonth: string | null;
+  scansUsed: number;
+  extraScans: number;
 }
 
 interface UserRow {
@@ -36,6 +40,9 @@ interface UserRow {
   stripe_customer_id: string | null;
   sub_status: string | null;
   sub_period_end: number | null;
+  scan_month: string | null;
+  scans_used: number | null;
+  extra_scans: number | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -52,6 +59,9 @@ function fromRow(row: UserRow): User {
     stripeCustomerId: row.stripe_customer_id ?? null,
     subStatus: row.sub_status ?? null,
     subPeriodEnd: row.sub_period_end ?? null,
+    scanMonth: row.scan_month ?? null,
+    scansUsed: row.scans_used ?? 0,
+    extraScans: row.extra_scans ?? 0,
   };
 }
 
@@ -142,6 +152,9 @@ export async function createUser(
     stripeCustomerId: null,
     subStatus: null,
     subPeriodEnd: null,
+    scanMonth: null,
+    scansUsed: 0,
+    extraScans: 0,
   };
 }
 

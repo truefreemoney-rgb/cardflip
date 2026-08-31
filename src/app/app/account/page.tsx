@@ -8,6 +8,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import type { SessionUser } from "@/lib/client/auth";
 import {
+  buyScanPack,
   changePassword,
   deleteAccount,
   fetchAccount,
@@ -498,7 +499,7 @@ function AccountSettings({
       </Section>
 
       {/* Plan */}
-      <PlanSection user={overview?.user ?? user} demo={demo} />
+      <PlanSection user={overview?.user ?? user} quota={overview?.quota} demo={demo} />
 
       {/* Delete */}
       <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
@@ -542,7 +543,15 @@ function AccountSettings({
  * is the only writer of subStatus, so after checkout the badge updates on the
  * next overview fetch (the ?billing=success return hits a fresh page load).
  */
-function PlanSection({ user, demo }: { user: SessionUser; demo: boolean }) {
+function PlanSection({
+  user,
+  quota,
+  demo,
+}: {
+  user: SessionUser;
+  quota?: { used: number; included: number; extra: number; remaining: number | null };
+  demo: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const subscribed = user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
@@ -561,13 +570,13 @@ function PlanSection({ user, demo }: { user: SessionUser; demo: boolean }) {
   return (
     <Section
       title="Plan"
-      hint={subscribed ? "Thanks for supporting CardFlip." : "CardFlip is free during early access."}
+      hint={subscribed ? "500 scans a month, rebilled monthly." : "CardFlip is free during early access."}
     >
       <div className="flex flex-wrap items-center gap-3">
         {subscribed ? (
           <>
             <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-              CardFlip · $4.99/mo
+              CardFlip · $9.99/mo
             </span>
             <span className="text-sm text-zinc-400">
               {user.subStatus === "past_due"
@@ -588,14 +597,34 @@ function PlanSection({ user, demo }: { user: SessionUser; demo: boolean }) {
             <span className="text-sm text-zinc-400">
               {user.subStatus === "canceled"
                 ? "Your subscription has ended — the app still works during early access."
-                : "Free for now. Subscribe early to support the build."}
+                : "Free for now. Subscribing early supports the build: $9.99/mo, 500 scans included."}
             </span>
             <button type="button" className={primaryBtn} onClick={() => go(startCheckout)} disabled={busy || demo}>
-              {busy ? "Opening…" : "Subscribe · $4.99/mo"}
+              {busy ? "Opening…" : "Subscribe · $9.99/mo"}
             </button>
           </>
         )}
       </div>
+      {subscribed && quota && (
+        <div className="mt-4 max-w-sm">
+          <div className="flex items-baseline justify-between text-xs text-zinc-400">
+            <span>
+              {quota.used} of {quota.included} scans used this month
+              {quota.extra > 0 && ` · ${quota.extra} extra banked`}
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-full rounded-full ${quota.remaining !== null && quota.remaining <= 0 ? "bg-red-400" : "bg-brand-400"}`}
+              style={{ width: `${Math.min(100, (quota.used / quota.included) * 100)}%` }}
+            />
+          </div>
+          <button type="button" className={`${ghostBtn} mt-3`} onClick={() => go(buyScanPack)} disabled={busy}>
+            {busy ? "Opening…" : "Buy 150 more scans · $4.99"}
+          </button>
+          <p className="mt-1.5 text-xs text-zinc-600">Extra scans never expire — they&apos;re used after your monthly 500 runs out.</p>
+        </div>
+      )}
       {demo && <p className="mt-2 text-xs text-zinc-600">The shared demo account can&apos;t subscribe.</p>}
       {msg && <Notice kind="err">{msg}</Notice>}
     </Section>

@@ -57,7 +57,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "CardFlip will be $4.99/month for everything — unlimited scans, AI card reading, live pricing, and listing tracking. It's free while we're in early access, and early-access sellers will be told well before billing starts. You always keep 100% of your eBay payouts.",
+    a: "CardFlip will be $9.99/month for everything — 500 scans a month, AI card reading, live pricing, and listing tracking, with extra scan packs if you need more. It's free while we're in early access, and early-access sellers will be told well before billing starts. You always keep 100% of your eBay payouts.",
   },
 ];
 
@@ -304,7 +304,7 @@ export default async function Home() {
                 </h3>
                 <p className="text-right">
                   <span className="holo-text font-display text-4xl font-bold">
-                    $4.99
+                    $9.99
                   </span>
                   <span className="text-sm text-zinc-500">/month</span>
                 </p>
@@ -312,7 +312,7 @@ export default async function Home() {
 
               <ul className="mt-6 space-y-3 text-sm text-zinc-300">
                 {[
-                  "Unlimited card scans — camera or photos",
+                  "500 card scans a month — camera or photos",
                   "AI card reading with condition grading",
                   "Live TCGplayer market pricing for the exact printing",
                   "eBay listings written and pre-filled for you",

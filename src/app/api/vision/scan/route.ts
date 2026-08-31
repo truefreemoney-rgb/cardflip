@@ -8,6 +8,7 @@ import {
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { isDemoUser } from "@/lib/server/users";
+import { recordScan, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import {
   LIMITS,
   RateLimitError,
@@ -32,6 +33,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
+    // Subscribers get 500 scans a month plus any purchased packs; free early
+    // access stays ungated (the rate limits above still bound it).
+    if (scanQuotaExhausted(user)) {
+      return NextResponse.json(
+        { error: "You've used all your scans this month — buy more from your account page", quota: true },
+        { status: 402 },
+      );
+    }
+
     const body = await req.json().catch(() => null);
     const image = body?.image as string | undefined;
     const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
@@ -47,6 +57,9 @@ export async function POST(req: Request) {
     }
 
     const card = await analyzeCardImage(image, mediaType, language, parseGame(body?.game));
+    // Metered for everyone (launch pricing needs the data), enforced above
+    // for subscribers only. After the call — a failed scan shouldn't count.
+    await recordScan(user);
     return NextResponse.json({ status: "done", card });
   } catch (err) {
     if (err instanceof AuthError) {

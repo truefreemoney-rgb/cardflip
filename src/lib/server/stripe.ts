@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import crypto from "node:crypto";
 import { SITE_URL } from "@/lib/siteUrl";
 
@@ -13,6 +13,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 const env = () => ({
   secretKey: process.env.STRIPE_SECRET_KEY,
   priceId: process.env.STRIPE_PRICE_ID,
+  packPriceId: process.env.STRIPE_SCAN_PACK_PRICE_ID,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 });
 
@@ -48,7 +49,7 @@ export async function createCustomer(email: string, userId: string): Promise<str
   return c.id;
 }
 
-/** Hosted Checkout for the $4.99/mo subscription; returns the redirect URL. */
+/** Hosted Checkout for the $9.99/mo subscription; returns the redirect URL. */
 export async function createCheckoutSession(customerId: string, userId: string): Promise<string> {
   const { priceId } = env();
   const s = await stripeRequest<{ url: string }>("checkout/sessions", {
@@ -58,6 +59,23 @@ export async function createCheckoutSession(customerId: string, userId: string):
     "line_items[0][price]": priceId!,
     "line_items[0][quantity]": "1",
     success_url: `${SITE_URL}/app/account?billing=success`,
+    cancel_url: `${SITE_URL}/app/account?billing=canceled`,
+  });
+  return s.url;
+}
+
+/** One-time Checkout for a scan pack; returns the redirect URL. */
+export async function createPackCheckoutSession(customerId: string, userId: string): Promise<string> {
+  const { packPriceId } = env();
+  if (!packPriceId) throw new Error("stripe: STRIPE_SCAN_PACK_PRICE_ID not set");
+  const s = await stripeRequest<{ url: string }>("checkout/sessions", {
+    mode: "payment",
+    customer: customerId,
+    client_reference_id: userId,
+    "metadata[kind]": "scan_pack",
+    "line_items[0][price]": packPriceId,
+    "line_items[0][quantity]": "1",
+    success_url: `${SITE_URL}/app/account?billing=pack`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
   });
   return s.url;

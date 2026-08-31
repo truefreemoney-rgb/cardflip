@@ -382,6 +382,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "stripe_customer_id TEXT",
     "sub_status TEXT",
     "sub_period_end INTEGER",
+    // Scan metering (lib/server/scanQuota.ts): scan_month is the yyyy-mm the
+    // counter belongs to (reset lazily on rollover); extra_scans is the bank
+    // of purchased pack scans, consumed after the monthly allowance.
+    "scan_month TEXT",
+    "scans_used INTEGER NOT NULL DEFAULT 0",
+    "extra_scans INTEGER NOT NULL DEFAULT 0",
   ]],
 ];
 

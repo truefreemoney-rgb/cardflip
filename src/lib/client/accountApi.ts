@@ -6,6 +6,8 @@ import type { SessionUser } from "@/lib/client/auth";
 export interface AccountOverview {
   user: SessionUser;
   demo: boolean;
+  /** Scan metering; remaining is null when the cap isn't enforced (no subscription). */
+  quota?: { used: number; included: number; extra: number; remaining: number | null };
   data: {
     cards: number;
     listed: number;
@@ -80,6 +82,12 @@ export async function deleteAccount(password: string): Promise<void> {
 /** Answers the Stripe Checkout URL to redirect to. */
 export async function startCheckout(): Promise<string> {
   const res = await fetch(apiPath("/api/billing/checkout"), { method: "POST" });
+  return (await expectOk<{ url: string }>(res)).url;
+}
+
+/** Answers a one-time Checkout URL for 150 extra scans. */
+export async function buyScanPack(): Promise<string> {
+  const res = await fetch(apiPath("/api/billing/scan-pack"), { method: "POST" });
   return (await expectOk<{ url: string }>(res)).url;
 }
 

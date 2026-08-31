@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/users";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
+import { scanQuota } from "@/lib/server/scanQuota";
 
 /**
  * The account page's own endpoint.
@@ -42,6 +43,7 @@ export async function GET() {
     return NextResponse.json({
       user: toPublicUser(user),
       demo: isDemoUser(user),
+      quota: scanQuota(user),
       data: await userDataSummary(user.id),
       ebay: {
         available: isEbayOAuthConfigured(),

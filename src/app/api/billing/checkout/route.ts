@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { isDemoUser, isSubscribed, setStripeCustomer } from "@/lib/server/users";
 import { createCheckoutSession, createCustomer, stripeConfigured } from "@/lib/server/stripe";
 
-/** POST — start a $4.99/mo subscription: answers { url } to Stripe Checkout. */
+/** POST — start a $9.99/mo subscription: answers { url } to Stripe Checkout. */
 export async function POST(req: NextRequest) {
   const limited = limitOrRespond(`billing:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
