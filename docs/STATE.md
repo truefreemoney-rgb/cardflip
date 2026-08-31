@@ -1,6 +1,6 @@
 # Project state
 
-Last updated: 2026-08-27 early hours (resume = this file only).
+Last updated: 2026-08-31 (resume = this file only; FIRST ACTION block = the 08-31 section).
 
 **Resume cheap (Chris, 08-16: "keep the context window usage low when we
 resume"): read ONLY the FIRST ACTION block below (through line ~90, use
