@@ -368,8 +368,16 @@ export default function CollectionPage() {
                   {STATUS_LABEL[card.status]}
                 </span>
 
-                <div className="w-24 text-right">
-                  <p className="text-sm font-semibold text-white">
+                {/* The price is what a seller scans the list FOR -- it reads
+                    at a glance now (Chris, 08-31: "make the prices bigger").
+                    Sold rows go green like the Earned tile; the net line
+                    steps up from 10px squint-size too. */}
+                <div className="w-28 text-right">
+                  <p
+                    className={`text-lg font-bold tracking-tight ${
+                      card.status === "sold" ? "text-emerald-400" : "text-white"
+                    }`}
+                  >
                     $
                     {(card.status === "sold"
                       ? (card.soldPrice ?? card.price)
@@ -377,7 +385,7 @@ export default function CollectionPage() {
                     ).toFixed(2)}
                   </p>
                   {card.status === "sold" && card.soldPrice != null && (
-                    <p className="text-[10px] text-zinc-600">
+                    <p className="text-xs font-medium text-zinc-400">
                       ≈${netAfterFees(card.soldPrice).toFixed(2)} net
                     </p>
                   )}
