@@ -256,16 +256,19 @@ export default function CollectionPage() {
           <p className="text-[11px] text-zinc-600">drafts + live listings</p>
         </div>
         <div className="rounded-2xl border border-edge bg-surface-1 p-4">
+          {/* The big number is the money that actually reached the seller --
+              net after eBay fees, same as the admin panel leads with. Gross
+              and the fee estimate drop to the detail line (Chris, 08-31:
+              sellers need to see the sale the way admin does). */}
           <p className="text-xs text-zinc-500">Earned</p>
           <p className="mt-1 text-xl font-semibold text-emerald-400">
-            ${stats.earned.toFixed(2)}
+            ${stats.net.toFixed(2)}
           </p>
           <p className="text-[11px] text-zinc-600">
             {stats.sold.length} sold
+            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ≈${(stats.earned - stats.net).toFixed(2)} eBay fees`}
             {stats.avgDays !== null &&
               ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
-            {stats.sold.length > 0 &&
-              ` · ≈$${stats.net.toFixed(2)} after eBay fees`}
           </p>
         </div>
       </div>
