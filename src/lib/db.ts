@@ -373,7 +373,16 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     ],
   ],
   ["wishlist_items", ["card_id TEXT", "game TEXT"]],
-  ["users", ["totp_secret TEXT", "totp_enabled_at INTEGER"]],
+  ["users", [
+    "totp_secret TEXT",
+    "totp_enabled_at INTEGER",
+    // Stripe billing (lib/server/stripe.ts): customer id once checkout has
+    // run; sub_status mirrors the subscription ("active", "past_due",
+    // "canceled", ... — NULL = never subscribed); sub_period_end for display.
+    "stripe_customer_id TEXT",
+    "sub_status TEXT",
+    "sub_period_end INTEGER",
+  ]],
 ];
 
 async function initSchema(): Promise<void> {

@@ -75,6 +75,20 @@ export async function deleteAccount(password: string): Promise<void> {
   await expectOk(res);
 }
 
+// --- Billing (Stripe) -------------------------------------------------------
+
+/** Answers the Stripe Checkout URL to redirect to. */
+export async function startCheckout(): Promise<string> {
+  const res = await fetch(apiPath("/api/billing/checkout"), { method: "POST" });
+  return (await expectOk<{ url: string }>(res)).url;
+}
+
+/** Answers the Stripe billing-portal URL (cancel, change card, invoices). */
+export async function openBillingPortal(): Promise<string> {
+  const res = await fetch(apiPath("/api/billing/portal"), { method: "POST" });
+  return (await expectOk<{ url: string }>(res)).url;
+}
+
 // --- Two-step verification (TOTP) ------------------------------------------
 
 export interface TotpSetup {

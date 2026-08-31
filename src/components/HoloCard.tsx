@@ -25,7 +25,7 @@ export default function HoloCard({ src, alt, className = "" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const target = useRef({ x: 0, y: 0, px: 50, py: 50, s: 1, o: 0 });
-  const current = useRef({ ...target.current });
+  const current = useRef({ x: 0, y: 0, px: 50, py: 50, s: 1, o: 0 });
   const raf = useRef<number | null>(null);
 
   function tick() {

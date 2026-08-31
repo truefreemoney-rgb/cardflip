@@ -11,6 +11,8 @@ import {
   changePassword,
   deleteAccount,
   fetchAccount,
+  openBillingPortal,
+  startCheckout,
   signOutOtherDevices,
   totpConfirm,
   totpDisable,
@@ -496,12 +498,7 @@ function AccountSettings({
       </Section>
 
       {/* Plan */}
-      <Section title="Plan" hint="CardFlip is free during early access.">
-        <p className="text-sm text-zinc-400">
-          <span className="rounded-full bg-holo-violet/15 px-2.5 py-0.5 text-xs font-medium text-holo-violet">Early access</span>
-          <span className="ml-2">$4.99/month once billing opens — you&apos;ll be told well before anything is charged.</span>
-        </p>
-      </Section>
+      <PlanSection user={overview?.user ?? user} demo={demo} />
 
       {/* Delete */}
       <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
@@ -536,5 +533,71 @@ function AccountSettings({
         )}
       </section>
     </main>
+  );
+}
+
+/**
+ * Billing. Nobody is required to subscribe yet — subscribing is opt-in while
+ * early access lasts; enforcement is a later, separate decision. The webhook
+ * is the only writer of subStatus, so after checkout the badge updates on the
+ * next overview fetch (the ?billing=success return hits a fresh page load).
+ */
+function PlanSection({ user, demo }: { user: SessionUser; demo: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const subscribed = user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+
+  async function go(fn: () => Promise<string>) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      window.location.assign(await fn());
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Something went wrong");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section
+      title="Plan"
+      hint={subscribed ? "Thanks for supporting CardFlip." : "CardFlip is free during early access."}
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        {subscribed ? (
+          <>
+            <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+              CardFlip · $4.99/mo
+            </span>
+            <span className="text-sm text-zinc-400">
+              {user.subStatus === "past_due"
+                ? "Last payment failed — update your card."
+                : user.subPeriodEnd
+                  ? `Renews ${formatDate(user.subPeriodEnd)}.`
+                  : "Active."}
+            </span>
+            <button type="button" className={ghostBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
+              {busy ? "Opening…" : "Manage billing"}
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="rounded-full bg-holo-violet/15 px-2.5 py-0.5 text-xs font-medium text-holo-violet">
+              Early access
+            </span>
+            <span className="text-sm text-zinc-400">
+              {user.subStatus === "canceled"
+                ? "Your subscription has ended — the app still works during early access."
+                : "Free for now. Subscribe early to support the build."}
+            </span>
+            <button type="button" className={primaryBtn} onClick={() => go(startCheckout)} disabled={busy || demo}>
+              {busy ? "Opening…" : "Subscribe · $4.99/mo"}
+            </button>
+          </>
+        )}
+      </div>
+      {demo && <p className="mt-2 text-xs text-zinc-600">The shared demo account can&apos;t subscribe.</p>}
+      {msg && <Notice kind="err">{msg}</Notice>}
+    </Section>
   );
 }

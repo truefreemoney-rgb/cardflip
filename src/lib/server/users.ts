@@ -17,6 +17,10 @@ export interface User {
   /** Set during two-step setup; only counts once totpEnabledAt is stamped. */
   totpSecret: string | null;
   totpEnabledAt: number | null;
+  /** Stripe: set on first checkout; status mirrors the subscription via webhook. */
+  stripeCustomerId: string | null;
+  subStatus: string | null;
+  subPeriodEnd: number | null;
 }
 
 interface UserRow {
@@ -29,6 +33,9 @@ interface UserRow {
   created_at: number;
   totp_secret: string | null;
   totp_enabled_at: number | null;
+  stripe_customer_id: string | null;
+  sub_status: string | null;
+  sub_period_end: number | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -42,7 +49,34 @@ function fromRow(row: UserRow): User {
     createdAt: row.created_at,
     totpSecret: row.totp_secret ?? null,
     totpEnabledAt: row.totp_enabled_at ?? null,
+    stripeCustomerId: row.stripe_customer_id ?? null,
+    subStatus: row.sub_status ?? null,
+    subPeriodEnd: row.sub_period_end ?? null,
   };
+}
+
+/** An active (or grace-period) paid subscription. */
+export function isSubscribed(user: Pick<User, "subStatus">): boolean {
+  return user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+}
+
+export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
+  await db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customerId, userId);
+}
+
+export async function setSubscription(
+  userId: string,
+  status: string | null,
+  periodEnd: number | null,
+): Promise<void> {
+  await db.prepare("UPDATE users SET sub_status = ?, sub_period_end = ? WHERE id = ?").run(status, periodEnd, userId);
+}
+
+export async function findUserByStripeCustomer(customerId: string): Promise<User | null> {
+  const row = (await db
+    .prepare("SELECT * FROM users WHERE stripe_customer_id = ?")
+    .get(customerId)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
 }
 
 export function totpEnabled(user: Pick<User, "totpSecret" | "totpEnabledAt">): boolean {
@@ -105,6 +139,9 @@ export async function createUser(
     createdAt,
     totpSecret: null,
     totpEnabledAt: null,
+    stripeCustomerId: null,
+    subStatus: null,
+    subPeriodEnd: null,
   };
 }
 
@@ -210,10 +247,12 @@ export interface PublicUser {
   ebayConnected: boolean;
   createdAt: number;
   totpEnabled: boolean;
+  subStatus: string | null;
+  subPeriodEnd: number | null;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
 export function toPublicUser(user: User): PublicUser {
-  const { id, name, email, role, ebayConnected, createdAt } = user;
-  return { id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user) };
+  const { id, name, email, role, ebayConnected, createdAt, subStatus, subPeriodEnd } = user;
+  return { id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user), subStatus, subPeriodEnd };
 }

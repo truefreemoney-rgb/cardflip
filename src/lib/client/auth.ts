@@ -10,6 +10,9 @@ export interface SessionUser {
   ebayConnected: boolean;
   createdAt: number;
   totpEnabled?: boolean;
+  /** Stripe subscription mirror — null/absent = never subscribed (early access). */
+  subStatus?: string | null;
+  subPeriodEnd?: number | null;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */
