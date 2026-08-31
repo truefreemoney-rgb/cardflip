@@ -46,10 +46,14 @@ local + live Vercel env list; the Tigris bucket died with Fly). Built
 (`backups/turso/cardflip-<date>.db.gz`, gitignored, keeps 10). Verified:
 331,107 rows / 18 tables, all counts match, integrity_check ok, 59 MB,
 23s. Restore = gunzip + `seed-turso.mjs --wipe` with SEED_SOURCE.
-Re-run it before risky DB work and every few days; no scheduler yet
-(Chris to decide: Windows Task Scheduler vs manual).
-(d) finish my-photo thumbnails on My cards (ServerCard lacks photoAt in
-client type; server already returns it); (e) listed-for price on sold
+Re-run it before risky DB work. SCHEDULED: Windows Task Scheduler
+"CardFlip Turso backup", daily 10:00 AM (+catch-up on boot), logs to
+backups/turso/backup.log — verified end-to-end 08-31.
+~~(d) my-photo thumbnails~~ **DONE 08-31** (`bbfd069`): photoAt on client
+ServerCard; My cards rows show the seller's scan via /api/card-image
+when stored, catalog art otherwise. Also 08-31: Admin button removed
+from AppHeader, nav pill centered (md 3-col grid), mobile pill one line
+w/ flex-1 tabs, account icon is a labeled "Profile" tab on sm+; (e) listed-for price on sold
 rows (parked by Chris, 'for now'); (f) ended-listing sync task chip;
 (g) condition-detail aspect warning on pushes. Turso tokens: both
 chat-exposed, Chris accepted the risk (08-31).
