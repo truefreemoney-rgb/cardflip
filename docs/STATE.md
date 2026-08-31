@@ -21,6 +21,22 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**08-31 late — STRIPE BILLING BUILT (SANDBOX), e2e-verified on prod**
+(`aa505d3`): product prod_VAzsshadbHo9Sg / price price_1UAdt4HzaqR7o9G2rRRSDbhu
+($4.99/mo), webhook -> cardflip.io/api/stripe/webhook. No SDK
+(`lib/server/stripe.ts`); routes /api/billing/checkout|portal +
+/api/stripe/webhook (sig-verified, sole writer of users.sub_status/
+sub_period_end/stripe_customer_id, ALTER-probe columns). Account page
+Plan section: Subscribe / Manage billing. **Nothing is gated — opt-in
+only; enforcement is an open Chris decision.** Live-verified: test
+checkout (4242) -> webhook -> active w/ renew date; cancel -> canceled;
+throwaway account deleted after. STRIPE_SECRET_KEY/PRICE_ID/
+WEBHOOK_SECRET on Vercel prod+preview + .env.local — ALL TEST-MODE.
+At launch: Chris activates Stripe live (identity+bank), recreate
+product/price/webhook in live mode, swap the 3 env vars. Checkout
+gotcha: Stripe's Link save-info checkbox defaults ON and demands a
+phone number.
+
 **08-31 — FIRST SALE ON THE BOOKS.** Mewtwo ex sold via ni105494:
 $457.99 gross / ~$397.01 net (fee estimate matched reality to the cent).
 Recorded on cowboyrocks; Sylveon V still live. Both eBay accounts
