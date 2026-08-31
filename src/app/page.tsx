@@ -185,7 +185,7 @@ export default async function Home() {
                     alt={`${heroCard.name} — ${heroCard.setName}`}
                   />
                   {heroQuote && (
-                    <div className="foil-edge absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-baseline gap-2 whitespace-nowrap rounded-full px-4 py-2 shadow-xl shadow-black/50">
+                    <div className="foil-edge absolute left-1/2 top-full mt-3 flex -translate-x-1/2 items-baseline gap-2 whitespace-nowrap rounded-full px-4 py-2 shadow-xl shadow-black/50">
                       <span className="text-xs text-zinc-400">
                         {heroCard.name}
                       </span>
@@ -195,7 +195,8 @@ export default async function Home() {
                     </div>
                   )}
                 </div>
-                <p className="mt-12 text-center text-[11px] text-zinc-500">
+                {/* mt-16: the price pill floats ~3.5rem below the card — keep clear of it. */}
+                <p className="mt-16 text-center text-[11px] text-zinc-500">
                   Real card, live market price. Move your cursor over it.
                 </p>
               </div>
