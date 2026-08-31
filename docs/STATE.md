@@ -21,9 +21,20 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**08-31 latest — PRICING SET: $9.99/mo, 500 scans/mo, $4.99 packs of 150**
+(`c5e09b1`, e2e on prod incl. pack purchase -> extra_scans=150): prices
+price_1UAeGnHzaqR7o9G2jhQpe38h (sub) + price_1UAeGnHzaqR7o9G2OrbHzs7n
+(pack); old $4.99 price archived. Metering in `scanQuota.ts`
+(users.scan_month/scans_used/extra_scans): counted for ALL users,
+402-enforced for subscribers only; extras never expire, consumed after
+the monthly 500; pack buy needs active sub (/api/billing/scan-pack).
+Account page: usage bar + Buy button; landing/terms/FAQ copy now
+$9.99/500. Basis: scan ~2¢ (Opus 5 low effort), Card Dealer Pro $9/500.
+Untested margin lever: Sonnet 5 vision (~60% cheaper), needs accuracy
+A/B on real card photos.
+
 **08-31 late — STRIPE BILLING BUILT (SANDBOX), e2e-verified on prod**
-(`aa505d3`): product prod_VAzsshadbHo9Sg / price price_1UAdt4HzaqR7o9G2rRRSDbhu
-($4.99/mo), webhook -> cardflip.io/api/stripe/webhook. No SDK
+(`aa505d3`): product prod_VAzsshadbHo9Sg, webhook -> cardflip.io/api/stripe/webhook. No SDK
 (`lib/server/stripe.ts`); routes /api/billing/checkout|portal +
 /api/stripe/webhook (sig-verified, sole writer of users.sub_status/
 sub_period_end/stripe_customer_id, ALTER-probe columns). Account page
