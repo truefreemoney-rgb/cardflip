@@ -372,21 +372,24 @@ export default function CollectionPage() {
                     at a glance now (Chris, 08-31: "make the prices bigger").
                     Sold rows go green like the Earned tile; the net line
                     steps up from 10px squint-size too. */}
+                {/* One number per row, and it is the one the seller acts on:
+                    a sold row leads with NET (the money that arrived), with
+                    gross as its caption; other rows lead with the price.
+                    Two same-size figures compete; a figure and its caption
+                    read instantly (Chris, 08-31). */}
                 <div className="w-28 text-right">
-                  <p
-                    className={`text-lg font-bold tracking-tight ${
-                      card.status === "sold" ? "text-emerald-400" : "text-white"
-                    }`}
-                  >
-                    $
-                    {(card.status === "sold"
-                      ? (card.soldPrice ?? card.price)
-                      : card.price
-                    ).toFixed(2)}
-                  </p>
-                  {card.status === "sold" && card.soldPrice != null && (
-                    <p className="text-xs font-medium text-zinc-400">
-                      ≈${netAfterFees(card.soldPrice).toFixed(2)} net
+                  {card.status === "sold" && card.soldPrice != null ? (
+                    <>
+                      <p className="text-lg font-bold tracking-tight text-emerald-400">
+                        ${netAfterFees(card.soldPrice).toFixed(2)}
+                      </p>
+                      <p className="text-xs font-medium text-zinc-400">
+                        net · sold ${card.soldPrice.toFixed(2)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-lg font-bold tracking-tight text-white">
+                      ${card.price.toFixed(2)}
                     </p>
                   )}
                 </div>
