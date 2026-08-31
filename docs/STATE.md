@@ -33,8 +33,15 @@ caption.
 5-step order; needs his Fastmail+Dynadot logins, mail DNS still absent;
 current sender chris@superiormarketing.com. (b) Decide A/B on
 consolidating cowboyrocks cards into truefreemoney (offered, unanswered).
-**Open, mine:** (c) verify S3 backup works against the NEW Turso
-(backup.ts env untested since account swap -- top priority);
+**Open, mine:** ~~(c) backups~~ **DONE 08-31**: there was NO backup at all
+(backup.ts is a Turso no-op, no AWS/Tigris env exists anywhere — checked
+local + live Vercel env list; the Tigris bucket died with Fly). Built
+`scripts/backup-turso.mjs` — dumps live Turso -> local gzipped SQLite
+(`backups/turso/cardflip-<date>.db.gz`, gitignored, keeps 10). Verified:
+331,107 rows / 18 tables, all counts match, integrity_check ok, 59 MB,
+23s. Restore = gunzip + `seed-turso.mjs --wipe` with SEED_SOURCE.
+Re-run it before risky DB work and every few days; no scheduler yet
+(Chris to decide: Windows Task Scheduler vs manual).
 (d) finish my-photo thumbnails on My cards (ServerCard lacks photoAt in
 client type; server already returns it); (e) listed-for price on sold
 rows (parked by Chris, 'for now'); (f) ended-listing sync task chip;

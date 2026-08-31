@@ -43,7 +43,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — Graded slab cert-number lookup (PSA/CGC APIs) — cheap, weakly covered even by paid rivals
 - [ ] S — Wishlist price alerts (mail.ts exists, only used for resets)
 - [ ] S — Collection CSV export (only the eBay drafts CSV exists today)
-- [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`, deploy pending): `lib/server/backup.ts` nightly VACUUM INTO → gzip → Tigris `cardflip-backups` (SigV4, no SDK), 7 weekday + monthly copies, step 4 of `dailyJobs.ts`
+- [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`): Tigris path retired with Fly. **Replaced 08-31 by `scripts/backup-turso.mjs`** (Turso → local `backups/turso/*.db.gz`, verified full dump) after the old Turso account loss proved PITR isn't enough. Open: no scheduler — Chris picks manual vs Task Scheduler; off-site copy (S3/Drive) if wanted later
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
 - [x] S — Scanner empty state has a 3-step strip (snap → match/price → draft on eBay) (08-17)
