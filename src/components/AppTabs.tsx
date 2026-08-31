@@ -15,7 +15,7 @@ export default function AppTabs() {
   const accountActive = pathname.startsWith("/app/account");
 
   return (
-    <nav className="foil-edge flex items-center gap-1 rounded-full p-1 [--foil-fill:#101218]">
+    <nav className="foil-edge flex w-full items-center gap-0.5 rounded-full p-1 [--foil-fill:#101218] sm:w-auto sm:gap-1">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
@@ -23,7 +23,7 @@ export default function AppTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+            className={`flex-1 whitespace-nowrap rounded-full px-1 py-1.5 text-center text-[13px] font-medium transition sm:flex-none sm:px-3.5 sm:text-sm ${
               active
                 ? "bg-brand-500 text-white"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -39,7 +39,7 @@ export default function AppTabs() {
         aria-label="Account settings"
         title="Account"
         aria-current={accountActive ? "page" : undefined}
-        className={`ml-0.5 flex h-8 w-8 items-center justify-center rounded-full transition ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
           accountActive ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
         }`}
       >

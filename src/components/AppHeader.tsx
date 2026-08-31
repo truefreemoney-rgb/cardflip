@@ -23,7 +23,7 @@ export default function AppHeader() {
     <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
       <Logo size="sm" />
       <AppTabs />
-      <div className="flex items-center gap-3 sm:gap-4 md:justify-self-end">
+      <div className="flex w-full items-center justify-center gap-4 sm:w-auto sm:justify-start md:justify-self-end">
         {user && showEbay && (
           user.ebayConnected ? (
             <Link
