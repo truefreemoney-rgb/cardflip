@@ -177,21 +177,25 @@ export default async function Home() {
                   className="absolute -inset-12 rounded-full bg-[conic-gradient(from_140deg,rgba(125,211,252,0.35),rgba(167,139,250,0.45),rgba(240,171,252,0.35),rgba(252,211,77,0.22),rgba(125,211,252,0.35))] blur-3xl"
                   aria-hidden
                 />
-                <HoloCard
-                  src={heroCard.imageLarge || heroCard.imageSmall}
-                  alt={`${heroCard.name} — ${heroCard.setName}`}
-                />
-                {heroQuote && (
-                  <div className="foil-edge absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-baseline gap-2 whitespace-nowrap rounded-full px-4 py-2 shadow-xl shadow-black/50">
-                    <span className="text-xs text-zinc-400">
-                      {heroCard.name}
-                    </span>
-                    <span className="font-display text-sm font-bold text-emerald-400">
-                      {formatMoney(heroQuote.base, heroQuote.price.currency)}
-                    </span>
-                  </div>
-                )}
-                <p className="mt-8 text-center text-[11px] text-zinc-500">
+                {/* The pill anchors to THIS wrapper (the card alone) — anchored any
+                    higher it hangs off the column's bottom, over the caption. */}
+                <div className="relative">
+                  <HoloCard
+                    src={heroCard.imageLarge || heroCard.imageSmall}
+                    alt={`${heroCard.name} — ${heroCard.setName}`}
+                  />
+                  {heroQuote && (
+                    <div className="foil-edge absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-baseline gap-2 whitespace-nowrap rounded-full px-4 py-2 shadow-xl shadow-black/50">
+                      <span className="text-xs text-zinc-400">
+                        {heroCard.name}
+                      </span>
+                      <span className="font-display text-sm font-bold text-emerald-400">
+                        {formatMoney(heroQuote.base, heroQuote.price.currency)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-12 text-center text-[11px] text-zinc-500">
                   Real card, live market price. Move your cursor over it.
                 </p>
               </div>
