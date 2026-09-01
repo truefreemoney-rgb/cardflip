@@ -71,12 +71,18 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
           e.preventDefault();
           const n = parseFloat(value);
           if (Number.isFinite(n) && n > 0) void save(Math.round(n * 100) / 100);
+          else toast("Type the price you want to be told about", "err");
         }}
-        className="flex items-center gap-1"
+        className="flex flex-col items-center gap-1.5"
       >
+        <p className="text-[11px] leading-snug text-zinc-500">
+          We email you when the market dips to this price (checked daily).
+        </p>
+        <div className="flex items-center gap-1">
         <span className="text-xs text-zinc-500">$</span>
         <input
           autoFocus
+          onFocus={(e) => e.target.select()}
           inputMode="decimal"
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -92,17 +98,31 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
             Clear
           </button>
         )}
+        </div>
       </form>
     );
   }
   return (
     <button
-      onClick={() => setEditing(true)}
+      onClick={() => {
+        // Prefill with something real: the current alert, else today's price.
+        // An empty box behind a grey placeholder read as a value that
+        // "couldn't be changed" (Chris, 09-01).
+        setValue(
+          item.alertPrice != null
+            ? String(item.alertPrice)
+            : item.price != null
+              ? item.price.toFixed(2)
+              : "",
+        );
+        setEditing(true);
+      }}
+      title="Get an email when this card's market price dips to your target"
       className="rounded-full px-2 py-1 text-xs text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
     >
       {item.alertPrice != null
         ? `🔔 alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
-        : "🔔 price alert"}
+        : "🔔 email me at a price…"}
     </button>
   );
 }
