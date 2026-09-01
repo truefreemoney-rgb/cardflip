@@ -6,7 +6,6 @@ import {
   setStripeCustomer,
   setSubscription,
 } from "@/lib/server/users";
-import { PACK_SCANS, addExtraScans } from "@/lib/server/scanQuota";
 
 /**
  * Stripe webhook — the one writer of users.sub_status/sub_period_end.
@@ -34,12 +33,8 @@ export async function POST(req: NextRequest) {
       const userId = typeof obj.client_reference_id === "string" ? obj.client_reference_id : null;
       const customerId = typeof obj.customer === "string" ? obj.customer : null;
       const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
-      const metadata = obj.metadata as { kind?: string } | undefined;
       const user = userId ? await findUserById(userId) : customerId ? await findUserByStripeCustomer(customerId) : null;
-      if (user && metadata?.kind === "scan_pack") {
-        await addExtraScans(user.id, PACK_SCANS);
-        console.info(`stripe: ${user.email} bought a scan pack (+${PACK_SCANS})`);
-      } else if (user && subscriptionId) {
+      if (user && subscriptionId) {
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const sub = await fetchSubscription(subscriptionId);
         await setSubscription(user.id, sub.status, sub.periodEnd);

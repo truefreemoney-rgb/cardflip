@@ -57,7 +57,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "CardFlip will be $9.99/month for everything — 500 scans a month, AI card reading, live pricing, and listing tracking, with extra scan packs if you need more. It's free while we're in early access, and early-access sellers will be told well before billing starts. You always keep 100% of your eBay payouts.",
+    a: "CardFlip will be $9.99/month for everything — 500 scans a month, AI card reading, live pricing, and listing tracking. It's free while we're in early access, and early-access sellers will be told well before billing starts. You always keep 100% of your eBay payouts.",
   },
 ];
 

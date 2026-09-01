@@ -8,7 +8,6 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import type { SessionUser } from "@/lib/client/auth";
 import {
-  buyScanPack,
   changePassword,
   deleteAccount,
   fetchAccount,
@@ -549,7 +548,7 @@ function PlanSection({
   demo,
 }: {
   user: SessionUser;
-  quota?: { used: number; included: number; extra: number; remaining: number | null };
+  quota?: { used: number; included: number; remaining: number | null };
   demo: boolean;
 }) {
   const [busy, setBusy] = useState(false);
@@ -607,22 +606,16 @@ function PlanSection({
       </div>
       {subscribed && quota && (
         <div className="mt-4 max-w-sm">
-          <div className="flex items-baseline justify-between text-xs text-zinc-400">
-            <span>
-              {quota.used} of {quota.included} scans used this month
-              {quota.extra > 0 && ` · ${quota.extra} extra banked`}
-            </span>
-          </div>
+          <p className="text-xs text-zinc-400">
+            {quota.used} of {quota.included} scans used this month
+          </p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full rounded-full ${quota.remaining !== null && quota.remaining <= 0 ? "bg-red-400" : "bg-brand-400"}`}
               style={{ width: `${Math.min(100, (quota.used / quota.included) * 100)}%` }}
             />
           </div>
-          <button type="button" className={`${ghostBtn} mt-3`} onClick={() => go(buyScanPack)} disabled={busy}>
-            {busy ? "Opening…" : "Buy 150 more scans · $4.99"}
-          </button>
-          <p className="mt-1.5 text-xs text-zinc-600">Extra scans never expire — they&apos;re used after your monthly 500 runs out.</p>
+          <p className="mt-1.5 text-xs text-zinc-600">Your allowance resets each time the subscription renews.</p>
         </div>
       )}
       {demo && <p className="mt-2 text-xs text-zinc-600">The shared demo account can&apos;t subscribe.</p>}

@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     // access stays ungated (the rate limits above still bound it).
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
-        { error: "You've used all your scans this month — buy more from your account page", quota: true },
+        { error: "You've used all 500 scans this month — your allowance resets when the subscription renews", quota: true },
         { status: 402 },
       );
     }

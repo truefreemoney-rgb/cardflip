@@ -23,7 +23,7 @@ const sections: LegalSection[] = [
   {
     heading: "Early access and billing",
     paragraphs: [
-      "CardFlip is currently in early access and free to use. When early access ends, the service will cost $9.99 per month, which includes 500 card scans each month; additional scan packs can be purchased and do not expire. You will be told clearly before any billing starts — no card is collected during early access and nothing is charged without your explicit sign-up.",
+      "CardFlip is currently in early access and free to use. When early access ends, the service will cost $9.99 per month, which includes 500 card scans each month. You will be told clearly before any billing starts — no card is collected during early access and nothing is charged without your explicit sign-up.",
       "Once paid subscriptions exist: they renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. Fees paid to eBay for your listings are always between you and eBay.",
     ],
   },
