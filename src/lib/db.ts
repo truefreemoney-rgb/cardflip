@@ -411,7 +411,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // cleared when the target changes (lib/server/wishlistAlerts.ts).
   ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
   // Catalog id + game so a history row can reopen its card.
-  ["price_checks", ["card_id TEXT", "game TEXT"]],
+  ["price_checks", ["card_id TEXT", "game TEXT", "image_url TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

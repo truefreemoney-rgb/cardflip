@@ -298,80 +298,69 @@ export default function PriceCheckPage() {
             </div>
           )}
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-edge bg-surface-1">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-xs uppercase tracking-wide text-zinc-500">
-                <th className="px-4 py-3 font-medium">Card</th>
-                <th className="px-4 py-3 font-medium">Language</th>
-                <th className="px-4 py-3 text-right font-medium">Price</th>
-                <th className="px-4 py-3 font-medium">Checked</th>
-                <th className="px-2 py-3" aria-label="Remove" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleHistory.map((entry) => (
-                <tr
-                  key={entry.id}
-                  onClick={() => void openHistoryEntry(entry)}
-                  title="Open this card"
-                  className="cursor-pointer border-b border-white/5 transition last:border-0 hover:bg-white/5"
-                >
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2 font-medium text-white">
-                      {entry.cardName}
-                      {openingId === entry.id && <Spinner className="h-3 w-3" />}
+        <div className="rounded-2xl border border-edge bg-surface-1">
+          <ul className="divide-y divide-white/5">
+            {visibleHistory.map((entry) => (
+              <li
+                key={entry.id}
+                onClick={() => void openHistoryEntry(entry)}
+                title="Open this card"
+                className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-white/5"
+              >
+                <CardImage
+                  src={entry.imageUrl ?? ""}
+                  alt={entry.cardName}
+                  className="h-16 w-12 shrink-0 rounded-md"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-sm font-medium text-white">
+                    <span className="truncate">{entry.cardName}</span>
+                    {openingId === entry.id && <Spinner className="h-3 w-3 shrink-0" />}
+                  </span>
+                  <span className="block truncate text-xs text-zinc-500">
+                    {entry.setName} · {entry.cardNumber}
+                    {entry.language !== "en" &&
+                      ` · ${entry.language === "ja" ? "Japanese" : "Chinese"}`}
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <div className="text-right">
+                    <span className="block font-display font-medium text-emerald-400">
+                      {entry.representativePrice != null
+                        ? `$${entry.representativePrice.toFixed(2)}`
+                        : "—"}
                     </span>
-                    <span className="ml-2 text-xs text-zinc-500">
-                      {entry.setName} · {entry.cardNumber}
+                    <span className="block text-[11px] text-zinc-600">
+                      {formatDate(entry.checkedAt)}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400">
-                    {entry.language === "en"
-                      ? "English"
-                      : entry.language === "ja"
-                        ? "Japanese"
-                        : "Chinese"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-white">
-                    {entry.representativePrice != null
-                      ? `$${entry.representativePrice.toFixed(2)}`
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500">
-                    {formatDate(entry.checkedAt)}
-                  </td>
-                  <td className="px-2 py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        // The row itself opens the card — deleting shouldn't.
-                        e.stopPropagation();
-                        void removeEntry(entry);
-                      }}
-                      aria-label={`Remove ${entry.cardName} from history`}
-                      title="Remove from history"
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
-                    >
-                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {visibleHistory.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
-                    {historyLoading
-                      ? "Loading your lookups…"
-                      : history.length > 0
-                        ? "Nothing matches that filter."
-                        : "No lookups yet — search for a card above."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      // The row itself opens the card — deleting shouldn't.
+                      e.stopPropagation();
+                      void removeEntry(entry);
+                    }}
+                    aria-label={`Remove ${entry.cardName} from history`}
+                    title="Remove from history"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </li>
+            ))}
+            {visibleHistory.length === 0 && (
+              <li className="px-4 py-6 text-center text-zinc-500">
+                {historyLoading
+                  ? "Loading your lookups…"
+                  : history.length > 0
+                    ? "Nothing matches that filter."
+                    : "No lookups yet — search for a card above."}
+              </li>
+            )}
+          </ul>
         </div>
       </section>
     </main>

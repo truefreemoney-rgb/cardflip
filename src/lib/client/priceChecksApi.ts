@@ -16,6 +16,8 @@ export interface PriceCheckEntry {
   /** Catalog id + game so the history can reopen the card. Null on old rows. */
   cardId: string | null;
   game: GameId | null;
+  /** Small card image for the history thumbnail. Null on old rows. */
+  imageUrl: string | null;
 }
 
 export async function fetchPriceCheckHistory(): Promise<PriceCheckEntry[]> {
