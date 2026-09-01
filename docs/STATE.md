@@ -26,7 +26,18 @@ now = the header Spin Cycle logo (37f1045, brandIcon.tsx renders the
 same SVG; old favicon.ico deleted), both pushed to main 09-01; Vercel
 prod build was in flight at session end — quick check:
 cardflip.io/app/price-check history should be a thumbnail list, and
-the tab icon the spin-cycle card (hard-refresh; favicons cache hard). Nothing mid-task. Next: pick from BACKLOG.md, or ask
+the tab icon the spin-cycle card (hard-refresh; favicons cache hard).
+ALSO 09-01 late: favicon 16px fix shipped (transparent bg, full-frame
+crop — Chris: "perfect"); /terms governing law = Maryland; PSA cert
+lookup SHIPPED (CardEditor Verify field when Graded-by-PSA;
+PSA_API_TOKEN in on Vercel prod+preview) — awaiting Chris's real-slab
+test on prod; Chris reconnected eBay (opt-in/20403/Finances chains
+self-verify on his next publish + sale); Keldeo deleted PRE-chip so
+ended-sync test needs a fresh listing; phone hardware pass DONE
+("seems fine"); Turso backup was ALREADY scheduled (Task Scheduler
+10am daily, verified exit 0 + 63MB file) — BACKLOG.md is now the
+accurate open list (top code picks: error monitoring, CI gate).
+Nothing mid-task. Next: pick from BACKLOG.md, or ask
 Chris. Deploy pipeline healthy (previews disabled in vercel.json so
 1 build/change; promote-preview trick works when rate-limited).
 Dev gotcha still true: COLUMN_PROBES run once per process — restart
