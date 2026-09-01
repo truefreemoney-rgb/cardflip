@@ -31,6 +31,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] S — MTG wishlist re-pricing — rows now carry `game` + `card_id` (08-16 late); rows saved before then default to Pokémon
 - [ ] S — Root SPF record superiormarketing.com (optional)
 - [ ] — RevealStrike: leave as is. Full RevealScene: reverted, don't rebuild without asking.
+- [ ] — BACKBURNER (Chris 09-01, "totally want to add those one day"): (a) /help FAQ section (S per batch — publish failures/quota/graded pricing/ended listings; error states deep-link to articles; do FIRST, deflects support email), then (b) first-login overlay tour (M — coach-marks anchored to real elements, driver.js or hand-rolled, tour_seen_at flag + account-page replay).
 
 ## 3. Product-readiness
 
