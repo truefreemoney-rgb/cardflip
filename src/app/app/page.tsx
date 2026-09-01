@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
@@ -40,7 +41,7 @@ import { apiPath } from "@/lib/client/basePath";
 import { saveQueue } from "@/lib/client/queuePersistence";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { scanCardWithVision } from "@/lib/client/visionApi";
+import { scanCardWithVision, type ScanUsage } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import type {
@@ -138,6 +139,15 @@ export default function AppPage() {
   }, [ebayJustConnected]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkNote, setBulkNote] = useState<string | null>(null);
+  // Items that failed the last bulk send, so "Retry failed (N)" can re-run
+  // just those instead of making the seller hunt through the queue.
+  const [bulkFailedIds, setBulkFailedIds] = useState<string[]>([]);
+  // Scan-allowance metering, fed by each vision response. usage shows the
+  // chip for subscribers (remaining is null when the cap isn't enforced);
+  // quotaNote is the 402 banner, shown once until dismissed.
+  const [scanUsage, setScanUsage] = useState<ScanUsage | null>(null);
+  const [quotaNote, setQuotaNote] = useState<string | null>(null);
+  const quotaNoteDismissed = useRef(false);
 
   // The pump loop reads and writes the queue outside of React's render cycle,
   // so the ref is the source of truth and state is kept in step with it.
@@ -242,6 +252,14 @@ export default function AppPage() {
           // enough that the lookup needs fuzzy matching to cope; when vision
           // is available it reads the card directly and that guesswork goes away.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
+
+          if (vision.usage) setScanUsage(vision.usage);
+          if (vision.status === "quota" && !quotaNoteDismissed.current) {
+            setQuotaNote(
+              vision.error ??
+                "You've used all your scans this month — cards still scan by OCR, which reads less of the card.",
+            );
+          }
 
           let nameCandidates: string[];
           let printed: PrintedNumber | null;
@@ -707,7 +725,7 @@ export default function AppPage() {
    * 30 cards is a stack of 30 inventory writes). Same payload the editor's
    * button sends, so a bulk push and a single push can't drift.
    */
-  async function sendAllToEbay() {
+  async function sendAllToEbay(retryIds?: string[]) {
     if (!user?.ebayConnected) {
       router.push("/connect-ebay");
       return;
@@ -719,7 +737,8 @@ export default function AppPage() {
         item.status === "ready" &&
         !item.ebayOfferId &&
         !item.ebayDraftUrl &&
-        currentPrice(item) > 0,
+        currentPrice(item) > 0 &&
+        (!retryIds || retryIds.includes(item.id)),
     );
     // eBay's picture policy: only items with the seller's own photo can go.
     // Search-added / sealed items without one are left for the editor's
@@ -736,9 +755,11 @@ export default function AppPage() {
     }
     setBulkBusy(true);
     setBulkNote(null);
+    setBulkFailedIds([]);
     let sent = 0;
     let viaInventory = 0;
     let firstError: string | null = null;
+    const failedIds: string[] = [];
     for (const item of sendable) {
       const price = currentPrice(item);
       const quote = quotePrice(item.card!, item.condition, item.strategy, effectiveVariant(item));
@@ -791,10 +812,15 @@ export default function AppPage() {
         }
       } else {
         firstError ??= result.message;
+        failedIds.push(item.id);
+        // These two sink every later item the same way — stop, and leave the
+        // unattempted rest out of failedIds so "Retry failed" doesn't imply
+        // they were tried (a fresh "Send all" still picks them up).
         if (result.code === "not_connected" || result.code === "unconfigured") break;
       }
     }
     setBulkBusy(false);
+    setBulkFailedIds(failedIds);
     const skipped = noPhoto
       ? ` ${noPhoto} skipped — ${noPhoto === 1 ? "it needs" : "they need"} your own photo (open the card, Add photo).`
       : "";
@@ -803,7 +829,7 @@ export default function AppPage() {
     const where = viaInventory > 0 ? "saved on eBay — open each card here to publish" : "in your eBay Drafts — finish them on eBay, or open a card here to publish now";
     setBulkNote(
       firstError
-        ? `${sent} of ${sendable.length} sent to eBay. First problem: ${firstError}${skipped}`
+        ? `${sent} of ${sendable.length} sent to eBay — ${failedIds.length} failed. First problem: ${firstError}${skipped}`
         : `${sent} draft${sent === 1 ? "" : "s"} ${where}.${skipped}`,
     );
   }
@@ -865,6 +891,34 @@ export default function AppPage() {
 
   return (
     <>
+      {quotaNote && (
+        <div
+          role="alert"
+          className="mx-auto mt-4 flex w-full max-w-7xl items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-200 sm:px-6"
+        >
+          <span>
+            <span className="font-semibold text-red-300">Out of scans.</span>{" "}
+            {quotaNote} Cards still scan by OCR, which reads less of the card.{" "}
+            <Link
+              href="/app/account"
+              className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"
+            >
+              See your plan
+            </Link>
+          </span>
+          <button
+            onClick={() => {
+              quotaNoteDismissed.current = true;
+              setQuotaNote(null);
+            }}
+            aria-label="Dismiss"
+            className="text-red-300/70 transition hover:text-red-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {ebayJustConnected && (
         <div
           role="status"
@@ -938,6 +992,22 @@ export default function AppPage() {
                 </p>
                 <p className="text-xs text-zinc-500">In progress</p>
               </div>
+              {scanUsage && scanUsage.remaining !== null && (
+                <div>
+                  <p
+                    className={`text-lg font-semibold ${
+                      scanUsage.remaining <= 0
+                        ? "text-red-400"
+                        : scanUsage.remaining <= 50
+                          ? "text-amber-300"
+                          : "text-white"
+                    }`}
+                  >
+                    {scanUsage.remaining}
+                  </p>
+                  <p className="text-xs text-zinc-500">Scans left</p>
+                </div>
+              )}
               {soldItems.length > 0 && (
                 <div className="animate-fade-up">
                   <p className="text-lg font-semibold text-emerald-400">
@@ -985,6 +1055,14 @@ export default function AppPage() {
           {bulkNote && (
             <p role="status" className="-mt-2 px-1 text-xs text-zinc-400">
               {bulkNote}{" "}
+              {bulkFailedIds.length > 0 && !bulkBusy && (
+                <button
+                  onClick={() => void sendAllToEbay(bulkFailedIds)}
+                  className="font-medium text-zinc-200 underline underline-offset-4 transition hover:text-white"
+                >
+                  Retry failed ({bulkFailedIds.length})
+                </button>
+              )}{" "}
               {items.some((item) => item.ebayDraftUrl) && (
                 <a
                   href={EBAY_DRAFTS_URL}

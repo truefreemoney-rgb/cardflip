@@ -3,9 +3,20 @@
 import { apiPath } from "@/lib/client/basePath";
 import type { GameId, ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
 
+/** Mirror of the server's ScanQuota; remaining is null when the cap isn't enforced. */
+export interface ScanUsage {
+  used: number;
+  included: number;
+  remaining: number | null;
+}
+
 export interface VisionScanOutcome {
   status: VisionStatus;
   read: VisionCardRead | null;
+  /** Post-scan usage from the route, when the server reported it. */
+  usage: ScanUsage | null;
+  /** The server's message on a quota (402) refusal. */
+  error: string | null;
 }
 
 /**
@@ -48,7 +59,7 @@ export async function scanCardWithVision(
 ): Promise<VisionScanOutcome> {
   try {
     const { base64, mediaType } = await downscale(file);
-    if (!base64) return { status: "error", read: null };
+    if (!base64) return { status: "error", read: null, usage: null, error: null };
 
     const res = await fetch(apiPath("/api/vision/scan"), {
       method: "POST",
@@ -58,16 +69,30 @@ export async function scanCardWithVision(
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
+      // 402 = monthly scan allowance exhausted. Still falls back to OCR like
+      // any other failure, but the caller can now tell the user why.
+      if (res.status === 402 && data?.quota) {
+        return {
+          status: "quota",
+          read: null,
+          usage: data?.usage ?? null,
+          error: typeof data?.error === "string" ? data.error : null,
+        };
+      }
       return {
         status: data?.status === "unconfigured" ? "unconfigured" : "error",
         read: null,
+        usage: null,
+        error: null,
       };
     }
     return {
       status: (data?.status as VisionStatus) ?? "error",
       read: data?.card ?? null,
+      usage: data?.usage ?? null,
+      error: null,
     };
   } catch {
-    return { status: "error", read: null };
+    return { status: "error", read: null, usage: null, error: null };
   }
 }

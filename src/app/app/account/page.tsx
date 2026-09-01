@@ -86,6 +86,49 @@ function AccountSettings({
   const [overview, setOverview] = useState<AccountOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Stripe Checkout returns to ?billing=success|canceled. The webhook is the
+  // only writer of subStatus, so a single fetch races it — on success we poll
+  // the overview until the badge flips. Read at first render (no
+  // useSearchParams — that would force a Suspense boundary on the whole page).
+  const [billingReturn] = useState<"success" | "canceled" | null>(() => {
+    if (typeof window === "undefined") return null;
+    const b = new URLSearchParams(window.location.search).get("billing");
+    return b === "success" || b === "canceled" ? b : null;
+  });
+  const [billingPhase, setBillingPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
+  useEffect(() => {
+    if (billingReturn) window.history.replaceState(null, "", window.location.pathname);
+  }, [billingReturn]);
+  useEffect(() => {
+    if (billingReturn !== "success") return;
+    let cancelled = false;
+    let tries = 0;
+    const id = setInterval(async () => {
+      tries += 1;
+      const o = await fetchAccount();
+      if (cancelled) return;
+      if (o) {
+        setOverview(o);
+        if (o.user.subStatus === "active" || o.user.subStatus === "trialing") {
+          setBillingPhase("confirmed");
+          setUser(o.user);
+          clearInterval(id);
+          return;
+        }
+      }
+      // ~30s of patience; past that the webhook is late enough that hammering
+      // the API won't help — the badge still flips on the next visit.
+      if (tries >= 15) {
+        setBillingPhase("stalled");
+        clearInterval(id);
+      }
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [billingReturn, setUser]);
+
   // --- Profile -----------------------------------------------------------
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -498,7 +541,13 @@ function AccountSettings({
       </Section>
 
       {/* Plan */}
-      <PlanSection user={overview?.user ?? user} quota={overview?.quota} demo={demo} />
+      <PlanSection
+        user={overview?.user ?? user}
+        quota={overview?.quota}
+        demo={demo}
+        billingReturn={billingReturn}
+        billingPhase={billingPhase}
+      />
 
       {/* Delete */}
       <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
@@ -546,10 +595,14 @@ function PlanSection({
   user,
   quota,
   demo,
+  billingReturn,
+  billingPhase,
 }: {
   user: SessionUser;
   quota?: { used: number; included: number; remaining: number | null };
   demo: boolean;
+  billingReturn: "success" | "canceled" | null;
+  billingPhase: "waiting" | "confirmed" | "stalled";
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -571,6 +624,27 @@ function PlanSection({
       title="Plan"
       hint={subscribed ? "500 scans a month, rebilled monthly." : "CardFlip is free during early access."}
     >
+      {billingReturn === "success" && (
+        <div className="mb-4">
+          {billingPhase === "confirmed" ? (
+            <Notice kind="ok">Subscription active — thanks for supporting the build!</Notice>
+          ) : billingPhase === "stalled" ? (
+            <Notice kind="ok">
+              Payment received. Stripe is taking longer than usual to confirm — your plan will show as
+              active shortly; check back in a minute.
+            </Notice>
+          ) : (
+            <Notice kind="ok">
+              <span className="inline-flex items-center gap-2">
+                <Spinner className="h-3.5 w-3.5" /> Payment received — confirming your subscription…
+              </span>
+            </Notice>
+          )}
+        </div>
+      )}
+      {billingReturn === "canceled" && (
+        <p className="mb-4 text-sm text-zinc-400">Checkout canceled — nothing was charged.</p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         {subscribed ? (
           <>

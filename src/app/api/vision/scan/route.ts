@@ -8,7 +8,7 @@ import {
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { isDemoUser } from "@/lib/server/users";
-import { recordScan, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import {
   LIMITS,
   RateLimitError,
@@ -37,7 +37,11 @@ export async function POST(req: Request) {
     // access stays ungated (the rate limits above still bound it).
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
-        { error: "You've used all 500 scans this month — your allowance resets when the subscription renews", quota: true },
+        {
+          error: "You've used all 500 scans this month — your allowance resets when the subscription renews",
+          quota: true,
+          usage: scanQuota(user),
+        },
         { status: 402 },
       );
     }
@@ -59,8 +63,8 @@ export async function POST(req: Request) {
     const card = await analyzeCardImage(image, mediaType, language, parseGame(body?.game));
     // Metered for everyone (launch pricing needs the data), enforced above
     // for subscribers only. After the call — a failed scan shouldn't count.
-    await recordScan(user);
-    return NextResponse.json({ status: "done", card });
+    const usage = await recordScan(user);
+    return NextResponse.json({ status: "done", card, usage });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

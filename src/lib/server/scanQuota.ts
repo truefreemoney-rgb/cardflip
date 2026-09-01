@@ -40,9 +40,15 @@ export function scanQuotaExhausted(user: User): boolean {
   return q.remaining !== null && q.remaining <= 0;
 }
 
-/** Count one scan, resetting the counter on month rollover. */
-export async function recordScan(user: User): Promise<void> {
+/** Count one scan, resetting the counter on month rollover. Answers the
+ * post-scan quota so the scan response can carry usage without a re-read. */
+export async function recordScan(user: User): Promise<ScanQuota> {
   const m = month();
-  const used = user.scanMonth === m ? user.scansUsed : 0;
-  await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used + 1, user.id);
+  const used = (user.scanMonth === m ? user.scansUsed : 0) + 1;
+  await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
+  return {
+    used,
+    included: MONTHLY_SCANS,
+    remaining: isSubscribed(user) ? Math.max(0, MONTHLY_SCANS - used) : null,
+  };
 }

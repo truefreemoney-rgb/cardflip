@@ -37,16 +37,23 @@ My cards "Build listing" resume (photo panel + loader, no hero flash) +
 checkbox mass delete; graded round-trip (editor syncs "PSA 10" to ledger
 live, resume parses it back).
 
-**QoL BATCHES (from the 09-01 3-agent site audit; batch 1 SHIPPED to
-prod — retry failed scans, undoable queue remove, Next-card on
-receipts, editable sale prices + Mark-sold price prompt, bulk
+**QoL BATCHES (from the 09-01 3-agent site audit; batches 1+2 SHIPPED
+to prod. Batch 1: retry failed scans, undoable queue remove, Next-card
+on receipts, editable sale prices + Mark-sold price prompt, bulk
 listed/sold/drafts, My Cards sort, sticky condition/strategy prefs +
-apply-to-all). Batch 2 APPROVED but DO NOT START until Chris says go:
-(2a) surface scan-quota 402 (visionApi swallows it → banner + usage
-chip; scan route should return quota in success payload); (2b) account
-page ignores ?billing=success/canceled from Stripe return → notice +
-poll until subStatus flips; (2c) retry buttons on dead-text errors,
-esp. bulk send's "3 of 12" (stamp per-item failures, Retry failed (N)).
+apply-to-all. Batch 2 (09-01): (2a) scan-quota 402 surfaced — vision
+route returns `usage` on success AND 402, visionApi maps 402 → status
+"quota" (added to VisionStatus union), scanner shows red dismissible
+banner + "Scans left" stat chip (subscribers only; OCR fallback
+unchanged); (2b) account page reads ?billing=success/canceled (no
+useSearchParams — window.location at first render, param stripped),
+success polls fetchAccount 2s×15 until subStatus flips
+(waiting/confirmed/stalled notices in PlanSection); (2c) bulk send
+collects failedIds + "Retry failed (N)" button in bulkNote,
+sendAllToEbay(retryIds?) re-runs just those; recordScan now returns
+post-scan ScanQuota. UNTESTED live: real 402 banner (needs an
+exhausted subscriber) and the billing=success confirmed path (needs a
+real webhook) — canceled + stalled paths verified in browser.
 Batch 3 after: clickable/searchable price-check history (store cardId
 on rows), wishlist tiles open CardDetailModal (NO scanner handoff —
 Chris veto: stock images), wishlist sort/filter + 15-row reprice cap

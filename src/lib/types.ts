@@ -106,7 +106,7 @@ export interface VisionCardRead {
   confidence: number;
 }
 
-export type VisionStatus = "idle" | "unconfigured" | "done" | "error";
+export type VisionStatus = "idle" | "unconfigured" | "done" | "error" | "quota";
 
 /** One live eBay listing that fed a comps average. */
 export interface EbayListing {
