@@ -1,18 +1,37 @@
 /**
- * The app icon, drawn with Satori-safe JSX so `app/icon.tsx` and
- * `app/apple-icon.tsx` render it to PNG at build time (same pipeline as the
- * OG image). Kept here so both sizes are one drawing.
+ * The app icon, rendered by `app/icon.tsx` and `app/apple-icon.tsx` to PNG at
+ * build time. It IS the header logo (components/Logo.tsx SpinCycleMark) —
+ * same SVG markup, passed to Satori as a data-URI <img> since Satori doesn't
+ * draw SVG paths natively — on the site's near-black, scaled to keep the
+ * arrows inside Android's maskable safe zone (central 80%).
  *
- * Design: a tilted card with a brand-indigo face and a holo-sky corner
- * glint, on the site's near-black — reads as "trading card" at 48px and
- * survives maskable cropping (everything important sits inside the central
- * 80% safe zone).
+ * If the header mark changes, change SPIN_CYCLE_SVG to match.
  */
+const SPIN_CYCLE_SVG = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cf-spin-a" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="cf-spin-b" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#f0abfc"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-12 60 60)">
+    <rect x="42" y="30" width="36" height="60" rx="6" fill="#1c1c28" stroke="#ffffff" stroke-width="6"/>
+    <rect x="49" y="38" width="22" height="16" rx="3" fill="#fcd34d"/>
+  </g>
+  <path d="M 96 40 A 42 42 0 0 0 34 26" fill="none" stroke="url(#cf-spin-a)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 34 26 l 12 -6 M 34 26 l 13 5" stroke="#7dd3fc" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 24 80 A 42 42 0 0 0 86 94" fill="none" stroke="url(#cf-spin-b)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 86 94 l -12 6 M 86 94 l -13 -5" stroke="#f0abfc" stroke-width="8" stroke-linecap="round"/>
+</svg>`;
+
+const SPIN_CYCLE_DATA_URI = `data:image/svg+xml,${encodeURIComponent(SPIN_CYCLE_SVG)}`;
+
 export function BrandIcon({ size }: { size: number }) {
-  const pad = size * 0.16;
-  const cardW = size - pad * 2;
-  const cardH = cardW * 1.28;
-  const radius = size * 0.09;
+  const mark = Math.round(size * 0.8);
   return (
     <div
       style={{
@@ -22,59 +41,10 @@ export function BrandIcon({ size }: { size: number }) {
         alignItems: "center",
         justifyContent: "center",
         background: "#08090d",
-        overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          width: cardW,
-          height: cardH,
-          borderRadius: radius,
-          background: "linear-gradient(160deg, #818cf8 0%, #6366f1 45%, #4f46e5 100%)",
-          transform: "rotate(-9deg) translateY(4%)",
-          boxShadow: `0 ${size * 0.04}px ${size * 0.12}px rgba(0,0,0,0.6)`,
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            top: cardH * 0.10,
-            left: cardW * 0.12,
-            width: cardW * 0.76,
-            height: cardH * 0.34,
-            borderRadius: radius * 0.5,
-            background: "linear-gradient(120deg, #7dd3fc 0%, #a78bfa 55%, #f0abfc 100%)",
-            opacity: 0.9,
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            bottom: cardH * 0.12,
-            left: cardW * 0.12,
-            width: cardW * 0.5,
-            height: cardH * 0.06,
-            borderRadius: 9999,
-            background: "rgba(255,255,255,0.85)",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            bottom: cardH * 0.24,
-            left: cardW * 0.12,
-            width: cardW * 0.32,
-            height: cardH * 0.06,
-            borderRadius: 9999,
-            background: "rgba(255,255,255,0.55)",
-          }}
-        />
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={SPIN_CYCLE_DATA_URI} alt="" width={mark} height={mark} />
     </div>
   );
 }
