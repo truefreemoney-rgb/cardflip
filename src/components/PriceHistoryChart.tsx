@@ -123,6 +123,7 @@ export function pickSeries(all: Series[], prefer: string | null | undefined): Se
 export function useLastRecordedPrice(cardId: string, variant?: string | null) {
   const [state, setState] = useState<{ id: string; point: { price: number; day: string; variant: string; source: string; currency: Currency } | null }>({ id: "", point: null });
   useEffect(() => {
+    if (!cardId) return; // caller has no catalogue card (hook-order placeholder)
     let alive = true;
     loadSeries(cardId)
       .then((all) => {

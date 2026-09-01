@@ -62,6 +62,16 @@ multi-qty sale → verify partial-sale split; (3) first real welcome email
 auto-reload (credits ran out 09-01, topped up), real-card charge test,
 live-key rotation, Stripe branding/email toggle.
 
+**09-01 later: Pricing tiles rebase to the chart's current-day point**
+(Chris: "market price should reflect the current price from that current
+day"). `quotePrice`/`quoteForItem` take an optional CurrentSeriesPoint;
+rules in `pointCanRebase` (lib/listing.ts): fresh (≤7d) USD point beats
+the default pick incl. eBay-asking; eBay SOLD still wins; an explicit
+Printing pick / 1st-Ed toggle only refreshes from its own series. Editor
+feeds it via useLastRecordedPrice. Queue rows/CSV still quote the
+snapshot (no per-card series fetch there) — known drift, flag if Chris
+notices.
+
 **Session detail below is REFERENCE — don't read on resume.**
 
 **09-01 latest — MY CARDS: resume + mass delete (Chris's asks):**

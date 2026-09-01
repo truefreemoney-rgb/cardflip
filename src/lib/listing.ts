@@ -294,11 +294,48 @@ function roundPrice(value: number, strategy: PriceStrategy): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * The latest daily point from the card's price-history series (the number the
+ * chart's right edge shows) — see useLastRecordedPrice in PriceHistoryChart.
+ */
+export interface CurrentSeriesPoint {
+  price: number;
+  /** yyyy-mm-dd of the point. */
+  day: string;
+  variant: string;
+  source: string;
+  currency: Currency;
+}
+
+/** A series point older than this is history, not "the current price". */
+const CURRENT_POINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Whether the chart's point may replace the resolved snapshot price (Chris,
+ * 09-01: "the market price should reflect the current price from that current
+ * day" — the tile was quoting a scan-time eBay-asking average while the chart
+ * showed today's real market). Rules: the point must be fresh USD; real eBay
+ * SALES still outrank it; and an explicit Printing pick (or the 1st Edition
+ * toggle, which routes through variantOverride) is only refreshed by a point
+ * from that same series — never silently swapped to a different printing.
+ */
+function pointCanRebase(
+  point: CurrentSeriesPoint | null | undefined,
+  resolved: CardPrice | null,
+  explicit: CardPrice | undefined,
+): point is CurrentSeriesPoint {
+  if (!point || point.currency !== "USD" || point.price <= 0) return false;
+  if (Date.now() - Date.parse(`${point.day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return false;
+  if (explicit) return explicit.source === point.source && explicit.variant === point.variant;
+  return resolved?.variant !== EBAY_SOLD_VARIANT;
+}
+
 export function quotePrice(
   card: PokemonCard,
   condition: Condition,
   strategy: PriceStrategy,
   variantOverride?: string,
+  currentPoint?: CurrentSeriesPoint | null,
 ): PriceQuote | null {
   const override = variantOverride
     ? card.prices.find((p) => p.variant === variantOverride)
@@ -306,7 +343,23 @@ export function quotePrice(
 
   // An override in another currency can't set a dollar asking price, so fall
   // back to the normal pick rather than quietly treating euros as dollars.
-  const price = override && canPriceListing(override) ? override : pickPrice(card);
+  const usable = override && canPriceListing(override) ? override : undefined;
+  let price = usable ?? pickPrice(card);
+
+  if (pointCanRebase(currentPoint, price, usable)) {
+    const row = card.prices.find(
+      (p) => p.source === currentPoint.source && p.variant === currentPoint.variant,
+    );
+    price = {
+      source: (row?.source ?? currentPoint.source) as CardPrice["source"],
+      variant: currentPoint.variant,
+      label: row?.label ?? formatVariantLabel(currentPoint.variant),
+      currency: "USD",
+      market: currentPoint.price,
+      low: row?.low ?? null,
+      high: row?.high ?? null,
+    };
+  }
 
   if (!price?.market) return null;
 
@@ -348,12 +401,15 @@ export function currentPrice(item: ScanItem): number {
  * Sealed items have no catalogue prices at all (empty prices array), so this
  * returns null and the price is whatever the seller enters.
  */
-export function quoteForItem(item: ScanItem): PriceQuote | null {
+export function quoteForItem(
+  item: ScanItem,
+  currentPoint?: CurrentSeriesPoint | null,
+): PriceQuote | null {
   if (!item.card) return null;
   if (item.grading) {
-    return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item));
+    return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item), currentPoint);
   }
-  return quotePrice(item.card, item.condition, item.strategy, effectiveVariant(item));
+  return quotePrice(item.card, item.condition, item.strategy, effectiveVariant(item), currentPoint);
 }
 
 /**

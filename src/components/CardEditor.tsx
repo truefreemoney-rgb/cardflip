@@ -31,6 +31,7 @@ import {
   withListingOverrides,
 } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
+import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import type {
   Condition,
   GradingCompany,
@@ -150,6 +151,11 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
   const [wishlisting, setWishlisting] = useState(false);
 
   const card = item.card;
+  // Hook, so it lives above the early returns (empty id = no fetch). The
+  // chart's current-day point drives the quote when it's allowed to (see
+  // pointCanRebase in lib/listing.ts) — the Market tile and the price history
+  // must not tell the seller two different "today" numbers (Chris, 09-01).
+  const currentPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
 
   async function runSearch() {
     if (!term.trim()) return;
@@ -261,9 +267,9 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
   const firstEdPrice = firstEdEligible ? firstEditionPrice(card) : null;
 
   const variant = effectiveVariant(item);
-  const quote = quoteForItem(item);
-  const quickQuote = quotePrice(card, item.condition, "quick", variant);
-  const marketQuote = quotePrice(card, item.condition, "market", variant);
+  const quote = quoteForItem(item, currentPoint);
+  const quickQuote = quotePrice(card, item.condition, "quick", variant, currentPoint);
+  const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
 
   const facts = { firstEdition: item.firstEdition, grading: item.grading };
 

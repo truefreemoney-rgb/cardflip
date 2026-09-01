@@ -318,6 +318,77 @@ check(
   { rest: "151", grading: null },
 );
 
+console.log("\nThe chart's current-day point rebases the quote:");
+{
+  const day = (agoMs) => new Date(Date.now() - agoMs).toISOString().slice(0, 10);
+  const DAY_MS = 86_400_000;
+  const point = (price, over = {}) => ({
+    price,
+    day: day(0),
+    variant: "holofoil",
+    source: "tcgplayer",
+    currency: "USD",
+    ...over,
+  });
+  const ebayAsk = {
+    source: "ebay", currency: "USD", variant: "ebayAverage",
+    label: "eBay asking (58 listings)", market: 520.47, low: null, high: null,
+  };
+  const ebaySold = {
+    source: "ebay", currency: "USD", variant: "ebaySoldAverage",
+    label: "eBay sold (12 sales, 90d)", market: 480, low: null, high: null,
+  };
+  const card = { name: "Test", setName: "Test", prices: [ebayAsk, usd(486.2)] };
+
+  check(
+    "today's point outranks the default eBay-asking pick",
+    quotePrice(card, "Near Mint", "market", undefined, point(472.63)),
+    // Field order matters to the JSON compare — this is quotePrice's own build order.
+    { price: { source: "tcgplayer", variant: "holofoil", label: "Holofoil", currency: "USD", market: 472.63, low: null, high: null }, base: 472.63, suggested: 472.63 },
+  );
+  check(
+    "quick sale undercuts the same current number",
+    quotePrice(card, "Near Mint", "quick", undefined, point(472.63)).suggested,
+    // 472.63 * 0.88 = 415.91, charm-rounded down to .99
+    414.99,
+  );
+  check(
+    "real eBay sales still win over the chart",
+    quotePrice({ ...card, prices: [ebaySold, ...card.prices] }, "Near Mint", "market", undefined, point(472.63)).base,
+    480,
+  );
+  check(
+    "an explicit same-series pick is refreshed to today",
+    quotePrice(card, "Near Mint", "market", "holofoil", point(472.63)).base,
+    472.63,
+  );
+  check(
+    "an explicit pick of a DIFFERENT series is respected",
+    quotePrice(card, "Near Mint", "market", "ebayAverage", point(472.63)).base,
+    520.47,
+  );
+  check(
+    "a stale point (8 days old) is history, not the current price",
+    quotePrice(card, "Near Mint", "market", undefined, point(472.63, { day: day(8 * DAY_MS) })).base,
+    520.47,
+  );
+  check(
+    "a euro point never sets a dollar price",
+    quotePrice(card, "Near Mint", "market", undefined, point(400, { currency: "EUR", source: "cardmarket", variant: "average" })).base,
+    520.47,
+  );
+  check(
+    "condition multiplier applies to the current point",
+    quotePrice(card, "Lightly Played", "market", undefined, point(100)).suggested,
+    85,
+  );
+  check(
+    "no point → unchanged behaviour",
+    quotePrice(card, "Near Mint", "market"),
+    { price: ebayAsk, base: 520.47, suggested: 520.47 },
+  );
+}
+
 console.log(
   failures === 0
     ? "\nAll pricing checks passed.\n"
