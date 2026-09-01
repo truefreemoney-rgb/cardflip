@@ -17,7 +17,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — Keldeo listing 5230387616323 live with no photo — end it
 - [ ] S — `/terms` governing-law state placeholder — need real state from Chris
 - [ ] S — Untested on hardware: auto-scan thresholds, torch, iOS reveal/chime/haptics, ✕, real MTG photo via vision, HEIC
-- [ ] S — Favicon vs header logo: still not a pixel match (Chris 09-01, "close enough for now, work that more later"). Favicon (`lib/brandIcon.tsx`) = same SpinCycleMark SVG but on a solid #08090d square at 80% scale; header is transparent-bg. Tune scale/background/crop until the tab icon visually matches — and rule out favicon cache first (hard refresh) before changing code.
+- [x] S — Favicon vs header logo — DONE 09-01 same day (Chris: "way better, perfect"): transparent bg + tight viewBox crop so the mark fills the frame; verified legible at 16px via canvas-downscale sim; apple-icon keeps the solid square.
 - [x] `/admin` overhauled 08-16 (Chris: "go crazy"): own operator login (`/admin/login`, `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD`, defaults admin/onyx per Chris — override on Fly), signed 12 h cookie, rate-limited; console = KPIs, 30-day activity bars (scans/sign-ups/price checks/sold), searchable+sortable users w/ rollups + delete, recent cards, prices & data (series counts, daily-job status + Run now, mirrors, storage), system (integrations configured, process). `test:admin` 16 checks
 
 ## 2. Deferred features (mostly by choice or blocked on eBay)
