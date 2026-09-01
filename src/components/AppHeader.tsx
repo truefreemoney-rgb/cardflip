@@ -21,60 +21,61 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-      <Logo size="sm" />
-      {/* From lg up the tabs sit at the header's true center, out of the
-          document flow — the grid's side columns can't shrink below their
-          content, so a wide right cluster ("eBay connected · name · Sign
-          out") used to shove the tabs off-center (Chris, 09-01). Below lg
-          there isn't reliably room for that, so the grid/wrap flow stays. */}
-      <div className="contents lg:absolute lg:left-1/2 lg:top-1/2 lg:block lg:-translate-x-1/2 lg:-translate-y-1/2">
-        <AppTabs />
-      </div>
-      <div className="flex w-full items-center justify-center gap-4 sm:w-auto sm:justify-start md:justify-self-end">
-        {user && showEbay && (
-          user.ebayConnected ? (
+      {/* Everything personal lives in one stack under the logo (Chris,
+          09-01), which leaves the right grid column empty — the tabs center
+          against a symmetric header instead of being shoved by however wide
+          "eBay connected · name · Sign out" happens to be. */}
+      <div className="flex flex-col gap-1.5">
+        <Logo size="sm" />
+        <div className="flex items-center gap-3">
+          {user && showEbay && (
+            user.ebayConnected ? (
+              <Link
+                href="/connect-ebay"
+                title="Manage your eBay connection"
+                className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                eBay connected
+              </Link>
+            ) : (
+              <Link
+                href="/connect-ebay"
+                className="rounded-full bg-ebay px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"
+              >
+                eBay setup
+              </Link>
+            )
+          )}
+          {user ? (
             <Link
-              href="/connect-ebay"
-              title="Manage your eBay connection"
-              className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
+              href="/app/account"
+              className="text-xs text-zinc-400 transition hover:text-zinc-200"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              eBay connected
+              {user.name}
             </Link>
           ) : (
-            <Link
-              href="/connect-ebay"
-              className="rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"
-            >
-              eBay setup
-            </Link>
-          )
-        )}
-        {user ? (
-          <Link
-            href="/app/account"
-            className="hidden text-sm text-zinc-400 transition hover:text-zinc-200 sm:inline"
+            <span
+              aria-hidden
+              className={`h-3.5 w-20 rounded bg-white/10 ${
+                status === "loading" ? "animate-pulse" : ""
+              }`}
+            />
+          )}
+          <button
+            onClick={async () => {
+              await logout();
+              router.push("/");
+            }}
+            className="text-xs text-zinc-500 transition hover:text-zinc-300"
           >
-            {user.name}
-          </Link>
-        ) : (
-          <span
-            aria-hidden
-            className={`hidden h-4 w-20 rounded bg-white/10 sm:inline-block ${
-              status === "loading" ? "animate-pulse" : ""
-            }`}
-          />
-        )}
-        <button
-          onClick={async () => {
-            await logout();
-            router.push("/");
-          }}
-          className="text-xs text-zinc-500 transition hover:text-zinc-300"
-        >
-          Sign out
-        </button>
+            Sign out
+          </button>
+        </div>
       </div>
+      <AppTabs />
+      {/* Empty right column balances the grid so the tabs stay centered. */}
+      <div aria-hidden className="hidden md:block" />
     </header>
   );
 }
