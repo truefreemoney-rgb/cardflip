@@ -21,6 +21,17 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
+**NEXT WORK (my end, Chris approved 09-01, pick order):** (1) Sonnet 5
+vision A/B vs Opus 5 on real card photos (margin ~doubles if accuracy
+holds — use stored card_photos scans as the test set, compare
+identification + condition, REPORT to Chris before switching models);
+(2) welcome email on subscribe from support@cardflip.io (mail.ts ready,
+stripe webhook is the trigger point); (3) ended-listing sync task chip
+(item f below); (4) condition-detail aspect warning on pushes (item g).
+Waiting on Chris: PO box -> Stripe Public details; Branding logo/color +
+Settings->Emails "Successful payments" toggle (verify done); optional
+live-key rotation; optional real-card charge test.
+
 **09-01 — STRIPE IS LIVE ON PRODUCTION.** Chris finished live activation
 (individual, statement descriptor CARDFLIP, support@cardflip.io, Radar
 Lite, Tax skipped, Stripe-profile page deliberately NOT created).
