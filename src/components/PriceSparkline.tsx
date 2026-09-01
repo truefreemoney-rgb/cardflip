@@ -69,14 +69,14 @@ export default function PriceSparkline({ cardId, preferVariant, days = 30, class
     >
       <svg
         viewBox={`0 0 ${geo.W} ${geo.H}`}
-        className="h-6 w-16 shrink-0"
+        className="h-7 w-24 shrink-0"
         role="img"
         aria-label={`Price ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days`}
       >
         <path d={geo.d} fill="none" stroke={stroke} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
         <circle cx={geo.lastX} cy={geo.lastY} r="2" fill={stroke} />
       </svg>
-      <span className={`text-[10px] font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+      <span className={`text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
         {up ? "▲" : "▼"} {Math.abs(geo.pct).toFixed(1)}%
         <span className="ml-1 font-normal text-zinc-600">{days}d</span>
       </span>

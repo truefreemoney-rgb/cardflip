@@ -74,21 +74,21 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         }}
         className="flex items-center gap-1"
       >
-        <span className="text-[11px] text-zinc-500">$</span>
+        <span className="text-xs text-zinc-500">$</span>
         <input
           autoFocus
           inputMode="decimal"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={item.price != null ? item.price.toFixed(2) : "0.00"}
-          className="w-16 rounded-md border border-edge bg-black/40 px-1.5 py-1 text-center text-xs text-white outline-none focus:border-brand-400"
+          className="w-20 rounded-md border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
           aria-label={`Alert price for ${item.cardName}`}
         />
-        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-2 py-1 text-[11px] font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
+        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-2.5 py-1.5 text-xs font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
           Set
         </button>
         {item.alertPrice != null && (
-          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1 text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1 text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
             Clear
           </button>
         )}
@@ -98,7 +98,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
   return (
     <button
       onClick={() => setEditing(true)}
-      className="text-[11px] text-zinc-500 underline underline-offset-2 transition hover:text-zinc-300"
+      className="rounded-full px-2 py-1 text-xs text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
     >
       {item.alertPrice != null
         ? `🔔 alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
@@ -185,7 +185,7 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
 
   if (Math.abs(delta) < 1 && Math.abs(pct) < 1) {
     return (
-      <span className="text-[11px] text-zinc-500">
+      <span className="text-xs text-zinc-500">
         Now ${now.toFixed(2)} · steady
       </span>
     );
@@ -194,7 +194,7 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
   const up = delta > 0;
   return (
     <span
-      className={`text-[11px] font-medium ${up ? "text-emerald-400" : "text-red-400"}`}
+      className={`text-xs font-medium ${up ? "text-emerald-400" : "text-red-400"}`}
     >
       Now ${now.toFixed(2)} · {up ? "▲" : "▼"} {up ? "+" : "−"}$
       {Math.abs(delta).toFixed(2)} ({pct > 0 ? "+" : ""}
@@ -509,7 +509,7 @@ export default function WishlistPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 5 }, (_, i) => (
             <div key={i} className="flex animate-pulse flex-col gap-2 rounded-xl border border-edge bg-surface-1 p-3">
               <div className="aspect-[5/7] w-full rounded-lg bg-white/5" />
@@ -555,11 +555,11 @@ export default function WishlistPage() {
           {visibleItems.length === 0 ? (
             <p className="text-sm text-zinc-500">Nothing matches that filter.</p>
           ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {visibleItems.map((item) => (
             <div
               key={item.id}
-              className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-3"
+              className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-4"
             >
               <button
                 onClick={() => handleRemove(item.id)}
@@ -587,24 +587,24 @@ export default function WishlistPage() {
                   </span>
                 )}
               </button>
-              <span className="w-full truncate text-center text-xs font-medium text-white">
+              <span className="w-full truncate text-center text-sm font-medium text-white">
                 {item.cardName}
               </span>
               {item.englishName && (
-                <span className="w-full truncate text-center text-[11px] font-medium text-brand-300">
+                <span className="w-full truncate text-center text-xs font-medium text-brand-300">
                   {item.englishName}
                 </span>
               )}
-              <span className="w-full truncate text-center text-[11px] text-zinc-500">
+              <span className="w-full truncate text-center text-xs text-zinc-500">
                 {item.setName} · {item.cardNumber}
               </span>
-              <span className="w-full truncate text-center text-[10px] text-zinc-600">
+              <span className="w-full truncate text-center text-[11px] text-zinc-600">
                 {LANGUAGE_LABEL[item.language]} · {formatDate(item.addedAt)}
               </span>
               {item.price != null && (
-                <span className="text-sm font-semibold text-emerald-400">
+                <span className="text-lg font-semibold text-emerald-400">
                   ${item.price.toFixed(2)}
-                  <span className="ml-1 text-[10px] font-normal text-zinc-600">
+                  <span className="ml-1 text-xs font-normal text-zinc-600">
                     saved
                   </span>
                 </span>
