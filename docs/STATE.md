@@ -33,8 +33,13 @@ sealed/sold rows excluded, toast fallback). Fresh-start rule intact — no
 auto-restore. (b) Row checkboxes + Select all (visible rows) + bulk
 Delete with one confirm; listed rows can't be ticked (live on eBay).
 Verified in dev: resume rebuilt Sheoldred at ledger price; bulk delete
-6→4 rows. NOTE: resumed items rebuild condition via asCondition — graded
-("PSA 10") ledger conditions fall back to Near Mint w/o slab state.
+6→4 rows. FOLLOW-UP same day (Chris: "graded cards will be important —
+cover the bases"): editor grade/condition changes now sync the ledger
+condition string live (`syncLedgerCondition` in CardEditor — "PSA 10"
+etc., not just at the listed/sold checkpoint), and resume parses it back
+via parseGradeQuery → slab restores with company+grade+market strategy.
+Verified both directions in dev (resume → PSA/10 selects + slab pricing
+note; grade change → ledger "PSA 9").
 
 **09-01 late — REPRICE NUDGE SHIPPED (half of BACKLOG's auto-offers item):**
 new `cards.catalog_card_id` (saved at scan; old rows don't nudge),

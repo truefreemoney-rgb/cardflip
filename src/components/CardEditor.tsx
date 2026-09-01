@@ -17,6 +17,7 @@ import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
   CONDITIONS,
   buildListing,
+  describeItemCondition,
   canBeFirstEdition,
   canPriceListing,
   effectiveVariant,
@@ -265,6 +266,18 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
   const marketQuote = quotePrice(card, item.condition, "market", variant);
 
   const facts = { firstEdition: item.firstEdition, grading: item.grading };
+
+  // Grade/condition changes reach the ledger immediately, not just at the
+  // listed/sold checkpoint (Chris, 09-01: graded cards matter — a resumed
+  // draft must come back as the slab it is, and My Cards shouldn't call a
+  // PSA 10 "Near Mint"). The ledger's condition string is the one source:
+  // "PSA 10" for slabs, the raw scale otherwise; resume parses it back.
+  function syncLedgerCondition(next: Partial<ScanItem>) {
+    if (!item.serverId) return;
+    void updateServerCard(item.serverId, {
+      condition: describeItemCondition({ ...item, ...next } as ScanItem),
+    });
+  }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
   const generated = buildListing(
     card,
@@ -541,10 +554,9 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
             value={item.grading?.company ?? ""}
             onChange={(e) => {
               const company = e.target.value as GradingCompany | "";
-              onChange({
-                grading: company ? { company, grade: "10" } : null,
-                priceOverride: null,
-              });
+              const grading = company ? { company, grade: "10" } : null;
+              onChange({ grading, priceOverride: null });
+              syncLedgerCondition({ grading });
             }}
             className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
           >
@@ -564,12 +576,11 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
             Grade
             <select
               value={item.grading.grade}
-              onChange={(e) =>
-                onChange({
-                  grading: { ...item.grading!, grade: e.target.value },
-                  priceOverride: null,
-                })
-              }
+              onChange={(e) => {
+                const grading = { ...item.grading!, grade: e.target.value };
+                onChange({ grading, priceOverride: null });
+                syncLedgerCondition({ grading });
+              }}
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
             >
               {gradesFor(item.grading.company).map((grade) => (
@@ -584,9 +595,11 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
             Condition
             <select
               value={item.condition}
-              onChange={(e) =>
-                onChange({ condition: e.target.value as Condition, priceOverride: null })
-              }
+              onChange={(e) => {
+                const condition = e.target.value as Condition;
+                onChange({ condition, priceOverride: null });
+                syncLedgerCondition({ condition });
+              }}
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
             >
               {CONDITIONS.map((c) => (

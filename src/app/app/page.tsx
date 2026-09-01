@@ -25,6 +25,7 @@ import {
   toEbayDraftsCsv,
   withEbayPrices,
 } from "@/lib/listing";
+import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import {
   createServerCard,
@@ -519,12 +520,18 @@ export default function AppPage() {
         toast("Couldn't look that card up again — scan it to rebuild the listing");
         return;
       }
+      // A slab's ledger condition IS its grade ("PSA 10", synced live by the
+      // editor) — parse it back so the card resumes as the slab it is.
+      const { grading } = parseGradeQuery(row.condition);
       const item: ScanItem = {
         ...createItem(null, "en", game),
         status: row.status === "listed" ? "listed" : "ready",
         serverId: row.id,
         candidates: results,
         card,
+        grading,
+        // Slabs price off raw market as a floor, never quick-sale discounts.
+        strategy: grading ? "market" : "quick",
         condition: asCondition(row.condition) ?? "Near Mint",
         priceOverride: row.price > 0 ? row.price : null,
         quantity: row.quantity || 1,
