@@ -85,13 +85,22 @@ const DESCRIPTOR_CARD_CONDITION = "40001";
 const DESCRIPTOR_GRADER = "27501";
 const DESCRIPTOR_GRADE = "27502";
 
-/** eBay's four ungraded card conditions, mapped from our five-step scale. */
+/**
+ * eBay's ungraded card conditions, mapped from our five-step scale. The value
+ * ids are CATEGORY-SPECIFIC: 400011/400012/400013 (Excellent/Very Good/Poor)
+ * belong to the sports-card categories (183050, 261328) and are NOT accepted
+ * in 183454 (CCG singles) — which is why the 08-27 push of a non-NM card got
+ * eBay's opaque 500 until the ladder stripped condition detail. 183454 uses
+ * its own played-scale ids (eBay's condition-descriptor table, verified
+ * 09-01): Lightly Played 400015, Moderately Played 400016, Heavily Played
+ * 400017.
+ */
 const CARD_CONDITION_VALUE: Record<Condition, string> = {
   "Near Mint": "400010", // Near Mint or Better
-  "Lightly Played": "400011", // Excellent
-  "Moderately Played": "400012", // Very Good
-  "Heavily Played": "400013", // Poor
-  Damaged: "400013", // Poor
+  "Lightly Played": "400015", // Lightly Played (Excellent)
+  "Moderately Played": "400016", // Moderately Played (Very Good)
+  "Heavily Played": "400017", // Heavily Played (Poor)
+  Damaged: "400017", // Heavily Played (Poor) — eBay has no lower rung in 183454
 };
 
 const GRADER_VALUE: Record<GradedInfo["company"], string> = {

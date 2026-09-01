@@ -78,9 +78,14 @@ console.log("Raw card");
     [],
   );
   check(
-    "Heavily Played → Poor",
+    "Heavily Played → 183454's Heavily Played (Poor) id, not the sports-card 400013",
     buildInventoryItem({ ...base, condition: "Heavily Played" }).conditionDescriptors[0].values,
-    ["400013"],
+    ["400017"],
+  );
+  check(
+    "Lightly Played → 183454's Lightly Played (Excellent) id",
+    buildInventoryItem({ ...base, condition: "Lightly Played" }).conditionDescriptors[0].values,
+    ["400015"],
   );
   check(
     "1st Edition → Features aspect",

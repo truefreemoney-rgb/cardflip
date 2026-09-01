@@ -41,8 +41,21 @@ new `cards.ebay_ended_at`; runs after the sales sweep in /api/ebay/sync-sales
 + daily job; ≤25 checks/pass, 10-min throttle; collection shows amber "Ended
 on eBay" chip + note, Unlist relabels "Back to drafts"; any status patch or
 re-push clears the stamp; only API-published listings checkable — eBay-form
-ones have no offer id; untested against a real ended listing); (4)
-condition-detail aspect warning on pushes (item g).
+ones have no offer id; untested — Chris will test when next posting on
+eBay [QUEUED]: good live test = end the photo-less Keldeo listing
+5230387616323 on eBay, reload My cards, expect amber chip); (4) DONE 09-01
+— condition-detail root-caused + FIXED (open thread a): our ungraded
+Card Condition ids 400011/12/13 are sports-card-category values NOT valid
+in 183454 (CCG singles) — that's why eBay 500'd and the push ladder
+stripped condition detail. 183454 uses 400015 (LP) / 400016 (MP) / 400017
+(HP; Damaged maps there too), per eBay's condition-descriptor table
+(browser-verified 09-01; NM 400010 + grader/grade ids all correct).
+ebayInventory.ts fixed, test-ebay-inventory.mjs updated, all pass.
+[QUEUED w/ Chris's next posting session]: push a non-NM card, expect NO
+"saved without condition detail" warning. (scripts/
+check-condition-descriptors.mjs = getItemConditionPolicies checker; can't
+run locally — .env.vercel.local eBay keys are "[SENSITIVE]" placeholders,
+classifier also blocks vercel env pull; docs table was enough.)
 Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details — PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
 Settings->Emails "Successful payments" toggle (verify done); optional
 live-key rotation; optional real-card charge test.
