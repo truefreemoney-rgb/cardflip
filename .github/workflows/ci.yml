@@ -1,0 +1,30 @@
+# The gate in front of main: pushing either branch (or opening a PR) runs
+# types + lint + the full test aggregate. Vercel builds main regardless —
+# this doesn't block the deploy, it tells us within minutes that one is bad,
+# which is the whole error-budget for a solo-maintainer pipeline.
+#
+# No secrets on purpose: the suites run against temp-dir file databases and
+# never touch Turso, eBay, Stripe, or the vision API. `next build` is left
+# out — Vercel runs the real one, and duplicating it here doubles CI time
+# for no signal.
+name: CI
+
+on:
+  push:
+    branches: [main, vercel-migration]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
