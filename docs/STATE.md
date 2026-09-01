@@ -21,12 +21,24 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**NEXT WORK (my end, Chris approved 09-01, pick order):** (1) Sonnet 5
-vision A/B vs Opus 5 on real card photos (margin ~doubles if accuracy
-holds — use stored card_photos scans as the test set, compare
-identification + condition, REPORT to Chris before switching models);
-(2) welcome email on subscribe from support@cardflip.io (mail.ts ready,
-stripe webhook is the trigger point); (3) ended-listing sync task chip
+**🔴 09-01 OUTAGE RISK: Anthropic API credit balance EXHAUSTED** — every
+messages call returns 400 "credit balance is too low", so PROD SCANNING IS
+DOWN (vision falls back to OCR only). Chris must top up / enable auto-reload
+at console.anthropic.com Plans & Billing. Found during A/B run (last 3
+photos errored).
+
+**NEXT WORK (my end, Chris approved 09-01, pick order):** (1) DONE 09-01 —
+Sonnet 5 vs Opus 5 A/B on 49 stored card_photos (`scripts/ab-vision.mjs`,
+re-runnable): identification IDENTICAL (name 49/49 both, number 43/49 both,
+same 6 misses — several look like bad stored truth, see report), but Sonnet
+returns condition:null on 24/49 (Opus 2/49) → UX regression unless prompt
+tuned; Sonnet $0.011/scan vs Opus $0.027. DECIDED 09-01: Chris — STAY ON OPUS for
+now (no code change; revisit via `scripts/ab-vision.mjs` if margins bite);
+(2) DONE 09-01 — welcome email on subscribe (`sendWelcomeEmail` in mail.ts,
+sent from webhook's checkout.session.completed on the not-subscribed→
+subscribed edge only, mail failure never 500s the webhook; untested against
+a real checkout — next live/test-mode subscribe confirms); (3) ended-listing
+sync task chip
 (item f below); (4) condition-detail aspect warning on pushes (item g).
 Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details — PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
 Settings->Emails "Successful payments" toggle (verify done); optional

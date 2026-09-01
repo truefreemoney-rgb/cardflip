@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
 import { fetchSubscription, verifyWebhook } from "@/lib/server/stripe";
 import {
   findUserById,
   findUserByStripeCustomer,
+  isSubscribed,
   setStripeCustomer,
   setSubscription,
 } from "@/lib/server/users";
@@ -39,6 +41,16 @@ export async function POST(req: NextRequest) {
         const sub = await fetchSubscription(subscriptionId);
         await setSubscription(user.id, sub.status, sub.periodEnd);
         console.info(`stripe: ${user.email} subscribed (${sub.status})`);
+        // Welcome once, on the not-subscribed -> subscribed edge (`user` was
+        // read before setSubscription, so a retried event sees "active" and
+        // skips). Never let a mail hiccup 500 the webhook into a Stripe retry.
+        if (!isSubscribed(user) && isSubscribed({ subStatus: sub.status }) && isMailConfigured()) {
+          try {
+            await sendWelcomeEmail(user.email);
+          } catch (err) {
+            console.error(`stripe: welcome email to ${user.email} failed:`, err);
+          }
+        }
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const customerId = typeof obj.customer === "string" ? obj.customer : null;

@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 
 /**
- * Outbound mail — today just the password-reset link.
+ * Outbound mail — the password-reset link and the subscription welcome.
  *
  * Plain SMTP with an app password, because the site's mailbox
  * (support@cardflip.io) already lives at Fastmail and Fastmail
@@ -59,6 +59,43 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
     from: fromAddress(),
     to,
     subject: "Reset your CardFlip password",
+    text,
+    html,
+  });
+}
+
+/**
+ * Sent once, from the Stripe webhook, when a checkout completes. The webhook
+ * swallows failures — a missed welcome must never make Stripe retry the event.
+ */
+export async function sendWelcomeEmail(to: string): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const scanUrl = `${site}/app`;
+  const accountUrl = `${site}/app/account`;
+  const text = [
+    "Your CardFlip subscription is active.",
+    "",
+    "You have 500 scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing:",
+    scanUrl,
+    "",
+    `Scans reset each billing month. Manage or cancel any time: ${accountUrl}`,
+    "",
+    "Questions? Reply to this email.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>Your CardFlip subscription is active.</p>
+    <p>You have 500 scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing.</p>
+    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
+    <p style="color:#666;font-size:13px">Scans reset each billing month. Manage or cancel any time from <a href="${accountUrl}">your account</a>.</p>
+    <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: "Your CardFlip subscription is active",
     text,
     html,
   });
