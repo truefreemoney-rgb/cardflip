@@ -272,8 +272,9 @@ new `cards.ebay_ended_at`; runs after the sales sweep in /api/ebay/sync-sales
 on eBay" chip + note, Unlist relabels "Back to drafts"; any status patch or
 re-push clears the stamp; only API-published listings checkable — eBay-form
 ones have no offer id; untested — Chris will test when next posting on
-eBay [QUEUED]: good live test = end the photo-less Keldeo listing
-5230387616323 on eBay, reload My cards, expect amber chip); (4) DONE 09-01
+eBay [QUEUED]: Keldeo was deleted BEFORE the chip shipped, so the test
+is now: publish any listing via CardFlip, end it on eBay, reload My
+cards, expect amber chip); (4) DONE 09-01
 — condition-detail root-caused + FIXED (open thread a): our ungraded
 Card Condition ids 400011/12/13 are sports-card-category values NOT valid
 in 183454 (CCG singles) — that's why eBay 500'd and the push ladder
