@@ -33,6 +33,13 @@ export class PsaCertNotFound extends Error {
   }
 }
 
+/** PSA answered with an error status — carried up so the route can say which. */
+export class PsaApiError extends Error {
+  constructor(readonly status: number) {
+    super(`PSA API ${status}`);
+  }
+}
+
 export async function lookupPsaCert(certNumber: string): Promise<PsaCertResult> {
   const token = process.env.PSA_API_TOKEN;
   if (!token) throw new Error("PSA_API_TOKEN not configured");
@@ -43,7 +50,9 @@ export async function lookupPsaCert(certNumber: string): Promise<PsaCertResult> 
   );
   // PSA answers 204/empty bodies for unknown certs rather than a clean 404.
   if (res.status === 204) throw new PsaCertNotFound(certNumber);
-  if (!res.ok) throw new Error(`PSA API ${res.status}`);
+  // Their docs: 500 usually means invalid credentials (a truncated paste
+  // looks exactly like this), 4xx a bad path.
+  if (!res.ok) throw new PsaApiError(res.status);
   const text = await res.text();
   if (!text) throw new PsaCertNotFound(certNumber);
 

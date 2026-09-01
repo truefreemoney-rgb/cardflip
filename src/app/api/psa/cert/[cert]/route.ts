@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { LIMITS, limitOrRespond } from "@/lib/server/rateLimit";
-import { lookupPsaCert, psaConfigured, PsaCertNotFound } from "@/lib/server/psa";
+import { lookupPsaCert, psaConfigured, PsaApiError, PsaCertNotFound } from "@/lib/server/psa";
 
 /** Verify a PSA slab by cert number. Both budgets guard PSA's 100/day tier. */
 export async function GET(
@@ -31,6 +31,11 @@ export async function GET(
     }
     if (err instanceof PsaCertNotFound) {
       return NextResponse.json({ error: "PSA has no cert with that number" }, { status: 404 });
+    }
+    if (err instanceof PsaApiError) {
+      // 500 from PSA is how an invalid/truncated token presents.
+      const hint = err.status === 500 ? "PSA rejected our API token" : `PSA answered ${err.status}`;
+      return NextResponse.json({ error: `${hint} — lookup unavailable` }, { status: 502 });
     }
     console.warn("PSA cert lookup failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "PSA lookup failed — try again" }, { status: 502 });
