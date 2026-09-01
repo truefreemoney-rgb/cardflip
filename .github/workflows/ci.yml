@@ -25,6 +25,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Generates .next/types (LayoutProps etc.) that tsc needs — a fresh
+      # checkout has none; locally the dev server produces them.
+      - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm run lint
       - run: npm test
