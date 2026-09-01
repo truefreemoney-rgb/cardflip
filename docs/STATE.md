@@ -39,8 +39,12 @@ PRODUCTION env = live keys (sk_live chat-exposed, Chris may rotate:
 dashboard roll key then rerun `scripts/flip-stripe-live.mjs` after
 updating .env.local); PREVIEW env = sandbox test keys (intentional
 split). Live objects: product prod_VB68qbGnNfQpty, sub
-price_1UAjvlHrYyCaAIAxazDtv1Dz $9.99/mo, pack
-price_1UAjvlHrYyCaAIAx2XeXNRox $4.99, webhook we_1UAjvmHrYyCaAIAxUduHw3UX.
+price_1UAjvlHrYyCaAIAxazDtv1Dz $9.99/mo, webhook we_1UAjvmHrYyCaAIAxUduHw3UX.
+**09-01: SCAN PACKS SCRAPPED (Chris: "only the $9.99/month with 500
+scans", `e3d4bf1`)** — pack route/UI/webhook branch removed, pack
+prices+product archived in BOTH Stripe modes, SCAN_PACK env deleted
+everywhere; users.extra_scans column stays dormant. Hitting 500 = hard
+stop until renewal.
 Verified: cs_live_ checkout renders $9.99/"500 scans a month included",
 no sandbox badge; throwaway cleaned up. NOT yet done: real-card charge
 test (Chris's own card, then refund+cancel — offered); PO box for the
@@ -49,7 +53,7 @@ receipts only). support@cardflip.io fully live 08-31 (Fastmail domain +
 6 DNS records on Dynadot, inbound tested, MAIL_FROM flipped, old
 superiormarketing address replaced across mail sig/footer/legal).
 
-**08-31 latest — PRICING SET: $9.99/mo, 500 scans/mo, $4.99 packs of 150**
+**08-31 latest — PRICING SET: $9.99/mo, 500 scans/mo (packs SCRAPPED 09-01, see below)**
 (`c5e09b1`, e2e on prod incl. pack purchase -> extra_scans=150): prices
 price_1UAeGnHzaqR7o9G2jhQpe38h (sub) + price_1UAeGnHzaqR7o9G2OrbHzs7n
 (pack); old $4.99 price archived. Metering in `scanQuota.ts`
