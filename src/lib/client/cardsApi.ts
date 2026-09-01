@@ -27,6 +27,8 @@ export interface ServerCard {
   ebayDraftUrl: string | null;
   ebayPushedAt: number | null;
   ebayPublishedAt: number | null;
+  /** Set when the sync found the live listing ended on eBay without a sale. */
+  ebayEndedAt: number | null;
   createdAt: number;
   updatedAt: number;
   /** Set when the seller's own scan photo is stored — served by /api/card-image/[id]. */

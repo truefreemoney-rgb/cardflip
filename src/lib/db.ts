@@ -370,6 +370,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "ebay_draft_url TEXT",
       "ebay_draft_at INTEGER",
       "game TEXT NOT NULL DEFAULT 'pokemon'",
+      "ebay_ended_at INTEGER",
     ],
   ],
   ["wishlist_items", ["card_id TEXT", "game TEXT"]],

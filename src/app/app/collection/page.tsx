@@ -95,12 +95,24 @@ export default function CollectionPage() {
     // being a manual button for connected sellers.
     void syncEbaySales().then((result) => {
       if (cancelled || !result) return;
-      if (result.sold.length > 0) {
+      const ended = result.ended ?? [];
+      if (result.sold.length > 0 || ended.length > 0) {
         setCards((prev) =>
-          prev.map((card) => result.sold.find((s) => s.id === card.id) ?? card),
+          prev.map(
+            (card) =>
+              result.sold.find((s) => s.id === card.id) ??
+              ended.find((e) => e.id === card.id) ??
+              card,
+          ),
         );
+      }
+      if (result.sold.length > 0) {
         setSaleNote(
           `${result.sold.length} ${result.sold.length === 1 ? "card" : "cards"} marked sold from your eBay orders.`,
+        );
+      } else if (ended.length > 0) {
+        setSaleNote(
+          `${ended.length} ${ended.length === 1 ? "listing" : "listings"} ended on eBay without selling — relist, or move the card back to drafts.`,
         );
       } else if (result.skipped === "no_scope") {
         setSaleNote(
@@ -364,11 +376,23 @@ export default function CollectionPage() {
                   </p>
                 </div>
 
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CHIP[card.status]}`}
-                >
-                  {STATUS_LABEL[card.status]}
-                </span>
+                {/* The sync stamps ebayEndedAt when the listing ended on eBay
+                    without a sale; the card stays "listed" until the seller
+                    decides, but the chip stops claiming it's live. */}
+                {card.status === "listed" && card.ebayEndedAt ? (
+                  <span
+                    className="rounded-full bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300"
+                    title={`eBay ended this listing without a sale (noticed ${formatDate(card.ebayEndedAt)}). Relist it, or move it back to drafts.`}
+                  >
+                    Ended on eBay
+                  </span>
+                ) : (
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CHIP[card.status]}`}
+                  >
+                    {STATUS_LABEL[card.status]}
+                  </span>
+                )}
 
                 {/* The price is what a seller scans the list FOR -- it reads
                     at a glance now (Chris, 08-31: "make the prices bigger").
@@ -417,7 +441,7 @@ export default function CollectionPage() {
                         onClick={() => backToDraft(card)}
                         className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong"
                       >
-                        Unlist
+                        {card.ebayEndedAt ? "Back to drafts" : "Unlist"}
                       </button>
                     </>
                   )}

@@ -97,6 +97,8 @@ export async function disconnectEbay(): Promise<boolean> {
 
 export interface SalesSyncResponse {
   sold: import("@/lib/client/cardsApi").ServerCard[];
+  /** Listed cards whose eBay listing ended without a sale — chip, don't flip. */
+  ended?: import("@/lib/client/cardsApi").ServerCard[];
   skipped?: "not_connected" | "no_scope" | "no_listings" | "throttled" | "error";
 }
 

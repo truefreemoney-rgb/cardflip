@@ -35,9 +35,14 @@ now (no code change; revisit via `scripts/ab-vision.mjs` if margins bite);
 (2) DONE 09-01 — welcome email on subscribe (`sendWelcomeEmail` in mail.ts,
 sent from webhook's checkout.session.completed on the not-subscribed→
 subscribed edge only, mail failure never 500s the webhook; untested against
-a real checkout — next live/test-mode subscribe confirms); (3) ended-listing
-sync task chip
-(item f below); (4) condition-detail aspect warning on pushes (item g).
+a real checkout — next live/test-mode subscribe confirms); (3) DONE 09-01 —
+ended-listing sync (`ebayListings.ts`: getOffer per published listing, stamps
+new `cards.ebay_ended_at`; runs after the sales sweep in /api/ebay/sync-sales
++ daily job; ≤25 checks/pass, 10-min throttle; collection shows amber "Ended
+on eBay" chip + note, Unlist relabels "Back to drafts"; any status patch or
+re-push clears the stamp; only API-published listings checkable — eBay-form
+ones have no offer id; untested against a real ended listing); (4)
+condition-detail aspect warning on pushes (item g).
 Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details — PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
 Settings->Emails "Successful payments" toggle (verify done); optional
 live-key rotation; optional real-card charge test.

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
+import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
@@ -65,7 +66,7 @@ export interface DailyResult {
   pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
   backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
-  ebaySales?: { sellers: number; sold: number } | { error: string };
+  ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
   ms?: number;
 }
 
@@ -111,11 +112,15 @@ export async function runPokemonSteps(
       )
       .all()) as { user_id: string }[];
     let soldCount = 0;
+    let endedCount = 0;
     for (const seller of sellers) {
       const r = await syncEbaySales(seller.user_id, true);
       soldCount += r.sold.length;
+      // After sales, so a sold-out listing flips sold instead of "ended".
+      const e = await syncEndedEbayListings(seller.user_id, true);
+      endedCount += e.ended.length;
     }
-    result.ebaySales = { sellers: sellers.length, sold: soldCount };
+    result.ebaySales = { sellers: sellers.length, sold: soldCount, endedListings: endedCount };
   } catch (err) {
     result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: eBay sales sweep failed:", err);

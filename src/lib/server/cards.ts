@@ -33,6 +33,8 @@ export interface CardRecord {
   ebayListingUrl: string | null;
   ebayPushedAt: number | null;
   ebayPublishedAt: number | null;
+  /** Set when the sweep found the live listing ended on eBay without a sale. */
+  ebayEndedAt: number | null;
   /** When the seller's own photo of this copy was stored (see cardPhotos.ts). */
   photoAt: number | null;
   /** Listing API draft — visible in the seller's My eBay › Drafts. */
@@ -64,6 +66,7 @@ interface CardRow {
   ebay_listing_id: string | null;
   ebay_pushed_at: number | null;
   ebay_published_at: number | null;
+  ebay_ended_at: number | null;
   photo_at: number | null;
   ebay_draft_id: string | null;
   ebay_draft_url: string | null;
@@ -94,6 +97,7 @@ function fromRow(row: CardRow): CardRecord {
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
     ebayPushedAt: row.ebay_pushed_at ?? null,
     ebayPublishedAt: row.ebay_published_at ?? null,
+    ebayEndedAt: row.ebay_ended_at ?? null,
     photoAt: row.photo_at ?? null,
     ebayDraftId: row.ebay_draft_id ?? null,
     ebayDraftUrl: row.ebay_draft_url ?? null,
@@ -165,6 +169,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     ebayListingUrl: null,
     ebayPushedAt: null,
     ebayPublishedAt: null,
+    ebayEndedAt: null,
     photoAt: null,
     ebayDraftId: null,
     ebayDraftUrl: null,
@@ -242,7 +247,7 @@ export async function setCardEbayListing(
     .prepare(
       `UPDATE cards
        SET ebay_sku = ?, ebay_offer_id = ?, ebay_listing_id = ?, ebay_pushed_at = ?, ebay_published_at = ?,
-           updated_at = ?
+           ebay_ended_at = NULL, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -255,6 +260,14 @@ export async function setCardEbayListing(
       id,
       userId,
     );
+  return getCardForUser(id, userId);
+}
+
+/** Server-written by the ended-listing sweep (ebayListings.ts) only. */
+export async function setCardListingEnded(id: string, userId: string, endedAt: number): Promise<CardRecord | null> {
+  await db
+    .prepare("UPDATE cards SET ebay_ended_at = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+    .run(endedAt, Date.now(), id, userId);
   return getCardForUser(id, userId);
 }
 
@@ -288,13 +301,16 @@ export async function updateCard(
     listed_at: patch.listedAt !== undefined ? patch.listedAt : existingRow.listed_at,
     sold_price: patch.soldPrice !== undefined ? patch.soldPrice : existingRow.sold_price,
     sold_at: patch.soldAt !== undefined ? patch.soldAt : existingRow.sold_at,
+    // Any status move settles the ended flag — sold/unlisted cards don't
+    // need the chip, and a later manual "Mark listed" starts clean.
+    ebay_ended_at: patch.status !== undefined ? null : existingRow.ebay_ended_at,
     updated_at: Date.now(),
   };
 
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, updated_at = ?
+       SET condition = ?, price = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -304,6 +320,7 @@ export async function updateCard(
       merged.listed_at,
       merged.sold_price,
       merged.sold_at,
+      merged.ebay_ended_at,
       merged.updated_at,
       id,
       userId,
