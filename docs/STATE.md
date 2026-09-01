@@ -140,7 +140,10 @@ request-scoped cookies() → need a harness, lower value);
 in comps route (card.id + recordPoint, variant "ebayAverage") + one
 comps call per card in sweepPriceHistory (~150/5000 daily limit); chart
 pickSeries prefers ebay source once points exist; no backfill possible
-(Insights denied 08-16). Ask Chris which.
+(Insights denied 08-16); (g) POST-LAUNCH MAYBE (Chris 09-01, "leave as
+is for now"): merge Search cards into Watchlist — pages overlap heavily
+(same search/modal/add) but split matches appraise-vs-track intent;
+merge only if real users get confused. Ask Chris which.
 
 **WAITING ON CHRIS:** (0) eBay RECONNECTED with sell.finances 09-01 ✓
 — fee sync is armed, needs a real sale to prove it (queued in the
