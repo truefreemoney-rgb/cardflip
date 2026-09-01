@@ -168,7 +168,9 @@ const SCHEMA = `
     -- Catalog id + game so a history row can reopen its card. Null on rows
     -- logged before these columns existed.
     card_id TEXT,
-    game TEXT
+    game TEXT,
+    -- Small catalog art for the history list; backfilled on re-checks.
+    image_url TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);

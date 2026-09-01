@@ -21,20 +21,29 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION — nothing pending on my end; pick next work with Chris
-(list below). Deploy backlog CLEARED 09-01 ~12:00 UTC: the rate limit
-rolled off early, an empty-commit push rebuilt, and prod now has
-EVERYTHING — hybrid header (Chris's final pick: strip flush-right in
-the tab row from xl, centered row-2 below; verified live, nav
-dead-center at 1600px), hero top-anchored (heroTop 90px, black gap
-gone), zoom-band grid fix, and vercel.json with branch preview builds
-DISABLED (1 build per change now). Rate-limit lore for next time: the
-24h cap is a ROLLING window (frees up before the full 24h), and a
-Ready Preview can be PROMOTED to Production from the dashboard with no
-build. Vercel Pro decision: not for performance — upgrade at launch
-for commercial-use compliance (advised 09-01). Browser-pane
-screenshots of emulated-size pages can come back shifted/black —
-capture artifact; trust getBoundingClientRect.**
+**FIRST ACTION — RESUME MID-TASK: Search-cards page makeover (Chris:
+"dry and bland... thumbnails for recent lookups + changes you see
+fit"). DESIGN.md already read — rules that bind: no foil on inner
+pages, panels rounded-2xl surface-1 w/ --edge hairlines, prices in
+font-display, restraint. DONE so far: db.ts CREATE TABLE price_checks
+got `image_url TEXT`. NEXT (in order): (1) db.ts COLUMN_PROBES
+price_checks entry — append "image_url TEXT" (an Edit for exactly this
+was interrupted); (2) lib/server/priceChecks.ts — image_url through
+PriceCheckRow/PriceCheckEntry/fromRow, INSERT it (card.imageSmall),
+and backfill in the recheck UPDATE like card_id/game already do;
+(3) lib/client/priceChecksApi.ts — imageUrl: string | null on entry;
+(4) price-check/page.tsx — replace the history <table> with a
+rounded-2xl border-edge bg-surface-1 <ul> divide-y divide-white/5:
+CardImage thumb (h-16 w-12 rounded-md, old rows have null image →
+CardImage's no-image state), name text-sm white + set·number xs
+zinc-500 (+ language when not en), right side font-display emerald
+price + date 11px zinc-600 + the ✕ delete (keep stopPropagation);
+KEEP: row click → openHistoryEntry w/ spinner, filter input, Clear
+all, loading/empty/no-match states (currently colSpan rows — become
+list states). Then tsc/lint, browser-verify, deploy (push branch → ff
+main). Deploy pipeline healthy again (rate limit cleared; previews
+disabled in vercel.json so 1 build/change; promote-preview trick works
+when limited).**
 
 **WHERE THINGS STAND (09-01 end, everything below deployed to prod
 EXCEPT the 3 commits above, tsc/lint/tests green, working tree clean
