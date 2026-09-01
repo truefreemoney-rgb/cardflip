@@ -232,7 +232,7 @@ export default function WishlistPage() {
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
   // handoff (Chris veto: a wishlisted card has no real photo, only stock art).
-  const [detail, setDetail] = useState<{ card: PokemonCard; language: ScanLanguage } | null>(null);
+  const [detail, setDetail] = useState<{ card: PokemonCard; language: ScanLanguage; itemId: string } | null>(null);
   const [detailOpeningId, setDetailOpeningId] = useState<string | null>(null);
   const [sort, setSort] = useState<"newest" | "name" | "price-high" | "price-low">("newest");
   const [listFilter, setListFilter] = useState("");
@@ -372,7 +372,7 @@ export default function WishlistPage() {
     try {
       const card = await resolveWishlistCard(item);
       if (card) {
-        setDetail({ card, language: item.language });
+        setDetail({ card, language: item.language, itemId: item.id });
       } else {
         setAddError(`Couldn't find ${item.cardName} in the catalog right now — try again in a moment.`);
       }
@@ -656,15 +656,30 @@ export default function WishlistPage() {
         </>
       )}
 
-      {detail && (
-        <CardDetailModal
-          card={detail.card}
-          language={detail.language}
-          logging={false}
-          onWatchlist
-          onClose={() => setDetail(null)}
-        />
-      )}
+      {detail && (() => {
+        // Live row from state, so an alert set in the modal shows on the tile
+        // (and in a reopened modal) without a refetch.
+        const detailItem = items.find((i) => i.id === detail.itemId);
+        return (
+          <CardDetailModal
+            card={detail.card}
+            language={detail.language}
+            logging={false}
+            onWatchlist
+            watchlistControls={
+              detailItem?.cardId ? (
+                <AlertControl
+                  item={detailItem}
+                  onSaved={(saved) =>
+                    setItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)))
+                  }
+                />
+              ) : null
+            }
+            onClose={() => setDetail(null)}
+          />
+        );
+      })()}
     </main>
   );
 }

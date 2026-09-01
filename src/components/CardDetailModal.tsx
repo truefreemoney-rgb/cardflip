@@ -18,6 +18,9 @@ interface Props {
   /** True when opened from the watchlist itself — offering "Add to
    * watchlist" for a card that's already on it is noise. */
   onWatchlist?: boolean;
+  /** Watchlist-owned controls (the price-alert editor) rendered under the
+   * "On your watchlist" badge — the modal doesn't know wishlist rows. */
+  watchlistControls?: React.ReactNode;
   onClose: () => void;
 }
 
@@ -26,7 +29,7 @@ interface Props {
  * expanding inline — clicking a thumbnail should feel like stepping into a
  * focused space to inspect that card, not just growing the same page.
  */
-export default function CardDetailModal({ card, language, logging, onWatchlist = false, onClose }: Props) {
+export default function CardDetailModal({ card, language, logging, onWatchlist = false, watchlistControls, onClose }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -116,9 +119,12 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
             )}
 
             {onWatchlist ? (
-              <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
-                ★ On your watchlist
-              </p>
+              <>
+                <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
+                  ★ On your watchlist
+                </p>
+                {watchlistControls && <div className="mt-3">{watchlistControls}</div>}
+              </>
             ) : (
               <button
                 onClick={handleSave}
