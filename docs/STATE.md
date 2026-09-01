@@ -25,6 +25,15 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 (Chris): publish flow = ONE road, keep users on-site** — removed
+"eBay's form instead (no photo)", "View my eBay drafts", "Copy listing
+text" from EbayPostActions (`5788220`); only "Publish on eBay — photo
+included" remains (+ Open-draft link for existing Listing-API drafts,
+which live on eBay). Unconnected users now see only the connect CTA. Git
+has the removed roads if a no-connection fallback returns. Sealed/manual
+add: Chris wants a photo-first version back in the scanner "sometime
+later" (not queued as approved work yet).
+
 **09-01 (Chris): scanner's add-without-a-photo section REMOVED** (typed
 card search + sealed-product add, both render sites) — eBay only accepts
 photos of the actual item, so photo-less queue entries were a dead end.
