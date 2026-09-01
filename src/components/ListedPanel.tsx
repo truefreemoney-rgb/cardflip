@@ -7,6 +7,8 @@ import type { ScanItem } from "@/lib/types";
 interface Props {
   item: ScanItem;
   onChange: (patch: Partial<ScanItem>) => void;
+  /** Jump to the next card still being worked — for stack sessions. */
+  onNext?: (() => void) | null;
 }
 
 function timeAgo(ts: number): string {
@@ -17,7 +19,7 @@ function timeAgo(ts: number): string {
   return `${hours} hour${hours === 1 ? "" : "s"} ago`;
 }
 
-export default function ListedPanel({ item, onChange }: Props) {
+export default function ListedPanel({ item, onChange, onNext }: Props) {
   const card = item.card!;
   const listedPrice = item.listedPrice ?? 0;
   const [soldPrice, setSoldPrice] = useState(listedPrice);
@@ -92,6 +94,18 @@ export default function ListedPanel({ item, onChange }: Props) {
           Mark as sold
         </button>
       </div>
+
+      {/* Working a stack: the receipt stays (Chris, 09-01 — land on the Live
+          panel), but the next unfinished card is one tap away instead of a
+          sidebar hunt. */}
+      {onNext && (
+        <button
+          onClick={onNext}
+          className="-mt-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-200"
+        >
+          Next card →
+        </button>
+      )}
 
       <button
         onClick={revert}

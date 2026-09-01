@@ -28,6 +28,7 @@ import {
 } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
+import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
 import {
   createServerCard,
   deleteServerCard,
@@ -70,8 +71,11 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     status: "queued",
     candidates: [],
     card: null,
-    condition: "Near Mint",
-    strategy: "quick",
+    // Last-used picks, remembered per browser (scanPrefs) — a seller working
+    // a Lightly Played box or always selling at market shouldn't re-pick per
+    // card. Vision's read of the photo still overwrites the condition.
+    condition: readSavedCondition(),
+    strategy: readSavedStrategy(),
     variant: null,
     firstEdition: false,
     grading: null,
@@ -170,6 +174,11 @@ export default function AppPage() {
           status: "listed",
           price: item.listedPrice ?? undefined,
           listedAt: item.listedAt,
+          // Null for a fresh publish; carries the cleared sale fields when a
+          // sold card is reverted to listed (SoldPanel's "not sold after all"),
+          // so the ledger doesn't keep a ghost sale on a live listing.
+          soldPrice: item.soldPrice,
+          soldAt: item.soldAt,
           // Grading is chosen in the editor after the draft was created, so
           // the ledger's condition ("PSA 10", "Factory Sealed") syncs at the
           // checkpoint rather than at creation.
@@ -479,6 +488,13 @@ export default function AppPage() {
     if (pending?.card) void loadEbayComps(pending.id, pending.card);
   }, [items, loadEbayComps]);
 
+  // Anything that lands back in "queued" — the editor's "Scan again" /
+  // "Use a different photo" buttons — restarts the pump (it guards its own
+  // re-entry, so this is free when a scan is already running).
+  useEffect(() => {
+    if (items.some((i) => i.status === "queued" && i.file)) void pump();
+  }, [items, pump]);
+
   const addFiles = useCallback(
     (files: File[]) => {
       const created = files.map((file) => createItem(file, language, game));
@@ -568,21 +584,69 @@ export default function AppPage() {
     setCameraOpen(true);
   }, []);
 
+  // Removal is undoable (Chris, 09-01 QoL pass): the ✕ used to hard-delete
+  // the server card instantly — a misclick on a priced, photographed card was
+  // unrecoverable. Now the row leaves the queue at once, but the server
+  // delete (and preview-URL revoke) waits out the undo window; Undo just
+  // puts the captured item back. Pending deletes are flushed if the page
+  // unmounts before their timers fire, so nothing silently survives.
+  const pendingRemovals = useRef(
+    new Map<string, { item: ScanItem; index: number; timer: ReturnType<typeof setTimeout> }>(),
+  );
+  const finalizeRemoval = useCallback((id: string) => {
+    const pending = pendingRemovals.current.get(id);
+    if (!pending) return;
+    pendingRemovals.current.delete(id);
+    clearTimeout(pending.timer);
+    URL.revokeObjectURL(pending.item.previewUrl);
+    if (pending.item.serverId) void deleteServerCard(pending.item.serverId);
+  }, []);
+  useEffect(() => {
+    const removals = pendingRemovals.current;
+    return () => {
+      for (const id of [...removals.keys()]) {
+        const pending = removals.get(id)!;
+        removals.delete(id);
+        clearTimeout(pending.timer);
+        URL.revokeObjectURL(pending.item.previewUrl);
+        if (pending.item.serverId) void deleteServerCard(pending.item.serverId);
+      }
+    };
+  }, []);
+
   const removeItem = useCallback(
     (id: string) => {
-      const target = itemsRef.current.find((i) => i.id === id);
-      if (target) {
-        URL.revokeObjectURL(target.previewUrl);
-        if (target.serverId) void deleteServerCard(target.serverId);
-      }
+      const index = itemsRef.current.findIndex((i) => i.id === id);
+      const target = itemsRef.current[index];
+      if (!target) return;
 
       const remaining = itemsRef.current.filter((i) => i.id !== id);
       commit(remaining);
       setSelectedId((current) =>
         current === id ? (remaining[0]?.id ?? null) : current,
       );
+
+      pendingRemovals.current.set(id, {
+        item: target,
+        index,
+        timer: setTimeout(() => finalizeRemoval(id), 5500),
+      });
+      const name = target.card ? target.card.englishName || target.card.name : "card";
+      toast(`Removed ${name}`, "info", {
+        label: "Undo",
+        onClick: () => {
+          const pending = pendingRemovals.current.get(id);
+          if (!pending) return;
+          pendingRemovals.current.delete(id);
+          clearTimeout(pending.timer);
+          const next = [...itemsRef.current];
+          next.splice(Math.min(pending.index, next.length), 0, pending.item);
+          commit(next);
+          setSelectedId(id);
+        },
+      });
     },
-    [commit],
+    [commit, finalizeRemoval],
   );
 
   /**
@@ -769,6 +833,36 @@ export default function AppPage() {
 
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
+  // "Next card →" on the Listed/Sold receipts: the nearest card still being
+  // worked, so a stack session never needs a sidebar hunt between publishes.
+  const nextWorkable = items.find(
+    (i) => i.id !== selectedId && (i.status === "ready" || i.status === "review"),
+  );
+  const selectNext = nextWorkable ? () => setSelectedId(nextWorkable.id) : null;
+
+  // "Apply to every card in the queue" under the condition select: one grade
+  // for the whole box. Finished (listed/sold) and graded-slab items keep
+  // theirs; ledger rows sync like a single edit would.
+  const applyConditionToAll = (condition: Condition) => {
+    let touched = 0;
+    const next = itemsRef.current.map((item) => {
+      if (item.kind === "sealed" || item.grading) return item;
+      if (item.status === "listed" || item.status === "sold") return item;
+      if (item.condition === condition) return item;
+      touched++;
+      if (item.serverId) {
+        void updateServerCard(item.serverId, {
+          condition: describeItemCondition({ ...item, condition }),
+        });
+      }
+      return { ...item, condition, priceOverride: null };
+    });
+    if (touched > 0) {
+      commit(next);
+      toast(`${condition} set on ${touched} card${touched === 1 ? "" : "s"}`);
+    }
+  };
+
   return (
     <>
       {ebayJustConnected && (
@@ -932,6 +1026,18 @@ export default function AppPage() {
                     item={selected}
                     ebayConnected={user.ebayConnected}
                     onChange={(patch) => patchItem(selected.id, patch)}
+                    onNext={selectNext}
+                    onApplyConditionToAll={
+                      items.filter(
+                        (i) =>
+                          i.kind !== "sealed" &&
+                          !i.grading &&
+                          i.status !== "listed" &&
+                          i.status !== "sold",
+                      ).length > 1
+                        ? applyConditionToAll
+                        : undefined
+                    }
                   />
                 )
               ) : (

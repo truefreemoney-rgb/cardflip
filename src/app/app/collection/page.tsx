@@ -16,6 +16,7 @@ import {
 } from "@/lib/client/cardsApi";
 import { syncEbaySales } from "@/lib/client/ebayApi";
 import { apiPath } from "@/lib/client/basePath";
+import { toast } from "@/components/Toaster";
 
 /**
  * Every card the seller has ever scanned, with where it is in its life:
@@ -42,6 +43,17 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "ready", label: "Drafts" },
   { value: "listed", label: "Listed" },
   { value: "sold", label: "Sold" },
+];
+
+// Sorts a seller actually reaches for: the money cards, what's been sitting
+// live the longest, and what just sold. Applied client-side over the loaded
+// ledger; "newest" matches the server's own order.
+type SortKey = "newest" | "price" | "listedAge" | "soldRecent";
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: "newest", label: "Newest" },
+  { value: "price", label: "Price high → low" },
+  { value: "listedAge", label: "Longest listed" },
+  { value: "soldRecent", label: "Recently sold" },
 ];
 
 function formatDate(ts: number): string {
@@ -80,6 +92,11 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortKey>("newest");
+  // "Mark sold" asks what it actually went for (prefilled with the asking
+  // price) instead of silently recording the ask — the Earned tiles are only
+  // as honest as this number. Also reused to correct a sold row's price.
+  const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   // Listed cards the market has moved away from (keyed by card id).
   const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
@@ -190,12 +207,18 @@ export default function CollectionPage() {
 
   function markListed(card: ServerCard) {
     void applyPatch(card, listedNowPatch());
+    toast(`${card.cardName} marked listed`);
   }
 
-  function markSold(card: ServerCard) {
-    // The listing price is the best default for what it actually sold for;
-    // a different final price can be set from the scanner's editor.
-    void applyPatch(card, soldNowPatch(card.price));
+  function confirmSold(card: ServerCard, value: string) {
+    const price = Math.max(0, parseFloat(value) || 0);
+    if (card.status === "sold") {
+      void applyPatch(card, { soldPrice: price });
+    } else {
+      void applyPatch(card, soldNowPatch(price));
+    }
+    setSoldForm(null);
+    toast(`${card.cardName} sold — $${price.toFixed(2)}`);
   }
 
   function backToDraft(card: ServerCard) {
@@ -314,7 +337,7 @@ export default function CollectionPage() {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return cards.filter((card) => {
+    const shown = cards.filter((card) => {
       if (filter !== "all" && card.status !== filter) return false;
       if (!needle) return true;
       return (
@@ -322,7 +345,28 @@ export default function CollectionPage() {
         card.setName.toLowerCase().includes(needle)
       );
     });
-  }, [cards, filter, query]);
+    if (sort === "newest") return shown; // the server's own order
+    return [...shown].sort((a, b) => {
+      if (sort === "price") {
+        return (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
+      }
+      if (sort === "listedAge") {
+        // Live listings first, oldest listing at the top — "what's been
+        // sitting". Unlisted rows keep their recency order after them.
+        const aListed = a.status === "listed" && a.listedAt;
+        const bListed = b.status === "listed" && b.listedAt;
+        if (aListed && bListed) return a.listedAt! - b.listedAt!;
+        if (aListed !== bListed) return aListed ? -1 : 1;
+        return b.createdAt - a.createdAt;
+      }
+      // soldRecent: sold rows first, newest sale at the top.
+      const aSold = a.status === "sold" && a.soldAt;
+      const bSold = b.status === "sold" && b.soldAt;
+      if (aSold && bSold) return b.soldAt! - a.soldAt!;
+      if (aSold !== bSold) return aSold ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+  }, [cards, filter, query, sort]);
 
   if (!user) return <PageSkeleton />;
 
@@ -406,6 +450,18 @@ export default function CollectionPage() {
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            aria-label="Sort cards"
+            className="shrink-0 rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none"
+          >
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
           <input
             type="search"
             aria-label="Filter cards by name or set"
@@ -424,46 +480,95 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {/* Selection toolbar — select-all covers what the current filter shows
-          (minus live listings, which have to be unlisted first). */}
+      {/* Selection toolbar. Every row can be ticked now (listed included) —
+          each bulk action applies itself only to the rows it makes sense on,
+          and Delete still refuses live listings (unlist first). Shipped a
+          stack? Listed a pile by hand? One pass instead of row-by-row
+          (Chris, 09-01 QoL pass). */}
       {visible.length > 0 && (
         <div className="-mt-2 flex flex-wrap items-center gap-3 text-sm">
           <label className="flex items-center gap-2 text-zinc-400">
             <input
               type="checkbox"
-              checked={
-                visible.filter((c) => c.status !== "listed").length > 0 &&
-                visible.filter((c) => c.status !== "listed").every((c) => selected.has(c.id))
-              }
+              checked={visible.length > 0 && visible.every((c) => selected.has(c.id))}
               onChange={(e) => {
-                const selectable = visible.filter((c) => c.status !== "listed").map((c) => c.id);
-                setSelected(e.target.checked ? new Set(selectable) : new Set());
+                setSelected(e.target.checked ? new Set(visible.map((c) => c.id)) : new Set());
               }}
               className="h-4 w-4 accent-brand-500"
               aria-label="Select all shown cards"
             />
             Select all
           </label>
-          {selected.size > 0 && (
-            <>
-              <span className="text-zinc-500">
-                {selected.size} selected
-              </span>
-              <button
-                onClick={() => void removeSelected()}
-                disabled={bulkDeleting}
-                className="rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
-              >
-                {bulkDeleting ? "Removing…" : `Delete ${selected.size} card${selected.size === 1 ? "" : "s"}`}
-              </button>
-              <button
-                onClick={() => setSelected(new Set())}
-                className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
-              >
-                Clear
-              </button>
-            </>
-          )}
+          {selected.size > 0 && (() => {
+            const selCards = cards.filter((c) => selected.has(c.id));
+            const ready = selCards.filter((c) => c.status === "ready");
+            const listed = selCards.filter((c) => c.status === "listed");
+            const revertable = selCards.filter((c) => c.status !== "ready");
+            const deletable = selCards.filter((c) => c.status !== "listed");
+            const bulkBtn =
+              "rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50";
+            async function applyToAll(targets: ServerCard[], patch: (c: ServerCard) => Partial<ServerCard>, note: string) {
+              await Promise.all(targets.map((c) => applyPatch(c, patch(c))));
+              setSelected(new Set());
+              toast(note);
+            }
+            return (
+              <>
+                <span className="text-zinc-500">{selected.size} selected</span>
+                {ready.length > 0 && (
+                  <button
+                    onClick={() => void applyToAll(ready, () => listedNowPatch(), `${ready.length} marked listed`)}
+                    className={bulkBtn}
+                  >
+                    Mark listed ({ready.length})
+                  </button>
+                )}
+                {listed.length > 0 && (
+                  <button
+                    onClick={() =>
+                      void applyToAll(
+                        listed,
+                        (c) => soldNowPatch(c.price),
+                        `${listed.length} marked sold at asking price`,
+                      )
+                    }
+                    title="Records each sale at its asking price — click a sold row's price to correct one"
+                    className={bulkBtn}
+                  >
+                    Mark sold ({listed.length})
+                  </button>
+                )}
+                {revertable.length > 0 && (
+                  <button
+                    onClick={() =>
+                      void applyToAll(
+                        revertable,
+                        () => ({ status: "ready" as const, listedAt: null, soldPrice: null, soldAt: null }),
+                        `${revertable.length} back to drafts`,
+                      )
+                    }
+                    className={bulkBtn}
+                  >
+                    Back to drafts ({revertable.length})
+                  </button>
+                )}
+                <button
+                  onClick={() => void removeSelected()}
+                  disabled={bulkDeleting || deletable.length === 0}
+                  title={deletable.length === 0 ? "Live listings can't be deleted — unlist them first" : undefined}
+                  className="rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
+                >
+                  {bulkDeleting ? "Removing…" : `Delete ${deletable.length} card${deletable.length === 1 ? "" : "s"}`}
+                </button>
+                <button
+                  onClick={() => setSelected(new Set())}
+                  className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+                >
+                  Clear
+                </button>
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -492,11 +597,9 @@ export default function CollectionPage() {
                 <input
                   type="checkbox"
                   checked={selected.has(card.id)}
-                  disabled={card.status === "listed"}
                   onChange={() => toggleSelected(card.id)}
-                  title={card.status === "listed" ? "Live on eBay — unlist it before deleting" : undefined}
                   aria-label={`Select ${card.cardName}`}
-                  className="h-4 w-4 shrink-0 accent-brand-500 disabled:opacity-30"
+                  className="h-4 w-4 shrink-0 accent-brand-500"
                 />
                 <CardImage
                   // The seller's own scan photo when one is stored; catalog art otherwise.
@@ -573,14 +676,50 @@ export default function CollectionPage() {
                     Two same-size figures compete; a figure and its caption
                     read instantly (Chris, 08-31). */}
                 <div className="w-28 text-right">
-                  {card.status === "sold" && card.soldPrice != null ? (
+                  {soldForm?.id === card.id ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        confirmSold(card, soldForm.value);
+                      }}
+                      className="flex items-center justify-end gap-1"
+                    >
+                      <span className="relative">
+                        <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          autoFocus
+                          value={soldForm.value}
+                          onChange={(e) => setSoldForm({ id: card.id, value: e.target.value })}
+                          onKeyDown={(e) => e.key === "Escape" && setSoldForm(null)}
+                          aria-label="Final sale price"
+                          className="w-20 rounded-md border border-edge bg-black/40 py-1 pl-4 pr-1 text-right text-sm text-white outline-none focus:border-brand-400"
+                        />
+                      </span>
+                      <button
+                        type="submit"
+                        className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+                      >
+                        ✓
+                      </button>
+                    </form>
+                  ) : card.status === "sold" && card.soldPrice != null ? (
                     <>
                       <p className="text-lg font-bold tracking-tight text-emerald-400">
                         ${netAfterFees(card.soldPrice).toFixed(2)}
                       </p>
-                      <p className="text-xs font-medium text-zinc-400">
+                      {/* The recorded sale price is editable in place — it
+                          drives the Earned tiles, so a wrong one must be one
+                          click from fixed. */}
+                      <button
+                        onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
+                        title="Correct the sale price"
+                        className="text-xs font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
+                      >
                         net · sold ${card.soldPrice.toFixed(2)}
-                      </p>
+                      </button>
                     </>
                   ) : (
                     <>
@@ -625,7 +764,7 @@ export default function CollectionPage() {
                   {card.status === "listed" && (
                     <>
                       <button
-                        onClick={() => markSold(card)}
+                        onClick={() => setSoldForm({ id: card.id, value: card.price.toFixed(2) })}
                         className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/25"
                       >
                         Mark sold

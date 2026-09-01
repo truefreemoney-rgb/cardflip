@@ -12,17 +12,21 @@ import { useEffect, useState } from "react";
  */
 
 export type ToastKind = "ok" | "err" | "info";
-interface ToastItem { id: number; text: string; kind: ToastKind; }
+/** Optional inline button ("Undo") — clicking it runs the callback and dismisses. */
+export interface ToastAction { label: string; onClick: () => void; }
+interface ToastItem { id: number; text: string; kind: ToastKind; action?: ToastAction; }
 
 const EVENT = "cardflip:toast";
 let seq = 0;
 
-export function toast(text: string, kind: ToastKind = "ok") {
+export function toast(text: string, kind: ToastKind = "ok", action?: ToastAction) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { id: ++seq, text, kind } }));
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { id: ++seq, text, kind, action } }));
 }
 
 const DURATION_MS: Record<ToastKind, number> = { ok: 2600, info: 3200, err: 5000 };
+/** Actionable toasts linger long enough to actually hit the button. */
+const ACTION_DURATION_MS = 6000;
 
 export default function Toaster() {
   const [items, setItems] = useState<ToastItem[]>([]);
@@ -35,7 +39,7 @@ export default function Toaster() {
       timers.set(t.id, setTimeout(() => {
         setItems((prev) => prev.filter((x) => x.id !== t.id));
         timers.delete(t.id);
-      }, DURATION_MS[t.kind]));
+      }, t.action ? ACTION_DURATION_MS : DURATION_MS[t.kind]));
     }
     window.addEventListener(EVENT, onToast);
     return () => {
@@ -69,6 +73,17 @@ export default function Toaster() {
             </svg>
           )}
           <span>{t.text}</span>
+          {t.action && (
+            <button
+              onClick={() => {
+                t.action!.onClick();
+                setItems((prev) => prev.filter((x) => x.id !== t.id));
+              }}
+              className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-white/20"
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

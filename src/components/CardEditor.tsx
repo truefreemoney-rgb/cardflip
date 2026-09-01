@@ -32,6 +32,7 @@ import {
 } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
+import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
   Condition,
   GradingCompany,
@@ -45,6 +46,10 @@ interface Props {
   /** Whether the signed-in seller has linked an eBay account (drives posting). */
   ebayConnected: boolean;
   onChange: (patch: Partial<ScanItem>) => void;
+  /** Jump to the next card still being worked (null when there isn't one). */
+  onNext?: (() => void) | null;
+  /** Grade the whole queue at once — sets this condition on every unfinished card. */
+  onApplyConditionToAll?: (condition: Condition) => void;
 }
 
 const READ_STEPS = [
@@ -142,7 +147,7 @@ function ReadingState({ item }: { item: ScanItem }) {
   );
 }
 
-export default function CardEditor({ item, ebayConnected, onChange }: Props) {
+export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll }: Props) {
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -250,17 +255,55 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
             Photos work best straight-on, with the name at the top in focus.
           </p>
         </div>
+        {/* A failed read is not a dead end (Chris, 09-01 QoL pass): re-run
+            the same photo (lookups flake), swap in a better shot, or fall
+            through to the name search below. The page re-pumps whenever an
+            item returns to "queued". */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {item.file && (
+            <button
+              onClick={() =>
+                onChange({ status: "queued", error: null, visionStatus: "idle", vision: null })
+              }
+              className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+            >
+              Scan again
+            </button>
+          )}
+          <label className="cursor-pointer rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2">
+            Use a different photo
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl);
+                onChange({
+                  file,
+                  previewUrl: URL.createObjectURL(file),
+                  status: "queued",
+                  error: null,
+                  vision: null,
+                  visionStatus: "idle",
+                });
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
         {manualSearch}
       </div>
     );
   }
 
   if (item.status === "listed") {
-    return <ListedPanel item={item} onChange={onChange} />;
+    return <ListedPanel item={item} onChange={onChange} onNext={onNext} />;
   }
 
   if (item.status === "sold") {
-    return <SoldPanel item={item} />;
+    return <SoldPanel item={item} onChange={onChange} onNext={onNext} />;
   }
 
   const firstEdEligible = canBeFirstEdition(card);
@@ -605,6 +648,8 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
                 const condition = e.target.value as Condition;
                 onChange({ condition, priceOverride: null });
                 syncLedgerCondition({ condition });
+                // Remembered per browser — the next scanned card starts here.
+                saveCondition(condition);
               }}
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
             >
@@ -614,6 +659,16 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
                 </option>
               ))}
             </select>
+            {/* Grading a whole box the same: one click instead of per-card. */}
+            {onApplyConditionToAll && (
+              <button
+                type="button"
+                onClick={() => onApplyConditionToAll(item.condition)}
+                className="self-start text-[11px] font-normal text-brand-300 underline underline-offset-2 transition hover:text-brand-200"
+              >
+                Apply to every card in the queue
+              </button>
+            )}
           </label>
         )}
 
@@ -666,7 +721,11 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
             ).map(([value, label, amount, hint]) => (
               <button
                 key={value}
-                onClick={() => onChange({ strategy: value, priceOverride: null })}
+                onClick={() => {
+                  onChange({ strategy: value, priceOverride: null });
+                  // Remembered per browser — the next scanned card starts here.
+                  saveStrategy(value);
+                }}
                 className={`rounded-xl border p-3 text-left transition ${
                   item.strategy === value
                     ? "border-brand-400 bg-brand-500/10"
