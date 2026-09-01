@@ -22,6 +22,13 @@ interface Props {
   onChange: (patch: Partial<ScanItem>) => void;
 }
 
+/** A successful publish: the live URL to show, and the listed patch to apply on close. */
+interface PublishOutcome {
+  stage: "live";
+  url: string;
+  patch: Partial<ScanItem>;
+}
+
 /**
  * The bottom of both editors: how this listing gets onto eBay.
  *
@@ -38,6 +45,8 @@ interface Props {
  */
 export default function EbayPostActions({ item, listing, price, ebayConnected, onChange }: Props) {
   const [busy, setBusy] = useState<"push" | "publish" | null>(null);
+  // The publish popup: confirm ("this goes live") → publishing → live link.
+  const [modal, setModal] = useState<"confirm" | "publishing" | PublishOutcome | null>(null);
   const [failure, setFailure] = useState<EbayPostFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [degraded, setDegraded] = useState<string[]>([]);
@@ -72,7 +81,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     setBusy(null);
     if (resumeAfterPhoto.current === "publish") {
       resumeAfterPhoto.current = null;
-      await publishDirect(true);
+      await runPublish(true);
     } else {
       setNotice("Photo saved.");
     }
@@ -132,19 +141,34 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     }
   }
 
-  /** The fast road: push + publish from here, no eBay form. */
-  async function publishDirect(photoJustUploaded = false) {
-    if (!item.card || !item.serverId) return;
+  /**
+   * The fast road: push + publish from here, no eBay form — wrapped in the
+   * confirm popup (09-01, Chris: one tap went straight live; give a "this
+   * goes live now" checkpoint, a loading state, then the listing link).
+   * Success is returned, not applied: the caller shows the link first and
+   * applies the listed patch when the popup closes — the server has already
+   * flipped the row, so an abandoned popup just means a stale local view.
+   */
+  async function publishDirect(photoJustUploaded = false): Promise<PublishOutcome | null> {
+    if (!item.card || !item.serverId) return null;
     if (!hasPhoto && !photoJustUploaded) {
       resumeAfterPhoto.current = "publish";
+      setModal(null);
       photoInput.current?.click();
-      return;
+      return null;
     }
     if (!pushed) {
       const ok = await push(photoJustUploaded, true);
-      if (!ok) return;
+      if (!ok) return null;
     }
-    await publish();
+    return publish();
+  }
+
+  /** Drive the popup through publishing → live (or close it on failure). */
+  async function runPublish(photoJustUploaded = false) {
+    setModal("publishing");
+    const outcome = await publishDirect(photoJustUploaded);
+    setModal(outcome ?? null);
   }
 
   async function push(photoJustUploaded = false, quiet = false): Promise<boolean> {
@@ -170,8 +194,8 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     return true;
   }
 
-  async function publish() {
-    if (!item.serverId) return;
+  async function publish(): Promise<PublishOutcome | null> {
+    if (!item.serverId) return null;
     setBusy("publish");
     setFailure(null);
     setNotice(null);
@@ -197,14 +221,19 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     if (!result.ok) {
       setFailure(result);
       if (result.code === "needs_location") setAskZip(true);
-      return;
+      return null;
     }
-    onChange({
-      status: "listed",
-      listedPrice: price,
-      listedAt: result.listedAt ?? Date.now(),
-      ebayListingUrl: result.listingUrl,
-    });
+    setAskZip(false);
+    return {
+      stage: "live",
+      url: result.listingUrl,
+      patch: {
+        status: "listed",
+        listedPrice: price,
+        listedAt: result.listedAt ?? Date.now(),
+        ebayListingUrl: result.listingUrl,
+      },
+    };
   }
 
   const ebayButton =
@@ -261,7 +290,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             finished there. */}
         <div className="flex flex-col gap-2 sm:flex-row">
           {canPost ? (
-            <button onClick={() => void publishDirect()} disabled={busy !== null} className={ebayButton}>
+            <button onClick={() => setModal("confirm")} disabled={busy !== null} className={ebayButton}>
               <span className="inline-flex items-center justify-center gap-2">
                 {busy !== null && <Spinner className="h-3.5 w-3.5" />}
                 {pushed ? "Publish on eBay" : "Publish on eBay — photo included"}
@@ -339,7 +368,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (shipZip.trim()) void publish();
+            if (shipZip.trim()) void runPublish();
           }}
           className="-mt-2 flex items-end gap-2 rounded-lg border border-edge bg-surface-1 px-3 py-2.5"
         >
@@ -362,6 +391,86 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             Save &amp; publish
           </button>
         </form>
+      )}
+
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => {
+            // Backdrop closes only the confirm step; publishing can't be
+            // dismissed mid-flight, and the live step closes via Done so the
+            // listed patch is never skipped.
+            if (modal === "confirm") setModal(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={modal === "confirm" ? "Confirm publish" : modal === "publishing" ? "Publishing" : "Listing is live"}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-edge bg-surface-1 p-6 shadow-2xl shadow-black/60"
+          >
+            {modal === "confirm" && (
+              <>
+                <h2 className="text-lg font-semibold text-white">Put this card live on eBay?</h2>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                  <span className="font-medium text-zinc-200">{listing.title.slice(0, 60)}</span>
+                  {" — "}${price.toFixed(2)}
+                  {(item.quantity ?? 1) > 1 ? ` × ${item.quantity} copies` : ""}.
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                  This publishes a real listing that buyers can purchase right away, and
+                  eBay&apos;s selling fees apply. You can end it later on eBay.
+                </p>
+                <div className="mt-5 flex gap-2">
+                  <button onClick={() => setModal(null)} className={quietButton}>
+                    Not yet
+                  </button>
+                  <button onClick={() => void runPublish()} className={ebayButton}>
+                    Publish it
+                  </button>
+                </div>
+              </>
+            )}
+            {modal === "publishing" && (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <Spinner className="h-6 w-6" />
+                <p className="text-sm font-medium text-white">Listing your card on eBay…</p>
+                <p className="text-xs text-zinc-500">
+                  Saving the draft, attaching your photo, and publishing — a few seconds.
+                </p>
+              </div>
+            )}
+            {typeof modal === "object" && modal.stage === "live" && (
+              <div className="flex flex-col items-center gap-3 py-2 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-xl text-emerald-400">
+                  ✓
+                </span>
+                <p className="text-base font-semibold text-white">Your card is live on eBay</p>
+                <p className="text-xs text-zinc-500">
+                  Sold through CardFlip, it&apos;s marked sold here automatically when the order comes in.
+                </p>
+                <a
+                  href={modal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={ebayButton + " w-full"}
+                >
+                  View your live listing ↗
+                </a>
+                <button
+                  onClick={() => {
+                    onChange(modal.patch);
+                    setModal(null);
+                  }}
+                  className="text-xs text-zinc-500 underline underline-offset-4 transition hover:text-zinc-300"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <p className="-mt-1 border-t border-white/5 pt-4 text-center text-[11px] text-zinc-600">
