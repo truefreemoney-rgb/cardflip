@@ -28,7 +28,7 @@ identification + condition, REPORT to Chris before switching models);
 (2) welcome email on subscribe from support@cardflip.io (mail.ts ready,
 stripe webhook is the trigger point); (3) ended-listing sync task chip
 (item f below); (4) condition-detail aspect warning on pushes (item g).
-Waiting on Chris: PO box -> Stripe Public details; Branding logo/color +
+Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details — PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
 Settings->Emails "Successful payments" toggle (verify done); optional
 live-key rotation; optional real-card charge test.
 
