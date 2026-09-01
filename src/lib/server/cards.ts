@@ -37,6 +37,8 @@ export interface CardRecord {
   /** eBay order/line the sold row came from, for the fee lookup. */
   ebayOrderId: string | null;
   ebayLineItemId: string | null;
+  /** Last time a discount offer went to this listing's watchers. */
+  watcherOfferAt: number | null;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -77,6 +79,7 @@ interface CardRow {
   sold_fees: number | null;
   ebay_order_id: string | null;
   ebay_line_item_id: string | null;
+  watcher_offer_at: number | null;
   ebay_sku: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
@@ -113,6 +116,7 @@ function fromRow(row: CardRow): CardRecord {
     soldFees: row.sold_fees ?? null,
     ebayOrderId: row.ebay_order_id ?? null,
     ebayLineItemId: row.ebay_line_item_id ?? null,
+    watcherOfferAt: row.watcher_offer_at ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
@@ -192,6 +196,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     soldFees: null,
     ebayOrderId: null,
     ebayLineItemId: null,
+    watcherOfferAt: null,
     ebayOfferId: null,
     ebayListingId: null,
     ebayListingUrl: null,
@@ -356,6 +361,13 @@ export async function recordCopiesSold(
   const remaining = await updateCard(id, userId, { quantity: card.quantity - bought });
   const sold = await getCardForUser(soldId, userId);
   return sold ? { sold, remaining } : null;
+}
+
+/** Server-written when a watcher offer goes out (ebayNegotiation.ts) only. */
+export async function setWatcherOfferSent(id: string, userId: string, at: number): Promise<void> {
+  await db
+    .prepare("UPDATE cards SET watcher_offer_at = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+    .run(at, Date.now(), id, userId);
 }
 
 /** Server-written by the fee sync (ebayFinances.ts) only. */

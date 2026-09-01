@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import CardImage from "@/components/CardImage";
 import PageSkeleton from "@/components/PageSkeleton";
+import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
@@ -14,7 +15,7 @@ import {
   type RepriceNudge,
   type ServerCard,
 } from "@/lib/client/cardsApi";
-import { syncEbaySales } from "@/lib/client/ebayApi";
+import { fetchWatcherEligible, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { apiPath } from "@/lib/client/basePath";
 import { estimatedEbayFees, netAfterFees } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
@@ -80,6 +81,10 @@ function soldNowPatch(price: number) {
   return { status: "sold" as const, soldPrice: price, soldAt: Date.now() };
 }
 
+function watcherOfferNowPatch() {
+  return { watcherOfferAt: Date.now() };
+}
+
 export default function CollectionPage() {
   const { user } = useSession();
   const [cards, setCards] = useState<ServerCard[]>([]);
@@ -99,6 +104,14 @@ export default function CollectionPage() {
   // on eBay and deleting the ledger row wouldn't end the listing.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Offers to watchers: the panel lists eBay-eligible listings; every send is
+  // one explicit click + confirm — offers email real buyers, nothing auto-fires.
+  const [offerPanel, setOfferPanel] = useState(false);
+  const [offerLoading, setOfferLoading] = useState(false);
+  const [offerEligible, setOfferEligible] = useState<string[]>([]);
+  const [offerNote, setOfferNote] = useState<string | null>(null);
+  const [offerPercent, setOfferPercent] = useState(10);
+  const [offerSending, setOfferSending] = useState<string | null>(null);
 
   const userId = user?.id;
   const [saleNote, setSaleNote] = useState<string | null>(null);
@@ -217,6 +230,49 @@ export default function CollectionPage() {
     }
     setSoldForm(null);
     toast(`${card.cardName} sold — $${price.toFixed(2)}`);
+  }
+
+  async function openOfferPanel() {
+    setOfferPanel(true);
+    setOfferLoading(true);
+    setOfferNote(null);
+    const res = await fetchWatcherEligible();
+    setOfferLoading(false);
+    if (!res) {
+      setOfferEligible([]);
+      setOfferNote("Couldn't reach the server — close and try again.");
+      return;
+    }
+    setOfferEligible(res.eligibleCardIds);
+    if (res.skipped === "no_scope" || res.skipped === "not_connected") {
+      setOfferNote("eBay declined — reconnect your eBay account (eBay setup) and try again.");
+    } else if (res.skipped === "error") {
+      setOfferNote("eBay didn't answer — try again in a minute.");
+    } else if (res.eligibleCardIds.length === 0) {
+      setOfferNote(
+        "None of your live listings can take an offer right now. eBay marks a listing eligible once buyers are watching it — check back after some watchers show up.",
+      );
+    }
+  }
+
+  async function sendOffer(card: ServerCard) {
+    const pct = Math.min(50, Math.max(5, Math.round(offerPercent) || 10));
+    const discounted = card.price * (1 - pct / 100);
+    if (
+      !window.confirm(
+        `Send ${pct}% off ${card.cardName} ($${card.price.toFixed(2)} → $${discounted.toFixed(2)}) to everyone watching it? This emails real buyers and can't be recalled.`,
+      )
+    )
+      return;
+    setOfferSending(card.id);
+    const result = await sendWatcherOffer(card.id, pct);
+    setOfferSending(null);
+    if (result.ok) {
+      patchCard(card.id, watcherOfferNowPatch());
+      toast(`Offer sent — ${pct}% off ${card.cardName} to its watchers`);
+    } else {
+      toast(result.message, "err");
+    }
   }
 
   function backToDraft(card: ServerCard) {
@@ -492,8 +548,96 @@ export default function CollectionPage() {
           >
             Export CSV
           </button>
+          {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
+            <button
+              onClick={() => (offerPanel ? setOfferPanel(false) : void openOfferPanel())}
+              className="shrink-0 rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+            >
+              Offer to watchers
+            </button>
+          )}
         </div>
       </div>
+
+      {offerPanel && (
+        <section className="rounded-2xl border border-edge bg-surface-1 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-white">Offer to watchers</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                eBay emails a private discount to everyone watching a listing. One offer per
+                buyer per listing — pick the card, pick the cut, send.
+              </p>
+            </div>
+            <button
+              onClick={() => setOfferPanel(false)}
+              aria-label="Close offers panel"
+              className="text-zinc-500 transition hover:text-zinc-300"
+            >
+              ✕
+            </button>
+          </div>
+          {offerLoading ? (
+            <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
+              <Spinner className="h-4 w-4" /> Asking eBay which listings can take an offer…
+            </p>
+          ) : (
+            <>
+              {offerNote && <p className="mt-4 text-sm text-zinc-400">{offerNote}</p>}
+              {offerEligible.length > 0 && (
+                <>
+                  <label className="mt-4 flex items-center gap-2 text-sm text-zinc-400">
+                    Discount
+                    <input
+                      type="number"
+                      min={5}
+                      max={50}
+                      value={offerPercent}
+                      onChange={(e) => setOfferPercent(Number(e.target.value))}
+                      className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
+                      aria-label="Discount percent"
+                    />
+                    % off the listed price
+                  </label>
+                  <ul className="mt-3 divide-y divide-white/5">
+                    {cards
+                      .filter((c) => offerEligible.includes(c.id))
+                      .map((card) => {
+                        const pct = Math.min(50, Math.max(5, Math.round(offerPercent) || 10));
+                        return (
+                          <li key={card.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-white">{card.cardName}</p>
+                              <p className="text-xs text-zinc-500">
+                                {card.setName} · ${card.price.toFixed(2)} →{" "}
+                                <span className="text-emerald-400">
+                                  ${(card.price * (1 - pct / 100)).toFixed(2)}
+                                </span>
+                              </p>
+                            </div>
+                            {card.watcherOfferAt ? (
+                              <span className="text-xs text-zinc-500">
+                                Offer sent {new Date(card.watcherOfferAt).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => void sendOffer(card)}
+                                disabled={offerSending !== null}
+                                className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
+                              >
+                                {offerSending === card.id ? "Sending…" : "Send offer"}
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* Selection toolbar. Every row can be ticked now (listed included) —
           each bulk action applies itself only to the rows it makes sense on,

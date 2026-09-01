@@ -75,16 +75,24 @@ modal, wishlist tile → modal, toasts, camera fallback buttons, sticky
 bar on mobile, desktop grid unchanged.**
 
 **NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
-(a) auto-offers to watchers — UNBLOCKED 09-01: eBay support (ticket
-260901-000003, answered same day) says "sell.negotiation" is NOT a
-real OAuth scope — the probe's error page meant invalid-scope, not
-ungranted. Negotiation API (findEligibleItems +
-sendOfferToInterestedBuyers) runs on sell.inventory(.readonly), which
-the app AND Chris's token already have. No Growth Check, no reconnect
-— ready to build whenever Chris says go. BUILD CAUTION:
-sendOfferToInterestedBuyers sends REAL discount offers to real
-watchers — per-listing confirmation, no auto-fire without Chris's
-sign-off on the flow; (b)
+(a) offers to watchers SHIPPED 09-01 (manual-only v1; eBay ticket
+260901-000003 had cleared it: "sell.negotiation" isn't a real scope,
+Negotiation API runs on sell.inventory, already held). Built:
+lib/server/ebayNegotiation.ts (findEligibleListingIds = GET
+find_eligible_items limit 200, no pagination yet; sendWatcherOffer =
+POST send_offer_to_interested_buyers, discountPercentage clamped
+5–50, allowCounterOffer false, quantity=card.quantity, stamps NEW
+cards.watcher_offer_at probe); /api/ebay/offers GET = eligible ids ∩
+user's listed-with-listing-id (demo → empty), POST = ONE card per
+click, deliberately no bulk; My Cards "Offer to watchers" toolbar
+button (shows only when a listed card has a listing id) → panel with
+discount % input (default 10) + per-card Send behind window.confirm
+("emails real buyers"), "Offer sent <date>" replaces the button
+(watcher_offer_at is a soft guard; eBay hard-limits one offer per
+buyer per listing anyway). UNTESTED live — needs a listing with real
+watchers (queued w/ live-test batch). NOT built (needs Chris):
+auto-fire on slow movers, eligible-list pagination, custom message;
+(b)
 photo-first sealed re-add (Chris:
 "sometime later"); (c) graded cert-number lookup (needs PSA/CGC API key
 from Chris); (d) real net-after-fees SHIPPED 09-01: sell.finances in

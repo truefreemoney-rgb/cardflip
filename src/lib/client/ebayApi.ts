@@ -116,6 +116,44 @@ export async function syncEbaySales(): Promise<SalesSyncResponse | null> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Offers to watchers (Negotiation API)
+
+export interface WatcherEligibleResponse {
+  eligibleCardIds: string[];
+  /** Why the list is empty when it is: reconnect needed, or eBay was down. */
+  skipped?: "not_connected" | "no_scope" | "error";
+}
+
+export async function fetchWatcherEligible(): Promise<WatcherEligibleResponse | null> {
+  try {
+    const res = await fetch(apiPath("/api/ebay/offers"));
+    if (!res.ok) return null;
+    return (await res.json()) as WatcherEligibleResponse;
+  } catch {
+    return null;
+  }
+}
+
+/** Sends a REAL discount offer to everyone watching this card's listing. */
+export async function sendWatcherOffer(
+  cardId: string,
+  discountPercent: number,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const res = await fetch(apiPath("/api/ebay/offers"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId, discountPercent }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: data?.error ?? "Couldn't send the offer." };
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Couldn't reach the server — try again." };
+  }
+}
+
 /** The seller's My eBay › Drafts page — where Listing API drafts land. */
 export const EBAY_DRAFTS_URL = "https://www.ebay.com/mye/myebay/drafts";
 

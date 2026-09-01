@@ -400,6 +400,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "ebay_order_id TEXT",
       "ebay_line_item_id TEXT",
       "sold_fees REAL",
+      // Last time a discount offer was sent to this listing's watchers
+      // (Negotiation API) — shown as a chip and a soft "already offered" guard.
+      "watcher_offer_at INTEGER",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

@@ -26,6 +26,8 @@ export interface ServerCard {
   soldAt: number | null;
   /** Actual eBay fee for this sale (Finances API); null = the estimate applies. */
   soldFees: number | null;
+  /** Last time a discount offer went to this listing's watchers. */
+  watcherOfferAt: number | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
