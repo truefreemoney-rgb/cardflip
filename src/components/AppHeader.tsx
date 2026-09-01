@@ -20,14 +20,17 @@ export default function AppHeader() {
   const showEbay = !pathname.startsWith("/app/account");
 
   return (
-    <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-      {/* Everything personal lives in one stack under the logo (Chris,
-          09-01), which leaves the right grid column empty — the tabs center
-          against a symmetric header instead of being shoved by however wide
-          "eBay connected · name · Sign out" happens to be. */}
-      <div className="flex flex-col gap-1.5">
+    <header className="sticky top-0 z-40 flex flex-col gap-2 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+      {/* Row 1: logo left, tabs centered against a symmetric grid.
+          Row 2: the personal strip ("eBay connected · name · Sign out")
+          centered under the tabs (Chris, 09-01) — off in its own row it can
+          be any width without pushing the tabs off center. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr]">
         <Logo size="sm" />
-        <div className="flex items-center gap-3">
+        <AppTabs />
+        <div aria-hidden className="hidden md:block" />
+      </div>
+      <div className="flex w-full items-center justify-center gap-4">
           {user && showEbay && (
             user.ebayConnected ? (
               <Link
@@ -71,11 +74,7 @@ export default function AppHeader() {
           >
             Sign out
           </button>
-        </div>
       </div>
-      <AppTabs />
-      {/* Empty right column balances the grid so the tabs stay centered. */}
-      <div aria-hidden className="hidden md:block" />
     </header>
   );
 }
