@@ -21,33 +21,21 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION — RESUME MID-TASK: Search-cards page makeover (Chris:
-"dry and bland... thumbnails for recent lookups + changes you see
-fit"). DESIGN.md already read — rules that bind: no foil on inner
-pages, panels rounded-2xl surface-1 w/ --edge hairlines, prices in
-font-display, restraint. DONE so far: db.ts CREATE TABLE price_checks
-got `image_url TEXT`. NEXT (in order): (1) db.ts COLUMN_PROBES
-price_checks entry — append "image_url TEXT" (an Edit for exactly this
-was interrupted); (2) lib/server/priceChecks.ts — image_url through
-PriceCheckRow/PriceCheckEntry/fromRow, INSERT it (card.imageSmall),
-and backfill in the recheck UPDATE like card_id/game already do;
-(3) lib/client/priceChecksApi.ts — imageUrl: string | null on entry;
-(4) price-check/page.tsx — replace the history <table> with a
-rounded-2xl border-edge bg-surface-1 <ul> divide-y divide-white/5:
-CardImage thumb (h-16 w-12 rounded-md, old rows have null image →
-CardImage's no-image state), name text-sm white + set·number xs
-zinc-500 (+ language when not en), right side font-display emerald
-price + date 11px zinc-600 + the ✕ delete (keep stopPropagation);
-KEEP: row click → openHistoryEntry w/ spinner, filter input, Clear
-all, loading/empty/no-match states (currently colSpan rows — become
-list states). Then tsc/lint, browser-verify, deploy (push branch → ff
-main). Deploy pipeline healthy again (rate limit cleared; previews
-disabled in vercel.json so 1 build/change; promote-preview trick works
-when limited).**
+**FIRST ACTION — Search-cards makeover SHIPPED (6aa7e50) + favicon
+now = the header Spin Cycle logo (37f1045, brandIcon.tsx renders the
+same SVG; old favicon.ico deleted), both pushed to main 09-01; Vercel
+prod build was in flight at session end — quick check:
+cardflip.io/app/price-check history should be a thumbnail list, and
+the tab icon the spin-cycle card (hard-refresh; favicons cache hard). Nothing mid-task. Next: pick from BACKLOG.md, or ask
+Chris. Deploy pipeline healthy (previews disabled in vercel.json so
+1 build/change; promote-preview trick works when rate-limited).
+Dev gotcha still true: COLUMN_PROBES run once per process — restart
+dev server after adding columns (price_checks.image_url was added
+this session; already probed in dev).**
 
-**WHERE THINGS STAND (09-01 end, everything below deployed to prod
-EXCEPT the 3 commits above, tsc/lint/tests green, working tree clean
-on `vercel-migration` = `main`):**
+**WHERE THINGS STAND (09-01 end, everything deployed to prod incl.
+the search-cards makeover, tsc/lint/tests green, working tree clean
+on `vercel-migration` = `main` = origin):**
 Huge shipping day. Vision stays on Opus (A/B said identical ID, Sonnet
 nulls condition — `scripts/ab-vision.mjs` re-runs it). Shipped: welcome
 email on subscribe; ended-listing sync + amber chip; condition-descriptor
