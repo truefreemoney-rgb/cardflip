@@ -65,7 +65,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 5. Ops / deploy
 
 - [x] L — **124 uncommitted files — committed 08-16 as 3d728a9 + follow-ups, last commit e10482c (Aug 11)** — commit now; no rollback point for 5 days of work
-- [ ] M — Deploy is manual (Chris only), no CI lint/test/build gate
+- [x] M — CI gate SHIPPED 09-01 (.github/workflows/ci.yml: next typegen + tsc + lint + all 13 suites on every push/PR, verified GREEN on both branches; repo is public so run status readable w/o gh auth). Deploy itself still manual-by-design (push to main)
 - [ ] S — MTG mirror refresh is manual from Chris's PC (`sync:mtg && export:mtg && deploy`, Scryfall 429s Fly); Pokémon set sync also manual
 - [ ] S — Single 512 MB machine, scale-to-zero, DB on one volume (see backup)
 
