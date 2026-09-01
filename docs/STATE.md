@@ -29,7 +29,10 @@ LIVE and measured dead-center at 1694px wide. Still
 pushed-but-never-built: 09c0feb (scanner hero top-anchored — the big
 black gap above the hero is STILL on prod until this builds), b627c39
 (header grid from sm, zoom-band fix), 4ae96cf (vercel.json: branch
-preview builds DISABLED — 1 build per change from now on). When the
+preview builds DISABLED — 1 build per change from now on), + the
+HYBRID HEADER (Chris's final pick, supersedes d0149f0's look: strip
+inline flush-right in the tab row from xl up, centered row-2 below xl;
+measured centered at 1600 and 1100). When the
 limit clears (~11:00 UTC 09-02): empty commit on main → push, or
 Chris hits Redeploy in the dashboard; then verify the hero starts
 right under the header on cardflip.io/app.

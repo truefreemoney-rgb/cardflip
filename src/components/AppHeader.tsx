@@ -19,22 +19,13 @@ export default function AppHeader() {
   // The account page has its own eBay section, so the chip is noise there.
   const showEbay = !pathname.startsWith("/app/account");
 
-  return (
-    <header className="sticky top-0 z-40 flex flex-col gap-2 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-      {/* Row 1: logo left, tabs centered against a symmetric grid.
-          Row 2: the personal strip ("eBay connected · name · Sign out")
-          centered under the tabs (Chris, 09-01) — off in its own row it can
-          be any width without pushing the tabs off center. */}
-      {/* The grid kicks in from sm — between sm and md the old md: cutoff
-          left a plain justify-between flex, which parked the tabs at the
-          right edge (visible with browser zoom, Chris's screenshot 09-01).
-          Below sm the tabs wrap to their own full-width line. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
-        <Logo size="sm" />
-        <AppTabs />
-        <div aria-hidden className="hidden sm:block" />
-      </div>
-      <div className="flex w-full items-center justify-center gap-4">
+  // "eBay connected · name · Sign out". Rendered twice below: inline at the
+  // header's right edge from xl up, its own centered row underneath before
+  // that — the strip is ~300px, and only from ~1280px can the centering
+  // grid's side columns absorb it without shoving the tabs off center
+  // (the original single-row header's bug, Chris 09-01).
+  const personalStrip = (
+    <>
           {user && showEbay && (
             user.ebayConnected ? (
               <Link
@@ -78,6 +69,22 @@ export default function AppHeader() {
           >
             Sign out
           </button>
+    </>
+  );
+
+  return (
+    <header className="sticky top-0 z-40 flex flex-col gap-2 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+      {/* Grid from sm keeps the tabs centered (below sm they wrap to a full
+          line). The third cell is the personal strip from xl up, an empty
+          balancer before that. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
+        <Logo size="sm" />
+        <AppTabs />
+        <div aria-hidden className="hidden sm:block xl:hidden" />
+        <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>
+      </div>
+      <div className="flex w-full items-center justify-center gap-4 xl:hidden">
+        {personalStrip}
       </div>
     </header>
   );
