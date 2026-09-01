@@ -66,7 +66,7 @@ const sections: LegalSection[] = [
   {
     heading: "Contact",
     paragraphs: [
-      "Privacy questions and data requests: support@superiormarketing.com.",
+      "Privacy questions and data requests: support@cardflip.io.",
     ],
   },
 ];

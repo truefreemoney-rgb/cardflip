@@ -5,13 +5,13 @@ import nodemailer from "nodemailer";
  * Outbound mail — today just the password-reset link.
  *
  * Plain SMTP with an app password, because the site's mailbox
- * (support@superiormarketing.com) already lives at Fastmail and Fastmail
+ * (support@cardflip.io) already lives at Fastmail and Fastmail
  * offers authenticated SMTP with no DNS work: nothing to add at Dynadot,
  * DKIM already passes. Configure with Fly secrets:
  *
  *   SMTP_HOST=smtp.fastmail.com  SMTP_PORT=465
- *   SMTP_USER=support@superiormarketing.com  SMTP_PASS=<Fastmail app password>
- *   MAIL_FROM="CardFlip <support@superiormarketing.com>"   (optional; defaults to SMTP_USER)
+ *   SMTP_USER=support@cardflip.io  SMTP_PASS=<Fastmail app password>
+ *   MAIL_FROM="CardFlip <support@cardflip.io>"   (optional; defaults to SMTP_USER)
  *
  * Unconfigured is a first-class state: isMailConfigured() gates the UI so
  * "Forgot password?" tells the truth instead of pretending to send.
@@ -47,14 +47,14 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
     "",
     "If that wasn't you, ignore this — your password hasn't changed.",
     "",
-    "— CardFlip · support@superiormarketing.com",
+    "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
     <p>Someone asked to reset the password for your CardFlip account.</p>
     <p><a href="${url}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Reset password</a></p>
     <p style="color:#666;font-size:13px">The link works once, for 1 hour. If the button doesn't work, paste this into your browser:<br><a href="${url}">${url}</a></p>
     <p style="color:#666;font-size:13px">If that wasn't you, ignore this — your password hasn't changed.</p>
-    <p style="color:#999;font-size:12px">— CardFlip · support@superiormarketing.com</p>`;
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({
     from: fromAddress(),
     to,

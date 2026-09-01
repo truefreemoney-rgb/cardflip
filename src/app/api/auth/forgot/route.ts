@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       {
         error: "unconfigured",
         message:
-          "Email resets aren't switched on yet. Email support@superiormarketing.com and we'll reset it for you.",
+          "Email resets aren't switched on yet. Email support@cardflip.io and we'll reset it for you.",
       },
       { status: 503 },
     );

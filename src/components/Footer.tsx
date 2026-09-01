@@ -19,7 +19,7 @@ export default function Footer() {
             Privacy Policy
           </Link>
           <a
-            href="mailto:support@superiormarketing.com"
+            href="mailto:support@cardflip.io"
             className="transition hover:text-zinc-300"
           >
             Contact

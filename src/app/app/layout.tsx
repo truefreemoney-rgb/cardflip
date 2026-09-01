@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Privacy
           </Link>
           <a
-            href="mailto:support@superiormarketing.com"
+            href="mailto:support@cardflip.io"
             className="transition hover:text-zinc-300"
           >
             Contact

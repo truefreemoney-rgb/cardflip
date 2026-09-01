@@ -62,8 +62,8 @@ export default function ForgotPasswordPage() {
             </p>
             <p className="mt-3 text-xs text-zinc-500">
               Nothing after a few minutes? Check spam, or email{" "}
-              <a href="mailto:support@superiormarketing.com" className="text-brand-300 hover:text-brand-200">
-                support@superiormarketing.com
+              <a href="mailto:support@cardflip.io" className="text-brand-300 hover:text-brand-200">
+                support@cardflip.io
               </a>
               .
             </p>
