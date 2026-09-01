@@ -39,11 +39,11 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] M — **eBay order sync** — done 08-25 (`8992c54`, deploy pending): `ebayOrders.ts` + `/api/ebay/sync-sales` + daily-job sweep; auto-marks sold from real orders; needs seller reconnect for the new fulfillment scope
 - [x] S — **Editable listing title/description** — done 08-25: overrides on the queue item, all 3 posting roads, reset link
 - [x] S — **Demo seeding + pricing trust** — done 08-25: demo login seeds 6 real cards; lookup dedupe; Cardmarket outlier guards (fetch + display)
-- [ ] M — Multi-photo on listings (front/back) + quantity >1 for duplicate copies — next table-stakes gap vs competitors
-- [ ] M — Auto-offers to watchers + stale-listing reprice nudge (leverages our price history; what $10-25/mo tools charge for)
+- [x] M — ~~Multi-photo~~ VETOED by Chris 09-01 ("we dont need the back of the card"); quantity >1 SHIPPED 09-01 (Copies input, qty-aware sales sync)
+- [x] M — Auto-offers to watchers (manual v1) + reprice nudge — both SHIPPED 09-01 (ebayNegotiation.ts / price_series nudge)
 - [ ] S — Graded slab cert-number lookup (PSA/CGC APIs) — cheap, weakly covered even by paid rivals
-- [ ] S — Wishlist price alerts (mail.ts exists, only used for resets)
-- [ ] S — Collection CSV export (only the eBay drafts CSV exists today)
+- [x] S — Wishlist price alerts — SHIPPED 09-01 (daily email via wishlistAlerts.ts)
+- [x] S — Collection CSV export — SHIPPED 09-01 (own format, BOM+CRLF)
 - [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`): Tigris path retired with Fly. **Replaced 08-31 by `scripts/backup-turso.mjs`** (Turso → local `backups/turso/*.db.gz`, verified full dump) after the old Turso account loss proved PITR isn't enough. Open: no scheduler — Chris picks manual vs Task Scheduler; off-site copy (S3/Drive) if wanted later
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
