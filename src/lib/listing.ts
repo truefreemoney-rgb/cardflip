@@ -605,8 +605,10 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
 export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}): string {
   const params = new URLSearchParams({
     _nkw: ebayQuery(card, facts),
-    // Price + shipping, lowest first — how a seller actually checks comps.
-    _sop: "15",
+    // Best Match (Chris, 09-01 — was price+shipping lowest first): the
+    // cheapest-first view led with junk/damaged outliers; eBay's own
+    // relevance puts the listings the average is really made of up top.
+    _sop: "12",
   });
   if (!facts.sealed) params.set("_sacat", CCG_CARDS_CATEGORY_ID);
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;
