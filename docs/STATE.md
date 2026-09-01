@@ -21,25 +21,20 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION — finish the rate-limited deploys. Vercel free-tier
-build cap hit 09-01 ~10:54 UTC ("retry in 24 hours"). Chris PROMOTED
-the d0149f0 preview to Production from the dashboard (no build needed)
-— his chosen header (personal strip centered UNDER the tab panel) is
-LIVE and measured dead-center at 1694px wide. Still
-pushed-but-never-built: 09c0feb (scanner hero top-anchored — the big
-black gap above the hero is STILL on prod until this builds), b627c39
-(header grid from sm, zoom-band fix), 4ae96cf (vercel.json: branch
-preview builds DISABLED — 1 build per change from now on), + the
-HYBRID HEADER (Chris's final pick, supersedes d0149f0's look: strip
-inline flush-right in the tab row from xl up, centered row-2 below xl;
-measured centered at 1600 and 1100). When the
-limit clears (~11:00 UTC 09-02): empty commit on main → push, or
-Chris hits Redeploy in the dashboard; then verify the hero starts
-right under the header on cardflip.io/app.
-Promote-preview-from-dashboard is the rate-limit escape hatch —
-remember it. (Browser-pane screenshots of emulated-size prod pages
-came back right-shifted/black this session — capture artifact, NOT the
-site; trust JS getBoundingClientRect measurements.)**
+**FIRST ACTION — nothing pending on my end; pick next work with Chris
+(list below). Deploy backlog CLEARED 09-01 ~12:00 UTC: the rate limit
+rolled off early, an empty-commit push rebuilt, and prod now has
+EVERYTHING — hybrid header (Chris's final pick: strip flush-right in
+the tab row from xl, centered row-2 below; verified live, nav
+dead-center at 1600px), hero top-anchored (heroTop 90px, black gap
+gone), zoom-band grid fix, and vercel.json with branch preview builds
+DISABLED (1 build per change now). Rate-limit lore for next time: the
+24h cap is a ROLLING window (frees up before the full 24h), and a
+Ready Preview can be PROMOTED to Production from the dashboard with no
+build. Vercel Pro decision: not for performance — upgrade at launch
+for commercial-use compliance (advised 09-01). Browser-pane
+screenshots of emulated-size pages can come back shifted/black —
+capture artifact; trust getBoundingClientRect.**
 
 **WHERE THINGS STAND (09-01 end, everything below deployed to prod
 EXCEPT the 3 commits above, tsc/lint/tests green, working tree clean
