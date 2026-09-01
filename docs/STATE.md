@@ -25,6 +25,16 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 (Chris): scanner's add-without-a-photo section REMOVED** (typed
+card search + sealed-product add, both render sites) — eBay only accepts
+photos of the actual item, so photo-less queue entries were a dead end.
+Handlers deleted from app/page.tsx; ScannerSearch.tsx/SealedProductAdd.tsx
+kept on disk unused (sealed selling now has NO road — needs a photo-first
+flow if Chris wants it back). Verified in dev: empty state shows only
+drop/camera. NOTE: the scan photo already IS the eBay image (uploaded at
+scan time since 08-27, the only image ever sent) — Chris's other concern
+was already handled.
+
 **NEXT WORK (my end, Chris approved 09-01, pick order):** (1) DONE 09-01 —
 Sonnet 5 vs Opus 5 A/B on 49 stored card_photos (`scripts/ab-vision.mjs`,
 re-runnable): identification IDENTICAL (name 49/49 both, number 43/49 both,

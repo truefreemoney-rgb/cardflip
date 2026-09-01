@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
-import ScannerSearch from "@/components/ScannerSearch";
 import GameToggle from "@/components/GameToggle";
-import SealedProductAdd from "@/components/SealedProductAdd";
 import CameraCapture from "@/components/CameraCapture";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
@@ -27,7 +25,6 @@ import {
   toEbayDraftsCsv,
   withEbayPrices,
 } from "@/lib/listing";
-import { gradeLabel, makeSealedProduct, type SetInfo } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import {
   createServerCard,
@@ -44,7 +41,6 @@ import type {
   ArtStyle,
   Condition,
   GameId,
-  GradedInfo,
   PokemonCard,
   ScanItem,
   ScanLanguage,
@@ -489,80 +485,9 @@ export default function AppPage() {
     [commit, pump, language, game],
   );
 
-  // Typed search skips the whole scan pipeline: the card arrives already
-  // identified, so it enters the queue "ready", with the other search results
-  // as candidates in case the wrong printing was picked.
-  const addCardFromSearch = useCallback(
-    async (
-      card: PokemonCard,
-      alternates: PokemonCard[],
-      lang: ScanLanguage,
-      grading: GradedInfo | null = null,
-    ) => {
-      // Always "ready", never "review": review exists for OCR guesses, and
-      // here a human picked the exact card. Alternates stay switchable.
-      // A grade typed into the search ("Charizard 4/102 PSA 10") arrives
-      // parsed — the item enters the queue as a slab, exactly as if the
-      // grade had been set in the editor.
-      const cardGame = card.game ?? "pokemon";
-      const item: ScanItem = {
-        ...createItem(null, lang, cardGame),
-        status: "ready",
-        candidates: alternates,
-        card,
-        grading,
-      };
-      commit([...itemsRef.current, item]);
-      setSelectedId(item.id);
-
-      // Slabs mirror quoteForItem: raw market as a reference floor, never
-      // condition/strategy multipliers, and the grade is the stored condition.
-      const quote = quotePrice(card, "Near Mint", grading ? "market" : "quick");
-      const server = await createServerCard({
-        cardName: card.englishName || card.name,
-        setName: card.setName,
-        cardNumber: card.number,
-        imageUrl: card.imageSmall,
-        condition: grading ? gradeLabel(grading) : "Near Mint",
-        price: quote?.suggested ?? 0,
-        game: cardGame,
-      });
-      if (server) patchItem(item.id, { serverId: server.id });
-    },
-    [commit, patchItem],
-  );
-
-  // Sealed product enters like a search-added card: born "ready", no photo,
-  // no scan. It never gets comps (the comp filters are tuned to reject sealed
-  // lots) and has no catalogue price — the seller prices it in the editor.
-  const addSealedProduct = useCallback(
-    async (set: SetInfo, productType: string) => {
-      const product = makeSealedProduct(set, productType, game);
-      const item: ScanItem = {
-        ...createItem(null, "en", game),
-        kind: "sealed",
-        status: "ready",
-        card: product,
-        productType,
-      };
-      commit([...itemsRef.current, item]);
-      setSelectedId(item.id);
-
-      const server = await createServerCard({
-        kind: "sealed",
-        cardName: product.name,
-        setName: set.name,
-        cardNumber: "",
-        imageUrl: product.imageSmall,
-        condition: "Factory Sealed",
-        productType,
-        price: 0,
-        game,
-      });
-      if (server) patchItem(item.id, { serverId: server.id });
-    },
-    [commit, patchItem, game],
-  );
+  // addCardFromSearch / addSealedProduct (the add-without-a-photo roads)
+  // were removed 09-01 with their UI — eBay only accepts photos of the
+  // actual item, so a queue entry with no scan photo was a dead end.
 
   const openCamera = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.
@@ -815,22 +740,10 @@ export default function AppPage() {
           </div>
           <GameToggle game={game} onChange={setGame} />
           <Uploader onFiles={addFiles} onOpenCamera={openCamera} />
-          <div className="flex w-full max-w-2xl flex-col items-center gap-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-600">
-              or add without a photo
-            </p>
-            <ScannerSearch
-              language={language}
-              game={game}
-              onPick={(card, alternates, grading) =>
-                void addCardFromSearch(card, alternates, language, grading)
-              }
-            />
-            <p className="mt-2 text-xs uppercase tracking-wide text-zinc-600">
-              or sell sealed product
-            </p>
-            <SealedProductAdd key={game} game={game} onAdd={(set, type) => void addSealedProduct(set, type)} />
-          </div>
+          {/* The add-without-a-photo search and sealed-product rows were
+              removed 09-01 (Chris): eBay listings must show the actual item —
+              a card with no scan photo can only draft with catalog art eBay
+              won't accept, so every card starts from a real photo now. */}
         </main>
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
@@ -909,17 +822,6 @@ export default function AppPage() {
               )}
             </p>
           )}
-
-          <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-5 py-4">
-            <ScannerSearch
-              language={language}
-              game={game}
-              onPick={(card, alternates, grading) =>
-                void addCardFromSearch(card, alternates, language, grading)
-              }
-            />
-            <SealedProductAdd key={game} game={game} onAdd={(set, type) => void addSealedProduct(set, type)} />
-          </div>
 
           <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
             <aside className="flex max-h-[70dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
