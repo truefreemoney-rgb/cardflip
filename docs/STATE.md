@@ -21,21 +21,22 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION — PROD IS STALE, VERCEL RATE-LIMITED (09-01 ~10:54 UTC,
-free-tier daily build cap; "retry in 24 hours"): prod is stuck at
-844b4f3 (header = strip under logo). Commits AFTER it are pushed but
-NEVER BUILT: d0149f0 (Chris's chosen header: personal strip as
-centered row UNDER the tab panel), 09c0feb (scanner hero top-anchored,
-kills the big black gap), b627c39 (header grid from sm — zoom-band
-fix), + vercel.json (branch previews DISABLED so each change now costs
-1 build not 2). When the limit clears (~11:00 UTC 09-02): push any
-empty commit to main (`git commit --allow-empty -m redeploy` on main →
-push) or have Chris hit Redeploy in the Vercel dashboard, then verify
-cardflip.io/app header shows the strip UNDER the centered tabs and the
-hero starts right below the header. Chris also saw a bizarre
-right-shifted layout in his browser — believed to be the stale deploy;
-re-check with him after the redeploy. Vercel Pro ($20/mo) removes the
-cap if he'd rather not wait — his call.**
+**FIRST ACTION — finish the rate-limited deploys. Vercel free-tier
+build cap hit 09-01 ~10:54 UTC ("retry in 24 hours"). Chris PROMOTED
+the d0149f0 preview to Production from the dashboard (no build needed)
+— his chosen header (personal strip centered UNDER the tab panel) is
+LIVE and measured dead-center at 1694px wide. Still
+pushed-but-never-built: 09c0feb (scanner hero top-anchored — the big
+black gap above the hero is STILL on prod until this builds), b627c39
+(header grid from sm, zoom-band fix), 4ae96cf (vercel.json: branch
+preview builds DISABLED — 1 build per change from now on). When the
+limit clears (~11:00 UTC 09-02): empty commit on main → push, or
+Chris hits Redeploy in the dashboard; then verify the hero starts
+right under the header on cardflip.io/app.
+Promote-preview-from-dashboard is the rate-limit escape hatch —
+remember it. (Browser-pane screenshots of emulated-size prod pages
+came back right-shifted/black this session — capture artifact, NOT the
+site; trust JS getBoundingClientRect measurements.)**
 
 **WHERE THINGS STAND (09-01 end, everything below deployed to prod
 EXCEPT the 3 commits above, tsc/lint/tests green, working tree clean
