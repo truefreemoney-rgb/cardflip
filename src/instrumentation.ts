@@ -6,6 +6,22 @@
  * that was suspended mid-run picks the job back up. Server runtime only,
  * never during `next build`.
  */
+/**
+ * Next.js calls this for every unhandled server error (routes, server
+ * components, API handlers) — the whole error-monitoring net in one hook.
+ * The path tells us where; nothing about the visitor is recorded.
+ */
+export async function onRequestError(
+  err: unknown,
+  request: { path: string; method: string },
+) {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { reportServerError } = await import("@/lib/server/errorLog");
+  const digest =
+    err && typeof err === "object" && "digest" in err ? String((err as { digest: unknown }).digest) : undefined;
+  await reportServerError(`${request.method} ${request.path}`, err, digest);
+}
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;

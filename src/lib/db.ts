@@ -175,6 +175,22 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);
 
+  -- Server-side error log (lib/server/errorLog.ts): error-ONLY monitoring,
+  -- no request/user tracking beyond what the error itself carries — /privacy
+  -- promises no analytics profile and this table must keep that true.
+  -- Pruned to 30 days on every write.
+  CREATE TABLE IF NOT EXISTS error_events (
+    id TEXT PRIMARY KEY,
+    at INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    message TEXT NOT NULL,
+    stack TEXT,
+    -- Next.js error digest when present — groups repeats of one fault.
+    digest TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_error_events_at ON error_events(at);
+
   -- English species name by National Pokédex number, so a Japanese/Chinese
   -- card name has a readable overlay ("ピカチュウ" -> "Pikachu") without a
   -- live translation call. Populated by scripts/sync-species-names.mjs.
