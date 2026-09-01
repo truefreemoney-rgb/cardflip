@@ -445,6 +445,33 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   {quote.price.label}
                 </span>
               ))}
+            {/* The road to other sellers' listings must survive the pricing
+                basis: since the current-day rebase (09-01) the Market chip is
+                usually a TCGplayer point, which took the eBay link and count
+                with it (Chris). When the Market chip isn't the eBay one,
+                this chip is. */}
+            {quote && !/^eBay/i.test(quote.price.label) && (
+              item.ebay && item.ebay.count > 0 ? (
+                <a
+                  href={item.ebay.searchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
+                >
+                  eBay asking {formatMoney(item.ebay.average, "USD")} · {item.ebay.count} listing
+                  {item.ebay.count === 1 ? "" : "s"} ↗
+                </a>
+              ) : (
+                <a
+                  href={ebaySearchUrl(card, facts)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
+                >
+                  See eBay listings ↗
+                </a>
+              )
+            )}
             {item.visionStatus === "done" && item.vision && (
               <span className="rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-300">
                 Read from photo
