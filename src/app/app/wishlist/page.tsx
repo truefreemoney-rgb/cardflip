@@ -75,11 +75,11 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         }}
         className="flex flex-col items-center gap-1.5"
       >
-        <p className="text-[11px] leading-snug text-zinc-500">
+        <p className="text-xs leading-snug text-zinc-400">
           We email you when the market dips to this price (checked daily).
         </p>
-        <div className="flex items-center gap-1">
-        <span className="text-xs text-zinc-500">$</span>
+        <div className="flex items-center gap-1.5">
+        <span className="text-sm text-zinc-400">$</span>
         <input
           autoFocus
           onFocus={(e) => e.target.select()}
@@ -87,14 +87,14 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={item.price != null ? item.price.toFixed(2) : "0.00"}
-          className="w-20 rounded-md border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
+          className="w-24 rounded-md border border-edge bg-black/40 px-2.5 py-2 text-center text-base text-white outline-none focus:border-brand-400"
           aria-label={`Alert price for ${item.cardName}`}
         />
-        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-2.5 py-1.5 text-xs font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
+        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-3.5 py-2 text-sm font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
           Set
         </button>
         {item.alertPrice != null && (
-          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1 text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1.5 text-sm text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
             Clear
           </button>
         )}
@@ -118,11 +118,11 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         setEditing(true);
       }}
       title="Get an email when this card's market price dips to your target"
-      className="rounded-full px-2 py-1 text-xs text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
+      className="rounded-full px-2 py-1 text-sm text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
     >
       {item.alertPrice != null
         ? `🔔 alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
-        : "🔔 email me at a price…"}
+        : "🔔 Email me a price alert"}
     </button>
   );
 }
