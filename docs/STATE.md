@@ -48,8 +48,12 @@ libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
 called as plain functions; both chdir to a temp dir so the db lands
 there, use `--conditions=react-server`, and set process.exitCode instead
 of process.exit so libsql's beforeExit close runs; alias-loader now maps
-`next/xxx` → `next/xxx.js`); remaining: account/admin/eBay routes. Ask
-Chris which.
+`next/xxx` → `next/xxx.js`); remaining: account/admin/eBay routes;
+(f) BACK BURNER (Chris 09-01): own eBay price series — record asking avg
+in comps route (card.id + recordPoint, variant "ebayAverage") + one
+comps call per card in sweepPriceHistory (~150/5000 daily limit); chart
+pickSeries prefers ebay source once points exist; no backfill possible
+(Insights denied 08-16). Ask Chris which.
 
 **WAITING ON CHRIS:** (1) PRE-LAUNCH BLOCKER: street address for Stripe
 public details (PO boxes rejected; options: UPS Store box / iPostal1 /
