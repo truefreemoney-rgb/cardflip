@@ -3,16 +3,14 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
-import { toast } from "@/components/Toaster";
 import {
-  EBAY_DRAFTS_URL,
   publishEbayDraft,
   pushEbayDraft,
   type EbayPostFailure,
   type EbayPushSuccess,
 } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { ebayDraftFormUrl, mtgFinishOf } from "@/lib/listing";
+import { mtgFinishOf } from "@/lib/listing";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 
 interface Props {
@@ -27,23 +25,18 @@ interface Props {
 /**
  * The bottom of both editors: how this listing gets onto eBay.
  *
- * Two roads, always in this order:
- *  - "Send draft to eBay" opens eBay's own listing form pre-filled with our
- *    title (a plain link, so phones don't popup-block it) and copies the
- *    description for pasting. eBay auto-saves that form under My eBay ›
- *    Drafts — the only way into Drafts without the limited-release Listing
- *    API (see createDraft in server/ebaySell.ts; when eBay approves us,
- *    swap this button back to sendEbayDraft, which is fully filled + photo).
- *    Needs no eBay connection.
- *  - "Publish now" is the fast road for connected sellers: inventory item +
- *    offer + publish from here, no eBay form (needs business policies on
- *    the account and the seller's own photo). Errors are shown in eBay's own
- *    words. Not connected → the button says so and links to /connect-ebay.
- * The manual "I posted this" checkpoint stays: a seller who publishes from
- * eBay's form still needs to tell the ledger.
+ * One road (09-01, Chris: the product IS the API connection — no off-site
+ * escapes): "Publish on eBay" builds inventory item + offer + publish from
+ * here, photo included (needs business policies on the account and the
+ * seller's own photo). Errors are shown in eBay's own words. Not connected →
+ * the button says so and links to /connect-ebay. The old side doors —
+ * eBay's manual form (which can't take our photo), the My-eBay-drafts link,
+ * copy-listing-text — were removed the same day; git has them if a
+ * no-connection fallback is ever wanted again.
+ * The manual "I posted this" checkpoint stays: a seller who listed on eBay
+ * some other way still needs to tell the ledger.
  */
 export default function EbayPostActions({ item, listing, price, ebayConnected, onChange }: Props) {
-  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<"push" | "publish" | null>(null);
   const [failure, setFailure] = useState<EbayPostFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -62,7 +55,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   // this copy. A scanned item has one (item.file) and it uploads on the first
   // publish; a search-added or sealed item has nothing until they pick one.
   const hasPhoto = Boolean(item.photoAt || item.file);
-  const draftFormUrl = ebayDraftFormUrl(listing);
 
   // Picking a photo is step one of publishing, not a separate chore: once
   // it's up, publishing carries on if that's what opened the picker.
@@ -84,33 +76,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     } else {
       setNotice("Photo saved.");
     }
-  }
-
-  function copyListing() {
-    // Only claim "Copied" once the write actually landed — the clipboard API
-    // refuses on insecure origins and when permission is denied.
-    const text = `${listing.title}\n\n${listing.description}\n\nPrice: $${price.toFixed(2)}`;
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopied(true);
-        toast("Listing text copied");
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {
-        window.prompt("Copy the listing text:", text);
-      });
-  }
-
-  /** The draft link was tapped: eBay's form is opening in a new tab. */
-  function draftOpened() {
-    setFailure(null);
-    // Clipboard write inside the tap = allowed on phones. The form only
-    // takes the title from the URL; the description gets pasted.
-    navigator.clipboard.writeText(`${listing.description}\n\nPrice: $${price.toFixed(2)}`).catch(() => {});
-    setNotice(
-      "eBay is open in a new tab, already searching its catalog for this card — pick the match if it asks, and eBay saves the draft under My eBay › Drafts. The description is on your clipboard: paste it in, add your photos, and publish there.",
-    );
   }
 
   function draftInput() {
@@ -288,14 +253,11 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
         </p>
       )}
       <div className="flex flex-col gap-2">
-        {/* Which button gets the eBay-blue primary style is the whole
-            routing decision: sellers click the prominent one. Connected,
-            the API publish must be primary -- it is the only road that
-            carries the seller's photo (eBay's manual form takes a title in
-            the URL and nothing else; its uploader is sealed to outsiders).
-            08-27: with the form link styled primary, Chris kept landing on
-            eBay's empty 0/25 photo grid and read it as a broken app. The
-            manual form stays available, quiet, for the unconnected. */}
+        {/* One road only (09-01, Chris): publishing happens from here, over
+            the API, photo included — no links out to eBay's form or drafts.
+            The one exception is a Listing-API draft this card already has
+            (ebayDraftUrl): that draft lives on eBay and can only be
+            finished there. */}
         <div className="flex flex-col gap-2 sm:flex-row">
           {canPost ? (
             <button onClick={() => void publishDirect()} disabled={busy !== null} className={ebayButton}>
@@ -309,34 +271,11 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               Connect eBay to publish from here
             </Link>
           )}
-          {item.ebayDraftUrl ? (
+          {item.ebayDraftUrl && (
             <a href={item.ebayDraftUrl} target="_blank" rel="noopener noreferrer" className={quietButton + " text-center"}>
               Open draft on eBay ↗
             </a>
-          ) : (
-            <a
-              href={draftFormUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={draftOpened}
-              className={quietButton + " text-center"}
-            >
-              eBay&apos;s form instead (no photo) ↗
-            </a>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
-          <a
-            href={EBAY_DRAFTS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-zinc-300 underline underline-offset-4 transition hover:text-white"
-          >
-            View my eBay drafts ↗
-          </a>
-          <button onClick={copyListing} className="underline underline-offset-4 transition hover:text-zinc-300">
-            {copied ? "Copied ✓" : "Copy listing text"}
-          </button>
         </div>
       </div>
 
@@ -345,11 +284,11 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
           ? "The draft is in My eBay › Drafts — finish and publish it there, or publish from here. Publishing means eBay's selling fees apply."
           : canPost
             ? pushed
-              ? "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts. This card also has a saved draft here — Publish lists it live. eBay's selling fees apply."
-              : "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts to finish there. Publish now lists it live from here — eBay's selling fees apply."
+              ? "This card has a saved draft on eBay — Publish lists it live, with your photo. eBay's selling fees apply."
+              : "Publish creates the listing on your eBay account and puts it live, photo included — eBay's selling fees apply."
             : ebayConnected && item.card && !item.serverId
-              ? "This card didn't save to your collection (a connection blip while scanning), so it can't be published from here yet — Send draft still works, or scan it again to retry."
-              : "Send draft opens eBay's listing form pre-filled; eBay keeps it in My eBay › Drafts to finish there. Connect eBay once to publish straight from here."}
+              ? "This card didn't save to your collection (a connection blip while scanning), so it can't be published yet — scan it again to retry."
+              : "Connect your eBay account once and every ready card publishes from right here, photo included."}
       </p>
 
       {notice && (
