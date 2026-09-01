@@ -43,7 +43,13 @@ first (unheld scope kills the whole Connect flow, cf. 08-27), then one
 reconnect; (b) photo-first sealed re-add (Chris: "sometime later");
 (c) graded cert-number lookup (needs PSA/CGC API key from Chris);
 (d) real net-after-fees (sell.finances scope, same reconnect); (e) test
-suites (auth/API-route). Ask Chris which.
+suites — auth DONE 09-01 (`npm run test:auth` = password/sessions/reset
+libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
+called as plain functions; both chdir to a temp dir so the db lands
+there, use `--conditions=react-server`, and set process.exitCode instead
+of process.exit so libsql's beforeExit close runs; alias-loader now maps
+`next/xxx` → `next/xxx.js`); remaining: account/admin/eBay routes. Ask
+Chris which.
 
 **WAITING ON CHRIS:** (1) PRE-LAUNCH BLOCKER: street address for Stripe
 public details (PO boxes rejected; options: UPS Store box / iPostal1 /

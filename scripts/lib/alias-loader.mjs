@@ -17,5 +17,8 @@ export async function resolve(specifier, context, next) {
     }
     return next(base.href, context);
   }
+  // next's package has no ESM exports map for its bare subpaths — plain node
+  // needs the .js spelled out ("next/server" -> "next/server.js").
+  if (/^next\/[\w-]+$/.test(specifier)) return next(`${specifier}.js`, context);
   return next(specifier, context);
 }
