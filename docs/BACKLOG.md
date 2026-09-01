@@ -10,10 +10,10 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] M — Comps filter lets loose number matches through — fixed 08-16 (suffix guard + set-total check, 13 tests) (`Charizard 4` ↔ "Charizard V 004/127"); tighten `isComparable` in `src/lib/ebayComps.ts`
 - [x] M — Wrong default match when the number is unread (full-art Sprigatito → SVP promo, 08-16 phone) — vision `artStyle` + `ART_PENALTY` tiebreak in `enCards.ts`; awaiting Chris's rescan on prod. Follow-up if it recurs: add `rarity` to `en_cards` (`sync:en`) and rank on it
 - [ ] M — **Real net-after-fees per sale, visible to sellers** (Chris, 08-31). Today the Earned tile and admin stats estimate fees at 13.25% + $0.30 — it matched the first real sale ($447.99 → $388.33) to the cent, but real fees vary (promoted listings, store tiers, category rates, international). Track the ACTUAL fee per sold card: best source is eBay Finances API (getTransactions, needs sell.finances scope added to USER_SCOPES and every seller re-consenting) pulled by the daily sync; fallback is a fee field on the mark-sold flow the seller can type from their payout email. Store per-card (new columns: sold_fees REAL, sold_net REAL), show net on the collection Earned tile (already leads with the estimate) and per-card in the sold panel; admin stats switch from estimate to sum of actuals where present.
-- [ ] S — eBay `program/opt_in` 403: scope added, Chris must reconnect eBay once
+- [x] S — eBay `program/opt_in` 403: scope added, Chris reconnected 09-01. Self-verifies on his next publish (opt-in retries per publish).
 - [ ] M — Bulk drafts CSV (`toEbayDraftsCsv`, `src/lib/listing.ts`) never uploaded to real eBay — validate header/#INFO rows
 - [ ] M — Inventory condition-descriptor IDs unverified (`src/lib/ebayInventory.ts`); graded may need cert descriptor 27503
-- [ ] S — Publish 20403 "not eligible": eBay account needs Business Policies + location
+- [x] S — Publish 20403 "not eligible": createDefaultPolicies (08-27, ebaySell.ts) now auto-creates policies + location at publish; with the 09-01 reconnect the whole chain should clear. Confirm on Chris's next real publish.
 - [ ] S — Keldeo listing 5230387616323 live with no photo — end it
 - [ ] S — `/terms` governing-law state placeholder — need real state from Chris
 - [ ] S — Untested on hardware: auto-scan thresholds, torch, iOS reveal/chime/haptics, ✕, real MTG photo via vision, HEIC
