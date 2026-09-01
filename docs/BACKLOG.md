@@ -16,7 +16,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] S — Publish 20403 "not eligible": createDefaultPolicies (08-27, ebaySell.ts) now auto-creates policies + location at publish; with the 09-01 reconnect the whole chain should clear. Confirm on Chris's next real publish.
 - [x] S — Keldeo listing 5230387616323 — Chris deleted it on eBay 09-01 (doubles as the ended-listing-sync live test: My Cards should show the amber "Ended on eBay" chip after the next sync pass)
 - [x] S — `/terms` governing law — Maryland (Chris, 09-01)
-- [ ] S — Untested on hardware: auto-scan thresholds, torch, iOS reveal/chime/haptics, ✕, real MTG photo via vision, HEIC
+- [x] S — Hardware pass done 09-01 (Chris, on his iPhone vs prod: "phone stuff seems fine" — auto-scan, torch, chime/haptics, ✕, MTG via vision, HEIC library photo)
 - [x] S — Favicon vs header logo — DONE 09-01 same day (Chris: "way better, perfect"): transparent bg + tight viewBox crop so the mark fills the frame; verified legible at 16px via canvas-downscale sim; apple-icon keeps the solid square.
 - [x] `/admin` overhauled 08-16 (Chris: "go crazy"): own operator login (`/admin/login`, `ADMIN_PANEL_USER`/`ADMIN_PANEL_PASSWORD`, defaults admin/onyx per Chris — override on Fly), signed 12 h cookie, rate-limited; console = KPIs, 30-day activity bars (scans/sign-ups/price checks/sold), searchable+sortable users w/ rollups + delete, recent cards, prices & data (series counts, daily-job status + Run now, mirrors, storage), system (integrations configured, process). `test:admin` 16 checks
 
