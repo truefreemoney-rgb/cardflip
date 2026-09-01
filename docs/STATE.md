@@ -1,6 +1,6 @@
 # Project state
 
-Last updated: 2026-08-31 (resume = this file only; FIRST ACTION block = the 08-31 section).
+Last updated: 2026-09-01 end of session (resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -21,9 +21,42 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**09-01: Anthropic credits ran out mid-day (prod vision 400'd → OCR
-fallback); Chris topped up same day, API verified working again. Suggest
-auto-reload at console.anthropic.com so it can't recur silently.**
+**WHERE THINGS STAND (09-01 end, everything below deployed to prod,
+tsc/lint/tests green, working tree clean on `vercel-migration` = `main`):**
+Huge shipping day. Vision stays on Opus (A/B said identical ID, Sonnet
+nulls condition — `scripts/ab-vision.mjs` re-runs it). Shipped: welcome
+email on subscribe; ended-listing sync + amber chip; condition-descriptor
+id FIX for 183454 (LP/MP/HP were sports-card ids — real bug); scanner's
+add-without-photo section REMOVED (Chris) and publish flow cut to ONE
+road (confirm popup → loading → Live panel w/ View-on-eBay link);
+quantity >1 (Copies input, qty-aware sales sync w/ ebay_sold_lines
+dedup); wishlist price alerts (daily email); collection Export CSV;
+reprice nudge (catalog_card_id + price_series, amber "Market $X —
+reprice" → ledger + live offer); market chip links to eBay best-match;
+My cards "Build listing" resume (photo panel + loader, no hero flash) +
+checkbox mass delete; graded round-trip (editor syncs "PSA 10" to ledger
+live, resume parses it back).
+
+**NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
+(a) auto-offers to watchers — needs sell.negotiation scope: probe keyset
+first (unheld scope kills the whole Connect flow, cf. 08-27), then one
+reconnect; (b) photo-first sealed re-add (Chris: "sometime later");
+(c) graded cert-number lookup (needs PSA/CGC API key from Chris);
+(d) real net-after-fees (sell.finances scope, same reconnect); (e) test
+suites (auth/API-route). Ask Chris which.
+
+**WAITING ON CHRIS:** (1) PRE-LAUNCH BLOCKER: street address for Stripe
+public details (PO boxes rejected; options: UPS Store box / iPostal1 /
+LLC agent — home address currently shows on paying invoices);
+(2) eBay live-test batch next time he posts: end Keldeo 5230387616323 →
+expect amber Ended chip; push a non-NM card → expect NO "saved without
+condition detail"; reprice a live listing → verify offer PUT; real
+multi-qty sale → verify partial-sale split; (3) first real welcome email
++ wishlist alert email confirm themselves; (4) optional: Anthropic
+auto-reload (credits ran out 09-01, topped up), real-card charge test,
+live-key rotation, Stripe branding/email toggle.
+
+**Session detail below is REFERENCE — don't read on resume.**
 
 **09-01 latest — MY CARDS: resume + mass delete (Chris's asks):**
 (a) "Build listing" on ready card rows → /app?resume=<id>; scanner
