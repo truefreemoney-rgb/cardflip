@@ -7,7 +7,7 @@
  *
  * If the header mark changes, change SPIN_CYCLE_SVG to match.
  */
-const SPIN_CYCLE_SVG = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+const SPIN_CYCLE_SVG = `<svg viewBox="10 8 100 100" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="cf-spin-a" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#7dd3fc"/>
@@ -30,8 +30,11 @@ const SPIN_CYCLE_SVG = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000
 
 const SPIN_CYCLE_DATA_URI = `data:image/svg+xml,${encodeURIComponent(SPIN_CYCLE_SVG)}`;
 
-export function BrandIcon({ size }: { size: number }) {
-  const mark = Math.round(size * 0.8);
+export function BrandIcon({ size, transparent = false }: { size: number; transparent?: boolean }) {
+  // Favicon: transparent, mark fills the frame (a dark square reads as a blob
+  // on the tab strip, and at 16px the mark needs every pixel). Apple icon
+  // keeps the solid ground — iOS composites transparency onto black.
+  const mark = transparent ? size : Math.round(size * 0.8);
   return (
     <div
       style={{
@@ -40,7 +43,7 @@ export function BrandIcon({ size }: { size: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#08090d",
+        background: transparent ? "transparent" : "#08090d",
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
