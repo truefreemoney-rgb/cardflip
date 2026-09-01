@@ -40,7 +40,9 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
   const listing = withListingOverrides(generated, item);
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
+    // Same as CardEditor: no overflow container below lg, so the publish
+    // row's sticky bar can pin to the viewport on a phone.
+    <div className="flex h-full flex-col gap-6 p-6 sm:p-8 lg:overflow-y-auto">
       <div className="flex flex-col gap-5 sm:flex-row">
         <CardImage
           src={product.imageLarge || product.imageSmall}

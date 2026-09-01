@@ -358,7 +358,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   }
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
+    // Internal scrolling is a desktop-grid thing; on mobile the page itself
+    // scrolls, and an overflow container here would swallow the publish row's
+    // sticky positioning (sticky pins to the nearest scrollport).
+    <div className="flex h-full flex-col gap-6 p-6 sm:p-8 lg:overflow-y-auto">
       <div className="flex flex-col gap-5 sm:flex-row">
         {/* The seller's photo stays beside the match. Showing only the matched
             card's official art made a wrong match invisible — there was

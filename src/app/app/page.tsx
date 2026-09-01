@@ -1077,7 +1077,10 @@ export default function AppPage() {
           )}
 
           <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
-            <aside className="flex max-h-[70dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
+            {/* On a phone the queue sits above the editor — capped low so the
+                card being edited starts on screen instead of under a
+                70dvh-tall list (the queue scrolls within itself). */}
+            <aside className="flex max-h-[32dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
               {items.map((item) => (
                 <QueueRow
                   key={item.id}

@@ -276,7 +276,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
           </button>
         </p>
       )}
-      <div className="flex flex-col gap-2">
+      {/* Below lg the editor scrolls under a queue list — pin the publish row
+          to the bottom of the scroll container so the primary action never
+          has to be scrolled to on a phone. */}
+      <div className="sticky bottom-0 z-10 -mx-6 flex flex-col gap-2 border-t border-edge/60 bg-surface-1/95 px-6 py-3 backdrop-blur sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-0">
         {/* One road only (09-01, Chris): publishing happens from here, over
             the API, photo included — no links out to eBay's form or drafts.
             The one exception is a Listing-API draft this card already has

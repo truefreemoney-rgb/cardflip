@@ -48,12 +48,18 @@ export default function PriceCheckPage() {
   const [logging, setLogging] = useState(false);
 
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyQuery, setHistoryQuery] = useState("");
+  // History row whose card is being re-fetched after a click.
+  const [openingId, setOpeningId] = useState<string | null>(null);
   // Search sequence: a slow older response must not overwrite a newer one
   // (fire two searches fast and the first can land last).
   const searchSeq = useRef(0);
 
   const loadHistory = useCallback(() => {
-    fetchPriceCheckHistory().then(setHistory);
+    fetchPriceCheckHistory()
+      .then(setHistory)
+      .finally(() => setHistoryLoading(false));
   }, []);
 
   const userId = user?.id;
@@ -109,6 +115,44 @@ export default function PriceCheckPage() {
     setLogging(false);
     loadHistory();
   }
+
+  /** A history row is a shortcut back to its card: re-look it up (prices go
+   * stale, so a cached copy would lie) and open the same modal as a search. */
+  async function openHistoryEntry(entry: PriceCheckEntry) {
+    if (openingId) return;
+    setOpeningId(entry.id);
+    try {
+      const found = await searchCards(
+        entry.cardName,
+        entry.cardNumber,
+        entry.language,
+        200,
+        entry.game ?? game,
+      );
+      // Old rows have no cardId — the top match for the stored name+number is
+      // the best available guess there.
+      const match = entry.cardId
+        ? (found.find((c) => c.id === entry.cardId) ?? found[0])
+        : found[0];
+      if (match) {
+        await selectCard(match);
+      } else {
+        setSearchError("Couldn't find that card again — try searching above.");
+      }
+    } catch {
+      setSearchError("Search failed — check your connection.");
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
+  const visibleHistory = historyQuery.trim()
+    ? history.filter((entry) =>
+        `${entry.cardName} ${entry.setName} ${entry.cardNumber}`
+          .toLowerCase()
+          .includes(historyQuery.trim().toLowerCase()),
+      )
+    : history;
 
   if (!user) return <PageSkeleton />;
 
@@ -187,9 +231,19 @@ export default function PriceCheckPage() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Recent lookups ({history.length})
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Recent lookups ({history.length})
+          </h2>
+          {history.length > 0 && (
+            <input
+              value={historyQuery}
+              onChange={(e) => setHistoryQuery(e.target.value)}
+              placeholder="Filter lookups…"
+              className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+            />
+          )}
+        </div>
         <div className="overflow-x-auto rounded-2xl border border-edge bg-surface-1">
           <table className="w-full text-left text-sm">
             <thead>
@@ -201,10 +255,18 @@ export default function PriceCheckPage() {
               </tr>
             </thead>
             <tbody>
-              {history.map((entry) => (
-                <tr key={entry.id} className="border-b border-white/5 last:border-0">
+              {visibleHistory.map((entry) => (
+                <tr
+                  key={entry.id}
+                  onClick={() => void openHistoryEntry(entry)}
+                  title="Open this card"
+                  className="cursor-pointer border-b border-white/5 transition last:border-0 hover:bg-white/5"
+                >
                   <td className="px-4 py-3">
-                    <span className="font-medium text-white">{entry.cardName}</span>
+                    <span className="inline-flex items-center gap-2 font-medium text-white">
+                      {entry.cardName}
+                      {openingId === entry.id && <Spinner className="h-3 w-3" />}
+                    </span>
                     <span className="ml-2 text-xs text-zinc-500">
                       {entry.setName} · {entry.cardNumber}
                     </span>
@@ -226,10 +288,14 @@ export default function PriceCheckPage() {
                   </td>
                 </tr>
               ))}
-              {history.length === 0 && (
+              {visibleHistory.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-zinc-500">
-                    No lookups yet — search for a card above.
+                    {historyLoading
+                      ? "Loading your lookups…"
+                      : history.length > 0
+                        ? "Nothing matches that filter."
+                        : "No lookups yet — search for a card above."}
                   </td>
                 </tr>
               )}

@@ -35,10 +35,15 @@ async function expectOk<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+/** Null on any failure — server or network — so callers show a retry, not a crash. */
 export async function fetchAccount(): Promise<AccountOverview | null> {
-  const res = await fetch(apiPath("/api/account"));
-  if (!res.ok) return null;
-  return (await readJson(res)) as AccountOverview;
+  try {
+    const res = await fetch(apiPath("/api/account"));
+    if (!res.ok) return null;
+    return (await readJson(res)) as AccountOverview;
+  } catch {
+    return null;
+  }
 }
 
 export async function updateProfile(patch: {

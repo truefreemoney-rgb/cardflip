@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface PriceCheckEntry {
   id: string;
@@ -14,6 +14,9 @@ export interface PriceCheckEntry {
   representativePrice: number | null;
   prices: PokemonCard["prices"];
   checkedAt: number;
+  /** Catalog id + game so the history can reopen the card. Null on old rows. */
+  cardId: string | null;
+  game: GameId | null;
 }
 
 interface PriceCheckRow {
@@ -26,6 +29,8 @@ interface PriceCheckRow {
   representative_price: number | null;
   prices_json: string;
   checked_at: number;
+  card_id: string | null;
+  game: GameId | null;
 }
 
 function fromRow(row: PriceCheckRow): PriceCheckEntry {
@@ -39,6 +44,8 @@ function fromRow(row: PriceCheckRow): PriceCheckEntry {
     representativePrice: row.representative_price,
     prices: JSON.parse(row.prices_json),
     checkedAt: row.checked_at,
+    cardId: row.card_id,
+    game: row.game,
   };
 }
 
@@ -66,10 +73,13 @@ export async function logPriceCheck(
     .get(userId, card.name, card.setName, card.number, language, checkedAt - DEDUPE_WINDOW_MS)) as
     | { id: string }
     | undefined;
+  const game = card.game ?? "pokemon";
   if (recent) {
+    // Re-checks also backfill card_id/game onto rows logged before those
+    // columns existed.
     await db.prepare(
-      "UPDATE price_checks SET representative_price = ?, prices_json = ?, checked_at = ? WHERE id = ?",
-    ).run(representativePrice, JSON.stringify(card.prices), checkedAt, recent.id);
+      "UPDATE price_checks SET representative_price = ?, prices_json = ?, checked_at = ?, card_id = ?, game = ? WHERE id = ?",
+    ).run(representativePrice, JSON.stringify(card.prices), checkedAt, card.id, game, recent.id);
     return {
       id: recent.id,
       userId,
@@ -80,13 +90,15 @@ export async function logPriceCheck(
       representativePrice,
       prices: card.prices,
       checkedAt,
+      cardId: card.id,
+      game,
     };
   }
 
   await db.prepare(
     `INSERT INTO price_checks
-       (id, user_id, card_name, set_name, card_number, language, representative_price, prices_json, checked_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, card_name, set_name, card_number, language, representative_price, prices_json, checked_at, card_id, game)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     userId,
@@ -97,6 +109,8 @@ export async function logPriceCheck(
     representativePrice,
     JSON.stringify(card.prices),
     checkedAt,
+    card.id,
+    game,
   );
 
   return {
@@ -109,6 +123,8 @@ export async function logPriceCheck(
     representativePrice,
     prices: card.prices,
     checkedAt,
+    cardId: card.id,
+    game,
   };
 }
 

@@ -72,6 +72,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
+  const [retryKey, setRetryKey] = useState(0);
+  // The escape hatch when the camera won't open: a file picker right in the
+  // modal, so a denied permission doesn't dead-end the scanning flow.
+  const fallbackInputRef = useRef<HTMLInputElement>(null);
   const [ready, setReady] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
@@ -123,9 +128,18 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
           | (MediaTrackCapabilities & { torch?: boolean })
           | undefined;
         if (capabilities?.torch) setTorch("off");
-      } catch {
+      } catch (err) {
+        // NotAllowedError = the user (or a site setting) blocked the camera —
+        // "allow it in the prompt" is wrong advice there, the prompt won't
+        // reappear until the site permission is reset.
+        const denied = err instanceof DOMException && err.name === "NotAllowedError";
+        const missing = err instanceof DOMException && err.name === "NotFoundError";
         setError(
-          "Couldn't open the camera. Allow camera access in the browser prompt, or use Choose photos instead.",
+          denied
+            ? "Camera access is blocked for this site. Turn it on in your browser's site settings (the icon by the address bar), or scan from photos instead."
+            : missing
+              ? "No camera found on this device — you can scan from photos instead."
+              : "Couldn't open the camera — you can scan from photos instead.",
         );
       }
     })();
@@ -134,7 +148,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       cancelled = true;
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, []);
+  }, [retryKey]);
 
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -484,9 +498,40 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
             </p>
           )}
           {error && (
-            <p className="flex min-h-40 items-center justify-center p-6 text-center text-sm text-zinc-300">
-              {error}
-            </p>
+            <div className="flex min-h-40 flex-col items-center justify-center gap-4 p-6 text-center">
+              <p className="max-w-sm text-sm text-zinc-300">{error}</p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={() => fallbackInputRef.current?.click()}
+                  className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
+                >
+                  Choose photos instead
+                </button>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setRetryKey((k) => k + 1);
+                  }}
+                  className="rounded-full border border-edge bg-surface-2 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
+                >
+                  Try the camera again
+                </button>
+              </div>
+              <input
+                ref={fallbackInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  e.target.value = "";
+                  if (files.length === 0) return;
+                  for (const file of files) onCapture(file);
+                  onClose();
+                }}
+              />
+            </div>
           )}
 
           {lastScan && <ScanToast key={lastScan.id} item={lastScan} />}

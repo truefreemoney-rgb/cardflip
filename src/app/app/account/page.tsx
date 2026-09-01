@@ -136,11 +136,17 @@ function AccountSettings({
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
+  // fetchAccount answers null on any failure; without a retry the page used
+  // to sit half-rendered forever (no data section, eBay stuck on "Loading…").
+  const [overviewFailed, setOverviewFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     let cancelled = false;
     fetchAccount()
       .then((o) => {
-        if (!cancelled) setOverview(o);
+        if (cancelled) return;
+        setOverview(o);
+        setOverviewFailed(o === null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -148,7 +154,7 @@ function AccountSettings({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   const demo = overview?.demo ?? false;
 
@@ -320,6 +326,23 @@ function AccountSettings({
 
       {loading && !overview && (
         <div className="flex items-center gap-2 text-sm text-zinc-500"><Spinner /> Loading…</div>
+      )}
+
+      {overviewFailed && !loading && (
+        <div className="flex items-center gap-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert">
+          <span>Couldn&apos;t load your account details — check your connection.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              setOverviewFailed(false);
+              setReloadKey((k) => k + 1);
+            }}
+            className="rounded-md border border-red-400/30 px-3 py-1 text-xs font-medium text-red-200 transition hover:bg-red-500/15"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {/* Your data */}
@@ -525,7 +548,9 @@ function AccountSettings({
             )}
           </div>
         ) : (
-          <p className="text-sm text-zinc-500">Loading…</p>
+          <p className="text-sm text-zinc-500">
+            {overviewFailed ? "Couldn't load your eBay status — use Try again above." : "Loading…"}
+          </p>
         )}
       </Section>
 

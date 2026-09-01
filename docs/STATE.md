@@ -54,12 +54,25 @@ sendAllToEbay(retryIds?) re-runs just those; recordScan now returns
 post-scan ScanQuota. UNTESTED live: real 402 banner (needs an
 exhausted subscriber) and the billing=success confirmed path (needs a
 real webhook) — canceled + stalled paths verified in browser.
-Batch 3 after: clickable/searchable price-check history (store cardId
-on rows), wishlist tiles open CardDetailModal (NO scanner handoff —
-Chris veto: stock images), wishlist sort/filter + 15-row reprice cap
-disclosure, mobile scanner layout (editor under 70dvh queue + sticky
-action bar), My Cards toasts, empty-state scanner link, camera-denied
-escape hatch, loading skeletons, account-fetch retry.**
+Batch 3 SHIPPED (09-01, all 9): price-check history rows clickable
+(re-lookup by stored card_id+game — new price_checks columns + probes
+in db.ts; logPriceCheck backfills them on re-check) + filter input +
+real loading state; wishlist tiles open CardDetailModal via
+resolveWishlistCard (NO scanner handoff — Chris veto) + filter/sort
+(hidden under 2 items) + 15-row reprice-cap caption + tile skeletons;
+mobile scanner: queue capped 32dvh (was 70) and publish row sticky at
+viewport bottom on <lg — REQUIRED making CardEditor/SealedEditor roots
+lg:overflow-y-auto (the inert mobile overflow container swallowed the
+sticky); My Cards toasts on remove/bulk-remove/unlist/reprice/export +
+err toasts doubling syncError banners; empty-collection "Scan your
+first card" link; camera-denied escape hatch (NotAllowedError/
+NotFoundError-specific copy, "Choose photos" multi-file input feeding
+onCapture then close, "Try again" re-runs getUserMedia via retryKey);
+collection list skeleton; account fetchAccount catches network errors
++ Try-again banner (setLoading in the click handler, not the effect —
+react-hooks/set-state-in-effect). Verified in browser: history click →
+modal, wishlist tile → modal, toasts, camera fallback buttons, sticky
+bar on mobile, desktop grid unchanged.**
 
 **NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
 (a) auto-offers to watchers — scope PROBED 09-01 (authorize-URL with the

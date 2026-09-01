@@ -164,7 +164,11 @@ const SCHEMA = `
     language TEXT NOT NULL,
     representative_price REAL,
     prices_json TEXT NOT NULL,
-    checked_at INTEGER NOT NULL
+    checked_at INTEGER NOT NULL,
+    -- Catalog id + game so a history row can reopen its card. Null on rows
+    -- logged before these columns existed.
+    card_id TEXT,
+    game TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);
@@ -394,6 +398,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // alert_price = "email me when it dips to this"; alerted_at = sent once,
   // cleared when the target changes (lib/server/wishlistAlerts.ts).
   ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
+  // Catalog id + game so a history row can reopen its card.
+  ["price_checks", ["card_id TEXT", "game TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

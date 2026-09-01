@@ -167,9 +167,11 @@ export default function CollectionPage() {
     setRepricing(null);
     if (!result.ok) {
       setSyncError(`Couldn't reprice ${card.cardName} — try again.`);
+      toast(`Couldn't reprice ${card.cardName} — try again`, "err");
       return;
     }
     patchCard(card.id, { price: nudge.market });
+    toast(`${card.cardName} repriced to $${nudge.market.toFixed(2)}`);
     setNudges((prev) => {
       const next = { ...prev };
       delete next[card.id];
@@ -202,6 +204,8 @@ export default function CollectionPage() {
     if (!ok) {
       patchCard(card.id, before);
       setSyncError(`Couldn't save the change to ${card.cardName} — check your connection and try again.`);
+      // The banner lives at the top of a long page — repeat it where the eye is.
+      toast(`Couldn't save the change to ${card.cardName}`, "err");
     }
   }
 
@@ -228,6 +232,7 @@ export default function CollectionPage() {
       soldPrice: null,
       soldAt: null,
     });
+    toast(`${card.cardName} back to drafts`);
   }
 
   async function remove(card: ServerCard) {
@@ -245,7 +250,10 @@ export default function CollectionPage() {
         return next;
       });
       setSyncError(`Couldn't remove ${card.cardName} — check your connection and try again.`);
+      toast(`Couldn't remove ${card.cardName}`, "err");
+      return;
     }
+    toast(`${card.cardName} removed`);
   }
 
   const stats = useMemo(() => {
@@ -297,6 +305,9 @@ export default function CollectionPage() {
     if (failed.length > 0) {
       setCards((prev) => [...failed, ...prev]);
       setSyncError(`${failed.length} of ${ids.length} couldn't be removed — check your connection and try again.`);
+      toast(`${failed.length} of ${ids.length} couldn't be removed`, "err");
+    } else {
+      toast(`${ids.length} card${ids.length === 1 ? "" : "s"} removed`);
     }
     setSelected(new Set());
     setBulkDeleting(false);
@@ -333,6 +344,7 @@ export default function CollectionPage() {
     link.download = `cardflip-collection-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    toast(`${cards.length} card${cards.length === 1 ? "" : "s"} exported to CSV`);
   }
 
   const visible = useMemo(() => {
@@ -573,7 +585,19 @@ export default function CollectionPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
+          <ul className="animate-pulse divide-y divide-white/5">
+            {Array.from({ length: 6 }, (_, i) => (
+              <li key={i} className="flex items-center gap-4 px-4 py-3">
+                <div className="h-14 w-10 rounded bg-white/5" />
+                <div className="flex flex-col gap-2">
+                  <div className="h-3 w-40 rounded bg-white/5" />
+                  <div className="h-3 w-24 rounded bg-white/5" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
           <div className="text-3xl">🃏</div>
@@ -585,6 +609,14 @@ export default function CollectionPage() {
               ? "Scan a card and it will show up here, tracked from draft to sold."
               : "Try a different filter or search."}
           </p>
+          {cards.length === 0 && (
+            <Link
+              href="/app"
+              className="mt-2 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+            >
+              Scan your first card
+            </Link>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">

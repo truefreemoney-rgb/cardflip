@@ -1,7 +1,7 @@
 "use client";
 
 import { apiPath } from "@/lib/client/basePath";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface PriceCheckEntry {
   id: string;
@@ -13,6 +13,9 @@ export interface PriceCheckEntry {
   representativePrice: number | null;
   prices: PokemonCard["prices"];
   checkedAt: number;
+  /** Catalog id + game so the history can reopen the card. Null on old rows. */
+  cardId: string | null;
+  game: GameId | null;
 }
 
 export async function fetchPriceCheckHistory(): Promise<PriceCheckEntry[]> {

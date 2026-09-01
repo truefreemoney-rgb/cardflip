@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CardImage from "@/components/CardImage";
+import CardDetailModal from "@/components/CardDetailModal";
 import Spinner from "@/components/Spinner";
 import GameToggle from "@/components/GameToggle";
 import PriceSparkline from "@/components/PriceSparkline";
@@ -121,6 +122,29 @@ interface Repriced {
   cardIds: Record<string, string>;
 }
 
+/** Find the catalog card behind a saved row — the same match walk the
+ * repricing pass uses (id first, then exact name+number, then top hit). */
+async function resolveWishlistCard(item: WishlistItem): Promise<PokemonCard | null> {
+  const cards = await searchCards(
+    item.cardName,
+    item.cardNumber || null,
+    item.language,
+    undefined,
+    item.game ?? "pokemon",
+  );
+  return (
+    (item.cardId ? cards.find((c) => c.id === item.cardId) : null) ??
+    cards.find(
+      (c) =>
+        c.name === item.cardName &&
+        (!item.cardNumber ||
+          normalizeNumber(c.number) === normalizeNumber(item.cardNumber)),
+    ) ??
+    cards[0] ??
+    null
+  );
+}
+
 async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const targets = items
     .filter((item) => item.language === "en" && item.price != null)
@@ -186,6 +210,12 @@ export default function WishlistPage() {
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
+  // Tile click → the same detail modal the price-check page opens. NO scanner
+  // handoff (Chris veto: a wishlisted card has no real photo, only stock art).
+  const [detail, setDetail] = useState<{ card: PokemonCard; language: ScanLanguage } | null>(null);
+  const [detailOpeningId, setDetailOpeningId] = useState<string | null>(null);
+  const [sort, setSort] = useState<"newest" | "name" | "price-high" | "price-low">("newest");
+  const [listFilter, setListFilter] = useState("");
 
   // The add flow is search or a dropped image — deliberately no camera here:
   // a wishlisted card is one the user *doesn't* have in hand to scan.
@@ -315,9 +345,45 @@ export default function WishlistPage() {
     );
   }
 
+  async function openDetail(item: WishlistItem) {
+    if (detailOpeningId) return;
+    setDetailOpeningId(item.id);
+    setAddError(null);
+    try {
+      const card = await resolveWishlistCard(item);
+      if (card) {
+        setDetail({ card, language: item.language });
+      } else {
+        setAddError(`Couldn't find ${item.cardName} in the catalog right now — try again in a moment.`);
+      }
+    } catch {
+      setAddError("Couldn't load that card — check your connection.");
+    } finally {
+      setDetailOpeningId(null);
+    }
+  }
+
+  const visibleItems = useMemo(() => {
+    const q = listFilter.trim().toLowerCase();
+    const filtered = q
+      ? items.filter((i) =>
+          `${i.cardName} ${i.englishName ?? ""} ${i.setName}`.toLowerCase().includes(q),
+        )
+      : items;
+    const sorted = [...filtered];
+    if (sort === "name") sorted.sort((a, b) => a.cardName.localeCompare(b.cardName));
+    else if (sort === "price-high") sorted.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
+    else if (sort === "price-low")
+      sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    // "newest" keeps the server order (added desc, new saves prepended).
+    return sorted;
+  }, [items, sort, listFilter]);
+
   if (!user) return <PageSkeleton />;
 
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
+  // How many rows the repricing pass actually covers, for the cap disclosure.
+  const repriceEligible = items.filter((i) => i.language === "en" && i.price != null).length;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
@@ -443,7 +509,15 @@ export default function WishlistPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="flex animate-pulse flex-col gap-2 rounded-xl border border-edge bg-surface-1 p-3">
+              <div className="aspect-[5/7] w-full rounded-lg bg-white/5" />
+              <div className="h-3 w-3/4 self-center rounded bg-white/5" />
+              <div className="h-3 w-1/2 self-center rounded bg-white/5" />
+            </div>
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
           <div className="text-3xl">☆</div>
@@ -456,8 +530,33 @@ export default function WishlistPage() {
           </p>
         </div>
       ) : (
+        <>
+          {items.length > 1 && (
+            <div className="-mb-3 flex flex-wrap items-center gap-2">
+              <input
+                value={listFilter}
+                onChange={(e) => setListFilter(e.target.value)}
+                placeholder="Filter your wishlist…"
+                className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+              />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+                aria-label="Sort wishlist"
+                className="rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-xs text-zinc-300 outline-none transition focus:border-brand-400"
+              >
+                <option value="newest">Newest first</option>
+                <option value="name">Name A–Z</option>
+                <option value="price-high">Price: high to low</option>
+                <option value="price-low">Price: low to high</option>
+              </select>
+            </div>
+          )}
+          {visibleItems.length === 0 ? (
+            <p className="text-sm text-zinc-500">Nothing matches that filter.</p>
+          ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <div
               key={item.id}
               className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-3"
@@ -472,11 +571,22 @@ export default function WishlistPage() {
                 </svg>
               </button>
 
-              <CardImage
-                src={item.imageUrl}
-                alt={item.cardName}
-                className="aspect-[5/7] w-full rounded-lg"
-              />
+              <button
+                onClick={() => void openDetail(item)}
+                title={`Open ${item.cardName}`}
+                className="relative w-full rounded-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+              >
+                <CardImage
+                  src={item.imageUrl}
+                  alt={item.cardName}
+                  className="aspect-[5/7] w-full rounded-lg"
+                />
+                {detailOpeningId === item.id && (
+                  <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+                    <Spinner className="h-5 w-5" />
+                  </span>
+                )}
+              </button>
               <span className="w-full truncate text-center text-xs font-medium text-white">
                 {item.cardName}
               </span>
@@ -516,6 +626,23 @@ export default function WishlistPage() {
             </div>
           ))}
         </div>
+          )}
+          {repriceEligible > REPRICE_LIMIT && (
+            <p className="text-xs text-zinc-600">
+              Live &quot;Now&quot; prices refresh for the first {REPRICE_LIMIT} cards you saved —
+              the rest show their saved price (tap a card for its current market).
+            </p>
+          )}
+        </>
+      )}
+
+      {detail && (
+        <CardDetailModal
+          card={detail.card}
+          language={detail.language}
+          logging={false}
+          onClose={() => setDetail(null)}
+        />
       )}
     </main>
   );
