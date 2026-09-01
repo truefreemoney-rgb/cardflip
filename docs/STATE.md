@@ -82,8 +82,23 @@ NOT granted → Growth Check REQUESTED 09-01, ticket 260901-000003
 when approved: re-probe scope via authorize-URL, then build); (b)
 photo-first sealed re-add (Chris:
 "sometime later"); (c) graded cert-number lookup (needs PSA/CGC API key
-from Chris); (d) real net-after-fees — sell.finances IS granted (same
-09-01 probe): GO, add scope to USER_SCOPES + one reconnect; (e) test
+from Chris); (d) real net-after-fees SHIPPED 09-01: sell.finances in
+USER_SCOPES (+ EbayConnectCard copy), lib/fees.ts is now the ONE fee
+source (13.25%+$0.30 estimate, netAfterFees(gross, actualFees?) —
+collection page, SoldPanel, cards.ts getPlatformStats all import it);
+sales sync stamps ebay_order_id/ebay_line_item_id on sold rows (probes
+on cards; partial-split insert carries them; reverting sold→listed
+clears fees+refs in updateCard); lib/server/ebayFinances.ts
+syncEbayFees pulls SALE transactions from apiz.ebay.com (ebayFetch
+grew a base param) — per-line marketplaceFees, order total only for
+single-line orders, no SALE tx yet = retry next pass; wired after
+ended-sync in sync-sales route + own seller sweep in dailyJobs
+(fee-pending sellers ≠ listed-card sellers); 403 → no_scope, silent
+estimate fallback. CHRIS MUST RECONNECT EBAY (old token lacks the
+scope — refresh replays stored scopes); then verify next real sale's
+net matches the payout email. Verified locally by hand-setting
+sold_fees (≈ drops, net recomputes); real Finances call untested until
+reconnect + a sale; (e) test
 suites — auth DONE 09-01 (`npm run test:auth` = password/sessions/reset
 libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
 called as plain functions; both chdir to a temp dir so the db lands
@@ -98,7 +113,10 @@ comps call per card in sweepPriceHistory (~150/5000 daily limit); chart
 pickSeries prefers ebay source once points exist; no backfill possible
 (Insights denied 08-16). Ask Chris which.
 
-**WAITING ON CHRIS:** (1) PRE-LAUNCH BLOCKER: street address for Stripe
+**WAITING ON CHRIS:** (0) RECONNECT EBAY (cardflip.io → eBay setup →
+Manage connection) so the token gains sell.finances — until then fee
+sync skips no_scope and nets stay estimates;
+(1) PRE-LAUNCH BLOCKER: street address for Stripe
 public details (PO boxes rejected; options: UPS Store box / iPostal1 /
 LLC agent — home address currently shows on paying invoices);
 (2) eBay live-test batch next time he posts: end Keldeo 5230387616323 →

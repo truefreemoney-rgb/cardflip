@@ -19,6 +19,7 @@ const PERMISSIONS = [
   "Read your shipping, payment and return policies so listings are complete",
   "See your eBay username so we can show which account is linked",
   "See your orders so sold cards are marked sold here automatically",
+  "See the fees eBay charged on your sales so profit figures are exact",
 ];
 
 const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {

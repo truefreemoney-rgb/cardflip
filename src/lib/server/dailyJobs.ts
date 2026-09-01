@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
+import { syncEbayFees } from "@/lib/server/ebayFinances";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
@@ -68,6 +69,7 @@ export interface DailyResult {
   pokemon?: { recorded: number } | { error: string };
   backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
+  ebayFees?: { sellers: number; filled: number } | { error: string };
   wishlistAlerts?: { checked: number; sent: number } | { error: string };
   ms?: number;
 }
@@ -86,8 +88,8 @@ export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "wishlistAlerts">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "wishlistAlerts"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts"> = {};
   try {
     if (await hasTcgplayerMap()) {
       const r = await refreshPokemonPricesFromTcgcsv();
@@ -126,6 +128,25 @@ export async function runPokemonSteps(
   } catch (err) {
     result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: eBay sales sweep failed:", err);
+  }
+  try {
+    // Own seller query — fee-pending sold rows outlive the listing that the
+    // sales sweep keys on (a sold-out seller has no 'listed' cards left).
+    const feeSellers = (await db
+      .prepare(
+        `SELECT DISTINCT user_id FROM cards
+         WHERE status = 'sold' AND sold_fees IS NULL AND ebay_order_id IS NOT NULL`,
+      )
+      .all()) as { user_id: string }[];
+    let feesFilled = 0;
+    for (const seller of feeSellers) {
+      const f = await syncEbayFees(seller.user_id, true);
+      feesFilled += f.updated.length;
+    }
+    result.ebayFees = { sellers: feeSellers.length, filled: feesFilled };
+  } catch (err) {
+    result.ebayFees = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: eBay fee sweep failed:", err);
   }
   try {
     // After the price refreshes above, so alerts judge today's numbers.

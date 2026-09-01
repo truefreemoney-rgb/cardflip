@@ -16,6 +16,7 @@ import {
 } from "@/lib/client/cardsApi";
 import { syncEbaySales } from "@/lib/client/ebayApi";
 import { apiPath } from "@/lib/client/basePath";
+import { estimatedEbayFees, netAfterFees } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -66,15 +67,8 @@ function formatDate(ts: number): string {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Mirrors the estimate in lib/server/cards.ts: eBay's ~13.25% final value fee
-// plus the $0.30 per-order fixed fee. An estimate until the eBay API can
-// report real fees — good enough to keep "earned" honest.
-const EBAY_FEE_RATE = 0.1325;
-const EBAY_FLAT_FEE = 0.3;
-
-function netAfterFees(soldPrice: number): number {
-  return soldPrice - (soldPrice * EBAY_FEE_RATE + EBAY_FLAT_FEE);
-}
+// Net comes from lib/fees.ts: the Finances-API actual fee once the sync has
+// recorded one (card.soldFees), the 13.25%+$0.30 estimate until then.
 
 // Outside the component so the render-purity lint can see these only run on
 // click, not during render.
@@ -263,9 +257,11 @@ export default function CollectionPage() {
 
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
     const net = sold.reduce(
-      (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice) : 0),
+      (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees) : 0),
       0,
     );
+    // Every sale has its real fee recorded → the fee figure drops its "≈".
+    const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null);
     const inPlay = [...drafts, ...listed].reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
 
     // Listed→sold gap, only over cards that carry both timestamps.
@@ -277,7 +273,7 @@ export default function CollectionPage() {
         ? gaps.reduce((sum, days) => sum + days, 0) / gaps.length
         : null;
 
-    return { drafts, listed, sold, earned, net, inPlay, avgDays };
+    return { drafts, listed, sold, earned, net, feesExact, inPlay, avgDays };
   }, [cards]);
 
   function toggleSelected(id: string) {
@@ -322,7 +318,7 @@ export default function CollectionPage() {
     };
     const header = [
       "Name", "Set", "Number", "Game", "Type", "Condition", "Status", "Price",
-      "Copies", "Scanned", "Listed", "Sold", "Sold price", "eBay listing",
+      "Copies", "Scanned", "Listed", "Sold", "Sold price", "eBay fees", "Net", "eBay listing",
     ];
     const day = (ts: number | null) => (ts ? new Date(ts).toISOString().slice(0, 10) : "");
     const lines = cards.map((c) =>
@@ -332,6 +328,13 @@ export default function CollectionPage() {
         c.condition, c.status, c.price.toFixed(2), c.quantity || 1,
         day(c.createdAt), day(c.listedAt), day(c.soldAt),
         c.soldPrice != null ? c.soldPrice.toFixed(2) : "",
+        // Actual Finances-API fee when synced, marked estimate otherwise.
+        c.soldPrice != null
+          ? c.soldFees != null
+            ? c.soldFees.toFixed(2)
+            : `est ${estimatedEbayFees(c.soldPrice).toFixed(2)}`
+          : "",
+        c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees).toFixed(2) : "",
         c.ebayListingUrl ?? "",
       ].map(esc).join(","),
     );
@@ -438,7 +441,7 @@ export default function CollectionPage() {
           </p>
           <p className="text-[11px] text-zinc-600">
             {stats.sold.length} sold
-            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ≈${(stats.earned - stats.net).toFixed(2)} eBay fees`}
+            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ${stats.feesExact ? "" : "≈"}${(stats.earned - stats.net).toFixed(2)} eBay fees`}
             {stats.avgDays !== null &&
               ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
           </p>
@@ -739,8 +742,11 @@ export default function CollectionPage() {
                     </form>
                   ) : card.status === "sold" && card.soldPrice != null ? (
                     <>
-                      <p className="text-lg font-bold tracking-tight text-emerald-400">
-                        ${netAfterFees(card.soldPrice).toFixed(2)}
+                      <p
+                        className="text-lg font-bold tracking-tight text-emerald-400"
+                        title={card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"}
+                      >
+                        ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
                       </p>
                       {/* The recorded sale price is editable in place — it
                           drives the Earned tiles, so a wrong one must be one

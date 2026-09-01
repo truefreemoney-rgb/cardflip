@@ -113,7 +113,10 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
           // Quantity-aware: a partial sale splits off a sold row and leaves
           // the listing live with the rest, so the card stays matchable for
           // later orders in this same window.
-          const result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt);
+          const result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt, {
+            orderId: order.orderId ?? null,
+            lineItemId: line.lineItemId ?? null,
+          });
           if (result) {
             await db
               .prepare("INSERT OR IGNORE INTO ebay_sold_lines (order_id, line_key, applied_at) VALUES (?, ?, ?)")

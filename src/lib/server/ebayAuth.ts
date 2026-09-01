@@ -65,6 +65,12 @@ export const USER_SCOPES = [
   // Read the seller's orders so a card that sells on eBay flips itself to
   // "sold" in the ledger instead of waiting on a manual button.
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
+  // Read the actual fees eBay charged on each sale (Finances API), so the
+  // ledger's "net" is the real payout, not the 13.25%+$0.30 estimate.
+  // Probed granted for this keyset 09-01 (authorize-URL with the scope alone
+  // rendered the consent page). Tokens issued before this scope will 403 on
+  // the Finances call → fee sync skips with "no_scope"; a reconnect fixes it.
+  "https://api.ebay.com/oauth/api_scope/sell.finances",
 ];
 
 /** Whether this deployment asks for (and so can use) the item-draft scope. */

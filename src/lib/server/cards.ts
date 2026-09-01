@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { ebayListingUrl } from "@/lib/ebayInventory";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE } from "@/lib/fees";
 import type { GameId } from "@/lib/types";
 
 export type CardStatus = "ready" | "listed" | "sold";
@@ -30,6 +31,12 @@ export interface CardRecord {
   listedAt: number | null;
   soldPrice: number | null;
   soldAt: number | null;
+  /** Actual fee eBay charged for this sale (Finances API). Null = not fetched
+   * yet — display falls back to the estimate in lib/fees.ts. */
+  soldFees: number | null;
+  /** eBay order/line the sold row came from, for the fee lookup. */
+  ebayOrderId: string | null;
+  ebayLineItemId: string | null;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -67,6 +74,9 @@ interface CardRow {
   listed_at: number | null;
   sold_price: number | null;
   sold_at: number | null;
+  sold_fees: number | null;
+  ebay_order_id: string | null;
+  ebay_line_item_id: string | null;
   ebay_sku: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
@@ -100,6 +110,9 @@ function fromRow(row: CardRow): CardRecord {
     listedAt: row.listed_at,
     soldPrice: row.sold_price,
     soldAt: row.sold_at,
+    soldFees: row.sold_fees ?? null,
+    ebayOrderId: row.ebay_order_id ?? null,
+    ebayLineItemId: row.ebay_line_item_id ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
@@ -176,6 +189,9 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     listedAt: null,
     soldPrice: null,
     soldAt: null,
+    soldFees: null,
+    ebayOrderId: null,
+    ebayLineItemId: null,
     ebayOfferId: null,
     ebayListingId: null,
     ebayListingUrl: null,
@@ -288,12 +304,22 @@ export async function recordCopiesSold(
   purchased: number,
   soldPrice: number | null,
   soldAt: number,
+  /** The eBay order/line behind this sale, so the fee sync can look up the
+   * actual charge later. Absent for manual "Mark sold". */
+  ebayRef?: { orderId: string | null; lineItemId: string | null },
 ): Promise<{ sold: CardRecord; remaining: CardRecord | null } | null> {
   const card = await getCardForUser(id, userId);
   if (!card) return null;
   const bought = Math.max(1, Math.floor(purchased));
   if (bought >= card.quantity) {
     const sold = await updateCard(id, userId, { status: "sold", soldPrice, soldAt });
+    if (sold && ebayRef?.orderId) {
+      await db
+        .prepare("UPDATE cards SET ebay_order_id = ?, ebay_line_item_id = ? WHERE id = ? AND user_id = ?")
+        .run(ebayRef.orderId, ebayRef.lineItemId, id, userId);
+      sold.ebayOrderId = ebayRef.orderId;
+      sold.ebayLineItemId = ebayRef.lineItemId;
+    }
     return sold ? { sold, remaining: null } : null;
   }
   const soldId = randomUUID();
@@ -302,8 +328,8 @@ export async function recordCopiesSold(
     .prepare(
       `INSERT INTO cards
          (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
-          status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, ebay_order_id, ebay_line_item_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       soldId,
@@ -322,12 +348,21 @@ export async function recordCopiesSold(
       card.listedAt,
       soldPrice,
       soldAt,
+      ebayRef?.orderId ?? null,
+      ebayRef?.lineItemId ?? null,
       now,
       now,
     );
   const remaining = await updateCard(id, userId, { quantity: card.quantity - bought });
   const sold = await getCardForUser(soldId, userId);
   return sold ? { sold, remaining } : null;
+}
+
+/** Server-written by the fee sync (ebayFinances.ts) only. */
+export async function setCardSoldFees(id: string, userId: string, fees: number): Promise<void> {
+  await db
+    .prepare("UPDATE cards SET sold_fees = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+    .run(fees, Date.now(), id, userId);
 }
 
 /** Server-written by the ended-listing sweep (ebayListings.ts) only. */
@@ -373,13 +408,18 @@ export async function updateCard(
     // Any status move settles the ended flag — sold/unlisted cards don't
     // need the chip, and a later manual "Mark listed" starts clean.
     ebay_ended_at: patch.status !== undefined ? null : existingRow.ebay_ended_at,
+    // "Not sold after all": leaving sold drops the sale's fee record and its
+    // eBay order link, or a later re-sale would wear the old sale's fees.
+    ...(patch.status !== undefined && patch.status !== "sold" && existingRow.status === "sold"
+      ? { sold_fees: null, ebay_order_id: null, ebay_line_item_id: null }
+      : {}),
     updated_at: Date.now(),
   };
 
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, ebay_ended_at = ?, updated_at = ?
+       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -390,6 +430,9 @@ export async function updateCard(
       merged.listed_at,
       merged.sold_price,
       merged.sold_at,
+      merged.sold_fees,
+      merged.ebay_order_id,
+      merged.ebay_line_item_id,
       merged.ebay_ended_at,
       merged.updated_at,
       id,
@@ -429,9 +472,6 @@ export interface PlatformStats {
   netRevenue: number;
 }
 
-const EBAY_FEE_RATE = 0.1325;
-const EBAY_FLAT_FEE = 0.3;
-
 export async function getPlatformStats(): Promise<PlatformStats> {
   const totals = (await db
     .prepare(
@@ -442,7 +482,10 @@ export async function getPlatformStats(): Promise<PlatformStats> {
          (SELECT COUNT(*) FROM cards WHERE status = 'ready') as readyCount,
          (SELECT COUNT(*) FROM cards WHERE status = 'listed') as listedCount,
          (SELECT COUNT(*) FROM cards WHERE status = 'sold') as soldCount,
-         (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold') as grossRevenue
+         (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold') as grossRevenue,
+         (SELECT COALESCE(SUM(sold_fees), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NOT NULL) as actualFees,
+         (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NULL) as unfetchedGross,
+         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price IS NOT NULL) as unfetchedCount
       `,
     )
     .get()) as {
@@ -453,15 +496,19 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     listedCount: number;
     soldCount: number;
     grossRevenue: number;
+    actualFees: number;
+    unfetchedGross: number;
+    unfetchedCount: number;
   };
 
+  // Actual Finances-API fees where recorded, the flat estimate for the rest.
+  const { actualFees, unfetchedGross, unfetchedCount, ...rest } = totals;
   const estimatedFees =
-    totals.grossRevenue > 0
-      ? totals.grossRevenue * EBAY_FEE_RATE + totals.soldCount * EBAY_FLAT_FEE
-      : 0;
+    actualFees +
+    (unfetchedGross > 0 ? unfetchedGross * EBAY_FEE_RATE + unfetchedCount * EBAY_FLAT_FEE : 0);
 
   return {
-    ...totals,
+    ...rest,
     estimatedFees,
     netRevenue: totals.grossRevenue - estimatedFees,
   };

@@ -393,6 +393,13 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Catalog id (pokemontcg.io / Scryfall) — keys the row into
       // price_series for the reprice nudge. Null on rows scanned before.
       "catalog_card_id TEXT",
+      // Real net-after-fees: the eBay order/line this sold row came from
+      // (written by the sales sync) and the actual fee the Finances API
+      // reported for it (lib/server/ebayFinances.ts). sold_fees NULL means
+      // "not fetched yet" — the UI falls back to the estimate.
+      "ebay_order_id TEXT",
+      "ebay_line_item_id TEXT",
+      "sold_fees REAL",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

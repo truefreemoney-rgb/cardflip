@@ -83,8 +83,10 @@ export async function ebayFetch(
   method: "GET" | "PUT" | "POST",
   path: string,
   body?: unknown,
+  /** The Finances API lives on apiz.ebay.com; everything else on api.ebay.com. */
+  base: string = API,
 ): Promise<unknown> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,

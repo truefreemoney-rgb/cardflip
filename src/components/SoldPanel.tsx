@@ -3,14 +3,10 @@
 import { useState } from "react";
 import CardImage from "@/components/CardImage";
 import type { ScanItem } from "@/lib/types";
-
-/**
- * eBay's collectibles final value fee is ~13.25% for most sellers as of 2024,
- * plus a flat per-order fee. Shown as a clearly-labeled estimate — actual
- * fees depend on the seller's store tier and category.
- */
-const EBAY_FEE_RATE = 0.1325;
-const EBAY_FLAT_FEE = 0.3;
+// Always the estimate here: this receipt renders the moment a sale is marked,
+// before the Finances sync could know the real fee. The ledger (My cards)
+// swaps in the actual figure once it lands.
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, estimatedEbayFees } from "@/lib/fees";
 
 function daysBetween(start: number, end: number): string {
   const days = Math.round((end - start) / 86_400_000);
@@ -30,7 +26,7 @@ interface Props {
 export default function SoldPanel({ item, onChange, onNext }: Props) {
   const card = item.card!;
   const salePrice = item.soldPrice ?? 0;
-  const fees = salePrice * EBAY_FEE_RATE + EBAY_FLAT_FEE;
+  const fees = estimatedEbayFees(salePrice);
   const net = Math.max(0, salePrice - fees);
   // The receipt is not a dead end (Chris, 09-01 QoL pass): the recorded sale
   // price drives the Earned tiles, so a wrong number must be fixable here —
