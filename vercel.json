@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "vercel-migration": false
+    }
+  },
   "crons": [
     { "path": "/api/cron/mtg-prices", "schedule": "0 9 * * *" },
     { "path": "/api/cron/pokemon-prices", "schedule": "45 9 * * *" }

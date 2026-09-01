@@ -21,8 +21,25 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**WHERE THINGS STAND (09-01 end, everything below deployed to prod,
-tsc/lint/tests green, working tree clean on `vercel-migration` = `main`):**
+**FIRST ACTION — PROD IS STALE, VERCEL RATE-LIMITED (09-01 ~10:54 UTC,
+free-tier daily build cap; "retry in 24 hours"): prod is stuck at
+844b4f3 (header = strip under logo). Commits AFTER it are pushed but
+NEVER BUILT: d0149f0 (Chris's chosen header: personal strip as
+centered row UNDER the tab panel), 09c0feb (scanner hero top-anchored,
+kills the big black gap), b627c39 (header grid from sm — zoom-band
+fix), + vercel.json (branch previews DISABLED so each change now costs
+1 build not 2). When the limit clears (~11:00 UTC 09-02): push any
+empty commit to main (`git commit --allow-empty -m redeploy` on main →
+push) or have Chris hit Redeploy in the Vercel dashboard, then verify
+cardflip.io/app header shows the strip UNDER the centered tabs and the
+hero starts right below the header. Chris also saw a bizarre
+right-shifted layout in his browser — believed to be the stale deploy;
+re-check with him after the redeploy. Vercel Pro ($20/mo) removes the
+cap if he'd rather not wait — his call.**
+
+**WHERE THINGS STAND (09-01 end, everything below deployed to prod
+EXCEPT the 3 commits above, tsc/lint/tests green, working tree clean
+on `vercel-migration` = `main`):**
 Huge shipping day. Vision stays on Opus (A/B said identical ID, Sonnet
 nulls condition — `scripts/ab-vision.mjs` re-runs it). Shipped: welcome
 email on subscribe; ended-listing sync + amber chip; condition-descriptor
