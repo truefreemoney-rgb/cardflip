@@ -947,7 +947,10 @@ export default function AppPage() {
           <p className="text-xs text-zinc-500">Pulling the match, prices, and your photo back up.</p>
         </main>
       ) : items.length === 0 ? (
-        <main className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
+        // Top-anchored, not vertically centered: centering pushed the hero
+        // halfway down a desktop viewport and left a wall of empty space
+        // above it (Chris, 09-01).
+        <main className="flex flex-1 flex-col items-center gap-8 px-4 pb-16 pt-6 sm:pt-12">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-white">
               Turn your binder into listings
