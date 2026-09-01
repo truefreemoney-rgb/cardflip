@@ -25,10 +25,14 @@ export default function AppHeader() {
           Row 2: the personal strip ("eBay connected · name · Sign out")
           centered under the tabs (Chris, 09-01) — off in its own row it can
           be any width without pushing the tabs off center. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr]">
+      {/* The grid kicks in from sm — between sm and md the old md: cutoff
+          left a plain justify-between flex, which parked the tabs at the
+          right edge (visible with browser zoom, Chris's screenshot 09-01).
+          Below sm the tabs wrap to their own full-width line. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
         <Logo size="sm" />
         <AppTabs />
-        <div aria-hidden className="hidden md:block" />
+        <div aria-hidden className="hidden sm:block" />
       </div>
       <div className="flex w-full items-center justify-center gap-4">
           {user && showEbay && (
