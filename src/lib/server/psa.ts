@@ -46,7 +46,14 @@ export async function lookupPsaCert(certNumber: string): Promise<PsaCertResult> 
 
   const res = await fetch(
     `https://api.psacard.com/publicapi/cert/GetByCertNumber/${encodeURIComponent(certNumber)}`,
-    { headers: { authorization: `bearer ${token}` } },
+    {
+      headers: {
+        authorization: `bearer ${token}`,
+        accept: "application/json",
+        // PSA sits behind a WAF that 403s UA-less datacenter requests.
+        "user-agent": "CardFlip/1.0 (cardflip.io)",
+      },
+    },
   );
   // PSA answers 204/empty bodies for unknown certs rather than a clean 404.
   if (res.status === 204) throw new PsaCertNotFound(certNumber);
