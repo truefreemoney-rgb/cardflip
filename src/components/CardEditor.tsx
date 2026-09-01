@@ -35,11 +35,13 @@ import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
   Condition,
+  GradedInfo,
   GradingCompany,
   PokemonCard,
   PriceStrategy,
   ScanItem,
 } from "@/lib/types";
+import { apiPath } from "@/lib/client/basePath";
 
 interface Props {
   item: ScanItem;
@@ -143,6 +145,96 @@ function ReadingState({ item }: { item: ScanItem }) {
           })}
         </ol>
       </div>
+    </div>
+  );
+}
+
+/** PSA slab verification: cert number → PSA's own record. Fills the grade,
+    remembers the cert on the item, and shows what PSA says the card is so a
+    mislabeled slab is caught before it's priced. Budgeted hard server-side
+    (PSA free tier = 100 lookups/day app-wide) — one click, one call. */
+function PsaCertVerify({
+  grading,
+  onVerified,
+}: {
+  grading: GradedInfo;
+  onVerified: (grading: GradedInfo) => void;
+}) {
+  const [cert, setCert] = useState(grading.cert ?? "");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ label: string; gradeDescription: string; totalPopulation: number | null } | null>(null);
+
+  async function verify() {
+    const certNumber = cert.trim();
+    if (!certNumber || checking) return;
+    setChecking(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch(apiPath(`/api/psa/cert/${encodeURIComponent(certNumber)}`));
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "PSA lookup failed — try again");
+        return;
+      }
+      const found = data.cert as {
+        certNumber: string;
+        grade: string | null;
+        gradeDescription: string;
+        label: string;
+        totalPopulation: number | null;
+      };
+      setResult(found);
+      // Only grades on PSA's real ladder land in the dropdown; an odd one
+      // (qualifiers, DNA) leaves the seller's pick alone and just shows.
+      const grade = found.grade && gradesFor("PSA").includes(found.grade) ? found.grade : grading.grade;
+      onVerified({ company: "PSA", grade, cert: found.certNumber });
+    } catch {
+      setError("PSA lookup failed — check your connection");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-zinc-300" htmlFor="psa-cert">
+        PSA cert number{" "}
+        <span className="font-normal text-zinc-500">(on the slab label — verifies the grade)</span>
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="psa-cert"
+          value={cert}
+          onChange={(e) => setCert(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void verify()}
+          inputMode="numeric"
+          placeholder="e.g. 82345678"
+          className="w-40 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+        />
+        <button
+          type="button"
+          onClick={() => void verify()}
+          disabled={checking || !cert.trim()}
+          className="flex items-center gap-2 rounded-lg border border-edge px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:opacity-50"
+        >
+          {checking && <Spinner className="h-3.5 w-3.5" />}
+          Verify
+        </button>
+      </div>
+      {result && (
+        <p className="text-xs leading-snug text-emerald-400">
+          ✓ PSA {result.gradeDescription}: {result.label}
+          {result.totalPopulation != null && (
+            <span className="text-zinc-500"> · pop {result.totalPopulation.toLocaleString()}</span>
+          )}
+        </p>
+      )}
+      {!result && grading.cert && !error && (
+        <p className="text-xs text-zinc-500">Cert {grading.cert} verified earlier.</p>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -722,6 +814,16 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           </label>
         )}
       </div>
+
+      {item.grading?.company === "PSA" && (
+        <PsaCertVerify
+          grading={item.grading}
+          onVerified={(grading) => {
+            onChange({ grading, priceOverride: null });
+            syncLedgerCondition({ grading });
+          }}
+        />
+      )}
 
       {/* The slab pricing note replaces the quick/market tiles: both of those
           are derived from raw-card market data, which only sets a floor for a

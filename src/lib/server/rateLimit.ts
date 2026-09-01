@@ -125,6 +125,10 @@ export const LIMITS = {
     { limit: 60, windowMs: DAY },
   ] as RateLimitRule[],
   ebayComps: [{ limit: 60, windowMs: MINUTE }] as RateLimitRule[],
+  /** Per-user burst guard on PSA cert lookups. */
+  psaCert: [{ limit: 10, windowMs: MINUTE }] as RateLimitRule[],
+  /** PSA's free tier is 100 calls/day for the whole app — keep 20 in reserve. */
+  psaCertGlobal: [{ limit: 80, windowMs: DAY }] as RateLimitRule[],
   /** Unauthenticated (landing ticker uses it) — per IP, generous. */
   searchCard: [{ limit: 120, windowMs: MINUTE }] as RateLimitRule[],
   /** Sign-in / signup / reset: brute-force backstop, per IP. */

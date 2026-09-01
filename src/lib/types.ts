@@ -203,6 +203,8 @@ export interface GradedInfo {
   company: GradingCompany;
   /** One of gradesFor(company) in lib/grading.ts — "10", "8.5", "10 Pristine". */
   grade: string;
+  /** PSA cert number once verified via the PSA API — absent on older items. */
+  cert?: string;
 }
 
 /** One card moving through the scan → price → listing → sale pipeline. */
