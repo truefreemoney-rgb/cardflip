@@ -45,7 +45,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
 
   async function remove(u: AdminUserRow) {
     const rl = rollups[u.id];
-    if (!window.confirm(`Delete ${u.name} (${u.email})?\n\nThis removes their ${rl?.cards ?? 0} cards, ${rl?.wishlist ?? 0} wishlist items and sessions. It can't be undone.`)) return;
+    if (!window.confirm(`Delete ${u.name} (${u.email})?\n\nThis removes their ${rl?.cards ?? 0} cards, ${rl?.wishlist ?? 0} watchlist items and sessions. It can't be undone.`)) return;
     setBusyId(u.id);
     setError(null);
     try {

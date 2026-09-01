@@ -11,7 +11,7 @@ const sections: LegalSection[] = [
     heading: "What we collect",
     paragraphs: [
       "Account details: your name, email address, and password. Passwords are stored hashed — we cannot read them.",
-      "Your selling data: the card photos you upload, the cards you match, the conditions, grades, and prices you set, your wishlist, and the status of each item (draft, listed, sold). This is the product — it is what the app stores so your inventory is there when you come back.",
+      "Your selling data: the card photos you upload, the cards you match, the conditions, grades, and prices you set, your watchlist, and the status of each item (draft, listed, sold). This is the product — it is what the app stores so your inventory is there when you come back.",
       "Basic technical logs: requests to our servers, with timestamps and IP addresses, kept for debugging and abuse prevention.",
       "That is the list. There is no advertising, no analytics profile, and no tracking across other sites. The only cookie CardFlip sets is the session cookie that keeps you logged in.",
     ],

@@ -353,7 +353,7 @@ function AccountSettings({
               ["Cards", d.cards],
               ["Listed", d.listed],
               ["Sold", d.sold],
-              ["Wishlist", d.wishlist],
+              ["Watchlist", d.wishlist],
             ].map(([k, v]) => (
               <div key={k} className="rounded-xl bg-black/30 px-3 py-2.5">
                 <dt className="text-[11px] uppercase tracking-wide text-zinc-500">{k}</dt>
@@ -578,7 +578,7 @@ function AccountSettings({
       <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
         <h2 className="text-base font-semibold text-red-300">Delete account</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Removes your cards, photos, wishlist, price checks and eBay link from CardFlip. Anything already published on eBay stays on eBay. This can&apos;t be undone.
+          Removes your cards, photos, watchlist, price checks and eBay link from CardFlip. Anything already published on eBay stays on eBay. This can&apos;t be undone.
         </p>
         {!delOpen ? (
           <button type="button" className="mt-4 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50" onClick={() => setDelOpen(true)} disabled={demo}>

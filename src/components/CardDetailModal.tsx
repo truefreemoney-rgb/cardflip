@@ -34,9 +34,9 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
     setSaving(false);
     if (result) {
       setSaved(true);
-      toast(`${card.name} added to your wishlist`);
+      toast(`${card.name} added to your watchlist`);
     } else {
-      toast("Couldn't save to wishlist — try again", "err");
+      toast("Couldn't save to watchlist — try again", "err");
     }
   }
 
@@ -122,7 +122,7 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
               }`}
             >
               {saving && <Spinner className="h-3.5 w-3.5" />}
-              {saved ? "★ Saved to wishlist" : "☆ Add to wishlist"}
+              {saved ? "★ Saved to watchlist" : "☆ Add to watchlist"}
             </button>
           </div>
         </div>

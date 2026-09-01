@@ -80,21 +80,21 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
     `${h.name} (${h.set} · ${h.number}) — now $${h.price.toFixed(2)}, your alert was $${h.target.toFixed(2)}`;
   const text = [
     hits.length === 1
-      ? "A card on your CardFlip wishlist dipped to your alert price."
-      : `${hits.length} cards on your CardFlip wishlist dipped to your alert prices.`,
+      ? "A card on your CardFlip watchlist dipped to your alert price."
+      : `${hits.length} cards on your CardFlip watchlist dipped to your alert prices.`,
     "",
     ...hits.map((h) => "· " + line(h)),
     "",
-    `Your wishlist: ${site}/app/wishlist`,
+    `Your watchlist: ${site}/app/wishlist`,
     "",
     "Prices refresh once a day. This alert won't repeat unless you set a new target.",
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
-    <p>${hits.length === 1 ? "A card on your CardFlip wishlist dipped to your alert price." : `${hits.length} cards on your CardFlip wishlist dipped to your alert prices.`}</p>
+    <p>${hits.length === 1 ? "A card on your CardFlip watchlist dipped to your alert price." : `${hits.length} cards on your CardFlip watchlist dipped to your alert prices.`}</p>
     <ul>${hits.map((h) => `<li>${line(h).replace(/&/g, "&amp;").replace(/</g, "&lt;")}</li>`).join("")}</ul>
-    <p><a href="${site}/app/wishlist" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your wishlist</a></p>
+    <p><a href="${site}/app/wishlist" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your watchlist</a></p>
     <p style="color:#666;font-size:13px">Prices refresh once a day. This alert won't repeat unless you set a new target.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({
@@ -103,7 +103,7 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
     subject:
       hits.length === 1
         ? `${hits[0].name} dipped to $${hits[0].price.toFixed(2)}`
-        : `${hits.length} wishlist cards hit your alert prices`,
+        : `${hits.length} watchlist cards hit your alert prices`,
     text,
     html,
   });

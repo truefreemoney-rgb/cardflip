@@ -337,7 +337,7 @@ export default function WishlistPage() {
       return;
     }
     setAddedIds((prev) => new Set(prev).add(card.id));
-    toast(`${card.name} added to your wishlist`);
+    toast(`${card.name} added to your watchlist`);
     // The server no-ops on duplicates and returns the existing row, so only
     // prepend when it isn't already in the grid.
     setItems((prev) =>
@@ -389,7 +389,7 @@ export default function WishlistPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Wishlist</h1>
+          <h1 className="text-2xl font-semibold text-white">Watchlist</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Cards you&apos;re hunting for — search the database or drop a
             picture to add one.
@@ -499,7 +499,7 @@ export default function WishlistPage() {
                       added ? "text-emerald-400" : "text-brand-300"
                     }`}
                   >
-                    {added ? "★ On wishlist" : "☆ Add to wishlist"}
+                    {added ? "★ On watchlist" : "☆ Add to watchlist"}
                   </span>
                 </button>
               );
@@ -522,7 +522,7 @@ export default function WishlistPage() {
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
           <div className="text-3xl">☆</div>
           <p className="text-sm font-medium text-white">
-            Your wishlist is empty
+            Your watchlist is empty
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
             Search for a card above or drop a picture of one — no need to
@@ -536,13 +536,13 @@ export default function WishlistPage() {
               <input
                 value={listFilter}
                 onChange={(e) => setListFilter(e.target.value)}
-                placeholder="Filter your wishlist…"
+                placeholder="Filter your watchlist…"
                 className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
               />
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
-                aria-label="Sort wishlist"
+                aria-label="Sort watchlist"
                 className="rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-xs text-zinc-300 outline-none transition focus:border-brand-400"
               >
                 <option value="newest">Newest first</option>
@@ -563,7 +563,7 @@ export default function WishlistPage() {
             >
               <button
                 onClick={() => handleRemove(item.id)}
-                aria-label={`Remove ${item.cardName} from wishlist`}
+                aria-label={`Remove ${item.cardName} from watchlist`}
                 className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
               >
                 <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">

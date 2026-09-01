@@ -474,7 +474,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             }`}
           >
             {wishlisting && <Spinner className="h-3 w-3" />}
-            {wishlisted ? "★ Saved to wishlist" : "☆ Add to wishlist"}
+            {wishlisted ? "★ Saved to watchlist" : "☆ Add to watchlist"}
           </button>
 
           {item.candidates.length > 1 && (

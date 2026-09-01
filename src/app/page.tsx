@@ -317,7 +317,7 @@ export default async function Home() {
                   "Live TCGplayer market pricing for the exact printing",
                   "eBay listings written and pre-filled for you",
                   "Every card tracked from draft to listed to sold",
-                  "Wishlist and price-check tools",
+                  "Watchlist with price alerts, plus price-check tools",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2.5">
                     <span className="mt-0.5 text-emerald-400" aria-hidden>

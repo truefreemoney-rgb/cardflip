@@ -69,7 +69,7 @@ export default async function AdminPage() {
     { label: "Gross sales", value: money(s.grossRevenue) },
     { label: "Est. eBay fees", value: money(s.estimatedFees) },
     { label: "Net to sellers", value: money(s.netRevenue), accent: "good" },
-    { label: "Wishlist items", value: num(s.wishlistItems) },
+    { label: "Watchlist items", value: num(s.wishlistItems) },
     { label: "Price checks", value: `${num(s.priceChecks7d)}`, sub: "this week" },
   ];
 
