@@ -38,11 +38,13 @@ checkbox mass delete; graded round-trip (editor syncs "PSA 10" to ledger
 live, resume parses it back).
 
 **NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
-(a) auto-offers to watchers — needs sell.negotiation scope: probe keyset
-first (unheld scope kills the whole Connect flow, cf. 08-27), then one
-reconnect; (b) photo-first sealed re-add (Chris: "sometime later");
-(c) graded cert-number lookup (needs PSA/CGC API key from Chris);
-(d) real net-after-fees (sell.finances scope, same reconnect); (e) test
+(a) auto-offers to watchers — scope PROBED 09-01 (authorize-URL with the
+scope alone, no login needed; error page = ungranted): sell.negotiation
+NOT granted → BLOCKED until Chris requests it at
+developer.ebay.com/my/keys; (b) photo-first sealed re-add (Chris:
+"sometime later"); (c) graded cert-number lookup (needs PSA/CGC API key
+from Chris); (d) real net-after-fees — sell.finances IS granted (same
+09-01 probe): GO, add scope to USER_SCOPES + one reconnect; (e) test
 suites — auth DONE 09-01 (`npm run test:auth` = password/sessions/reset
 libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
 called as plain functions; both chdir to a temp dir so the db lands
