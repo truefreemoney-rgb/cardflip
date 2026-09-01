@@ -411,8 +411,8 @@ export default function WishlistPage() {
         <div>
           <h1 className="text-2xl font-semibold text-white">Watchlist</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Cards you&apos;re hunting for — search the database or drop a
-            picture to add one.
+            Cards you&apos;re hunting for — search the database or add one
+            from a photo.
           </p>
         </div>
         {items.length > 0 && (
@@ -447,6 +447,10 @@ export default function WishlistPage() {
           </button>
         </div>
 
+        {/* Same road as the scanner: a plain Choose-photos button (Chris,
+            09-01 — the dashed drop zone read as clutter, especially on
+            phones where dragging doesn't exist). Desktop drag-and-drop
+            still works: the button doubles as the drop target. */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -458,23 +462,26 @@ export default function WishlistPage() {
             setDragActive(false);
             void handleImage(e.dataTransfer.files?.[0]);
           }}
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-          className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-6 text-sm transition ${
-            dragActive
-              ? "border-brand-400 bg-brand-500/10 text-brand-300"
-              : "border-edge-strong text-zinc-500 hover:border-brand-400/50 hover:text-zinc-400"
-          }`}
+          className="flex items-center gap-3"
         >
-          {busy === "identify" ? (
-            <>
-              <Spinner className="h-4 w-4" /> Identifying…
-            </>
-          ) : (
-            <>Drop a picture of the card here — or click to browse</>
-          )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy === "identify"}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-70 ${
+              dragActive ? "bg-brand-400 ring-2 ring-brand-300" : "bg-brand-500 hover:bg-brand-400"
+            }`}
+          >
+            {busy === "identify" ? (
+              <>
+                <Spinner className="h-4 w-4" /> Identifying…
+              </>
+            ) : (
+              "Choose photos"
+            )}
+          </button>
+          <span className="text-xs text-zinc-600">
+            No card in hand? A photo works — we&apos;ll identify it.
+          </span>
         </div>
         <input
           ref={fileInputRef}
@@ -565,7 +572,7 @@ export default function WishlistPage() {
             Your watchlist is empty
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
-            Search for a card above or drop a picture of one — no need to
+            Search for a card above or add one from a photo — no need to
             have it in hand.
           </p>
         </div>
