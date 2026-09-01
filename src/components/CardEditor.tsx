@@ -357,12 +357,26 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
                 {gradeLabel(item.grading)}
               </span>
             )}
-            {quote && (
-              <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400">
-                Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
-                {quote.price.label}
-              </span>
-            )}
+            {quote &&
+              // An eBay-asking basis ("eBay asking (57 listings)") is built
+              // from a real search — link the chip to those listings so the
+              // seller can eyeball what the average is made of.
+              (/^eBay/i.test(quote.price.label) && item.ebay?.searchUrl ? (
+                <a
+                  href={item.ebay.searchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
+                >
+                  Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
+                  {quote.price.label} ↗
+                </a>
+              ) : (
+                <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400">
+                  Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
+                  {quote.price.label}
+                </span>
+              ))}
             {item.visionStatus === "done" && item.vision && (
               <span className="rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-300">
                 Read from photo
