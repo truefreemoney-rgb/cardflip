@@ -361,9 +361,12 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
               // An eBay-asking basis ("eBay asking (57 listings)") is built
               // from a real search — link the chip to those listings so the
               // seller can eyeball what the average is made of.
-              (/^eBay/i.test(quote.price.label) && item.ebay?.searchUrl ? (
+              (/^eBay/i.test(quote.price.label) ? (
                 <a
-                  href={item.ebay.searchUrl}
+                  // Restored queue items can lose the comps object but keep
+                  // the eBay-asking label; the local URL builder is the same
+                  // search, so the chip always links.
+                  href={item.ebay?.searchUrl ?? ebaySearchUrl(card, facts)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
