@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
 import CameraCapture from "@/components/CameraCapture";
+import Spinner from "@/components/Spinner";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
@@ -34,6 +35,7 @@ import {
   updateServerCard,
 } from "@/lib/client/cardsApi";
 import { toast } from "@/components/Toaster";
+import { apiPath } from "@/lib/client/basePath";
 import { saveQueue } from "@/lib/client/queuePersistence";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
@@ -497,8 +499,12 @@ export default function AppPage() {
   // (Chris, 09-01 — he was rescanning cards just to get the build page
   // back). The search re-fetches the catalog card with prices; the row
   // supplies photo, price, condition and quantity. Fresh-start rule stays:
-  // nothing restores without the explicit link.
+  // nothing restores without the explicit link. `resuming` starts true when
+  // the param is present so the empty-state hero never flashes first.
   const resumedRef = useRef(false);
+  const [resuming, setResuming] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("resume"),
+  );
   useEffect(() => {
     if (resumedRef.current) return;
     const resumeId = new URLSearchParams(window.location.search).get("resume");
@@ -509,6 +515,7 @@ export default function AppPage() {
       const rows = await fetchServerCards();
       const row = rows.find((r) => r.id === resumeId);
       if (!row || row.kind === "sealed" || row.status === "sold") {
+        setResuming(false);
         toast("Couldn't reopen that card here — scan it again");
         return;
       }
@@ -517,6 +524,7 @@ export default function AppPage() {
       const card =
         results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
       if (!card) {
+        setResuming(false);
         toast("Couldn't look that card up again — scan it to rebuild the listing");
         return;
       }
@@ -525,6 +533,9 @@ export default function AppPage() {
       const { grading } = parseGradeQuery(row.condition);
       const item: ScanItem = {
         ...createItem(null, "en", game),
+        // The stored scan photo — it IS the eBay listing image, so the
+        // "Your photo" panel must show it beside the match on resume.
+        previewUrl: row.photoAt ? apiPath(`/api/card-image/${row.id}?v=${row.photoAt}`) : "",
         status: row.status === "listed" ? "listed" : "ready",
         serverId: row.id,
         candidates: results,
@@ -544,6 +555,7 @@ export default function AppPage() {
       };
       commit([...itemsRef.current, item]);
       setSelectedId(item.id);
+      setResuming(false);
       if (row.status !== "listed") void loadEbayComps(item.id, card);
     })();
   }, [commit, loadEbayComps]);
@@ -778,7 +790,15 @@ export default function AppPage() {
         </div>
       )}
 
-      {items.length === 0 ? (
+      {resuming && items.length === 0 ? (
+        // Reopening from My cards: a quiet loader instead of flashing the
+        // first-scan hero for the second the rebuild takes.
+        <main className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-16 text-zinc-400">
+          <Spinner className="h-6 w-6" />
+          <p className="text-sm font-medium text-white">Reopening your card…</p>
+          <p className="text-xs text-zinc-500">Pulling the match, prices, and your photo back up.</p>
+        </main>
+      ) : items.length === 0 ? (
         <main className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-white">
