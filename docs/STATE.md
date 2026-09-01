@@ -40,8 +40,10 @@ live, resume parses it back).
 **NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
 (a) auto-offers to watchers — scope PROBED 09-01 (authorize-URL with the
 scope alone, no login needed; error page = ungranted): sell.negotiation
-NOT granted → BLOCKED until Chris requests it at
-developer.ebay.com/my/keys; (b) photo-first sealed re-add (Chris:
+NOT granted → Growth Check REQUESTED 09-01, ticket 260901-000003
+(eta 1-2 business days; check Chris's dev-account email / My Tickets;
+when approved: re-probe scope via authorize-URL, then build); (b)
+photo-first sealed re-add (Chris:
 "sometime later"); (c) graded cert-number lookup (needs PSA/CGC API key
 from Chris); (d) real net-after-fees — sell.finances IS granted (same
 09-01 probe): GO, add scope to USER_SCOPES + one reconnect; (e) test
