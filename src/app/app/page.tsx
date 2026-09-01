@@ -358,6 +358,7 @@ export default function AppPage() {
               condition,
               price: quote?.suggested ?? 0,
               game: next.game,
+              catalogCardId: card.id || null,
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.

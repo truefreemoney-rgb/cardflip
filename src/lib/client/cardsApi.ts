@@ -19,6 +19,8 @@ export interface ServerCard {
   price: number;
   /** Identical copies this row sells (listing quantity, default 1). */
   quantity: number;
+  /** Catalog id (pokemontcg.io / Scryfall); null on rows scanned before it was stored. */
+  catalogCardId: string | null;
   listedAt: number | null;
   soldPrice: number | null;
   soldAt: number | null;
@@ -47,6 +49,7 @@ export interface CreateCardInput {
   condition: string;
   productType?: string | null;
   price: number;
+  catalogCardId?: string | null;
 }
 
 export interface UpdateCardInput {
@@ -67,6 +70,50 @@ export async function fetchServerCards(): Promise<ServerCard[]> {
     return data.cards ?? [];
   } catch {
     return [];
+  }
+}
+
+export interface RepriceNudge {
+  cardId: string;
+  market: number;
+  listedPrice: number;
+  /** (market - listed) / listed; negative = market fell below the ask. */
+  drift: number;
+}
+
+/** Listed cards whose asking price the market has left behind (±15%, 7d+). */
+export async function fetchRepriceNudges(): Promise<RepriceNudge[]> {
+  try {
+    const res = await fetch(apiPath("/api/cards/reprice-nudges"));
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.nudges ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export interface RepriceResult {
+  ok: boolean;
+  /** True when the live eBay offer took the new price too. */
+  ebayUpdated: boolean;
+  /** eBay's words when it didn't (ledger price is still changed). */
+  ebayError: string | null;
+}
+
+/** Apply a nudge: new ledger price + the live eBay offer where one exists. */
+export async function repriceCard(cardId: string, price: number): Promise<RepriceResult> {
+  try {
+    const res = await fetch(apiPath("/api/ebay/reprice"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId, price }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, ebayUpdated: false, ebayError: data?.error ?? null };
+    return { ok: true, ebayUpdated: Boolean(data?.ebayUpdated), ebayError: data?.ebayError ?? null };
+  } catch {
+    return { ok: false, ebayUpdated: false, ebayError: null };
   }
 }
 

@@ -25,6 +25,8 @@ export interface CardRecord {
   price: number;
   /** How many identical copies this row sells (listing quantity). */
   quantity: number;
+  /** Catalog id (pokemontcg.io / Scryfall) — keys into price_series. */
+  catalogCardId: string | null;
   listedAt: number | null;
   soldPrice: number | null;
   soldAt: number | null;
@@ -61,6 +63,7 @@ interface CardRow {
   status: CardStatus;
   price: number;
   quantity: number | null;
+  catalog_card_id: string | null;
   listed_at: number | null;
   sold_price: number | null;
   sold_at: number | null;
@@ -93,6 +96,7 @@ function fromRow(row: CardRow): CardRecord {
     status: row.status,
     price: row.price,
     quantity: row.quantity ?? 1,
+    catalogCardId: row.catalog_card_id ?? null,
     listedAt: row.listed_at,
     soldPrice: row.sold_price,
     soldAt: row.sold_at,
@@ -121,6 +125,7 @@ export interface NewCard {
   condition: string;
   productType?: string | null;
   price: number;
+  catalogCardId?: string | null;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
@@ -133,8 +138,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, catalog_card_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -148,6 +153,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.condition,
       productType,
       card.price,
+      card.catalogCardId ?? null,
       now,
       now,
     );
@@ -166,6 +172,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     status: "ready",
     price: card.price,
     quantity: 1,
+    catalogCardId: card.catalogCardId ?? null,
     listedAt: null,
     soldPrice: null,
     soldAt: null,
@@ -295,8 +302,8 @@ export async function recordCopiesSold(
     .prepare(
       `INSERT INTO cards
          (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
-          status, price, quantity, listed_at, sold_price, sold_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?)`,
+          status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       soldId,
@@ -311,6 +318,7 @@ export async function recordCopiesSold(
       card.productType,
       card.price,
       bought,
+      card.catalogCardId,
       card.listedAt,
       soldPrice,
       soldAt,

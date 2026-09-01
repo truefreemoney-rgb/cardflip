@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
-import { getPriceHistory } from "@/lib/server/priceHistory";
+import { latestUsdPrice } from "@/lib/server/priceHistory";
 
 /**
  * The daily check behind "email me when it dips to $X" on wishlist rows.
@@ -19,7 +19,6 @@ import { getPriceHistory } from "@/lib/server/priceHistory";
  */
 
 const CHECK_CAP = 200;
-const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
 
 interface AlertRow {
   id: string;
@@ -31,20 +30,6 @@ interface AlertRow {
   card_id: string;
   alert_price: number;
   email: string;
-}
-
-/** The latest USD price we hold for a catalog card, or null. */
-async function latestUsd(cardId: string): Promise<number | null> {
-  const series = (await getPriceHistory(cardId)).filter(
-    (s) => s.currency === "USD" && s.points.length > 0,
-  );
-  if (series.length === 0) return null;
-  series.sort(
-    (a, b) =>
-      (VARIANT_ORDER.indexOf(a.variant) + 1 || 99) - (VARIANT_ORDER.indexOf(b.variant) + 1 || 99),
-  );
-  const points = series[0].points;
-  return points[points.length - 1]?.price ?? null;
 }
 
 export interface AlertSweepResult {
@@ -66,7 +51,7 @@ export async function sweepWishlistAlerts(now = Date.now()): Promise<AlertSweepR
 
   const hitsByUser = new Map<string, { email: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
-    const price = await latestUsd(row.card_id);
+    const price = await latestUsdPrice(row.card_id);
     if (price == null || price > row.alert_price) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, hits: [] };
     entry.hits.push({

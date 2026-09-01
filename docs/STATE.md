@@ -25,6 +25,19 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 late — REPRICE NUDGE SHIPPED (half of BACKLOG's auto-offers item):**
+new `cards.catalog_card_id` (saved at scan; old rows don't nudge),
+`repriceNudges.ts` compares listed price vs latest price_series USD point
+(±15%, listed 7d+, cap 50) via GET /api/cards/reprice-nudges; collection
+listed rows show amber "Market $X — reprice" button → POST /api/ebay/reprice
+(ledger price always; live offer via new `updateOfferPrice` in ebaySell —
+GET offer + PUT with pricingSummary swapped; eBay failure reported, ledger
+keeps new price). Verified in dev incl. real nudge computation (base1-58,
+-59% drift) + UI; live-offer PUT untested against real eBay. Also market
+chip → eBay link (best-match sort, `2b2a260`+`2dbf1e8`+`a770848`). OTHER
+HALF (auto-offers to watchers) NOT built — needs sell.negotiation scope =
+keyset probe + reconnect; discuss with Chris first.
+
 **09-01 late — three small ships:** (a) wishlist PRICE ALERTS — "🔔 price
 alert" per row (needs cardId), target saved via PATCH /api/wishlist/[id]
 (wishlist_items.alert_price/alerted_at), daily sweep

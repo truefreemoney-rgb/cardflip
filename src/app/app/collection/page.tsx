@@ -6,8 +6,11 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
+  fetchRepriceNudges,
   fetchServerCards,
+  repriceCard,
   updateServerCard,
+  type RepriceNudge,
   type ServerCard,
 } from "@/lib/client/cardsApi";
 import { syncEbaySales } from "@/lib/client/ebayApi";
@@ -77,6 +80,9 @@ export default function CollectionPage() {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
   const [syncError, setSyncError] = useState<string | null>(null);
+  // Listed cards the market has moved away from (keyed by card id).
+  const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
+  const [repricing, setRepricing] = useState<string | null>(null);
 
   const userId = user?.id;
   const [saleNote, setSaleNote] = useState<string | null>(null);
@@ -120,10 +126,39 @@ export default function CollectionPage() {
         );
       }
     });
+    // Stale-price nudges, from our own price history — cheap enough to ask
+    // on every load.
+    void fetchRepriceNudges().then((list) => {
+      if (!cancelled && list.length > 0) {
+        setNudges(Object.fromEntries(list.map((n) => [n.cardId, n])));
+      }
+    });
     return () => {
       cancelled = true;
     };
   }, [userId]);
+
+  async function applyReprice(card: ServerCard, nudge: RepriceNudge) {
+    setRepricing(card.id);
+    setSyncError(null);
+    const result = await repriceCard(card.id, nudge.market);
+    setRepricing(null);
+    if (!result.ok) {
+      setSyncError(`Couldn't reprice ${card.cardName} — try again.`);
+      return;
+    }
+    patchCard(card.id, { price: nudge.market });
+    setNudges((prev) => {
+      const next = { ...prev };
+      delete next[card.id];
+      return next;
+    });
+    if (card.ebayListingUrl && !result.ebayUpdated) {
+      setSyncError(
+        `${card.cardName} is $${nudge.market.toFixed(2)} here now, but eBay didn't take the change${result.ebayError ? ` (${result.ebayError})` : ""} — update the live listing on eBay.`,
+      );
+    }
+  }
 
   function patchCard(id: string, patch: Partial<ServerCard>) {
     setCards((prev) =>
@@ -461,9 +496,23 @@ export default function CollectionPage() {
                       </p>
                     </>
                   ) : (
-                    <p className="text-lg font-bold tracking-tight text-white">
-                      ${card.price.toFixed(2)}
-                    </p>
+                    <>
+                      <p className="text-lg font-bold tracking-tight text-white">
+                        ${card.price.toFixed(2)}
+                      </p>
+                      {card.status === "listed" && nudges[card.id] && (
+                        <button
+                          onClick={() => void applyReprice(card, nudges[card.id])}
+                          disabled={repricing === card.id}
+                          title={`The market moved ${nudges[card.id].drift > 0 ? "up" : "down"} ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% since this listed — one click updates the price here and on the live eBay listing.`}
+                          className="mt-0.5 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-50"
+                        >
+                          {repricing === card.id
+                            ? "Repricing…"
+                            : `Market $${nudges[card.id].market.toFixed(2)} — reprice`}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 

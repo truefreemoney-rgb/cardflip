@@ -99,6 +99,27 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
   }));
 }
 
+/**
+ * The latest USD price we hold for a catalog card, or null. When a card has
+ * several USD variants the reference is the printing people usually mean
+ * ("normal" first, then holofoil), not the cheapest — a holo comparison
+ * shouldn't ride the plain printing's price. Shared by the wishlist alert
+ * sweep and the reprice nudge.
+ */
+const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
+export async function latestUsdPrice(cardId: string): Promise<number | null> {
+  const series = (await getPriceHistory(cardId)).filter(
+    (s) => s.currency === "USD" && s.points.length > 0,
+  );
+  if (series.length === 0) return null;
+  series.sort(
+    (a, b) =>
+      (VARIANT_ORDER.indexOf(a.variant) + 1 || 99) - (VARIANT_ORDER.indexOf(b.variant) + 1 || 99),
+  );
+  const points = series[0].points;
+  return points[points.length - 1]?.price ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Lazy daily sweep of the cards people actually hold.
 

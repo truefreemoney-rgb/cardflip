@@ -386,6 +386,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Identical copies sold as one listing with N available (09-01);
       // partial sales split a sold row off and decrement this.
       "quantity INTEGER NOT NULL DEFAULT 1",
+      // Catalog id (pokemontcg.io / Scryfall) — keys the row into
+      // price_series for the reprice nudge. Null on rows scanned before.
+      "catalog_card_id TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

@@ -590,6 +590,29 @@ export interface PublishOptions {
   shipFrom?: { postalCode: string; country: string } | null;
 }
 
+/**
+ * Change the asking price on this card's eBay offer — live listings update in
+ * place. Same replace-the-whole-offer dance as publishDraft: GET the current
+ * offer, PUT it back with only pricingSummary changed. Throws EbaySellError;
+ * a 404/25713 (offer gone) surfaces as-is — the reprice caller treats any
+ * failure as "ledger updated, eBay didn't" and says so.
+ */
+export async function updateOfferPrice(userId: string, cardId: string, price: number): Promise<void> {
+  const card = await getCardForUser(cardId, userId);
+  if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
+  if (!card.ebayOfferId) throw new EbaySellError("This card has no eBay offer to reprice", 409);
+  const token = await tokenFor(userId);
+  const offerPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}`;
+  const current = (await ebayFetch(token, "GET", offerPath)) as Record<string, unknown> | null;
+  if (!current) throw new EbaySellError("eBay returned no offer to update", 502);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { offerId, sku, marketplaceId, format, status, listing, ...rest } = current;
+  await ebayFetch(token, "PUT", offerPath, {
+    ...rest,
+    pricingSummary: { price: { currency: "USD", value: price.toFixed(2) } },
+  });
+}
+
 export async function publishDraft(
   userId: string,
   cardId: string,

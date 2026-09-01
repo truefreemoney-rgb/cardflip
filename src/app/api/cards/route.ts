@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       condition,
       productType,
       price,
+      catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId : null,
     });
     return NextResponse.json({ card }, { status: 201 });
   } catch (err) {
