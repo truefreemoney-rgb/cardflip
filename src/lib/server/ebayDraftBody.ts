@@ -33,6 +33,7 @@ export function draftInputFromBody(body: unknown): Omit<DraftInput, "hasPhoto"> 
         ? { company: b.grading.company, grade: String(b.grading.grade ?? "") }
         : null,
     firstEdition: Boolean(b.firstEdition),
+    quantity: Number.isFinite(Number(b.quantity)) ? Math.min(99, Math.max(1, Math.floor(Number(b.quantity)))) : 1,
     productType: b.productType ? String(b.productType) : null,
     language: b.language === "ja" || b.language === "zh" ? b.language : "en",
   };

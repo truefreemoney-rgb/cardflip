@@ -535,6 +535,7 @@ export default function AppPage() {
           ledgerId: item.serverId,
           hasPhoto: item.photoAt != null,
           sealed: item.kind === "sealed",
+          quantity: item.quantity ?? 1,
           listing: withListingOverrides(
             item.kind === "sealed"
               ? buildSealedListing(item.card!, price, item.productType)
@@ -634,6 +635,7 @@ export default function AppPage() {
         condition: item.condition,
         grading: item.grading,
         firstEdition: item.firstEdition,
+        quantity: item.quantity ?? 1,
         productType: item.productType,
         language: item.language,
       }, item.photoAt ? null : item.file);

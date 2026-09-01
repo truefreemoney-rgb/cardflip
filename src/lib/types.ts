@@ -275,6 +275,8 @@ export interface ScanItem {
    * search-added and sealed items need one picked.
    */
   photoAt: number | null;
+  /** Identical copies sold on the one listing (1–99). Absent = 1. */
+  quantity?: number;
   /** Price the listing went live at, locked in once posted. */
   listedPrice: number | null;
   listedAt: number | null;

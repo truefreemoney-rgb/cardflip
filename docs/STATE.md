@@ -25,6 +25,18 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 — QUANTITY >1 SHIPPED (BACKLOG "table-stakes" item; multi-photo
+half VETOED by Chris — "we dont need the back of the card", reverted
+uncommitted):** cards.quantity (default 1) + "Copies" input (1–99) beside
+Your price in CardEditor; offer availableQuantity + inventory quantity +
+CSV Quantity column follow it (re-push updates a live listing's qty).
+Sales sync quantity-aware: a partial sale splits off a sold row (Earned
+stays honest) + decrements the listed row, deduped via new
+`ebay_sold_lines` table (the 90-day order window re-reads old orders —
+without dedup a partial would re-decrement every pass). Collection shows
+×N chip; In play = price×qty. Payload tests green. Untested against a
+real multi-qty order.
+
 **09-01 (Chris): publish flow = ONE road, keep users on-site** — removed
 "eBay's form instead (no photo)", "View my eBay drafts", "Copy listing
 text" from EbayPostActions (`5788220`); only "Publish on eBay — photo

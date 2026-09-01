@@ -143,6 +143,14 @@ console.log("Offer");
 {
   const offer = buildOffer(base);
   check("sku from card id", offer.sku, skuForCard(base.cardId));
+  check("quantity defaults to 1", offer.availableQuantity, 1);
+  check("quantity carries through", buildOffer({ ...base, quantity: 4 }).availableQuantity, 4);
+  check(
+    "inventory item quantity matches",
+    buildInventoryItem({ ...base, quantity: 4 }).availability.shipToLocationAvailability.quantity,
+    4,
+  );
+  check("quantity clamps to 1..99", [buildOffer({ ...base, quantity: 0 }).availableQuantity, buildOffer({ ...base, quantity: 250 }).availableQuantity], [1, 99]);
   check("sku ≤ 50 chars", offer.sku.length <= 50, true);
   check("price as string", offer.pricingSummary.price, { currency: "USD", value: "818.00" });
   check("category", offer.categoryId, "183454");

@@ -65,6 +65,8 @@ export interface DraftInput {
    * client — it decides whether the item has a listing image at all.
    */
   hasPhoto: boolean;
+  /** Identical copies sold on this one listing (1–99); defaults to 1. */
+  quantity?: number;
   kind: ItemKind;
   condition: Condition;
   grading: GradedInfo | null;
@@ -282,10 +284,16 @@ export interface InventoryItemPayload {
   };
 }
 
+/** The listing quantity a DraftInput carries, clamped to eBay-sane bounds. */
+export function listingQuantity(input: Pick<DraftInput, "quantity">): number {
+  const q = Math.floor(input.quantity ?? 1);
+  return Number.isFinite(q) ? Math.min(99, Math.max(1, q)) : 1;
+}
+
 export function buildInventoryItem(input: DraftInput): InventoryItemPayload {
   const { condition, conditionDescriptors } = ebayCondition(input);
   return {
-    availability: { shipToLocationAvailability: { quantity: 1 } },
+    availability: { shipToLocationAvailability: { quantity: listingQuantity(input) } },
     condition,
     ...(conditionDescriptors ? { conditionDescriptors } : {}),
     product: {
@@ -368,7 +376,7 @@ export function buildOffer(
     sku: skuForCard(input.cardId),
     marketplaceId: EBAY_MARKETPLACE_ID,
     format: "FIXED_PRICE",
-    availableQuantity: 1,
+    availableQuantity: listingQuantity(input),
     categoryId: input.listing.categoryId,
     listingDescription: descriptionHtml(input.listing.description),
     listingDuration: "GTC",

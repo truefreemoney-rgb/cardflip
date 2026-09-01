@@ -667,6 +667,8 @@ export interface EbayDraftsCsvRow {
   /** True when the seller's own photo is stored for this card (never send catalogue art — eBay's picture policy). */
   hasPhoto: boolean;
   sealed: boolean;
+  /** Identical copies on the one draft row (eBay's Quantity column). */
+  quantity: number;
 }
 
 /**
@@ -701,7 +703,7 @@ export function toEbayDraftsCsv(rows: EbayDraftsCsvRow[]): string {
     "Description",
     "Format",
   ];
-  const lines = rows.map(({ listing, ledgerId, hasPhoto, sealed }) =>
+  const lines = rows.map(({ listing, ledgerId, hasPhoto, sealed, quantity }) =>
     [
       "Draft",
       ledgerId ? `cardflip-${ledgerId}` : "",
@@ -709,7 +711,7 @@ export function toEbayDraftsCsv(rows: EbayDraftsCsvRow[]): string {
       listing.title.slice(0, 80),
       "",
       listing.price.toFixed(2),
-      1,
+      Math.min(99, Math.max(1, Math.floor(quantity || 1))),
       ledgerId && hasPhoto ? `${SITE_URL}/api/card-image/${ledgerId}` : "",
       sealed ? "NEW" : "USED",
       descriptionHtml(listing.description),

@@ -17,6 +17,8 @@ export interface ServerCard {
   productType: string | null;
   status: "ready" | "listed" | "sold";
   price: number;
+  /** Identical copies this row sells (listing quantity, default 1). */
+  quantity: number;
   listedAt: number | null;
   soldPrice: number | null;
   soldAt: number | null;
@@ -50,6 +52,7 @@ export interface CreateCardInput {
 export interface UpdateCardInput {
   condition?: string;
   price?: number;
+  quantity?: number;
   status?: "ready" | "listed" | "sold";
   listedAt?: number | null;
   soldPrice?: number | null;

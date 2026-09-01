@@ -98,6 +98,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       condition: item.condition,
       grading: item.grading,
       firstEdition: item.firstEdition,
+      quantity: item.quantity ?? 1,
       productType: item.productType,
       language: item.language,
     };

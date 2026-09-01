@@ -292,6 +292,18 @@ const SCHEMA = `
     value TEXT NOT NULL
   );
 
+  -- Order lines the sales sync has already applied to the ledger
+  -- (ebayOrders.ts). The sync re-reads a 90-day order window every pass; a
+  -- fully-sold card leaves 'listed' and self-dedupes, but a partial sale on
+  -- a quantity>1 card stays listed — without this ledger the same order
+  -- would decrement it again on every sync.
+  CREATE TABLE IF NOT EXISTS ebay_sold_lines (
+    order_id TEXT NOT NULL,
+    line_key TEXT NOT NULL,
+    applied_at INTEGER NOT NULL,
+    PRIMARY KEY (order_id, line_key)
+  );
+
   -- One-time reset links; only the token's SHA-256 is stored (passwordReset.ts).
   CREATE TABLE IF NOT EXISTS password_resets (
     token_hash TEXT PRIMARY KEY,
@@ -371,6 +383,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "ebay_draft_at INTEGER",
       "game TEXT NOT NULL DEFAULT 'pokemon'",
       "ebay_ended_at INTEGER",
+      // Identical copies sold as one listing with N available (09-01);
+      // partial sales split a sold row off and decrement this.
+      "quantity INTEGER NOT NULL DEFAULT 1",
     ],
   ],
   ["wishlist_items", ["card_id TEXT", "game TEXT"]],

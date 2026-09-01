@@ -195,7 +195,7 @@ export default function CollectionPage() {
       (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice) : 0),
       0,
     );
-    const inPlay = [...drafts, ...listed].reduce((sum, c) => sum + c.price, 0);
+    const inPlay = [...drafts, ...listed].reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
 
     // Listed→sold gap, only over cards that carry both timestamps.
     const gaps = sold
@@ -344,6 +344,11 @@ export default function CollectionPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-white">
                     {card.cardName}
+                    {(card.quantity || 1) > 1 && (
+                      <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-zinc-300">
+                        ×{card.quantity}
+                      </span>
+                    )}
                   </p>
                   <p className="truncate text-xs text-zinc-500">
                     {card.setName}

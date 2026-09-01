@@ -23,6 +23,8 @@ export interface CardRecord {
   productType: string | null;
   status: CardStatus;
   price: number;
+  /** How many identical copies this row sells (listing quantity). */
+  quantity: number;
   listedAt: number | null;
   soldPrice: number | null;
   soldAt: number | null;
@@ -58,6 +60,7 @@ interface CardRow {
   product_type: string | null;
   status: CardStatus;
   price: number;
+  quantity: number | null;
   listed_at: number | null;
   sold_price: number | null;
   sold_at: number | null;
@@ -89,6 +92,7 @@ function fromRow(row: CardRow): CardRecord {
     productType: row.product_type ?? null,
     status: row.status,
     price: row.price,
+    quantity: row.quantity ?? 1,
     listedAt: row.listed_at,
     soldPrice: row.sold_price,
     soldAt: row.sold_at,
@@ -161,6 +165,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     productType,
     status: "ready",
     price: card.price,
+    quantity: 1,
     listedAt: null,
     soldPrice: null,
     soldAt: null,
@@ -263,6 +268,60 @@ export async function setCardEbayListing(
   return getCardForUser(id, userId);
 }
 
+/**
+ * An eBay order bought `purchased` of this row's copies. When that clears the
+ * row out, the row itself flips to sold (the familiar single-copy path).
+ * A partial sale instead splits off a new sold row for the purchased copies —
+ * so Earned stays honest — and decrements the listed row, which stays live
+ * (eBay still has the rest available on the same offer).
+ */
+export async function recordCopiesSold(
+  id: string,
+  userId: string,
+  purchased: number,
+  soldPrice: number | null,
+  soldAt: number,
+): Promise<{ sold: CardRecord; remaining: CardRecord | null } | null> {
+  const card = await getCardForUser(id, userId);
+  if (!card) return null;
+  const bought = Math.max(1, Math.floor(purchased));
+  if (bought >= card.quantity) {
+    const sold = await updateCard(id, userId, { status: "sold", soldPrice, soldAt });
+    return sold ? { sold, remaining: null } : null;
+  }
+  const soldId = randomUUID();
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO cards
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
+          status, price, quantity, listed_at, sold_price, sold_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      soldId,
+      userId,
+      card.kind,
+      card.game,
+      card.cardName,
+      card.setName,
+      card.cardNumber,
+      card.imageUrl,
+      card.condition,
+      card.productType,
+      card.price,
+      bought,
+      card.listedAt,
+      soldPrice,
+      soldAt,
+      now,
+      now,
+    );
+  const remaining = await updateCard(id, userId, { quantity: card.quantity - bought });
+  const sold = await getCardForUser(soldId, userId);
+  return sold ? { sold, remaining } : null;
+}
+
 /** Server-written by the ended-listing sweep (ebayListings.ts) only. */
 export async function setCardListingEnded(id: string, userId: string, endedAt: number): Promise<CardRecord | null> {
   await db
@@ -274,6 +333,7 @@ export async function setCardListingEnded(id: string, userId: string, endedAt: n
 export interface CardUpdate {
   condition?: string;
   price?: number;
+  quantity?: number;
   status?: CardStatus;
   listedAt?: number | null;
   soldPrice?: number | null;
@@ -297,6 +357,7 @@ export async function updateCard(
     ...existingRow,
     condition: patch.condition ?? existingRow.condition,
     price: patch.price ?? existingRow.price,
+    quantity: patch.quantity ?? existingRow.quantity ?? 1,
     status: patch.status ?? existingRow.status,
     listed_at: patch.listedAt !== undefined ? patch.listedAt : existingRow.listed_at,
     sold_price: patch.soldPrice !== undefined ? patch.soldPrice : existingRow.sold_price,
@@ -310,12 +371,13 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, ebay_ended_at = ?, updated_at = ?
+       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
       merged.condition,
       merged.price,
+      merged.quantity ?? 1,
       merged.status,
       merged.listed_at,
       merged.sold_price,

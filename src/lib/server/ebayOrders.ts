@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getUserAccessToken } from "@/lib/server/ebayAuth";
-import { updateCard, type CardRecord } from "@/lib/server/cards";
+import { recordCopiesSold, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
 
 /**
@@ -30,8 +30,10 @@ export interface SalesSyncResult {
 }
 
 interface OrderLineItem {
+  lineItemId?: string;
   legacyItemId?: string;
   sku?: string;
+  quantity?: number;
   lineItemCost?: { value?: string };
   total?: { value?: string };
 }
@@ -99,12 +101,28 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
             (line.sku && bySku.get(line.sku)) ||
             null;
           if (!cardId) continue;
+          // The window re-reads old orders every pass; only apply each order
+          // line to the ledger once (ebay_sold_lines) — a partially-sold
+          // quantity>1 card stays 'listed' and would otherwise re-decrement.
+          const lineKey = line.lineItemId ?? line.sku ?? line.legacyItemId ?? "";
+          const applied = await db
+            .prepare("SELECT 1 AS one FROM ebay_sold_lines WHERE order_id = ? AND line_key = ?")
+            .get(order.orderId ?? "", lineKey);
+          if (applied) continue;
           const soldPrice = Number(line.lineItemCost?.value ?? line.total?.value ?? 0) || null;
-          const updated = await updateCard(cardId, userId, { status: "sold", soldPrice, soldAt });
-          if (updated) {
-            sold.push(updated);
-            byListingId.delete(line.legacyItemId ?? "");
-            bySku.delete(line.sku ?? "");
+          // Quantity-aware: a partial sale splits off a sold row and leaves
+          // the listing live with the rest, so the card stays matchable for
+          // later orders in this same window.
+          const result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt);
+          if (result) {
+            await db
+              .prepare("INSERT OR IGNORE INTO ebay_sold_lines (order_id, line_key, applied_at) VALUES (?, ?, ?)")
+              .run(order.orderId ?? "", lineKey, now);
+            sold.push(result.sold);
+            if (!result.remaining) {
+              byListingId.delete(line.legacyItemId ?? "");
+              bySku.delete(line.sku ?? "");
+            }
           }
         }
       }

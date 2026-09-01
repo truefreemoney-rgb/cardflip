@@ -21,6 +21,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     const card = await updateCard(id, user.id, {
       condition: typeof body?.condition === "string" ? body.condition : undefined,
       price: typeof body?.price === "number" ? body.price : undefined,
+      quantity:
+        typeof body?.quantity === "number" && Number.isFinite(body.quantity)
+          ? Math.min(99, Math.max(1, Math.floor(body.quantity)))
+          : undefined,
       status,
       listedAt: "listedAt" in (body ?? {}) ? body.listedAt : undefined,
       soldPrice: "soldPrice" in (body ?? {}) ? body.soldPrice : undefined,

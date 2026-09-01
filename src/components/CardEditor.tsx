@@ -650,22 +650,43 @@ export default function CardEditor({ item, ebayConnected, onChange }: Props) {
         </fieldset>
       )}
 
-      <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-        Your price
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">
-            $
-          </span>
-          <PriceInput
-            value={price}
-            onValue={(n) => onChange({ priceOverride: n })}
-            onCommit={(n) => {
-              if (item.serverId) void updateServerCard(item.serverId, { price: n });
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
+          Your price
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">
+              $
+            </span>
+            <PriceInput
+              value={price}
+              onValue={(n) => onChange({ priceOverride: n })}
+              onCommit={(n) => {
+                if (item.serverId) void updateServerCard(item.serverId, { price: n });
+              }}
+              className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
+            />
+          </div>
+        </label>
+        {/* Identical copies on one listing (per-copy price): eBay sells them
+            down as one offer, and duplicate scans of the same card would
+            otherwise trip eBay's duplicate-listing policy. */}
+        <label className="flex w-24 flex-col gap-1.5 text-sm font-medium text-zinc-300">
+          Copies
+          <input
+            type="number"
+            min={1}
+            max={99}
+            step={1}
+            value={item.quantity ?? 1}
+            onChange={(e) => {
+              const q = Math.min(99, Math.max(1, Math.floor(Number(e.target.value) || 1)));
+              onChange({ quantity: q });
+              if (item.serverId) void updateServerCard(item.serverId, { quantity: q });
             }}
-            className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
+            className="w-full rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-center text-sm text-white outline-none transition focus:border-brand-400"
           />
-        </div>
-      </label>
+        </label>
+      </div>
 
       <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 
