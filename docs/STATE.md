@@ -25,6 +25,13 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 — PUBLISH CONFIRM POPUP SHIPPED (Chris's ask):** Publish on eBay
+now opens a popup — confirm ("publishes a real listing, fees apply") →
+loading → success with the live-listing link (`dc37507`). Listed patch
+applies on Done so the Live panel doesn't yank the popup away; failures
+close it into the existing error/ZIP UI; photo picker still runs first.
+Mockup of all 3 states sent to Chris (he approved the concept in chat).
+
 **09-01 — QUANTITY >1 SHIPPED (BACKLOG "table-stakes" item; multi-photo
 half VETOED by Chris — "we dont need the back of the card", reverted
 uncommitted):** cards.quantity (default 1) + "Copies" input (1–99) beside
