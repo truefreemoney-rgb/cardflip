@@ -21,11 +21,9 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**🔴 09-01 OUTAGE RISK: Anthropic API credit balance EXHAUSTED** — every
-messages call returns 400 "credit balance is too low", so PROD SCANNING IS
-DOWN (vision falls back to OCR only). Chris must top up / enable auto-reload
-at console.anthropic.com Plans & Billing. Found during A/B run (last 3
-photos errored).
+**09-01: Anthropic credits ran out mid-day (prod vision 400'd → OCR
+fallback); Chris topped up same day, API verified working again. Suggest
+auto-reload at console.anthropic.com so it can't recur silently.**
 
 **NEXT WORK (my end, Chris approved 09-01, pick order):** (1) DONE 09-01 —
 Sonnet 5 vs Opus 5 A/B on 49 stored card_photos (`scripts/ab-vision.mjs`,
