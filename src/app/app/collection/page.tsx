@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import CardImage from "@/components/CardImage";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
@@ -83,6 +84,10 @@ export default function CollectionPage() {
   // Listed cards the market has moved away from (keyed by card id).
   const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
   const [repricing, setRepricing] = useState<string | null>(null);
+  // Mass delete: ticked row ids. Listed rows can't be ticked — they're live
+  // on eBay and deleting the ledger row wouldn't end the listing.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const userId = user?.id;
   const [saleNote, setSaleNote] = useState<string | null>(null);
@@ -244,6 +249,36 @@ export default function CollectionPage() {
     return { drafts, listed, sold, earned, net, inPlay, avgDays };
   }, [cards]);
 
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function removeSelected() {
+    const ids = [...selected].filter((id) => {
+      const card = cards.find((c) => c.id === id);
+      return card && card.status !== "listed";
+    });
+    if (ids.length === 0) return;
+    if (!window.confirm(`Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.`)) return;
+    setBulkDeleting(true);
+    setSyncError(null);
+    const removed = cards.filter((c) => ids.includes(c.id));
+    setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
+    const results = await Promise.all(ids.map((id) => deleteServerCard(id)));
+    const failed = removed.filter((_, i) => !results[i]);
+    if (failed.length > 0) {
+      setCards((prev) => [...failed, ...prev]);
+      setSyncError(`${failed.length} of ${ids.length} couldn't be removed — check your connection and try again.`);
+    }
+    setSelected(new Set());
+    setBulkDeleting(false);
+  }
+
   // The whole ledger as a spreadsheet — the seller's data is theirs to take.
   // Distinct from the eBay drafts CSV (that one is eBay's upload format).
   function exportCsv() {
@@ -389,6 +424,49 @@ export default function CollectionPage() {
         </div>
       </div>
 
+      {/* Selection toolbar — select-all covers what the current filter shows
+          (minus live listings, which have to be unlisted first). */}
+      {visible.length > 0 && (
+        <div className="-mt-2 flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2 text-zinc-400">
+            <input
+              type="checkbox"
+              checked={
+                visible.filter((c) => c.status !== "listed").length > 0 &&
+                visible.filter((c) => c.status !== "listed").every((c) => selected.has(c.id))
+              }
+              onChange={(e) => {
+                const selectable = visible.filter((c) => c.status !== "listed").map((c) => c.id);
+                setSelected(e.target.checked ? new Set(selectable) : new Set());
+              }}
+              className="h-4 w-4 accent-brand-500"
+              aria-label="Select all shown cards"
+            />
+            Select all
+          </label>
+          {selected.size > 0 && (
+            <>
+              <span className="text-zinc-500">
+                {selected.size} selected
+              </span>
+              <button
+                onClick={() => void removeSelected()}
+                disabled={bulkDeleting}
+                className="rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
+              >
+                {bulkDeleting ? "Removing…" : `Delete ${selected.size} card${selected.size === 1 ? "" : "s"}`}
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : visible.length === 0 ? (
@@ -411,6 +489,15 @@ export default function CollectionPage() {
                 key={card.id}
                 className="flex flex-wrap items-center gap-4 px-4 py-3"
               >
+                <input
+                  type="checkbox"
+                  checked={selected.has(card.id)}
+                  disabled={card.status === "listed"}
+                  onChange={() => toggleSelected(card.id)}
+                  title={card.status === "listed" ? "Live on eBay — unlist it before deleting" : undefined}
+                  aria-label={`Select ${card.cardName}`}
+                  className="h-4 w-4 shrink-0 accent-brand-500 disabled:opacity-30"
+                />
                 <CardImage
                   // The seller's own scan photo when one is stored; catalog art otherwise.
                   src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
@@ -517,6 +604,16 @@ export default function CollectionPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Back into the editor without rescanning (Chris, 09-01):
+                      the scanner rebuilds this one card from the ledger row. */}
+                  {card.status === "ready" && card.kind !== "sealed" && (
+                    <Link
+                      href={`/app?resume=${card.id}`}
+                      className="rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
+                    >
+                      Build listing
+                    </Link>
+                  )}
                   {card.status === "ready" && (
                     <button
                       onClick={() => markListed(card)}

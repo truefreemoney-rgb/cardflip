@@ -29,8 +29,10 @@ import { readSavedGame, saveGame } from "@/lib/games";
 import {
   createServerCard,
   deleteServerCard,
+  fetchServerCards,
   updateServerCard,
 } from "@/lib/client/cardsApi";
+import { toast } from "@/components/Toaster";
 import { saveQueue } from "@/lib/client/queuePersistence";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
@@ -489,6 +491,55 @@ export default function AppPage() {
   // addCardFromSearch / addSealedProduct (the add-without-a-photo roads)
   // were removed 09-01 with their UI — eBay only accepts photos of the
   // actual item, so a queue entry with no scan photo was a dead end.
+
+  // /app?resume=<ledger id>: reopen ONE draft from My cards in the editor
+  // (Chris, 09-01 — he was rescanning cards just to get the build page
+  // back). The search re-fetches the catalog card with prices; the row
+  // supplies photo, price, condition and quantity. Fresh-start rule stays:
+  // nothing restores without the explicit link.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    const resumeId = new URLSearchParams(window.location.search).get("resume");
+    if (!resumeId) return;
+    resumedRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void (async () => {
+      const rows = await fetchServerCards();
+      const row = rows.find((r) => r.id === resumeId);
+      if (!row || row.kind === "sealed" || row.status === "sold") {
+        toast("Couldn't reopen that card here — scan it again");
+        return;
+      }
+      const game = row.game === "mtg" ? "mtg" : "pokemon";
+      const results = await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game);
+      const card =
+        results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
+      if (!card) {
+        toast("Couldn't look that card up again — scan it to rebuild the listing");
+        return;
+      }
+      const item: ScanItem = {
+        ...createItem(null, "en", game),
+        status: row.status === "listed" ? "listed" : "ready",
+        serverId: row.id,
+        candidates: results,
+        card,
+        condition: asCondition(row.condition) ?? "Near Mint",
+        priceOverride: row.price > 0 ? row.price : null,
+        quantity: row.quantity || 1,
+        photoAt: row.photoAt,
+        ebayOfferId: row.ebayOfferId,
+        ebayListingUrl: row.status === "listed" ? row.ebayListingUrl : null,
+        ebayDraftUrl: row.ebayDraftUrl,
+        listedPrice: row.status === "listed" ? row.price : null,
+        listedAt: row.listedAt,
+      };
+      commit([...itemsRef.current, item]);
+      setSelectedId(item.id);
+      if (row.status !== "listed") void loadEbayComps(item.id, card);
+    })();
+  }, [commit, loadEbayComps]);
 
   const openCamera = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.

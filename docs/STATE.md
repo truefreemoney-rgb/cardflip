@@ -25,6 +25,17 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 latest — MY CARDS: resume + mass delete (Chris's asks):**
+(a) "Build listing" on ready card rows → /app?resume=<id>; scanner
+rebuilds that ONE item (search by name/number, match on catalog_card_id,
+row supplies photo/price/condition/qty; comps reload; URL param stripped;
+sealed/sold rows excluded, toast fallback). Fresh-start rule intact — no
+auto-restore. (b) Row checkboxes + Select all (visible rows) + bulk
+Delete with one confirm; listed rows can't be ticked (live on eBay).
+Verified in dev: resume rebuilt Sheoldred at ledger price; bulk delete
+6→4 rows. NOTE: resumed items rebuild condition via asCondition — graded
+("PSA 10") ledger conditions fall back to Near Mint w/o slab state.
+
 **09-01 late — REPRICE NUDGE SHIPPED (half of BACKLOG's auto-offers item):**
 new `cards.catalog_card_id` (saved at scan; old rows don't nudge),
 `repriceNudges.ts` compares listed price vs latest price_series USD point
