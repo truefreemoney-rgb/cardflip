@@ -132,10 +132,12 @@ live-test batch below; Chris isn't listing right now);
 (1) PRE-LAUNCH BLOCKER: street address for Stripe
 public details (PO boxes rejected; options: UPS Store box / iPostal1 /
 LLC agent — home address currently shows on paying invoices);
-(2) eBay live-test batch next time he posts: end Keldeo 5230387616323 →
-expect amber Ended chip; push a non-NM card → expect NO "saved without
-condition detail"; reprice a live listing → verify offer PUT; real
-multi-qty sale → verify partial-sale split; NET-AFTER-FEES: after the
+(2) eBay live-test batch next time he posts (ANY live listing works —
+Chris may use MTG, not necessarily Keldeo 5230387616323): end one
+listing → expect amber Ended chip; push a non-NM card → expect NO
+"saved without condition detail"; reprice a live listing → verify
+offer PUT; real multi-qty sale → verify partial-sale split; offer to
+watchers once a listing has any; NET-AFTER-FEES: after the
 sale syncs, the sold row's net should flip from ≈estimate to actual
 within ~a day (fee sync retries until eBay posts the SALE transaction)
 — check it matches the eBay payout email, tooltip on the net figure
