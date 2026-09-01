@@ -71,7 +71,7 @@ const sections: LegalSection[] = [
   {
     heading: "Governing law",
     paragraphs: [
-      "These terms are governed by the laws of the United States and of the U.S. state where CardFlip's operator resides, without regard to conflict-of-law rules. If we ever have a dispute, we ask that you raise it with us by email first — most problems are fixable without anyone involving a court.",
+      "These terms are governed by the laws of the United States and the State of Maryland, without regard to conflict-of-law rules. If we ever have a dispute, we ask that you raise it with us by email first — most problems are fixable without anyone involving a court.",
     ],
   },
   {
