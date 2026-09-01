@@ -48,7 +48,9 @@ libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
 called as plain functions; both chdir to a temp dir so the db lands
 there, use `--conditions=react-server`, and set process.exitCode instead
 of process.exit so libsql's beforeExit close runs; alias-loader now maps
-`next/xxx` → `next/xxx.js`); remaining: account/admin/eBay routes;
+`next/xxx` → `next/xxx.js`); `npm run test:quota` = scanQuota metering +
+cronAuthError gate (09-01); remaining: account/admin/eBay routes (use
+request-scoped cookies() → need a harness, lower value);
 (f) BACK BURNER (Chris 09-01): own eBay price series — record asking avg
 in comps route (card.id + recordPoint, variant "ebayAverage") + one
 comps call per card in sweepPriceHistory (~150/5000 daily limit); chart
