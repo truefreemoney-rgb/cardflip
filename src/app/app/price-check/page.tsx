@@ -215,6 +215,25 @@ export default function PriceCheckPage() {
       </div>
 
       {results.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {/* Same escape hatch as the watchlist search: a big result grid
+              buries the lookup history below it. */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-zinc-500">
+              {results.length} result{results.length === 1 ? "" : "s"} — pick one for its prices
+            </p>
+            <button
+              onClick={() => {
+                setResults([]);
+                setSelected(null);
+                setSearchError(null);
+                setQuery("");
+              }}
+              className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+            >
+              ✕ Clear results
+            </button>
+          </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
           {results.map((card) => (
             <button
@@ -244,6 +263,7 @@ export default function PriceCheckPage() {
               </span>
             </button>
           ))}
+        </div>
         </div>
       )}
 

@@ -490,6 +490,25 @@ export default function WishlistPage() {
         {addError && <p className="text-xs text-red-400">{addError}</p>}
 
         {results.length > 0 && (
+          <>
+            {/* A big result set buries the saved cards below — the seller
+                needs a way out that isn't a page refresh (Chris, 09-01). */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-zinc-500">
+                {results.length} result{results.length === 1 ? "" : "s"} — add one, or clear to
+                see your watchlist
+              </p>
+              <button
+                onClick={() => {
+                  setResults([]);
+                  setAddError(null);
+                  setQuery("");
+                }}
+                className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+              >
+                ✕ Clear results
+              </button>
+            </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
             {results.map((card) => {
               const added = addedIds.has(card.id);
@@ -525,6 +544,7 @@ export default function WishlistPage() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 
