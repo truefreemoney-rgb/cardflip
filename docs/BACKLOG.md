@@ -14,7 +14,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] M — Bulk drafts CSV (`toEbayDraftsCsv`, `src/lib/listing.ts`) never uploaded to real eBay — validate header/#INFO rows
 - [ ] M — Inventory condition-descriptor IDs unverified (`src/lib/ebayInventory.ts`); graded may need cert descriptor 27503
 - [x] S — Publish 20403 "not eligible": createDefaultPolicies (08-27, ebaySell.ts) now auto-creates policies + location at publish; with the 09-01 reconnect the whole chain should clear. Confirm on Chris's next real publish.
-- [ ] S — Keldeo listing 5230387616323 live with no photo — end it
+- [x] S — Keldeo listing 5230387616323 — Chris deleted it on eBay 09-01 (doubles as the ended-listing-sync live test: My Cards should show the amber "Ended on eBay" chip after the next sync pass)
 - [ ] S — `/terms` governing-law state placeholder — need real state from Chris
 - [ ] S — Untested on hardware: auto-scan thresholds, torch, iOS reveal/chime/haptics, ✕, real MTG photo via vision, HEIC
 - [x] S — Favicon vs header logo — DONE 09-01 same day (Chris: "way better, perfect"): transparent bg + tight viewBox crop so the mark fills the frame; verified legible at 16px via canvas-downscale sim; apple-icon keeps the solid square.
@@ -44,7 +44,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] S — Graded slab cert-number lookup (PSA/CGC APIs) — cheap, weakly covered even by paid rivals
 - [x] S — Wishlist price alerts — SHIPPED 09-01 (daily email via wishlistAlerts.ts)
 - [x] S — Collection CSV export — SHIPPED 09-01 (own format, BOM+CRLF)
-- [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`): Tigris path retired with Fly. **Replaced 08-31 by `scripts/backup-turso.mjs`** (Turso → local `backups/turso/*.db.gz`, verified full dump) after the old Turso account loss proved PITR isn't enough. Open: no scheduler — Chris picks manual vs Task Scheduler; off-site copy (S3/Drive) if wanted later
+- [x] M — **SQLite backup off the Fly volume** — done 08-25 (`77cc87f`): Tigris path retired with Fly. **Replaced 08-31 by `scripts/backup-turso.mjs`** (Turso → local `backups/turso/*.db.gz`, verified full dump) after the old Turso account loss proved PITR isn't enough. Scheduler DONE: Windows Task Scheduler "CardFlip Turso backup" daily 10:00 AM on Chris's PC (verified 09-01: last run exit 0, 63 MB cardflip-2026-09-01.db.gz present). Off-site copy (S3/Drive) still optional
 - [x] S — PWA: — done 08-16 (manifest.ts + generated icons) `manifest.json`, apple-touch-icon, maskable icon (phone-first scanner, cheap win)
 - [x] M — **Account settings** `/app/account` (08-17): your-data counts, rename, change email (password-gated), change password (signs out other devices), eBay link status → /connect-ebay, sign out other devices, plan (early access), delete account (password + DELETE). Demo read-only. Routes `/api/account` GET/PATCH/DELETE, `/api/account/password`, `/api/account/sessions`. Entry = person icon at the end of AppTabs
 - [x] S — Scanner empty state has a 3-step strip (snap → match/price → draft on eBay) (08-17)
