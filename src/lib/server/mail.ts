@@ -64,6 +64,51 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
   });
 }
 
+export interface WishlistAlertHit {
+  name: string;
+  set: string;
+  number: string;
+  price: number;
+  target: number;
+}
+
+/** "It dipped to your price" — one mail per user per daily pass (wishlistAlerts.ts). */
+export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[]): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const line = (h: WishlistAlertHit) =>
+    `${h.name} (${h.set} · ${h.number}) — now $${h.price.toFixed(2)}, your alert was $${h.target.toFixed(2)}`;
+  const text = [
+    hits.length === 1
+      ? "A card on your CardFlip wishlist dipped to your alert price."
+      : `${hits.length} cards on your CardFlip wishlist dipped to your alert prices.`,
+    "",
+    ...hits.map((h) => "· " + line(h)),
+    "",
+    `Your wishlist: ${site}/app/wishlist`,
+    "",
+    "Prices refresh once a day. This alert won't repeat unless you set a new target.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>${hits.length === 1 ? "A card on your CardFlip wishlist dipped to your alert price." : `${hits.length} cards on your CardFlip wishlist dipped to your alert prices.`}</p>
+    <ul>${hits.map((h) => `<li>${line(h).replace(/&/g, "&amp;").replace(/</g, "&lt;")}</li>`).join("")}</ul>
+    <p><a href="${site}/app/wishlist" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your wishlist</a></p>
+    <p style="color:#666;font-size:13px">Prices refresh once a day. This alert won't repeat unless you set a new target.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject:
+      hits.length === 1
+        ? `${hits[0].name} dipped to $${hits[0].price.toFixed(2)}`
+        : `${hits.length} wishlist cards hit your alert prices`,
+    text,
+    html,
+  });
+}
+
 /**
  * Sent once, from the Stripe webhook, when a checkout completes. The webhook
  * swallows failures — a missed welcome must never make Stripe retry the event.

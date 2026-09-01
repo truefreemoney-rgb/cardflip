@@ -25,6 +25,20 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 fallback); Chris topped up same day, API verified working again. Suggest
 auto-reload at console.anthropic.com so it can't recur silently.**
 
+**09-01 late — three small ships:** (a) wishlist PRICE ALERTS — "🔔 price
+alert" per row (needs cardId), target saved via PATCH /api/wishlist/[id]
+(wishlist_items.alert_price/alerted_at), daily sweep
+(`wishlistAlerts.ts`, wired after prices in runPokemonSteps) reads OUR
+price_series latest USD point (variant pref normal>holo>reverse) and
+emails once per user via new sendWishlistAlertEmail; one-shot until
+target changes; verified in dev (set/clear/render; email path untested —
+SMTP is prod-only). NOTE dev gotcha: COLUMN_PROBES only run at process
+start (globalThis memo) — restart dev server after adding columns.
+(b) collection EXPORT CSV button (full ledger, own format, BOM+CRLF).
+(c) BACKLOG cron item marked stale-done (Vercel Cron already covers the
+daily job). Popup follow-up: success step removed same day — Chris fine
+with landing on the Live panel, which has the View-on-eBay link.
+
 **09-01 — PUBLISH CONFIRM POPUP SHIPPED (Chris's ask):** Publish on eBay
 now opens a popup — confirm ("publishes a real listing, fees apply") →
 loading → success with the live-listing link (`dc37507`). Listed patch

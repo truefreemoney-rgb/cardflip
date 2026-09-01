@@ -209,6 +209,39 @@ export default function CollectionPage() {
     return { drafts, listed, sold, earned, net, inPlay, avgDays };
   }, [cards]);
 
+  // The whole ledger as a spreadsheet — the seller's data is theirs to take.
+  // Distinct from the eBay drafts CSV (that one is eBay's upload format).
+  function exportCsv() {
+    const esc = (v: string | number | null | undefined) => {
+      const text = v == null ? "" : String(v);
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const header = [
+      "Name", "Set", "Number", "Game", "Type", "Condition", "Status", "Price",
+      "Copies", "Scanned", "Listed", "Sold", "Sold price", "eBay listing",
+    ];
+    const day = (ts: number | null) => (ts ? new Date(ts).toISOString().slice(0, 10) : "");
+    const lines = cards.map((c) =>
+      [
+        c.cardName, c.setName, c.cardNumber, c.game ?? "pokemon",
+        c.kind === "sealed" ? (c.productType ?? "sealed") : "card",
+        c.condition, c.status, c.price.toFixed(2), c.quantity || 1,
+        day(c.createdAt), day(c.listedAt), day(c.soldAt),
+        c.soldPrice != null ? c.soldPrice.toFixed(2) : "",
+        c.ebayListingUrl ?? "",
+      ].map(esc).join(","),
+    );
+    const blob = new Blob(["﻿" + [header.join(","), ...lines].join("\r\n") + "\r\n"], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cardflip-collection-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return cards.filter((card) => {
@@ -302,14 +335,23 @@ export default function CollectionPage() {
             </button>
           ))}
         </div>
-        <input
-          type="search"
-          aria-label="Filter cards by name or set"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by name or set"
-          className="w-full max-w-xs rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            aria-label="Filter cards by name or set"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter by name or set"
+            className="w-full max-w-xs rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:text-sm"
+          />
+          <button
+            onClick={exportCsv}
+            disabled={cards.length === 0}
+            className="shrink-0 rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {loading ? (

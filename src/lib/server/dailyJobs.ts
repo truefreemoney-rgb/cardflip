@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
+import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
@@ -67,6 +68,7 @@ export interface DailyResult {
   pokemon?: { recorded: number } | { error: string };
   backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
+  wishlistAlerts?: { checked: number; sent: number } | { error: string };
   ms?: number;
 }
 
@@ -84,8 +86,8 @@ export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "wishlistAlerts">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "wishlistAlerts"> = {};
   try {
     if (await hasTcgplayerMap()) {
       const r = await refreshPokemonPricesFromTcgcsv();
@@ -124,6 +126,13 @@ export async function runPokemonSteps(
   } catch (err) {
     result.ebaySales = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: eBay sales sweep failed:", err);
+  }
+  try {
+    // After the price refreshes above, so alerts judge today's numbers.
+    result.wishlistAlerts = await sweepWishlistAlerts(now);
+  } catch (err) {
+    result.wishlistAlerts = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: wishlist alert sweep failed:", err);
   }
   return result;
 }

@@ -12,6 +12,7 @@ import {
   addToWishlist,
   fetchWishlist,
   removeFromWishlist,
+  setWishlistAlert,
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
@@ -37,6 +38,72 @@ function formatDate(ts: number): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+/**
+ * "Email me when it dips to $X" — one target per row, one email per hit
+ * (the daily job re-arms only when the target changes). Needs a catalog id:
+ * the alert sweep reads our own price history, keyed by card_id.
+ */
+function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: WishlistItem) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(item.alertPrice != null ? String(item.alertPrice) : "");
+  const [busy, setBusy] = useState(false);
+
+  async function save(target: number | null) {
+    setBusy(true);
+    const saved = await setWishlistAlert(item.id, target);
+    setBusy(false);
+    if (!saved) {
+      toast("Couldn't save the alert — try again");
+      return;
+    }
+    onSaved(saved);
+    setEditing(false);
+    toast(target != null ? `Alert set — email at $${target.toFixed(2)}` : "Alert removed");
+  }
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const n = parseFloat(value);
+          if (Number.isFinite(n) && n > 0) void save(Math.round(n * 100) / 100);
+        }}
+        className="flex items-center gap-1"
+      >
+        <span className="text-[11px] text-zinc-500">$</span>
+        <input
+          autoFocus
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={item.price != null ? item.price.toFixed(2) : "0.00"}
+          className="w-16 rounded-md border border-edge bg-black/40 px-1.5 py-1 text-center text-xs text-white outline-none focus:border-brand-400"
+          aria-label={`Alert price for ${item.cardName}`}
+        />
+        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-2 py-1 text-[11px] font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
+          Set
+        </button>
+        {item.alertPrice != null && (
+          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1 text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+            Clear
+          </button>
+        )}
+      </form>
+    );
+  }
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="text-[11px] text-zinc-500 underline underline-offset-2 transition hover:text-zinc-300"
+    >
+      {item.alertPrice != null
+        ? `🔔 alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
+        : "🔔 price alert"}
+    </button>
+  );
 }
 
 /**
@@ -437,6 +504,14 @@ export default function WishlistPage() {
               )}
               {(item.cardId ?? resolvedIds[item.id]) && (
                 <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} className="mt-0.5" />
+              )}
+              {item.cardId && (
+                <AlertControl
+                  item={item}
+                  onSaved={(saved) =>
+                    setItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)))
+                  }
+                />
               )}
             </div>
           ))}

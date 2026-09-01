@@ -17,6 +17,10 @@ export interface WishlistItem {
   /** Catalog id (TCGdex / Scryfall) — null on rows saved before it was stored. */
   cardId: string | null;
   game: GameId | null;
+  /** Email when the market price dips to this; null = no alert set. */
+  alertPrice: number | null;
+  /** When the alert email went out — one-shot until the target changes. */
+  alertedAt: number | null;
 }
 
 interface WishlistRow {
@@ -32,6 +36,8 @@ interface WishlistRow {
   added_at: number;
   card_id: string | null;
   game: GameId | null;
+  alert_price: number | null;
+  alerted_at: number | null;
 }
 
 function fromRow(row: WishlistRow): WishlistItem {
@@ -48,6 +54,8 @@ function fromRow(row: WishlistRow): WishlistItem {
     addedAt: row.added_at,
     cardId: row.card_id ?? null,
     game: row.game ?? null,
+    alertPrice: row.alert_price ?? null,
+    alertedAt: row.alerted_at ?? null,
   };
 }
 
@@ -95,6 +103,21 @@ export async function addToWishlist(
     .get(userId, card.name, card.setName, card.number)) as unknown as WishlistRow;
 
   return fromRow(existing);
+}
+
+/** Set or clear the price-dip alert. Changing the target re-arms a fired one. */
+export async function setWishlistAlert(
+  id: string,
+  userId: string,
+  alertPrice: number | null,
+): Promise<WishlistItem | null> {
+  await db
+    .prepare("UPDATE wishlist_items SET alert_price = ?, alerted_at = NULL WHERE id = ? AND user_id = ?")
+    .run(alertPrice, id, userId);
+  const row = (await db
+    .prepare("SELECT * FROM wishlist_items WHERE id = ? AND user_id = ?")
+    .get(id, userId)) as WishlistRow | undefined;
+  return row ? fromRow(row) : null;
 }
 
 export async function removeFromWishlist(id: string, userId: string): Promise<void> {

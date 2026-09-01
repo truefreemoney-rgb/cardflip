@@ -388,7 +388,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "quantity INTEGER NOT NULL DEFAULT 1",
     ],
   ],
-  ["wishlist_items", ["card_id TEXT", "game TEXT"]],
+  // alert_price = "email me when it dips to this"; alerted_at = sent once,
+  // cleared when the target changes (lib/server/wishlistAlerts.ts).
+  ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",
