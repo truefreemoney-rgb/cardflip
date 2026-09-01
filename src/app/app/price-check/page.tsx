@@ -11,10 +11,13 @@ import { searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import {
+  clearPriceChecks,
+  deletePriceCheck,
   fetchPriceCheckHistory,
   logPriceCheck,
   type PriceCheckEntry,
 } from "@/lib/client/priceChecksApi";
+import { toast } from "@/components/Toaster";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 function formatDate(ts: number): string {
@@ -146,6 +149,29 @@ export default function PriceCheckPage() {
     }
   }
 
+  async function removeEntry(entry: PriceCheckEntry) {
+    // Optimistic; the row comes back if the server didn't delete it.
+    setHistory((prev) => prev.filter((e) => e.id !== entry.id));
+    const ok = await deletePriceCheck(entry.id);
+    if (!ok) {
+      setHistory((prev) => [entry, ...prev]);
+      toast(`Couldn't remove ${entry.cardName}`, "err");
+    }
+  }
+
+  async function clearHistory() {
+    if (!window.confirm(`Clear all ${history.length} lookups? This can't be undone.`)) return;
+    const before = history;
+    setHistory([]);
+    const ok = await clearPriceChecks();
+    if (!ok) {
+      setHistory(before);
+      toast("Couldn't clear the history — try again", "err");
+      return;
+    }
+    toast("Lookup history cleared");
+  }
+
   const visibleHistory = historyQuery.trim()
     ? history.filter((entry) =>
         `${entry.cardName} ${entry.setName} ${entry.cardNumber}`
@@ -236,12 +262,20 @@ export default function PriceCheckPage() {
             Recent lookups ({history.length})
           </h2>
           {history.length > 0 && (
-            <input
-              value={historyQuery}
-              onChange={(e) => setHistoryQuery(e.target.value)}
-              placeholder="Filter lookups…"
-              className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                value={historyQuery}
+                onChange={(e) => setHistoryQuery(e.target.value)}
+                placeholder="Filter lookups…"
+                className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+              />
+              <button
+                onClick={() => void clearHistory()}
+                className="rounded-lg border border-edge px-3 py-1.5 text-xs text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200"
+              >
+                Clear all
+              </button>
+            </div>
           )}
         </div>
         <div className="overflow-x-auto rounded-2xl border border-edge bg-surface-1">
@@ -252,6 +286,7 @@ export default function PriceCheckPage() {
                 <th className="px-4 py-3 font-medium">Language</th>
                 <th className="px-4 py-3 text-right font-medium">Price</th>
                 <th className="px-4 py-3 font-medium">Checked</th>
+                <th className="px-2 py-3" aria-label="Remove" />
               </tr>
             </thead>
             <tbody>
@@ -286,11 +321,27 @@ export default function PriceCheckPage() {
                   <td className="px-4 py-3 text-zinc-500">
                     {formatDate(entry.checkedAt)}
                   </td>
+                  <td className="px-2 py-3 text-right">
+                    <button
+                      onClick={(e) => {
+                        // The row itself opens the card — deleting shouldn't.
+                        e.stopPropagation();
+                        void removeEntry(entry);
+                      }}
+                      aria-label={`Remove ${entry.cardName} from history`}
+                      title="Remove from history"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               ))}
               {visibleHistory.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-zinc-500">
+                  <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
                     {historyLoading
                       ? "Loading your lookups…"
                       : history.length > 0

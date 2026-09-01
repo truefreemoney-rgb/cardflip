@@ -25,6 +25,24 @@ export async function fetchPriceCheckHistory(): Promise<PriceCheckEntry[]> {
   return data.entries ?? [];
 }
 
+export async function deletePriceCheck(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(apiPath(`/api/price-checks/${id}`), { method: "DELETE" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearPriceChecks(): Promise<boolean> {
+  try {
+    const res = await fetch(apiPath("/api/price-checks"), { method: "DELETE" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function logPriceCheck(
   card: PokemonCard,
   language: ScanLanguage,

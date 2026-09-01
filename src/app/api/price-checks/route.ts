@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { listPriceChecks, logPriceCheck } from "@/lib/server/priceChecks";
+import { clearPriceChecks, listPriceChecks, logPriceCheck } from "@/lib/server/priceChecks";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 export async function GET() {
@@ -30,6 +30,20 @@ export async function POST(req: Request) {
 
     const entry = await logPriceCheck(user.id, card, language);
     return NextResponse.json({ entry }, { status: 201 });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
+    throw err;
+  }
+}
+
+/** Clear the whole lookup history. */
+export async function DELETE() {
+  try {
+    const user = await requireUser();
+    await clearPriceChecks(user.id);
+    return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

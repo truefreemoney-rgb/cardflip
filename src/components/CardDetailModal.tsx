@@ -15,6 +15,9 @@ interface Props {
   card: PokemonCard;
   language: ScanLanguage;
   logging: boolean;
+  /** True when opened from the watchlist itself — offering "Add to
+   * watchlist" for a card that's already on it is noise. */
+  onWatchlist?: boolean;
   onClose: () => void;
 }
 
@@ -23,7 +26,7 @@ interface Props {
  * expanding inline — clicking a thumbnail should feel like stepping into a
  * focused space to inspect that card, not just growing the same page.
  */
-export default function CardDetailModal({ card, language, logging, onClose }: Props) {
+export default function CardDetailModal({ card, language, logging, onWatchlist = false, onClose }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -112,18 +115,24 @@ export default function CardDetailModal({ card, language, logging, onClose }: Pr
               </p>
             )}
 
-            <button
-              onClick={handleSave}
-              disabled={saving || saved}
-              className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-default ${
-                saved
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : "bg-white/5 text-zinc-200 hover:bg-white/10"
-              }`}
-            >
-              {saving && <Spinner className="h-3.5 w-3.5" />}
-              {saved ? "★ Saved to watchlist" : "☆ Add to watchlist"}
-            </button>
+            {onWatchlist ? (
+              <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
+                ★ On your watchlist
+              </p>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saving || saved}
+                className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-default ${
+                  saved
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : "bg-white/5 text-zinc-200 hover:bg-white/10"
+                }`}
+              >
+                {saving && <Spinner className="h-3.5 w-3.5" />}
+                {saved ? "★ Saved to watchlist" : "☆ Add to watchlist"}
+              </button>
+            )}
           </div>
         </div>
 

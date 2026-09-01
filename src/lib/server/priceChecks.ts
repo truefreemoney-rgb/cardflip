@@ -128,6 +128,14 @@ export async function logPriceCheck(
   };
 }
 
+export async function deletePriceCheck(id: string, userId: string): Promise<void> {
+  await db.prepare("DELETE FROM price_checks WHERE id = ? AND user_id = ?").run(id, userId);
+}
+
+export async function clearPriceChecks(userId: string): Promise<void> {
+  await db.prepare("DELETE FROM price_checks WHERE user_id = ?").run(userId);
+}
+
 export async function listPriceChecks(userId: string, limit = 100): Promise<PriceCheckEntry[]> {
   const rows = (await db
     .prepare(

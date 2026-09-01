@@ -661,6 +661,7 @@ export default function WishlistPage() {
           card={detail.card}
           language={detail.language}
           logging={false}
+          onWatchlist
           onClose={() => setDetail(null)}
         />
       )}
