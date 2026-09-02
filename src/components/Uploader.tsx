@@ -38,22 +38,17 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
   );
 
   if (variant === "compact") {
+    // One button (Chris, 09-01): the camera IS how you add more cards, so it
+    // wears that label; the separate file-picker button was clutter. Without
+    // a camera handler the picker keeps the label so adding still works.
     return (
       <>
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={onOpenCamera ?? (() => inputRef.current?.click())}
           className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
         >
-          Add more cards
+          {onOpenCamera && <span aria-hidden>📷 </span>}Add more cards
         </button>
-        {onOpenCamera && (
-          <button
-            onClick={onOpenCamera}
-            className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
-          >
-            <span aria-hidden>📷</span> Camera
-          </button>
-        )}
         {input}
       </>
     );
