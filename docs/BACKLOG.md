@@ -16,7 +16,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Publish a listing — DONE 09-02: Simisage 090/86 live at $8.99 through CardFlip (truefreemoney eBay acct) — whole post-reconnect chain clean. View-on-eBay upgraded to a real button same session (Chris feedback)
 - [ ] Push a non-NM card → expect NO "saved without condition detail" (183454 descriptor fix); a GRADED push also verifies cert descriptor 27503
 - [x] Ended-listing sync — VERIFIED LIVE 09-02: Chris ended the Simisage listing, amber "Ended on eBay" chip appeared in My Cards after the sync pass (10-min throttle respected)
-- [ ] Reprice a live listing → offer PUT verified
+- [~] Reprice — HALF verified 09-02: nudge appeared correctly on live data (↓ $11.03 vs $14.99 ask, 26% drift; chip restyled same session). The eBay PUT itself still unverified — Chris ended the listing pre-tap; parks until a real listing drifts (7-day age gate restored)
 - [ ] Watcher offers: one real send once a listing has watchers
 - [ ] Multi-qty sale: partial purchase → sold-row split + decrement
 - [ ] After a real sale: net flips estimate→actual within ~a day, matches payout email, tooltip "(actual)"
