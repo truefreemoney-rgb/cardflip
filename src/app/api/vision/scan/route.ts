@@ -9,12 +9,22 @@ import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { isDemoUser } from "@/lib/server/users";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
   LIMITS,
   RateLimitError,
   enforceRateLimit,
   rateLimitResponse,
 } from "@/lib/server/rateLimit";
+
+/**
+ * Durable daily caps (db counters — the in-memory windows in rateLimit.ts
+ * never bind on serverless, the PSA-leak lesson). Same numbers the in-memory
+ * daily rules carried; those stay as warm-instance burst guards per minute.
+ * Demo is one shared public account, so its cap is effectively global.
+ */
+const SCAN_DAILY_BUDGET = 500;
+const SCAN_DEMO_DAILY_BUDGET = 60;
 
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -58,6 +68,20 @@ export async function POST(req: Request) {
     // base64 inflates by ~4/3, so compare against the decoded size.
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "Image too large" }, { status: 413 });
+    }
+
+    // Last gate before spending money — a well-formed request that clears the
+    // burst limiter still has to fit the durable daily budget.
+    const demo = isDemoUser(user);
+    const overBudget = await dayBudgetSpent(
+      demo ? "scan_demo" : `scan_${user.id}`,
+      demo ? SCAN_DEMO_DAILY_BUDGET : SCAN_DAILY_BUDGET,
+    );
+    if (overBudget) {
+      return NextResponse.json(
+        { error: "Today's scan budget is used up — try again tomorrow", retryAfterSeconds: 3600 },
+        { status: 429, headers: { "Retry-After": "3600" } },
+      );
     }
 
     const card = await analyzeCardImage(image, mediaType, language, parseGame(body?.game));
