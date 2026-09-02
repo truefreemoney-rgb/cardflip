@@ -23,8 +23,8 @@ const sections: LegalSection[] = [
   {
     heading: "Early access and billing",
     paragraphs: [
-      "CardFlip is currently in early access and free to use. When early access ends, the service will cost $9.99 per month, which includes 500 card scans each month. You will be told clearly before any billing starts — no card is collected during early access and nothing is charged without your explicit sign-up.",
-      "Once paid subscriptions exist: they renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. Fees paid to eBay for your listings are always between you and eBay.",
+      "CardFlip costs $9.99 per month, which includes 500 card scans each month. Payment is handled by Stripe; nothing is charged without your explicit sign-up. Accounts created during early access remain free until they choose to subscribe.",
+      "Subscriptions renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. Fees paid to eBay for your listings are always between you and eBay.",
     ],
   },
   {
@@ -77,7 +77,7 @@ const sections: LegalSection[] = [
   {
     heading: "Changes to these terms",
     paragraphs: [
-      "We may update these terms as the service evolves — for example, when paid subscriptions launch. The effective date above always reflects the current version, and material changes will be announced in the app before they take effect. Continuing to use CardFlip after a change means you accept the updated terms.",
+      "We may update these terms as the service evolves. The effective date above always reflects the current version, and material changes will be announced in the app before they take effect. Continuing to use CardFlip after a change means you accept the updated terms.",
     ],
   },
   {
@@ -92,7 +92,7 @@ export default function TermsPage() {
   return (
     <LegalArticle
       title="Terms of Service"
-      effectiveDate="August 14, 2026"
+      effectiveDate="September 2, 2026"
       intro="These terms are an agreement between you and CardFlip covering your use of the CardFlip website and app. They are written to be read — if anything is unclear, ask us before relying on it."
       sections={sections}
     />

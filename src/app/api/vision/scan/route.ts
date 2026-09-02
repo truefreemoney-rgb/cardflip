@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {
-          error: "You've used all 500 scans this month — your allowance resets when the subscription renews",
+          error: "You've used all 500 scans this month — your allowance resets at the start of next month",
           quota: true,
           usage: scanQuota(user),
         },
