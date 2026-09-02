@@ -44,6 +44,8 @@ const STEADY_MOTION = 6;
     here still counts as steady, it just needs a longer hold; a real swap
     spikes past MOVING_MOTION regardless. */
 const SHIMMER_MOTION = 11;
+/** Above this the frame is "moving" — a swap in progress. */
+const MOVING_MOTION = 15;
 /** Close-up handheld: tremor is amplified in pixels the nearer the card, so
     a phone held close never gets under SHIMMER_MOTION (09-01, Chris — "auto
     is unusable unless you hold the camera far away"). Wobble below the swap
@@ -53,8 +55,6 @@ const WOBBLE_MOTION = MOVING_MOTION;
     ones 2, close-up wobble 1 — matte at arm's length fires in 3 samples
     (0.6s), holos in 6 (1.2s), a wobbly close-up in 12 (2.4s). */
 const STEADY_POINTS = 12;
-/** Above this the frame is "moving" — a swap in progress. */
-const MOVING_MOTION = 15;
 /** Std-dev floor: an empty mat/table is flat; a card has print on it. */
 const CONTENT_STDDEV = 28;
 /** Difference from the last captured signature that counts as a new card. */
