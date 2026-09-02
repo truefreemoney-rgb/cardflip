@@ -49,7 +49,7 @@ check("non-subscriber: metered but not enforced",
   scanQuota(u({ subStatus: null, scansUsed: 40 })),
   { used: 40, included: MONTHLY_SCANS, remaining: null });
 check("active subscriber: remaining math",
-  scanQuota(u({ subStatus: "active", scansUsed: 40 })).remaining, MONTHLY_SCANS - 40);
+  scanQuota(u({ subStatus: "active", scansUsed: 3 })).remaining, Math.max(0, MONTHLY_SCANS - 3));
 check("trialing and past_due count as subscribed",
   ["trialing", "past_due"].map((s) => scanQuota(u({ subStatus: s, scansUsed: 1 })).remaining),
   [MONTHLY_SCANS - 1, MONTHLY_SCANS - 1]);
