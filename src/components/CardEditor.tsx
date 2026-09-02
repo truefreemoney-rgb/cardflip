@@ -516,6 +516,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const historyScaleLabel = item.grading
     ? `${gradeLabel(item.grading)} est.`
     : `${item.condition} est.`;
+  // Recorded graded curve, once the comps route has banked enough lookups —
+  // the chart prefers this series and drops the estimate when it exists.
+  const historyPreferVariant = item.grading
+    ? `graded-${item.grading.company.toLowerCase()}-${item.grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? item.grading.grade}`
+    : null;
   const generated = buildListing(
     card,
     price,
@@ -768,6 +773,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         activeUrl={ebaySearchUrl(card, facts)}
         historyScale={historyScale}
         historyScaleLabel={historyScaleLabel}
+        historyPreferVariant={historyPreferVariant}
       />
 
       {firstEdEligible && (

@@ -180,7 +180,16 @@ function niceStep(range: number, target = 4): number {
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
-  const targetFactor = scale && scale > 0 && scale !== 1 ? scale : 1;
+  const [loadedForFactor, setLoadedForFactor] = useState<Series[] | null>(null);
+  // A REAL series at the preferred variant (a recorded graded curve) beats
+  // any rescaled estimate: when the picked series matches preferVariant
+  // exactly, the data is already at the right altitude — no scaling, and the
+  // chip drops "est.".
+  const exactVariant = Boolean(
+    preferVariant && loadedForFactor && pickSeries(loadedForFactor, preferVariant)?.variant === preferVariant,
+  );
+  const requestedFactor = scale && scale > 0 && scale !== 1 ? scale : 1;
+  const targetFactor = exactVariant ? 1 : requestedFactor;
   // Ease the curve between altitudes instead of teleporting: tween the scale
   // factor over ~350ms whenever it changes (grade flips felt laggy AND
   // jumpy — the glide makes the change read as one motion).
@@ -207,7 +216,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetFactor]);
   const scaled = targetFactor !== 1;
-  if (scaled) trend = null; // raw source averages would contradict the scaled curve
+  if (scaled || exactVariant) trend = null; // raw source averages would contradict a scaled or graded curve
   const [range, setRange] = useState<Range>(90);
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -217,8 +226,8 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
   useEffect(() => {
     let alive = true;
     loadSeries(cardId)
-      .then((s) => { if (alive) setLoaded({ id: cardId, series: s, failed: false }); })
-      .catch(() => { if (alive) setLoaded({ id: cardId, series: null, failed: true }); });
+      .then((s) => { if (alive) { setLoaded({ id: cardId, series: s, failed: false }); setLoadedForFactor(s); } })
+      .catch(() => { if (alive) { setLoaded({ id: cardId, series: null, failed: true }); setLoadedForFactor(null); } });
     return () => { alive = false; };
   }, [cardId]);
   const all = loaded.id === cardId ? loaded.series : null;
@@ -335,8 +344,10 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             {series && (
               <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${series.variant}` : ""}</span>
             )}
-            {scaled && scaleLabel && (
-              <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300">{scaleLabel}</span>
+            {scaleLabel && (scaled || exactVariant) && (
+              <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300">
+                {exactVariant ? scaleLabel.replace(/ est\.$/, " (recorded)") : scaleLabel}
+              </span>
             )}
           </div>
           {last && (

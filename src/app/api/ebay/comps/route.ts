@@ -9,6 +9,7 @@ import {
   isEbayConfigured,
 } from "@/lib/server/ebay";
 import type { PokemonCard } from "@/lib/types";
+import { recordPoint } from "@/lib/server/priceHistory";
 import {
   LIMITS,
   RateLimitError,
@@ -65,6 +66,19 @@ export async function POST(req: Request) {
 
     if (activeResult.status === "rejected") throw activeResult.reason;
     const comps = activeResult.value;
+
+    // Graded lookups are the only graded price signal anywhere — bank each
+    // one as a history point (variant "graded-psa-10" style) so cards people
+    // actually price grow a REAL graded curve over time, replacing the
+    // chart's rescaled estimate. Fire-and-forget: recording must never sink
+    // the lookup.
+    if (grading && comps && comps.count >= 2 && card.id) {
+      const gradeNum = grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade;
+      const variant = `graded-${grading.company.toLowerCase()}-${gradeNum}`;
+      void recordPoint(card.id, card.game ?? "pokemon", variant, "ebay", "USD", comps.average).catch((err) =>
+        console.error("graded history point failed:", err),
+      );
+    }
 
     let sold = null;
     let soldStatus: "done" | "empty" | "unavailable" = "empty";
