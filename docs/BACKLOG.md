@@ -45,7 +45,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] **3. Replace the shared demo account** — one communal wiped-per-visit account cannot serve thousands of simultaneous visitors; becomes per-visitor sandbox or a real free tier (free tier also = the CollX-proven funnel; ~10¢/user/mo at Sonnet prices)
 - [ ] **4. Durable rate limits** — port the PSA db-counter pattern to every limiter that guards money (vision/scan quota especially); in-memory limiters don't bind on serverless (proven 09-02)
 - [ ] **5. eBay app-level call limits** — one keyset serves all sellers; apply for eBay rate-limit increase BEFORE launch (application takes time)
-- [ ] **6. Support surface** — /help FAQ (was backburner, now pre-launch) + move support@cardflip.io out of personal Fastmail triage; onboarding tour
+- [~] **6. Support surface** — /help FAQ SHIPPED 09-02 (f49e10d: 13 articles w/ stable anchor ids for deep-linking, footer link; facts verified against code; same commit refreshed stale privacy/terms — Stripe live, Vercel/Turso, eBay present-tense). Remaining: error states deep-link to /help#ids; move support@cardflip.io out of personal Fastmail triage; onboarding tour
 - [ ] **7. Infra tiers** — Vercel/Turso plan review + connection behavior at 10k+ users
 - [ ] **8. MD LLC** — $250k/mo through a sole proprietorship = liability/tax problem; LLC also solves the Stripe address blocker in one move
 - [ ] **9. Soft-launch cohort FIRST** — few hundred users, 2 weeks: measure conversion, churn, real scans/user before ad spend (sets the CAC ceiling; ads amplify what exists)

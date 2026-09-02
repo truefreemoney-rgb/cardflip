@@ -236,7 +236,19 @@ function PsaCertVerify({
       {!result && grading.cert && !error && (
         <p className="text-xs text-zinc-500">Cert {grading.cert} verified earlier.</p>
       )}
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && (
+        <p className="text-xs text-red-400">
+          {error}{" "}
+          <a
+            href="/help#graded"
+            target="_blank"
+            rel="noopener"
+            className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
+          >
+            How graded cards work
+          </a>
+        </p>
+      )}
     </div>
   );
 }

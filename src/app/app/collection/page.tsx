@@ -179,7 +179,10 @@ export default function CollectionPage() {
     setRepricing(null);
     if (!result.ok) {
       setSyncError(`Couldn't reprice ${card.cardName} — try again.`);
-      toast(`Couldn't reprice ${card.cardName} — try again`, "err");
+      toast(`Couldn't reprice ${card.cardName} — try again`, "err", {
+        label: "Help",
+        onClick: () => window.open("/help#reprice", "_blank", "noopener"),
+      });
       return;
     }
     patchCard(card.id, { price: nudge.market });
@@ -598,7 +601,15 @@ export default function CollectionPage() {
               <h2 className="text-base font-semibold text-white">Offer to watchers</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 eBay emails a private discount to everyone watching a listing. One offer per
-                buyer per listing — pick the card, pick the cut, send.
+                buyer per listing — pick the card, pick the cut, send.{" "}
+                <a
+                  href="/help#offers"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
+                >
+                  How offers work
+                </a>
               </p>
             </div>
             <button

@@ -918,6 +918,12 @@ export default function AppPage() {
               className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"
             >
               See your plan
+            </Link>{" "}
+            <Link
+              href="/help#scan-limits"
+              className="font-medium text-red-200/80 underline underline-offset-4 transition hover:text-red-100"
+            >
+              How limits work
             </Link>
           </span>
           <button
