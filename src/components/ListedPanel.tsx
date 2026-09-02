@@ -50,14 +50,16 @@ export default function ListedPanel({ item, onChange, onNext }: Props) {
             Listed at ${listedPrice.toFixed(2)} ·{" "}
             {item.listedAt ? timeAgo(item.listedAt) : "just now"}
           </p>
+          {/* The first thing a seller wants after publishing is to SEE the
+              live listing (Chris, 09-02: the old tiny text link buried it). */}
           {item.ebayListingUrl && (
             <a
               href={item.ebayListingUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs font-medium text-sky-300 underline underline-offset-4 hover:text-sky-200"
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-ebay px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ebay-hover"
             >
-              View on eBay ↗
+              View your listing on eBay ↗
             </a>
           )}
         </div>
