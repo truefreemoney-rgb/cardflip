@@ -28,9 +28,12 @@ parked on collectors-apis reply (Chris emailed 09-01 from
 support@cardflip.io; reply lands in his Fastmail — ask him to check).
 seedMtgMirror completeness test DONE same session (test:mirror now 24
 checks; committed on vercel-migration, NOT pushed — batch with next
-real change per the cold-deploy lesson). NEXT: BACKLOG §0 code queue
-top-down: bulk-CSV validation (needs Chris at a desktop —
-gate-present it), watcher v2, sync automation. BACKLOG §0 IS
+real change per the cold-deploy lesson). Bulk-CSV validated live same session (3 rows → Seller Hub drafts,
+escaping/qty/price all correct; NOTE eBay username is christophis01 —
+"truefreemoney" was only the email; account has NO eBay payout method
+yet, flag before a real sale). No collectors-apis reply yet (checked
+09-02). NEXT: BACKLOG §0 code queue top-down: watcher offers v2, then
+catalog sync automation. BACKLOG §0 IS
 the one task list — for Chris, present ONE task at a time, easiest
 first, as a gate (see memory chris-single-task-gating); his parked
 blockers: business address (virtual mailbox rec'd, PO rejected by
