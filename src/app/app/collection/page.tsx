@@ -913,11 +913,16 @@ export default function CollectionPage() {
                           onClick={() => void applyReprice(card, nudges[card.id])}
                           disabled={repricing === card.id}
                           title={`The market moved ${nudges[card.id].drift > 0 ? "up" : "down"} ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% since this listed — one click updates the price here and on the live eBay listing.`}
-                          className="mt-0.5 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-50"
+                          className="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-400/20 disabled:opacity-50"
                         >
-                          {repricing === card.id
-                            ? "Repricing…"
-                            : `Market $${nudges[card.id].market.toFixed(2)} — reprice`}
+                          {repricing === card.id ? (
+                            "Repricing…"
+                          ) : (
+                            <>
+                              <span aria-hidden>{nudges[card.id].drift > 0 ? "↑" : "↓"}</span>
+                              Reprice to ${nudges[card.id].market.toFixed(2)}
+                            </>
+                          )}
                         </button>
                       )}
                     </>
