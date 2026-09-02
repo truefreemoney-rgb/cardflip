@@ -180,8 +180,33 @@ function niceStep(range: number, target = 4): number {
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
-  const factor = scale && scale > 0 && scale !== 1 ? scale : 1;
-  const scaled = factor !== 1;
+  const targetFactor = scale && scale > 0 && scale !== 1 ? scale : 1;
+  // Ease the curve between altitudes instead of teleporting: tween the scale
+  // factor over ~350ms whenever it changes (grade flips felt laggy AND
+  // jumpy — the glide makes the change read as one motion).
+  const [factor, setFactor] = useState(targetFactor);
+  const tweenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (tweenRef.current !== null) cancelAnimationFrame(tweenRef.current);
+    setFactor((from) => {
+      if (from === targetFactor) return from;
+      // Motion policy: reduced-motion users get the new altitude immediately.
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return targetFactor;
+      const t0 = performance.now();
+      const DURATION = 350;
+      const step = (now: number) => {
+        const t = Math.min(1, (now - t0) / DURATION);
+        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        setFactor(from + (targetFactor - from) * eased);
+        if (t < 1) tweenRef.current = requestAnimationFrame(step);
+      };
+      tweenRef.current = requestAnimationFrame(step);
+      return from;
+    });
+    return () => { if (tweenRef.current !== null) cancelAnimationFrame(tweenRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetFactor]);
+  const scaled = targetFactor !== 1;
   if (scaled) trend = null; // raw source averages would contradict the scaled curve
   const [range, setRange] = useState<Range>(90);
   const [hover, setHover] = useState<number | null>(null);

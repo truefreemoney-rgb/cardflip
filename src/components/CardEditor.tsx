@@ -241,6 +241,9 @@ function PsaCertVerify({
   );
 }
 
+/** Session cache of graded comps per card+grade — grade flips shouldn't re-ask eBay. */
+const gradedCompsCache = new Map<string, { average: number; count: number } | null>();
+
 export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll }: Props) {
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
@@ -257,16 +260,32 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [gradedCompsLoading, setGradedCompsLoading] = useState(false);
   const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
   useEffect(() => {
-    setGradedComps(null);
-    if (!gradeKey || !card || !item.grading) return;
+    if (!gradeKey || !card || !item.grading) {
+      setGradedComps(null);
+      return;
+    }
+    // Cached grade: apply instantly — flipping between grades you've already
+    // looked at shouldn't wait on eBay again (Chris, 09-02: the lag).
+    const hit = gradedCompsCache.get(gradeKey);
+    if (hit !== undefined) {
+      setGradedComps(hit);
+      return;
+    }
+    // While the new grade loads, KEEP the previous graded number on screen —
+    // resetting to null mid-flight made the chart double-jump (graded → raw
+    // → new graded).
     let stale = false;
     setGradedCompsLoading(true);
     void fetchEbayComps(card, item.grading).then((res) => {
+      const value =
+        res.comps && res.comps.count >= 2
+          ? { average: res.comps.average, count: res.comps.count }
+          : null;
+      // Cache even the misses so a grade with no market doesn't refetch per flip.
+      if (res.status === "done" || res.status === "empty") gradedCompsCache.set(gradeKey, value);
       if (stale) return;
       setGradedCompsLoading(false);
-      if (res.comps && res.comps.count >= 2) {
-        setGradedComps({ average: res.comps.average, count: res.comps.count });
-      }
+      setGradedComps(value);
     });
     return () => { stale = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
