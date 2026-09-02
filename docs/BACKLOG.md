@@ -20,7 +20,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Multi-qty sale: partial purchase → sold-row split + decrement
 - [ ] After a real sale: net flips estimate→actual within ~a day, matches payout email, tooltip "(actual)"
 - [ ] Wishlist alert email confirms itself on first real dip
-- [ ] Phone: retest auto-scan on holos + close-up holds (both fixes deployed 09-01, untested on hardware)
+- [x] Phone: auto-scan retested 09-01 — holos + close-up both fire (Chris: "it works"); idle pill now hints "fill the frame, not too close"
 - [ ] Cancel test sub (christophis@msn.com) via Manage billing → tests Stripe portal + cancel webhook; then refund $9.99 in dashboard (reminder scheduled 09-03 5pm)
 
 ### Waiting on third parties
