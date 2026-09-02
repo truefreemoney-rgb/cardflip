@@ -21,14 +21,16 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-02 end): (1) PSA prod retest — quota reset
-overnight: demo-login cardflip.io, fetch `/api/psa/cert/28400235` →
-200 = PSA cert lookup DONE (tick BACKLOG §0), 403 = Vercel IPs blocked
-at PSA's edge → wait for collectors-apis reply (Chris emailed 09-01
-from support@cardflip.io: limit raise + IP question; reply lands in
-his Fastmail). Do NOT burn quota retrying. (2) Then work BACKLOG.md §0
-"Claude's code queue" top-down (next: seedMtgMirror completeness test;
-then bulk-CSV validation, watcher v2, sync automation). BACKLOG §0 IS
+**FIRST ACTION (saved 09-02 later session): PSA retested after quota
+reset — prod STILL 403 (demo-login + cert 28400235 → PSA answered
+403) = Vercel IPs blocked at PSA's edge. CONFIRMED, do not retest;
+parked on collectors-apis reply (Chris emailed 09-01 from
+support@cardflip.io; reply lands in his Fastmail — ask him to check).
+seedMtgMirror completeness test DONE same session (test:mirror now 24
+checks; committed on vercel-migration, NOT pushed — batch with next
+real change per the cold-deploy lesson). NEXT: BACKLOG §0 code queue
+top-down: bulk-CSV validation (needs Chris at a desktop —
+gate-present it), watcher v2, sync automation. BACKLOG §0 IS
 the one task list — for Chris, present ONE task at a time, easiest
 first, as a gate (see memory chris-single-task-gating); his parked
 blockers: business address (virtual mailbox rec'd, PO rejected by

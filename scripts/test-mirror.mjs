@@ -101,5 +101,85 @@ check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);
 check("id fetch misses cleanly", (await englishCardById("nope-1")).cards, []);
 
+// --- seedMtgMirror completeness -------------------------------------------
+// The seed path's decisions, pinned: fresh import copies everything; the
+// marker makes reruns no-ops; a fresh-but-incomplete prod mirror is REPLACED
+// (recency alone burned prod on 08-16); history merge fills gaps without
+// overwriting prod's own points; a full+newer prod mirror is KEPT.
+const { seedMtgMirror } = await import(at("lib/db.ts"));
+const { gzipSync } = await import("node:zlib");
+const { mkdirSync, writeFileSync, utimesSync, readFileSync: readF } = await import("node:fs");
+const { DatabaseSync } = await import("node:sqlite");
+
+const seedDir = path.join(work, "seed");
+mkdirSync(seedDir, { recursive: true });
+const seedGz = path.join(seedDir, "mtg-mirror.db.gz");
+
+function writeSeed({ series, mtime }) {
+  const raw = path.join(work, "seed-src.db");
+  try { rmSync(raw); } catch { /* first run */ }
+  const s = new DatabaseSync(raw);
+  s.exec(`
+    CREATE TABLE mtg_sets (code TEXT PRIMARY KEY, name TEXT, released_at TEXT, card_count INTEGER,
+      printed_size INTEGER, set_type TEXT, icon_url TEXT, synced_at INTEGER);
+    CREATE TABLE mtg_cards (id TEXT PRIMARY KEY, oracle_id TEXT, name TEXT, set_code TEXT, set_name TEXT,
+      collector_number TEXT, set_release_date TEXT, image_url TEXT, rarity TEXT, type_line TEXT,
+      finishes TEXT, lang TEXT, price_usd REAL, price_usd_foil REAL, price_usd_etched REAL,
+      price_eur REAL, price_eur_foil REAL, synced_at INTEGER);
+    CREATE TABLE price_series (card_id TEXT, game TEXT, variant TEXT, source TEXT, currency TEXT,
+      start_day TEXT, prices TEXT, updated_day TEXT, PRIMARY KEY (card_id, variant, source));
+    CREATE TABLE tcgplayer_products (product_id INTEGER PRIMARY KEY, group_id INTEGER, card_id TEXT, game TEXT);
+    INSERT INTO mtg_sets VALUES ('lea', 'Limited Edition Alpha', '1993-08-05', 295, 295, 'core', '', 100);
+    INSERT INTO mtg_cards VALUES ('lea-232', '', 'Black Lotus', 'lea', 'Limited Edition Alpha', '232',
+      '1993-08-05', '', 'rare', 'Artifact', 'nonfoil', 'en', 20000, NULL, NULL, NULL, NULL, 100);
+    INSERT INTO mtg_cards VALUES ('lea-48', '', 'Ancestral Recall', 'lea', 'Limited Edition Alpha', '48',
+      '1993-08-05', '', 'rare', 'Instant', 'nonfoil', 'en', 5000, NULL, NULL, NULL, NULL, 100);
+    INSERT INTO tcgplayer_products VALUES (1234, 7, 'lea-232', 'mtg');
+  `);
+  const ins = s.prepare("INSERT INTO price_series VALUES (?, 'mtg', ?, ?, ?, ?, ?, ?)");
+  for (const r of series) ins.run(r.cardId, r.variant ?? "normal", r.source ?? "scryfall", "USD", r.startDay, JSON.stringify(r.prices), r.updatedDay);
+  s.close();
+  writeFileSync(seedGz, gzipSync(readF(raw)));
+  utimesSync(seedGz, mtime, mtime);
+}
+
+const q1 = async (sql) => (await db.prepare(sql).get());
+
+// Run A: fresh import copies mirror, sets, history and the TCGplayer map.
+writeSeed({ series: [{ cardId: "lea-232", startDay: "2026-01-01", prices: [9.99, 7], updatedDay: "2026-01-02" }], mtime: 1000 });
+await seedMtgMirror();
+check("fresh seed: mirror copied", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 2);
+check("fresh seed: sets copied", (await q1("SELECT COUNT(*) AS n FROM mtg_sets")).n, 1);
+check("fresh seed: seed-only price series straight-copied",
+  (await q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'"))?.prices, "[9.99,7]");
+check("fresh seed: tcgplayer map copied",
+  (await q1("SELECT card_id FROM tcgplayer_products WHERE product_id = 1234"))?.card_id, "lea-232");
+
+// Marker: same seed mtime again is a no-op even after prod loses rows.
+await db.prepare("DELETE FROM mtg_cards WHERE id = 'lea-48'").run();
+await seedMtgMirror();
+check("marker: unchanged seed is a no-op", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 1);
+
+// Run B: prod is FRESHER but incomplete (the 08-16 bug) → replaced anyway.
+// Prod's own price point must survive the merge; the seed's extra day fills in.
+await db.prepare("UPDATE mtg_cards SET synced_at = 9999999999").run();
+await db.prepare("UPDATE price_series SET prices = '[5]', updated_day = '2026-01-05' WHERE card_id = 'lea-232'").run();
+writeSeed({ series: [{ cardId: "lea-232", startDay: "2026-01-01", prices: [9.99, 7], updatedDay: "2026-01-02" }], mtime: 2000 });
+await seedMtgMirror();
+check("fresh-but-incomplete prod mirror is replaced", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 2);
+check("history merge keeps prod's point, fills the seed's gap day",
+  (await q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'"))?.prices, "[5,7]");
+
+// Run C: prod full (>= 80k floor) AND newer → mirror kept, seed ignored.
+await db.exec(`
+  WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 80100)
+  INSERT INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
+    image_url, rarity, type_line, finishes, lang, synced_at)
+  SELECT 'bulk-' || i, '', 'Bulk Card', 'blk', 'Bulk', CAST(i AS TEXT), '', '', '', '', '', 'en', 9999999999 FROM n`);
+writeSeed({ series: [], mtime: 3000 });
+await seedMtgMirror();
+check("full + newer prod mirror is kept",
+  (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n >= 80_000);
+
 console.log(failures === 0 ? "\nAll mirror checks passed" : `\n${failures} mirror check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;
