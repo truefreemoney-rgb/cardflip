@@ -7,6 +7,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 0. CURRENT TRACK (consolidated 09-02 — full sweep of BACKLOG + STATE's WAITING-ON-CHRIS/NEXT-WORK/parked items; THIS section is the one list, sections below are detail/archive)
 
 ### Pre-launch blockers (Chris decisions)
+- [ ] **Stripe payouts: add a bank account** (found 09-02 — red banner; subscriber revenue currently piles up in Stripe balance with nowhere to go). Stripe dashboard → the banner or Settings → Bank accounts.
 - [ ] **Stripe business address** — home address shows on paying customers' receipts. PO boxes REJECTED by Stripe. Pick: UPS Store mailbox (easiest), iPostal1-style virtual (~$10-15/mo), or MD LLC registered agent (LLC itself worth a pre-launch think). Deadline: before first real subscriber.
 - [ ] **Price point** — Chris unsure about $9.99/500. When decided: MONTHLY_SCANS + "500 scans" in 5 copy spots (grep) + Stripe price object.
 - [ ] Stripe polish: branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL sk_live rotation (chat-exposed 09-01; roll in dashboard + rerun scripts/flip-stripe-live.mjs). Turso tokens also chat-exposed — Chris accepted that risk 08-31.
@@ -21,7 +22,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] After a real sale: net flips estimate→actual within ~a day, matches payout email, tooltip "(actual)"
 - [ ] Wishlist alert email confirms itself on first real dip
 - [x] Phone: auto-scan retested 09-01 — holos + close-up both fire (Chris: "it works"); idle pill now hints "fill the frame, not too close"
-- [ ] Cancel test sub (christophis@msn.com) via Manage billing → tests Stripe portal + cancel webhook; then refund $9.99 in dashboard (reminder scheduled 09-03 5pm)
+- [x] Cancel test sub — DONE 09-02: Stripe portal verified (branded, invoice history; NOTE business name reads "Card Flip" w/ space — fix in branding polish), cancel-at-period-end set (service to Oct 2; sub_status flips + webhook cancel path self-verifies then), $9.99 refunded ("Requested by customer"). NEW FIND: Stripe has NO BANK ACCOUNT for payouts — red banner in dashboard — promoted to pre-launch blockers
 
 ### Waiting on third parties
 - [ ] PSA: prod retest after daily quota reset (Claude, next session FIRST ACTION) — 200 = done; 403 = Vercel IPs blocked. Also watch support@cardflip.io for collectors-apis reply (limit raise + IP question + quota mystery, sent 09-01)
