@@ -57,7 +57,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 - [ ] M — Auth tests: signup, login, sliding sessions, password reset, admin gating
 - [ ] M — API-route tests (currently curl-only)
-- [ ] M — Ledger/wishlist/price-check server tests incl. fee math (13.25% + $0.30)
+- [x] M — Ledger/wishlist/price-check server tests — DONE 09-01, `npm run test:cards` (37 checks: fee math incl. actual-beats-estimate, ownership, partial-sale split, stats blend, wishlist dedupe/alerts, price-check dedupe/backfill)
 - [ ] S — Tests for `enCards.ts` ranking, `db.ts` ALTER-probe migrations, `seedMtgMirror` completeness (the code that broke prod)
 - [x] S — Zero-catch routes — sets/card-image/demo wrapped 08-16; logout/me/connect are trivial, left: `api/auth/demo`, `auth/logout`, `auth/me`, `card-image/[id]`, `ebay/connect`, `sets`
 - [x] S — `npm test` aggregate — done 08-16 script running all 6 suites
