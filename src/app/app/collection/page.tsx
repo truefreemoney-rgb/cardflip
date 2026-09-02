@@ -929,7 +929,10 @@ export default function CollectionPage() {
                       the scanner rebuilds this one card from the ledger row. */}
                   {card.status === "ready" && card.kind !== "sealed" && (
                     <Link
-                      href={`/app?resume=${card.id}`}
+                      // Card identity rides along so the scanner can start the
+                      // catalog search in parallel with the ledger fetch —
+                      // sequential round trips made this feel stuck (09-02).
+                      href={`/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}`}
                       className="rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
                     >
                       Build listing

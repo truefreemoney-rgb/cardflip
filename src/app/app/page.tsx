@@ -541,11 +541,21 @@ export default function AppPage() {
   );
   useEffect(() => {
     if (resumedRef.current) return;
-    const resumeId = new URLSearchParams(window.location.search).get("resume");
+    const params = new URLSearchParams(window.location.search);
+    const resumeId = params.get("resume");
     if (!resumeId) return;
     resumedRef.current = true;
+    // My Cards passes the card's identity alongside the id so the catalog
+    // search runs in PARALLEL with the ledger fetch — sequentially they were
+    // two-plus seconds of blank stare on a cold function (Chris, 09-02).
+    const hintName = params.get("rn");
+    const hintNumber = params.get("rnum");
+    const hintGame = params.get("rg") === "mtg" ? "mtg" : "pokemon";
     window.history.replaceState(null, "", window.location.pathname);
     void (async () => {
+      const eagerSearch = hintName
+        ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
+        : null;
       const rows = await fetchServerCards();
       const row = rows.find((r) => r.id === resumeId);
       if (!row || row.kind === "sealed" || row.status === "sold") {
@@ -554,7 +564,11 @@ export default function AppPage() {
         return;
       }
       const game = row.game === "mtg" ? "mtg" : "pokemon";
-      const results = await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game);
+      // The eager result is only trusted when the hint matches the row (a
+      // stale or hand-edited link falls back to the exact lookup).
+      const eager = hintName === row.cardName && (hintNumber || "") === (row.cardNumber || "") ? await eagerSearch : null;
+      const results =
+        eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game));
       const card =
         results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
       if (!card) {
