@@ -14,9 +14,7 @@ import { isSubscribed, type User } from "@/lib/server/users";
  * metered for everyone so that decision can be made with data.
  */
 
-// TEMPORARILY 5 (09-01) so Chris can live-test the out-of-scans 402 banner
-// without burning 500 real vision calls — REVERT TO 500 after the test.
-export const MONTHLY_SCANS = 5;
+export const MONTHLY_SCANS = 500;
 
 const month = () => new Date().toISOString().slice(0, 7);
 
