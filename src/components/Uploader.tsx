@@ -96,20 +96,22 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:-translate-y-0.5 hover:bg-brand-400"
-        >
-          Choose photos
-        </button>
+        {/* Camera leads (Chris, 09-01): scanning live is the main road, the
+            photo picker is the fallback. */}
         {onOpenCamera && (
           <button
             onClick={onOpenCamera}
-            className="rounded-full border border-edge bg-surface-2 px-6 py-3 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
+            className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:-translate-y-0.5 hover:bg-brand-400"
           >
             <span aria-hidden>📷</span> Use camera
           </button>
         )}
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="rounded-full border border-edge bg-surface-2 px-6 py-3 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
+        >
+          Choose photos
+        </button>
       </div>
 
       <p className="text-xs text-zinc-600">
