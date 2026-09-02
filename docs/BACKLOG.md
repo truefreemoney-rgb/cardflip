@@ -29,7 +29,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] eBay draft-scope keyset application (blocked on eBay; EBAY_DRAFT_SCOPE=1 + redeploy when approved)
 
 ### Claude's code queue (rough order)
-- [ ] Tests: prod-breaker trio (enCards ranking, db ALTER probes, seedMtgMirror completeness); API-route tests for account/admin/eBay routes (needs a cookies() harness — lower value); Playwright E2E someday
+- [ ] Tests: ~~enCards ranking + db ALTER probes~~ DONE 09-02 (`test:mirror`, 16 checks: every COLUMN_PROBES column verified present — probes swallow errors, a typo would be invisible; ranking ladder pinned incl. misread-set-total behavior). Remaining: seedMtgMirror completeness, API-route tests (cookies() harness, lower value), Playwright someday
 - [ ] Bulk drafts CSV validated against a real eBay Seller Hub upload (desktop, deliberate act)
 - [ ] Watcher offers v2: auto-fire on slow movers, eligible-list pagination past 200, custom message
 - [ ] Automate catalog syncs now manual on Chris's PC (MTG mirror refresh; Pokémon set sync — Scryfall 429s cloud IPs, needs care)
