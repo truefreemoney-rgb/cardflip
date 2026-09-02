@@ -17,7 +17,7 @@ import {
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
-import { searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrice } from "@/lib/listing";
 import {
   filterByPrintedNumber,
@@ -145,6 +145,12 @@ interface Repriced {
 /** Find the catalog card behind a saved row — the same match walk the
  * repricing pass uses (id first, then exact name+number, then top hit). */
 async function resolveWishlistCard(item: WishlistItem): Promise<PokemonCard | null> {
+  // Rows that stored the catalog id skip the name walk entirely — the
+  // "Charizard" search was seconds of spinner on the tile (09-02).
+  if (item.cardId) {
+    const direct = await fetchCardById(item.cardId, item.game ?? "pokemon").catch(() => null);
+    if (direct) return direct;
+  }
   const cards = await searchCards(
     item.cardName,
     item.cardNumber || null,

@@ -102,6 +102,14 @@ const NAME_TIER = 8;
  * Cards a scan / search could be, best first. `number` and `setCode` come
  * from vision (or the typed query); either can be null.
  */
+/** Exact catalog-id fetch — mirror prices included, no name walk. */
+export async function mtgCardById(id: string): Promise<PokemonCard[]> {
+  const row = (await db
+    .prepare(`SELECT ${CARD_COLUMNS} FROM mtg_cards WHERE id = ?`)
+    .get(id)) as MtgCardRow | undefined;
+  return row ? [toCard(row)] : [];
+}
+
 export async function searchMtgCardsLocal(
   name: string,
   number: string | null,

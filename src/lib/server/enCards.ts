@@ -110,6 +110,16 @@ function agreesWithArt(art: ArtStyle, secretNumbered: boolean): keyof typeof ART
  * scanner puts those in front of the seller with thumbnails rather than
  * silently committing to one.
  */
+/** Exact catalog-id fetch — the fast path for reopening a card a ledger or
+ * wishlist row already identified. Skips the name walk entirely. */
+export async function englishCardById(id: string): Promise<LocalSearchResult> {
+  const row = (await db
+    .prepare(`SELECT ${CARD_COLUMNS} FROM en_cards WHERE id = ?`)
+    .get(id)) as EnCardRow | undefined;
+  if (!row) return { cards: [], releaseDates: new Map() };
+  return { cards: [toCard(row)], releaseDates: new Map([[row.id, row.set_release_date]]) };
+}
+
 export async function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,

@@ -11,6 +11,19 @@ import type { ArtStyle, GameId, PokemonCard, ScanLanguage } from "@/lib/types";
  * `game` picks the catalogue: Pokémon (default) or MTG, where `printed.setCode`
  * is the printed 3–5 letter set code ("LTR") and the set total is unused.
  */
+/** Exact catalog-id fetch — one indexed lookup instead of the name walk.
+ * Returns null when the id isn't in the mirror (fall back to searchCards). */
+export async function fetchCardById(id: string, game: GameId = "pokemon"): Promise<PokemonCard | null> {
+  const params = new URLSearchParams({ id });
+  if (game !== "pokemon") params.set("game", game);
+  const res = await fetch(apiPath(`/api/search-card?${params.toString()}`), {
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.cards?.[0] ?? null;
+}
+
 export async function searchCards(
   name: string,
   printed?: PrintedNumber | string | null,

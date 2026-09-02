@@ -8,13 +8,14 @@ import {
   type PrintedNumber,
 } from "@/lib/cardNumber";
 import {
+  englishCardById,
   enrichWithPricing,
   hasEnglishMirror,
   searchEnglishCardsLocal,
 } from "@/lib/server/enCards";
 import type { ArtStyle, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
-import { hasMtgMirror, searchMtgCardsLocal } from "@/lib/server/mtgCards";
+import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtgCards";
 import {
   LIMITS,
   RateLimitError,
@@ -96,6 +97,19 @@ export async function GET(req: NextRequest) {
     Number.isFinite(limitParam) && limitParam > 0
       ? Math.min(Math.trunc(limitParam), 200)
       : DEFAULT_LIMIT;
+
+  // Exact catalog id — the fast path for reopening an already-identified
+  // card (wishlist tile, history row, Build listing). One indexed SELECT
+  // instead of the ranked name walk; the "Charizard" walk was seconds.
+  const exactId = sanitize(req.nextUrl.searchParams.get("id") ?? "");
+  if (exactId) {
+    if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
+      return NextResponse.json({ cards: await mtgCardById(exactId), matchedOn: "id", source: "local" });
+    }
+    const local = await englishCardById(exactId);
+    const cards = local.cards.length ? await enrichWithPricing(local.cards, local.releaseDates) : [];
+    return NextResponse.json({ cards, matchedOn: "id", source: "local" });
+  }
 
   // Magic: The Gathering — its own mirror, prices included, no upstream
   // call. Name and/or (collector number + set code) identify a printing.
