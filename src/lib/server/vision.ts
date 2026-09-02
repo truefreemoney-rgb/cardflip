@@ -153,6 +153,10 @@ and NOT the artist credit. Put the full name in "name" exactly as printed; for a
 double-faced or adventure card use the front/main name. Leave englishName null.
 setName is optional — the set code is what identifies the printing.
 
+artStyle: "standard" for the regular card frame (any era, old border included);
+"full-art" only for special treatments — borderless, showcase, extended-art,
+Mystical Archive-style alternate frames. Most cards are "standard".
+
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say

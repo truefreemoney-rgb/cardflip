@@ -106,6 +106,32 @@ check("hyphenated catalog name is found by the spaced name + SV number",
   await top("Charizard GX", { number: "SV49", setTotal: 94, setCode: null, isSecretRare: false }), "sma-SV49");
 check("spaced-name secret rare still wins its own fraction",
   await top("Charizard GX", { number: "150", setTotal: 147, setCode: null, isSecretRare: false }), "sm3-150");
+// --- mtg ranking: special sets need evidence -------------------------------
+// 09-02: a plain M11 Pyretic Ritual matched the Mystical Archive showcase —
+// with nothing readable, the tie broke newest-first onto a masterpiece set.
+const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
+for (const [id, name, code, setName, num, date, usd] of [
+  ["m11-153", "Pyretic Ritual", "m11", "Magic 2011", "153", "2010-07-16", 6.13],
+  ["soa-46",  "Pyretic Ritual", "soa", "Mystical Archive", "46", "2026-04-24", 6.3],
+]) {
+  await db.prepare(
+    `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+  ).run(id, name, code, setName, num, date, usd);
+}
+await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES ('m11', 'Magic 2011', 'core', 0)").run();
+await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES ('soa', 'Mystical Archive', 'masterpiece', 0)").run();
+const mtgTop = async (name, number, setCode, art) =>
+  (await searchMtgCardsLocal(name, number, setCode, 5, art ?? null))[0]?.id ?? null;
+check("name-only scan prefers the plain printing over the masterpiece",
+  await mtgTop("Pyretic Ritual", null, null), "m11-153");
+check("a special frame in the photo lifts the masterpiece back up (newest wins the tie)",
+  await mtgTop("Pyretic Ritual", null, null, "full-art"), "soa-46");
+check("an agreeing number is evidence enough for the special set",
+  await mtgTop("Pyretic Ritual", "46", null), "soa-46");
+check("set code still pins the printing exactly",
+  await mtgTop("Pyretic Ritual", null, "soa"), "soa-46");
+
 check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);
 check("id fetch misses cleanly", (await englishCardById("nope-1")).cards, []);

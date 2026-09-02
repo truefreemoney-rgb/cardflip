@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
         { status: 503 },
       );
     }
-    const cards = await searchMtgCardsLocal(name, number || null, setCode, limit);
+    const cards = await searchMtgCardsLocal(name, number || null, setCode, limit, art);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }

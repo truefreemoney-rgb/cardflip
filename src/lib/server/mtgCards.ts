@@ -16,7 +16,7 @@
  */
 
 import { db } from "@/lib/db";
-import type { CardPrice, PokemonCard } from "@/lib/types";
+import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
 import { MTG_FINISH_LABEL } from "@/lib/games";
 
@@ -36,11 +36,28 @@ interface MtgCardRow {
   price_usd_etched: number | null;
   price_eur: number | null;
   price_eur_foil: number | null;
+  /** Joined from mtg_sets in the search queries; absent on the id fetch. */
+  set_type?: string | null;
 }
 
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
                       image_url, rarity, type_line, finishes,
                       price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil`;
+
+/** The same columns off a `c` alias, plus the set's type — for the ranked
+ * searches, which join mtg_sets (both tables have a `name` column). */
+const CARD_COLUMNS_JOINED = `${CARD_COLUMNS.split(",").map((col) => `c.${col.trim()}`).join(", ")}, s.set_type`;
+
+/**
+ * Set types whose printings are special treatments — Mystical Archive
+ * (masterpiece), Secret Lair (box), promos — rather than the plain card a
+ * seller most likely photographed. With no printed evidence pointing at one
+ * (no agreeing set code, no matching collector number, no special frame seen),
+ * these rank below normal printings: 09-02, a plain M11 Pyretic Ritual matched
+ * the 2026 Mystical Archive showcase purely because the no-evidence tie broke
+ * newest-first.
+ */
+const SPECIAL_SET_TYPES = new Set(["masterpiece", "box", "promo", "memorabilia", "funny", "token", "minigame", "alchemy"]);
 
 function pricesOf(row: MtgCardRow): CardPrice[] {
   const out: CardPrice[] = [];
@@ -115,6 +132,7 @@ export async function searchMtgCardsLocal(
   number: string | null,
   setCode: string | null,
   limit = 24,
+  art: ArtStyle = null,
 ): Promise<PokemonCard[]> {
   // Commas are punctuation, not identity: "Ragavan Nimble Pilferer" must
   // find "Ragavan, Nimble Pilferer".
@@ -127,12 +145,12 @@ export async function searchMtgCardsLocal(
     // Double-faced cards are stored as "Front // Back"; match either face.
     rows = (await db
       .prepare(
-        `SELECT ${CARD_COLUMNS}
-           FROM mtg_cards
-          WHERE REPLACE(LOWER(name), ',', '') = ?
-             OR REPLACE(LOWER(name), ',', '') LIKE ?
-             OR REPLACE(LOWER(name), ',', '') LIKE ?
-          ORDER BY set_release_date DESC
+        `SELECT ${CARD_COLUMNS_JOINED}
+           FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+          WHERE REPLACE(LOWER(c.name), ',', '') = ?
+             OR REPLACE(LOWER(c.name), ',', '') LIKE ?
+             OR REPLACE(LOWER(c.name), ',', '') LIKE ?
+          ORDER BY c.set_release_date DESC
           LIMIT 600`,
       )
       .all(needle, `${needle}%`, `%${needle}%`)) as unknown as MtgCardRow[];
@@ -140,8 +158,9 @@ export async function searchMtgCardsLocal(
     // No name but number + set code is itself an identification.
     rows = (await db
       .prepare(
-        `SELECT ${CARD_COLUMNS} FROM mtg_cards
-          WHERE LOWER(set_code) = ? AND LOWER(collector_number) = ?
+        `SELECT ${CARD_COLUMNS_JOINED}
+           FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+          WHERE LOWER(c.set_code) = ? AND LOWER(c.collector_number) = ?
           LIMIT 50`,
       )
       .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
@@ -152,8 +171,9 @@ export async function searchMtgCardsLocal(
   if (rows.length === 0 && wantedNumber && wantedCode) {
     rows = (await db
       .prepare(
-        `SELECT ${CARD_COLUMNS} FROM mtg_cards
-          WHERE LOWER(set_code) = ? AND LOWER(collector_number) = ?
+        `SELECT ${CARD_COLUMNS_JOINED}
+           FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+          WHERE LOWER(c.set_code) = ? AND LOWER(c.collector_number) = ?
           LIMIT 50`,
       )
       .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
@@ -182,7 +202,17 @@ export async function searchMtgCardsLocal(
     // Prefer printings that have a price at all (a priced row is a real,
     // buyable printing; unpriced ones are usually oddities).
     const pricePenalty = row.price_usd == null && row.price_usd_foil == null ? 0.5 : 0;
-    return tier * NAME_TIER + codePenalty + pricePenalty;
+    // Special treatments (Mystical Archive, Secret Lair, promos) only win on
+    // evidence: an agreeing set code or collector number, or vision seeing a
+    // special frame. Otherwise the plain printing is what's in the photo.
+    const specialPenalty =
+      SPECIAL_SET_TYPES.has(row.set_type ?? "") &&
+      art !== "full-art" &&
+      codeAgrees !== true &&
+      !exactNumber
+        ? 2
+        : 0;
+    return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty;
   };
 
   const ranked = [...rows].sort((a, b) => score(a) - score(b)).slice(0, limit);
