@@ -4,6 +4,48 @@ Written 2026-08-16 from a full project audit; ticks = done that evening. Exclude
 billing (Chris: not yet). Sizes S/M/L. "(deferred)" = Chris chose to park it.
 Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
+## 0. CURRENT TRACK (consolidated 09-02 — full sweep of BACKLOG + STATE's WAITING-ON-CHRIS/NEXT-WORK/parked items; THIS section is the one list, sections below are detail/archive)
+
+### Pre-launch blockers (Chris decisions)
+- [ ] **Stripe business address** — home address shows on paying customers' receipts. PO boxes REJECTED by Stripe. Pick: UPS Store mailbox (easiest), iPostal1-style virtual (~$10-15/mo), or MD LLC registered agent (LLC itself worth a pre-launch think). Deadline: before first real subscriber.
+- [ ] **Price point** — Chris unsure about $9.99/500. When decided: MONTHLY_SCANS + "500 scans" in 5 copy spots (grep) + Stripe price object.
+- [ ] Stripe polish: branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL sk_live rotation (chat-exposed 09-01; roll in dashboard + rerun scripts/flip-stripe-live.mjs). Turso tokens also chat-exposed — Chris accepted that risk 08-31.
+
+### Live-test batch (Chris's next posting/sale — passive, no code)
+- [ ] Publish a listing → succeeds (tests opt-in 403 fix + auto policies/location after 09-01 reconnect)
+- [ ] Push a non-NM card → expect NO "saved without condition detail" (183454 descriptor fix); a GRADED push also verifies cert descriptor 27503
+- [ ] End that listing on eBay → amber "Ended on eBay" chip in My Cards
+- [ ] Reprice a live listing → offer PUT verified
+- [ ] Watcher offers: one real send once a listing has watchers
+- [ ] Multi-qty sale: partial purchase → sold-row split + decrement
+- [ ] After a real sale: net flips estimate→actual within ~a day, matches payout email, tooltip "(actual)"
+- [ ] Wishlist alert email confirms itself on first real dip
+- [ ] Phone: retest auto-scan on holos + close-up holds (both fixes deployed 09-01, untested on hardware)
+- [ ] Cancel test sub (christophis@msn.com) via Manage billing → tests Stripe portal + cancel webhook; then refund $9.99 in dashboard (reminder scheduled 09-03 5pm)
+
+### Waiting on third parties
+- [ ] PSA: prod retest after daily quota reset (Claude, next session FIRST ACTION) — 200 = done; 403 = Vercel IPs blocked. Also watch support@cardflip.io for collectors-apis reply (limit raise + IP question + quota mystery, sent 09-01)
+- [ ] eBay draft-scope keyset application (blocked on eBay; EBAY_DRAFT_SCOPE=1 + redeploy when approved)
+
+### Claude's code queue (rough order)
+- [ ] Tests: prod-breaker trio (enCards ranking, db ALTER probes, seedMtgMirror completeness); API-route tests for account/admin/eBay routes (needs a cookies() harness — lower value); Playwright E2E someday
+- [ ] Bulk drafts CSV validated against a real eBay Seller Hub upload (desktop, deliberate act)
+- [ ] Watcher offers v2: auto-fire on slow movers, eligible-list pagination past 200, custom message
+- [ ] Automate catalog syncs now manual on Chris's PC (MTG mirror refresh; Pokémon set sync — Scryfall 429s cloud IPs, needs care)
+- [ ] Anthropic credits auto-reload (ran dry once 09-01; optional)
+- [ ] Known drift to watch: queue rows/CSV quote the pricing snapshot, not the chart's current-day rebase — flag if Chris notices
+
+### BACKBURNER (Chris's explicit parks)
+- [ ] /help FAQ section (S per batch; error states deep-link to articles; do FIRST) then first-login overlay tour (M, coach marks + tour_seen_at) — "totally want to add those one day"
+- [ ] Own eBay price series: record asking avg in comps route + ~150/day sweep; chart prefers ebay source once points exist
+- [ ] Photo-first sealed re-add in the scanner — "sometime later"
+- [ ] Merge Search cards into Watchlist — post-launch maybe, only if real users get confused
+- [ ] CGC cert lookup — their API is tough to get (Chris checked 09-01)
+- [ ] Listed-for price shown on sold rows — parked "for now"
+- [ ] Off-site backup copy (S3/Drive) on top of the nightly local Turso dump
+- [ ] Root SPF record superiormarketing.com (optional); PriceCharting API if deeper history wanted
+- [ ] RevealScene: do NOT rebuild without asking (RevealStrike stays as is)
+
 ## 1. Known bugs / open issues
 
 - [x] Deploy Magic seed fix + camera ✕ + strike — v96 live, prod MTG search verified 08-16
