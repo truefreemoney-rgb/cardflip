@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
@@ -270,6 +270,26 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     return () => { stale = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gradeKey]);
+
+  // Graded pricing follows the slab market, not the raw card: the strategy
+  // tiles price off the graded average, and Your price snaps to it when the
+  // comps land — unless the seller already typed their own number (Chris,
+  // 09-02: "all these prices should reflect the psa price").
+  const gradedMarket = gradedComps ? Math.round(gradedComps.average * 100) / 100 : null;
+  const gradedQuick = gradedComps ? Math.round(gradedComps.average * 0.88 * 100) / 100 : null;
+  const autoGradedPrice = useRef<number | null>(null);
+  useEffect(() => {
+    if (!item.grading || gradedMarket === null || gradedQuick === null) return;
+    const target = item.strategy === "quick" ? gradedQuick : gradedMarket;
+    const current = item.priceOverride;
+    // Only replace a price we set ourselves (or none) — never a typed one.
+    if (current !== null && current !== autoGradedPrice.current) return;
+    if (current === target) return;
+    autoGradedPrice.current = target;
+    onChange({ priceOverride: target });
+    if (item.serverId) void updateServerCard(item.serverId, { price: target });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gradedMarket, gradedQuick, item.strategy, item.grading]);
 
   // Hook, so it lives above the early returns (empty id = no fetch). The
   // chart's current-day point drives the quote when it's allowed to (see
@@ -877,22 +897,35 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </p>
       )}
 
-      {!item.grading && quickQuote && marketQuote && (
+      {(item.grading ? gradedMarket !== null : Boolean(quickQuote && marketQuote)) && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-zinc-300">
-            Pricing
+            Pricing{item.grading ? ` — ${gradeLabel(item.grading)} market` : ""}
           </legend>
           <div className="grid grid-cols-2 gap-2">
             {(
-              [
-                ["quick", "Quick sale", quickQuote.suggested, "Undercuts market to move fast"],
-                ["market", "Market price", marketQuote.suggested, "Holds out for full value"],
-              ] as [PriceStrategy, string, number, string][]
+              item.grading
+                ? ([
+                    ["quick", "Quick sale", gradedQuick ?? 0, "Undercuts the slab market to move fast"],
+                    ["market", "Market price", gradedMarket ?? 0, "What this grade is listed for"],
+                  ] as [PriceStrategy, string, number, string][])
+                : ([
+                    ["quick", "Quick sale", quickQuote?.suggested ?? 0, "Undercuts market to move fast"],
+                    ["market", "Market price", marketQuote?.suggested ?? 0, "Holds out for full value"],
+                  ] as [PriceStrategy, string, number, string][])
             ).map(([value, label, amount, hint]) => (
               <button
                 key={value}
                 onClick={() => {
-                  onChange({ strategy: value, priceOverride: null });
+                  if (item.grading) {
+                    // Graded: the tile IS the price (there's no quote engine
+                    // for slabs) — apply it as the override directly.
+                    autoGradedPrice.current = amount;
+                    onChange({ strategy: value, priceOverride: amount });
+                    if (item.serverId) void updateServerCard(item.serverId, { price: amount });
+                  } else {
+                    onChange({ strategy: value, priceOverride: null });
+                  }
                   // Remembered per browser — the next scanned card starts here.
                   saveStrategy(value);
                 }}
