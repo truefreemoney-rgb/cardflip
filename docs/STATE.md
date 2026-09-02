@@ -21,7 +21,7 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-02 later session): PSA retested after quota
+**FIRST ACTION (saved 09-02 night): PSA quota mystery SOLVED — it was OUR leak (ad0427f, deployed): public demo login could reach the PSA route AND the 80/day global limiter was in-memory (never binds on serverless). Demo now refused + durable db day-counter (price_history_meta psa_calls_<day>). Tomorrow post-reset (~6am ET) = clean test: if prod still 403s on fresh quota, IP-block diagnosis is airtight. NOTE: demo-login curl can no longer test PSA (blocked by our fix) — Chris must tap Verify on a graded card, or use a real session. Swagger re-proof 09-02 eve: token valid (429 quota, not auth error). Earlier same day: PSA retested after quota
 reset — prod STILL 403 (demo-login + cert 28400235 → PSA answered
 403) = Vercel IPs blocked at PSA's edge. CONFIRMED, do not retest;
 parked on collectors-apis reply (Chris emailed 09-01 from
