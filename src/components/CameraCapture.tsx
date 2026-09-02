@@ -39,8 +39,14 @@ type Phase = "idle" | "settling" | "captured";
 const SAMPLE_MS = 200;
 /** Below this mean frame-to-frame difference the card is "not moving". */
 const STEADY_MOTION = 6;
-/** Consecutive steady samples before a capture (3 × 200ms = 0.6s hold). */
-const STEADY_SAMPLES = 3;
+/** Holos shimmer: their luminance flickers above STEADY_MOTION while held
+    perfectly still (09-01, Chris's phone — auto never fired on holos). Up to
+    here still counts as steady, it just needs a longer hold; a real swap
+    spikes past MOVING_MOTION regardless. */
+const SHIMMER_MOTION = 11;
+/** Steady points before a capture: crisp-still frames score 2, shimmering
+    ones 1 — so matte cards fire in 3 samples (0.6s), holos in 6 (1.2s). */
+const STEADY_POINTS = 6;
 /** Above this the frame is "moving" — a swap in progress. */
 const MOVING_MOTION = 15;
 /** Std-dev floor: an empty mat/table is flat; a card has print on it. */
@@ -265,10 +271,10 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
         show(lastCaptured && !isNew ? "captured" : "idle");
         return;
       }
-      if (motion < STEADY_MOTION) {
-        steady += 1;
+      if (motion < SHIMMER_MOTION) {
+        steady += motion < STEADY_MOTION ? 2 : 1;
         show("settling");
-        if (steady >= STEADY_SAMPLES) {
+        if (steady >= STEADY_POINTS) {
           lastCaptured = sig;
           movedSinceCapture = false;
           steady = 0;
