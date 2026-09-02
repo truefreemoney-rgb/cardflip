@@ -53,8 +53,8 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] M — Wrong default match when the number is unread (full-art Sprigatito → SVP promo, 08-16 phone) — vision `artStyle` + `ART_PENALTY` tiebreak in `enCards.ts`; awaiting Chris's rescan on prod. Follow-up if it recurs: add `rarity` to `en_cards` (`sync:en`) and rank on it
 - [x] M — **Real net-after-fees per sale** SHIPPED 09-01 (see STATE: lib/fees.ts one source, ebayFinances.ts syncEbayFees, sell.finances scope; Chris reconnected — verifies on next real sale vs payout email). Original notes: Today the Earned tile and admin stats estimate fees at 13.25% + $0.30 — it matched the first real sale ($447.99 → $388.33) to the cent, but real fees vary (promoted listings, store tiers, category rates, international). Track the ACTUAL fee per sold card: best source is eBay Finances API (getTransactions, needs sell.finances scope added to USER_SCOPES and every seller re-consenting) pulled by the daily sync; fallback is a fee field on the mark-sold flow the seller can type from their payout email. Store per-card (new columns: sold_fees REAL, sold_net REAL), show net on the collection Earned tile (already leads with the estimate) and per-card in the sold panel; admin stats switch from estimate to sum of actuals where present.
 - [x] S — eBay `program/opt_in` 403: scope added, Chris reconnected 09-01. Self-verifies on his next publish (opt-in retries per publish).
-- [ ] M — Bulk drafts CSV (`toEbayDraftsCsv`, `src/lib/listing.ts`) never uploaded to real eBay — validate header/#INFO rows
-- [ ] M — Inventory condition-descriptor IDs unverified (`src/lib/ebayInventory.ts`); graded may need cert descriptor 27503
+- → §0 (Claude's queue): Bulk drafts CSV (`toEbayDraftsCsv`, `src/lib/listing.ts`) never uploaded to real eBay
+- → §0 (live-test batch): condition-descriptor 183454 ids FIXED 09-01 (`ebayInventory.ts`, tests updated); non-NM + graded 27503 verify on next push
 - [x] S — Publish 20403 "not eligible": createDefaultPolicies (08-27, ebaySell.ts) now auto-creates policies + location at publish; with the 09-01 reconnect the whole chain should clear. Confirm on Chris's next real publish.
 - [x] S — Keldeo listing 5230387616323 — Chris deleted it on eBay 09-01 (doubles as the ended-listing-sync live test: My Cards should show the amber "Ended on eBay" chip after the next sync pass)
 - [x] S — `/terms` governing law — Maryland (Chris, 09-01)
@@ -64,18 +64,18 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## 2. Deferred features (mostly by choice or blocked on eBay)
 
-- [ ] L — eBay Listing API (`sell.item.draft`) access — apply at developer.ebay.com/my/support (blocked). **Confirmed 08-27 by probing each scope separately against `auth.ebay.com`: this keyset holds the other four and rejects only this one.** It was failing the *entire* authorize call with `invalid_scope`, so no seller could link an account at all — not merely lose drafts. Now opt-in behind `EBAY_DRAFT_SCOPE=1` (`ebayAuth.ts`), and `createDraft` reports unavailable up front. When eBay approves the keyset: set that env var, redeploy, nothing else to write. The inventory/offer publish road never needed it.
+- → §0 (third parties) L — eBay Listing API (`sell.item.draft`) access — apply at developer.ebay.com/my/support (blocked). **Confirmed 08-27 by probing each scope separately against `auth.ebay.com`: this keyset holds the other four and rejects only this one.** It was failing the *entire* authorize call with `invalid_scope`, so no seller could link an account at all — not merely lose drafts. Now opt-in behind `EBAY_DRAFT_SCOPE=1` (`ebayAuth.ts`), and `createDraft` reports unavailable up front. When eBay approves the keyset: set that env var, redeploy, nothing else to write. The inventory/offer publish road never needed it.
 - [x] ~~Marketplace Insights~~ — DENIED by eBay 08-16 (partner-only, ticket closed). Sold-comps call now gated off (`EBAY_INSIGHTS_ENABLED`); sold data = price-history route instead (see §7)
 - [x] S — SMTP secrets (`SMTP_HOST/PORT/USER/PASS`) — set on Vercel (Fastmail app password). **EXERCISED 09-01**: first real send ever — password reset to christophis@msn.com (Chris's test account) delivered and the reset link worked. Fastmail/DNS chain proven against MSN's strict filtering. Welcome email still untested (fires only on a real Stripe subscribe).
 - [x] M — **Branded sending address `support@cardflip.io`** — DONE 08-31: Fastmail domain added (catch-all -> Chris's inbox, verified green), Dynadot got 2 MX + SPF TXT + 3 DKIM CNAMEs (all confirmed on public DNS; website records untouched), inbound tested from Gmail, `MAIL_FROM=CardFlip <support@cardflip.io>` on Vercel. Original notes: Reset emails currently come from his personal `chris@superiormarketing.com`. No code work needed — `mail.ts` already honours `MAIL_FROM` and falls back to `SMTP_USER`; it is entirely a domain-email setup job. Blocker: **`cardflip.io` has no mail DNS at all** — verified 08-27, no MX, no SPF, no DKIM. Flipping `MAIL_FROM` alone would get the send refused by Fastmail or land resets in spam (nothing authorises the domain, and DKIM would still sign as superiormarketing.com). Order when picked up: (1) Fastmail → Settings → Domains → add `cardflip.io`, which prints the record list; (2) Dynadot → add its MX + SPF TXT + three `fm1/2/3._domainkey` CNAMEs — these are independent of the A/CNAME records so the website is not at risk; (3) Fastmail → alias `support@cardflip.io` (gives a real inbox, so replies don't bounce); (4) Vercel → `MAIL_FROM = CardFlip <support@cardflip.io>`, leaving `SMTP_USER`/`SMTP_PASS` as the Fastmail login; (5) redeploy and send a real reset to confirm SPF/DKIM pass. Steps 1–3 need Chris's Fastmail/Dynadot logins — Claude has neither and proving domain ownership inherently requires DNS access.
 - [x] S — Rotate PRD Cert ID — done 08-27 (it had been set as `EBAY_CLIENT_ID` and was therefore leaking in public redirect URLs; old key in 30-day grace). Deletion-endpoint verification token also replaced the same day.
 - [x] S — "Scanning" chip pulses + spinner spins under reduced motion (.chip-working exemption, 08-17)
 - [x] S — MTG wishlist re-pricing — rows now carry `game` + `card_id` (08-16 late); rows saved before then default to Pokémon
-- [ ] S — Root SPF record superiormarketing.com (optional)
-- [ ] S — **Stripe shows Chris's HOME address** on customer receipts/emails (re-surfaced 09-01 — was never written down, got lost). Fix: Stripe dashboard → Settings → Business details → replace with a non-home address. PRE-LAUNCH BLOCKER per the 09-01 Stripe session (STATE "WAITING ON CHRIS" — recovered 09-01 after falling out of the compiled lists). PO boxes REJECTED by Stripe (verified). Chris picks: UPS Store mailbox (easiest), iPostal1-style virtual address (~$10-15/mo), or MD LLC registered agent (LLC worth a pre-launch think). Deadline: before the first real subscriber.
-- [ ] S — Stripe polish (from same session, also recovered): branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL live-key rotation (sk_live passed through chat 09-01 — dashboard roll + rerun scripts/flip-stripe-live.mjs after updating .env.local).
-- [ ] — RevealStrike: leave as is. Full RevealScene: reverted, don't rebuild without asking.
-- [ ] — BACKBURNER (Chris 09-01, "totally want to add those one day"): (a) /help FAQ section (S per batch — publish failures/quota/graded pricing/ended listings; error states deep-link to articles; do FIRST, deflects support email), then (b) first-login overlay tour (M — coach-marks anchored to real elements, driver.js or hand-rolled, tour_seen_at flag + account-page replay).
+- → §0 (backburner): Root SPF record superiormarketing.com (optional)
+- → §0 (pre-launch blockers) S — **Stripe shows Chris's HOME address** on customer receipts/emails (re-surfaced 09-01 — was never written down, got lost). Fix: Stripe dashboard → Settings → Business details → replace with a non-home address. PRE-LAUNCH BLOCKER per the 09-01 Stripe session (STATE "WAITING ON CHRIS" — recovered 09-01 after falling out of the compiled lists). PO boxes REJECTED by Stripe (verified). Chris picks: UPS Store mailbox (easiest), iPostal1-style virtual address (~$10-15/mo), or MD LLC registered agent (LLC worth a pre-launch think). Deadline: before the first real subscriber.
+- → §0 (pre-launch blockers) S — Stripe polish (from same session, also recovered): branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL live-key rotation (sk_live passed through chat 09-01 — dashboard roll + rerun scripts/flip-stripe-live.mjs after updating .env.local).
+- → §0 (backburner): RevealStrike leave as is; RevealScene don't rebuild without asking.
+- → §0 (backburner) — help/tour (Chris 09-01, "totally want to add those one day"): (a) /help FAQ section (S per batch — publish failures/quota/graded pricing/ended listings; error states deep-link to articles; do FIRST, deflects support email), then (b) first-login overlay tour (M — coach-marks anchored to real elements, driver.js or hand-rolled, tour_seen_at flag + account-page replay).
 
 ## 3. Product-readiness
 
@@ -99,20 +99,20 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## 4. Testing / quality
 
-- [ ] M — Auth tests: signup, login, sliding sessions, password reset, admin gating
-- [ ] M — API-route tests (currently curl-only)
+- [x] M — Auth tests — DONE 09-01: `test:auth` (password/sessions/reset libs) + `test:authroutes` (login/signup/forgot/reset handlers as plain functions)
+- → §0 (Claude's queue): API-route tests for account/admin/eBay routes (needs cookies() harness, lower value)
 - [x] M — Ledger/wishlist/price-check server tests — DONE 09-01, `npm run test:cards` (37 checks: fee math incl. actual-beats-estimate, ownership, partial-sale split, stats blend, wishlist dedupe/alerts, price-check dedupe/backfill)
-- [ ] S — Tests for `enCards.ts` ranking, `db.ts` ALTER-probe migrations, `seedMtgMirror` completeness (the code that broke prod)
+- → §0 (Claude's queue): tests for `enCards.ts` ranking, `db.ts` ALTER-probe migrations, `seedMtgMirror` completeness (the code that broke prod)
 - [x] S — Zero-catch routes — sets/card-image/demo wrapped 08-16; logout/me/connect are trivial, left: `api/auth/demo`, `auth/logout`, `auth/me`, `card-image/[id]`, `ebay/connect`, `sets`
 - [x] S — `npm test` aggregate — done 08-16 script running all 6 suites
-- [ ] S — No component/E2E tests (Playwright) — manual only
+- → §0 (Claude's queue, someday): component/E2E tests (Playwright)
 
 ## 5. Ops / deploy
 
 - [x] L — **124 uncommitted files — committed 08-16 as 3d728a9 + follow-ups, last commit e10482c (Aug 11)** — commit now; no rollback point for 5 days of work
 - [x] M — CI gate SHIPPED 09-01 (.github/workflows/ci.yml: next typegen + tsc + lint + all 13 suites on every push/PR, verified GREEN on both branches; repo is public so run status readable w/o gh auth). Deploy itself still manual-by-design (push to main)
-- [ ] S — MTG mirror refresh is manual from Chris's PC (`sync:mtg && export:mtg && deploy`, Scryfall 429s Fly); Pokémon set sync also manual
-- [ ] S — Single 512 MB machine, scale-to-zero, DB on one volume (see backup)
+- → §0 (Claude's queue): MTG mirror refresh manual from Chris's PC (`sync:mtg && export:mtg && deploy`, Scryfall 429s cloud IPs); Pokémon set sync also manual
+- [x] ~~Single 512 MB machine, scale-to-zero, DB on one volume~~ OBSOLETE — Fly retired 08-27; Vercel serverless + Turso now, nightly local backup covers the DB
 
 ## 6. QoL pass (08-16 evening) — done
 
@@ -146,4 +146,4 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] S — ~~Set `CRON_SECRET` on Fly + pinger~~ superseded by Vercel Cron (vercel.json: /api/cron/mtg-prices 9:00, /api/cron/pokemon-prices 9:45 daily, eBay sweeps folded into the latter; CRON_SECRET set on Vercel). Verified stale 09-01.
 - [x] **Pokémon 90-day history — DONE 08-16 via TCGCSV** (tcgcsv.com daily TCGplayer archives, free, 4 MB/day, 7-Zip on PC): `npm run backfill:pokemon` builds `tcgplayer_products` (153/217 sets, 21k cards) + 20.9k series; prod refreshes daily from TCGCSV live JSON (`pokemonPriceRefresh.ts`, 151 sets, ~15 s). Unmatched: trainer kits / POP / a few promos (~1.1k cards). Threshold lowered 50¢ → 5¢ (Chris: a 32¢ holo with $1.68 eBay asking showed one point) → 34k Pokémon + 142k Magic series, seed 22.6 MB + the product map. TCGplayer tile falls back to the last recorded point when the live lookup fails
 - [x] S — Chart in `CardPeekModal` (landing, compact) + 30-day `PriceSparkline` on wishlist rows — done 08-16 late (wishlist rows now store `card_id`/`game`; older rows resolve the id from the repricing pass; MTG rows reprice with `?game=mtg`)
-- [ ] — Paid fallback if deeper history is wanted later: PriceCharting API
+- → §0 (backburner): PriceCharting API if deeper history wanted later
