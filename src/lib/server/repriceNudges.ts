@@ -14,7 +14,9 @@ import { latestUsdPrice } from "@/lib/server/priceHistory";
  * card") or up ("you're leaving money on the table").
  */
 
-const MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// TEMPORARILY 0 (09-02) so Chris can live-test the reprice PUT on a fresh
+// listing — REVERT to 7 days after the test.
+const MIN_AGE_MS = 0;
 const MIN_DRIFT = 0.15;
 const CHECK_CAP = 50;
 
