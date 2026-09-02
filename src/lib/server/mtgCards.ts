@@ -59,6 +59,12 @@ const CARD_COLUMNS_JOINED = `${CARD_COLUMNS.split(",").map((col) => `c.${col.tri
  */
 const SPECIAL_SET_TYPES = new Set(["masterpiece", "box", "promo", "memorabilia", "funny", "token", "minigame", "alchemy"]);
 
+/** Sets that are special by code, not type: The List rides set_type "masters"
+ * but is a Set Booster insert whose collector numbers ("M11-153") aren't even
+ * what's printed on the card, so it can never out-rank a real printing
+ * without evidence (and evidence can't point at it). */
+const SPECIAL_SET_CODES = new Set(["plst"]);
+
 function pricesOf(row: MtgCardRow): CardPrice[] {
   const out: CardPrice[] = [];
   const push = (variant: string, currency: "USD" | "EUR", value: number | null, source: CardPrice["source"]) => {
@@ -206,7 +212,7 @@ export async function searchMtgCardsLocal(
     // evidence: an agreeing set code or collector number, or vision seeing a
     // special frame. Otherwise the plain printing is what's in the photo.
     const specialPenalty =
-      SPECIAL_SET_TYPES.has(row.set_type ?? "") &&
+      (SPECIAL_SET_TYPES.has(row.set_type ?? "") || SPECIAL_SET_CODES.has(row.set_code.toLowerCase())) &&
       art !== "full-art" &&
       codeAgrees !== true &&
       !exactNumber

@@ -113,6 +113,9 @@ const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 for (const [id, name, code, setName, num, date, usd] of [
   ["m11-153", "Pyretic Ritual", "m11", "Magic 2011", "153", "2010-07-16", 6.13],
   ["soa-46",  "Pyretic Ritual", "soa", "Mystical Archive", "46", "2026-04-24", 6.3],
+  // The List: normal-looking set_type ("masters"), priced, newer than M11 —
+  // exactly the row that stole the top slot on prod after the first fix.
+  ["plst-m11-153", "Pyretic Ritual", "plst", "The List", "M11-153", "2020-03-13", 5.5],
 ]) {
   await db.prepare(
     `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at)
@@ -121,6 +124,7 @@ for (const [id, name, code, setName, num, date, usd] of [
 }
 await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES ('m11', 'Magic 2011', 'core', 0)").run();
 await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES ('soa', 'Mystical Archive', 'masterpiece', 0)").run();
+await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES ('plst', 'The List', 'masters', 0)").run();
 const mtgTop = async (name, number, setCode, art) =>
   (await searchMtgCardsLocal(name, number, setCode, 5, art ?? null))[0]?.id ?? null;
 check("name-only scan prefers the plain printing over the masterpiece",
