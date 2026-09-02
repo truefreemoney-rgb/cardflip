@@ -57,7 +57,10 @@ CHART SCALING SHIPPED 363a4da (deployed): grade/condition rescales
 the history curve (graded avg ÷ quote.base, or CONDITION_MULTIPLIER —
 now exported from listing.ts), "PSA 10 est." chip in the header,
 source-average strip hidden while scaled; NM ungraded chart
-untouched.
+untouched. ALSO 2f7f203 (deployed): desktop Add-more-cards = 
+photos/camera menu (pointer:fine check in Uploader.tsx; touch keeps
+one-tap camera); verified in dev-server browser (DataTransfer-inject
+a file into the picker to reach the queue layout without a webcam).
 NEXT: BACKLOG §0:
 catalog sync automation (MTG
 mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
