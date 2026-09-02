@@ -7,7 +7,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 0. CURRENT TRACK (consolidated 09-02 — full sweep of BACKLOG + STATE's WAITING-ON-CHRIS/NEXT-WORK/parked items; THIS section is the one list, sections below are detail/archive)
 
 ### Pre-launch blockers (Chris decisions)
-- [ ] **Stripe payouts: add a bank account** (found 09-02 — red banner; subscriber revenue currently piles up in Stripe balance with nowhere to go). Stripe dashboard → the banner or Settings → Bank accounts.
+- [x] **Stripe payouts bank account** — ADDED 09-02 by Chris (found via red banner same day; USD row now has a payout destination). Note: a Treasury "Financial account" (fa_65VK7n2Sn…) exists on the account — harmless, unused; payouts go to the real bank.
 - [ ] **Stripe business address** — home address shows on paying customers' receipts. PO boxes REJECTED by Stripe. Pick: UPS Store mailbox (easiest), iPostal1-style virtual (~$10-15/mo), or MD LLC registered agent (LLC itself worth a pre-launch think). Deadline: before first real subscriber.
 - [ ] **Price point** — Chris unsure about $9.99/500. When decided: MONTHLY_SCANS + "500 scans" in 5 copy spots (grep) + Stripe price object.
 - [ ] Stripe polish: branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL sk_live rotation (chat-exposed 09-01; roll in dashboard + rerun scripts/flip-stripe-live.mjs). Turso tokens also chat-exposed — Chris accepted that risk 08-31.
