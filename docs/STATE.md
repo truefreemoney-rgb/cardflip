@@ -80,8 +80,12 @@ post-scan ScanQuota. billing=success confirmed path VERIFIED LIVE
 account: active banner + plan chip + renewal + 0/500 meter; welcome
 email delivered to MSN inbox, renders clean; SMTP also proven same day
 via reset email — first real sends ever). Chris may cancel+refund via
-Stripe dashboard (~$0.59 fee eaten). STILL UNTESTED live: real 402
-banner (needs an exhausted subscriber).
+Stripe dashboard (~$0.59 fee eaten). 402 banner ALSO LIVE-VERIFIED
+09-01 (quota temp-dropped to 5, Chris hit it on scan 6: banner + OCR
+fallback + red Scans-left chip; reverted to 500 same hour) — every
+Stripe/quota/email path is now reality-tested. NOTE Chris is
+rethinking the $9.99/500 price point; when he decides: MONTHLY_SCANS
++ "500" hardcoded in 5 copy spots (grep "500 scans").
 Batch 3 SHIPPED (09-01, all 9): price-check history rows clickable
 (re-lookup by stored card_id+game — new price_checks columns + probes
 in db.ts; logPriceCheck backfills them on re-check) + filter input +
