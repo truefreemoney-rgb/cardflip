@@ -150,7 +150,7 @@ export function mtgFinishOf(item: ScanItem): string | null {
  * Rough multipliers for card condition. Real sold prices vary by card and
  * grader, so these are estimates to anchor a listing — not appraisals.
  */
-const CONDITION_MULTIPLIER: Record<Condition, number> = {
+export const CONDITION_MULTIPLIER: Record<Condition, number> = {
   "Near Mint": 1,
   "Lightly Played": 0.85,
   "Moderately Played": 0.7,

@@ -17,6 +17,7 @@ import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import {
   CONDITIONS,
+  CONDITION_MULTIPLIER,
   buildListing,
   describeItemCondition,
   canBeFirstEdition,
@@ -463,6 +464,21 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     });
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
+  // History chart altitude: the raw NM curve's shape is real demand signal,
+  // but a slab or played copy lives at a different level — rescale the chart
+  // to the graded average (ratio vs the raw quote it floors on) or the
+  // condition multiplier, labeled as an estimate (Chris, 09-02: a flat raw
+  // curve under a PSA 10 price "seems off").
+  const historyScale = item.grading
+    ? gradedMarket !== null && quote?.base
+      ? gradedMarket / quote.base
+      : null
+    : item.condition !== "Near Mint"
+      ? CONDITION_MULTIPLIER[item.condition]
+      : null;
+  const historyScaleLabel = item.grading
+    ? `${gradeLabel(item.grading)} est.`
+    : `${item.condition} est.`;
   const generated = buildListing(
     card,
     price,
@@ -713,6 +729,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         active={item.ebay}
         activeStatus={item.ebayStatus}
         activeUrl={ebaySearchUrl(card, facts)}
+        historyScale={historyScale}
+        historyScaleLabel={historyScaleLabel}
       />
 
       {firstEdEligible && (

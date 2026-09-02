@@ -34,6 +34,9 @@ interface Props {
   active: EbayComps | null;
   activeStatus: EbayCompsStatus;
   activeUrl: string;
+  /** Rescale the history chart (graded/condition estimate) — see PriceHistoryChart. */
+  historyScale?: number | null;
+  historyScaleLabel?: string | null;
 }
 
 /** eBay comps are always USD — the client discards other currencies. */
@@ -149,6 +152,8 @@ export default function MarketMetricsPanel({
   active,
   activeStatus,
   activeUrl,
+  historyScale,
+  historyScaleLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [showSold, setShowSold] = useState(false);
@@ -243,7 +248,7 @@ export default function MarketMetricsPanel({
           "where is the chart?" (Chris, 08-16) is a fair question when the
           only thing that moves is hidden. Tiles below stay collapsible. */}
       <div className={`px-4 ${open ? "pt-1" : "pb-4"}`}>
-        <PriceHistoryChart cardId={card.id} preferVariant={driving} trend={cardTrend(card)} compact />
+        <PriceHistoryChart cardId={card.id} preferVariant={driving} trend={cardTrend(card)} compact scale={historyScale} scaleLabel={historyScaleLabel} />
       </div>
 
       {open && (<>

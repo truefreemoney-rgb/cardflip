@@ -55,6 +55,16 @@ interface Props {
   /** Tighter layout for the editor's market panel. */
   compact?: boolean;
   className?: string;
+  /**
+   * Rescale every plotted price (graded slab or non-NM condition estimate):
+   * the raw series' shape is real demand signal, but its altitude is the NM
+   * ungraded market — a PSA 10 or LP copy tracks the same curve at a
+   * different level. 1/undefined = raw. Pass scaleLabel ("PSA 10 est.") so
+   * the chart says the numbers are derived; the source-average strip is
+   * hidden while scaled (those figures are raw and would contradict it).
+   */
+  scale?: number | null;
+  scaleLabel?: string | null;
 }
 
 /**
@@ -169,7 +179,10 @@ function niceStep(range: number, target = 4): number {
 
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
-export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "" }: Props) {
+export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
+  const factor = scale && scale > 0 && scale !== 1 ? scale : 1;
+  const scaled = factor !== 1;
+  if (scaled) trend = null; // raw source averages would contradict the scaled curve
   const [range, setRange] = useState<Range>(90);
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -192,12 +205,14 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
   const [now] = useState(() => Date.now());
   const shown = useMemo(() => {
     if (!series) return [];
-    if (range === 0) return series.points;
-    const cutoff = now - range * dayMs;
-    const inRange = series.points.filter((p) => parseDay(p.day) >= cutoff);
-    // A range with nothing in it (young series, "1Y") falls back to everything.
-    return inRange.length >= 1 ? inRange : series.points;
-  }, [series, range, now]);
+    const pts = range === 0 ? series.points : (() => {
+      const cutoff = now - range * dayMs;
+      const inRange = series.points.filter((p) => parseDay(p.day) >= cutoff);
+      // A range with nothing in it (young series, "1Y") falls back to everything.
+      return inRange.length >= 1 ? inRange : series.points;
+    })();
+    return factor === 1 ? pts : pts.map((p) => ({ ...p, price: Math.round(p.price * factor * 100) / 100 }));
+  }, [series, range, now, factor]);
 
   // Width follows the container so text keeps its aspect; height is fixed.
   const boxRef = useRef<HTMLDivElement>(null);
@@ -294,6 +309,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
             {series && (
               <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${series.variant}` : ""}</span>
+            )}
+            {scaled && scaleLabel && (
+              <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300">{scaleLabel}</span>
             )}
           </div>
           {last && (
