@@ -998,6 +998,11 @@ export default function CollectionPage() {
                       >
                         net · sold ${card.soldPrice.toFixed(2)}
                       </button>
+                      {/* The ask it was listed at — sold vs listed is the
+                          seller's own pricing feedback loop at a glance. */}
+                      {card.price > 0 && Math.abs(card.price - card.soldPrice) >= 0.01 && (
+                        <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
+                      )}
                     </>
                   ) : (
                     <>

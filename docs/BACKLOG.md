@@ -52,12 +52,13 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] 10. Revenue shape for the $250k/mo path (from 09-02 analysis): dealer tier $49.99 (bulk tools), free tier funnel, eventual success-fee on GMV — sequence after retention proves out
 
 ### BACKBURNER (Chris's explicit parks)
-- [ ] /help FAQ section (S per batch; error states deep-link to articles; do FIRST) then first-login overlay tour (M, coach marks + tour_seen_at) — "totally want to add those one day"
+- [ ] TCGplayer selling road — Chris "thinking about it" 09-02. Scoped: their API is CLOSED to new devs (docs still say so 08-2026; docs-portal login ≠ access), so v1 = CSV export in their Staged Inventory format next to the eBay drafts button (Seller Portal → Import to Staged → Move to Live), per-stack marketplace choice. tcgplayer_products map already covers 21,116/21,186 Pokémon cards; MTG ids come free via Scryfall's tcgplayer_id in sync-mtg. Unblock = Chris confirms a TCGplayer seller account + drops an Export-From-Live CSV (header row = ground truth, like the Seller Hub validation). API application = post-POC long-shot email.
+- [ ] First-login overlay tour (M, coach marks + tour_seen_at) — "totally want to add those one day". Its /help FAQ prerequisite SHIPPED 09-02 (13 articles + error-state deep-links + account-page section, all deployed)
 - [ ] Own eBay price series: record asking avg in comps route + ~150/day sweep; chart prefers ebay source once points exist
 - [ ] Photo-first sealed re-add in the scanner — "sometime later"
 - [ ] Merge Search cards into Watchlist — post-launch maybe, only if real users get confused
 - [ ] CGC cert lookup — their API is tough to get (Chris checked 09-01)
-- [ ] Listed-for price shown on sold rows — parked "for now"
+- [x] Listed-for price shown on sold rows — DONE 09-02 (un-parked by Chris): sold rows show "listed $X" under net/sold when it differs; the ask survives the sale so it was UI-only
 - [ ] Off-site backup copy (S3/Drive) on top of the nightly local Turso dump
 - [ ] Root SPF record superiormarketing.com (optional); PriceCharting API if deeper history wanted
 - [ ] RevealScene: do NOT rebuild without asking (RevealStrike stays as is)
