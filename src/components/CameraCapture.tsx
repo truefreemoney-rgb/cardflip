@@ -481,7 +481,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
                   ? "Hold still…"
                   : phase === "captured"
                     ? "Captured — swap the card"
-                    : "Auto-scan on"}
+                    : "Auto-scan on — fill the frame, not too close"}
               </span>
             </div>
           )}
