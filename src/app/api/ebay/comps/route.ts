@@ -27,6 +27,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
     }
 
+    // Optional slab pricing: with a company+grade, the comps become
+    // "what are copies at exactly this grade listed for".
+    const grading =
+      typeof body?.grading?.company === "string" && typeof body?.grading?.grade === "string"
+        ? { company: String(body.grading.company).slice(0, 10), grade: String(body.grading.grade).slice(0, 20) }
+        : null;
+
     // Both links work without any API access, so the UI can always point the
     // seller at eBay even when we have no credentials to price against.
     const searchUrl = ebaySearchUrl(card);
@@ -50,7 +57,7 @@ export async function POST(req: Request) {
     // eBay" link instead. Settled independently so a sold failure never
     // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
-      fetchEbayComps(card),
+      fetchEbayComps(card, grading),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
         ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),

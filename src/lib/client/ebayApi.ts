@@ -24,12 +24,15 @@ export interface EbayCompsResult {
  * Never throws — a failed comps lookup degrades the card's pricing, it
  * doesn't break the scan that produced the card.
  */
-export async function fetchEbayComps(card: PokemonCard): Promise<EbayCompsResult> {
+export async function fetchEbayComps(
+  card: PokemonCard,
+  grading?: { company: string; grade: string } | null,
+): Promise<EbayCompsResult> {
   try {
     const res = await fetch(apiPath("/api/ebay/comps"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ card }),
+      body: JSON.stringify({ card, ...(grading ? { grading } : {}) }),
     });
     const data = await res.json().catch(() => null);
 

@@ -59,13 +59,44 @@ function hasForeignVariantSuffix(lowerTitle: string, lowerName: string): boolean
   return false;
 }
 
-/** Is this listing the same product we're pricing? */
-export function isComparable(title: string, card: PokemonCard): boolean {
+/** Grading companies whose slabs share the market shelf on eBay. */
+const GRADING_COMPANIES = ["psa", "bgs", "cgc", "sgc", "ace", "tag"];
+
+/** "10 Pristine" → "10", "9.5" → "9.5" — the number sellers put in titles. */
+function gradeNumber(grade: string): string {
+  return grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grade;
+}
+
+/**
+ * Is this listing the same product we're pricing? Pass `grading` to price a
+ * slab instead of a raw copy: the graded rejects flip into a requirement —
+ * the title must carry exactly this company+grade, and no other company.
+ */
+export function isComparable(
+  title: string,
+  card: PokemonCard,
+  grading?: { company: string; grade: string } | null,
+): boolean {
   for (const pattern of REJECT_PATTERNS) {
+    // In graded mode the slab patterns are the point, not noise.
+    if (grading && pattern.source.includes("psa|bgs")) continue;
+    if (grading && /gem|graded/.test(pattern.source)) continue;
     if (pattern.test(title)) return false;
   }
 
   const lower = title.toLowerCase();
+
+  if (grading) {
+    const company = grading.company.toLowerCase();
+    const num = gradeNumber(grading.grade);
+    // Exactly our company + grade ("PSA 7", "PSA-7", "PSA 7.5" ≠ "PSA 7").
+    const want = new RegExp(`\\b${escapeRegex(company)}\\s*[-.]?\\s*0*${escapeRegex(num)}(?![0-9.])`, "i");
+    if (!want.test(title)) return false;
+    // A second company in the title is a different slab (or a lot of slabs).
+    for (const other of GRADING_COMPANIES) {
+      if (other !== company && new RegExp(`\\b${other}\\b`, "i").test(title)) return false;
+    }
+  }
 
   // The card's name has to actually appear. eBay's relevance ranking happily
   // keeps returning loosely-related cards once exact matches run out.

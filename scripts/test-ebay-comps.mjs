@@ -160,6 +160,24 @@ check("listings are cheapest-first", comps.listings[0].price, 12);
 
 check("no comparable listings yields no price", buildComps([], "https://ebay.com/sch", 30), null);
 
+console.log("\nGraded mode (grading passed) requires exactly that slab:");
+const psa7 = { company: "PSA", grade: "7" };
+for (const [title, expected] of [
+  ["Charizard ex 199/165 151 PSA 7", true],
+  ["PSA-7 Charizard ex 199 151 Near Mint slab", true],
+  ["Charizard ex 199/165 PSA 8", false],          // wrong grade
+  ["Charizard ex 199/165 PSA 7.5", false],        // 7.5 is not 7
+  ["Charizard ex 199/165 CGC 7", false],          // wrong company
+  ["Charizard ex 199/165 raw NM", false],         // ungraded
+  ["PSA 7 Charizard ex 199 + CGC 9 lot", false],  // two slabs / mixed lot
+]) {
+  check(`graded: ${title}`, isComparable(title, card, psa7), expected);
+}
+check("graded: CGC '10 Pristine' matches 'CGC 10'",
+  isComparable("Charizard ex 199/165 CGC 10 Gem", card, { company: "CGC", grade: "10 Pristine" }), true);
+check("ungraded mode still rejects slabs",
+  isComparable("Charizard ex 199/165 PSA 7", card), false);
+
 console.log(
   failures === 0
     ? "\nAll eBay comps checks passed.\n"

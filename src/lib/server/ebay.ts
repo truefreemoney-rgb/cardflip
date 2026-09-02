@@ -116,12 +116,20 @@ interface ItemSummary {
  * What this card is currently listed for on eBay.
  * Returns null when eBay had nothing comparable to say about it.
  */
-export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | null> {
+export async function fetchEbayComps(
+  card: PokemonCard,
+  grading?: { company: string; grade: string } | null,
+): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
   const searchUrl = ebaySearchUrl(card);
 
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
-  url.searchParams.set("q", compsQuery(card));
+  // For a slab, the company+grade go into the query and isComparable flips
+  // from rejecting graded titles to requiring exactly this grade.
+  const query = grading
+    ? `${compsQuery(card)} ${grading.company} ${grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade}`
+    : compsQuery(card);
+  url.searchParams.set("q", query);
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
   // An auction mid-flight shows a current bid, not what the card is worth.
@@ -152,7 +160,7 @@ export async function fetchEbayComps(card: PokemonCard): Promise<EbayComps | nul
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     // Mixed currencies would silently corrupt a USD average.
     if (item.price?.currency && item.price.currency !== "USD") continue;
-    if (!isComparable(title, card)) continue;
+    if (!isComparable(title, card, grading)) continue;
 
     listings.push({
       id: item.itemId ?? `${title}-${value}`,

@@ -10,6 +10,7 @@ import EbayPostActions from "@/components/EbayPostActions";
 import ListingCopyFields from "@/components/ListingCopyFields";
 import PriceInput from "@/components/PriceInput";
 import { updateServerCard } from "@/lib/client/cardsApi";
+import { fetchEbayComps } from "@/lib/client/ebayApi";
 import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
@@ -248,6 +249,28 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [wishlisting, setWishlisting] = useState(false);
 
   const card = item.card;
+  // Slab comps: what copies at exactly this grade are listed for on eBay.
+  // Fetched when the seller sets/changes the grade — turns the "raw market
+  // is only a floor" note into a real graded number (Chris, 09-02).
+  const [gradedComps, setGradedComps] = useState<{ average: number; count: number } | null>(null);
+  const [gradedCompsLoading, setGradedCompsLoading] = useState(false);
+  const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
+  useEffect(() => {
+    setGradedComps(null);
+    if (!gradeKey || !card || !item.grading) return;
+    let stale = false;
+    setGradedCompsLoading(true);
+    void fetchEbayComps(card, item.grading).then((res) => {
+      if (stale) return;
+      setGradedCompsLoading(false);
+      if (res.comps && res.comps.count >= 2) {
+        setGradedComps({ average: res.comps.average, count: res.comps.count });
+      }
+    });
+    return () => { stale = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gradeKey]);
+
   // Hook, so it lives above the early returns (empty id = no fetch). The
   // chart's current-day point drives the quote when it's allowed to (see
   // pointCanRebase in lib/listing.ts) — the Market tile and the price history
@@ -830,12 +853,27 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           graded copy. */}
       {item.grading && (
         <p className="rounded-lg bg-sky-400/10 px-3 py-2 text-xs leading-snug text-sky-300">
-          No price source tracks graded slabs, so the price below starts at the
-          raw ungraded market
-          {quote ? ` (${formatMoney(quote.base, quote.price.currency)})` : ""} as
-          a floor. A {gradeLabel(item.grading)} usually sells for more — the
-          eBay links above search {gradeLabel(item.grading)} sales; set your
-          price from those.
+          {gradedComps ? (
+            <>
+              {gradeLabel(item.grading)} copies are listed on eBay around{" "}
+              <strong className="font-semibold">{formatMoney(gradedComps.average, "USD")}</strong>{" "}
+              ({gradedComps.count} listings, asking prices) — set your price from
+              those. The raw ungraded market
+              {quote ? ` (${formatMoney(quote.base, quote.price.currency)})` : ""} is
+              only a floor.
+            </>
+          ) : gradedCompsLoading ? (
+            <>Checking what {gradeLabel(item.grading)} copies are listed for on eBay…</>
+          ) : (
+            <>
+              Couldn&apos;t find enough {gradeLabel(item.grading)} listings to price
+              from, so the price below starts at the raw ungraded market
+              {quote ? ` (${formatMoney(quote.base, quote.price.currency)})` : ""} as
+              a floor. A {gradeLabel(item.grading)} usually sells for more — the
+              eBay links above search {gradeLabel(item.grading)} sales; set your
+              price from those.
+            </>
+          )}
         </p>
       )}
 
