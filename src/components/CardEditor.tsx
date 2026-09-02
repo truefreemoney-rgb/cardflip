@@ -286,6 +286,24 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       if (stale) return;
       setGradedCompsLoading(false);
       setGradedComps(value);
+      // Warm the grades either side of this one in the background — sellers
+      // flip between adjacent grades comparing prices, and a warm cache makes
+      // that instant (rate limit is 60/min; two extra calls is nothing).
+      const scale = gradesFor(item.grading!.company);
+      const at = scale.indexOf(item.grading!.grade);
+      for (const neighbor of [scale[at - 1], scale[at + 1]]) {
+        if (!neighbor) continue;
+        const nKey = `${item.grading!.company}:${neighbor}:${card.id}`;
+        if (gradedCompsCache.has(nKey)) continue;
+        void fetchEbayComps(card, { company: item.grading!.company, grade: neighbor }).then((n) => {
+          if (n.status === "done" || n.status === "empty") {
+            gradedCompsCache.set(
+              nKey,
+              n.comps && n.comps.count >= 2 ? { average: n.comps.average, count: n.comps.count } : null,
+            );
+          }
+        });
+      }
     });
     return () => { stale = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -932,6 +950,25 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             </>
           )}
         </p>
+      )}
+
+      {/* First graded lookup in flight: hold the layout with skeleton tiles
+          instead of popping the section in when eBay answers. */}
+      {item.grading && gradedMarket === null && gradedCompsLoading && (
+        <fieldset className="flex flex-col gap-2" aria-busy="true">
+          <legend className="mb-1 text-sm font-medium text-zinc-300">
+            Pricing — {gradeLabel(item.grading)} market
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-edge bg-surface-1 p-3">
+                <div className="h-4 w-16 rounded bg-white/10" />
+                <div className="mt-2 h-3 w-20 rounded bg-white/5" />
+                <div className="mt-1.5 h-2.5 w-28 rounded bg-white/5" />
+              </div>
+            ))}
+          </div>
+        </fieldset>
       )}
 
       {(item.grading ? gradedMarket !== null : Boolean(quickQuote && marketQuote)) && (
