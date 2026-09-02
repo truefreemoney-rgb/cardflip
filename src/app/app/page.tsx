@@ -1030,10 +1030,12 @@ export default function AppPage() {
                 onOpenCamera={openCamera}
                 variant="compact"
               />
+              {/* A CSV download is a desktop act — on a phone it's clutter
+                  (Chris, 09-01) and the file has nowhere useful to go. */}
               <button
                 onClick={exportCsv}
                 disabled={identified.length === 0}
-                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className="hidden rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 lg:block"
               >
                 Download eBay drafts file
               </button>
