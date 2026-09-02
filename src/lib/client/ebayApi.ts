@@ -123,6 +123,9 @@ export interface WatcherEligibleResponse {
   eligibleCardIds: string[];
   /** Why the list is empty when it is: reconnect needed, or eBay was down. */
   skipped?: "not_connected" | "no_scope" | "error";
+  /** Auto-offer opt-in: percent set = the daily sweep sends on slow movers. */
+  autoOfferPercent?: number | null;
+  autoOfferMessage?: string | null;
 }
 
 export async function fetchWatcherEligible(): Promise<WatcherEligibleResponse | null> {
@@ -139,15 +142,35 @@ export async function fetchWatcherEligible(): Promise<WatcherEligibleResponse | 
 export async function sendWatcherOffer(
   cardId: string,
   discountPercent: number,
+  message?: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
     const res = await fetch(apiPath("/api/ebay/offers"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId, discountPercent }),
+      body: JSON.stringify({ cardId, discountPercent, ...(message?.trim() ? { message: message.trim() } : {}) }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) return { ok: false, message: data?.error ?? "Couldn't send the offer." };
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Couldn't reach the server — try again." };
+  }
+}
+
+/** Store the auto-offer opt-in the daily sweep reads (percent = on, null = off). */
+export async function saveAutoOffer(
+  percent: number | null,
+  message: string | null,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const res = await fetch(apiPath("/api/ebay/offers"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autoOfferPercent: percent, autoOfferMessage: message }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: data?.error ?? "Couldn't save the setting." };
     return { ok: true };
   } catch {
     return { ok: false, message: "Couldn't reach the server — try again." };

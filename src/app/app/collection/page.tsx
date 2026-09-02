@@ -15,7 +15,7 @@ import {
   type RepriceNudge,
   type ServerCard,
 } from "@/lib/client/cardsApi";
-import { fetchWatcherEligible, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
+import { fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { apiPath } from "@/lib/client/basePath";
 import { estimatedEbayFees, netAfterFees } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
@@ -112,6 +112,11 @@ export default function CollectionPage() {
   const [offerNote, setOfferNote] = useState<string | null>(null);
   const [offerPercent, setOfferPercent] = useState(10);
   const [offerSending, setOfferSending] = useState<string | null>(null);
+  const [offerMessage, setOfferMessage] = useState("");
+  // Auto-offer opt-in (daily sweep on 14-day slow movers, 10/day cap).
+  const [autoOfferOn, setAutoOfferOn] = useState(false);
+  const [autoOfferPercent, setAutoOfferPercent] = useState(10);
+  const [autoOfferSaving, setAutoOfferSaving] = useState(false);
 
   const userId = user?.id;
   const [saleNote, setSaleNote] = useState<string | null>(null);
@@ -244,6 +249,13 @@ export default function CollectionPage() {
       return;
     }
     setOfferEligible(res.eligibleCardIds);
+    if (typeof res.autoOfferPercent === "number") {
+      setAutoOfferOn(true);
+      setAutoOfferPercent(res.autoOfferPercent);
+      if (res.autoOfferMessage) setOfferMessage(res.autoOfferMessage);
+    } else {
+      setAutoOfferOn(false);
+    }
     if (res.skipped === "no_scope" || res.skipped === "not_connected") {
       setOfferNote("eBay declined — reconnect your eBay account (eBay setup) and try again.");
     } else if (res.skipped === "error") {
@@ -265,11 +277,31 @@ export default function CollectionPage() {
     )
       return;
     setOfferSending(card.id);
-    const result = await sendWatcherOffer(card.id, pct);
+    const result = await sendWatcherOffer(card.id, pct, offerMessage);
     setOfferSending(null);
     if (result.ok) {
       patchCard(card.id, watcherOfferNowPatch());
       toast(`Offer sent — ${pct}% off ${card.cardName} to its watchers`);
+    } else {
+      toast(result.message, "err");
+    }
+  }
+
+  async function saveAutoOfferSetting(on: boolean, percent: number) {
+    const pct = Math.min(50, Math.max(5, Math.round(percent) || 10));
+    if (on && !autoOfferOn) {
+      const ok = window.confirm(
+        `Turn on auto-offers? Once a day, CardFlip will send ${pct}% off to watchers of listings that have sat for 14+ days (max 10 offers a day, each listing offered once). Every send emails real buyers.`,
+      );
+      if (!ok) return;
+    }
+    setAutoOfferSaving(true);
+    const result = await saveAutoOffer(on ? pct : null, on && offerMessage.trim() ? offerMessage.trim() : null);
+    setAutoOfferSaving(false);
+    if (result.ok) {
+      setAutoOfferOn(on);
+      if (on) setAutoOfferPercent(pct);
+      toast(on ? `Auto-offers on — ${pct}% off slow movers` : "Auto-offers off");
     } else {
       toast(result.message, "err");
     }
@@ -634,6 +666,59 @@ export default function CollectionPage() {
                   </ul>
                 </>
               )}
+
+              <label className="mt-4 block text-sm text-zinc-400">
+                Message to buyers <span className="text-zinc-600">(optional, goes in eBay&apos;s offer email — manual and auto sends alike)</span>
+                <input
+                  type="text"
+                  maxLength={2000}
+                  value={offerMessage}
+                  onChange={(e) => setOfferMessage(e.target.value)}
+                  onBlur={() => { if (autoOfferOn) void saveAutoOfferSetting(true, autoOfferPercent); }}
+                  placeholder="Thanks for watching — happy to make a deal."
+                  className="mt-1.5 w-full rounded-lg border border-edge bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
+                />
+              </label>
+
+              {/* Auto-offers: strictly opt-in — the daily job sends the
+                  configured discount to watchers of 14-day slow movers,
+                  10/day, each listing once. Lives here (not account) so
+                  the setting sits next to the manual sends it automates. */}
+              <div className="mt-5 rounded-xl border border-edge bg-black/20 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex items-center gap-2.5 text-sm font-medium text-white">
+                    <input
+                      type="checkbox"
+                      checked={autoOfferOn}
+                      disabled={autoOfferSaving}
+                      onChange={(e) => void saveAutoOfferSetting(e.target.checked, autoOfferPercent)}
+                      className="h-4 w-4 accent-brand-500"
+                    />
+                    Auto-offer on slow movers
+                  </label>
+                  {autoOfferOn && (
+                    <label className="flex items-center gap-2 text-sm text-zinc-400">
+                      <input
+                        type="number"
+                        min={5}
+                        max={50}
+                        value={autoOfferPercent}
+                        disabled={autoOfferSaving}
+                        onChange={(e) => setAutoOfferPercent(Number(e.target.value))}
+                        onBlur={() => void saveAutoOfferSetting(true, autoOfferPercent)}
+                        className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
+                        aria-label="Auto-offer discount percent"
+                      />
+                      % off
+                    </label>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Once a day, watchers of listings that have sat 14+ days get this discount
+                  automatically (up to 10 offers a day, each listing offered once). The message
+                  above rides along. Off by default.
+                </p>
+              </div>
             </>
           )}
         </section>

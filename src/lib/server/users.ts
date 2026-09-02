@@ -25,6 +25,9 @@ export interface User {
   scanMonth: string | null;
   scansUsed: number;
   extraScans: number;
+  /** Auto-offers to watchers: percent set = daily job may send on slow movers; NULL = off. */
+  autoOfferPercent: number | null;
+  autoOfferMessage: string | null;
 }
 
 interface UserRow {
@@ -43,6 +46,8 @@ interface UserRow {
   scan_month: string | null;
   scans_used: number | null;
   extra_scans: number | null;
+  auto_offer_percent: number | null;
+  auto_offer_message: string | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -62,6 +67,8 @@ function fromRow(row: UserRow): User {
     scanMonth: row.scan_month ?? null,
     scansUsed: row.scans_used ?? 0,
     extraScans: row.extra_scans ?? 0,
+    autoOfferPercent: row.auto_offer_percent ?? null,
+    autoOfferMessage: row.auto_offer_message ?? null,
   };
 }
 
@@ -155,7 +162,22 @@ export async function createUser(
     scanMonth: null,
     scansUsed: 0,
     extraScans: 0,
+    autoOfferPercent: null,
+    autoOfferMessage: null,
   };
+}
+
+/** Auto-offer opt-in: a percent turns it on, null turns it off. */
+export async function setAutoOffer(
+  userId: string,
+  percent: number | null,
+  message: string | null,
+): Promise<void> {
+  await db.prepare("UPDATE users SET auto_offer_percent = ?, auto_offer_message = ? WHERE id = ?").run(
+    percent,
+    message,
+    userId,
+  );
 }
 
 /**

@@ -4,6 +4,7 @@ import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
+import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
@@ -71,6 +72,7 @@ export interface DailyResult {
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
   ebayFees?: { sellers: number; filled: number } | { error: string };
   wishlistAlerts?: { checked: number; sent: number } | { error: string };
+  autoOffers?: { sellers: number; sent: number; failed: number } | { error: string };
   ms?: number;
 }
 
@@ -88,8 +90,8 @@ export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "autoOffers">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "autoOffers"> = {};
   try {
     if (await hasTcgplayerMap()) {
       const r = await refreshPokemonPricesFromTcgcsv();
@@ -154,6 +156,15 @@ export async function runPokemonSteps(
   } catch (err) {
     result.wishlistAlerts = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: wishlist alert sweep failed:", err);
+  }
+  try {
+    // Watcher offers for sellers who opted in on the collection page
+    // (users.auto_offer_percent — strictly off by default). Runs after the
+    // sales/ended sweeps so a listing that just sold or ended isn't offered.
+    result.autoOffers = await sweepAutoOffers(now);
+  } catch (err) {
+    result.autoOffers = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: auto-offer sweep failed:", err);
   }
   return result;
 }

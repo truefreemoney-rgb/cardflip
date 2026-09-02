@@ -443,6 +443,11 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "scan_month TEXT",
     "scans_used INTEGER NOT NULL DEFAULT 0",
     "extra_scans INTEGER NOT NULL DEFAULT 0",
+    // Auto-offers to watchers (lib/server/ebayNegotiation.ts): percent set =
+    // the daily job may send offers on slow movers for this seller; NULL =
+    // off (the default — sending emails real buyers, so it's strictly opt-in).
+    "auto_offer_percent INTEGER",
+    "auto_offer_message TEXT",
   ]],
 ];
 
