@@ -34,7 +34,12 @@ export async function searchCards(
     if (printed.setCode) params.set("setCode", printed.setCode);
   }
 
-  const res = await fetch(apiPath(`/api/search-card?${params.toString()}`));
+  // A hung serverless call (cold start + slow query) used to spin callers'
+  // loading states indefinitely (09-02, wishlist tile) — time out into the
+  // caller's error path instead so "try again" is on the table.
+  const res = await fetch(apiPath(`/api/search-card?${params.toString()}`), {
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!res.ok) throw new Error(`Search failed (${res.status})`);
 
   const data = await res.json();
