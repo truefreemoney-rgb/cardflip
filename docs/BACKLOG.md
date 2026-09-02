@@ -13,7 +13,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Stripe polish: branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL sk_live rotation (chat-exposed 09-01; roll in dashboard + rerun scripts/flip-stripe-live.mjs). Turso tokens also chat-exposed — Chris accepted that risk 08-31.
 
 ### Live-test batch (Chris's next posting/sale — passive, no code)
-- [ ] Publish a listing → succeeds (tests opt-in 403 fix + auto policies/location after 09-01 reconnect)
+- [x] Publish a listing — DONE 09-02: Simisage 090/86 live at $8.99 through CardFlip (truefreemoney eBay acct) — whole post-reconnect chain clean. View-on-eBay upgraded to a real button same session (Chris feedback)
 - [ ] Push a non-NM card → expect NO "saved without condition detail" (183454 descriptor fix); a GRADED push also verifies cert descriptor 27503
 - [ ] End that listing on eBay → amber "Ended on eBay" chip in My Cards
 - [ ] Reprice a live listing → offer PUT verified
