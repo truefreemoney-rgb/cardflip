@@ -162,5 +162,24 @@ check("wrong user can't remove wishlist rows", (await listWishlist(alice.id)).le
 await removeFromWishlist(w1.id, alice.id);
 check("owner can", (await listWishlist(alice.id)).length, 0);
 
+// --- price checks: the 1-hour dedupe window + backfill -------------------
+const { logPriceCheck, listPriceChecks, deletePriceCheck } = await import(at("lib/server/priceChecks.ts"));
+const LUGIA_CARD = { ...LUGIA, prices: [{ source: "tcgplayer", variant: "holofoil", label: "Holo", market: 100, currency: "USD" }] };
+const pc1 = await logPriceCheck(alice.id, LUGIA_CARD, "en");
+const pc2 = await logPriceCheck(alice.id, LUGIA_CARD, "en");
+check("re-check within the hour refreshes, not stacks",
+  [pc1.id === pc2.id, (await listPriceChecks(alice.id)).length], [true, 1]);
+check("re-check backfills card_id/game/image onto legacy rows", await (async () => {
+  await db.prepare("UPDATE price_checks SET card_id = NULL, game = NULL, image_url = NULL WHERE id = ?").run(pc1.id);
+  const w = await logPriceCheck(alice.id, LUGIA_CARD, "en");
+  return [w.cardId, w.game, w.imageUrl];
+})(), ["neo1-9", "pokemon", "https://img.example/lugia.png"]);
+check("a different card is a new row", await (async () => {
+  await logPriceCheck(alice.id, { ...LUGIA_CARD, id: "base1-4", name: "Charizard", number: "4/102" }, "en");
+  return (await listPriceChecks(alice.id)).length;
+})(), 2);
+await deletePriceCheck(pc1.id, mallory.id);
+check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).length, 2);
+
 console.log(failures === 0 ? "\nAll ledger/fee checks passed" : `\n${failures} ledger/fee check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;
