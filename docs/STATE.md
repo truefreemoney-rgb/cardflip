@@ -21,28 +21,42 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION — Search-cards makeover SHIPPED (6aa7e50) + favicon
-now = the header Spin Cycle logo (37f1045, brandIcon.tsx renders the
-same SVG; old favicon.ico deleted), both pushed to main 09-01; Vercel
-prod build was in flight at session end — quick check:
-cardflip.io/app/price-check history should be a thumbnail list, and
-the tab icon the spin-cycle card (hard-refresh; favicons cache hard).
-ALSO 09-01 late: favicon 16px fix shipped (transparent bg, full-frame
-crop — Chris: "perfect"); /terms governing law = Maryland; PSA cert
-lookup SHIPPED (CardEditor Verify field when Graded-by-PSA;
-PSA_API_TOKEN in on Vercel prod+preview) — awaiting Chris's real-slab
-test on prod; Chris reconnected eBay (opt-in/20403/Finances chains
-self-verify on his next publish + sale); Keldeo deleted PRE-chip so
-ended-sync test needs a fresh listing; phone hardware pass DONE
-("seems fine"); Turso backup was ALREADY scheduled (Task Scheduler
-10am daily, verified exit 0 + 63MB file) — BACKLOG.md is now the
-accurate open list (top code picks: error monitoring, CI gate).
-Nothing mid-task. Next: pick from BACKLOG.md, or ask
-Chris. Deploy pipeline healthy (previews disabled in vercel.json so
-1 build/change; promote-preview trick works when rate-limited).
-Dev gotcha still true: COLUMN_PROBES run once per process — restart
-dev server after adding columns (price_checks.image_url was added
-this session; already probed in dev).**
+**FIRST ACTION (saved 09-02 end): (1) PSA prod retest — quota reset
+overnight: demo-login cardflip.io, fetch `/api/psa/cert/28400235` →
+200 = PSA cert lookup DONE (tick BACKLOG §0), 403 = Vercel IPs blocked
+at PSA's edge → wait for collectors-apis reply (Chris emailed 09-01
+from support@cardflip.io: limit raise + IP question; reply lands in
+his Fastmail). Do NOT burn quota retrying. (2) Then work BACKLOG.md §0
+"Claude's code queue" top-down (next: seedMtgMirror completeness test;
+then bulk-CSV validation, watcher v2, sync automation). BACKLOG §0 IS
+the one task list — for Chris, present ONE task at a time, easiest
+first, as a gate (see memory chris-single-task-gating); his parked
+blockers: business address (virtual mailbox rec'd, PO rejected by
+Stripe) + price-point decision. LESSON 09-02: batch deploys — ~15
+pushes in one day kept prod perpetually cold (every deploy dumps warm
+functions; 1.4s cold vs 67ms warm measured) and Chris felt it as "site
+lags so much now". Also still true: COLUMN_PROBES run once per process
+(restart dev server after schema adds); npm test = 15 suites; CI green
+gate on every push; verification gates must check THEIR exit code
+(never `tsc | tail && push`).**
+
+**09-02 MEGA-DAY (all live-verified w/ real money/listings, detail in
+BACKLOG §0 + §1-5 ticks):** Stripe end-to-end (subscribe $9.99 →
+active banner → welcome email to MSN inbox → portal → cancel-at-
+period-end Oct 2 → refund; payout BANK ACCOUNT added — was missing
+entirely; branding + solid publish popup); SMTP first-ever real sends;
+402 banner via temp quota=5 (reverted); publish chain (Simisage live →
+ended → amber chip verified; $475.95 Mewtwo popup exposed transparent-
+modal bug, fixed); reprice nudge verified on live data ($11.03 vs
+$14.99), PUT itself parks til a real listing drifts (7d gate
+restored); holo + close-up auto-scan fixed & hardware-verified (3-tier
+motion scoring, distance hint in idle pill); perf: exact-id catalog
+fetch (52ms vs seconds) for wishlist tiles/history rows/Build-listing
+resume + 15s search timeout; UI per Chris: camera-first scanner
+buttons, single Add-more-cards, CSV button desktop-only, watchlist
+Choose-photos, View-on-eBay = real button, ListedPanel record-sale box
+REMOVED (My Cards keeps manual mark-sold); tests: test:cards (37) +
+test:mirror (16, probe-integrity + ranking ladder).**
 
 **WHERE THINGS STAND (09-01 end, everything deployed to prod incl.
 the search-cards makeover, tsc/lint/tests green, working tree clean
