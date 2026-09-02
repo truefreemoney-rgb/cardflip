@@ -16,6 +16,7 @@ interface Props {
 export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function handle(list: FileList | null) {
     if (!list) return;
@@ -38,19 +39,62 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
   );
 
   if (variant === "compact") {
-    // One button (Chris, 09-01): the camera IS how you add more cards, so it
-    // wears that label; the separate file-picker button was clutter. Without
-    // a camera handler the picker keeps the label so adding still works.
+    // One button (Chris, 09-01): the camera IS how you add more cards on a
+    // phone, so a tap goes straight there. On desktop (fine pointer) jumping
+    // to the webcam is wrong (Chris, 09-02) — the same button opens a small
+    // camera-or-photos menu instead. Without a camera handler the picker
+    // keeps the label so adding still works.
+    const handleClick = () => {
+      if (!onOpenCamera) {
+        inputRef.current?.click();
+        return;
+      }
+      if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches) {
+        setMenuOpen((v) => !v);
+      } else {
+        onOpenCamera();
+      }
+    };
     return (
-      <>
+      <div className="relative">
         <button
-          onClick={onOpenCamera ?? (() => inputRef.current?.click())}
+          onClick={handleClick}
           className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
         >
           {onOpenCamera && <span aria-hidden>📷 </span>}Add more cards
         </button>
+        {menuOpen && (
+          <>
+            {/* Click-away backdrop */}
+            <button
+              className="fixed inset-0 z-40 cursor-default"
+              aria-label="Close add-cards menu"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-edge bg-surface-2 py-1 shadow-xl shadow-black/40">
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  inputRef.current?.click();
+                }}
+                className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
+              >
+                🖼️ Choose photos
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenCamera?.();
+                }}
+                className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
+              >
+                📷 Use camera
+              </button>
+            </div>
+          </>
+        )}
         {input}
-      </>
+      </div>
     );
   }
 
