@@ -52,7 +52,12 @@ are STALE (401) — live checks must go through prod. FOLLOW-UP 448d54a
 avg×0.88, header "Pricing — PSA 10 market") and auto-fill Your price
 (autoGradedPrice ref guards typed prices from being stomped);
 Printing dropdown deliberately keeps raw per-printing numbers (slab
-titles don't split by printing). Chris eyeballing prod = the verify.
+titles don't split by printing). Chris verified prod ("pretty good").
+CHART SCALING SHIPPED 363a4da (deployed): grade/condition rescales
+the history curve (graded avg ÷ quote.base, or CONDITION_MULTIPLIER —
+now exported from listing.ts), "PSA 10 est." chip in the header,
+source-average strip hidden while scaled; NM ungraded chart
+untouched.
 NEXT: BACKLOG §0:
 catalog sync automation (MTG
 mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
