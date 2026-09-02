@@ -574,6 +574,18 @@ function AccountSettings({
         billingPhase={billingPhase}
       />
 
+      {/* Help */}
+      <Section title="Help" hint="Short articles on how every part of CardFlip works.">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/help" className={ghostBtn}>
+            Open the help center
+          </Link>
+          <a href="mailto:support@cardflip.io" className="text-sm text-zinc-400 transition hover:text-zinc-200">
+            support@cardflip.io
+          </a>
+        </div>
+      </Section>
+
       {/* Delete */}
       <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
         <h2 className="text-base font-semibold text-red-300">Delete account</h2>
@@ -714,7 +726,7 @@ function PlanSection({
               style={{ width: `${Math.min(100, (quota.used / quota.included) * 100)}%` }}
             />
           </div>
-          <p className="mt-1.5 text-xs text-zinc-600">Your allowance resets each time the subscription renews.</p>
+          <p className="mt-1.5 text-xs text-zinc-600">Your allowance resets at the start of each month.</p>
         </div>
       )}
       {demo && <p className="mt-2 text-xs text-zinc-600">The shared demo account can&apos;t subscribe.</p>}
