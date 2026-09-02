@@ -61,6 +61,11 @@ untouched. ALSO 2f7f203 (deployed): desktop Add-more-cards =
 photos/camera menu (pointer:fine check in Uploader.tsx; touch keeps
 one-tap camera); verified in dev-server browser (DataTransfer-inject
 a file into the picker to reach the queue layout without a webcam).
+ALSO 86b0872 (deployed): grade-flip smoothing — gradedCompsCache
+(module Map in CardEditor, misses cached too), previous graded value
+held during refetch (kills the graded→raw→graded double-jump), chart
+tweens factor 350ms ease-out (reduced-motion snaps). 6 features
+shipped 09-02 eve total.
 NEXT: BACKLOG §0:
 catalog sync automation (MTG
 mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
