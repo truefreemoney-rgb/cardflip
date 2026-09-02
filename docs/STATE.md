@@ -47,7 +47,13 @@ exact company+grade; CardEditor banner now leads with the graded
 number, raw market demoted to floor (Chris hated the floor-only
 note). Known loose: same-number/different-set titles without a
 printed fraction slip in; Tukey trim absorbs. Local .env eBay creds
-are STALE (401) — live checks must go through prod. NEXT: BACKLOG §0:
+are STALE (401) — live checks must go through prod. FOLLOW-UP 448d54a
+(deployed): graded comps also drive the Quick/Market tiles (quick =
+avg×0.88, header "Pricing — PSA 10 market") and auto-fill Your price
+(autoGradedPrice ref guards typed prices from being stomped);
+Printing dropdown deliberately keeps raw per-printing numbers (slab
+titles don't split by printing). Chris eyeballing prod = the verify.
+NEXT: BACKLOG §0:
 catalog sync automation (MTG
 mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
 429s cloud IPs, needs care). Remaining Chris blocker: business
