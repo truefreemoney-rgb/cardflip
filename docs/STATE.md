@@ -30,10 +30,20 @@ seedMtgMirror completeness test DONE same session (test:mirror now 24
 checks; committed on vercel-migration, NOT pushed — batch with next
 real change per the cold-deploy lesson). Bulk-CSV validated live same session (3 rows → Seller Hub drafts,
 escaping/qty/price all correct; NOTE eBay username is christophis01 —
-"truefreemoney" was only the email; account has NO eBay payout method
-yet, flag before a real sale). No collectors-apis reply yet (checked
-09-02). NEXT: BACKLOG §0 code queue top-down: watcher offers v2, then
-catalog sync automation. BACKLOG §0 IS
+"truefreemoney" was only the email; eBay payouts PARKED by Chris,
+test rig only). Watcher offers v2 SHIPPED + DEPLOYED (bb5cbc8 on
+main): opt-in auto-offers (14d slow movers, 10/day cap), paged
+eligibility, custom message — live-verifies when a listing ages 14d
+w/ watchers. Price LOCKED $9.99/500. Stripe branding was ALREADY done
+09-02 morning (stale BACKLOG line nearly re-gated it — Chris caught
+it; trust the mega-day summary over §0 lines). Auto-mode classifier
+blocked auto-send edits + all git-main ops: Edit(cardflip/**) now
+allowed in settings.local.json (Chris, via Notepad); for deploys hand
+Chris the PS 5.1 ff-push line (no &&). No collectors-apis reply yet
+(checked 09-02 eve). NEXT: BACKLOG §0: catalog sync automation (MTG
+mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
+429s cloud IPs, needs care). Remaining Chris blocker: business
+address ONLY (virtual mailbox rec'd). BACKLOG §0 IS
 the one task list — for Chris, present ONE task at a time, easiest
 first, as a gate (see memory chris-single-task-gating); his parked
 blockers: business address (virtual mailbox rec'd, PO rejected by
