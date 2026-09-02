@@ -7,7 +7,7 @@ import CardDetailModal from "@/components/CardDetailModal";
 import GameToggle from "@/components/GameToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import {
@@ -125,6 +125,16 @@ export default function PriceCheckPage() {
     if (openingId) return;
     setOpeningId(entry.id);
     try {
+      // Rows that stored the catalog id fetch it directly — the ranked
+      // 200-result name walk was seconds of spinner (09-02, same fix as
+      // the wishlist tile).
+      if (entry.cardId) {
+        const direct = await fetchCardById(entry.cardId, entry.game ?? game).catch(() => null);
+        if (direct) {
+          await selectCard(direct);
+          return;
+        }
+      }
       const found = await searchCards(
         entry.cardName,
         entry.cardNumber,
