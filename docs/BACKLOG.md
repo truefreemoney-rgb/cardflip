@@ -15,7 +15,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ### Live-test batch (Chris's next posting/sale — passive, no code)
 - [x] Publish a listing — DONE 09-02: Simisage 090/86 live at $8.99 through CardFlip (truefreemoney eBay acct) — whole post-reconnect chain clean. View-on-eBay upgraded to a real button same session (Chris feedback)
 - [ ] Push a non-NM card → expect NO "saved without condition detail" (183454 descriptor fix); a GRADED push also verifies cert descriptor 27503
-- [ ] End that listing on eBay → amber "Ended on eBay" chip in My Cards
+- [x] Ended-listing sync — VERIFIED LIVE 09-02: Chris ended the Simisage listing, amber "Ended on eBay" chip appeared in My Cards after the sync pass (10-min throttle respected)
 - [ ] Reprice a live listing → offer PUT verified
 - [ ] Watcher offers: one real send once a listing has watchers
 - [ ] Multi-qty sale: partial purchase → sold-row split + decrement
