@@ -392,7 +392,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
       {modal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => {
             // Backdrop closes only the confirm step; publishing can't be
             // dismissed mid-flight, and the live step closes via Done so the
@@ -405,7 +405,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             aria-modal="true"
             aria-label={modal === "confirm" ? "Confirm publish" : "Publishing"}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl border border-edge bg-surface-1 p-6 shadow-2xl shadow-black/60"
+            // Solid panel: surface-1 is a 7%-alpha overlay meant for cards on
+            // the page ground — floating over content it let text bleed
+            // through (Chris, 09-02, mid-$475 publish).
+            className="w-full max-w-sm rounded-2xl border border-edge bg-[#14151d] p-6 shadow-2xl shadow-black/60"
           >
             {modal === "confirm" && (
               <>
