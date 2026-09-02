@@ -40,7 +40,15 @@ it; trust the mega-day summary over §0 lines). Auto-mode classifier
 blocked auto-send edits + all git-main ops: Edit(cardflip/**) now
 allowed in settings.local.json (Chris, via Notepad); for deploys hand
 Chris the PS 5.1 ff-push line (no &&). No collectors-apis reply yet
-(checked 09-02 eve). NEXT: BACKLOG §0: catalog sync automation (MTG
+(checked 09-02 eve). GRADED COMPS SHIPPED same eve (2a7db51, deployed
++ live-verified: PSA 7 base1-4 → $445.94 avg / 19 listings via prod
+API): grading rides the comps query and isComparable requires the
+exact company+grade; CardEditor banner now leads with the graded
+number, raw market demoted to floor (Chris hated the floor-only
+note). Known loose: same-number/different-set titles without a
+printed fraction slip in; Tukey trim absorbs. Local .env eBay creds
+are STALE (401) — live checks must go through prod. NEXT: BACKLOG §0:
+catalog sync automation (MTG
 mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
 429s cloud IPs, needs care). Remaining Chris blocker: business
 address ONLY (virtual mailbox rec'd). BACKLOG §0 IS
