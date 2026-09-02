@@ -26,7 +26,8 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### Waiting on third parties
 - [ ] PSA: prod retest after daily quota reset (Claude, next session FIRST ACTION) — 200 = done; 403 = Vercel IPs blocked. Also watch support@cardflip.io for collectors-apis reply (limit raise + IP question + quota mystery, sent 09-01)
-- [ ] eBay draft-scope keyset application (blocked on eBay; EBAY_DRAFT_SCOPE=1 + redeploy when approved)
+- [ ] ~~eBay draft-scope keyset application~~ NEVER FILED — discovered 09-02 eve (only 2 tickets exist on developer.ebay.com: Negotiation 260901-000003 + Insights 260816-000004 closed/denied). Chris's call: DROPPED for now — bulk-CSV road covers drafts; re-file only if single-click drafts become a real user ask (code stays behind EBAY_DRAFT_SCOPE=1)
+- [x] eBay Negotiation ticket 260901-000003 — RESOLVED 09-02 eve: their reply just confirmed sell.inventory covers both Negotiation calls (already knew; feature live). Chris posted a closing thanks. eBay ticket queue now empty of open asks.
 
 ### Claude's code queue (rough order)
 - [ ] Tests: ~~enCards ranking + db ALTER probes~~ DONE 09-02 (`test:mirror`, 16 checks: every COLUMN_PROBES column verified present — probes swallow errors, a typo would be invisible; ranking ladder pinned incl. misread-set-total behavior). seedMtgMirror completeness DONE 09-02 next-day session (7 checks in `test:mirror`, now 24: fresh copy incl. sets/history/tcg map, marker no-op, fresh-but-incomplete prod replaced (the 08-16 bug pinned), merge keeps prod points + fills gaps, full+newer mirror kept). Remaining: API-route tests (cookies() harness, lower value), Playwright someday
