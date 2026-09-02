@@ -39,6 +39,18 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Anthropic credits auto-reload — CHRIS 1-min errand: console.anthropic.com → Billing → enable auto-reload (ran dry once 09-01; optional)
 - [ ] Known drift to watch: queue rows/CSV quote the pricing snapshot, not the chart's current-day rebase — flag if Chris notices
 
+### PRE-SCALE TRACK (added 09-02 night — Chris is a professional advertiser; plan = POC month of real sales FIRST ("i need to see at least one month of sales"), then if numbers hold, aggressive paid acquisition. Items 1 + address are POC-relevant; the rest gate on the POC verdict. Order = what breaks first at 5-25k users)
+- [ ] **1. Scan model margin** — A/B Sonnet 5 vs Opus 5 on the 64 prod photos (ab-vision.mjs, running 09-02). If Sonnet holds: switch vision.ts → scan cost halves; worst-case subscriber goes from negative to ~47% margin, typical ~89%. MANDATORY before scale (25k users on Opus ≈ $30-60k/mo API)
+- [ ] **2. PSA at scale** — 100/day dies in an hour at volume. Need the paid/raised tier (email pending) or feature-flag graded verify off at launch
+- [ ] **3. Replace the shared demo account** — one communal wiped-per-visit account cannot serve thousands of simultaneous visitors; becomes per-visitor sandbox or a real free tier (free tier also = the CollX-proven funnel; ~10¢/user/mo at Sonnet prices)
+- [ ] **4. Durable rate limits** — port the PSA db-counter pattern to every limiter that guards money (vision/scan quota especially); in-memory limiters don't bind on serverless (proven 09-02)
+- [ ] **5. eBay app-level call limits** — one keyset serves all sellers; apply for eBay rate-limit increase BEFORE launch (application takes time)
+- [ ] **6. Support surface** — /help FAQ (was backburner, now pre-launch) + move support@cardflip.io out of personal Fastmail triage; onboarding tour
+- [ ] **7. Infra tiers** — Vercel/Turso plan review + connection behavior at 10k+ users
+- [ ] **8. MD LLC** — $250k/mo through a sole proprietorship = liability/tax problem; LLC also solves the Stripe address blocker in one move
+- [ ] **9. Soft-launch cohort FIRST** — few hundred users, 2 weeks: measure conversion, churn, real scans/user before ad spend (sets the CAC ceiling; ads amplify what exists)
+- [ ] 10. Revenue shape for the $250k/mo path (from 09-02 analysis): dealer tier $49.99 (bulk tools), free tier funnel, eventual success-fee on GMV — sequence after retention proves out
+
 ### BACKBURNER (Chris's explicit parks)
 - [ ] /help FAQ section (S per batch; error states deep-link to articles; do FIRST) then first-login overlay tour (M, coach marks + tour_seen_at) — "totally want to add those one day"
 - [ ] Own eBay price series: record asking avg in comps route + ~150/day sweep; chart prefers ebay source once points exist
