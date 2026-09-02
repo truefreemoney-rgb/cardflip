@@ -21,7 +21,7 @@
     "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
     "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs",
     "test:ratelimit": "node --experimental-strip-types --no-warnings scripts/test-rate-limit.mjs",
-    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota",
+    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota && npm run test:cards",
     "test:quota": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-quota.mjs",
     "test:auth": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-auth.mjs",
     "test:authroutes": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-auth-routes.mjs",
@@ -30,7 +30,8 @@
     "test:pricehistory": "node --experimental-strip-types --no-warnings scripts/test-price-history.mjs",
     "refresh:prices": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/refresh-prices.mjs",
     "backfill:pokemon": "node --experimental-strip-types --no-warnings scripts/backfill-tcgcsv.mjs",
-    "test:admin": "node --experimental-strip-types --no-warnings scripts/test-admin.mjs"
+    "test:admin": "node --experimental-strip-types --no-warnings scripts/test-admin.mjs",
+    "test:cards": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-cards.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
