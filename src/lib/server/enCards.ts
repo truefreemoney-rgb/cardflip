@@ -120,13 +120,26 @@ export async function englishCardById(id: string): Promise<LocalSearchResult> {
   return { cards: [toCard(row)], releaseDates: new Map([[row.id, row.set_release_date]]) };
 }
 
+/**
+ * Hyphens read as spaces on both sides of the match. TCGdex names Shiny Vault
+ * and promo cards "Charizard-GX" while the card itself (and vision's read)
+ * says "Charizard GX" — 170 mirror rows carry the suffix hyphen, and without
+ * this they can never be found by name (09-02: a Hidden Fates SV49 slab
+ * matched to the Burning Shadows rainbow because the real row was invisible).
+ * Genuinely hyphenated names (Ho-Oh, Porygon-Z) normalize identically on both
+ * sides, so they keep matching too.
+ */
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+}
+
 export async function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,
   limit = 24,
   art: ArtStyle = null,
 ): Promise<LocalSearchResult> {
-  const needle = name.trim().toLowerCase();
+  const needle = normalizeName(name);
 
   // No usable name, but a full fraction is itself an identification — resolve
   // on the numbers alone rather than giving up.
@@ -140,7 +153,7 @@ export async function searchEnglishCardsLocal(
     .prepare(
       `SELECT ${CARD_COLUMNS}
          FROM en_cards
-        WHERE LOWER(name) = ? OR LOWER(name) LIKE ?
+        WHERE REPLACE(LOWER(name), '-', ' ') = ? OR REPLACE(LOWER(name), '-', ' ') LIKE ?
         ORDER BY set_release_date ASC
         LIMIT 400`,
     )
@@ -157,7 +170,7 @@ export async function searchEnglishCardsLocal(
   const wanted = printed ? normalizeNumber(printed.number) : null;
 
   const score = (row: EnCardRow): number => {
-    const exactName = row.name.trim().toLowerCase() === needle;
+    const exactName = normalizeName(row.name) === needle;
     const exactNumber = Boolean(wanted) && normalizeNumber(row.local_id) === wanted;
 
     let tier: number;

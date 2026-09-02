@@ -55,12 +55,12 @@ const CARD_READ_SCHEMA = {
       "The set or expansion name if identifiable, else null.",
     ),
     cardNumber: nullableString(
-      "The collector number — the left half of the fraction at the bottom of the card. From '199/165' return '199'. Null if not visible.",
+      "The collector number — the left half of the fraction at the bottom of the card, keeping any letter prefix. From '199/165' return '199'; from 'SV49/SV94' return 'SV49'; from 'TG12/TG30' return 'TG12'. Null if not visible.",
     ),
     setTotal: {
       anyOf: [{ type: "integer" }, { type: "null" }],
       description:
-        "The right half of that fraction — the set's card count. From '199/165' return 165. This identifies which expansion the card is from, so read it separately and carefully. Null if the card prints no denominator (promos often don't) or you cannot see it.",
+        "The right half of that fraction — the set's card count. From '199/165' return 165; a lettered denominator like 'SV94' or 'TG30' means 94 or 30. This identifies which expansion the card is from, so read it separately and carefully. Null if the card prints no denominator (promos often don't) or you cannot see it.",
     },
     setCode: nullableString(
       "The short expansion code printed near the collector number, e.g. 'SVI', 'PAF', 'BS'. This is NOT the language code ('EN'), the illustrator, or the regulation mark (a single letter in a black box). Null if not visible.",

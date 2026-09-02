@@ -72,6 +72,11 @@ const seed = [
   ["mega-4",   "Mega Charizard Y", "xy2b",  "Flashfire",  "4",   "2014-05-07", 106, "FLF"],
   ["swsh4-25", "Pikachu",          "swsh4", "Vivid Volt", "25",  "2020-11-13", 185, "VIV"],
   ["base1-58", "Pikachu",          "base1", "Base Set",   "58",  "1999-01-09", 102, "BS"],
+  // TCGdex hyphenates Shiny Vault names ("Charizard-GX"); the card and vision
+  // say "Charizard GX". The 09-02 slab mismatch: this row was unfindable and
+  // the rainbow decoy below won instead.
+  ["sma-SV49", "Charizard-GX",     "sma",   "Shiny Vault","SV49","2019-08-23", 94,  "HIF"],
+  ["sm3-150",  "Charizard GX",     "sm3",   "Burning Shadows","150","2017-08-05",147, ""],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed) {
   await db.prepare(
@@ -97,6 +102,10 @@ check("same name, no number: oldest printing wins the tie",
   await top("Pikachu", null), "base1-58");
 check("set code agreement steers between printings",
   await top("Charizard EX", { number: "12", setTotal: null, setCode: "FLF", isSecretRare: false }), "xy2-12");
+check("hyphenated catalog name is found by the spaced name + SV number",
+  await top("Charizard GX", { number: "SV49", setTotal: 94, setCode: null, isSecretRare: false }), "sma-SV49");
+check("spaced-name secret rare still wins its own fraction",
+  await top("Charizard GX", { number: "150", setTotal: 147, setCode: null, isSecretRare: false }), "sm3-150");
 check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);
 check("id fetch misses cleanly", (await englishCardById("nope-1")).cards, []);

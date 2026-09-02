@@ -62,9 +62,10 @@ export async function identifyCardImage(
         const found = await searchCards(candidate, printed, language, undefined, game, art);
         if (found.length === 0) continue;
         if (matches.length === 0) matches = found;
-        if (
-          found[0].name.trim().toLowerCase() === candidate.trim().toLowerCase()
-        ) {
+        // Hyphens count as spaces — the catalog says "Charizard-GX" where the
+        // card (and vision) say "Charizard GX"; see normalizeName in enCards.
+        const fold = (s: string) => s.trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+        if (fold(found[0].name) === fold(candidate)) {
           matches = found;
           break;
         }
