@@ -75,9 +75,13 @@ success polls fetchAccount 2s×15 until subStatus flips
 (waiting/confirmed/stalled notices in PlanSection); (2c) bulk send
 collects failedIds + "Retry failed (N)" button in bulkNote,
 sendAllToEbay(retryIds?) re-runs just those; recordScan now returns
-post-scan ScanQuota. UNTESTED live: real 402 banner (needs an
-exhausted subscriber) and the billing=success confirmed path (needs a
-real webhook) — canceled + stalled paths verified in browser.
+post-scan ScanQuota. billing=success confirmed path VERIFIED LIVE
+09-01 (Chris subscribed w/ real card on christophis@msn.com test
+account: active banner + plan chip + renewal + 0/500 meter; welcome
+email delivered to MSN inbox, renders clean; SMTP also proven same day
+via reset email — first real sends ever). Chris may cancel+refund via
+Stripe dashboard (~$0.59 fee eaten). STILL UNTESTED live: real 402
+banner (needs an exhausted subscriber).
 Batch 3 SHIPPED (09-01, all 9): price-check history rows clickable
 (re-lookup by stored card_id+game — new price_checks columns + probes
 in db.ts; logPriceCheck backfills them on re-check) + filter input +
