@@ -947,40 +947,12 @@ export default function CollectionPage() {
                   aria-label={`Select ${card.cardName}`}
                   className="h-4 w-4 shrink-0 accent-brand-500"
                 />
-                {/* Status chip sits directly under the thumbnail (Chris,
-                    09-03: "when it goes active it should be directly under
-                    the card"), not in the price/actions cluster. */}
-                <div className="flex shrink-0 flex-col items-center gap-1.5">
-                  <CardImage
-                    // The seller's own scan photo when one is stored; catalog art otherwise.
-                    src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
-                    alt={card.cardName}
-                    className="h-16 w-12 rounded-md"
-                  />
-                  {/* The sync stamps ebayEndedAt when the listing ended on eBay
-                      without a sale; the card stays "listed" until the seller
-                      decides, but the chip stops claiming it's live. */}
-                  {card.status === "listed" && card.ebayEndedAt ? (
-                    <span
-                      className="whitespace-nowrap rounded-full bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300"
-                      title={`eBay ended this listing without a sale (noticed ${formatDate(card.ebayEndedAt)}). Relist it, or move it back to drafts.`}
-                    >
-                      Ended on eBay
-                    </span>
-                  ) : card.status === "ready" && !card.verifiedAt ? null : (
-                    // An unverified draft has no chip — the amber "Verify match"
-                    // button IS its state (Chris, 09-03: chip + button was
-                    // redundant). It turns into this green "Active" chip.
-                    <span
-                      className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-                        card.status === "ready" ? "bg-emerald-400/10 text-emerald-400" : STATUS_CHIP[card.status]
-                      }`}
-                      title={card.status === "ready" ? "Match verified — ready to publish" : undefined}
-                    >
-                      {card.status === "ready" ? "Active" : STATUS_LABEL[card.status]}
-                    </span>
-                  )}
-                </div>
+                <CardImage
+                  // The seller's own scan photo when one is stored; catalog art otherwise.
+                  src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
+                  alt={card.cardName}
+                  className="h-16 w-12 shrink-0 rounded-md"
+                />
 
                 <div className="min-w-[9rem] flex-1">
                   <p className="truncate text-sm font-semibold text-white">
@@ -996,7 +968,33 @@ export default function CollectionPage() {
                     {card.cardNumber && ` · ${card.cardNumber}`} ·{" "}
                     {card.condition}
                   </p>
-                  <p className="text-[11px] text-zinc-600">
+                  <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-zinc-600">
+                  {/* Status pill leads the meta line (Chris, 09-03): next to
+                      the card, rows stay one height, nothing shifts. */}
+                  {/* The sync stamps ebayEndedAt when the listing ended on eBay
+                      without a sale; the card stays "listed" until the seller
+                      decides, but the chip stops claiming it's live. */}
+                  {card.status === "listed" && card.ebayEndedAt ? (
+                    <span
+                      className="whitespace-nowrap rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
+                      title={`eBay ended this listing without a sale (noticed ${formatDate(card.ebayEndedAt)}). Relist it, or move it back to drafts.`}
+                    >
+                      Ended on eBay
+                    </span>
+                  ) : card.status === "ready" && !card.verifiedAt ? null : (
+                    // An unverified draft has no chip — the amber "Verify match"
+                    // button IS its state (Chris, 09-03: chip + button was
+                    // redundant). It turns into this green "Active" chip.
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        card.status === "ready" ? "bg-emerald-400/10 text-emerald-400" : STATUS_CHIP[card.status]
+                      }`}
+                      title={card.status === "ready" ? "Match verified — ready to publish" : undefined}
+                    >
+                      {card.status === "ready" ? "Active" : STATUS_LABEL[card.status]}
+                    </span>
+                  )}
+                  <span>
                     Scanned {formatDate(card.createdAt)}
                     {card.status === "listed" &&
                       card.listedAt &&
@@ -1019,6 +1017,7 @@ export default function CollectionPage() {
                     ) : (
                       card.ebayOfferId && " · draft on eBay"
                     )}
+                  </span>
                   </p>
                 </div>
 
