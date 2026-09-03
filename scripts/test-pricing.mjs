@@ -390,6 +390,18 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice(cheapCard, "Near Mint", "quick").floored,
     true,
   );
+  // 09-03 quick sale is a $5+ option: below it "quick" quotes the market.
+  const fourDollar = { name: "Test", setName: "Test", prices: [usd(4.2)] };
+  check(
+    "under $5: quick sale quotes the market price (no undercut, no charm)",
+    quotePrice(fourDollar, "Near Mint", "quick").suggested,
+    4.2,
+  );
+  check(
+    "at $5+: quick sale still undercuts",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(20)] }, "Near Mint", "quick").suggested,
+    16.99,
+  );
   check(
     "cheap card: market value is left alone (base)",
     quotePrice(cheapCard, "Near Mint", "market").base,

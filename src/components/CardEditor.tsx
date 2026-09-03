@@ -15,7 +15,7 @@ import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, firstEditionPrice, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, quoteForItem, quotePrice, withListingOverrides, floorNote } from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, firstEditionPrice, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
@@ -497,6 +497,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const quote = quoteForItem(item, currentPoint);
   const quickQuote = quotePrice(card, item.condition, "quick", variant, currentPoint);
   const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
+  // Quick sale is a $5+ option (Chris, 09-03): under that, the only tile is
+  // Market and it reads as selected whatever the remembered strategy says
+  // (quotePrice already prices "quick" as market there).
+  const showQuick = Boolean(item.grading) || quickSaleEligible(marketQuote?.suggested);
+  const selectedStrategy: PriceStrategy = showQuick ? item.strategy : "market";
 
   const facts = { firstEdition: item.firstEdition, grading: item.grading };
 
@@ -1010,7 +1015,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           <legend className="mb-1 text-sm font-medium text-zinc-300">
             Pricing{item.grading ? ` — ${gradeLabel(item.grading)} market` : ""}
           </legend>
-          <div className="grid grid-cols-2 gap-2">
+          <div className={`grid gap-2 ${showQuick ? "grid-cols-2" : "grid-cols-1"}`}>
             {(
               item.grading
                 ? ([
@@ -1021,7 +1026,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     ["quick", "Quick sale", quickQuote?.suggested ?? 0, quickQuote?.floored ? floorNote() : "Undercuts market to move fast"],
                     ["market", "Market price", marketQuote?.suggested ?? 0, marketQuote?.floored ? floorNote() : "Holds out for full value"],
                   ] as [PriceStrategy, string, number, string][])
-            ).map(([value, label, amount, hint]) => (
+            ).filter(([value]) => showQuick || value === "market").map(([value, label, amount, hint]) => (
               <button
                 key={value}
                 onClick={() => {
@@ -1038,7 +1043,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   saveStrategy(value);
                 }}
                 className={`rounded-xl border p-3 text-left transition ${
-                  item.strategy === value
+                  selectedStrategy === value
                     ? "border-brand-400 bg-brand-500/10"
                     : "border-edge bg-surface-1 hover:border-edge-strong"
                 }`}

@@ -45,7 +45,7 @@ const articles: HelpArticle[] = [
     id: "pricing",
     heading: "Where prices come from",
     paragraphs: [
-      "The quote is live market data for your exact printing, adjusted by the condition you set and the selling strategy you pick. \"Market\" asks the going rate; \"Quick sale\" undercuts it by 12% to move the card faster.",
+      "The quote is live market data for your exact printing, adjusted by the condition you set and the selling strategy you pick. \"Market\" asks the going rate; \"Quick sale\" undercuts it by 12% to move the card faster (offered on cards worth $5 or more; cheaper cards just list at market).",
       "Condition adjusts the price like the market does: Near Mint is the baseline, Lightly Played prices at 85%, Moderately Played 70%, Heavily Played 55%, Damaged 40%.",
       "Prices are estimates meant to anchor a listing — not an appraisal, not a guarantee. Card markets move; the price you accept is always your decision.",
     ],

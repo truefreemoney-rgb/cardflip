@@ -172,6 +172,14 @@ const STRATEGY_MULTIPLIER: Record<PriceStrategy, number> = {
   market: 1,
 };
 
+/** Quick sale is offered only from this condition-adjusted market value up. */
+export const QUICK_SALE_MIN_USD = 5;
+
+/** Whether a card at this market value (condition applied) gets a quick-sale tile. */
+export function quickSaleEligible(marketValue: number | null | undefined): boolean {
+  return typeof marketValue === "number" && marketValue >= QUICK_SALE_MIN_USD;
+}
+
 const CURRENCY_SYMBOL: Record<Currency, string> = { USD: "$", EUR: "€" };
 
 /**
@@ -369,12 +377,15 @@ export function quotePrice(
 
   if (!price?.market) return null;
 
-  const adjusted =
-    price.market *
-    CONDITION_MULTIPLIER[condition] *
-    STRATEGY_MULTIPLIER[strategy];
+  // Quick sale only exists at $5+ (Chris, 09-03: "cards under $5 shouldn't
+  // have a quick-sale option") — undercutting a $2 card by 12% just hands
+  // eBay the margin. Below the line the quote IS the market quote.
+  const conditioned = price.market * CONDITION_MULTIPLIER[condition];
+  const effective: PriceStrategy =
+    strategy === "quick" && !quickSaleEligible(conditioned) ? "market" : strategy;
+  const adjusted = conditioned * STRATEGY_MULTIPLIER[effective];
 
-  const rounded = roundPrice(adjusted, strategy);
+  const rounded = roundPrice(adjusted, effective);
   // The fee-aware floor: USD listings only (a euro reference can't set a
   // dollar price anyway), and only when there IS a price to raise.
   const floor = listingFloor();
