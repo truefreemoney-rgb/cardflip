@@ -26,7 +26,7 @@ const steps = [
 const features = [
   {
     title: "Scan a whole binder",
-    body: "Queue up as many cards as you like. Each one is read, priced and written up while you keep scanning.",
+    body: "Queue up as many cards as you like — each one is read and priced while you keep scanning. It is the fastest way to find out which cards in the pile actually matter, and which ones you forgot you owned.",
   },
   {
     title: "Prices per printing",
@@ -57,7 +57,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "CardFlip will be $9.99/month for everything — 500 scans a month, AI card reading, live pricing, and listing tracking. It's free while we're in early access, and early-access sellers will be told well before billing starts. You always keep 100% of your eBay payouts.",
+    a: "$9.99 a month for everything — 500 scans a month, AI card reading, live pricing, eBay publishing and listing tracking. Early-access accounts stay free until they choose to subscribe, and you cancel any time. You always keep 100% of your eBay payouts.",
   },
 ];
 
@@ -123,9 +123,11 @@ export default async function Home() {
                 className="animate-fade-up max-w-md text-lg leading-relaxed text-zinc-400"
                 style={{ animationDelay: "120ms" }}
               >
-                Scanning a card takes a second. Pricing it, writing the listing
-                and getting it online takes ten minutes. CardFlip does the
-                other nine.
+                Scan a stack and the prices land as fast as you can flip cards
+                — including the ones you had no idea were worth anything.
+                Then the listing, the photo and the price are written for
+                you. Scanning takes a second; CardFlip does the other nine
+                minutes.
               </p>
 
               <div
@@ -378,7 +380,7 @@ export default async function Home() {
               <span className="holo-text">your binder?</span>
             </h2>
             <p className="reveal text-lg text-zinc-400">
-              Create your free account and start listing in minutes.
+              Create your free account and find out what is actually in there.
             </p>
             <Link
               href="/signup"
