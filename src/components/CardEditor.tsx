@@ -564,11 +564,24 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             nothing left to compare it against. */}
         <div className="flex shrink-0 items-start gap-3">
           <div>
-            <CardImage
-              src={card.imageLarge || card.imageSmall || item.previewUrl}
-              alt={card.name}
-              className="h-56 w-auto rounded-xl shadow-2xl shadow-black/50"
-            />
+            {card.imageLarge || card.imageSmall ? (
+              <CardImage
+                src={card.imageLarge || card.imageSmall}
+                alt={card.name}
+                className="h-56 w-auto rounded-xl shadow-2xl shadow-black/50"
+              />
+            ) : (
+              // No catalogue art (some promos, kits). Used to fall back to the
+              // seller's own photo, which read as "the match is a mirror of my
+              // card" (Chris, 09-03). Say what's missing instead.
+              <div className="flex h-56 w-40 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-edge-strong bg-surface-1 px-3 text-center">
+                <p className="text-sm font-medium text-zinc-300">{card.name}</p>
+                <p className="text-xs text-zinc-500">
+                  {card.setName} · {displayCardNumber(card)}
+                </p>
+                <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-600">No catalogue art yet</p>
+              </div>
+            )}
             <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
               Match
             </p>
@@ -786,11 +799,20 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   }`}
                   title={`${c.name} — ${c.setName} ${displayCardNumber(c)}`}
                 >
-                  <CardImage
-                    src={c.imageSmall}
-                    alt={`${c.name}, ${c.setName}`}
-                    className="aspect-[5/7] w-full"
-                  />
+                  {c.imageSmall ? (
+                    <CardImage
+                      src={c.imageSmall}
+                      alt={`${c.name}, ${c.setName}`}
+                      className="aspect-[5/7] w-full"
+                    />
+                  ) : (
+                    // A real printing with no catalogue art: name it rather
+                    // than showing a blank tile.
+                    <span className="flex aspect-[5/7] w-full flex-col items-center justify-center gap-0.5 bg-surface-1 px-1 text-center">
+                      <span className="text-[10px] font-medium leading-tight text-zinc-300">{c.setName}</span>
+                      <span className="text-[10px] text-zinc-500">{displayCardNumber(c)}</span>
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
