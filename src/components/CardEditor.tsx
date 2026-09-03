@@ -39,6 +39,8 @@ interface Props {
   onNext?: (() => void) | null;
   /** Grade the whole queue at once — sets this condition on every unfinished card. */
   onApplyConditionToAll?: (condition: Condition) => void;
+  /** Drop this card from the queue and the ledger (the page owns the undo window). */
+  onRemove?: () => void;
 }
 
 const READ_STEPS = [
@@ -241,7 +243,7 @@ function PsaCertVerify({
 /** Session cache of graded comps per card+grade — grade flips shouldn't re-ask eBay. */
 const gradedCompsCache = new Map<string, { average: number; count: number } | null>();
 
-export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll }: Props) {
+export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll, onRemove }: Props) {
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -623,18 +625,30 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 {card.isSecretRare ? " · Secret rare" : ""}
               </p>
             </div>
-            <button
-              onClick={handleWishlist}
-              disabled={wishlisting || wishlisted}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-default ${
-                wishlisted
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : "border border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
-              }`}
-            >
-              {wishlisting && <Spinner className="h-3 w-3" />}
-              {wishlisted ? "★ Watching" : "☆ Watch"}
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={handleWishlist}
+                disabled={wishlisting || wishlisted}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-default ${
+                  wishlisted
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : "border border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
+                }`}
+              >
+                {wishlisting && <Spinner className="h-3 w-3" />}
+                {wishlisted ? "★ Watching" : "☆ Watch"}
+              </button>
+              {/* Delete from the listing screen (Chris, 09-03) — same
+                  remove-with-undo as the queue row, so no confirm dialog. */}
+              {onRemove && (
+                <button
+                  onClick={onRemove}
+                  className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
 
           {/* The gate (Chris, 09-03): nothing reaches eBay until the seller

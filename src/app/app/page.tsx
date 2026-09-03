@@ -1201,6 +1201,7 @@ export default function AppPage() {
                     ebayConnected={user.ebayConnected}
                     onChange={(patch) => patchItem(selected.id, patch)}
                     onNext={selectNext}
+                    onRemove={() => removeItem(selected.id)}
                     onApplyConditionToAll={
                       items.filter(
                         (i) =>
