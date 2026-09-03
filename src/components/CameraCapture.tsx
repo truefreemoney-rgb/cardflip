@@ -15,6 +15,13 @@ import {
   type RevealTier,
 } from "@/lib/client/scanFx";
 import type { ScanItem } from "@/lib/types";
+import {
+  SHARPNESS_BAND,
+  SHARPNESS_SAMPLE_WIDTH,
+  isSharpEnough,
+  laplacianVariance,
+  rgbaToGray,
+} from "@/lib/sharpness";
 
 interface Props {
   /**
@@ -122,6 +129,12 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const [ready, setReady] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
+  // Blur gate (09-03): a soft frame is refused once with a nudge instead of
+  // spending a scan on a guess. The very next tap always goes through —
+  // a seller who can't get it sharper (foil glare, low light) must never
+  // be stuck behind the gate.
+  const [blurNote, setBlurNote] = useState<string | null>(null);
+  const lastBlurRejectAt = useRef(0);
   // Lazy initialiser: read the stored preference once, on the client (the
   // modal only ever mounts client-side, after a tap).
   const [fxOn, setFxOn] = useState(() => scanFxEnabled());
@@ -252,6 +265,42 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     canvas.width = Math.round(sw);
     canvas.height = Math.round(sh);
     canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+    // Score the attack-text band at the calibration geometry (see
+    // lib/sharpness.ts) straight off the capture canvas.
+    const score = (() => {
+      const bw = SHARPNESS_SAMPLE_WIDTH;
+      const bh = Math.max(3, Math.round((bw * (sh * SHARPNESS_BAND.h)) / (sw * SHARPNESS_BAND.w)));
+      const band = document.createElement("canvas");
+      band.width = bw;
+      band.height = bh;
+      const ctx = band.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return Infinity;
+      ctx.drawImage(
+        canvas,
+        canvas.width * SHARPNESS_BAND.x,
+        canvas.height * SHARPNESS_BAND.y,
+        canvas.width * SHARPNESS_BAND.w,
+        canvas.height * SHARPNESS_BAND.h,
+        0,
+        0,
+        bw,
+        bh,
+      );
+      try {
+        const px = ctx.getImageData(0, 0, bw, bh).data;
+        return laplacianVariance(rgbaToGray(px, bw * bh), bw, bh);
+      } catch {
+        return Infinity;
+      }
+    })();
+    const now = Date.now();
+    if (!isSharpEnough(score) && now - lastBlurRejectAt.current > 8000) {
+      lastBlurRejectAt.current = now;
+      setBlurNote("Looks blurry — hold still and tap again");
+      setTimeout(() => setBlurNote(null), 2500);
+      return;
+    }
 
     canvas.toBlob(
       (blob) => {
@@ -519,7 +568,14 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
             on a phone the guide is most of the frame and a chip on it hid
             the card. Until the first scan the slot carries the how-to. */}
         <div className="flex min-h-24 shrink-0 items-center px-3 py-1 sm:px-0 sm:py-0">
-          {lastScan ? (
+          {blurNote ? (
+            <p
+              role="status"
+              className="animate-fade-up w-full rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-center text-sm font-medium text-amber-200"
+            >
+              {blurNote}
+            </p>
+          ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} />
           ) : (
             <p className="w-full text-center text-xs text-zinc-500">

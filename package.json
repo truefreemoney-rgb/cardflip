@@ -21,7 +21,7 @@
     "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
     "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs",
     "test:ratelimit": "node --experimental-strip-types --no-warnings scripts/test-rate-limit.mjs",
-    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota && npm run test:cards && npm run test:mirror",
+    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:sharpness && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota && npm run test:cards && npm run test:mirror",
     "test:quota": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-quota.mjs",
     "test:auth": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-auth.mjs",
     "test:authroutes": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-auth-routes.mjs",
@@ -34,7 +34,8 @@
     "test:cards": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-cards.mjs",
     "test:mirror": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-mirror.mjs",
     "replay:scans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/replay-scans.mjs",
-    "fill:images": "node scripts/fill-images.mjs"
+    "fill:images": "node scripts/fill-images.mjs",
+    "test:sharpness": "node --experimental-strip-types --no-warnings scripts/test-sharpness.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
