@@ -43,9 +43,12 @@ and are out of In play; editor header makeover (title + Watch, verify strip
 no Undo — verification is final, facts panel, no "Not this card?"); pricing
 labels "Suggested listing price" / at $5+ "Listing price": Quick sale +
 Full value; McDonald's 2024 #1 Charizard art served from public/cards (no
-provider has 2023/2024 sets). NEXT: Chris is running the FINAL stress test
-("last one for a long time") — expect screenshots/videos; fix, push, move on.
-Chris is mid stress test —
+provider has 2023/2024 sets). FINAL stress test DONE 09-03 eve — clean, no
+issues reported ("last one for a long time unless I find something odd").
+NEXT (Chris said "tomorrow" = 09-04): the Stripe public-details errand —
+business address + phone that aren't his home/cell (BACKLOG §0 item 1);
+that's his side, I gate on it. Then post-launch cadence: batch weekly.
+The day's rules still hold —
 expect more screenshots; the day's rules: TCGplayer current-day point =
 value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
 $0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
