@@ -147,6 +147,19 @@ function normalizeName(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+/**
+ * Promos print the set code as part of the number ("SVP 212", "SWSH034")
+ * and vision returns it that way; the mirror files them as "212" under the
+ * promo set. Drop a leading copy of the read set code so the numerator can
+ * match (09-03: a Reuniclus SVP promo read "SVP 212" fell through to a
+ * name-only tie and lost to a 2012 print).
+ */
+function stripCodePrefix(number: string, code: string | null): string {
+  if (!code) return number;
+  const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return number.replace(new RegExp(`^${escaped}[\\s-]*(?=\\S)`, "i"), "");
+}
+
 export async function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,
@@ -168,7 +181,7 @@ export async function searchEnglishCardsLocal(
       `SELECT ${CARD_COLUMNS}
          FROM en_cards
         WHERE ${FOLDED_NAME} = ? OR ${FOLDED_NAME} LIKE ?
-        ORDER BY set_release_date ASC
+        ORDER BY set_release_date DESC
         LIMIT 400`,
     )
     .all(needle, `%${needle}%`)) as unknown as EnCardRow[];
@@ -181,11 +194,23 @@ export async function searchEnglishCardsLocal(
       : { cards: [], releaseDates: new Map() };
   }
 
-  const wanted = printed ? normalizeNumber(printed.number) : null;
+  const wanted = printed ? normalizeNumber(stripCodePrefix(printed.number, printed.setCode)) : null;
 
   const score = (row: EnCardRow): number => {
     const exactName = normalizeName(row.name) === needle;
-    const exactNumber = Boolean(wanted) && normalizeNumber(row.local_id) === wanted;
+    const total = agreesWithSetTotal(
+      printed?.setTotal ?? null,
+      row.set_card_count_official,
+    );
+    // A numerator only means something inside its own set: "140" read off a
+    // card whose denominator says 182 does not name Rebel Clash's 140/192.
+    // Chris's 09-03 stress test: a low-confidence read of Destined Rivals
+    // 146/182 came back "140/182" and the numerator alone lifted the 2020
+    // card over the one whose set total agreed. So an exact numerator
+    // counts only while the read set total doesn't contradict the row's;
+    // with the total unread (promos, glare) it still counts as before.
+    const exactNumber =
+      Boolean(wanted) && normalizeNumber(row.local_id) === wanted && total !== "mismatch";
 
     let tier: number;
     if (exactName && exactNumber) tier = 0;
@@ -193,10 +218,6 @@ export async function searchEnglishCardsLocal(
     else if (exactNumber) tier = 2;
     else tier = 3;
 
-    const total = agreesWithSetTotal(
-      printed?.setTotal ?? null,
-      row.set_card_count_official,
-    );
     const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
     const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official));
 
@@ -204,7 +225,12 @@ export async function searchEnglishCardsLocal(
   };
 
   // Stable sort, so release-date order from the query survives as the final
-  // tiebreak — the oldest printing still wins a tie the fraction can't settle.
+  // tiebreak — the NEWEST printing wins a tie the fraction can't settle.
+  // Was oldest-first; with no number read that sent a 2025 Buneary to the
+  // 2007 DP promo (09-03). What a phone scanner sees is overwhelmingly
+  // current product, and when the tie is a vintage name+number collision
+  // (Base Set 4/102 vs Base Set 2 4/130) newest-first errs toward the
+  // cheaper reprint — the safer wrong answer for a listing price.
   const ranked = [...rows].sort((a, b) => score(a) - score(b)).slice(0, limit);
 
   return {
@@ -241,7 +267,7 @@ export async function lookupByPrintedNumber(
         `SELECT ${CARD_COLUMNS}
            FROM en_cards
           WHERE set_card_count_official = ?
-          ORDER BY set_release_date ASC`,
+          ORDER BY set_release_date DESC`,
       )
       .all(printed.setTotal)) as unknown as EnCardRow[]
   ).filter((row) => normalizeNumber(row.local_id) === normalizeNumber(printed.number));

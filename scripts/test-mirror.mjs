@@ -7,8 +7,9 @@
  * probe list is the ONLY migration path for old databases, and its failures
  * are invisible); and searchEnglishCardsLocal's ranking ladder — exact
  * name+number beats exact name beats number, set-total/set-code agreement
- * outranks release date, the oldest printing wins ties, and a full fraction
- * identifies with no name at all.
+ * outranks release date, the newest printing wins ties, a numerator can't
+ * outvote a contradicting set total, and a full fraction identifies with no
+ * name at all.
  *
  * Same throwaway-db trick as test-auth.mjs: chdir to a temp dir before any
  * import so `data/cardflip.db` lands there.
@@ -81,6 +82,13 @@ const seed = [
   // on 09-02 and fell through to a 400ing upstream.
   ["dri-70",   "Team Rocket’s Zapdos", "dri", "Destined Rivals", "70", "2025-05-30", 182, "DRI"],
   ["sm3-150",  "Charizard GX",     "sm3",   "Burning Shadows","150","2017-08-05",147, ""],
+  // 09-03 stress test: Destined Rivals 146/182 read as "140/182" picked
+  // Rebel Clash 140/192 on the numerator alone.
+  ["sv10-146", "Zamazenta",        "sv10",  "Destined Rivals","146","2025-05-30",182, "DRI"],
+  ["swsh2-140","Zamazenta",        "swsh2", "Rebel Clash",    "140","2020-05-01",192, "RCL"],
+  // Promo numbers carry the set code ("SVP 212"); the mirror files it as "212".
+  ["svp-212",  "Reuniclus",        "svp",   "SVP Black Star Promos","212","2023-03-31",225, ""],
+  ["sv10.5b-039","Reuniclus",      "sv10.5b","Black Bolt",    "039","2025-07-17",86,  ""],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed) {
   await db.prepare(
@@ -102,8 +110,16 @@ check("substring name + agreeing number/total wins when no exact-name row has th
   await top("Mega Charizard", { number: "4", setTotal: 106, setCode: null, isSecretRare: false }), "mega-4");
 check("full fraction with NO name still identifies",
   await top("", { number: "58", setTotal: 102, setCode: null, isSecretRare: false }), "base1-58");
-check("same name, no number: oldest printing wins the tie",
-  await top("Pikachu", null), "base1-58");
+check("same name, no number: newest printing wins the tie",
+  await top("Pikachu", null), "swsh4-25");
+check("misread numerator can't outvote an agreeing set total",
+  await top("Zamazenta", { number: "140", setTotal: 182, setCode: null, isSecretRare: false }), "sv10-146");
+check("misread numerator + agreeing set code + total: same answer",
+  await top("Zamazenta", { number: "140", setTotal: 182, setCode: "DRI", isSecretRare: false }), "sv10-146");
+check("promo number read with its set code prefix ('SVP 212') finds the promo",
+  await top("Reuniclus", { number: "SVP 212", setTotal: null, setCode: "SVP", isSecretRare: false }), "svp-212");
+check("numerator still counts when the total is unread",
+  await top("Zamazenta", { number: "140", setTotal: null, setCode: null, isSecretRare: false }), "swsh2-140");
 check("set code agreement steers between printings",
   await top("Charizard EX", { number: "12", setTotal: null, setCode: "FLF", isSecretRare: false }), "xy2-12");
 check("hyphenated catalog name is found by the spaced name + SV number",
