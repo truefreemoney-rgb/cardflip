@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-03 (session 4 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
+Last updated: 2026-09-03 ~3:15pm ET (session 4 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,12 +23,22 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-03, session 4): NO pending deploy, tree clean,
-main = vercel-migration = origin, CI green. Present Chris ONE gated task:
-the last POC blocker is Stripe business address + phone (BACKLOG.md line
-11 — Public details → Customer-facing info; UPS Store mailbox easiest, PO
-boxes rejected; swap the personal cell for a Google-Voice-style number).
-It is a dashboard errand only he can do. Everything else is done or parked.**
+**FIRST ACTION (saved 09-03 ~3:15pm ET, session 4, mid-stress-test — Chris
+/cleared to save context): (1) CONFIRM b256b02 (My Cards stats panel
+makeover: one panel, In play + Earned columns with fee/postage ledgers,
+counts strip beneath) actually DEPLOYED — CI was green but the Vercel
+deployment record hadn't appeared and the GitHub API rate limit was
+exhausted (resets ~19:26Z). Check:
+curl -s "https://api.github.com/repos/truefreemoney-rgb/cardflip/deployments?per_page=3"
+(sha + statuses). If no deployment for b256b02, push an empty commit to
+main to retrigger. (2) Then get Chris's yea/nay on that panel (he said the
+four-tile design "isn't sitting well"). (3) Chris is mid stress test —
+expect more screenshots; the day's rules: TCGplayer current-day point =
+value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
+$0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
+Auto-scan is GONE; printings work is REVERTED; don't touch pickPrice /
+pointCanRebase without a one-card agreement with Chris. Stripe public
+details errand still pending on his side. Main = vercel-migration = origin.**
 
 **SHIPPED SESSION 4 — VERIFY MATCH GATE (Chris's "big safety feature",
 09-03): every identified card is "Verify match" (amber) until the seller
