@@ -178,26 +178,6 @@ check("graded: CGC '10 Pristine' matches 'CGC 10'",
 check("ungraded mode still rejects slabs",
   isComparable("Charizard ex 199/165 PSA 7", card), false);
 
-// Printing-aware comps (09-03): titles have to agree with the printing priced.
-check("printing normal rejects a reverse holo title",
-  isComparable("Charizard ex 199/165 Reverse Holo NM", card, null, "normal"), false);
-check("printing normal keeps a plain title",
-  isComparable("Charizard ex 199/165 NM", card, null, "normal"), true);
-check("printing normal keeps 'non-holo'",
-  isComparable("Charizard ex 199/165 non-holo NM", card, null, "normal"), true);
-check("printing reverse requires the word",
-  isComparable("Charizard ex 199/165 NM", card, null, "reverseHolofoil"), false);
-check("printing reverse keeps a reverse holo title",
-  isComparable("Charizard ex 199/165 Reverse Holo", card, null, "reverseHolofoil"), true);
-check("printing reverse rejects a poke ball pattern",
-  isComparable("Charizard ex 199/165 Reverse Holo Poke Ball Pattern", card, null, "reverseHolofoil"), false);
-check("printing poke ball requires it",
-  isComparable("Charizard ex 199/165 Poke Ball Reverse Holo", card, null, "pokeBallPattern"), true);
-check("printing holo rejects a reverse",
-  isComparable("Charizard ex 199/165 Reverse Holo", card, null, "holofoil"), false);
-check("no printing = no printing filter",
-  isComparable("Charizard ex 199/165 Reverse Holo", card), true);
-
 console.log(
   failures === 0
     ? "\nAll eBay comps checks passed.\n"

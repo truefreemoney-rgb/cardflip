@@ -27,13 +27,12 @@ export interface EbayCompsResult {
 export async function fetchEbayComps(
   card: PokemonCard,
   grading?: { company: string; grade: string } | null,
-  printing?: string | null,
 ): Promise<EbayCompsResult> {
   try {
     const res = await fetch(apiPath("/api/ebay/comps"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ card, ...(grading ? { grading } : {}), ...(printing ? { printing } : {}) }),
+      body: JSON.stringify({ card, ...(grading ? { grading } : {}) }),
     });
     const data = await res.json().catch(() => null);
 

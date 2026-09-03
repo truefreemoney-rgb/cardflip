@@ -225,7 +225,6 @@ export function formatVariantLabel(variant: string): string {
 export function withEbayPrices(
   card: PokemonCard,
   comps: { sold?: EbayComps | null; active?: EbayComps | null },
-  forVariant: string | null = null,
 ): PokemonCard {
   const rows: CardPrice[] = [];
 
@@ -233,7 +232,6 @@ export function withEbayPrices(
     rows.push({
       source: "ebay",
       currency: "USD",
-      forVariant,
       variant: EBAY_SOLD_VARIANT,
       label: `eBay sold (${comps.sold.count} sale${comps.sold.count === 1 ? "" : "s"}, 90d)`,
       market: comps.sold.average,
@@ -245,7 +243,6 @@ export function withEbayPrices(
     rows.push({
       source: "ebay",
       currency: "USD",
-      forVariant,
       variant: EBAY_VARIANT,
       label: `eBay asking (${comps.active.count} listing${comps.active.count === 1 ? "" : "s"})`,
       market: comps.active.average,
@@ -258,58 +255,6 @@ export function withEbayPrices(
     ...card,
     prices: [...rows, ...card.prices.filter((p) => p.source !== "ebay")],
   };
-}
-
-/** The eBay row (sold first, then asking) whose comps were searched for this printing. */
-export function ebayPriceForPrinting(card: PokemonCard, variant: string): CardPrice | undefined {
-  const usable = (p: CardPrice) =>
-    p.source === "ebay" && p.forVariant === variant && typeof p.market === "number" && p.market > 0;
-  return (
-    card.prices.find((p) => usable(p) && p.variant === EBAY_SOLD_VARIANT) ??
-    card.prices.find((p) => usable(p) && p.variant === EBAY_VARIANT)
-  );
-}
-
-/**
- * The printing a price row stands for: an eBay row for the printing it was
- * searched for, a TCGplayer row for itself, nothing for a mixed eBay average
- * (which is a price basis, not a printing).
- */
-export function printingLabelOf(price: CardPrice | null | undefined): string | undefined {
-  if (!price) return undefined;
-  if (price.forVariant) return formatVariantLabel(price.forVariant);
-  if (price.source === "ebay") return undefined;
-  return price.label;
-}
-
-/**
- * The printing an item is being priced and listed as: the explicit pick,
- * else the plain-print-first default over the catalogue prices (eBay rows
- * excluded — they follow the printing, they don't define it).
- */
-export function printingOf(item: ScanItem): string | undefined {
-  const explicit = effectiveVariant(item);
-  if (explicit) return explicit;
-  if (!item.card) return undefined;
-  const pick = pickPrice({ ...item.card, prices: item.card.prices.filter((p) => p.source !== "ebay") });
-  return pick?.variant;
-}
-
-/** Search words that pin an eBay comps query to a printing. */
-export function printingSearchTerms(variant: string | null | undefined): string {
-  switch (variant) {
-    case "reverseHolofoil":
-      return "reverse holo";
-    case "holofoil":
-    case "unlimitedHolofoil":
-      return "holo";
-    case "pokeBallPattern":
-      return "poke ball";
-    case "masterBallPattern":
-      return "master ball";
-    default:
-      return "";
-  }
 }
 
 /**
@@ -402,11 +347,8 @@ export function quotePrice(
   variantOverride?: string,
   currentPoint?: CurrentSeriesPoint | null,
 ): PriceQuote | null {
-  // A printing pick is priced off the eBay comps searched FOR that printing
-  // when they exist (what copies like this one actually list for), else its
-  // catalogue row. eBay keys themselves ("ebayAverage") resolve directly.
   const override = variantOverride
-    ? (ebayPriceForPrinting(card, variantOverride) ?? card.prices.find((p) => p.variant === variantOverride))
+    ? card.prices.find((p) => p.variant === variantOverride)
     : undefined;
 
   // An override in another currency can't set a dollar asking price, so fall
@@ -744,7 +686,6 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
     isMtg && facts.finish && facts.finish !== "nonfoil" ? "foil" : "",
     facts.firstEdition ? "1st edition" : "",
     facts.grading ? gradeLabel(facts.grading) : "",
-    facts.printing ? facts.printing.toLowerCase() : "",
     game.searchToken,
   ]
     .filter(Boolean)

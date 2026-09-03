@@ -35,10 +35,6 @@ export async function POST(req: Request) {
         ? { company: String(body.grading.company).slice(0, 10), grade: String(body.grading.grade).slice(0, 20) }
         : null;
 
-    // Which printing to price: a TCGplayer-style variant key from the editor.
-    const printing =
-      typeof body?.printing === "string" && /^[A-Za-z0-9]{1,40}$/.test(body.printing) ? body.printing : null;
-
     // Both links work without any API access, so the UI can always point the
     // seller at eBay even when we have no credentials to price against.
     const searchUrl = ebaySearchUrl(card);
@@ -62,9 +58,9 @@ export async function POST(req: Request) {
     // eBay" link instead. Settled independently so a sold failure never
     // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
-      fetchEbayComps(card, grading, printing),
+      fetchEbayComps(card, grading),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
-        ? fetchEbaySoldComps(card, printing)
+        ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),
     ]);
 
