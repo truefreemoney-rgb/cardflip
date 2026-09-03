@@ -105,6 +105,9 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
   };
 }
 
+/** Concurrent scans per tab — see pumpingRef. */
+const SCAN_WORKERS = 2;
+
 export default function AppPage() {
   const router = useRouter();
   const { user } = useSession();
@@ -154,7 +157,12 @@ export default function AppPage() {
   // The pump loop reads and writes the queue outside of React's render cycle,
   // so the ref is the source of truth and state is kept in step with it.
   const itemsRef = useRef<ScanItem[]>([]);
-  const pumpingRef = useRef(false);
+  // Scans in flight. Vision is ~4s a card (Sonnet 5, measured median 09-02),
+  // and one at a time made a stack feel like 4s × N (Chris, 09-03: "takes
+  // like 5 seconds to identify"). Two workers halve the wait on a stack
+  // without touching per-card accuracy; the vision route and the lookup
+  // limiter both tolerate it.
+  const pumpingRef = useRef(0);
   // Items with an eBay lookup in flight, so the effect that kicks them off
   // can't double-fire on a re-render before the status patch lands.
   const compsInFlight = useRef<Set<string>>(new Set());
@@ -241,8 +249,8 @@ export default function AppPage() {
   }, []);
 
   const pump = useCallback(async () => {
-    if (pumpingRef.current) return;
-    pumpingRef.current = true;
+    if (pumpingRef.current >= SCAN_WORKERS) return;
+    pumpingRef.current++;
 
     try {
       for (;;) {
@@ -257,6 +265,10 @@ export default function AppPage() {
         }
 
         patchItem(next.id, { status: "scanning" });
+        // More waiting and a free worker slot: run them side by side. The
+        // claim above is synchronous (commit writes itemsRef), so two
+        // workers can never pick the same item.
+        if (itemsRef.current.some((i) => i.status === "queued")) void pump();
 
         try {
           // Vision first, OCR as the fallback. Tesseract misreads CJK badly
@@ -479,7 +491,7 @@ export default function AppPage() {
         }
       }
     } finally {
-      pumpingRef.current = false;
+      pumpingRef.current--;
     }
   }, [patchItem]);
 
