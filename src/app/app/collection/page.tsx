@@ -31,20 +31,20 @@ type StatusFilter = "all" | "ready" | "listed" | "sold";
 
 const STATUS_LABEL: Record<ServerCard["status"], string> = {
   ready: "Draft",
-  listed: "Listed",
+  listed: "Live",
   sold: "Sold",
 };
 
 const STATUS_CHIP: Record<ServerCard["status"], string> = {
   ready: "bg-zinc-400/10 text-zinc-300",
-  listed: "bg-sky-400/10 text-sky-300",
-  sold: "bg-emerald-400/10 text-emerald-300",
+  listed: "bg-emerald-500/20 text-emerald-300",
+  sold: "bg-sky-400/10 text-sky-300",
 };
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "ready", label: "Drafts" },
-  { value: "listed", label: "Listed" },
+  { value: "listed", label: "Live" },
   { value: "sold", label: "Sold" },
 ];
 
@@ -73,11 +73,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // recorded one (card.soldFees), the 13.25%+$0.30 estimate until then.
 
 // Outside the component so the render-purity lint can see these only run on
-// click, not during render.
-function listedNowPatch() {
-  return { status: "listed" as const, listedAt: Date.now() };
-}
-
+// click, not during render. (No "mark listed" any more — Chris, 09-03:
+// a draft is a draft until the app publishes it, then it turns Live by
+// itself; publishDraft sets status = listed server-side.)
 function soldNowPatch(price: number) {
   return { status: "sold" as const, soldPrice: price, soldAt: Date.now() };
 }
@@ -223,11 +221,6 @@ export default function CollectionPage() {
       // The banner lives at the top of a long page — repeat it where the eye is.
       toast(`Couldn't save the change to ${card.cardName}`, "err");
     }
-  }
-
-  function markListed(card: ServerCard) {
-    void applyPatch(card, listedNowPatch());
-    toast(`${card.cardName} marked listed`);
   }
 
   function confirmSold(card: ServerCard, value: string) {
@@ -791,14 +784,6 @@ export default function CollectionPage() {
                     Move to listings ({ready.filter((c) => c.kind !== "sealed").length})
                   </Link>
                 )}
-                {ready.length > 0 && (
-                  <button
-                    onClick={() => void applyToAll(ready, () => listedNowPatch(), `${ready.length} marked listed`)}
-                    className={bulkBtn}
-                  >
-                    Mark listed ({ready.length})
-                  </button>
-                )}
                 {listed.length > 0 && (
                   <button
                     onClick={() =>
@@ -1091,13 +1076,10 @@ export default function CollectionPage() {
                       {card.verifiedAt ? "Build listing" : "Verify match"}
                     </Link>
                   )}
-                  {card.status === "ready" && (
-                    <button
-                      onClick={() => markListed(card)}
-                      className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
-                    >
-                      Mark listed
-                    </button>
+                  {card.status === "ready" && !card.verifiedAt && (
+                    <span className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500">
+                      Draft
+                    </span>
                   )}
                   {card.status === "listed" && (
                     <>
