@@ -1056,7 +1056,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </fieldset>
       )}
 
-      <div className="grid grid-cols-[1fr_auto] gap-3">
+      {/* Copies input removed 09-03 (Chris): one card per listing. item.quantity
+          still defaults to 1 everywhere downstream. */}
+      <div className="grid grid-cols-1 gap-3">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Your price
           <div className="relative">
@@ -1072,25 +1074,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
             />
           </div>
-        </label>
-        {/* Identical copies on one listing (per-copy price): eBay sells them
-            down as one offer, and duplicate scans of the same card would
-            otherwise trip eBay's duplicate-listing policy. */}
-        <label className="flex w-24 flex-col gap-1.5 text-sm font-medium text-zinc-300">
-          Copies
-          <input
-            type="number"
-            min={1}
-            max={99}
-            step={1}
-            value={item.quantity ?? 1}
-            onChange={(e) => {
-              const q = Math.min(99, Math.max(1, Math.floor(Number(e.target.value) || 1)));
-              onChange({ quantity: q });
-              if (item.serverId) void updateServerCard(item.serverId, { quantity: q });
-            }}
-            className="w-full rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-center text-sm text-white outline-none transition focus:border-brand-400"
-          />
         </label>
       </div>
 

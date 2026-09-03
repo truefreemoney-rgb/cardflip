@@ -25,14 +25,11 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 **FIRST ACTION (saved 09-03 ~3:15pm ET, session 4, mid-stress-test — Chris
 /cleared to save context): (1) CONFIRM b256b02 (My Cards stats panel
-makeover: one panel, In play + Earned columns with fee/postage ledgers,
-counts strip beneath) actually DEPLOYED — CI was green but the Vercel
-deployment record hadn't appeared and the GitHub API rate limit was
-exhausted (resets ~19:26Z). Check:
-curl -s "https://api.github.com/repos/truefreemoney-rgb/cardflip/deployments?per_page=3"
-(sha + statuses). If no deployment for b256b02, push an empty commit to
-main to retrigger. (2) Then get Chris's yea/nay on that panel (he said the
-four-tile design "isn't sitting well"). (3) Chris is mid stress test —
+makeover) — DONE 09-03 ~3:20pm: deployed (8041feb Production success) and
+Chris said "much better" → YEA, keep it. `gh` CLI is now logged in
+(truefreemoney-rgb, 5000/hr) — use `gh api` for deploy/CI checks, not curl.
+(2) NEXT GATED TASK: Chris's yea/nay on the VERIFY MATCH gate (below) on the
+live site — needs a logged-in scan on his phone. (3) Chris is mid stress test —
 expect more screenshots; the day's rules: TCGplayer current-day point =
 value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
 $0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
