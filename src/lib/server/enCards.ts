@@ -129,8 +129,22 @@ export async function englishCardById(id: string): Promise<LocalSearchResult> {
  * Genuinely hyphenated names (Ho-Oh, Porygon-Z) normalize identically on both
  * sides, so they keep matching too.
  */
+/** The SQL twin of normalizeName — the mirror stores BOTH apostrophe forms
+ * (962 straight, 63 curly on 09-02), so the column folds too. */
+const FOLDED_NAME = "REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', '''')";
+
 function normalizeName(value: string): string {
-  return value.trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  return value
+    .trim()
+    .toLowerCase()
+    // Curly/typographic apostrophes and quotes fold to the straight ones the
+    // mirror stores — vision writes "Team Rocket’s Zapdos" (U+2019), TCGdex
+    // has "Team Rocket's Zapdos", and the whole Destined Rivals set missed
+    // the mirror on Chris's 09-02 stress test (then 400'd upstream).
+    .replace(/[‘’‛′`´]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ");
 }
 
 export async function searchEnglishCardsLocal(
@@ -153,7 +167,7 @@ export async function searchEnglishCardsLocal(
     .prepare(
       `SELECT ${CARD_COLUMNS}
          FROM en_cards
-        WHERE REPLACE(LOWER(name), '-', ' ') = ? OR REPLACE(LOWER(name), '-', ' ') LIKE ?
+        WHERE ${FOLDED_NAME} = ? OR ${FOLDED_NAME} LIKE ?
         ORDER BY set_release_date ASC
         LIMIT 400`,
     )

@@ -76,6 +76,10 @@ const seed = [
   // say "Charizard GX". The 09-02 slab mismatch: this row was unfindable and
   // the rainbow decoy below won instead.
   ["sma-SV49", "Charizard-GX",     "sma",   "Shiny Vault","SV49","2019-08-23", 94,  "HIF"],
+  // The mirror mixes apostrophes (curly here, straight elsewhere) and vision
+  // writes either — Chris's Destined Rivals stack missed the mirror wholesale
+  // on 09-02 and fell through to a 400ing upstream.
+  ["dri-70",   "Team Rocket’s Zapdos", "dri", "Destined Rivals", "70", "2025-05-30", 182, "DRI"],
   ["sm3-150",  "Charizard GX",     "sm3",   "Burning Shadows","150","2017-08-05",147, ""],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed) {
@@ -104,6 +108,10 @@ check("set code agreement steers between printings",
   await top("Charizard EX", { number: "12", setTotal: null, setCode: "FLF", isSecretRare: false }), "xy2-12");
 check("hyphenated catalog name is found by the spaced name + SV number",
   await top("Charizard GX", { number: "SV49", setTotal: 94, setCode: null, isSecretRare: false }), "sma-SV49");
+check("straight-apostrophe query finds the curly-apostrophe mirror row",
+  await top("Team Rocket's Zapdos", { number: "70", setTotal: 182, setCode: null, isSecretRare: false }), "dri-70");
+check("curly-apostrophe query finds it too",
+  await top("Team Rocket’s Zapdos", null), "dri-70");
 check("spaced-name secret rare still wins its own fraction",
   await top("Charizard GX", { number: "150", setTotal: 147, setCode: null, isSecretRare: false }), "sm3-150");
 // --- mtg ranking: special sets need evidence -------------------------------

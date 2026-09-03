@@ -63,7 +63,12 @@ async function refreshEnglishCache(
 
 /** Strip characters that would break the upstream query grammar. */
 function sanitize(value: string): string {
-  return value.replace(/["\\:*()[\]]/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    // Typographic apostrophes → straight, before the grammar sees them.
+    .replace(/[‘’‛′`´]/g, "'")
+    .replace(/["“”\\:*()[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
