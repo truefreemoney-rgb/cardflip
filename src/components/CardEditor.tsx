@@ -738,14 +738,21 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             </p>
           )}
 
-          {showAlternatives && item.candidates.length > 1 && (
+          {/* Back by request (Chris, 09-03, after the stress test): the
+              other matches are the one-tap fix for a blurry-photo
+              misidentification. Hidden once the match is verified. */}
+          {item.candidates.length > 1 && !item.verifiedAt && (
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Pick the right printing</p>
+              <p className="text-xs text-zinc-500">
+                {showAlternatives ? "Pick the right printing" : ""}
+              </p>
               <button
-                onClick={() => setShowAlternatives(false)}
-                className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+                onClick={() => setShowAlternatives((v) => !v)}
+                className="text-xs text-brand-300 underline underline-offset-4 hover:text-brand-200"
               >
-                Hide
+                {showAlternatives
+                  ? "Hide"
+                  : `Not your card? ${item.candidates.length - 1} other match${item.candidates.length > 2 ? "es" : ""}`}
               </button>
             </div>
           )}
