@@ -42,10 +42,12 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
-**AUTO-SCAN IS OFF BY DEFAULT (Chris, 09-03 eve: "the auto scan kinda
-sucks in general, capture button is where its at for speed"). Toggle
-still exists; all detection gates apply when on. Do not turn it back on
-by default without asking.**
+**AUTO-SCAN IS GONE (Chris, 09-03 eve: "remove it completely"). The
+toggle, sampler loop, all card-likeness gates and the miss counter were
+deleted from CameraCapture.tsx (1178 → 782 lines); the Capture button is
+the only shutter. The rounds below are history — do NOT rebuild auto
+without asking. If it ever comes back, the lever is a server-side "is
+this a card" check before the paid vision call, not more client heuristics.**
 
 **AUTO-SCAN FALSE-FIRE, ROUND 3 (09-03 ~4:10pm, phone: hand + monitor
 auto-captured even with round 2 live):** added cardOutline() — all four

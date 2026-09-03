@@ -30,202 +30,6 @@ interface Props {
   onClose: () => void;
 }
 
-/** What the auto-scanner believes about the frame right now. */
-type Phase = "idle" | "settling" | "captured";
-
-// ---------------------------------------------------------------------------
-// Auto-scan tuning. Luminance is 0–255; signatures are 24×32 grayscale
-// thumbnails of the guide region, sampled every SAMPLE_MS.
-const SAMPLE_MS = 200;
-/** Below this mean frame-to-frame difference the card is "not moving". */
-const STEADY_MOTION = 6;
-/** Holos shimmer: their luminance flickers above STEADY_MOTION while held
-    perfectly still (09-01, Chris's phone — auto never fired on holos). Up to
-    here still counts as steady, it just needs a longer hold; a real swap
-    spikes past MOVING_MOTION regardless. */
-const SHIMMER_MOTION = 11;
-/** Above this the frame is "moving" — a swap in progress. */
-const MOVING_MOTION = 15;
-/** Close-up handheld: tremor is amplified in pixels the nearer the card, so
-    a phone held close never gets under SHIMMER_MOTION (09-01, Chris — "auto
-    is unusable unless you hold the camera far away"). Wobble below the swap
-    threshold still counts, it just takes a long deliberate hold. */
-const WOBBLE_MOTION = MOVING_MOTION;
-/** Steady points before a capture: crisp-still frames score 4, shimmering
-    ones 2, close-up wobble 1 — matte at arm's length fires in 3 samples
-    (0.6s), holos in 6 (1.2s), a wobbly close-up in 12 (2.4s). */
-const STEADY_POINTS = 12;
-/** Std-dev floor: an empty mat/table is flat; a card has print on it. */
-const CONTENT_STDDEV = 28;
-/** Difference from the last captured signature that counts as a new card. */
-const NEW_CARD_DIFF = 25;
-const SIG_W = 24;
-const SIG_H = 32;
-/** Card-likeness gate (09-03, Chris: auto "was taking random pictures
-    without a card in front of it" — every false fire costs a scan). A
-    printed card has detail in most of the guide AND horizontal structure
-    (name bar / art frame / text box). A table, mat, hand or shadow has
-    contrast but not that shape. Signature is split into a 4×4 grid; a cell
-    counts when its local std-dev clears CELL_STDDEV. */
-const CELL_STDDEV = 12;
-/** Cells (of 16) that must have detail. */
-const CARD_CELLS = 9;
-/** Row-to-row mean-luminance jumps that count as a horizontal edge. */
-const ROW_EDGE = 14;
-/** Horizontal edges a card must show (name bar, art, text box ≈ 3+). */
-const CARD_ROW_EDGES = 2;
-/** The guide-edge test (09-03, second round — a backlit keyboard passed the
-    shape test: detail everywhere, rows of horizontal edges). A card IN the
-    guide has a border that differs from the surface around it; a keyboard,
-    mat or desk runs straight through the guide edge. Sampled on a wider
-    thumbnail: the guide plus a margin of EDGE_MARGIN of its size. */
-const EDGE_MARGIN = 0.14;
-const EDGE_W = 60;
-const EDGE_H = 78;
-/** Band width (px of the EDGE thumbnail) either side of the guide edge. */
-const EDGE_BAND = 3;
-/** Luminance gap between just-inside and just-outside that reads as a card edge. */
-const EDGE_LUMA_GAP = 16;
-/** Or a colour gap (max channel) — a yellow Pokémon border on a grey table. */
-const EDGE_CHROMA_GAP = 24;
-
-/** Outline test: gradient across a guide edge that counts as "a line". */
-const OUTLINE_GRAD = 22;
-/** Band (px of the EDGE thumbnail) either side of the guide border searched for the line. */
-const OUTLINE_BAND = 4;
-/** Fraction of each side that must show the line. */
-const OUTLINE_COVER = 0.55;
-/** Auto captures in a row with no match before auto-scan switches itself off. */
-const MAX_MISSES = 2;
-
-/**
- * Does the guide contain a card-shaped outline? A card in the guide has a
- * straight edge running the length of all four sides, within a few px of
- * the guide border (the seller is told to fill it). A hand, a monitor, a
- * keyboard (09-03, third round — all three got auto-captured on Chris's
- * desk) have contrast, but not four straight lines where the guide is.
- * For each side, each position along it looks across the band for the
- * strongest luminance step; the side passes when most positions have one.
- */
-function cardOutline(data: Uint8ClampedArray): boolean {
-  const W = EDGE_W;
-  const H = EDGE_H;
-  const L = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) {
-    L[i] = (data[i * 4] * 299 + data[i * 4 + 1] * 587 + data[i * 4 + 2] * 114) / 1000;
-  }
-  const mx = Math.round((W * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
-  const my = Math.round((H * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
-  const B = OUTLINE_BAND;
-  const lum = (x: number, y: number) => L[y * W + x];
-  // Skip the corners (rounded on real cards) — inset each run by 3px.
-  const side = (horizontal: boolean, at: number): number => {
-    const from = (horizontal ? mx : my) + 3;
-    const to = (horizontal ? W - mx : H - my) - 3;
-    let hits = 0;
-    for (let t = from; t < to; t++) {
-      let best = 0;
-      for (let d = -B; d <= B; d++) {
-        const pos = at + d;
-        const g = horizontal
-          ? pos > 0 && pos < H - 1 ? Math.abs(lum(t, pos + 1) - lum(t, pos - 1)) : 0
-          : pos > 0 && pos < W - 1 ? Math.abs(lum(pos + 1, t) - lum(pos - 1, t)) : 0;
-        if (g > best) best = g;
-      }
-      if (best > OUTLINE_GRAD) hits++;
-    }
-    return hits / Math.max(1, to - from);
-  };
-  return (
-    side(true, my) >= OUTLINE_COVER &&
-    side(true, H - 1 - my) >= OUTLINE_COVER &&
-    side(false, mx) >= OUTLINE_COVER &&
-    side(false, W - 1 - mx) >= OUTLINE_COVER
-  );
-}
-
-/**
- * Is there something sitting IN the guide, as opposed to a scene that
- * continues through it? `data` is the RGBA of the guide + margin thumbnail.
- * Compares the mean colour of a band just inside the guide boundary with a
- * band just outside it.
- */
-function edgeInGuide(data: Uint8ClampedArray): boolean {
-  const mx = Math.round((EDGE_W * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
-  const my = Math.round((EDGE_H * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
-  const inner = [0, 0, 0, 0];
-  const outer = [0, 0, 0, 0];
-  for (let y = 0; y < EDGE_H; y++) {
-    for (let x = 0; x < EDGE_W; x++) {
-      // Distance to the guide boundary: negative = outside, positive = inside.
-      const dx = Math.min(x - mx, EDGE_W - 1 - mx - x);
-      const dy = Math.min(y - my, EDGE_H - 1 - my - y);
-      const d = Math.min(dx, dy);
-      let acc: number[] | null = null;
-      if (d >= 0 && d < EDGE_BAND) acc = inner;
-      else if (d < 0 && d >= -EDGE_BAND) acc = outer;
-      if (!acc) continue;
-      const i = (y * EDGE_W + x) * 4;
-      acc[0] += data[i];
-      acc[1] += data[i + 1];
-      acc[2] += data[i + 2];
-      acc[3]++;
-    }
-  }
-  if (!inner[3] || !outer[3]) return true;
-  const ir = inner[0] / inner[3], ig = inner[1] / inner[3], ib = inner[2] / inner[3];
-  const or = outer[0] / outer[3], og = outer[1] / outer[3], ob = outer[2] / outer[3];
-  const luma = Math.abs((ir * 299 + ig * 587 + ib * 114) / 1000 - (or * 299 + og * 587 + ob * 114) / 1000);
-  const chroma = Math.max(Math.abs(ir - or), Math.abs(ig - og), Math.abs(ib - ob));
-  return luma > EDGE_LUMA_GAP || chroma > EDGE_CHROMA_GAP;
-}
-
-/**
- * Contrast-normalised copy of a signature (zero mean, unit std-dev, mapped
- * back to 0–255) for "is this a different card" comparisons: the phone's
- * auto-exposure drifting by 25 levels used to read as a card swap and
- * re-arm auto-scan on the same empty scene.
- */
-function normalise(sig: Uint8ClampedArray, mean: number, stddev: number): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(sig.length);
-  const k = 40 / Math.max(stddev, 1);
-  for (let i = 0; i < sig.length; i++) out[i] = 128 + (sig[i] - mean) * k;
-  return out;
-}
-
-function looksLikeCard(sig: Uint8ClampedArray): boolean {
-  const cw = SIG_W / 4;
-  const ch = SIG_H / 4;
-  let cells = 0;
-  for (let cy = 0; cy < 4; cy++) {
-    for (let cx = 0; cx < 4; cx++) {
-      let sum = 0;
-      let sq = 0;
-      for (let y = 0; y < ch; y++) {
-        for (let x = 0; x < cw; x++) {
-          const v = sig[(cy * ch + y) * SIG_W + cx * cw + x];
-          sum += v;
-          sq += v * v;
-        }
-      }
-      const n = cw * ch;
-      const m = sum / n;
-      if (Math.sqrt(Math.max(0, sq / n - m * m)) > CELL_STDDEV) cells++;
-    }
-  }
-  if (cells < CARD_CELLS) return false;
-  let edges = 0;
-  let prevRow = -1;
-  for (let y = 0; y < SIG_H; y++) {
-    let sum = 0;
-    for (let x = 0; x < SIG_W; x++) sum += sig[y * SIG_W + x];
-    const row = sum / SIG_W;
-    if (prevRow >= 0 && Math.abs(row - prevRow) > ROW_EDGE) edges++;
-    prevRow = row;
-  }
-  return edges >= CARD_ROW_EDGES;
-}
-
 /**
  * Room between the guide and the viewfinder's edge for the ✕ / torch /
  * sound column, so the brackets never sit under a button (Chris, 09-02,
@@ -243,8 +47,8 @@ interface GuideRect {
 /**
  * The card guide, in both spaces at once: where the viewfinder draws it
  * (display px, relative to the video element's box) and the matching region
- * of the raw frame (video px) that the auto-scan sampler reads and the
- * capture crops. One function so the three can't drift.
+ * of the raw frame (video px) that the capture crops. One function so the
+ * two can't drift.
  *
  * The guide is 82% of the displayed video's height at 63:88 and centered,
  * unless that would run under the HUD's button column — then it's narrowed
@@ -301,13 +105,10 @@ function guideInVideo(video: HTMLVideoElement): GuideRect {
  * and feeds the exact pipeline uploads use; vision/OCR never know the
  * difference.
  *
- * Auto-scan (on by default) removes the shutter from that loop: a small
- * grayscale thumbnail of the guide region is sampled a few times a second,
- * and when the frame holds still, has something printed in it, and looks
- * different from the last card captured, it captures by itself. Swapping the
- * card is what re-arms it (the swap is motion; the new card is a new
- * signature), so one placement = one identification — vision cost is the
- * same as a manual shot, there's just no button between the seller and it.
+ * There is no auto-capture. One was built (frame-steadiness sampling with a
+ * stack of card-likeness gates) and removed on 09-03 after it kept firing on
+ * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
+ * "capture button is where it's at for speed". Don't rebuild without asking.
  */
 export default function CameraCapture({ lastScan, tally, onCapture, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -321,43 +122,6 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const [ready, setReady] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
-  // Off by default (Chris, 09-03): after three rounds of false fires on a
-  // real desk, "capture button is where it's at for speed". The toggle stays
-  // for anyone who wants it; every gate above still applies when it's on.
-  const [auto, setAuto] = useState(false);
-  const [phase, setPhase] = useState<Phase>("idle");
-  // Set when the last capture came back with no match: auto-scan waits for
-  // an empty guide before it will fire again (read by the sampler via the
-  // ref, shown in the status row via the state).
-  const blockedRef = useRef(false);
-  const [blocked, setBlocked] = useState(false);
-  // Hard cap: MAX_MISSES auto captures in a row with no match switch auto
-  // off — worst case a bad scene costs two scans, then it stops.
-  const missesRef = useRef(0);
-  const [autoPaused, setAutoPaused] = useState(false);
-  const missedIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!lastScan) return;
-    const settled = lastScan.status !== "queued" && lastScan.status !== "scanning";
-    if (!settled || missedIdsRef.current.has(lastScan.id)) return;
-    const noMatch = lastScan.status === "review" && !lastScan.card && Boolean(lastScan.error);
-    if (!noMatch) {
-      if (lastScan.card) missesRef.current = 0;
-      return;
-    }
-    missedIdsRef.current.add(lastScan.id);
-    missesRef.current += 1;
-    if (!blockedRef.current) {
-      blockedRef.current = true;
-      setBlocked(true);
-    }
-    if (missesRef.current >= MAX_MISSES) {
-      missesRef.current = 0;
-      setAuto(false);
-      setAutoPaused(true);
-      setPhase("idle");
-    }
-  }, [lastScan]);
   // Lazy initialiser: read the stored preference once, on the client (the
   // modal only ever mounts client-side, after a tap).
   const [fxOn, setFxOn] = useState(() => scanFxEnabled());
@@ -472,8 +236,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     // everything outside the card-shaped guide, so the seller frames the card
     // IN the guide — saving the full frame put a small card in a sea of table
     // (Chris, 09-02: "looks like I'm much closer than the photo comes out").
-    // Same guide geometry as the viewfinder and the auto-scan sampler
-    // (guideInVideo), 1:1 — no margin. There was a 5% one so a card nosing
+    // Same guide geometry as the viewfinder (guideInVideo), 1:1 — no margin. There was a 5% one so a card nosing
     // past a bracket kept its edge; it read as the photo coming out ~10%
     // farther than what was framed (Chris, 09-03: "make it 10% closer").
     const vw = video.videoWidth;
@@ -506,127 +269,12 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     );
   }, [onCapture]);
 
-  // -------------------------------------------------------------------------
-  // Auto-scan loop
-
-  const captureRef = useRef(capture);
-  useEffect(() => {
-    captureRef.current = capture;
-  }, [capture]);
-
-  useEffect(() => {
-    if (!auto || !ready) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = SIG_W;
-    canvas.height = SIG_H;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-    const edgeCanvas = document.createElement("canvas");
-    edgeCanvas.width = EDGE_W;
-    edgeCanvas.height = EDGE_H;
-    const edgeCtx = edgeCanvas.getContext("2d", { willReadFrequently: true });
-    if (!edgeCtx) return;
-
-    let prev: Uint8ClampedArray | null = null;
-    let lastCaptured: Uint8ClampedArray | null = null;
-    let steady = 0;
-    // A swap has to happen between captures — the same card wobbling a bit
-    // must not re-fire, but a new card (motion, then a different signature)
-    // must.
-    let movedSinceCapture = true;
-    let lastPhase: Phase = "idle";
-    const show = (p: Phase) => {
-      if (p !== lastPhase) {
-        lastPhase = p;
-        setPhase(p);
-      }
-    };
-
-    const timer = window.setInterval(() => {
-      if (video.videoWidth === 0 || video.paused) return;
-      // Guide region in video pixels — the same rect the viewfinder draws.
-      const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
-      ctx.drawImage(video, gx, gy, gw, gh, 0, 0, SIG_W, SIG_H);
-      // Guide + margin, for the edge test. Clamped to the frame — when the
-      // margin would fall off the sensor the test is skipped (returns true).
-      const ex = Math.max(0, gx - gw * EDGE_MARGIN);
-      const ey = Math.max(0, gy - gh * EDGE_MARGIN);
-      const ew = Math.min(video.videoWidth - ex, gw * (1 + 2 * EDGE_MARGIN));
-      const eh = Math.min(video.videoHeight - ey, gh * (1 + 2 * EDGE_MARGIN));
-      edgeCtx.drawImage(video, ex, ey, ew, eh, 0, 0, EDGE_W, EDGE_H);
-      const edgeData = edgeCtx.getImageData(0, 0, EDGE_W, EDGE_H).data;
-      const inGuide =
-        ex === 0 || ey === 0 || ex + ew >= video.videoWidth || ey + eh >= video.videoHeight
-          ? true
-          : edgeInGuide(edgeData) && cardOutline(edgeData);
-      const { data } = ctx.getImageData(0, 0, SIG_W, SIG_H);
-      const n = SIG_W * SIG_H;
-      const sig = new Uint8ClampedArray(n);
-      let sum = 0;
-      for (let i = 0; i < n; i++) {
-        const l = (data[i * 4] * 299 + data[i * 4 + 1] * 587 + data[i * 4 + 2] * 114) / 1000;
-        sig[i] = l;
-        sum += l;
-      }
-      const mean = sum / n;
-      let varSum = 0;
-      for (let i = 0; i < n; i++) varSum += (sig[i] - mean) ** 2;
-      const stddev = Math.sqrt(varSum / n);
-      const motion = prev ? meanAbsDiff(sig, prev) : 255;
-      prev = sig;
-
-      if (motion > MOVING_MOTION) movedSinceCapture = true;
-
-      const hasContent = stddev > CONTENT_STDDEV && looksLikeCard(sig) && inGuide;
-      const norm = normalise(sig, mean, stddev);
-      const isNew = !lastCaptured || meanAbsDiff(norm, lastCaptured) > NEW_CARD_DIFF;
-      // After a no-match, auto stays down until the guide has been seen
-      // empty — one bad scene costs one scan, not a stream of them.
-      if (blockedRef.current && stddev < CONTENT_STDDEV) {
-        blockedRef.current = false;
-        setBlocked(false);
-      }
-      const armed = hasContent && isNew && movedSinceCapture && !blockedRef.current;
-
-      if (!armed) {
-        steady = 0;
-        show(lastCaptured && !isNew ? "captured" : "idle");
-        return;
-      }
-      if (motion < WOBBLE_MOTION) {
-        steady += motion < STEADY_MOTION ? 4 : motion < SHIMMER_MOTION ? 2 : 1;
-        show("settling");
-        if (steady >= STEADY_POINTS) {
-          lastCaptured = norm;
-          movedSinceCapture = false;
-          steady = 0;
-          show("captured");
-          captureRef.current();
-        }
-      } else {
-        steady = 0;
-        show("idle");
-      }
-    }, SAMPLE_MS);
-
-    return () => window.clearInterval(timer);
-  }, [auto, ready]);
-
-  const bracket =
-    phase === "captured"
-      ? "border-emerald-400"
-      : phase === "settling"
-        ? "border-holo-pink"
-        : "border-brand-400";
-  // Sweep while there's something to look for or read: idle (looking),
-  // settling (about to fire), or the last capture still identifying. Off
-  // once captured-and-swap or a match is showing, so the chip gets the eye.
+  const bracket = "border-brand-400";
+  // Sweep while the last capture is still identifying; off once a match is
+  // showing, so the chip gets the eye.
   const identifying =
     lastScan?.status === "queued" || lastScan?.status === "scanning";
-  const sweeping = ready && (identifying || (auto && phase !== "captured"));
+  const sweeping = ready && identifying;
 
   // The moment of the match: chime + haptic once per scan, sized to the
   // card's value. A grail also blooms a holo burst behind the guide — the
@@ -674,32 +322,16 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     ? "bg-amber-400"
     : !ready
       ? "bg-zinc-600"
-      : !auto
-        ? autoPaused
-          ? "bg-amber-400"
-          : "bg-zinc-500"
-        : blocked
-          ? "bg-amber-400"
-          : phase === "settling"
-          ? "bg-holo-pink animate-pulse"
-          : phase === "captured"
-            ? "bg-emerald-400"
-            : "bg-brand-400";
+      : identifying
+        ? "bg-brand-400 animate-pulse"
+        : "bg-brand-400";
   const statusText = error
     ? "Camera unavailable"
     : !ready
       ? "Opening the camera…"
-      : !auto
-        ? autoPaused
-          ? "Auto-scan paused — nothing looked like a card. Tap Auto on to resume"
-          : "Fill the guide, then tap Capture"
-        : blocked
-          ? "No card found — clear the guide, then place the next card"
-          : phase === "settling"
-          ? "Hold still…"
-          : phase === "captured"
-            ? "Captured — swap the card"
-            : "Auto-scan on — fill the guide, not too close";
+      : identifying
+        ? "Reading the last card — line up the next one"
+        : "Fill the guide, then tap Capture";
 
   return (
     <div
@@ -718,7 +350,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
         tabIndex={-1}
         className="scanner-hud flex h-full w-full flex-col bg-surface-1 pt-[env(safe-area-inset-top)] outline-none sm:h-auto sm:max-w-lg sm:gap-3 sm:rounded-3xl sm:border sm:border-edge sm:p-4"
       >
-        {/* Status row: what auto-scan is doing (left) and the running score
+        {/* Status row: what the scanner is doing (left) and the running score
             for the session (right). Fixed height so the viewfinder never
             jumps as the text changes. */}
         <div className="flex h-11 shrink-0 items-center gap-3 px-4 text-[11px] sm:h-auto sm:px-1">
@@ -756,9 +388,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
               at that ratio nudges the photo toward filling the frame, which
               is most of what separates a good scan from a bad one. Placed by
               guideGeometry so it clears the button column. The huge
-              box-shadow dims everything outside the guide. Bracket colour is
-              the auto-scan state: brand = looking, pink = hold still,
-              green = captured. */}
+              box-shadow dims everything outside the guide. */}
           {ready && guide && (
             <div
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -781,9 +411,6 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
                 <span className={`absolute -right-px -top-px h-8 w-8 rounded-tr-xl border-r-3 border-t-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -left-px h-8 w-8 rounded-bl-xl border-b-3 border-l-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -right-px h-8 w-8 rounded-br-xl border-b-3 border-r-3 transition-colors ${bracket}`} />
-                {phase === "settling" && (
-                  <span className="absolute inset-0 rounded-xl border border-holo-pink/60 animate-pulse-ring" />
-                )}
                 {/* The strike, then the stamp + ring: the instant the match
                     lands. Keyed by scan id so every card gets its own. */}
                 {revealed?.card && (
@@ -896,30 +523,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
             <ScanToast key={lastScan.id} item={lastScan} />
           ) : (
             <p className="w-full text-center text-xs text-zinc-500">
-              {auto
-                ? "Hold a card in the guide — it captures itself. Swap cards to keep going; each one is identified while you line up the next."
-                : "Fill the guide with one card, then capture. Keep going for a whole stack — each shot is scanned while you line up the next."}
+              Fill the guide with one card, then tap Capture. Keep going for a whole
+              stack — each shot is scanned while you line up the next.
             </p>
           )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
-          <button
-            onClick={() => {
-              setAuto((a) => !a);
-              setAutoPaused(false);
-              missesRef.current = 0;
-              setPhase("idle");
-            }}
-            aria-pressed={auto}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-3 text-xs font-semibold transition ${
-              auto
-                ? "border-brand-400/50 bg-brand-500/15 text-brand-200"
-                : "border-edge bg-surface-2 text-zinc-400 hover:border-edge-strong"
-            }`}
-          >
-            Auto {auto ? "on" : "off"}
-          </button>
           <button
             onClick={capture}
             disabled={!ready}
@@ -937,12 +547,6 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       </div>
     </div>
   );
-}
-
-function meanAbsDiff(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
-  return sum / a.length;
 }
 
 /**
