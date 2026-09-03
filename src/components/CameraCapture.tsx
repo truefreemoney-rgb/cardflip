@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
-import { formatMoney, pickPrice } from "@/lib/listing";
+import { effectiveVariant, formatMoney, quotePrice } from "@/lib/listing";
 import {
   fxCapture,
   fxMatch,
@@ -282,7 +282,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   // it on the scan id replays it for the next grail.
   const revealed = lastScan && !identifying ? lastScan : null;
   const revealTierNow = revealed?.card
-    ? revealTier(pickPrice(revealed.card)?.market ?? null)
+    ? revealTier(revealMarket(revealed))
     : null;
   const burst = revealTierNow === "grail" ? revealed!.id : null;
   const announced = useRef<string | null>(null);
@@ -649,10 +649,20 @@ const TIER_STYLE: Record<
  * $500). The price is the real market figure (pickPrice) or nothing;
  * confidence shows only when vision reported one.
  */
+/**
+ * The market figure the chip shows — the SAME quote the editor's Market tile
+ * and the queue use (chart point included, see ScanItem.currentPoint), not
+ * the raw eBay-first pick (Chris, 09-03 Eri: chip $2.10, everything else
+ * $1.03 / $0.91).
+ */
+function revealMarket(item: ScanItem): number | null {
+  if (!item.card) return null;
+  return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item), item.currentPoint)?.base ?? null;
+}
+
 function RevealChip({ item }: { item: ScanItem }) {
   const card = item.card!;
-  const price = pickPrice(card);
-  const market = price?.market ?? null;
+  const market = revealMarket(item);
   const tier = revealTier(market);
   const style = TIER_STYLE[tier];
   const counted = useCountUp(market);
@@ -693,8 +703,8 @@ function RevealChip({ item }: { item: ScanItem }) {
           <>
             <p className={`font-display text-xl font-semibold leading-none tabular-nums ${style.price}`}>
               {counted >= 10
-                ? formatMoney(Math.round(counted), price?.currency).replace(/.00$/, "")
-                : formatMoney(counted, price?.currency)}
+                ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
+                : formatMoney(counted, "USD")}
             </p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market</p>
           </>
