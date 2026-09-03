@@ -560,7 +560,9 @@ export default function CollectionPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        {/* Wraps on a phone: without it the filter box was squeezed to two
+            letters between the sort select and Export CSV (Chris, 09-02). */}
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
@@ -579,7 +581,7 @@ export default function CollectionPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name or set"
-            className="w-full max-w-xs rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:text-sm"
+            className="min-w-[10rem] flex-1 rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:max-w-xs sm:text-sm"
           />
           <button
             onClick={exportCsv}
@@ -872,7 +874,11 @@ export default function CollectionPage() {
             {visible.map((card) => (
               <li
                 key={card.id}
-                className="flex flex-wrap items-center gap-4 px-4 py-3"
+                // On a phone the status/price/actions cluster wraps to its
+                // own right-aligned line; before it wrapped item by item and
+                // the name column was squeezed to 24px — one word per line
+                // ("Li… B… Edi…", Chris, 09-02).
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
               >
                 <input
                   type="checkbox"
@@ -888,7 +894,7 @@ export default function CollectionPage() {
                   className="h-16 w-12 shrink-0 rounded-md"
                 />
 
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[9rem] flex-1">
                   <p className="truncate text-sm font-semibold text-white">
                     {card.cardName}
                     {(card.quantity || 1) > 1 && (
@@ -928,6 +934,7 @@ export default function CollectionPage() {
                   </p>
                 </div>
 
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
                 {/* The sync stamps ebayEndedAt when the listing ended on eBay
                     without a sale; the card stays "listed" until the seller
                     decides, but the chip stops claiming it's live. */}
@@ -1082,6 +1089,7 @@ export default function CollectionPage() {
                       Delete
                     </button>
                   )}
+                </div>
                 </div>
               </li>
             ))}
