@@ -7,12 +7,12 @@ const STYLES: Record<ScanStatus, { label: string; className: string; title?: str
   review: {
     label: "Check match",
     className: "bg-amber-400/10 text-amber-300",
-    // "Ready" = one printing matched; this = several did (or none) — the top
-    // pick is applied and priced, but the seller should glance at the
-    // alternatives before it ships anywhere (confused Chris, 09-02).
-    title: "More than one printing matched — open the card and check it's the right one",
+    // Ready is the default. This is for a real doubt: the photo read shaky,
+    // or several printings matched with no number to settle them — the top
+    // pick is applied and priced, but glance before it ships (Chris, 09-02).
+    title: "The photo didn't pin this down — open the card and check the match",
   },
-  ready: { label: "Ready", className: "bg-emerald-400/10 text-emerald-400", title: "Matched exactly one printing" },
+  ready: { label: "Ready", className: "bg-emerald-400/10 text-emerald-400", title: "Matched and priced" },
   listed: { label: "Live on eBay", className: "bg-ebay/15 text-sky-300" },
   sold: { label: "Sold", className: "bg-emerald-500/20 text-emerald-300" },
   error: { label: "Failed", className: "bg-red-500/10 text-red-400" },

@@ -14,7 +14,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
-import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
+import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import {
   buildListing,
   buildSealedListing,
@@ -378,8 +378,17 @@ export default function AppPage() {
             // lands as Check match so the seller looks before it lists.
             const lowConfidence =
               vision.status === "done" && typeof vision.read?.confidence === "number" && vision.read.confidence < LOW_CONFIDENCE;
+            // Ready is the default; Check match is for a REAL doubt. Several
+            // printings alone is not one — most cards have reprints, and when
+            // the read number pins the top pick the ranker didn't guess. It
+            // did guess when no number was read (tiebreak heuristics) or the
+            // number read doesn't match what it picked. (Chris, 09-02: "more
+            // than not it should say Ready unless there's a real issue".)
+            const numberPinned =
+              Boolean(printed?.number) && normalizeNumber(card.number) === normalizeNumber(printed!.number);
+            const ambiguous = matches.length > 1 && !numberPinned;
             patchItem(next.id, {
-              status: matches.length === 1 && !lowConfidence ? "ready" : "review",
+              status: lowConfidence || ambiguous ? "review" : "ready",
               candidates: matches,
               card,
               error: null,
