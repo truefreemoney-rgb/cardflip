@@ -629,16 +629,12 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               the ledger row, cleared by any change of card. */}
           {(item.status === "ready" || item.status === "review") &&
             (item.verifiedAt ? (
-              <p className="mt-3 flex items-center gap-2 text-sm">
+              // Verification is final (Chris, 09-03) — no Undo; only a change
+              // of card clears it.
+              <p className="mt-3 text-sm">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 font-medium text-emerald-400">
                   ✓ Match verified
                 </span>
-                <button
-                  onClick={() => onChange({ verifiedAt: null })}
-                  className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
-                >
-                  Undo
-                </button>
               </p>
             ) : (
               <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 sm:flex-row sm:items-center">
