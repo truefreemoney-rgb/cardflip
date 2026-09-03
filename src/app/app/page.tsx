@@ -100,6 +100,7 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     listedAt: null,
     soldPrice: null,
     soldAt: null,
+    verifiedAt: null,
   };
 }
 
@@ -203,6 +204,11 @@ export default function AppPage() {
         });
       } else if (patch.status === "ready" && "listedAt" in patch) {
         void updateServerCard(item.serverId, { status: "ready", listedAt: null });
+      }
+      // Verification is its own checkpoint: it's what unlocks publishing,
+      // and it has to outlive this tab (My Cards shows it).
+      if ("verifiedAt" in patch) {
+        void updateServerCard(item.serverId, { verifiedAt: patch.verifiedAt ?? null });
       }
     },
     [commit],
@@ -414,6 +420,9 @@ export default function AppPage() {
             const server = (await createServerCard(input)) ?? (await createServerCard(input));
             if (server) {
               patchItem(next.id, { serverId: server.id });
+              // Verified before the row existed (fast tap): sync it now.
+              const verifiedAt = itemsRef.current.find((i) => i.id === next.id)?.verifiedAt;
+              if (verifiedAt) void updateServerCard(server.id, { verifiedAt });
               // Persist the seller's own photo now, not at eBay-push time.
               // It is the only image a listing is ever sent (picture policy:
               // the actual item, never catalogue art), and until it reaches
@@ -625,6 +634,7 @@ export default function AppPage() {
         ebayDraftUrl: row.ebayDraftUrl,
         listedPrice: row.status === "listed" ? row.price : null,
         listedAt: row.listedAt,
+        verifiedAt: row.verifiedAt ?? null,
       };
       commit([...itemsRef.current, item]);
       setSelectedId(item.id);
@@ -717,11 +727,24 @@ export default function AppPage() {
       router.push("/connect-ebay");
       return;
     }
+    // Only verified matches go (Chris, 09-03: the lock against blindly
+    // posting a wrong match). Unverified ones are counted for the note.
+    const unverified = itemsRef.current.filter(
+      (item) =>
+        item.card &&
+        item.serverId &&
+        (item.status === "ready" || item.status === "review") &&
+        !item.verifiedAt &&
+        !item.ebayOfferId &&
+        !item.ebayDraftUrl &&
+        (!retryIds || retryIds.includes(item.id)),
+    ).length;
     const targets = itemsRef.current.filter(
       (item) =>
         item.card &&
         item.serverId &&
         item.status === "ready" &&
+        item.verifiedAt &&
         !item.ebayOfferId &&
         !item.ebayDraftUrl &&
         currentPrice(item) > 0 &&
@@ -732,6 +755,12 @@ export default function AppPage() {
     // "Add photo" — never sent with catalogue art.
     const noPhoto = targets.filter((item) => !item.file && !item.photoAt).length;
     const sendable = targets.filter((item) => item.file || item.photoAt);
+    if (sendable.length === 0 && unverified > 0) {
+      setBulkNote(
+        `${unverified} card${unverified === 1 ? " needs" : "s need"} the match verified first — open each one and tap Verify match`,
+      );
+      return;
+    }
     if (sendable.length === 0) {
       setBulkNote(
         noPhoto
@@ -1028,7 +1057,7 @@ export default function AppPage() {
                 disabled={bulkBusy || identified.length === 0}
                 title={
                   user.ebayConnected
-                    ? "Save every ready card as a draft in your eBay account"
+                    ? "Send every verified card to your eBay account"
                     : "Connect your eBay account first"
                 }
                 className="rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40"

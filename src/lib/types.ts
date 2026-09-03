@@ -292,4 +292,11 @@ export interface ScanItem {
   /** Final sale price — may differ from listedPrice via an offer/best-offer. */
   soldPrice: number | null;
   soldAt: number | null;
+  /**
+   * When the seller pressed "Verify match" — confirmed the identified card
+   * is the one in hand. Until then the chip says "Verify match" and eBay
+   * publishing is locked (client and server). Cleared whenever the match
+   * changes. Persisted on the ledger row, so it survives closing the app.
+   */
+  verifiedAt: number | null;
 }

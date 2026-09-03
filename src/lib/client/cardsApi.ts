@@ -28,6 +28,8 @@ export interface ServerCard {
   soldFees: number | null;
   /** Last time a discount offer went to this listing's watchers. */
   watcherOfferAt: number | null;
+  /** Seller confirmed the match ("Verify match"); null locks eBay publishing. */
+  verifiedAt: number | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
@@ -64,6 +66,7 @@ export interface UpdateCardInput {
   listedAt?: number | null;
   soldPrice?: number | null;
   soldAt?: number | null;
+  verifiedAt?: number | null;
 }
 
 export async function fetchServerCards(): Promise<ServerCard[]> {

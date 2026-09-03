@@ -947,9 +947,22 @@ export default function CollectionPage() {
                   </span>
                 ) : (
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CHIP[card.status]}`}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      card.status === "ready"
+                        ? card.verifiedAt
+                          ? "bg-emerald-400/10 text-emerald-400"
+                          : "bg-amber-400/10 text-amber-300"
+                        : STATUS_CHIP[card.status]
+                    }`}
+                    title={
+                      card.status === "ready"
+                        ? card.verifiedAt
+                          ? "Match verified — ready to publish"
+                          : "Open it and confirm the match before it can be listed"
+                        : undefined
+                    }
                   >
-                    {STATUS_LABEL[card.status]}
+                    {card.status === "ready" ? (card.verifiedAt ? "Active" : "Verify match") : STATUS_LABEL[card.status]}
                   </span>
                 )}
 
@@ -1055,6 +1068,17 @@ export default function CollectionPage() {
                     >
                       Build listing
                     </Link>
+                  )}
+                  {card.status === "ready" && !card.verifiedAt && card.kind !== "sealed" && (
+                    <button
+                      onClick={() => {
+                        void applyPatch(card, { verifiedAt: Date.now() });
+                        toast(`${card.cardName} verified — now active`);
+                      }}
+                      className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/25"
+                    >
+                      Verify match
+                    </button>
                   )}
                   {card.status === "ready" && (
                     <button

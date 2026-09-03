@@ -56,6 +56,8 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
   const canPost = ebayConnected && Boolean(item.serverId) && Boolean(item.card);
   const pushed = Boolean(item.ebayOfferId);
+  // Locked until the seller has verified the match (the server refuses too).
+  const verified = Boolean(item.verifiedAt) || pushed;
   // eBay's picture policy: the listing photo must be the seller's own shot of
   // this copy. A scanned item has one (item.file) and it uploads on the first
   // publish; a search-added or sealed item has nothing until they pick one.
@@ -286,7 +288,15 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             (ebayDraftUrl): that draft lives on eBay and can only be
             finished there. */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          {canPost ? (
+          {canPost && !verified ? (
+            <button
+              disabled
+              title="Tap Verify match above once you've checked this is the right card"
+              className={ebayButton + " cursor-not-allowed opacity-50"}
+            >
+              🔒 Verify the match to publish
+            </button>
+          ) : canPost ? (
             <button onClick={() => setModal("confirm")} disabled={busy !== null} className={ebayButton}>
               <span className="inline-flex items-center justify-center gap-2">
                 {busy !== null && <Spinner className="h-3.5 w-3.5" />}

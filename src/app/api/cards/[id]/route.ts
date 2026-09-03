@@ -29,6 +29,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       listedAt: "listedAt" in (body ?? {}) ? body.listedAt : undefined,
       soldPrice: "soldPrice" in (body ?? {}) ? body.soldPrice : undefined,
       soldAt: "soldAt" in (body ?? {}) ? body.soldAt : undefined,
+      verifiedAt:
+        "verifiedAt" in (body ?? {})
+          ? typeof body.verifiedAt === "number"
+            ? body.verifiedAt
+            : null
+          : undefined,
     });
 
     if (!card) {

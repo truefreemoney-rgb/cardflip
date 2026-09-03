@@ -423,12 +423,23 @@ export interface DraftResult {
  * Needs the sell.item.draft scope; a link granted before it was added
  * gets eBay's 403 → surfaced as needs_reconnect.
  */
+/**
+ * The match gate, enforced where it matters (Chris, 09-03): no draft, push
+ * or publish for a card the seller hasn't verified, whatever the client
+ * says. A card that's already on eBay (listed/sold) is past the gate.
+ */
+function requireVerified(card: { verifiedAt: number | null; status: string; ebayOfferId: string | null }) {
+  if (card.verifiedAt || card.status !== "ready" || card.ebayOfferId) return;
+  throw new EbaySellError("Verify the card match first — open the card and tap Verify match", 409);
+}
+
 export async function createDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
 ): Promise<DraftResult> {
   const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
+  requireVerified(card);
   const input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
   if (!input.hasPhoto) {
     throw new EbayPublishNeedsError(
@@ -479,6 +490,7 @@ export async function pushDraft(
 ): Promise<PushResult> {
   const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
+  requireVerified(card);
 
   // The listing photo is the seller's own, stored server-side; the client
   // never gets to claim one exists. Missing → the client shows the picker.
@@ -622,6 +634,7 @@ export async function publishDraft(
 ): Promise<PublishResult> {
   const card = await getCardForUser(cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
+  requireVerified(card);
   if (!card.ebayOfferId) throw new EbaySellError("Send the draft to eBay first", 409);
 
   const token = await tokenFor(userId);

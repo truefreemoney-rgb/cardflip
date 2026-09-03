@@ -367,6 +367,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           candidates: found,
           card: found[0],
           status: found.length === 1 ? "ready" : "review",
+          verifiedAt: null,
           // Different card, so the old comps no longer describe it — clearing
           // the status re-triggers the lookup for the new match.
           ebay: null,
@@ -445,7 +446,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           {item.file && (
             <button
               onClick={() =>
-                onChange({ status: "queued", error: null, visionStatus: "idle", vision: null })
+                onChange({ status: "queued", error: null, visionStatus: "idle", vision: null, verifiedAt: null })
               }
               className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
             >
@@ -613,6 +614,34 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             {card.setName} · {displayCardNumber(card)}
             {card.isSecretRare ? " · Secret rare" : ""}
           </p>
+          {/* The gate (Chris, 09-03): nothing reaches eBay until the seller
+              has looked at the match and said so. One tap, remembered on
+              the ledger row, cleared by any change of card. */}
+          {(item.status === "ready" || item.status === "review") &&
+            (item.verifiedAt ? (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-400">
+                <span>✓ Match verified · Active</span>
+                <button
+                  onClick={() => onChange({ verifiedAt: null })}
+                  className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+                >
+                  Undo
+                </button>
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-amber-200">
+                  Is this the card in your hand? Check the name, set and number
+                  {item.candidates.length > 1 ? ", or pick another match below" : ""}.
+                </p>
+                <button
+                  onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null })}
+                  className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                >
+                  Verify match
+                </button>
+              </div>
+            ))}
           <div className="mt-2.5 flex flex-wrap gap-2">
             {card.rarity && (
               <span className="rounded-full bg-brand-500/10 px-3 py-1 text-sm font-medium text-brand-300">
@@ -744,6 +773,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     onChange({
                       card: c,
                       status: "ready",
+                      verifiedAt: null,
                       priceOverride: null,
                       variant: null,
                       firstEdition: false,

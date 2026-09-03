@@ -39,6 +39,12 @@ export interface CardRecord {
   ebayLineItemId: string | null;
   /** Last time a discount offer went to this listing's watchers. */
   watcherOfferAt: number | null;
+  /**
+   * When the seller confirmed the identified card is the one in hand
+   * ("Verify match"). Publishing to eBay is refused while null — the gate
+   * against blindly listing a wrong match (Chris, 09-03).
+   */
+  verifiedAt: number | null;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -80,6 +86,7 @@ interface CardRow {
   ebay_order_id: string | null;
   ebay_line_item_id: string | null;
   watcher_offer_at: number | null;
+  verified_at: number | null;
   ebay_sku: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
@@ -117,6 +124,7 @@ function fromRow(row: CardRow): CardRecord {
     ebayOrderId: row.ebay_order_id ?? null,
     ebayLineItemId: row.ebay_line_item_id ?? null,
     watcherOfferAt: row.watcher_offer_at ?? null,
+    verifiedAt: row.verified_at ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
@@ -191,6 +199,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     quantity: 1,
     catalogCardId: card.catalogCardId ?? null,
     listedAt: null,
+    verifiedAt: null,
     soldPrice: null,
     soldAt: null,
     soldFees: null,
@@ -393,6 +402,7 @@ export interface CardUpdate {
   listedAt?: number | null;
   soldPrice?: number | null;
   soldAt?: number | null;
+  verifiedAt?: number | null;
 }
 
 /** Ownership is enforced here, not just at the route layer: the WHERE clause
@@ -417,6 +427,7 @@ export async function updateCard(
     listed_at: patch.listedAt !== undefined ? patch.listedAt : existingRow.listed_at,
     sold_price: patch.soldPrice !== undefined ? patch.soldPrice : existingRow.sold_price,
     sold_at: patch.soldAt !== undefined ? patch.soldAt : existingRow.sold_at,
+    verified_at: patch.verifiedAt !== undefined ? patch.verifiedAt : existingRow.verified_at,
     // Any status move settles the ended flag — sold/unlisted cards don't
     // need the chip, and a later manual "Mark listed" starts clean.
     ebay_ended_at: patch.status !== undefined ? null : existingRow.ebay_ended_at,
@@ -431,7 +442,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -442,6 +453,7 @@ export async function updateCard(
       merged.listed_at,
       merged.sold_price,
       merged.sold_at,
+      merged.verified_at ?? null,
       merged.sold_fees,
       merged.ebay_order_id,
       merged.ebay_line_item_id,

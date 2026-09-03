@@ -56,7 +56,7 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
               ${price.toFixed(2)}
             </span>
           )}
-          <StatusChip status={item.status} />
+          <StatusChip status={item.status} verified={Boolean(item.verifiedAt)} />
         </span>
       </button>
 
