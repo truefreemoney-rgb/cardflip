@@ -590,30 +590,49 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-semibold text-white">
-            {card.englishName || card.name}
-            {/* The printed name stays visible when it differs -- it is how
-                the physical card in hand is verified against the match. */}
-            {card.englishName && card.englishName !== card.name && (
-              <span className="ml-2 text-base font-normal text-zinc-500">{card.name}</span>
-            )}
-          </h2>
-          {card.englishName && (
-            <p className="text-base font-medium text-brand-300">
-              {card.englishName}
-            </p>
-          )}
-          <p className="mt-0.5 text-base text-zinc-400">
-            {card.setName} · {displayCardNumber(card)}
-            {card.isSecretRare ? " · Secret rare" : ""}
-          </p>
+          {/* Header makeover (Chris, 09-03: "kinda sloppy"): title row with
+              the watchlist action, one verify strip, then a single facts
+              panel (rarity · market · eBay asking) instead of loose chips.
+              The "Not this card?" toggle is gone — other matches only
+              appear after a name search. */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-display text-2xl font-semibold leading-tight text-white">
+                {card.englishName || card.name}
+                {/* The printed name stays visible when it differs -- it is how
+                    the physical card in hand is verified against the match. */}
+                {card.englishName && card.englishName !== card.name && (
+                  <span className="ml-2 text-base font-normal text-zinc-500">{card.name}</span>
+                )}
+              </h2>
+              <p className="mt-0.5 text-sm text-zinc-400">
+                {card.setName} · {displayCardNumber(card)}
+                {card.isSecretRare ? " · Secret rare" : ""}
+              </p>
+            </div>
+            <button
+              onClick={handleWishlist}
+              disabled={wishlisting || wishlisted}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-default ${
+                wishlisted
+                  ? "bg-emerald-500/15 text-emerald-400"
+                  : "border border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
+              }`}
+            >
+              {wishlisting && <Spinner className="h-3 w-3" />}
+              {wishlisted ? "★ Watching" : "☆ Watch"}
+            </button>
+          </div>
+
           {/* The gate (Chris, 09-03): nothing reaches eBay until the seller
               has looked at the match and said so. One tap, remembered on
               the ledger row, cleared by any change of card. */}
           {(item.status === "ready" || item.status === "review") &&
             (item.verifiedAt ? (
-              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-400">
-                <span>✓ Match verified · Active</span>
+              <p className="mt-3 flex items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 font-medium text-emerald-400">
+                  ✓ Match verified
+                </span>
                 <button
                   onClick={() => onChange({ verifiedAt: null })}
                   className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
@@ -622,11 +641,17 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 </button>
               </p>
             ) : (
-              <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-amber-200">
-                  Is this the card in your hand? Check the name, set and number
-                  {item.candidates.length > 1 ? ", or pick another match below" : ""}.
-                </p>
+              <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-amber-200">Is this the card in your hand?</p>
+                  <p className="text-xs text-amber-200/70">
+                    Check the name, set and number against your photo.
+                    {item.visionStatus === "done" &&
+                      item.vision &&
+                      item.vision.confidence < LOW_CONFIDENCE &&
+                      ` The photo was hard to read (${Math.round(item.vision.confidence * 100)}% sure).`}
+                  </p>
+                </div>
                 <button
                   onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null })}
                   className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
@@ -635,90 +660,76 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 </button>
               </div>
             ))}
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {card.rarity && (
-              <span className="rounded-full bg-brand-500/10 px-3 py-1 text-sm font-medium text-brand-300">
-                {card.rarity}
-              </span>
-            )}
-            {item.grading && (
-              <span className="rounded-full bg-sky-400/10 px-3 py-1 text-sm font-medium text-sky-300">
-                {gradeLabel(item.grading)}
-              </span>
-            )}
-            {quote &&
-              // An eBay-asking basis ("eBay asking (57 listings)") is built
-              // from a real search — link the chip to those listings so the
-              // seller can eyeball what the average is made of.
-              (/^eBay/i.test(quote.price.label) ? (
-                <a
-                  // Restored queue items can lose the comps object but keep
-                  // the eBay-asking label; the local URL builder is the same
-                  // search, so the chip always links.
-                  href={item.ebay?.searchUrl ?? ebaySearchUrl(card, facts)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
-                >
-                  Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
-                  {quote.price.label} ↗
-                </a>
-              ) : (
-                <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-400">
-                  Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
-                  {quote.price.label}
-                </span>
-              ))}
-            {/* The road to other sellers' listings must survive the pricing
-                basis: since the current-day rebase (09-01) the Market chip is
-                usually a TCGplayer point, which took the eBay link and count
-                with it (Chris). When the Market chip isn't the eBay one,
-                this chip is. */}
-            {quote && !/^eBay/i.test(quote.price.label) && (
-              item.ebay && item.ebay.count > 0 ? (
-                <a
-                  href={item.ebay.searchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
-                >
-                  eBay asking {formatMoney(item.ebay.average, "USD")} · {item.ebay.count} listing
-                  {item.ebay.count === 1 ? "" : "s"} ↗
-                </a>
-              ) : (
-                <a
-                  href={ebaySearchUrl(card, facts)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
-                >
-                  See eBay listings ↗
-                </a>
-              )
-            )}
-            {item.visionStatus === "done" && item.vision && (
-              // Same bar as the scanner's Ready gate (LOW_CONFIDENCE) — below
-              // it the chip turns amber so the "Check match" status has a
-              // visible reason right next to the card.
-              <span
-                className={`rounded-full px-3 py-1 text-sm font-medium ${
-                  item.vision.confidence < LOW_CONFIDENCE
-                    ? "bg-amber-400/10 text-amber-300"
-                    : "bg-brand-500/10 text-brand-300"
-                }`}
-                title={
-                  item.vision.confidence < LOW_CONFIDENCE
-                    ? "The photo was hard to read — confirm this is the right card before listing"
-                    : undefined
-                }
+
+          {(() => {
+            // One facts panel: label-over-value cells with hairline dividers.
+            const cells: { label: string; value: React.ReactNode }[] = [];
+            if (item.grading) cells.push({ label: "Grade", value: <span className="text-sky-300">{gradeLabel(item.grading)}</span> });
+            else if (card.rarity) cells.push({ label: "Rarity", value: <span className="text-brand-300">{card.rarity}</span> });
+            if (quote) {
+              const ebayBasis = /^eBay/i.test(quote.price.label);
+              cells.push({
+                label: "Market",
+                value: (
+                  <>
+                    <span className="font-display text-white">{formatMoney(quote.base, quote.price.currency)}</span>
+                    {!ebayBasis && <span className="ml-1.5 text-xs text-zinc-500">{quote.price.label}</span>}
+                  </>
+                ),
+              });
+              // The road to other sellers' listings must survive the pricing
+              // basis (Chris): whichever chip isn't the market one links to
+              // the eBay search.
+              cells.push({
+                label: "eBay asking",
+                value: ebayBasis ? (
+                  <a
+                    href={item.ebay?.searchUrl ?? ebaySearchUrl(card, facts)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-300 underline decoration-zinc-600 underline-offset-2 hover:text-white"
+                  >
+                    {quote.price.label} ↗
+                  </a>
+                ) : item.ebay && item.ebay.count > 0 ? (
+                  <a
+                    href={item.ebay.searchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-300 underline decoration-zinc-600 underline-offset-2 hover:text-white"
+                  >
+                    {formatMoney(item.ebay.average, "USD")}
+                    <span className="ml-1.5 text-xs text-zinc-500">
+                      {item.ebay.count} listing{item.ebay.count === 1 ? "" : "s"} ↗
+                    </span>
+                  </a>
+                ) : (
+                  <a
+                    href={ebaySearchUrl(card, facts)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 hover:text-white"
+                  >
+                    See listings ↗
+                  </a>
+                ),
+              });
+            }
+            if (cells.length === 0) return null;
+            return (
+              <dl
+                className="mt-3 grid divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1"
+                style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}
               >
-                Read from photo
-                {item.vision.confidence < LOW_CONFIDENCE
-                  ? ` · ${Math.round(item.vision.confidence * 100)}% sure — check the match`
-                  : ""}
-              </span>
-            )}
-          </div>
+                {cells.map((c) => (
+                  <div key={c.label} className="min-w-0 px-3 py-2">
+                    <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{c.label}</dt>
+                    <dd className="mt-0.5 truncate text-sm font-medium">{c.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          })()}
 
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
@@ -731,34 +742,20 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             </p>
           )}
 
-          <button
-            onClick={handleWishlist}
-            disabled={wishlisting || wishlisted}
-            className={`mt-3 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition disabled:cursor-default ${
-              wishlisted
-                ? "bg-emerald-500/15 text-emerald-400"
-                : "bg-white/5 text-zinc-300 hover:bg-white/10"
-            }`}
-          >
-            {wishlisting && <Spinner className="h-3 w-3" />}
-            {wishlisted ? "★ Saved to watchlist" : "☆ Add to watchlist"}
-          </button>
-
-          {item.candidates.length > 1 && (
-            <button
-              onClick={() => setShowAlternatives((v) => !v)}
-              className="mt-3 text-sm text-brand-300 underline underline-offset-4 hover:text-brand-200"
-            >
-              {showAlternatives
-                ? "Hide other matches"
-                : `Not this card? ${item.candidates.length - 1} other match${
-                    item.candidates.length > 2 ? "es" : ""
-                  }`}
-            </button>
+          {showAlternatives && item.candidates.length > 1 && (
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-zinc-500">Pick the right printing</p>
+              <button
+                onClick={() => setShowAlternatives(false)}
+                className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+              >
+                Hide
+              </button>
+            </div>
           )}
 
           {showAlternatives && (
-            <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
+            <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-5">
               {item.candidates.map((c: PokemonCard) => (
                 <button
                   key={c.id}
