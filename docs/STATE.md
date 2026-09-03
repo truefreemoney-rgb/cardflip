@@ -42,6 +42,13 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**SCAN SPEED — BACKBURNERED (Chris, 09-03 eve):** ~4s/card is the Sonnet 5
+vision call itself (09-02 A/B: median 4.0s, p90 6.7s, ~110 out tokens).
+Shipped 22b65ad: pump runs SCAN_WORKERS=2 cards concurrently (stacks ~2x
+faster, per-card unchanged). NOT done, only if he asks for more speed:
+Haiku 4.5 vs Sonnet 5 A/B via scripts/ab-vision.mjs (~$1; Haiku rejects
+output_config.effort), then swap VISION_MODEL. Do not run it unprompted.**
+
 **PRINTINGS / REVERSE HOLO / POKÉ BALL PATTERN (09-03 eve, Chris's
 Harlequin White Flare 083 photo — a Poké Ball pattern reverse holo — was
 quoted and described as "Printing: Holofoil"):** root cause = TCGplayer
