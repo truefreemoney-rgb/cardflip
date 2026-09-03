@@ -22,20 +22,21 @@ export default function CardImage({ src, alt, className = "" }: Props) {
   // loading a stack of stock images at once drops some (Chris, 09-03: a
   // White Flare card whose URL serves fine showed "No image"). Retry twice,
   // cache-busted, before settling on the placeholder.
-  const [retry, setRetry] = useState(0);
-  const [pendingRetry, setPendingRetry] = useState(false);
-  useEffect(() => {
-    setRetry(0);
-    setPendingRetry(false);
-  }, [src]);
+  // Keyed by src (not reset in an effect) so a new src starts at zero.
+  const [retryState, setRetryState] = useState<{ src: string; n: number; pending: boolean }>({
+    src: "",
+    n: 0,
+    pending: false,
+  });
+  const retry = retryState.src === src ? retryState.n : 0;
+  const pendingRetry = retryState.src === src && retryState.pending;
   useEffect(() => {
     if (!pendingRetry) return;
     const t = window.setTimeout(() => {
-      setPendingRetry(false);
-      setRetry((n) => n + 1);
+      setRetryState((r) => (r.src === src ? { src, n: r.n + 1, pending: false } : r));
     }, 1500 * (retry + 1));
     return () => window.clearTimeout(t);
-  }, [pendingRetry, retry]);
+  }, [pendingRetry, retry, src]);
   const effectiveSrc = retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src;
 
   if (!src || failedSrc === src) {
@@ -70,7 +71,7 @@ export default function CardImage({ src, alt, className = "" }: Props) {
       decoding="async"
       className={className}
       onError={() => {
-        if (retry < 2) setPendingRetry(true);
+        if (retry < 2) setRetryState({ src, n: retry, pending: true });
         else setFailedSrc(src);
       }}
     />
