@@ -152,7 +152,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
         <div className="mt-4 overflow-x-auto">
           {card.prices.length === 0 ? (
             <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
-              No price data available for this card from any source.
+              No current price table from TCGplayer or Cardmarket for this printing.
             </p>
           ) : (
             <table className="w-full text-left text-sm">
