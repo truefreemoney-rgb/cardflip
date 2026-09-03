@@ -151,8 +151,8 @@ export type PatternVariant = "pokeBallPattern" | "masterBallPattern";
 
 export function tcgplayerProductPattern(name: string | null | undefined): PatternVariant | null {
   if (!name) return null;
-  if (/pok.?\s*ball\s*pattern/i.test(name)) return "pokeBallPattern";
-  if (/master\s*ball\s*pattern/i.test(name)) return "masterBallPattern";
+  if (/pokes*balls*pattern/i.test(name)) return "pokeBallPattern";
+  if (/masters*balls*pattern/i.test(name)) return "masterBallPattern";
   return null;
 }
 
