@@ -30,6 +30,15 @@ the last POC blocker is Stripe business address + phone (BACKLOG.md line
 boxes rejected; swap the personal cell for a Google-Voice-style number).
 It is a dashboard errand only he can do. Everything else is done or parked.**
 
+**ALSO SHIPPED SESSION 4 (00fe161): auto-scan false-fire fix** — Chris:
+"taking random pictures without a card, costs people scans". Sampler now
+needs card shape (looksLikeCard: detail in 9/16 cells + ≥2 horizontal row
+edges) on top of the contrast floor, and the "new card" comparison runs on
+a contrast-normalised signature so auto-exposure drift no longer re-arms
+it. Tuning knobs at the top of CameraCapture.tsx (CELL_STDDEV, CARD_CELLS,
+ROW_EDGE, CARD_ROW_EDGES). Untested on a real phone — if auto now never
+fires on a real card, loosen CARD_CELLS / CARD_ROW_EDGES first.
+
 **SHIPPED SESSION 4 (bd636d3, Chris 09-03: "it looks great"):** scanner HUD
 makeover — full-bleed on phones, status row (auto-scan state + tally) above
 the video, result chip below it, only ✕/torch/sound on the video, guide
