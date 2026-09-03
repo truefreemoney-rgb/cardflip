@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   src: string;
@@ -18,6 +18,25 @@ export default function CardImage({ src, alt, className = "" }: Props) {
   // Remembering *which* src failed (rather than a boolean) means a recycled
   // grid row that receives a new src gets a fresh chance to load it.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  // One load failure is not a dead URL: a phone on a flaky connection
+  // loading a stack of stock images at once drops some (Chris, 09-03: a
+  // White Flare card whose URL serves fine showed "No image"). Retry twice,
+  // cache-busted, before settling on the placeholder.
+  const [retry, setRetry] = useState(0);
+  const [pendingRetry, setPendingRetry] = useState(false);
+  useEffect(() => {
+    setRetry(0);
+    setPendingRetry(false);
+  }, [src]);
+  useEffect(() => {
+    if (!pendingRetry) return;
+    const t = window.setTimeout(() => {
+      setPendingRetry(false);
+      setRetry((n) => n + 1);
+    }, 1500 * (retry + 1));
+    return () => window.clearTimeout(t);
+  }, [pendingRetry, retry]);
+  const effectiveSrc = retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src;
 
   if (!src || failedSrc === src) {
     return (
@@ -45,12 +64,15 @@ export default function CardImage({ src, alt, className = "" }: Props) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={effectiveSrc}
       alt={alt}
       loading="lazy"
       decoding="async"
       className={className}
-      onError={() => setFailedSrc(src)}
+      onError={() => {
+        if (retry < 2) setPendingRetry(true);
+        else setFailedSrc(src);
+      }}
     />
   );
 }
