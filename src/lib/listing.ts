@@ -203,8 +203,8 @@ export function canPriceListing(price: CardPrice): boolean {
 
 export function formatVariantLabel(variant: string): string {
   if (variant === "average") return "Average";
-  if (variant === "pokeBallPattern") return "Poké Ball pattern reverse holo";
-  if (variant === "masterBallPattern") return "Master Ball pattern reverse holo";
+  if (variant === "pokeBallPattern") return "Poké Ball pattern reverse holofoil";
+  if (variant === "masterBallPattern") return "Master Ball pattern reverse holofoil";
   if (MTG_FINISH_LABEL[variant]) return MTG_FINISH_LABEL[variant];
   return variant
     .replace(/([A-Z])/g, " $1")
@@ -444,6 +444,14 @@ export interface ListingFacts {
   sealed?: boolean;
   /** MTG finish of the copy being sold ("nonfoil" | "foil" | "etched"); the priced variant when unset. */
   finish?: string | null;
+  /**
+   * Pokémon printing token for the title ("Holo", "Reverse Holo", "Poke Ball
+   * Reverse Holo", "Master Ball Reverse Holo") — buyers search these words,
+   * and a pattern reverse holo is a different (rarer) card to them. Set by
+   * buildListing from the printing that drives the quote; nothing for a
+   * plain print.
+   */
+  printing?: string | null;
 }
 
 /** eBay caps listing titles at 80 characters. */
@@ -479,7 +487,9 @@ function buildTitle(
   const isMtg = game.id === "mtg";
   const number = isMtg && card.setCode ? `${card.setCode} ${card.number}` : card.number;
   const finish = isMtg && facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : "";
-  const token = [finish, lang ?? "", game.titleToken].filter(Boolean).join(" ");
+  // The printing sits before the game token so it survives trimming.
+  const printing = !isMtg && facts.printing ? facts.printing : "";
+  const token = [finish, printing, lang ?? "", game.titleToken].filter(Boolean).join(" ");
 
   // A CJK set name is dead weight in an English-market title; the English
   // name + number + language identify the card.
@@ -518,6 +528,21 @@ export function buildListing(
     variantLabel && !/^eBay\b/i.test(variantLabel) && !/^(normal|unlimited)$/i.test(variantLabel)
       ? variantLabel
       : undefined;
+
+  // Title words for the printing (Chris, 09-03: the title and description
+  // must say Poké Ball / Master Ball when the card is one).
+  if (!facts.printing && printingLabel) {
+    const printing = /pok.?\s*ball/i.test(printingLabel)
+      ? "Poke Ball Reverse Holo"
+      : /master\s*ball/i.test(printingLabel)
+        ? "Master Ball Reverse Holo"
+        : /reverse/i.test(printingLabel)
+          ? "Reverse Holo"
+          : /holo/i.test(printingLabel)
+            ? "Holo"
+            : null;
+    if (printing) facts = { ...facts, printing };
+  }
 
   const conditionLine = facts.grading
     ? `Professionally graded ${gradeLabel(facts.grading)}. The slab in the photos is the exact one you will receive — please verify the cert number.`
