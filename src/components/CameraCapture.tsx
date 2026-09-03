@@ -80,14 +80,69 @@ const CARD_ROW_EDGES = 2;
     mat or desk runs straight through the guide edge. Sampled on a wider
     thumbnail: the guide plus a margin of EDGE_MARGIN of its size. */
 const EDGE_MARGIN = 0.14;
-const EDGE_W = 40;
-const EDGE_H = 52;
+const EDGE_W = 60;
+const EDGE_H = 78;
 /** Band width (px of the EDGE thumbnail) either side of the guide edge. */
 const EDGE_BAND = 3;
 /** Luminance gap between just-inside and just-outside that reads as a card edge. */
 const EDGE_LUMA_GAP = 16;
 /** Or a colour gap (max channel) — a yellow Pokémon border on a grey table. */
 const EDGE_CHROMA_GAP = 24;
+
+/** Outline test: gradient across a guide edge that counts as "a line". */
+const OUTLINE_GRAD = 22;
+/** Band (px of the EDGE thumbnail) either side of the guide border searched for the line. */
+const OUTLINE_BAND = 4;
+/** Fraction of each side that must show the line. */
+const OUTLINE_COVER = 0.55;
+/** Auto captures in a row with no match before auto-scan switches itself off. */
+const MAX_MISSES = 2;
+
+/**
+ * Does the guide contain a card-shaped outline? A card in the guide has a
+ * straight edge running the length of all four sides, within a few px of
+ * the guide border (the seller is told to fill it). A hand, a monitor, a
+ * keyboard (09-03, third round — all three got auto-captured on Chris's
+ * desk) have contrast, but not four straight lines where the guide is.
+ * For each side, each position along it looks across the band for the
+ * strongest luminance step; the side passes when most positions have one.
+ */
+function cardOutline(data: Uint8ClampedArray): boolean {
+  const W = EDGE_W;
+  const H = EDGE_H;
+  const L = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    L[i] = (data[i * 4] * 299 + data[i * 4 + 1] * 587 + data[i * 4 + 2] * 114) / 1000;
+  }
+  const mx = Math.round((W * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
+  const my = Math.round((H * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
+  const B = OUTLINE_BAND;
+  const lum = (x: number, y: number) => L[y * W + x];
+  // Skip the corners (rounded on real cards) — inset each run by 3px.
+  const side = (horizontal: boolean, at: number): number => {
+    const from = (horizontal ? mx : my) + 3;
+    const to = (horizontal ? W - mx : H - my) - 3;
+    let hits = 0;
+    for (let t = from; t < to; t++) {
+      let best = 0;
+      for (let d = -B; d <= B; d++) {
+        const pos = at + d;
+        const g = horizontal
+          ? pos > 0 && pos < H - 1 ? Math.abs(lum(t, pos + 1) - lum(t, pos - 1)) : 0
+          : pos > 0 && pos < W - 1 ? Math.abs(lum(pos + 1, t) - lum(pos - 1, t)) : 0;
+        if (g > best) best = g;
+      }
+      if (best > OUTLINE_GRAD) hits++;
+    }
+    return hits / Math.max(1, to - from);
+  };
+  return (
+    side(true, my) >= OUTLINE_COVER &&
+    side(true, H - 1 - my) >= OUTLINE_COVER &&
+    side(false, mx) >= OUTLINE_COVER &&
+    side(false, W - 1 - mx) >= OUTLINE_COVER
+  );
+}
 
 /**
  * Is there something sitting IN the guide, as opposed to a scene that
@@ -273,12 +328,31 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   // ref, shown in the status row via the state).
   const blockedRef = useRef(false);
   const [blocked, setBlocked] = useState(false);
+  // Hard cap: MAX_MISSES auto captures in a row with no match switch auto
+  // off — worst case a bad scene costs two scans, then it stops.
+  const missesRef = useRef(0);
+  const [autoPaused, setAutoPaused] = useState(false);
+  const missedIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!lastScan) return;
+    const settled = lastScan.status !== "queued" && lastScan.status !== "scanning";
+    if (!settled || missedIdsRef.current.has(lastScan.id)) return;
     const noMatch = lastScan.status === "review" && !lastScan.card && Boolean(lastScan.error);
-    if (noMatch && !blockedRef.current) {
+    if (!noMatch) {
+      if (lastScan.card) missesRef.current = 0;
+      return;
+    }
+    missedIdsRef.current.add(lastScan.id);
+    missesRef.current += 1;
+    if (!blockedRef.current) {
       blockedRef.current = true;
       setBlocked(true);
+    }
+    if (missesRef.current >= MAX_MISSES) {
+      missesRef.current = 0;
+      setAuto(false);
+      setAutoPaused(true);
+      setPhase("idle");
     }
   }, [lastScan]);
   // Lazy initialiser: read the stored preference once, on the client (the
@@ -479,10 +553,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       const ew = Math.min(video.videoWidth - ex, gw * (1 + 2 * EDGE_MARGIN));
       const eh = Math.min(video.videoHeight - ey, gh * (1 + 2 * EDGE_MARGIN));
       edgeCtx.drawImage(video, ex, ey, ew, eh, 0, 0, EDGE_W, EDGE_H);
+      const edgeData = edgeCtx.getImageData(0, 0, EDGE_W, EDGE_H).data;
       const inGuide =
         ex === 0 || ey === 0 || ex + ew >= video.videoWidth || ey + eh >= video.videoHeight
           ? true
-          : edgeInGuide(edgeCtx.getImageData(0, 0, EDGE_W, EDGE_H).data);
+          : edgeInGuide(edgeData) && cardOutline(edgeData);
       const { data } = ctx.getImageData(0, 0, SIG_W, SIG_H);
       const n = SIG_W * SIG_H;
       const sig = new Uint8ClampedArray(n);
@@ -596,7 +671,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     : !ready
       ? "bg-zinc-600"
       : !auto
-        ? "bg-zinc-500"
+        ? autoPaused
+          ? "bg-amber-400"
+          : "bg-zinc-500"
         : blocked
           ? "bg-amber-400"
           : phase === "settling"
@@ -609,7 +686,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     : !ready
       ? "Opening the camera…"
       : !auto
-        ? "Auto-scan off — tap Capture"
+        ? autoPaused
+          ? "Auto-scan paused — nothing looked like a card. Tap Auto on to resume"
+          : "Auto-scan off — tap Capture"
         : blocked
           ? "No card found — clear the guide, then place the next card"
           : phase === "settling"
@@ -824,6 +903,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
           <button
             onClick={() => {
               setAuto((a) => !a);
+              setAutoPaused(false);
+              missesRef.current = 0;
               setPhase("idle");
             }}
             aria-pressed={auto}

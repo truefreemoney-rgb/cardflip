@@ -42,6 +42,18 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**AUTO-SCAN FALSE-FIRE, ROUND 3 (09-03 ~4:10pm, phone: hand + monitor
+auto-captured even with round 2 live):** added cardOutline() — all four
+guide sides must show a straight luminance edge within ±4px of the guide
+border (≥55% coverage per side) on a 60×78 guide+margin thumbnail; and a
+HARD CAP — MAX_MISSES=2 auto captures in a row with no match switch auto
+OFF ("Auto-scan paused — nothing looked like a card. Tap Auto on to
+resume"). Synthetic tests (scratch edgetest.js, not in repo): card / bigger
+/ smaller pass; hand blob, monitor, keyboard, noise fail. Real-phone
+result still pending from Chris. Layers now, in order: CONTENT_STDDEV →
+looksLikeCard → edgeInGuide → cardOutline → isNew (normalised) →
+blocked-after-no-match → MAX_MISSES auto-off.
+
 **AUTO-SCAN FALSE-FIRE, ROUND 2 (09-03 late, Chris phone screenshot: a
 backlit keyboard got auto-captured twice — shape test alone passes it):**
 added (a) edgeInGuide — band just inside the guide vs band just outside
