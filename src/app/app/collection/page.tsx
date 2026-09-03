@@ -945,24 +945,17 @@ export default function CollectionPage() {
                   >
                     Ended on eBay
                   </span>
-                ) : (
+                ) : card.status === "ready" && !card.verifiedAt ? null : (
+                  // An unverified draft has no chip — the amber "Verify match"
+                  // button IS its state (Chris, 09-03: chip + button was
+                  // redundant). It turns into this green "Active" chip.
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      card.status === "ready"
-                        ? card.verifiedAt
-                          ? "bg-emerald-400/10 text-emerald-400"
-                          : "bg-amber-400/10 text-amber-300"
-                        : STATUS_CHIP[card.status]
+                      card.status === "ready" ? "bg-emerald-400/10 text-emerald-400" : STATUS_CHIP[card.status]
                     }`}
-                    title={
-                      card.status === "ready"
-                        ? card.verifiedAt
-                          ? "Match verified — ready to publish"
-                          : "Open it and confirm the match before it can be listed"
-                        : undefined
-                    }
+                    title={card.status === "ready" ? "Match verified — ready to publish" : undefined}
                   >
-                    {card.status === "ready" ? (card.verifiedAt ? "Active" : "Verify match") : STATUS_LABEL[card.status]}
+                    {card.status === "ready" ? "Active" : STATUS_LABEL[card.status]}
                   </span>
                 )}
                 {card.matchDoubt && (
@@ -1083,7 +1076,7 @@ export default function CollectionPage() {
                         void applyPatch(card, { verifiedAt: Date.now() });
                         toast(`${card.cardName} verified — now active`);
                       }}
-                      className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/25"
+                      className="rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/25"
                     >
                       Verify match
                     </button>
