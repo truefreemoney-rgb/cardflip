@@ -470,12 +470,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     // IN the guide — saving the full frame put a small card in a sea of table
     // (Chris, 09-02: "looks like I'm much closer than the photo comes out").
     // Same guide geometry as the viewfinder and the auto-scan sampler
-    // (guideInVideo), plus a 5% margin so a card nosing past a bracket
-    // keeps its edge. What's saved is what was framed, 1:1.
+    // (guideInVideo), 1:1 — no margin. There was a 5% one so a card nosing
+    // past a bracket kept its edge; it read as the photo coming out ~10%
+    // farther than what was framed (Chris, 09-03: "make it 10% closer").
     const vw = video.videoWidth;
     const vh = video.videoHeight;
     const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
-    const pad = gw * 0.05;
+    const pad = 0;
     const sx = Math.max(0, gx - pad);
     const sy = Math.max(0, gy - pad);
     const sw = Math.min(vw - sx, gw + pad * 2);
