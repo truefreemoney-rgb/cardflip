@@ -268,6 +268,17 @@ async function postJson<T>(
 }
 
 /**
+ * "Auction ended": end the card's live eBay listing and stamp the ledger row
+ * (ebayEndedAt). Returns the updated row, or why eBay refused.
+ */
+export async function endEbayListing(
+  cardId: string,
+): Promise<{ ok: true; card: import("@/lib/client/cardsApi").ServerCard } | EbayPostFailure> {
+  const result = await postJson<{ card: import("@/lib/client/cardsApi").ServerCard }>("/api/ebay/end", { cardId });
+  return result.ok ? { ok: true, card: result.data.card } : result;
+}
+
+/**
  * Create or update the draft in the seller's eBay account. `draft` is exactly
  * what the editor shows plus the facts about the copy; see DraftInput. The
  * server decides whether a listing photo exists (`hasPhoto`), so it isn't

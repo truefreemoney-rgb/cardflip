@@ -627,6 +627,27 @@ export async function updateOfferPrice(userId: string, cardId: string, price: nu
   });
 }
 
+/**
+ * End this card's live eBay listing early ("Auction ended", Chris 09-03).
+ * withdraw keeps the offer (status UNPUBLISHED) so a Relist can publish it
+ * again from the editor. A listing that eBay already ended (404 / 25713)
+ * is treated as ended, not as a failure — the seller's intent is met.
+ */
+export async function withdrawOffer(userId: string, cardId: string): Promise<void> {
+  const card = await getCardForUser(cardId, userId);
+  if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
+  if (!card.ebayOfferId) throw new EbaySellError("This card has no eBay listing to end", 409);
+  const token = await tokenFor(userId);
+  try {
+    await ebayFetch(token, "POST", `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/withdraw`);
+  } catch (err) {
+    const gone =
+      err instanceof EbaySellError &&
+      (err.status === 404 || err.errors.some((e) => e.errorId === 25713 || e.errorId === 25002));
+    if (!gone) throw err;
+  }
+}
+
 export async function publishDraft(
   userId: string,
   cardId: string,

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
@@ -15,7 +16,7 @@ import {
   type RepriceNudge,
   type ServerCard,
 } from "@/lib/client/cardsApi";
-import { fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
+import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { estimatedEbayFees, netAfterFees, POSTAGE_USD } from "@/lib/fees";
@@ -115,6 +116,17 @@ export default function CollectionPage() {
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
   const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
+  const [ending, setEnding] = useState<string | null>(null);
+  const router = useRouter();
+
+  /** Relist: back to a draft FIRST (so the scanner resumes a draft, not a
+   *  listed row), then straight into the editor to start the flow over. */
+  async function relist(card: ServerCard) {
+    await applyPatch(card, { status: "ready", listedAt: null, soldPrice: null, soldAt: null });
+    router.push(
+      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}`,
+    );
+  }
   const [syncError, setSyncError] = useState<string | null>(null);
   // Listed cards the market has moved away from (keyed by card id).
   const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
@@ -171,7 +183,7 @@ export default function CollectionPage() {
         );
       } else if (ended.length > 0) {
         setSaleNote(
-          `${ended.length} ${ended.length === 1 ? "listing" : "listings"} ended on eBay without selling — relist, or move the card back to drafts.`,
+          `${ended.length} ${ended.length === 1 ? "listing" : "listings"} ended on eBay without selling — relist, or delete the card.`,
         );
       } else if (result.skipped === "no_scope") {
         setSaleNote(
@@ -328,14 +340,28 @@ export default function CollectionPage() {
     }
   }
 
-  function backToDraft(card: ServerCard) {
-    void applyPatch(card, {
-      status: "ready",
-      listedAt: null,
-      soldPrice: null,
-      soldAt: null,
-    });
-    toast(`${card.cardName} back to drafts`);
+  /**
+   * "Auction ended" (Chris, 09-03): ends the live eBay listing, then the row
+   * reads Auction ended with Relist / Delete. Nothing flips locally until
+   * eBay has actually ended it.
+   */
+  async function endListing(card: ServerCard) {
+    if (
+      !(await confirmAction({
+        message: `End the eBay listing for ${card.cardName}? Buyers won't see it any more. You can relist it from here.`,
+        confirmLabel: "End listing",
+      }))
+    )
+      return;
+    setEnding(card.id);
+    const res = await endEbayListing(card.id);
+    setEnding(null);
+    if (!res.ok) {
+      toast(`Couldn't end ${card.cardName} — ${res.message}`, "err");
+      return;
+    }
+    setCards((prev) => prev.map((c) => (c.id === card.id ? res.card : c)));
+    toast(`${card.cardName} — auction ended`);
   }
 
   async function remove(card: ServerCard) {
@@ -977,9 +1003,9 @@ export default function CollectionPage() {
                   {card.status === "listed" && card.ebayEndedAt ? (
                     <span
                       className="whitespace-nowrap rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
-                      title={`eBay ended this listing without a sale (noticed ${formatDate(card.ebayEndedAt)}). Relist it, or move it back to drafts.`}
+                      title={`This listing ended on eBay without a sale (${formatDate(card.ebayEndedAt)}). Relist it, or delete the card.`}
                     >
-                      Ended on eBay
+                      Auction ended
                     </span>
                   ) : card.status === "ready" && !card.verifiedAt ? null : (
                     // An unverified draft has no chip — the amber "Verify match"
@@ -1146,23 +1172,41 @@ export default function CollectionPage() {
                       Draft
                     </span>
                   )}
-                  {card.status === "listed" && (
+                  {/* Row states (Chris, 09-03): Live → "Awaiting sale" (flips
+                      to Sold on its own from eBay orders) + "Auction ended";
+                      ended → Relist + Delete; sold → Sold + Delete. No
+                      per-row Mark sold — eBay is the source of truth. */}
+                  {card.status === "listed" && !card.ebayEndedAt && (
                     <>
-                      <button
-                        onClick={() => setSoldForm({ id: card.id, value: card.price.toFixed(2) })}
-                        className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/25"
+                      <span
+                        title="Flips to Sold on its own once eBay reports the order"
+                        className="rounded-full border border-emerald-500/25 px-3 py-1.5 text-xs font-medium text-emerald-300/80"
                       >
-                        Mark sold
-                      </button>
+                        Awaiting sale
+                      </span>
                       <button
-                        onClick={() => backToDraft(card)}
-                        className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong"
+                        onClick={() => void endListing(card)}
+                        disabled={ending === card.id}
+                        className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong disabled:opacity-50"
                       >
-                        {card.ebayEndedAt ? "Back to drafts" : "Unlist"}
+                        {ending === card.id ? "Ending…" : "Auction ended"}
                       </button>
                     </>
                   )}
-                  {card.status !== "listed" && (
+                  {card.status === "listed" && card.ebayEndedAt && (
+                    <button
+                      onClick={() => void relist(card)}
+                      className="rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
+                    >
+                      Relist
+                    </button>
+                  )}
+                  {card.status === "sold" && (
+                    <span className="rounded-full bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-300">
+                      Sold
+                    </span>
+                  )}
+                  {(card.status !== "listed" || card.ebayEndedAt) && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
