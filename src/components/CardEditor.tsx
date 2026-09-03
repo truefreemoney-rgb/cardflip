@@ -960,25 +960,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           </label>
         )}
 
-        {/* Hidden while 1st Edition is checked — the toggle owns the printing
-            choice, and picking an unlimited row here would silently unprice
-            the 1st Edition listing. */}
-        {!item.firstEdition && pricedVariants.length > 1 && (
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
-            Printing
-            <select
-              value={item.variant ?? quote?.price.variant ?? ""}
-              onChange={(e) => onChange({ variant: e.target.value, priceOverride: null })}
-              className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
-            >
-              {pricedVariants.map((p) => (
-                <option key={`${p.source}-${p.variant}`} value={p.variant}>
-                  {p.label} — {formatMoney(p.market, p.currency)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        {/* No Printing dropdown (Chris, 09-03: "scratch the whole idea for now,
+            remove the printing section") — the quote uses the default basis,
+            eBay comps first. */}
       </div>
 
       {item.grading?.company === "PSA" && (
