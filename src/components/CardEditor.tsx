@@ -1006,18 +1006,18 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       {(item.grading ? gradedMarket !== null : Boolean(quickQuote && marketQuote)) && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-zinc-300">
-            Pricing{item.grading ? ` — ${gradeLabel(item.grading)} market` : ""}
+            {showQuick ? "Listing price" : "Pricing"}{item.grading ? ` — ${gradeLabel(item.grading)} market` : ""}
           </legend>
           <div className={`grid gap-2 ${showQuick ? "grid-cols-2" : "grid-cols-1"}`}>
             {(
               item.grading
                 ? ([
                     ["quick", "Quick sale", gradedQuick ?? 0, "Undercuts the slab market to move fast"],
-                    ["market", "Market price", gradedMarket ?? 0, "What this grade is listed for"],
+                    ["market", "Full value", gradedMarket ?? 0, "What this grade is listed for"],
                   ] as [PriceStrategy, string, number, string][])
                 : ([
                     ["quick", "Quick sale", quickQuote?.suggested ?? 0, quickQuote?.floored ? floorNote() : "Undercuts market to move fast"],
-                    ["market", "Market price", marketQuote?.suggested ?? 0, marketQuote?.floored ? floorNote() : "Holds out for full value"],
+                    ["market", showQuick ? "Full value" : "Suggested listing price", marketQuote?.suggested ?? 0, marketQuote?.floored ? floorNote() : "Holds out for full value"],
                   ] as [PriceStrategy, string, number, string][])
             ).filter(([value]) => showQuick || value === "market").map(([value, label, amount, hint]) => (
               <button
