@@ -18,7 +18,7 @@ import {
 import { fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
-import { estimatedEbayFees, netAfterFees } from "@/lib/fees";
+import { estimatedEbayFees, netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -345,13 +345,21 @@ export default function CollectionPage() {
     const sold = cards.filter((c) => c.status === "sold");
 
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
+    // Net = after eBay fees AND the postage the seller pays per sale (Chris,
+    // 09-03: the tiles "should also reflect after ebay fees and shipping").
     const net = sold.reduce(
-      (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees) : 0),
+      (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees) - POSTAGE_USD : 0),
       0,
     );
     // Every sale has its real fee recorded → the fee figure drops its "≈".
     const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null);
-    const inPlay = [...drafts, ...listed].reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
+    const inPlayGross = [...drafts, ...listed].reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
+    // What those listings would actually put in the seller's pocket: each
+    // copy after the fee estimate and postage.
+    const inPlay = [...drafts, ...listed].reduce(
+      (sum, c) => sum + (c.price > 0 ? Math.max(0, netAfterFees(c.price) - POSTAGE_USD) : 0) * (c.quantity || 1),
+      0,
+    );
 
     // Listed→sold gap, only over cards that carry both timestamps.
     const gaps = sold
@@ -362,7 +370,7 @@ export default function CollectionPage() {
         ? gaps.reduce((sum, days) => sum + days, 0) / gaps.length
         : null;
 
-    return { drafts, listed, sold, earned, net, feesExact, inPlay, avgDays };
+    return { drafts, listed, sold, earned, net, feesExact, inPlay, inPlayGross, avgDays };
   }, [cards]);
 
   function toggleSelected(id: string) {
@@ -517,7 +525,9 @@ export default function CollectionPage() {
           <p className="mt-1 text-xl font-semibold text-white">
             ${stats.inPlay.toFixed(2)}
           </p>
-          <p className="text-[11px] text-zinc-600">drafts + live listings</p>
+          <p className="text-[11px] text-zinc-600">
+            drafts + live listings · after eBay fees &amp; postage · ${stats.inPlayGross.toFixed(2)} asking
+          </p>
         </div>
         <div className="rounded-2xl border border-edge bg-surface-1 p-4">
           {/* The big number is the money that actually reached the seller --
@@ -530,7 +540,7 @@ export default function CollectionPage() {
           </p>
           <p className="text-[11px] text-zinc-600">
             {stats.sold.length} sold
-            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ${stats.feesExact ? "" : "≈"}${(stats.earned - stats.net).toFixed(2)} eBay fees`}
+            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ${stats.feesExact ? "" : "≈"}${(stats.earned - stats.net).toFixed(2)} fees + postage`}
             {stats.avgDays !== null &&
               ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
           </p>
