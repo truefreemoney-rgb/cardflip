@@ -77,7 +77,7 @@ export default function ListedPanel({ item, onChange, onNext }: Props) {
           When it sells on eBay, it&apos;s marked sold here automatically —
           track it in{" "}
           <Link href="/app/collection" className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200">
-            My Cards
+            Inventory
           </Link>
           .
         </p>
