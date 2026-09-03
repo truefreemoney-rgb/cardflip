@@ -42,6 +42,17 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**PRICING IS BACK TO THE 09-03 MORNING STATE (b42cccd reverts daf236b
+too — Chris was worried, "prices are all messed up still" on Eri PRE
+136/131: Market $2.08 eBay asking vs TCGplayer $1.03). Verified against
+TCGplayer's live feed: $1.03 IS today's market for that card; eBay asking
+$2.08 over 92 listings is real. So the data is fine; what he saw was the
+daf236b rule keeping the eBay basis where the morning code rebased to the
+TCGplayer point. Now every pricing rule = as of 09-03 morning. NEXT
+SESSION: sit down with Chris on ONE card and agree which number is "the
+price" (eBay asking vs TCGplayer point) before touching pickPrice /
+pointCanRebase again; every such change is site-wide.**
+
 **REVERSE-HOLO WORK FULLY REVERTED (09-03 ~eve, Chris: "we broke
 something bad once we started messing with the reverse holofoil, all the
 prices and graphs are totally messed up across the whole site"):** the
