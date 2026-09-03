@@ -24,7 +24,6 @@ import {
   effectiveVariant,
   mtgFinishOf,
   quotePrice,
-  toEbayDraftsCsv,
   withEbayPrices,
 } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
@@ -682,58 +681,6 @@ export default function AppPage() {
   );
 
   /**
-   * eBay's bulk drafts file: one row per identified card that isn't already
-   * on eBay, in Seller Hub's "Create new drafts" template. The seller uploads
-   * it once (Seller Hub › Reports › Uploads) and the whole stack appears in
-   * Seller Hub › Listings › Drafts — nothing goes live until they list it.
-   */
-  function exportCsv() {
-    const rows = items
-      .filter((item) => item.card && item.status !== "sold" && item.status !== "listed")
-      .map((item) => {
-        const quote = quotePrice(
-          item.card!,
-          item.condition,
-          item.strategy,
-          effectiveVariant(item),
-        );
-        const price = currentPrice(item);
-        return {
-          ledgerId: item.serverId,
-          hasPhoto: item.photoAt != null,
-          sealed: item.kind === "sealed",
-          quantity: item.quantity ?? 1,
-          listing: withListingOverrides(
-            item.kind === "sealed"
-              ? buildSealedListing(item.card!, price, item.productType)
-              : buildListing(item.card!, price, item.condition, quote?.price.label, {
-                  firstEdition: item.firstEdition,
-                  grading: item.grading,
-                }),
-            item,
-          ),
-        };
-      });
-    if (rows.length === 0) return;
-
-    const blob = new Blob([toEbayDraftsCsv(rows)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `cardflip-ebay-drafts-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    const photoless = rows.filter((r) => !r.hasPhoto).length;
-    setBulkNote(
-      `${rows.length} ${rows.length === 1 ? "draft" : "drafts"} in the file. Upload it at Seller Hub › Reports › Uploads (ebay.com/sh/reports/uploads) — every card lands in Seller Hub › Listings › Drafts, nothing goes live until you list it there.${
-        photoless > 0
-          ? ` ${photoless} ${photoless === 1 ? "has" : "have"} no photo yet — add your own photo to those in eBay's Drafts (stock art isn't allowed).`
-          : ""
-      }`,
-    );
-  }
-
-  /**
    * "Send all to eBay": every ready, priced item that isn't on eBay yet gets
    * pushed as a draft, one after another (eBay rate-limits, and a stack of
    * 30 cards is a stack of 30 inventory writes). Same payload the editor's
@@ -1050,15 +997,6 @@ export default function AppPage() {
                 onOpenCamera={openCamera}
                 variant="compact"
               />
-              {/* A CSV download is a desktop act — on a phone it's clutter
-                  (Chris, 09-01) and the file has nowhere useful to go. */}
-              <button
-                onClick={exportCsv}
-                disabled={identified.length === 0}
-                className="hidden rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 lg:block"
-              >
-                Download eBay drafts file
-              </button>
               <button
                 onClick={() => void sendAllToEbay()}
                 disabled={bulkBusy || identified.length === 0}

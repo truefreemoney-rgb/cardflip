@@ -72,7 +72,7 @@ const articles: HelpArticle[] = [
     heading: "Listing on eBay",
     paragraphs: [
       "From a scanned card you can publish a live listing directly, or save it as a draft in My eBay to finish there. Nothing is ever listed without you pressing the button.",
-      "For a whole stack of scans, export the bulk CSV (desktop) and upload it at Seller Hub → Reports → Uploads — each row lands as a draft. There's also a plain CSV export of your collection for spreadsheets.",
+      "For a whole stack of scans, Send all to eBay pushes every ready card to your eBay drafts in one go. There's also a plain CSV export of your collection for spreadsheets.",
     ],
   },
   {
