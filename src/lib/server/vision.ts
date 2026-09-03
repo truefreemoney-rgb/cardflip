@@ -70,14 +70,6 @@ const CARD_READ_SCHEMA = {
       description:
         "How the card is framed. 'standard': the illustration sits in a box in the upper half and the attacks/text sit on a plain panel below. 'full-art': the illustration covers the whole card and the text is printed over it (full art, illustration rare, special illustration rare, VMAX/VSTAR/ex full-art, gold/rainbow). Null if you can't tell.",
     },
-    finish: {
-      anyOf: [
-        { type: "string", enum: ["normal", "reverse-holo", "holo", "pokeball-pattern", "masterball-pattern"] },
-        { type: "null" },
-      ],
-      description:
-        "Foil treatment. 'normal': flat print, nothing shines. 'reverse-holo': the card body/borders/text panel shine and the illustration box does not. 'holo': the illustration shines (holo rares, ex/V/GX). 'pokeball-pattern' / 'masterball-pattern': a reverse holo whose foil carries repeating Poké Ball or Master Ball silhouettes. Judge from sheen, rainbow reflection and any visible foil pattern; glare alone is not holo. Null if you can't tell.",
-    },
     language: {
       type: "string",
       enum: ["en", "ja", "zh"],
@@ -117,7 +109,6 @@ const CARD_READ_SCHEMA = {
     "setTotal",
     "setCode",
     "artStyle",
-    "finish",
     "language",
     "condition",
     "conditionNotes",
@@ -146,13 +137,6 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say
 so with a null rather than defaulting to Near Mint.
-
-Finish matters for price: a reverse holo can be worth several times the plain
-print, and a Poké Ball / Master Ball pattern reverse holo (Scarlet & Violet
-era) more again. A reverse holo shines everywhere EXCEPT the illustration; a
-holo shines IN the illustration; a pattern reverse holo shows small repeating
-ball silhouettes in the foil. Glare from a sleeve is not foil. Say null when
-the photo can't tell.
 
 If more than one card is visible (a binder page, a spread on a table), read the
 largest or most central one, and cap confidence at 0.5. Read the name from the
@@ -294,9 +278,6 @@ export async function analyzeCardImageWithUsage(
     setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
-    finish: ["normal", "reverse-holo", "holo", "pokeball-pattern", "masterball-pattern"].includes(parsed.finish as string)
-      ? parsed.finish
-      : null,
     name: parsed.name.trim(),
   };
   const u = response.usage;

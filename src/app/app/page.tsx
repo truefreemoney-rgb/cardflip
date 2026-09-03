@@ -442,10 +442,6 @@ export default function AppPage() {
             const numberPinned =
               Boolean(printed?.number) && normalizeNumber(card.number) === normalizeNumber(printed!.number);
             const ambiguous = matches.length > 1 && !numberPinned;
-            // Vision still reads the finish (vision.read.finish) but it no
-            // longer picks the printing — Chris scratched the printing work
-            // 09-03 ("revert it back to how it was"): quotes stay on the
-            // eBay-first default basis.
             patchItem(next.id, {
               status: lowConfidence || ambiguous ? "review" : "ready",
               candidates: matches,
