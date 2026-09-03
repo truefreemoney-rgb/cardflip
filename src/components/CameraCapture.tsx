@@ -664,7 +664,14 @@ function revealMarket(item: ScanItem): number | null {
 
 function RevealChip({ item }: { item: ScanItem }) {
   const card = item.card!;
-  const market = revealMarket(item);
+  // Hold the number until pricing has settled — eBay comps answered and the
+  // chart point fetched (undefined = not yet). Before this the chip showed
+  // the catalogue quote, then moved when comps/point landed a beat later
+  // (Chris, 09-03: "the user should never see the market at the camera
+  // scan, even for a moment"). One number, revealed once.
+  const settled =
+    item.ebayStatus !== "idle" && item.ebayStatus !== "loading" && item.currentPoint !== undefined;
+  const market = settled ? revealMarket(item) : null;
   const tier = revealTier(market);
   const style = TIER_STYLE[tier];
   const counted = useCountUp(market);
@@ -711,7 +718,9 @@ function RevealChip({ item }: { item: ScanItem }) {
             <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">list price</p>
           </>
         ) : (
-          <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">no price yet</p>
+          <p className={`text-[10px] uppercase tracking-[0.15em] text-zinc-500 ${settled ? "" : "animate-pulse"}`}>
+            {settled ? "no price yet" : "pricing…"}
+          </p>
         )}
       </div>
     </div>

@@ -94,7 +94,8 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     soldAt: null,
     verifiedAt: null,
     matchDoubt: null,
-    currentPoint: null,
+    // Left undefined on purpose: "not fetched yet" (the reveal chip waits
+    // for it); loadCurrentPoint sets the point or null.
   };
 }
 
@@ -126,7 +127,6 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
   listedAt: row.listedAt,
   verifiedAt: row.verifiedAt ?? null,
   matchDoubt: row.matchDoubt ?? null,
-  currentPoint: null,
     };
     return item;
 }
