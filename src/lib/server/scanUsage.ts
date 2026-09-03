@@ -58,6 +58,15 @@ export interface ScanSpend {
   avgOutputTokens: number;
 }
 
+/** The admin console's two windows. The clock read lives here, not in the
+ * page's render (react-hooks/purity flags Date.now() during render). */
+export async function scanSpendSummary(): Promise<{ last24h: ScanSpend; last30d: ScanSpend }> {
+  const DAY = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const [last24h, last30d] = await Promise.all([scanSpendSince(now - DAY), scanSpendSince(now - 30 * DAY)]);
+  return { last24h, last30d };
+}
+
 /** Spend over a window — the admin console's margin tile. */
 export async function scanSpendSince(sinceMs: number): Promise<ScanSpend> {
   const row = (await db

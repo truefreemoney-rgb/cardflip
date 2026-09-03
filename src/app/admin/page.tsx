@@ -10,7 +10,7 @@ import { getAdminOverview } from "@/lib/server/adminStats";
 import { isDemoUser, listAllUsers } from "@/lib/server/users";
 import { listAllCards } from "@/lib/server/cards";
 import { errorCount24h, listRecentErrors } from "@/lib/server/errorLog";
-import { scanSpendSince } from "@/lib/server/scanUsage";
+import { scanSpendSummary } from "@/lib/server/scanUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -58,12 +58,10 @@ export default async function AdminPage() {
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
   }));
   const cards = await listAllCards(60);
-  const DAY = 24 * 60 * 60 * 1000;
-  const [recentErrors, errors24h, spend24h, spend30d] = await Promise.all([
+  const [recentErrors, errors24h, { last24h: spend24h, last30d: spend30d }] = await Promise.all([
     listRecentErrors(50),
     errorCount24h(),
-    scanSpendSince(Date.now() - DAY),
-    scanSpendSince(Date.now() - 30 * DAY),
+    scanSpendSummary(),
   ]);
   const userById = new Map(users.map((u) => [u.id, u]));
   const s = o.stats;
