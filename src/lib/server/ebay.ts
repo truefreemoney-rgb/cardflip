@@ -1,6 +1,6 @@
 import "server-only";
 import { buildComps, isComparable } from "@/lib/ebayComps";
-import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
+import { ebaySearchUrl, ebaySoldSearchUrl, printingSearchTerms } from "@/lib/listing";
 import { gameOf, type EbayComps, type EbayListing, type PokemonCard } from "@/lib/types";
 import { GAMES } from "@/lib/games";
 
@@ -119,16 +119,20 @@ interface ItemSummary {
 export async function fetchEbayComps(
   card: PokemonCard,
   grading?: { company: string; grade: string } | null,
+  printing?: string | null,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
   const searchUrl = ebaySearchUrl(card);
+  // "reverse holo" / "poke ball" in the query, and isComparable holds the
+  // titles to it — comps for THIS printing, not a blend of all of them.
+  const printingTerms = grading ? "" : printingSearchTerms(printing);
 
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
   // For a slab, the company+grade go into the query and isComparable flips
   // from rejecting graded titles to requiring exactly this grade.
   const query = grading
     ? `${compsQuery(card)} ${grading.company} ${grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade}`
-    : compsQuery(card);
+    : [compsQuery(card), printingTerms].filter(Boolean).join(" ");
   url.searchParams.set("q", query);
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
@@ -160,7 +164,7 @@ export async function fetchEbayComps(
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     // Mixed currencies would silently corrupt a USD average.
     if (item.price?.currency && item.price.currency !== "USD") continue;
-    if (!isComparable(title, card, grading)) continue;
+    if (!isComparable(title, card, grading, printing)) continue;
 
     listings.push({
       id: item.itemId ?? `${title}-${value}`,
@@ -197,6 +201,7 @@ interface ItemSale {
  */
 export async function fetchEbaySoldComps(
   card: PokemonCard,
+  printing?: string | null,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(INSIGHTS_SCOPE);
   const searchUrl = ebaySoldSearchUrl(card);
@@ -204,7 +209,7 @@ export async function fetchEbaySoldComps(
   const url = new URL(
     `${EBAY_API}/buy/marketplace_insights/v1_beta/item_sales/search`,
   );
-  url.searchParams.set("q", compsQuery(card));
+  url.searchParams.set("q", [compsQuery(card), printingSearchTerms(printing)].filter(Boolean).join(" "));
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
   // 90 days is the window eBay exposes; anything staler misprices a moving card.
@@ -238,7 +243,7 @@ export async function fetchEbaySoldComps(
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     if (item.lastSoldPrice?.currency && item.lastSoldPrice.currency !== "USD") continue;
     // Same filter as active listings — a sold bulk lot is just as misleading.
-    if (!isComparable(title, card)) continue;
+    if (!isComparable(title, card, null, printing)) continue;
 
     listings.push({
       id: item.itemId ?? `${title}-${value}-${item.lastSoldDate ?? ""}`,

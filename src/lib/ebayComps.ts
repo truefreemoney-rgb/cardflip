@@ -76,6 +76,7 @@ export function isComparable(
   title: string,
   card: PokemonCard,
   grading?: { company: string; grade: string } | null,
+  printing?: string | null,
 ): boolean {
   for (const pattern of REJECT_PATTERNS) {
     // In graded mode the slab patterns are the point, not noise.
@@ -85,6 +86,37 @@ export function isComparable(
   }
 
   const lower = title.toLowerCase();
+
+  // Pricing one printing: the title has to agree with it. A reverse holo
+  // lists as "reverse holo" almost without exception; a plain copy says
+  // nothing (or "non-holo"); the ball patterns name themselves. Skipped for
+  // slabs — the grade is the market there.
+  if (printing && !grading) {
+    const t = lower.replace(/non[-\s]?holo\w*/g, "nonholo");
+    const reverse = /\breverse\b|\brev\s*holo|\brh\b/.test(t);
+    const holo = /\bholo/.test(t);
+    const pokeBall = /pok[eé]\s*ball/.test(t);
+    const masterBall = /master\s*ball/.test(t);
+    switch (printing) {
+      case "normal":
+      case "unlimited":
+        if (reverse || holo || pokeBall || masterBall || /\bfoil\b/.test(t)) return false;
+        break;
+      case "reverseHolofoil":
+        if (!reverse || pokeBall || masterBall) return false;
+        break;
+      case "holofoil":
+      case "unlimitedHolofoil":
+        if (!holo || reverse || pokeBall || masterBall) return false;
+        break;
+      case "pokeBallPattern":
+        if (!pokeBall) return false;
+        break;
+      case "masterBallPattern":
+        if (!masterBall) return false;
+        break;
+    }
+  }
 
   if (grading) {
     const company = grading.company.toLowerCase();

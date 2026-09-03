@@ -15,17 +15,7 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
-import {
-  buildListing,
-  buildSealedListing,
-  withListingOverrides,
-  currentPrice,
-  describeItemCondition,
-  effectiveVariant,
-  mtgFinishOf,
-  quotePrice,
-  withEbayPrices,
-} from "@/lib/listing";
+import { buildListing, buildSealedListing, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, printingOf, printingLabelOf } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
@@ -537,13 +527,23 @@ export default function AppPage() {
     async (id: string, card: PokemonCard) => {
       compsInFlight.current.add(id);
       patchItem(id, { ebayStatus: "loading" });
+      // Comps are searched for the printing being sold (Chris, 09-03: a
+      // mixed "eBay asking" average is not a printing).
+      const before = itemsRef.current.find((i) => i.id === id);
+      const printing = before ? (printingOf(before) ?? null) : null;
 
       try {
-        const result = await fetchEbayComps(card);
+        const result = await fetchEbayComps(card, null, printing);
         const item = itemsRef.current.find((i) => i.id === id);
         // Dropped from the queue, or the seller corrected the match while we
         // were waiting — either way these comps are for the wrong card now.
         if (!item || item.card?.id !== card.id) return;
+        // The printing changed underneath the search: drop these and let the
+        // idle-comps effect fetch again for the new one.
+        if ((printingOf(item) ?? null) !== printing) {
+          patchItem(id, { ebayStatus: "idle" });
+          return;
+        }
 
         // Sold and asking data arrive together but can succeed independently,
         // so a card can be repriced off either one.
@@ -551,7 +551,7 @@ export default function AppPage() {
           const repriced = withEbayPrices(item.card, {
             sold: result.sold,
             active: result.comps,
-          });
+          }, printing);
           patchItem(id, {
             ebay: result.comps,
             ebayStatus: result.comps ? "done" : result.status,
@@ -568,7 +568,7 @@ export default function AppPage() {
           // needs to be $0.00"). The comps still render as reference;
           // the seller prices the card themselves.
           if (item.serverId && item.language === "en" && item.status !== "listed" && item.status !== "sold") {
-            const quote = quotePrice(repriced, item.condition, item.strategy);
+            const quote = quotePrice(repriced, item.condition, item.strategy, effectiveVariant(item));
             if (quote) {
               void updateServerCard(item.serverId, {
                 price: item.priceOverride ?? quote.suggested,
@@ -854,7 +854,7 @@ export default function AppPage() {
       const listing = withListingOverrides(
         item.kind === "sealed"
           ? buildSealedListing(item.card!, price, item.productType)
-          : buildListing(item.card!, price, item.condition, quote?.price.label, {
+          : buildListing(item.card!, price, item.condition, printingLabelOf(quote?.price), {
               firstEdition: item.firstEdition,
               grading: item.grading,
             }),

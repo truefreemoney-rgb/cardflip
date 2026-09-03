@@ -42,6 +42,22 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**PRINTING-AWARE EBAY COMPS (09-03 late, Chris's Hoothoot PRE 077: the
+Printing dropdown offered "eBay asking (91 listings) — $1.45" beside
+"Reverse Holofoil — $0.18" / "Normal — $0.06"; the eBay row was a blend of
+all printings and is not a printing):** comps are now searched FOR the
+printing being sold (printingOf(item): explicit pick, else plain-first
+default) — query gets "reverse holo" / "holo" / "poke ball" / "master
+ball" (printingSearchTerms) and isComparable(…, printing) holds titles to
+it ("non-holo" counts as plain). eBay rows carry forVariant; quotePrice
+with a printing prefers ebayPriceForPrinting (sold, then asking) over the
+TCGplayer row; the dropdown lists printings only, each priced off its eBay
+row when known "(eBay, N listings)" else "(TCGplayer)"; changing the
+printing resets comps to idle → refetch. Description/title printing comes
+from printingLabelOf(price) (an eBay row names its forVariant). Old queue
+items with untagged eBay rows keep working (forVariant null → basis only).
+Tests: 9 printing cases in test:ebay.**
+
 **SCAN SPEED — BACKBURNERED (Chris, 09-03 eve):** ~4s/card is the Sonnet 5
 vision call itself (09-02 A/B: median 4.0s, p90 6.7s, ~110 out tokens).
 Shipped 22b65ad: pump runs SCAN_WORKERS=2 cards concurrently (stacks ~2x

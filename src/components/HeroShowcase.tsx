@@ -1,4 +1,4 @@
-import { buildListing, formatMoney, quotePrice } from "@/lib/listing";
+import { buildListing, formatMoney, quotePrice, printingLabelOf } from "@/lib/listing";
 import type { PokemonCard } from "@/lib/types";
 
 /**
@@ -10,7 +10,7 @@ export default function HeroShowcase({ card }: { card: PokemonCard | null }) {
 
   const quote = quotePrice(card, "Near Mint", "quick");
   const price = quote?.suggested ?? 0;
-  const listing = buildListing(card, price, "Near Mint", quote?.price.label);
+  const listing = buildListing(card, price, "Near Mint", printingLabelOf(quote?.price));
 
   return (
     <div className="relative mx-auto grid w-full max-w-3xl items-center gap-8 sm:grid-cols-[minmax(0,200px)_1fr]">

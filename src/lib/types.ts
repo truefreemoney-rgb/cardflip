@@ -29,6 +29,14 @@ export interface CardPrice {
   low: number | null;
   high: number | null;
   /**
+   * eBay rows only: the printing the comps were searched for ("reverse
+   * holo" in the query, titles filtered to it). Null/absent = a mixed search
+   * from before printings were part of the comps (Chris, 09-03: a Hoothoot's
+   * "eBay asking" row averaged reverse holos and normals together and sat in
+   * the Printing dropdown as if it were a printing).
+   */
+  forVariant?: string | null;
+  /**
    * Backward-looking averages the source publishes (Cardmarket via
    * pokemontcg.io: 1-, 7- and 30-day). Real history from day one, before our
    * own daily snapshots have accumulated — see PriceHistoryChart.

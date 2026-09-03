@@ -15,23 +15,7 @@ import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import {
-  CONDITIONS,
-  CONDITION_MULTIPLIER,
-  buildListing,
-  describeItemCondition,
-  canBeFirstEdition,
-  canPriceListing,
-  effectiveVariant,
-  firstEditionPrice,
-  formatMoney,
-  ebaySearchUrl,
-  ebaySoldSearchUrl,
-  isFirstEditionVariant,
-  quoteForItem,
-  quotePrice,
-  withListingOverrides,
-} from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, canPriceListing, effectiveVariant, firstEditionPrice, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionVariant, quoteForItem, quotePrice, withListingOverrides, printingLabelOf, ebayPriceForPrinting } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
@@ -541,7 +525,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     card,
     price,
     item.condition,
-    quote?.price.label,
+    printingLabelOf(quote?.price),
     facts,
   );
   const listing = withListingOverrides(generated, item);
@@ -557,6 +541,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       canPriceListing(p) &&
       !(firstEdEligible && isFirstEditionVariant(p.variant)),
   );
+  const printings = pricedVariants.filter((p) => p.source !== "ebay");
 
   async function handleWishlist() {
     if (!card) return;
@@ -674,6 +659,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   className="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:bg-white/10 hover:text-zinc-200"
                 >
                   Market {formatMoney(quote.base, quote.price.currency)} ·{" "}
+                  {quote.price.forVariant ? `${printingLabelOf(quote.price)} · ` : ""}
                   {quote.price.label} ↗
                 </a>
               ) : (
@@ -963,19 +949,37 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         {/* Hidden while 1st Edition is checked — the toggle owns the printing
             choice, and picking an unlimited row here would silently unprice
             the 1st Edition listing. */}
-        {!item.firstEdition && pricedVariants.length > 1 && (
+        {/* Printings only — the eBay comps are a price basis that follows the
+            printing, not a printing themselves (Chris, 09-03). The option
+            shows the eBay price when the comps were searched for that
+            printing, else the catalogue price; picking one refetches comps
+            for it. */}
+        {!item.firstEdition && printings.length > 1 && (
           <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
             Printing
             <select
-              value={item.variant ?? quote?.price.variant ?? ""}
-              onChange={(e) => onChange({ variant: e.target.value, priceOverride: null })}
+              value={item.variant ?? quote?.price.forVariant ?? quote?.price.variant ?? ""}
+              onChange={(e) =>
+                onChange({
+                  variant: e.target.value,
+                  priceOverride: null,
+                  ebay: null,
+                  ebayStatus: "idle",
+                  ebaySold: null,
+                  ebaySoldStatus: "unavailable",
+                })
+              }
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
             >
-              {pricedVariants.map((p) => (
-                <option key={`${p.source}-${p.variant}`} value={p.variant}>
-                  {p.label} — {formatMoney(p.market, p.currency)}
-                </option>
-              ))}
+              {printings.map((p) => {
+                const e = ebayPriceForPrinting(card, p.variant);
+                return (
+                  <option key={`${p.source}-${p.variant}`} value={p.variant}>
+                    {p.label} — {formatMoney(e?.market ?? p.market, p.currency)}
+                    {e ? ` (eBay, ${e.label.replace(/^eBay \w+ \(/, "").replace(/\)$/, "")})` : " (TCGplayer)"}
+                  </option>
+                );
+              })}
             </select>
           </label>
         )}
