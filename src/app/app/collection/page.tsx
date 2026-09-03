@@ -28,7 +28,12 @@ import { toast } from "@/components/Toaster";
  * the ledger that survives closing the tab.
  */
 
-type StatusFilter = "all" | "ready" | "listed" | "sold";
+type StatusFilter = "all" | "ready" | "listed" | "ended" | "sold";
+
+/** A listing that ended on eBay without selling (seller ended it, or eBay
+ *  did) — still status "listed" on the row, but not live and not in play. */
+const isEnded = (c: ServerCard) => c.status === "listed" && !!c.ebayEndedAt;
+const isLive = (c: ServerCard) => c.status === "listed" && !c.ebayEndedAt;
 
 const STATUS_LABEL: Record<ServerCard["status"], string> = {
   ready: "Draft",
@@ -46,6 +51,7 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "ready", label: "Drafts" },
   { value: "listed", label: "Live" },
+  { value: "ended", label: "Ended" },
   { value: "sold", label: "Sold" },
 ];
 
@@ -387,7 +393,10 @@ export default function CollectionPage() {
 
   const stats = useMemo(() => {
     const drafts = cards.filter((c) => c.status === "ready");
-    const listed = cards.filter((c) => c.status === "listed");
+    // "1 live" while nothing was live (Chris, 09-03): an ended auction is
+    // neither live nor in play — it waits for Relist or Delete.
+    const listed = cards.filter(isLive);
+    const ended = cards.filter(isEnded);
     const sold = cards.filter((c) => c.status === "sold");
 
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
@@ -418,7 +427,7 @@ export default function CollectionPage() {
 
     const inPlayCopies = [...drafts, ...listed].reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
     const soldCopies = sold.filter((c) => c.soldPrice != null).length;
-    return { drafts, listed, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
   }, [cards]);
 
   function toggleSelected(id: string) {
@@ -498,7 +507,9 @@ export default function CollectionPage() {
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const shown = cards.filter((card) => {
-      if (filter !== "all" && card.status !== filter) return false;
+      if (filter === "listed" && !isLive(card)) return false;
+      if (filter === "ended" && !isEnded(card)) return false;
+      if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
       if (!needle) return true;
       return (
         card.cardName.toLowerCase().includes(needle) ||
@@ -618,6 +629,11 @@ export default function CollectionPage() {
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-sky-300">{stats.listed.length}</span> live
           </span>
+          {stats.ended.length > 0 && (
+            <span className="text-zinc-400">
+              <span className="font-display text-base font-semibold text-amber-300">{stats.ended.length}</span> ended
+            </span>
+          )}
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-emerald-300">{stats.sold.length}</span> sold
           </span>
@@ -844,9 +860,9 @@ export default function CollectionPage() {
           {selected.size > 0 && (() => {
             const selCards = cards.filter((c) => selected.has(c.id));
             const ready = selCards.filter((c) => c.status === "ready");
-            const listed = selCards.filter((c) => c.status === "listed");
+            const listed = selCards.filter(isLive);
             const revertable = selCards.filter((c) => c.status !== "ready");
-            const deletable = selCards.filter((c) => c.status !== "listed");
+            const deletable = selCards.filter((c) => !isLive(c));
             const bulkBtn =
               "rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50";
             async function applyToAll(targets: ServerCard[], patch: (c: ServerCard) => Partial<ServerCard>, note: string) {
