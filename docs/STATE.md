@@ -42,6 +42,22 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**REVERSE-HOLO WORK FULLY REVERTED (09-03 ~eve, Chris: "we broke
+something bad once we started messing with the reverse holofoil, all the
+prices and graphs are totally messed up across the whole site"):** the
+site-wide damage was VARIANT_PRIORITY going normal-first (3e6e918) —
+every card with a "normal" row quoted the plain print (often cents) and
+the chart followed that series. Reverted 3e6e918 (pattern variants,
+normal-first, no "Printing: Normal", vision finish) and 1686584 (title
+printing tokens) → c2754e3 / 6f6cac4. Nothing from the printing round
+remains in code except this note. Still LIVE from the same evening and
+kept on purpose: the pricing-coherence rule below (daf236b) and eBay
+asking history banking. If Chris says prices are still off after
+c2754e3 deploys, revert daf236b next (it changes cheap-card quotes to the
+eBay basis instead of the TCGplayer point). Lesson: a default-printing
+change is a site-wide price change — never ship one without checking
+My Cards totals before/after.
+
 **PRICING COHERENCE (09-03 late, Hoothoot PRE 077 "pricing makes no
 sense" + "the graph is wrong too"):** (1) pointCanRebase cross-source rule
 — the chart's TCGplayer current-day point replaces an eBay-asking basis
