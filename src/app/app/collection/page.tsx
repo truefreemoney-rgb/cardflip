@@ -777,6 +777,20 @@ export default function CollectionPage() {
             return (
               <>
                 <span className="text-zinc-500">{selected.size} selected</span>
+                {/* The whole selection into the scanner's queue, so each can
+                    be verified against its photo without a round trip per
+                    card (Chris, 09-03). Sealed rows have no listing screen. */}
+                {ready.filter((c) => c.kind !== "sealed").length > 0 && (
+                  <Link
+                    href={`/app?resume=${ready
+                      .filter((c) => c.kind !== "sealed")
+                      .map((c) => c.id)
+                      .join(",")}`}
+                    className="rounded-full bg-brand-500/15 px-3.5 py-1.5 text-xs font-semibold text-brand-300 transition hover:bg-brand-500/25"
+                  >
+                    Move to listings ({ready.filter((c) => c.kind !== "sealed").length})
+                  </Link>
+                )}
                 {ready.length > 0 && (
                   <button
                     onClick={() => void applyToAll(ready, () => listedNowPatch(), `${ready.length} marked listed`)}

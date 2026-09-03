@@ -31,6 +31,7 @@ import { readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
 import {
   createServerCard,
+  type ServerCard,
   deleteServerCard,
   fetchServerCards,
   updateServerCard,
@@ -103,6 +104,38 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     verifiedAt: null,
     matchDoubt: null,
   };
+}
+
+/** One ledger row back into the editor, exactly as the single-card resume built it. */
+function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], card: PokemonCard): ScanItem {
+    // A slab's ledger condition IS its grade ("PSA 10", synced live by the
+    // editor) — parse it back so the card resumes as the slab it is.
+    const { grading } = parseGradeQuery(row.condition);
+    const item: ScanItem = {
+  ...createItem(null, "en", game),
+  // The stored scan photo — it IS the eBay listing image, so the
+  // "Your photo" panel must show it beside the match on resume.
+  previewUrl: row.photoAt ? apiPath(`/api/card-image/${row.id}?v=${row.photoAt}`) : "",
+  status: row.status === "listed" ? "listed" : "ready",
+  serverId: row.id,
+  candidates: results,
+  card,
+  grading,
+  // Slabs price off raw market as a floor, never quick-sale discounts.
+  strategy: grading ? "market" : "quick",
+  condition: asCondition(row.condition) ?? "Near Mint",
+  priceOverride: row.price > 0 ? row.price : null,
+  quantity: row.quantity || 1,
+  photoAt: row.photoAt,
+  ebayOfferId: row.ebayOfferId,
+  ebayListingUrl: row.status === "listed" ? row.ebayListingUrl : null,
+  ebayDraftUrl: row.ebayDraftUrl,
+  listedPrice: row.status === "listed" ? row.price : null,
+  listedAt: row.listedAt,
+  verifiedAt: row.verifiedAt ?? null,
+  matchDoubt: row.matchDoubt ?? null,
+    };
+    return item;
 }
 
 /** Concurrent scans per tab — see pumpingRef. */
@@ -610,8 +643,11 @@ export default function AppPage() {
   useEffect(() => {
     if (resumedRef.current) return;
     const params = new URLSearchParams(window.location.search);
-    const resumeId = params.get("resume");
-    if (!resumeId) return;
+    // One id, or several comma-joined: My Cards' "Move to listings" sends a
+    // whole selection here so they can be verified in one sitting instead
+    // of one round trip each (Chris, 09-03).
+    const resumeIds = (params.get("resume") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (resumeIds.length === 0) return;
     resumedRef.current = true;
     // My Cards passes the card's identity alongside the id so the catalog
     // search runs in PARALLEL with the ledger fetch — sequentially they were
@@ -633,58 +669,51 @@ export default function AppPage() {
         ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
         : null;
       const rows = await fetchServerCards();
-      const row = rows.find((r) => r.id === resumeId);
-      if (!row || row.kind === "sealed" || row.status === "sold") {
+      const wanted = resumeIds
+        .map((id) => rows.find((r) => r.id === id))
+        .filter((r): r is ServerCard => Boolean(r) && r!.kind !== "sealed" && r!.status !== "sold");
+      if (wanted.length === 0) {
         setResuming(false);
-        toast("Couldn't reopen that card here — scan it again");
+        toast(resumeIds.length === 1 ? "Couldn't reopen that card here — scan it again" : "Couldn't reopen those cards here");
         return;
       }
-      const game = row.game === "mtg" ? "mtg" : "pokemon";
       // The eager result is only trusted when the hint matches the row (a
-      // stale or hand-edited link falls back to the exact lookup).
-      const eager = hintName === row.cardName && (hintNumber || "") === (row.cardNumber || "") ? await eagerSearch : null;
-      const results =
-        eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game));
-      const card =
-        results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
-      if (!card) {
+      // stale or hand-edited link falls back to the exact lookup). Hints
+      // only ride along on single-card links.
+      const build = async (row: ServerCard): Promise<ScanItem | null> => {
+        const game = row.game === "mtg" ? "mtg" : "pokemon";
+        const eager =
+          wanted.length === 1 && hintName === row.cardName && (hintNumber || "") === (row.cardNumber || "")
+            ? await eagerSearch
+            : null;
+        const results =
+          eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game).catch(() => []));
+        const card =
+          results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
+        if (!card) return null;
+        return buildResumed(row, game, results, card);
+      };
+      // Lookups run side by side — a selection of ten shouldn't take ten
+      // round trips in a row.
+      const built = await Promise.all(wanted.map(build));
+      const items = built.filter((i): i is ScanItem => Boolean(i));
+      if (items.length === 0) {
         setResuming(false);
-        toast("Couldn't look that card up again — scan it to rebuild the listing");
+        toast("Couldn't look those cards up again — scan them to rebuild the listings");
         return;
       }
-      // A slab's ledger condition IS its grade ("PSA 10", synced live by the
-      // editor) — parse it back so the card resumes as the slab it is.
-      const { grading } = parseGradeQuery(row.condition);
-      const item: ScanItem = {
-        ...createItem(null, "en", game),
-        // The stored scan photo — it IS the eBay listing image, so the
-        // "Your photo" panel must show it beside the match on resume.
-        previewUrl: row.photoAt ? apiPath(`/api/card-image/${row.id}?v=${row.photoAt}`) : "",
-        status: row.status === "listed" ? "listed" : "ready",
-        serverId: row.id,
-        candidates: results,
-        card,
-        grading,
-        // Slabs price off raw market as a floor, never quick-sale discounts.
-        strategy: grading ? "market" : "quick",
-        condition: asCondition(row.condition) ?? "Near Mint",
-        priceOverride: row.price > 0 ? row.price : null,
-        quantity: row.quantity || 1,
-        photoAt: row.photoAt,
-        ebayOfferId: row.ebayOfferId,
-        ebayListingUrl: row.status === "listed" ? row.ebayListingUrl : null,
-        ebayDraftUrl: row.ebayDraftUrl,
-        listedPrice: row.status === "listed" ? row.price : null,
-        listedAt: row.listedAt,
-        verifiedAt: row.verifiedAt ?? null,
-        matchDoubt: row.matchDoubt ?? null,
-      };
-      commit([...itemsRef.current, item]);
-      setSelectedId(item.id);
+      if (items.length < wanted.length) {
+        toast(`${wanted.length - items.length} card${wanted.length - items.length === 1 ? "" : "s"} couldn't be looked up again`);
+      }
+      commit([...itemsRef.current, ...items]);
+      setSelectedId(items[0].id);
       setResuming(false);
-      if (row.status !== "listed") void loadEbayComps(item.id, card);
+      for (const item of items) {
+        if (item.status !== "listed" && item.card) void loadEbayComps(item.id, item.card);
+      }
     })();
   }, [commit, loadEbayComps]);
+
 
   const openCamera = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.
