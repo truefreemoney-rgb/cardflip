@@ -1189,7 +1189,7 @@ export default function CollectionPage() {
                         disabled={ending === card.id}
                         className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong disabled:opacity-50"
                       >
-                        {ending === card.id ? "Ending…" : "Auction ended"}
+                        {ending === card.id ? "Ending…" : "End auction"}
                       </button>
                     </>
                   )}
