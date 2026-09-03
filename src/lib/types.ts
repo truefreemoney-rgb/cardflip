@@ -177,6 +177,12 @@ export interface PriceQuote {
   base: number;
   /** Final suggested listing price. */
   suggested: number;
+  /**
+   * Set when `suggested` was raised to the fee-aware floor (lib/fees.ts
+   * listingFloor): the card's value is below what a single eBay listing can
+   * clear after fees and postage. The UI says so beside the price.
+   */
+  floored?: boolean;
 }
 
 export interface ListingDraft {

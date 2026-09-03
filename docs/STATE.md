@@ -42,6 +42,18 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**FEE-AWARE LISTING FLOOR (09-03 night, Chris chose option 1: "$0.50 net,
+$0.75 postage"):** lib/fees.ts MIN_NET_USD=0.50, POSTAGE_USD=0.75,
+listingFloor() = ceil((net + $0.30 + postage) / (1 − 13.25%)) = $1.79.
+quotePrice raises `suggested` to the floor (USD only, flag `floored`);
+`base` (TCGplayer value) untouched. Editor tiles show floorNote() as the
+hint when floored ("Raised to $1.79 so you clear $0.50 after eBay fees and
+$0.75 postage"). Flows through the shared quote → Your price, queue row,
+ledger price, bulk send all agree. Never bites above ~$1.79, so mid/high
+cards unchanged. Basis question settled for now: TCGplayer current-day
+market = value; eBay asking = reference chip; the floor handles cheap
+cards. 4 checks in test:pricing.**
+
 **ONE QUOTE PER SCREEN (09-03 night, the real bug behind "everything is
 totally screwed up"):** the editor's tiles quoted with the chart's
 current-day point (useLastRecordedPrice) while Your price, the queue row,

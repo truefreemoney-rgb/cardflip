@@ -377,6 +377,29 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice(card, "Near Mint", "market", undefined, point(400, { currency: "EUR", source: "cardmarket", variant: "average" })).base,
     520.47,
   );
+  // 09-03 fee-aware floor (Chris: $0.50 net, $0.75 postage): a cheap card's
+  // suggested price rises to the least a single eBay listing can clear.
+  const cheapCard = { name: "Test", setName: "Test", prices: [usd(1.03)] };
+  check(
+    "cheap card: quick sale is raised to the fee-aware floor",
+    quotePrice(cheapCard, "Near Mint", "quick").suggested,
+    1.79,
+  );
+  check(
+    "cheap card: the floor is flagged",
+    quotePrice(cheapCard, "Near Mint", "quick").floored,
+    true,
+  );
+  check(
+    "cheap card: market value is left alone (base)",
+    quotePrice(cheapCard, "Near Mint", "market").base,
+    1.03,
+  );
+  check(
+    "a $5 card is above the floor and unflagged",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(5)] }, "Near Mint", "market").floored,
+    undefined,
+  );
   check(
     "condition multiplier applies to the current point",
     quotePrice(card, "Lightly Played", "market", undefined, point(100)).suggested,

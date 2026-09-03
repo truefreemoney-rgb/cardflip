@@ -18,6 +18,12 @@ import { descriptionHtml } from "./ebayInventory.ts";
 import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL } from "./games.ts";
 import { gameOf } from "./types.ts";
+import { listingFloor, MIN_NET_USD, POSTAGE_USD } from "./fees.ts";
+
+/** The one-line reason a floored price shows beside the tile. */
+export function floorNote(): string {
+  return `Raised to $${listingFloor().toFixed(2)} so you clear $${MIN_NET_USD.toFixed(2)} after eBay fees and $${POSTAGE_USD.toFixed(2)} postage`;
+}
 
 // eBay's CCG leaf categories are shared by every game since the 2020
 // restructure — Pokémon and Magic singles both list in "CCG Individual Cards"
@@ -368,10 +374,17 @@ export function quotePrice(
     CONDITION_MULTIPLIER[condition] *
     STRATEGY_MULTIPLIER[strategy];
 
+  const rounded = roundPrice(adjusted, strategy);
+  // The fee-aware floor: USD listings only (a euro reference can't set a
+  // dollar price anyway), and only when there IS a price to raise.
+  const floor = listingFloor();
+  const floored = price.currency === "USD" && rounded > 0 && rounded < floor;
+
   return {
     price,
     base: price.market,
-    suggested: roundPrice(adjusted, strategy),
+    suggested: floored ? floor : rounded,
+    ...(floored ? { floored: true } : {}),
   };
 }
 

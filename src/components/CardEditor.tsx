@@ -15,21 +15,7 @@ import { searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import {
-  CONDITIONS,
-  CONDITION_MULTIPLIER,
-  buildListing,
-  describeItemCondition,
-  canBeFirstEdition,
-  effectiveVariant,
-  firstEditionPrice,
-  formatMoney,
-  ebaySearchUrl,
-  ebaySoldSearchUrl,
-  quoteForItem,
-  quotePrice,
-  withListingOverrides,
-} from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, firstEditionPrice, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, quoteForItem, quotePrice, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
@@ -1032,8 +1018,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     ["market", "Market price", gradedMarket ?? 0, "What this grade is listed for"],
                   ] as [PriceStrategy, string, number, string][])
                 : ([
-                    ["quick", "Quick sale", quickQuote?.suggested ?? 0, "Undercuts market to move fast"],
-                    ["market", "Market price", marketQuote?.suggested ?? 0, "Holds out for full value"],
+                    ["quick", "Quick sale", quickQuote?.suggested ?? 0, quickQuote?.floored ? floorNote() : "Undercuts market to move fast"],
+                    ["market", "Market price", marketQuote?.suggested ?? 0, marketQuote?.floored ? floorNote() : "Holds out for full value"],
                   ] as [PriceStrategy, string, number, string][])
             ).map(([value, label, amount, hint]) => (
               <button
