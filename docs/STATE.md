@@ -42,6 +42,21 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**PRICING COHERENCE (09-03 late, Hoothoot PRE 077 "pricing makes no
+sense" + "the graph is wrong too"):** (1) pointCanRebase cross-source rule
+— the chart's TCGplayer current-day point replaces an eBay-asking basis
+ONLY when point ≥ 50% of the basis (CROSS_SOURCE_REBASE_FLOOR); below that
+it's the shipping-floor regime and the eBay basis stays, so tiles / Your
+price / eBay line agree. 09-01 "today's point outranks eBay asking" still
+holds for same-ballpark cards (test updated to point(300) vs $520 basis).
+(2) /api/ebay/comps now records raw-card asking averages as price_series
+(variant ebayAverage, source ebay, count ≥ 3); pickSeries prefers the
+quote's variant only once it has ≥ 3 points, else the longest series —
+so the chart follows the eBay basis after a card has been priced a few
+days. Chart labels: "eBay · asking". (3) The "TCGplayer · holofoil" line
+on that Hoothoot was the Poké Ball pattern product mislabelled — clears at
+the 09:45 UTC refresh.
+
 **PRINTING WORK SCRATCHED (Chris, 09-03 late: "scratch the whole idea for
 now, remove the printing section and revert it back to how it was"):**
 the printing-aware eBay comps commit (e247208: comps searched per printing,
