@@ -138,6 +138,24 @@ export function productNumber(product: { extendedData?: { name: string; value: s
   return left.replace(/^0+(?=\d)/, "").toLowerCase() || null;
 }
 
+/**
+ * Poké Ball / Master Ball pattern reverse holos (Scarlet & Violet era
+ * subsets: Prismatic Evolutions, Black Bolt / White Flare, ...). TCGplayer
+ * lists each as its OWN product — "Harlequin (Poke Ball Pattern)" — whose
+ * only subtype is "Holofoil", and both products map to the same card. Read
+ * as a plain "holofoil" that price became the default quote and the listing
+ * said "Printing: Holofoil" for an uncommon trainer (Chris, 09-03). These
+ * are their own variants, priced and labelled as such.
+ */
+export type PatternVariant = "pokeBallPattern" | "masterBallPattern";
+
+export function tcgplayerProductPattern(name: string | null | undefined): PatternVariant | null {
+  if (!name) return null;
+  if (/pokes*balls*pattern/i.test(name)) return "pokeBallPattern";
+  if (/masters*balls*pattern/i.test(name)) return "masterBallPattern";
+  return null;
+}
+
 /** TCGplayer subTypeName → pokemontcg.io's price variant key ("Reverse Holofoil" → "reverseHolofoil"). */
 export function tcgplayerVariantKey(subType: string | null | undefined): string {
   if (!subType) return "normal";

@@ -42,6 +42,24 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**PRINTINGS / REVERSE HOLO / POKÉ BALL PATTERN (09-03 eve, Chris's
+Harlequin White Flare 083 photo — a Poké Ball pattern reverse holo — was
+quoted and described as "Printing: Holofoil"):** root cause = TCGplayer
+lists pattern cards as a SEPARATE product ("Harlequin (Poke Ball Pattern)",
+only subtype "Holofoil") mapped to the same card_id, so its price landed
+as variant "holofoil" and VARIANT_PRIORITY put holofoil first. Fixed:
+(1) tcgplayerProductPattern() → variants pokeBallPattern /
+masterBallPattern; the refresh fetches /products only for groups with
+two products on one card and DELETEs the mislabelled series rows;
+(2) VARIANT_PRIORITY now normal → unlimited → holofoil → reverseHolofoil →
+patterns; (3) "Printing:" line omitted for Normal/Unlimited; (4) vision
+reads `finish` (normal | reverse-holo | holo | pokeball-pattern |
+masterball-pattern | null) and the scan sets item.variant from it (a key
+with no price falls back to the default pick). Stale "holofoil" rows on
+pattern cards clear on the next Pokémon price refresh (cron 09:45 UTC, or
+force via /api/cron/pokemon-prices). Vision finish accuracy on real phone
+photos is UNTESTED — watch the Printing dropdown on the next scans.**
+
 **AUTO-SCAN IS GONE (Chris, 09-03 eve: "remove it completely"). The
 toggle, sampler loop, all card-likeness gates and the miss counter were
 deleted from CameraCapture.tsx (1178 → 782 lines); the Capture button is

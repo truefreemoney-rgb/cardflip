@@ -43,11 +43,19 @@ export const EBAY_SOLD_VARIANT = "ebaySoldAverage";
 const VARIANT_PRIORITY = [
   EBAY_SOLD_VARIANT,
   EBAY_VARIANT,
+  // The plain printing first: it's what a seller is holding unless they say
+  // otherwise, and a holo/reverse quote on a non-holo copy overprices it and
+  // puts "Printing: Holofoil" on the listing (Chris, 09-03). Cards that only
+  // exist as holos (holo rares, ex/V) have no "normal" row and fall through.
+  "normal",
+  "unlimited",
   "holofoil",
   "reverseHolofoil",
   "unlimitedHolofoil",
-  "normal",
-  "unlimited",
+  // Poké Ball / Master Ball pattern reverse holos: rarer, pricier, and only
+  // ever chosen explicitly (or by vision reading the pattern).
+  "pokeBallPattern",
+  "masterBallPattern",
   // MTG finishes (Scryfall): the nonfoil is what a seller is almost always
   // holding; foil/etched sit behind it and are picked explicitly.
   "nonfoil",
@@ -195,6 +203,8 @@ export function canPriceListing(price: CardPrice): boolean {
 
 export function formatVariantLabel(variant: string): string {
   if (variant === "average") return "Average";
+  if (variant === "pokeBallPattern") return "Poké Ball pattern reverse holo";
+  if (variant === "masterBallPattern") return "Master Ball pattern reverse holo";
   if (MTG_FINISH_LABEL[variant]) return MTG_FINISH_LABEL[variant];
   return variant
     .replace(/([A-Z])/g, " $1")
@@ -501,8 +511,13 @@ export function buildListing(
   // listings)" — a price basis, not a printing. When one of those drives the
   // quote there is no printing to name, so the line is dropped rather than
   // telling buyers the card's printing is "eBay asking".
+  // "Normal" / "Unlimited" is the absence of a special printing — the line
+  // only appears for a holo, reverse holo or pattern (Chris, 09-03: "only
+  // say holofoil/reverse holofoil if it actually is").
   const printingLabel =
-    variantLabel && !/^eBay\b/i.test(variantLabel) ? variantLabel : undefined;
+    variantLabel && !/^eBay\b/i.test(variantLabel) && !/^(normal|unlimited)$/i.test(variantLabel)
+      ? variantLabel
+      : undefined;
 
   const conditionLine = facts.grading
     ? `Professionally graded ${gradeLabel(facts.grading)}. The slab in the photos is the exact one you will receive — please verify the cert number.`

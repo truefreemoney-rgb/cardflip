@@ -397,11 +397,27 @@ export default function AppPage() {
             const numberPinned =
               Boolean(printed?.number) && normalizeNumber(card.number) === normalizeNumber(printed!.number);
             const ambiguous = matches.length > 1 && !numberPinned;
+            // The photo's finish picks the printing: a reverse holo / holo /
+            // pattern copy is quoted and described as one; a plain copy (or
+            // an unreadable finish) leaves the default, which is the plain
+            // printing. A key the card has no price for falls back harmlessly.
+            const finish = vision.status === "done" ? vision.read?.finish ?? null : null;
+            const finishVariant =
+              finish === "reverse-holo"
+                ? "reverseHolofoil"
+                : finish === "holo"
+                  ? "holofoil"
+                  : finish === "pokeball-pattern"
+                    ? "pokeBallPattern"
+                    : finish === "masterball-pattern"
+                      ? "masterBallPattern"
+                      : null;
             patchItem(next.id, {
               status: lowConfidence || ambiguous ? "review" : "ready",
               candidates: matches,
               card,
               error: null,
+              variant: finishVariant,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
                 : ambiguous

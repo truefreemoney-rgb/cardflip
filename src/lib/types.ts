@@ -75,6 +75,8 @@ export function gameOf(card: { game?: GameId } | null | undefined): GameId {
 /** How the card is framed, as seen in the photo. Null = couldn't tell. */
 export type ArtStyle = "standard" | "full-art" | null;
 
+export type CardFinish = "normal" | "reverse-holo" | "holo" | "pokeball-pattern" | "masterball-pattern" | null;
+
 export interface VisionCardRead {
   /** Name exactly as printed, in the card's own language. */
   name: string;
@@ -97,6 +99,14 @@ export interface VisionCardRead {
    * number couldn't be read — a full-art Sprigatito is not the promo.
    */
   artStyle: ArtStyle;
+  /**
+   * Foil treatment seen in the photo: "normal" (no shine), "reverse-holo"
+   * (everything shines except the illustration), "holo" (the illustration
+   * shines), "pokeball-pattern" / "masterball-pattern" (reverse holo with
+   * repeating ball silhouettes in the foil). Null if the photo can't tell.
+   * Picks the price variant, so a reverse holo isn't quoted as a normal.
+   */
+  finish: CardFinish;
   language: ScanLanguage;
   /** Condition judged from the photo, or null if the photo can't support a call. */
   condition: string | null;
