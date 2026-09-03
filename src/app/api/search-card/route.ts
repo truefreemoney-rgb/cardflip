@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
 import { fetchCjkCardDetail, searchCjkCardsLocal } from "@/lib/server/cjkCards";
 import { getCachedCards, putCachedCards } from "@/lib/server/cardCache";
@@ -26,6 +26,40 @@ import {
 
 /** The scanner's candidate count — search UIs pass a higher `limit`. */
 const DEFAULT_LIMIT = 24;
+
+/**
+ * How long identification waits for pricing before answering without it.
+ * Identification is a local-mirror query (tens of ms); pricing is a
+ * pokemontcg.io 250-card page behind a 20s timeout with retries, and it used
+ * to hold the whole answer hostage — every uncached scan, Build-listing
+ * resume and search waited on it (09-02, "the website is getting really
+ * clunky"). Past the budget the match ships unpriced (the editor falls back
+ * to eBay comps / the last recorded point) and pricing completes in the
+ * background to warm the cache for the next lookup.
+ */
+const PRICING_BUDGET_MS = 2500;
+
+const hasMarketPrice = (cards: { prices: { market: number | null }[] }[]) =>
+  cards.some((c) => c.prices.some((p) => p.market));
+
+/** Background refresh of a stale English cache row — never blocks a response. */
+async function refreshEnglishCache(
+  lang: ScanLanguage,
+  name: string,
+  cacheNumber: string,
+  printed: PrintedNumber | null,
+  limit: number,
+  art: ArtStyle,
+): Promise<void> {
+  try {
+    const local = await searchEnglishCardsLocal(name, printed, limit, art);
+    if (local.cards.length === 0) return;
+    const cards = await enrichWithPricing(local.cards, local.releaseDates);
+    if (hasMarketPrice(cards)) await putCachedCards(lang, name, cacheNumber, cards);
+  } catch {
+    // Background work — the next lookup simply tries again.
+  }
+}
 
 /** Strip characters that would break the upstream query grammar. */
 function sanitize(value: string): string {
@@ -178,6 +212,16 @@ export async function GET(req: NextRequest) {
   if (fresh) {
     return NextResponse.json({ cards: fresh.cards, matchedOn, cached: true });
   }
+  // Stale-while-revalidate for English: a day-old price is a far better answer
+  // than a multi-second wait, so the stale row is served now and refreshed in
+  // the background. (CJK lookups keep the old path — their source differs.)
+  if (lang === "en") {
+    const stale = await getCachedCards(lang, name, cacheNumber, true);
+    if (stale) {
+      after(() => refreshEnglishCache(lang, name, cacheNumber, printed, limit, art));
+      return NextResponse.json({ cards: stale.cards, matchedOn, cached: true, stale: true });
+    }
+  }
 
   try {
     if (lang === "ja" || lang === "zh") {
@@ -192,17 +236,30 @@ export async function GET(req: NextRequest) {
     if (await hasEnglishMirror()) {
       const local = await searchEnglishCardsLocal(name, printed, limit, art);
       if (local.cards.length > 0) {
-        const cards = await enrichWithPricing(local.cards, local.releaseDates);
+        // enrichWithPricing never rejects (it returns the cards unpriced on
+        // upstream failure), so racing it against the budget is safe.
+        const pricing = enrichWithPricing(local.cards, local.releaseDates);
+        const priced = await Promise.race([
+          pricing,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), PRICING_BUDGET_MS)),
+        ]);
 
         // Only cache once pricing actually attached. Caching a priceless
         // result would pin a transient upstream outage in place for a day,
         // and there's nothing to gain by it — identification already comes
         // from the local mirror, which is instant either way.
-        if (cards.some((c) => c.prices.some((p) => p.market))) {
-          await putCachedCards(lang, name, cacheNumber, cards);
+        if (priced) {
+          if (hasMarketPrice(priced)) await putCachedCards(lang, name, cacheNumber, priced);
+          return NextResponse.json({ cards: priced, matchedOn, source: "local" });
         }
 
-        return NextResponse.json({ cards, matchedOn, source: "local" });
+        // Budget blown: answer with the identification now; pricing lands in
+        // the cache when it finishes, so the next lookup of this card is warm.
+        after(async () => {
+          const cards = await pricing;
+          if (hasMarketPrice(cards)) await putCachedCards(lang, name, cacheNumber, cards);
+        });
+        return NextResponse.json({ cards: local.cards, matchedOn, source: "local", pricing: "pending" });
       }
     }
 

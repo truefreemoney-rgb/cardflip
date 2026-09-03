@@ -12,7 +12,7 @@ import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { scanCard, warmUpOcr } from "@/lib/ocr";
+import { scanCard } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
 import {
@@ -208,9 +208,10 @@ export default function AppPage() {
     [commit],
   );
 
-  useEffect(() => {
-    warmUpOcr();
-  }, []);
+  // OCR is the fallback behind vision, so its worker + model (several MB of
+  // WASM and traineddata) load on first use, not on every scanner mount —
+  // eagerly warming it competed with the resume/scan requests for a phone's
+  // bandwidth and CPU for nothing in the common case (09-02 clunkiness pass).
 
   // Fresh scanner every visit (Chris, 08-27: "i want fresh starts"). The
   // queue used to rebuild itself from the saved snapshot after a refresh,
@@ -552,6 +553,11 @@ export default function AppPage() {
     const resumeId = params.get("resume");
     if (!resumeId) return;
     resumedRef.current = true;
+    // On a client-side navigation Next updates window.location AFTER the
+    // first render, so the state initializer above saw the previous URL and
+    // started false — the first-scan hero then sat there for the whole
+    // rebuild (Chris, 09-02: "hanging on this screen for 5-7 seconds").
+    setResuming(true);
     // My Cards passes the card's identity alongside the id so the catalog
     // search runs in PARALLEL with the ledger fetch — sequentially they were
     // two-plus seconds of blank stare on a cold function (Chris, 09-02).
