@@ -1170,7 +1170,10 @@ export default function AppPage() {
             {/* On a phone the queue sits above the editor — capped low so the
                 card being edited starts on screen instead of under a
                 70dvh-tall list (the queue scrolls within itself). */}
-            <aside className="flex max-h-[32dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:max-h-none">
+            {/* The queue pins to the viewport and scrolls inside itself on desktop, so
+                picking the next card never means scrolling away from the listing
+                and back (Chris, 09-03). Phones keep the short strip above the editor. */}
+            <aside className="flex max-h-[32dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start">
               {items.map((item) => (
                 <QueueRow
                   key={item.id}
