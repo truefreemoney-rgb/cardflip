@@ -42,6 +42,11 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**AUTO-SCAN IS OFF BY DEFAULT (Chris, 09-03 eve: "the auto scan kinda
+sucks in general, capture button is where its at for speed"). Toggle
+still exists; all detection gates apply when on. Do not turn it back on
+by default without asking.**
+
 **AUTO-SCAN FALSE-FIRE, ROUND 3 (09-03 ~4:10pm, phone: hand + monitor
 auto-captured even with round 2 live):** added cardOutline() — all four
 guide sides must show a straight luminance edge within ±4px of the guide

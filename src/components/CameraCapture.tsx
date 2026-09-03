@@ -321,7 +321,10 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const [ready, setReady] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
-  const [auto, setAuto] = useState(true);
+  // Off by default (Chris, 09-03): after three rounds of false fires on a
+  // real desk, "capture button is where it's at for speed". The toggle stays
+  // for anyone who wants it; every gate above still applies when it's on.
+  const [auto, setAuto] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   // Set when the last capture came back with no match: auto-scan waits for
   // an empty guide before it will fire again (read by the sampler via the
@@ -689,7 +692,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       : !auto
         ? autoPaused
           ? "Auto-scan paused — nothing looked like a card. Tap Auto on to resume"
-          : "Auto-scan off — tap Capture"
+          : "Fill the guide, then tap Capture"
         : blocked
           ? "No card found — clear the guide, then place the next card"
           : phase === "settling"
