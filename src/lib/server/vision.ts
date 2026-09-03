@@ -136,7 +136,13 @@ its set.
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say
-so with a null rather than defaulting to Near Mint.`;
+so with a null rather than defaulting to Near Mint.
+
+If more than one card is visible (a binder page, a spread on a table), read the
+largest or most central one, and cap confidence at 0.5. Read the name from the
+printed name band, never from the artwork — two blue whale Pokémon are
+different cards. When the name band is angled, blurry, or cut off, keep
+confidence under 0.5.`;
 
 const SYSTEM_MTG = `You identify Magic: The Gathering cards from photos for a seller who is about to list them.
 

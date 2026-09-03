@@ -50,18 +50,28 @@ export async function searchCards(
   // A hung serverless call (cold start + slow query) used to spin callers'
   // loading states indefinitely (09-02, wishlist tile) — time out into the
   // caller's error path instead so "try again" is on the table.
-  let res = await fetch(apiPath(`/api/search-card?${params.toString()}`), {
-    signal: AbortSignal.timeout(15_000),
-  });
-  // Fast bulk scanning can trip the route's per-IP burst limit; one waited
-  // retry absorbs the spike instead of surfacing "card lookup is down" for
-  // one card out of fifty (09-02, Chris's stress test).
-  if (res.status === 429) {
-    const wait = Math.min(3, Number(res.headers.get("Retry-After")) || 2);
+  // One retry for anything transient — a 429 from the burst limiter, a 5xx,
+  // or a cold-start timeout. The scanner walks the queue one card at a time,
+  // so an 82-card stress run never exceeds the rate limit; the 3-in-82
+  // "card lookup is down" it produced (09-02) were single failed requests
+  // that a second attempt would have served. Client 4xx are not retried.
+  const url = apiPath(`/api/search-card?${params.toString()}`);
+  const attempt = () => fetch(url, { signal: AbortSignal.timeout(15_000) });
+  let res: Response;
+  try {
+    res = await attempt();
+  } catch (err) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      res = await attempt();
+    } catch {
+      throw err;
+    }
+  }
+  if (res.status === 429 || res.status >= 500) {
+    const wait = res.status === 429 ? Math.min(3, Number(res.headers.get("Retry-After")) || 2) : 1.5;
     await new Promise((resolve) => setTimeout(resolve, wait * 1000));
-    res = await fetch(apiPath(`/api/search-card?${params.toString()}`), {
-      signal: AbortSignal.timeout(15_000),
-    });
+    res = await attempt();
   }
   if (!res.ok) throw new Error(`Search failed (${res.status})`);
 

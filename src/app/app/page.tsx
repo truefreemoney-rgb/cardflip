@@ -43,6 +43,7 @@ import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, type ScanUsage } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
+import { LOW_CONFIDENCE } from "@/lib/types";
 import type {
   ArtStyle,
   Condition,
@@ -369,8 +370,15 @@ export default function AppPage() {
             });
           } else {
             const card = matches[0];
+            // A single match is only "Ready" when the photo actually supported
+            // the read. Vision reports confidence in the name+number; a binder
+            // shot of a Dondozo ex came back as a 30%-sure "Wailord" with one
+            // catalog hit and shipped as Ready (Chris, 09-02). Below the bar it
+            // lands as Check match so the seller looks before it lists.
+            const lowConfidence =
+              vision.status === "done" && typeof vision.read?.confidence === "number" && vision.read.confidence < LOW_CONFIDENCE;
             patchItem(next.id, {
-              status: matches.length === 1 ? "ready" : "review",
+              status: matches.length === 1 && !lowConfidence ? "ready" : "review",
               candidates: matches,
               card,
               error: null,

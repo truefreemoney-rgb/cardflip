@@ -33,6 +33,7 @@ import {
   withListingOverrides,
 } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
+import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
@@ -674,9 +675,25 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               )
             )}
             {item.visionStatus === "done" && item.vision && (
-              <span className="rounded-full bg-brand-500/10 px-3 py-1 text-sm font-medium text-brand-300">
+              // Same bar as the scanner's Ready gate (LOW_CONFIDENCE) — below
+              // it the chip turns amber so the "Check match" status has a
+              // visible reason right next to the card.
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-medium ${
+                  item.vision.confidence < LOW_CONFIDENCE
+                    ? "bg-amber-400/10 text-amber-300"
+                    : "bg-brand-500/10 text-brand-300"
+                }`}
+                title={
+                  item.vision.confidence < LOW_CONFIDENCE
+                    ? "The photo was hard to read — confirm this is the right card before listing"
+                    : undefined
+                }
+              >
                 Read from photo
-                {item.vision.confidence < 0.5 ? " · low confidence" : ""}
+                {item.vision.confidence < LOW_CONFIDENCE
+                  ? ` · ${Math.round(item.vision.confidence * 100)}% sure — check the match`
+                  : ""}
               </span>
             )}
           </div>

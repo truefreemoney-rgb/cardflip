@@ -102,9 +102,16 @@ export interface VisionCardRead {
   condition: string | null;
   /** What drove the condition call — edge wear, centering, surface scratches. */
   conditionNotes: string | null;
-  /** 0-1. Below ~0.5 the scanner should treat this as a guess. */
+  /** 0-1. Below LOW_CONFIDENCE the scanner treats this as a guess. */
   confidence: number;
 }
+
+/**
+ * Vision confidence below which a scan is never auto-"Ready": it lands as
+ * Check match and the editor flags the read. 0.6 — the prompt caps binder /
+ * multi-card / unreadable-name-band shots at 0.5, so those always fall under.
+ */
+export const LOW_CONFIDENCE = 0.6;
 
 export type VisionStatus = "idle" | "unconfigured" | "done" | "error" | "quota";
 
