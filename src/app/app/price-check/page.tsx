@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
+import { confirmAction } from "@/components/ConfirmDialog";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
 import GameToggle from "@/components/GameToggle";
@@ -170,7 +171,7 @@ export default function PriceCheckPage() {
   }
 
   async function clearHistory() {
-    if (!window.confirm(`Clear all ${history.length} lookups? This can't be undone.`)) return;
+    if (!(await confirmAction({ message: `Clear all ${history.length} lookups? This can't be undone.`, confirmLabel: "Clear all" }))) return;
     const before = history;
     setHistory([]);
     const ok = await clearPriceChecks();

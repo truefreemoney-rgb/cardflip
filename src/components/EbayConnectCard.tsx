@@ -8,6 +8,7 @@ import {
   fetchEbayStatus,
   type EbayLinkStatus,
 } from "@/lib/client/ebayApi";
+import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 
 /**
  * Plain-English mirror of USER_SCOPES in lib/server/ebayAuth.ts — the consent
@@ -83,7 +84,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
   async function handleDisconnect() {
     // Reconnecting means going back through eBay's consent screen — worth
     // one confirmation before throwing the tokens away.
-    if (!window.confirm("Disconnect your eBay account? You can reconnect any time, but you'll go through eBay's sign-in again.")) return;
+    if (!(await confirmAction({ message: "Disconnect your eBay account? You can reconnect any time, but you'll go through eBay's sign-in again.", confirmLabel: "Disconnect" }))) return;
     setDisconnectError(null);
     setBusy(true);
     const ok = await disconnectEbay();
@@ -130,6 +131,9 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
 
   return (
     <div className="foil-edge relative w-full max-w-md rounded-2xl p-8 text-center shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
+      {/* This card renders outside the app shell (connect-ebay, signup), so
+          the confirm dialog needs its own host; inert when Toaster's is up. */}
+      <ConfirmHost />
       <div
         className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${
           connected

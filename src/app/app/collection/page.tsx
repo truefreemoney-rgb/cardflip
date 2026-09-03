@@ -16,6 +16,7 @@ import {
   type ServerCard,
 } from "@/lib/client/cardsApi";
 import { fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
+import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { estimatedEbayFees, netAfterFees } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
@@ -274,9 +275,11 @@ export default function CollectionPage() {
     const pct = Math.min(50, Math.max(5, Math.round(offerPercent) || 10));
     const discounted = card.price * (1 - pct / 100);
     if (
-      !window.confirm(
-        `Send ${pct}% off ${card.cardName} ($${card.price.toFixed(2)} → $${discounted.toFixed(2)}) to everyone watching it? This emails real buyers and can't be recalled.`,
-      )
+      !(await confirmAction({
+        message: `Send ${pct}% off ${card.cardName} ($${card.price.toFixed(2)} → $${discounted.toFixed(2)}) to everyone watching it? This emails real buyers and can't be recalled.`,
+        confirmLabel: "Send offer",
+        danger: false,
+      }))
     )
       return;
     setOfferSending(card.id);
@@ -293,9 +296,11 @@ export default function CollectionPage() {
   async function saveAutoOfferSetting(on: boolean, percent: number) {
     const pct = Math.min(50, Math.max(5, Math.round(percent) || 10));
     if (on && !autoOfferOn) {
-      const ok = window.confirm(
-        `Turn on auto-offers? Once a day, CardFlip will send ${pct}% off to watchers of listings that have sat for 14+ days (max 10 offers a day, each listing offered once). Every send emails real buyers.`,
-      );
+      const ok = await confirmAction({
+        message: `Turn on auto-offers? Once a day, CardFlip will send ${pct}% off to watchers of listings that have sat for 14+ days (max 10 offers a day, each listing offered once). Every send emails real buyers.`,
+        confirmLabel: "Turn on",
+        danger: false,
+      });
       if (!ok) return;
     }
     setAutoOfferSaving(true);
@@ -323,7 +328,7 @@ export default function CollectionPage() {
   async function remove(card: ServerCard) {
     // Deleting is the one action here with no undo — say so once.
     const label = card.status === "sold" ? "this sold record" : "this card";
-    if (!window.confirm(`Remove ${label} (${card.cardName}) from your collection? This can't be undone.`)) return;
+    if (!(await confirmAction({ message: `Remove ${label} (${card.cardName}) from your collection? This can't be undone.`, confirmLabel: "Remove" }))) return;
     const index = cards.findIndex((c) => c.id === card.id);
     setSyncError(null);
     setCards((prev) => prev.filter((c) => c.id !== card.id));
@@ -382,7 +387,7 @@ export default function CollectionPage() {
       return card && card.status !== "listed";
     });
     if (ids.length === 0) return;
-    if (!window.confirm(`Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.`)) return;
+    if (!(await confirmAction({ message: `Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.`, confirmLabel: `Delete ${ids.length}` }))) return;
     setBulkDeleting(true);
     setSyncError(null);
     const removed = cards.filter((c) => ids.includes(c.id));

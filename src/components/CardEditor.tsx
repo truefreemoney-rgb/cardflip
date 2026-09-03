@@ -268,26 +268,22 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // Slab comps: what copies at exactly this grade are listed for on eBay.
   // Fetched when the seller sets/changes the grade — turns the "raw market
   // is only a floor" note into a real graded number (Chris, 09-02).
-  const [gradedComps, setGradedComps] = useState<{ average: number; count: number } | null>(null);
-  const [gradedCompsLoading, setGradedCompsLoading] = useState(false);
+  // Fetched value + derived view. Everything shown derives during render —
+  // cache hits apply instantly with no setState-in-effect (the lint rule that
+  // broke CI), and while a new grade loads the previous fetched number stays
+  // on screen (the double-jump fix). settledKey ends the loading state even
+  // when a failed fetch caches nothing.
+  const [fetchedGradedComps, setFetchedGradedComps] = useState<{ average: number; count: number } | null>(null);
+  const [gradedSettledKey, setGradedSettledKey] = useState("");
   const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
+  const gradedCacheHit = gradeKey ? gradedCompsCache.get(gradeKey) : undefined;
+  const gradedComps = !gradeKey ? null : gradedCacheHit !== undefined ? gradedCacheHit : fetchedGradedComps;
+  const gradedCompsLoading = Boolean(gradeKey) && gradedCacheHit === undefined && gradedSettledKey !== gradeKey;
   useEffect(() => {
-    if (!gradeKey || !card || !item.grading) {
-      setGradedComps(null);
-      return;
-    }
-    // Cached grade: apply instantly — flipping between grades you've already
-    // looked at shouldn't wait on eBay again (Chris, 09-02: the lag).
-    const hit = gradedCompsCache.get(gradeKey);
-    if (hit !== undefined) {
-      setGradedComps(hit);
-      return;
-    }
-    // While the new grade loads, KEEP the previous graded number on screen —
-    // resetting to null mid-flight made the chart double-jump (graded → raw
-    // → new graded).
+    if (!gradeKey || !card || !item.grading) return;
+    // Cached grade: rendered from the cache directly — nothing to fetch.
+    if (gradedCompsCache.get(gradeKey) !== undefined) return;
     let stale = false;
-    setGradedCompsLoading(true);
     void fetchEbayComps(card, item.grading).then((res) => {
       const value =
         res.comps && res.comps.count >= 2
@@ -296,8 +292,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       // Cache even the misses so a grade with no market doesn't refetch per flip.
       if (res.status === "done" || res.status === "empty") gradedCompsCache.set(gradeKey, value);
       if (stale) return;
-      setGradedCompsLoading(false);
-      setGradedComps(value);
+      setGradedSettledKey(gradeKey);
+      setFetchedGradedComps(value);
       // Warm the grades either side of this one in the background — sellers
       // flip between adjacent grades comparing prices, and a warm cache makes
       // that instant (rate limit is 60/min; two extra calls is nothing).

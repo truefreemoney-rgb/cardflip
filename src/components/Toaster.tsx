@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ConfirmHost from "@/components/ConfirmDialog";
 
 /**
  * Tiny toast bus: `toast("Added to wishlist")` from anywhere on the client,
@@ -48,10 +49,12 @@ export default function Toaster() {
     };
   }, []);
 
-  if (items.length === 0) return null;
-
+  // ConfirmHost stays mounted in both branches — remounting it mid-dialog
+  // would drop an open confirm and leave its promise unresolved.
   return (
-    <div
+    <>
+    <ConfirmHost />
+    {items.length > 0 && <div
       className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 px-4"
       aria-live="polite"
       role="status"
@@ -86,6 +89,7 @@ export default function Toaster() {
           )}
         </div>
       ))}
-    </div>
+    </div>}
+    </>
   );
 }

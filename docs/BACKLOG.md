@@ -43,9 +43,9 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] **1. Scan model margin** — DONE 09-02: A/B on 64 prod photos = identical identification, Sonnet 2.5x cheaper ($0.011 vs $0.028/scan); vision.ts switched (63c1f8e), on origin/main + deployed 09-02 am
 - [ ] **2. PSA at scale** — 100/day dies in an hour at volume. Need the paid/raised tier (email pending) or feature-flag graded verify off at launch
 - [ ] **3. Replace the shared demo account** — one communal wiped-per-visit account cannot serve thousands of simultaneous visitors; becomes per-visitor sandbox or a real free tier (free tier also = the CollX-proven funnel; ~10¢/user/mo at Sonnet prices)
-- [ ] **4. Durable rate limits** — port the PSA db-counter pattern to every limiter that guards money (vision/scan quota especially); in-memory limiters don't bind on serverless (proven 09-02)
+- [x] **4. Durable rate limits** — DONE 09-02 (6eed61f, deployed): dayBudget.ts db counters on vision scans (500/day/user, 60/day demo) + PSA route ported to the shared helper; per-minute burst caps stay in-memory by design. Monthly 500 quota was already durable.
 - [ ] **5. eBay app-level call limits** — one keyset serves all sellers; apply for eBay rate-limit increase BEFORE launch (application takes time)
-- [~] **6. Support surface** — /help FAQ SHIPPED 09-02 (f49e10d: 13 articles w/ stable anchor ids for deep-linking, footer link; facts verified against code; same commit refreshed stale privacy/terms — Stripe live, Vercel/Turso, eBay present-tense). Remaining: error states deep-link to /help#ids; move support@cardflip.io out of personal Fastmail triage; onboarding tour
+- [~] **6. Support surface** — /help FAQ SHIPPED 09-02 (f49e10d: 13 articles w/ stable anchor ids for deep-linking, footer link; facts verified against code; same commit refreshed stale privacy/terms — Stripe live, Vercel/Turso, eBay present-tense). Error-state deep-links SHIPPED 09-02 (9b80008: quota banner, reprice toast, PSA error, offers panel) + Help section on the account page (270a752). Remaining: move support@cardflip.io out of personal Fastmail triage; onboarding tour (also on backburner)
 - [ ] **7. Infra tiers** — Vercel/Turso plan review + connection behavior at 10k+ users
 - [ ] **8. MD LLC** — $250k/mo through a sole proprietorship = liability/tax problem; LLC also solves the Stripe address blocker in one move
 - [ ] **9. Soft-launch cohort FIRST** — few hundred users, 2 weeks: measure conversion, churn, real scans/user before ad spend (sets the CAC ceiling; ads amplify what exists)
@@ -60,7 +60,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] CGC cert lookup — their API is tough to get (Chris checked 09-01)
 - [x] Listed-for price shown on sold rows — DONE 09-02 (un-parked by Chris): sold rows show "listed $X" under net/sold when it differs; the ask survives the sale so it was UI-only
 - [ ] Off-site backup copy (S3/Drive) on top of the nightly local Turso dump
-- [ ] Root SPF record superiormarketing.com (optional); PriceCharting API if deeper history wanted
+- [ ] PriceCharting API if deeper history wanted. (Root-SPF note for superiormarketing.com REMOVED 09-02 by Chris — that domain only ever sent CardFlip mail pre-08-31; all sending is support@cardflip.io with its own SPF/DKIM now, so it is personal-domain hygiene, not a CardFlip item)
 - [ ] RevealScene: do NOT rebuild without asking (RevealStrike stays as is)
 
 ## 1. Known bugs / open issues
@@ -88,7 +88,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] S — Rotate PRD Cert ID — done 08-27 (it had been set as `EBAY_CLIENT_ID` and was therefore leaking in public redirect URLs; old key in 30-day grace). Deletion-endpoint verification token also replaced the same day.
 - [x] S — "Scanning" chip pulses + spinner spins under reduced motion (.chip-working exemption, 08-17)
 - [x] S — MTG wishlist re-pricing — rows now carry `game` + `card_id` (08-16 late); rows saved before then default to Pokémon
-- → §0 (backburner): Root SPF record superiormarketing.com (optional)
+- → §0 (backburner): ~~Root SPF record superiormarketing.com~~ removed 09-02 — obsolete once sending moved to cardflip.io
 - → §0 (pre-launch blockers) S — **Stripe shows Chris's HOME address** on customer receipts/emails (re-surfaced 09-01 — was never written down, got lost). Fix: Stripe dashboard → Settings → Business details → replace with a non-home address. PRE-LAUNCH BLOCKER per the 09-01 Stripe session (STATE "WAITING ON CHRIS" — recovered 09-01 after falling out of the compiled lists). PO boxes REJECTED by Stripe (verified). Chris picks: UPS Store mailbox (easiest), iPostal1-style virtual address (~$10-15/mo), or MD LLC registered agent (LLC worth a pre-launch think). Deadline: before the first real subscriber.
 - → §0 (pre-launch blockers) S — Stripe polish (from same session, also recovered): branding logo/color; verify Settings→Emails "Successful payments" toggle; OPTIONAL live-key rotation (sk_live passed through chat 09-01 — dashboard roll + rerun scripts/flip-stripe-live.mjs after updating .env.local).
 - → §0 (backburner): RevealStrike leave as is; RevealScene don't rebuild without asking.
