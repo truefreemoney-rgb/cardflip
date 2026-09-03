@@ -72,6 +72,26 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Net comes from lib/fees.ts: the Finances-API actual fee once the sync has
 // recorded one (card.soldFees), the 13.25%+$0.30 estimate until then.
 
+/**
+ * The three-line ledger under a money tile: label left, signed amount right
+ * on a tabular column, so "asking − fees − postage = the big number" reads
+ * at a glance (Chris, 09-03: the one-line version was "kinda sloppy").
+ */
+function Breakdown({ rows }: { rows: [string, number][] }) {
+  return (
+    <dl className="mt-2.5 space-y-0.5 border-t border-edge/60 pt-2 text-[11px]">
+      {rows.map(([label, amount]) => (
+        <div key={label} className="flex items-baseline justify-between gap-2">
+          <dt className="truncate text-zinc-500">{label}</dt>
+          <dd className={`shrink-0 tabular-nums ${amount < 0 ? "text-zinc-400" : "text-zinc-300"}`}>
+            {amount < 0 ? "−" : ""}${Math.abs(amount).toFixed(2)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 // Outside the component so the render-purity lint can see these only run on
 // click, not during render. (No "mark listed" any more — Chris, 09-03:
 // a draft is a draft until the app publishes it, then it turns Live by
@@ -370,7 +390,9 @@ export default function CollectionPage() {
         ? gaps.reduce((sum, days) => sum + days, 0) / gaps.length
         : null;
 
-    return { drafts, listed, sold, earned, net, feesExact, inPlay, inPlayGross, avgDays };
+    const inPlayCopies = [...drafts, ...listed].reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
+    const soldCopies = sold.filter((c) => c.soldPrice != null).length;
+    return { drafts, listed, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
   }, [cards]);
 
   function toggleSelected(id: string) {
@@ -522,12 +544,19 @@ export default function CollectionPage() {
         </div>
         <div className="rounded-2xl border border-edge bg-surface-1 p-4">
           <p className="text-xs text-zinc-500">In play</p>
-          <p className="mt-1 text-xl font-semibold text-white">
+          <p className="mt-1 font-display text-xl font-semibold text-white">
             ${stats.inPlay.toFixed(2)}
           </p>
-          <p className="text-[11px] text-zinc-600">
-            drafts + live listings · after eBay fees &amp; postage · ${stats.inPlayGross.toFixed(2)} asking
-          </p>
+          <p className="text-[11px] text-zinc-600">take-home if every draft and live listing sells</p>
+          {/* The math, as a ledger: asking, less fees, less postage. Numbers
+              align on a tabular column so the eye can subtract. */}
+          <Breakdown
+            rows={[
+              ["Asking", stats.inPlayGross],
+              ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
+              [`Postage · ${stats.inPlayCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.inPlayCopies * POSTAGE_USD)],
+            ]}
+          />
         </div>
         <div className="rounded-2xl border border-edge bg-surface-1 p-4">
           {/* The big number is the money that actually reached the seller --
@@ -535,15 +564,22 @@ export default function CollectionPage() {
               and the fee estimate drop to the detail line (Chris, 08-31:
               sellers need to see the sale the way admin does). */}
           <p className="text-xs text-zinc-500">Earned</p>
-          <p className="mt-1 text-xl font-semibold text-emerald-400">
+          <p className="mt-1 font-display text-xl font-semibold text-emerald-400">
             ${stats.net.toFixed(2)}
           </p>
           <p className="text-[11px] text-zinc-600">
             {stats.sold.length} sold
-            {stats.sold.length > 0 && ` · ${stats.earned.toFixed(2)} gross · ${stats.feesExact ? "" : "≈"}${(stats.earned - stats.net).toFixed(2)} fees + postage`}
-            {stats.avgDays !== null &&
-              ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
+            {stats.avgDays !== null && ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
           </p>
+          {stats.sold.length > 0 && (
+            <Breakdown
+              rows={[
+                ["Sold for", stats.earned],
+                [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
+                [`Postage · ${stats.soldCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.soldCopies * POSTAGE_USD)],
+              ]}
+            />
+          )}
         </div>
       </div>
 
