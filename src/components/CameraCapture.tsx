@@ -61,6 +61,65 @@ const CONTENT_STDDEV = 28;
 const NEW_CARD_DIFF = 25;
 const SIG_W = 24;
 const SIG_H = 32;
+/** Card-likeness gate (09-03, Chris: auto "was taking random pictures
+    without a card in front of it" — every false fire costs a scan). A
+    printed card has detail in most of the guide AND horizontal structure
+    (name bar / art frame / text box). A table, mat, hand or shadow has
+    contrast but not that shape. Signature is split into a 4×4 grid; a cell
+    counts when its local std-dev clears CELL_STDDEV. */
+const CELL_STDDEV = 12;
+/** Cells (of 16) that must have detail. */
+const CARD_CELLS = 9;
+/** Row-to-row mean-luminance jumps that count as a horizontal edge. */
+const ROW_EDGE = 14;
+/** Horizontal edges a card must show (name bar, art, text box ≈ 3+). */
+const CARD_ROW_EDGES = 2;
+
+/**
+ * Contrast-normalised copy of a signature (zero mean, unit std-dev, mapped
+ * back to 0–255) for "is this a different card" comparisons: the phone's
+ * auto-exposure drifting by 25 levels used to read as a card swap and
+ * re-arm auto-scan on the same empty scene.
+ */
+function normalise(sig: Uint8ClampedArray, mean: number, stddev: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(sig.length);
+  const k = 40 / Math.max(stddev, 1);
+  for (let i = 0; i < sig.length; i++) out[i] = 128 + (sig[i] - mean) * k;
+  return out;
+}
+
+function looksLikeCard(sig: Uint8ClampedArray): boolean {
+  const cw = SIG_W / 4;
+  const ch = SIG_H / 4;
+  let cells = 0;
+  for (let cy = 0; cy < 4; cy++) {
+    for (let cx = 0; cx < 4; cx++) {
+      let sum = 0;
+      let sq = 0;
+      for (let y = 0; y < ch; y++) {
+        for (let x = 0; x < cw; x++) {
+          const v = sig[(cy * ch + y) * SIG_W + cx * cw + x];
+          sum += v;
+          sq += v * v;
+        }
+      }
+      const n = cw * ch;
+      const m = sum / n;
+      if (Math.sqrt(Math.max(0, sq / n - m * m)) > CELL_STDDEV) cells++;
+    }
+  }
+  if (cells < CARD_CELLS) return false;
+  let edges = 0;
+  let prevRow = -1;
+  for (let y = 0; y < SIG_H; y++) {
+    let sum = 0;
+    for (let x = 0; x < SIG_W; x++) sum += sig[y * SIG_W + x];
+    const row = sum / SIG_W;
+    if (prevRow >= 0 && Math.abs(row - prevRow) > ROW_EDGE) edges++;
+    prevRow = row;
+  }
+  return edges >= CARD_ROW_EDGES;
+}
 
 /**
  * Room between the guide and the viewfinder's edge for the ✕ / torch /
@@ -363,8 +422,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
 
       if (motion > MOVING_MOTION) movedSinceCapture = true;
 
-      const hasContent = stddev > CONTENT_STDDEV;
-      const isNew = !lastCaptured || meanAbsDiff(sig, lastCaptured) > NEW_CARD_DIFF;
+      const hasContent = stddev > CONTENT_STDDEV && looksLikeCard(sig);
+      const norm = normalise(sig, mean, stddev);
+      const isNew = !lastCaptured || meanAbsDiff(norm, lastCaptured) > NEW_CARD_DIFF;
       const armed = hasContent && isNew && movedSinceCapture;
 
       if (!armed) {
@@ -376,7 +436,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
         steady += motion < STEADY_MOTION ? 4 : motion < SHIMMER_MOTION ? 2 : 1;
         show("settling");
         if (steady >= STEADY_POINTS) {
-          lastCaptured = sig;
+          lastCaptured = norm;
           movedSinceCapture = false;
           steady = 0;
           show("captured");
