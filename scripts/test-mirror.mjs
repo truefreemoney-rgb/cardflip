@@ -182,35 +182,44 @@ function writeSeed({ series, mtime }) {
   utimesSync(seedGz, mtime, mtime);
 }
 
-const q1 = async (sql) => (await db.prepare(sql).get());
+// This section must read and write through the SAME SQLite library
+// seedMtgMirror uses internally (node:sqlite), NOT the libsql `db` client.
+// The app runs the file in WAL mode (db.ts), and libsql ↔ node:sqlite WAL
+// visibility across connections is platform-dependent: on Linux CI a libsql
+// write wasn't seen by seedMtgMirror's node:sqlite reader, so the Run B merge
+// found nothing and the read-back missed the replace (green on Windows, red
+// on CI). Two node:sqlite connections coordinate WAL correctly, cross-platform.
+const prodDb = new DatabaseSync(path.join(work, "data", "cardflip.db"));
+prodDb.exec("PRAGMA busy_timeout = 5000");
+const q1 = (sql) => prodDb.prepare(sql).get();
 
 // Run A: fresh import copies mirror, sets, history and the TCGplayer map.
 writeSeed({ series: [{ cardId: "lea-232", startDay: "2026-01-01", prices: [9.99, 7], updatedDay: "2026-01-02" }], mtime: 1000 });
 await seedMtgMirror();
-check("fresh seed: mirror copied", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 2);
-check("fresh seed: sets copied", (await q1("SELECT COUNT(*) AS n FROM mtg_sets")).n, 1);
+check("fresh seed: mirror copied", q1("SELECT COUNT(*) AS n FROM mtg_cards").n, 2);
+check("fresh seed: sets copied", q1("SELECT COUNT(*) AS n FROM mtg_sets").n, 1);
 check("fresh seed: seed-only price series straight-copied",
-  (await q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'"))?.prices, "[9.99,7]");
+  q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'")?.prices, "[9.99,7]");
 check("fresh seed: tcgplayer map copied",
-  (await q1("SELECT card_id FROM tcgplayer_products WHERE product_id = 1234"))?.card_id, "lea-232");
+  q1("SELECT card_id FROM tcgplayer_products WHERE product_id = 1234")?.card_id, "lea-232");
 
 // Marker: same seed mtime again is a no-op even after prod loses rows.
-await db.prepare("DELETE FROM mtg_cards WHERE id = 'lea-48'").run();
+prodDb.prepare("DELETE FROM mtg_cards WHERE id = 'lea-48'").run();
 await seedMtgMirror();
-check("marker: unchanged seed is a no-op", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 1);
+check("marker: unchanged seed is a no-op", q1("SELECT COUNT(*) AS n FROM mtg_cards").n, 1);
 
 // Run B: prod is FRESHER but incomplete (the 08-16 bug) → replaced anyway.
 // Prod's own price point must survive the merge; the seed's extra day fills in.
-await db.prepare("UPDATE mtg_cards SET synced_at = 9999999999").run();
-await db.prepare("UPDATE price_series SET prices = '[5]', updated_day = '2026-01-05' WHERE card_id = 'lea-232'").run();
+prodDb.prepare("UPDATE mtg_cards SET synced_at = 9999999999").run();
+prodDb.prepare("UPDATE price_series SET prices = '[5]', updated_day = '2026-01-05' WHERE card_id = 'lea-232'").run();
 writeSeed({ series: [{ cardId: "lea-232", startDay: "2026-01-01", prices: [9.99, 7], updatedDay: "2026-01-02" }], mtime: 2000 });
 await seedMtgMirror();
-check("fresh-but-incomplete prod mirror is replaced", (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n, 2);
+check("fresh-but-incomplete prod mirror is replaced", q1("SELECT COUNT(*) AS n FROM mtg_cards").n, 2);
 check("history merge keeps prod's point, fills the seed's gap day",
-  (await q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'"))?.prices, "[5,7]");
+  q1("SELECT prices FROM price_series WHERE card_id = 'lea-232'")?.prices, "[5,7]");
 
 // Run C: prod full (>= 80k floor) AND newer → mirror kept, seed ignored.
-await db.exec(`
+prodDb.exec(`
   WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 80100)
   INSERT INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
     image_url, rarity, type_line, finishes, lang, synced_at)
@@ -218,7 +227,8 @@ await db.exec(`
 writeSeed({ series: [], mtime: 3000 });
 await seedMtgMirror();
 check("full + newer prod mirror is kept",
-  (await q1("SELECT COUNT(*) AS n FROM mtg_cards")).n >= 80_000);
+  q1("SELECT COUNT(*) AS n FROM mtg_cards").n >= 80_000);
 
+prodDb.close();
 console.log(failures === 0 ? "\nAll mirror checks passed" : `\n${failures} mirror check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;
