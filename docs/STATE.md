@@ -34,9 +34,18 @@ Shipped after that, all on main: Copies input removed from the editor
 had held a 3-hour-old bundle through a refresh, private tab fixed it;
 quick sale is a $5+ option, under that quotePrice treats "quick" as market
 and the editor shows one Market tile (8eacbda); My Cards status chip sits
-under the thumbnail (d4a0524). (3) NEXT: Chris is deleting all cards and
-doing a full rescan stress test — expect screenshots/videos; old-scan
-prices below $1.79 are stale, not bugs. Chris is mid stress test —
+under the thumbnail (d4a0524). (3) Session 5 cont. (09-03 eve), all on main, last = c481b19 deployed
+success: Inventory (was My cards) tab/heading; row states Live → "Awaiting
+sale" + "End auction" (POST /api/ebay/end → offer withdraw → ebay_ended_at),
+ended → "Auction ended" pill + Relist/Delete (relist = draft + editor,
+verification kept), sold → Sold + Delete; ended cards have own count/filter
+and are out of In play; editor header makeover (title + Watch, verify strip
+no Undo — verification is final, facts panel, no "Not this card?"); pricing
+labels "Suggested listing price" / at $5+ "Listing price": Quick sale +
+Full value; McDonald's 2024 #1 Charizard art served from public/cards (no
+provider has 2023/2024 sets). NEXT: Chris is running the FINAL stress test
+("last one for a long time") — expect screenshots/videos; fix, push, move on.
+Chris is mid stress test —
 expect more screenshots; the day's rules: TCGplayer current-day point =
 value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
 $0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
