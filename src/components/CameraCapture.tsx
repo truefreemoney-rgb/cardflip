@@ -74,6 +74,56 @@ const CARD_CELLS = 9;
 const ROW_EDGE = 14;
 /** Horizontal edges a card must show (name bar, art, text box ≈ 3+). */
 const CARD_ROW_EDGES = 2;
+/** The guide-edge test (09-03, second round — a backlit keyboard passed the
+    shape test: detail everywhere, rows of horizontal edges). A card IN the
+    guide has a border that differs from the surface around it; a keyboard,
+    mat or desk runs straight through the guide edge. Sampled on a wider
+    thumbnail: the guide plus a margin of EDGE_MARGIN of its size. */
+const EDGE_MARGIN = 0.14;
+const EDGE_W = 40;
+const EDGE_H = 52;
+/** Band width (px of the EDGE thumbnail) either side of the guide edge. */
+const EDGE_BAND = 3;
+/** Luminance gap between just-inside and just-outside that reads as a card edge. */
+const EDGE_LUMA_GAP = 16;
+/** Or a colour gap (max channel) — a yellow Pokémon border on a grey table. */
+const EDGE_CHROMA_GAP = 24;
+
+/**
+ * Is there something sitting IN the guide, as opposed to a scene that
+ * continues through it? `data` is the RGBA of the guide + margin thumbnail.
+ * Compares the mean colour of a band just inside the guide boundary with a
+ * band just outside it.
+ */
+function edgeInGuide(data: Uint8ClampedArray): boolean {
+  const mx = Math.round((EDGE_W * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
+  const my = Math.round((EDGE_H * EDGE_MARGIN) / (1 + 2 * EDGE_MARGIN));
+  const inner = [0, 0, 0, 0];
+  const outer = [0, 0, 0, 0];
+  for (let y = 0; y < EDGE_H; y++) {
+    for (let x = 0; x < EDGE_W; x++) {
+      // Distance to the guide boundary: negative = outside, positive = inside.
+      const dx = Math.min(x - mx, EDGE_W - 1 - mx - x);
+      const dy = Math.min(y - my, EDGE_H - 1 - my - y);
+      const d = Math.min(dx, dy);
+      let acc: number[] | null = null;
+      if (d >= 0 && d < EDGE_BAND) acc = inner;
+      else if (d < 0 && d >= -EDGE_BAND) acc = outer;
+      if (!acc) continue;
+      const i = (y * EDGE_W + x) * 4;
+      acc[0] += data[i];
+      acc[1] += data[i + 1];
+      acc[2] += data[i + 2];
+      acc[3]++;
+    }
+  }
+  if (!inner[3] || !outer[3]) return true;
+  const ir = inner[0] / inner[3], ig = inner[1] / inner[3], ib = inner[2] / inner[3];
+  const or = outer[0] / outer[3], og = outer[1] / outer[3], ob = outer[2] / outer[3];
+  const luma = Math.abs((ir * 299 + ig * 587 + ib * 114) / 1000 - (or * 299 + og * 587 + ob * 114) / 1000);
+  const chroma = Math.max(Math.abs(ir - or), Math.abs(ig - og), Math.abs(ib - ob));
+  return luma > EDGE_LUMA_GAP || chroma > EDGE_CHROMA_GAP;
+}
 
 /**
  * Contrast-normalised copy of a signature (zero mean, unit std-dev, mapped
@@ -218,6 +268,19 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const [flash, setFlash] = useState(false);
   const [auto, setAuto] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
+  // Set when the last capture came back with no match: auto-scan waits for
+  // an empty guide before it will fire again (read by the sampler via the
+  // ref, shown in the status row via the state).
+  const blockedRef = useRef(false);
+  const [blocked, setBlocked] = useState(false);
+  useEffect(() => {
+    if (!lastScan) return;
+    const noMatch = lastScan.status === "review" && !lastScan.card && Boolean(lastScan.error);
+    if (noMatch && !blockedRef.current) {
+      blockedRef.current = true;
+      setBlocked(true);
+    }
+  }, [lastScan]);
   // Lazy initialiser: read the stored preference once, on the client (the
   // modal only ever mounts client-side, after a tap).
   const [fxOn, setFxOn] = useState(() => scanFxEnabled());
@@ -383,6 +446,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     canvas.height = SIG_H;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
+    const edgeCanvas = document.createElement("canvas");
+    edgeCanvas.width = EDGE_W;
+    edgeCanvas.height = EDGE_H;
+    const edgeCtx = edgeCanvas.getContext("2d", { willReadFrequently: true });
+    if (!edgeCtx) return;
 
     let prev: Uint8ClampedArray | null = null;
     let lastCaptured: Uint8ClampedArray | null = null;
@@ -404,6 +472,17 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       // Guide region in video pixels — the same rect the viewfinder draws.
       const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
       ctx.drawImage(video, gx, gy, gw, gh, 0, 0, SIG_W, SIG_H);
+      // Guide + margin, for the edge test. Clamped to the frame — when the
+      // margin would fall off the sensor the test is skipped (returns true).
+      const ex = Math.max(0, gx - gw * EDGE_MARGIN);
+      const ey = Math.max(0, gy - gh * EDGE_MARGIN);
+      const ew = Math.min(video.videoWidth - ex, gw * (1 + 2 * EDGE_MARGIN));
+      const eh = Math.min(video.videoHeight - ey, gh * (1 + 2 * EDGE_MARGIN));
+      edgeCtx.drawImage(video, ex, ey, ew, eh, 0, 0, EDGE_W, EDGE_H);
+      const inGuide =
+        ex === 0 || ey === 0 || ex + ew >= video.videoWidth || ey + eh >= video.videoHeight
+          ? true
+          : edgeInGuide(edgeCtx.getImageData(0, 0, EDGE_W, EDGE_H).data);
       const { data } = ctx.getImageData(0, 0, SIG_W, SIG_H);
       const n = SIG_W * SIG_H;
       const sig = new Uint8ClampedArray(n);
@@ -422,10 +501,16 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
 
       if (motion > MOVING_MOTION) movedSinceCapture = true;
 
-      const hasContent = stddev > CONTENT_STDDEV && looksLikeCard(sig);
+      const hasContent = stddev > CONTENT_STDDEV && looksLikeCard(sig) && inGuide;
       const norm = normalise(sig, mean, stddev);
       const isNew = !lastCaptured || meanAbsDiff(norm, lastCaptured) > NEW_CARD_DIFF;
-      const armed = hasContent && isNew && movedSinceCapture;
+      // After a no-match, auto stays down until the guide has been seen
+      // empty — one bad scene costs one scan, not a stream of them.
+      if (blockedRef.current && stddev < CONTENT_STDDEV) {
+        blockedRef.current = false;
+        setBlocked(false);
+      }
+      const armed = hasContent && isNew && movedSinceCapture && !blockedRef.current;
 
       if (!armed) {
         steady = 0;
@@ -512,7 +597,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       ? "bg-zinc-600"
       : !auto
         ? "bg-zinc-500"
-        : phase === "settling"
+        : blocked
+          ? "bg-amber-400"
+          : phase === "settling"
           ? "bg-holo-pink animate-pulse"
           : phase === "captured"
             ? "bg-emerald-400"
@@ -523,7 +610,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
       ? "Opening the camera…"
       : !auto
         ? "Auto-scan off — tap Capture"
-        : phase === "settling"
+        : blocked
+          ? "No card found — clear the guide, then place the next card"
+          : phase === "settling"
           ? "Hold still…"
           : phase === "captured"
             ? "Captured — swap the card"

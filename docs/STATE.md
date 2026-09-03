@@ -42,6 +42,17 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**AUTO-SCAN FALSE-FIRE, ROUND 2 (09-03 late, Chris phone screenshot: a
+backlit keyboard got auto-captured twice — shape test alone passes it):**
+added (a) edgeInGuide — band just inside the guide vs band just outside
+must differ in luma (>16) or colour (>24); a keyboard/desk runs straight
+through the guide edge and fails, a bordered card passes; black card on a
+black mat fails (manual Capture still works); (b) no-match backoff —
+after a capture returns "No match", auto stays disarmed (status row: "No
+card found — clear the guide…") until the guide is seen empty. If Chris
+still sees false fires on a real scene, the next lever is a server-side
+"is this a card?" pre-check before the paid vision call.
+
 **ALSO SHIPPED SESSION 4 (00fe161): auto-scan false-fire fix** — Chris:
 "taking random pictures without a card, costs people scans". Sampler now
 needs card shape (looksLikeCard: detail in 9/16 cells + ≥2 horizontal row
