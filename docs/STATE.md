@@ -28,8 +28,15 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 makeover) — DONE 09-03 ~3:20pm: deployed (8041feb Production success) and
 Chris said "much better" → YEA, keep it. `gh` CLI is now logged in
 (truefreemoney-rgb, 5000/hr) — use `gh api` for deploy/CI checks, not curl.
-(2) NEXT GATED TASK: Chris's yea/nay on the VERIFY MATCH gate (below) on the
-live site — needs a logged-in scan on his phone. (3) Chris is mid stress test —
+(2) VERIFY MATCH gate: Chris said "looks great" (09-03 ~3:35pm) → YEA.
+Shipped after that, all on main: Copies input removed from the editor
+(3f381b5); Account page build stamp "build <sha>" (4efc2f6) — his iPhone
+had held a 3-hour-old bundle through a refresh, private tab fixed it;
+quick sale is a $5+ option, under that quotePrice treats "quick" as market
+and the editor shows one Market tile (8eacbda); My Cards status chip sits
+under the thumbnail (d4a0524). (3) NEXT: Chris is deleting all cards and
+doing a full rescan stress test — expect screenshots/videos; old-scan
+prices below $1.79 are stale, not bugs. Chris is mid stress test —
 expect more screenshots; the day's rules: TCGplayer current-day point =
 value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
 $0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
