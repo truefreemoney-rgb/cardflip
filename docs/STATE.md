@@ -50,7 +50,11 @@ ranker fixes (numerator can't outvote set total; newest-first ties; promo
 "SVP 212" prefix stripped; scripts/replay-scans.mjs); "Not your card?"
 back (hidden once verified); editor Delete beside Watch; no-art match
 shows a labelled placeholder; catalogue art 661 → 184 missing via
-scripts/fill-images.mjs (see BACKLOG). NEXT (Chris said "tomorrow" =
+scripts/fill-images.mjs (see BACKLOG); scanner BLUR GATE (d79e9bb:
+lib/sharpness.ts, text-band Laplacian variance ≥ 90 at 480px, refuses a
+soft frame ONCE with an amber nudge, next tap always goes through —
+conservative on purpose, Chris hates false fires; raise toward 150 only if
+he asks for a stricter gate). NEXT (Chris said "tomorrow" =
 09-04): the Stripe public-details errand —
 business address + phone that aren't his home/cell (BACKLOG §0 item 1);
 that's his side, I gate on it. Then post-launch cadence: batch weekly.
