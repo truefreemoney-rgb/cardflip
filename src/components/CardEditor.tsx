@@ -1035,19 +1035,38 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   // Remembered per browser — the next scanned card starts here.
                   saveStrategy(value);
                 }}
-                className={`rounded-xl border p-3 text-left transition ${
-                  selectedStrategy === value
-                    ? "border-brand-400 bg-brand-500/10"
-                    : "border-edge bg-surface-1 hover:border-edge-strong"
-                }`}
+                // Two tiles = a choice (selected one lit). One tile = a
+                // summary row, label left, price right — a lone full-width
+                // box read as an empty form (Chris, 09-03).
+                className={
+                  showQuick
+                    ? `rounded-xl border p-3 text-left transition ${
+                        selectedStrategy === value
+                          ? "border-brand-400 bg-brand-500/10"
+                          : "border-edge bg-surface-1 hover:border-edge-strong"
+                      }`
+                    : "flex cursor-default items-center justify-between gap-4 rounded-xl border border-edge bg-surface-1 px-4 py-3 text-left"
+                }
               >
-                <span className="block text-sm font-semibold text-white">
-                  ${amount.toFixed(2)}
-                </span>
-                <span className="block text-xs text-zinc-400">{label}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-zinc-600">
-                  {hint}
-                </span>
+                {showQuick ? (
+                  <>
+                    <span className="block text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</span>
+                    <span className="font-display mt-0.5 block text-xl font-semibold text-white">
+                      ${amount.toFixed(2)}
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-snug text-zinc-500">{hint}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-zinc-200">{label}</span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{hint}</span>
+                    </span>
+                    <span className="font-display shrink-0 text-2xl font-semibold text-white">
+                      ${amount.toFixed(2)}
+                    </span>
+                  </>
+                )}
               </button>
             ))}
           </div>
