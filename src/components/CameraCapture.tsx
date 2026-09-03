@@ -184,10 +184,27 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     // videoWidth is 0 until the stream delivers its first frame.
     if (!video || video.videoWidth === 0) return;
 
+    // Crop to the guide, not the whole sensor frame. The viewfinder dims
+    // everything outside the card-shaped guide, so the seller frames the card
+    // IN the guide — saving the full frame put a small card in a sea of table
+    // (Chris, 09-02: "looks like I'm much closer than the photo comes out").
+    // Same guide geometry as the auto-scan sampler (82% of the height at
+    // 63:88, centered), plus a 5% margin so a card nosing past a bracket
+    // keeps its edge. What's saved is what was framed, 1:1.
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const gh = vh * 0.82;
+    const gw = Math.min(vw, gh * (63 / 88));
+    const pad = gw * 0.05;
+    const sx = Math.max(0, (vw - gw) / 2 - pad);
+    const sy = Math.max(0, (vh - gh) / 2 - pad);
+    const sw = Math.min(vw - sx, gw + pad * 2);
+    const sh = Math.min(vh - sy, gh + pad * 2);
+
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    canvas.width = Math.round(sw);
+    canvas.height = Math.round(sh);
+    canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(
       (blob) => {
