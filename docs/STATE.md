@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-02 ~3:30am ET (session 3 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
+Last updated: 2026-09-03 (session 4 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,36 +23,23 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-02 ~3:30am ET, session 3): RESUME THE MOBILE
-SCANNER HUD MAKEOVER — Chris (phone screenshot): "the scanner is kinda
-messed up, everything overlaps, you can't see the square scan lines
-properly, needs a full makeover." Diagnosis (already read the code, no
-re-read needed beyond the lines below): on a 375px phone the card guide
-(src/components/CameraCapture.tsx ~L402-434: aspect 63/88, h-[82%],
-centered) is nearly the full video width, so everything absolutely-
-positioned over the video collides with it — the top-left auto-scan pill
-(L485-504) + the tally pill under it (L439-452, top-12) overlap the
-guide's top-left bracket; the right column ✕ (L476-483, top-3) / torch
-(L506-519, top-16) / sound (L455-471, top-[7.5rem]) overlap the right
-bracket; the ScanToast "IDENTIFYING / Reading the card…" panel (L566,
-component ScanToast further down) covers the guide's bottom third; the
-whole thing sits in a max-w-lg card with p-4 inside a p-4 backdrop
-(L374-382) wasting width; the bottom buttons (L575-603) wrap ("Done (17
-scanned)"). PLAN: (1) full-bleed on mobile — drop the double padding /
-rounded card below sm, video fills width, height ~70dvh; (2) give each
-element its own zone: a slim status row ABOVE the video (auto-scan state
-+ tally in one line), ScanToast BELOW the video instead of over the
-guide, the ✕/torch/sound column stays on the video but the guide is
-sized so brackets clear it: guide width = min(82%-height*63/88,
-videoWidth - 2*64px); (3) compact bottom controls ("Done · 17"); (4)
-keep the reveal sequence (strike/stamp/burst — DESIGN.md scan-reveal
-section, do NOT rebuild RevealScene) and the .scanner-hud reduced-motion
-exemptions untouched; (5) verify in mobile emulation (resize_window
-mobile; the pane can't do a real camera — the guide/overlay layout can
-be checked with the video element sized as a placeholder) then deploy
-immediately for Chris's yea/nay (memory: visual changes push at once).
-He said the scanner is "unmatched by miles" vs 6 apps — this is layout
-polish, not a scanner rewrite.**
+**FIRST ACTION (saved 09-03, session 4): GET CHRIS'S YEA/NAY ON THE
+SCANNER HUD MAKEOVER (bd636d3, on main → cardflip.io). What shipped: on
+phones the scanner is full-bleed (no double padding / rounded card below
+sm); auto-scan state + running tally are one status row ABOVE the video;
+the result chip (IDENTIFYING / match / no-match) sits BELOW the video in
+its own slot (carries the how-to text until the first scan); only the ✕ /
+torch / sound column stays on the video and the guide is narrowed to clear
+it; bottom buttons are one row ("Done · 17") with safe-area padding. One
+`guideGeometry()` rect (CameraCapture.tsx, top of file) drives the
+viewfinder, the auto-scan sampler and the capture crop — they can't drift
+any more (before, CSS sized the guide and two hand-copied formulas assumed
+82%/centered). Verified in 375×812 emulation with a stubbed camera stream
+(guide right edge x=297, button column x=319; rows 44/614/96/58 = 812, no
+horizontal overflow). NOT verified: a real phone camera / torch present
+(sound toggle then sits at top-[7.25rem]), the reveal sequence in the new
+chip slot, landscape. If Chris says nay on something, it's layout only —
+do not touch the reveal sequence or the scanner logic.**
 
 **ALSO SHIPPED LATE SESSION 3 (all deployed, CI green):** Ready-by-default
 status rule (6e96b6a); camera capture crops to the guide (ba4ba91);
