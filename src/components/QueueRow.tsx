@@ -26,7 +26,10 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
     >
       <button
         onClick={onSelect}
-        className="flex flex-1 items-center gap-3 text-left"
+        // min-w-0: without it the name can't shrink below its longest word,
+        // so on a phone the status chip got clipped ("Check matc") and the ✕
+        // hung 20px past the edge with a scrollbar under the queue (09-02).
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
         <CardImage
           src={item.card?.imageSmall || item.previewUrl}
