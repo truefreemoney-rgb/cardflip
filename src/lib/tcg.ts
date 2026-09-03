@@ -145,6 +145,14 @@ async function fetchWithRetry(
   throw lastError instanceof Error ? lastError : new Error("Upstream request failed");
 }
 
+export class UpstreamError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`Upstream ${status}`);
+    this.status = status;
+  }
+}
+
 export async function queryCards(
   q: string,
   pageSize: number,
@@ -162,7 +170,10 @@ export async function queryCards(
   const timeoutMs = pageSize > 50 ? 20000 : 8000;
 
   const res = await fetchWithRetry(url, headers, revalidate, timeoutMs);
-  if (!res.ok) throw new Error(`Upstream ${res.status}`);
+  // The status rides on the error so callers can tell "the query was
+  // rejected" (4xx — no answer, e.g. a name the grammar can't take) from
+  // "upstream is down" (5xx / network) and answer accordingly.
+  if (!res.ok) throw new UpstreamError(res.status);
 
   const data = await res.json();
   return data.data ?? [];

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
+import { UpstreamError, mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
 import { fetchCjkCardDetail, searchCjkCardsLocal } from "@/lib/server/cjkCards";
 import { getCachedCards, putCachedCards } from "@/lib/server/cardCache";
 import {
@@ -294,6 +294,20 @@ export async function GET(req: NextRequest) {
     await putCachedCards(lang, name, cacheNumber, cards);
     return NextResponse.json({ cards, matchedOn: "name" });
   } catch (err) {
+    // The mirror is the source of truth for English identification; the
+    // pokemontcg.io fallback only runs after the mirror found nothing, to
+    // cover mirror gaps. When that fallback fails — a 400 because its grammar
+    // rejected the name, or a 500 because it's flaky (it was, live, 09-02) —
+    // the honest answer is "no match", not "lookup is down": the 502 here
+    // surfaced as exactly that on the scanner for ~3 in 82 cards during
+    // Chris's stress test. Only a missing mirror is a real outage.
+    if (lang === "en" && (await hasEnglishMirror())) {
+      return NextResponse.json({
+        cards: [],
+        matchedOn,
+        upstream: err instanceof UpstreamError ? err.status : "error",
+      });
+    }
     // Upstream is down. A stale copy is a far better answer than losing the
     // scan — names, sets and numbers don't change, only prices drift.
     const stale = await getCachedCards(lang, name, cacheNumber, true);
