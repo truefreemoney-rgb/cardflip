@@ -117,7 +117,10 @@ export function pickSeries(all: Series[], prefer: string | null | undefined): Se
   if (all.length === 0) return null;
   const usd = all.filter((s) => s.currency === "USD");
   const pool = usd.length ? usd : all;
-  const byPref = prefer ? pool.filter((s) => s.variant === prefer) : [];
+  // The preferred series has to be a line, not a dot: an eBay-asking series
+  // starts the day a card is first priced, and until it has a few points
+  // the longest series (TCGplayer) still tells the better story.
+  const byPref = prefer ? pool.filter((s) => s.variant === prefer && s.points.length >= 3) : [];
   const ranked = (byPref.length ? byPref : pool)
     .slice()
     .sort((a, b) => b.points.length - a.points.length || (a.source === "tcgplayer" ? -1 : 1));
@@ -159,7 +162,10 @@ function shortDay(day: string, withYear = false): string {
   });
 }
 function sourceLabel(s: string): string {
-  return s === "tcgplayer" ? "TCGplayer" : s === "cardmarket" ? "Cardmarket" : s;
+  return s === "tcgplayer" ? "TCGplayer" : s === "cardmarket" ? "Cardmarket" : s === "ebay" ? "eBay" : s;
+}
+function variantLabel(v: string): string {
+  return v === "ebayAverage" ? "asking" : v === "ebaySoldAverage" ? "sold" : v;
 }
 /** Axis-friendly price: whole dollars above $100, cents below. */
 function axisMoney(v: number, currency: Currency): string {
@@ -342,7 +348,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
           <div className={`flex items-baseline gap-2 ${label} text-zinc-500`}>
             <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
             {series && (
-              <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${series.variant}` : ""}</span>
+              <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${variantLabel(series.variant)}` : ""}</span>
             )}
             {scaleLabel && (scaled || exactVariant) && (
               <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300">

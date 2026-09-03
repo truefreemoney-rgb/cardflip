@@ -379,8 +379,29 @@ console.log("\nThe chart's current-day point rebases the quote:");
   );
   check(
     "condition multiplier applies to the current point",
-    quotePrice(card, "Lightly Played", "market", undefined, point(100)).suggested,
-    85,
+    // The point has to be in the same ballpark as the $520 basis to take over (09-03 rule).
+    quotePrice(card, "Lightly Played", "market", undefined, point(300)).suggested,
+    255,
+  );
+  // 09-03 (Hoothoot PRE 077): a cheap card lists on eBay for the shipping
+  // floor; a catalogue point at a fraction of the eBay basis is a different
+  // market, so the eBay basis stays and the tiles agree with the eBay line.
+  const cheapAsk = { ...ebayAsk, market: 1.45, label: "eBay asking (91 listings)" };
+  const cheap = { name: "Test", setName: "Test", prices: [cheapAsk, usd(0.34)] };
+  check(
+    "shipping-floor card: a far-lower catalogue point does not replace the eBay basis",
+    quotePrice(cheap, "Near Mint", "market", undefined, point(0.34)).base,
+    1.45,
+  );
+  check(
+    "shipping-floor card: quick sale undercuts the eBay basis, not the catalogue point",
+    quotePrice(cheap, "Near Mint", "quick", undefined, point(0.34)).suggested,
+    1.28,
+  );
+  check(
+    "same-ballpark point (>= half the basis) still refreshes the eBay basis",
+    quotePrice(cheap, "Near Mint", "market", undefined, point(0.8)).base,
+    0.8,
   );
   check(
     "no point → unchanged behaviour",

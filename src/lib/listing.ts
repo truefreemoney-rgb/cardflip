@@ -319,6 +319,8 @@ export interface CurrentSeriesPoint {
 
 /** A series point older than this is history, not "the current price". */
 const CURRENT_POINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/** A catalogue point below this share of the eBay basis is a different market, not a fresher number. */
+const CROSS_SOURCE_REBASE_FLOOR = 0.5;
 
 /**
  * Whether the chart's point may replace the resolved snapshot price (Chris,
@@ -337,6 +339,18 @@ function pointCanRebase(
   if (!point || point.currency !== "USD" || point.price <= 0) return false;
   if (Date.now() - Date.parse(`${point.day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return false;
   if (explicit) return explicit.source === point.source && explicit.variant === point.variant;
+  // Across sources (eBay-asking basis, TCGplayer point) the point only takes
+  // over when the two describe the same market: a $520 asking average and a
+  // $472 point on a Charizard are one price moving (09-01 rule). A $1.45
+  // asking average over a $0.34 point is the shipping-floor regime — cheap
+  // cards list on eBay for what shipping costs, and the catalogue number is
+  // not a price anyone can sell at — so the eBay basis stays and the tiles
+  // agree with the eBay line (Chris, 09-03 Hoothoot: "pricing makes no
+  // sense" — tiles $0.34, eBay $1.45, saved price $1.29).
+  if (resolved && resolved.source !== point.source) {
+    const basis = resolved.market ?? 0;
+    if (basis > 0 && point.price < basis * CROSS_SOURCE_REBASE_FLOOR) return false;
+  }
   return resolved?.variant !== EBAY_SOLD_VARIANT;
 }
 

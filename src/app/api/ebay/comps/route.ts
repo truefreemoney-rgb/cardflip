@@ -80,6 +80,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // Raw-card asking averages become history too (variant "ebayAverage",
+    // source "ebay"), so the chart can follow the eBay basis the quote uses
+    // once a card has been priced a few times — instead of drawing a
+    // TCGplayer line under an eBay number (Chris, 09-03: "the graph is
+    // wrong too"). Same fire-and-forget as the graded points.
+    if (!grading && comps && comps.count >= 3 && card.id) {
+      void recordPoint(card.id, card.game ?? "pokemon", "ebayAverage", "ebay", "USD", comps.average).catch((err) =>
+        console.error("ebay asking history point failed:", err),
+      );
+    }
+
     let sold = null;
     let soldStatus: "done" | "empty" | "unavailable" = "empty";
     if (soldResult.status === "fulfilled") {
