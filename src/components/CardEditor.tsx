@@ -345,7 +345,18 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // chart's current-day point drives the quote when it's allowed to (see
   // pointCanRebase in lib/listing.ts) — the Market tile and the price history
   // must not tell the seller two different "today" numbers (Chris, 09-01).
-  const currentPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
+  // The page stores the point on the item; the hook here is variant-aware
+  // (1st Edition toggle) and fresher, so when it differs it's written back
+  // onto the item — one point for the tiles, Your price, the queue row and
+  // the ledger alike.
+  const hookPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
+  const currentPoint = hookPoint ?? item.currentPoint ?? null;
+  useEffect(() => {
+    if (!hookPoint) return;
+    if (JSON.stringify(hookPoint) === JSON.stringify(item.currentPoint ?? null)) return;
+    onChange({ currentPoint: hookPoint });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hookPoint]);
 
   async function runSearch() {
     if (!term.trim()) return;

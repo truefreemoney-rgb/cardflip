@@ -403,7 +403,9 @@ export function currentPrice(item: ScanItem): number {
  */
 export function quoteForItem(
   item: ScanItem,
-  currentPoint?: CurrentSeriesPoint | null,
+  // Defaults to the point the page stored on the item, so currentPrice(),
+  // the queue rows and the ledger price agree with the editor's tiles.
+  currentPoint: CurrentSeriesPoint | null | undefined = item.currentPoint,
 ): PriceQuote | null {
   if (!item.card) return null;
   if (item.grading) {

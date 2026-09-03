@@ -130,6 +130,17 @@ export function pickSeries(all: Series[], prefer: string | null | undefined): Se
  * fall back to yesterday's recorded price when the live lookup fails
  * (pokemontcg.io drops about half its requests).
  */
+/** The latest recorded point for a card (preferring `variant`), one-shot — the page stores it on the queue item. */
+export async function lastRecordedPoint(
+  cardId: string,
+  variant?: string | null,
+): Promise<{ price: number; day: string; variant: string; source: string; currency: Currency } | null> {
+  const all = await loadSeries(cardId);
+  const s = pickSeries(all, variant);
+  const last = s?.points[s.points.length - 1];
+  return last && s ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency } : null;
+}
+
 export function useLastRecordedPrice(cardId: string, variant?: string | null) {
   const [state, setState] = useState<{ id: string; point: { price: number; day: string; variant: string; source: string; currency: Currency } | null }>({ id: "", point: null });
   useEffect(() => {

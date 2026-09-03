@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { lastRecordedPoint } from "@/components/PriceHistoryChart";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
@@ -15,17 +16,7 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
-import {
-  buildListing,
-  buildSealedListing,
-  withListingOverrides,
-  currentPrice,
-  describeItemCondition,
-  effectiveVariant,
-  mtgFinishOf,
-  quotePrice,
-  withEbayPrices,
-} from "@/lib/listing";
+import { buildListing, buildSealedListing, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
@@ -103,6 +94,7 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     soldAt: null,
     verifiedAt: null,
     matchDoubt: null,
+    currentPoint: null,
   };
 }
 
@@ -134,6 +126,7 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
   listedAt: row.listedAt,
   verifiedAt: row.verifiedAt ?? null,
   matchDoubt: row.matchDoubt ?? null,
+  currentPoint: null,
     };
     return item;
 }
@@ -517,10 +510,33 @@ export default function AppPage() {
    * not awaited inside the scan loop: a stack of cards should keep moving
    * through OCR while eBay answers, with each price sharpening as it lands.
    */
+  /**
+   * The chart's current point, stored on the item so every consumer prices
+   * off it (see ScanItem.currentPoint). Re-saves the ledger price once it's
+   * known, unless the seller typed one.
+   */
+  const loadCurrentPoint = useCallback(
+    async (id: string, card: PokemonCard) => {
+      const before = itemsRef.current.find((i) => i.id === id);
+      const point = await lastRecordedPoint(card.id, before ? (effectiveVariant(before) ?? null) : null).catch(() => null);
+      const item = itemsRef.current.find((i) => i.id === id);
+      if (!item || item.card?.id !== card.id) return;
+      patchItem(id, { currentPoint: point });
+      if (item.serverId && item.priceOverride == null && item.language === "en" && item.status !== "listed" && item.status !== "sold") {
+        const quote = quoteForItem({ ...item, currentPoint: point });
+        if (quote) void updateServerCard(item.serverId, { price: quote.suggested });
+      }
+    },
+    [patchItem],
+  );
+
   const loadEbayComps = useCallback(
     async (id: string, card: PokemonCard) => {
       compsInFlight.current.add(id);
       patchItem(id, { ebayStatus: "loading" });
+      // The point rides alongside the comps; whichever lands second re-saves
+      // the price, so the ledger ends up on the same number as the screen.
+      void loadCurrentPoint(id, card);
 
       try {
         const result = await fetchEbayComps(card);
@@ -552,7 +568,7 @@ export default function AppPage() {
           // needs to be $0.00"). The comps still render as reference;
           // the seller prices the card themselves.
           if (item.serverId && item.language === "en" && item.status !== "listed" && item.status !== "sold") {
-            const quote = quotePrice(repriced, item.condition, item.strategy);
+            const quote = quoteForItem({ ...item, card: repriced });
             if (quote) {
               void updateServerCard(item.serverId, {
                 price: item.priceOverride ?? quote.suggested,
@@ -572,7 +588,7 @@ export default function AppPage() {
         compsInFlight.current.delete(id);
       }
     },
-    [patchItem],
+    [patchItem, loadCurrentPoint],
   );
 
   // One lookup at a time: as each finishes the queue re-settles and the next
@@ -834,7 +850,7 @@ export default function AppPage() {
     const failedIds: string[] = [];
     for (const item of sendable) {
       const price = currentPrice(item);
-      const quote = quotePrice(item.card!, item.condition, item.strategy, effectiveVariant(item));
+      const quote = quoteForItem(item);
       const listing = withListingOverrides(
         item.kind === "sealed"
           ? buildSealedListing(item.card!, price, item.productType)

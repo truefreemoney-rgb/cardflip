@@ -42,6 +42,19 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**ONE QUOTE PER SCREEN (09-03 night, the real bug behind "everything is
+totally screwed up"):** the editor's tiles quoted with the chart's
+current-day point (useLastRecordedPrice) while Your price, the queue row,
+the header total, the ledger price and bulk send used quoteForItem WITHOUT
+it — two calculators on one screen (Eri PRE 136: tiles $0.91/$1.03, Your
+price + queue $1.83). Fix: ScanItem.currentPoint — the page fetches the
+point (lastRecordedPoint, same fetch/cache as the chart) alongside the
+eBay comps and stores it on the item; quoteForItem defaults to
+item.currentPoint; the editor writes its (variant-aware) hook point back
+onto the item when it differs; whichever of comps/point lands second
+re-saves the ledger price. No pricing RULE changed — this is the 09-01
+rule applied everywhere instead of in one place.**
+
 **PRICING IS BACK TO THE 09-03 MORNING STATE (b42cccd reverts daf236b
 too — Chris was worried, "prices are all messed up still" on Eri PRE
 136/131: Market $2.08 eBay asking vs TCGplayer $1.03). Verified against

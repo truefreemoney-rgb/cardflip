@@ -305,4 +305,14 @@ export interface ScanItem {
    * mismatch can be traced back to the scan that produced it.
    */
   matchDoubt: string | null;
+  /**
+   * The chart's latest daily point for this card (what useLastRecordedPrice
+   * returns), fetched by the page as soon as the card is identified and kept
+   * here so EVERY price on the screen — the tiles, Your price, the queue
+   * row, the saved ledger price, bulk send — is quoted off the same number.
+   * Before this only the editor's tiles had the point (Chris, 09-03 Eri:
+   * tiles $0.91 / $1.03, Your price and queue $1.83 — "everything is
+   * totally screwed up"). Null until loaded, or when the card has none.
+   */
+  currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency } | null;
 }
