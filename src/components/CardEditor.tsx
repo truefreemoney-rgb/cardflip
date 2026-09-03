@@ -21,13 +21,11 @@ import {
   buildListing,
   describeItemCondition,
   canBeFirstEdition,
-  canPriceListing,
   effectiveVariant,
   firstEditionPrice,
   formatMoney,
   ebaySearchUrl,
   ebaySoldSearchUrl,
-  isFirstEditionVariant,
   quoteForItem,
   quotePrice,
   withListingOverrides,
@@ -545,19 +543,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     facts,
   );
   const listing = withListingOverrides(generated, item);
-  // This dropdown chooses what the dollar asking price is derived from, so it
-  // only offers prices that can actually serve as that basis — a euro figure
-  // picked here would silently become a dollar listing price. On eligible
-  // WotC-era cards the 1st Edition rows are owned by the toggle instead, so
-  // the two controls can't contradict each other.
-  const pricedVariants = card.prices.filter(
-    (p) =>
-      p.market &&
-      p.market > 0 &&
-      canPriceListing(p) &&
-      !(firstEdEligible && isFirstEditionVariant(p.variant)),
-  );
-
   async function handleWishlist() {
     if (!card) return;
     setWishlisting(true);
