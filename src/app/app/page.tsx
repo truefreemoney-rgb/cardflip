@@ -208,8 +208,11 @@ export default function AppPage() {
       }
       // Verification is its own checkpoint: it's what unlocks publishing,
       // and it has to outlive this tab (My Cards shows it).
-      if ("verifiedAt" in patch) {
-        void updateServerCard(item.serverId, { verifiedAt: patch.verifiedAt ?? null });
+      if ("verifiedAt" in patch || "matchDoubt" in patch) {
+        void updateServerCard(item.serverId, {
+          ...("verifiedAt" in patch ? { verifiedAt: patch.verifiedAt ?? null } : {}),
+          ...("matchDoubt" in patch ? { matchDoubt: patch.matchDoubt ?? null } : {}),
+        });
       }
     },
     [commit],

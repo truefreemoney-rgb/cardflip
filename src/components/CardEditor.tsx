@@ -262,6 +262,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  // Testing aid (Chris, 09-03): a match the seller changed is a mismatch
+  // worth tracing. Records what the scanner had picked, in the same tag
+  // My Cards and the queue show for a doubtful read.
+  const correctedFrom = (): string | null =>
+    item.card ? `corrected from ${item.card.englishName || item.card.name} (${item.card.setName})`.slice(0, 80) : item.matchDoubt;
   const [wishlisted, setWishlisted] = useState(false);
   const [wishlisting, setWishlisting] = useState(false);
 
@@ -368,6 +373,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           card: found[0],
           status: found.length === 1 ? "ready" : "review",
           verifiedAt: null,
+          matchDoubt: item.card && item.card.id !== found[0].id ? correctedFrom() : item.matchDoubt,
           // Different card, so the old comps no longer describe it — clearing
           // the status re-triggers the lookup for the new match.
           ebay: null,
@@ -774,6 +780,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                       card: c,
                       status: "ready",
                       verifiedAt: null,
+                      matchDoubt: c.id !== card.id ? correctedFrom() : item.matchDoubt,
                       priceOverride: null,
                       variant: null,
                       firstEdition: false,

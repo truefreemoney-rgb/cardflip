@@ -49,6 +49,14 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
                 `${item.card.setName}${item.card.number ? ` · ${displayCardNumber(item.card)}` : ""}`
               : (item.error ?? "Reading card")}
           </span>
+          {item.matchDoubt && (
+            <span
+              className="mt-0.5 inline-block max-w-full truncate rounded-full border border-amber-400/30 px-2 py-0.5 text-[10px] text-amber-300/90"
+              title="The scan wasn't sure, or the match was changed by hand"
+            >
+              ⚠ {item.matchDoubt}
+            </span>
+          )}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">
           {price != null && (
