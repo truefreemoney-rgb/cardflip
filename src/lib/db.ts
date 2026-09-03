@@ -446,6 +446,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Seller pressed "Verify match" on this card (09-03, Chris): eBay
       // publishing is locked until it's set. Null = "Verify match" in the UI.
       "verified_at INTEGER",
+      // Why the scan landed as doubtful ("low-confidence read", "several
+      // printings matched"), null when the read was clean. Shown as a tag in
+      // My Cards so mismatches can be traced back (Chris, 09-03).
+      "match_doubt TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

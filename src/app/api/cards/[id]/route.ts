@@ -35,6 +35,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             ? body.verifiedAt
             : null
           : undefined,
+      matchDoubt:
+        "matchDoubt" in (body ?? {})
+          ? typeof body.matchDoubt === "string"
+            ? body.matchDoubt.slice(0, 80)
+            : null
+          : undefined,
     });
 
     if (!card) {

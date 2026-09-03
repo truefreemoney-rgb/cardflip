@@ -965,6 +965,14 @@ export default function CollectionPage() {
                     {card.status === "ready" ? (card.verifiedAt ? "Active" : "Verify match") : STATUS_LABEL[card.status]}
                   </span>
                 )}
+                {card.matchDoubt && (
+                  <span
+                    className="rounded-full border border-amber-400/30 px-2 py-0.5 text-[11px] text-amber-300/90"
+                    title="The scan wasn't sure about this one — worth a close look before verifying"
+                  >
+                    ⚠ {card.matchDoubt}
+                  </span>
+                )}
 
                 {/* The price is what a seller scans the list FOR -- it reads
                     at a glance now (Chris, 08-31: "make the prices bigger").

@@ -299,4 +299,10 @@ export interface ScanItem {
    * changes. Persisted on the ledger row, so it survives closing the app.
    */
   verifiedAt: number | null;
+  /**
+   * Why the scan landed as doubtful ("low-confidence read", "several
+   * printings matched"), null when the read was clean. Persisted, so a
+   * mismatch can be traced back to the scan that produced it.
+   */
+  matchDoubt: string | null;
 }

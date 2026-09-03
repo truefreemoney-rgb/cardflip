@@ -101,6 +101,7 @@ function createItem(file: File | null, language: ScanLanguage, game: GameId): Sc
     soldPrice: null,
     soldAt: null,
     verifiedAt: null,
+    matchDoubt: null,
   };
 }
 
@@ -398,6 +399,11 @@ export default function AppPage() {
               candidates: matches,
               card,
               error: null,
+              matchDoubt: lowConfidence
+                ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
+                : ambiguous
+                  ? `${matches.length} printings matched, no number read`
+                  : null,
             });
 
             // Vision may already have graded the card, so read the condition
@@ -421,8 +427,13 @@ export default function AppPage() {
             if (server) {
               patchItem(next.id, { serverId: server.id });
               // Verified before the row existed (fast tap): sync it now.
-              const verifiedAt = itemsRef.current.find((i) => i.id === next.id)?.verifiedAt;
-              if (verifiedAt) void updateServerCard(server.id, { verifiedAt });
+              const cur = itemsRef.current.find((i) => i.id === next.id);
+              if (cur?.verifiedAt || cur?.matchDoubt) {
+                void updateServerCard(server.id, {
+                  ...(cur.verifiedAt ? { verifiedAt: cur.verifiedAt } : {}),
+                  ...(cur.matchDoubt ? { matchDoubt: cur.matchDoubt } : {}),
+                });
+              }
               // Persist the seller's own photo now, not at eBay-push time.
               // It is the only image a listing is ever sent (picture policy:
               // the actual item, never catalogue art), and until it reaches
@@ -635,6 +646,7 @@ export default function AppPage() {
         listedPrice: row.status === "listed" ? row.price : null,
         listedAt: row.listedAt,
         verifiedAt: row.verifiedAt ?? null,
+        matchDoubt: row.matchDoubt ?? null,
       };
       commit([...itemsRef.current, item]);
       setSelectedId(item.id);

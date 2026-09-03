@@ -30,6 +30,8 @@ export interface ServerCard {
   watcherOfferAt: number | null;
   /** Seller confirmed the match ("Verify match"); null locks eBay publishing. */
   verifiedAt: number | null;
+  /** Why the scan was doubtful ("low-confidence read", ...), null if clean. */
+  matchDoubt: string | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
@@ -67,6 +69,7 @@ export interface UpdateCardInput {
   soldPrice?: number | null;
   soldAt?: number | null;
   verifiedAt?: number | null;
+  matchDoubt?: string | null;
 }
 
 export async function fetchServerCards(): Promise<ServerCard[]> {
