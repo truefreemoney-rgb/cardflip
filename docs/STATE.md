@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-02 late (day-2 session; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 90`).
+Last updated: 2026-09-02 ~3:30am ET (session 3 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,13 +23,63 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-02 LATE — full day-2 session, all deployed +
+**FIRST ACTION (saved 09-02 ~3:30am ET, session 3): RESUME THE MOBILE
+SCANNER HUD MAKEOVER — Chris (phone screenshot): "the scanner is kinda
+messed up, everything overlaps, you can't see the square scan lines
+properly, needs a full makeover." Diagnosis (already read the code, no
+re-read needed beyond the lines below): on a 375px phone the card guide
+(src/components/CameraCapture.tsx ~L402-434: aspect 63/88, h-[82%],
+centered) is nearly the full video width, so everything absolutely-
+positioned over the video collides with it — the top-left auto-scan pill
+(L485-504) + the tally pill under it (L439-452, top-12) overlap the
+guide's top-left bracket; the right column ✕ (L476-483, top-3) / torch
+(L506-519, top-16) / sound (L455-471, top-[7.5rem]) overlap the right
+bracket; the ScanToast "IDENTIFYING / Reading the card…" panel (L566,
+component ScanToast further down) covers the guide's bottom third; the
+whole thing sits in a max-w-lg card with p-4 inside a p-4 backdrop
+(L374-382) wasting width; the bottom buttons (L575-603) wrap ("Done (17
+scanned)"). PLAN: (1) full-bleed on mobile — drop the double padding /
+rounded card below sm, video fills width, height ~70dvh; (2) give each
+element its own zone: a slim status row ABOVE the video (auto-scan state
++ tally in one line), ScanToast BELOW the video instead of over the
+guide, the ✕/torch/sound column stays on the video but the guide is
+sized so brackets clear it: guide width = min(82%-height*63/88,
+videoWidth - 2*64px); (3) compact bottom controls ("Done · 17"); (4)
+keep the reveal sequence (strike/stamp/burst — DESIGN.md scan-reveal
+section, do NOT rebuild RevealScene) and the .scanner-hud reduced-motion
+exemptions untouched; (5) verify in mobile emulation (resize_window
+mobile; the pane can't do a real camera — the guide/overlay layout can
+be checked with the video element sized as a placeholder) then deploy
+immediately for Chris's yea/nay (memory: visual changes push at once).
+He said the scanner is "unmatched by miles" vs 6 apps — this is layout
+polish, not a scanner rewrite.**
+
+**ALSO SHIPPED LATE SESSION 3 (all deployed, CI green):** Ready-by-default
+status rule (6e96b6a); camera capture crops to the guide (ba4ba91);
+scan_usage ledger + admin 'Vision cost / scan' tiles (b1a5fb9/81ba606);
+landing copy leads with discovery + pricing FAQ truth (737a802); My
+Cards mobile row/toolbar fix (ee90c70); queue-row ✕ clipping fix
+(b2f923a); 'card lookup is down' ROOT CAUSE = pokemontcg.io fallback
+failing after mirror misses → now an honest no-match (cc5572e); the
+mirror misses were APOSTROPHES (vision writes ’, mirror mixes ' and ’) →
+folded both sides + SQL twin + 2 mirror checks (9d3ecff). MEASURED COST
+$0.0071/scan (73 real scans = $0.52) → 62% margin at max usage; pricing
+model holds, keep 500, no packs, no value floor (Chris: user's own
+judgement). PSA parked; TCGplayer parked; Chris's remaining errand =
+Stripe business address. Memories added: ci-verify-actual-run,
+chris-visual-push-immediately, cardflip-mobile-first,
+cardflip-mobile-polish-priority (native apps are the end goal; calm
+weekly releases after POC launch; written phone QA pass gates launch).**
+
+**PREVIOUS FIRST ACTION (saved 09-02 LATE — full day-2 session, all deployed +
 CI genuinely green b927454, main = vercel-migration = origin, tree
 clean): NO pending deploy. Present Chris ONE gated task: the last POC
 blocker is Stripe business address + phone (Public details → Customer-
 facing info; UPS Store mailbox easiest, PO boxes rejected; swap the
 personal cell for a Google-Voice-style number). Everything else is
 done or parked.**
+
+**COST FACT (09-02 night, measured): $0.0071/scan on Sonnet with real phone photos (73 scans = $0.52 on the console). 500/mo worst case = $3.56 → 62% margin; pricing model holds. Ledger: scan_usage table + admin "Vision cost / scan" tile.**
 
 **SHIPPED TODAY (day 2, ~9 commits, each live-verified):**
 - Durable daily budgets (6eed61f): dayBudget.ts db counters on vision
