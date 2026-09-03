@@ -583,6 +583,11 @@ function AccountSettings({
           <a href="mailto:support@cardflip.io" className="text-sm text-zinc-400 transition hover:text-zinc-200">
             support@cardflip.io
           </a>
+          {/* Build stamp: which deploy this phone is actually running (09-03:
+              Chris's iPhone kept an hours-old bundle through a refresh). */}
+          <span className="ml-auto text-[11px] text-zinc-600">
+            build {process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) || "dev"}
+          </span>
         </div>
       </Section>
 
