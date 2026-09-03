@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
-import { effectiveVariant, formatMoney, quotePrice } from "@/lib/listing";
+import { currentPrice, formatMoney } from "@/lib/listing";
 import {
   fxCapture,
   fxMatch,
@@ -650,14 +650,16 @@ const TIER_STYLE: Record<
  * confidence shows only when vision reported one.
  */
 /**
- * The market figure the chip shows — the SAME quote the editor's Market tile
- * and the queue use (chart point included, see ScanItem.currentPoint), not
- * the raw eBay-first pick (Chris, 09-03 Eri: chip $2.10, everything else
- * $1.03 / $0.91).
+ * The figure the chip shows: the card's LISTING price — the same number as
+ * the queue row, the header tally and Your price (currentPrice: shared
+ * quote, chart point, fee-aware floor). Chris, 09-03: the chip said $1.03
+ * (market value) while the tally said $1.79 (floored listing price) —
+ * "still shows the old price". One number, everywhere.
  */
 function revealMarket(item: ScanItem): number | null {
   if (!item.card) return null;
-  return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item), item.currentPoint)?.base ?? null;
+  const price = currentPrice(item);
+  return price > 0 ? price : null;
 }
 
 function RevealChip({ item }: { item: ScanItem }) {
@@ -706,7 +708,7 @@ function RevealChip({ item }: { item: ScanItem }) {
                 ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
                 : formatMoney(counted, "USD")}
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">list price</p>
           </>
         ) : (
           <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">no price yet</p>
