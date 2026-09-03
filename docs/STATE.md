@@ -23,23 +23,18 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-03, session 4): GET CHRIS'S YEA/NAY ON THE
-SCANNER HUD MAKEOVER (bd636d3, on main → cardflip.io). What shipped: on
-phones the scanner is full-bleed (no double padding / rounded card below
-sm); auto-scan state + running tally are one status row ABOVE the video;
-the result chip (IDENTIFYING / match / no-match) sits BELOW the video in
-its own slot (carries the how-to text until the first scan); only the ✕ /
-torch / sound column stays on the video and the guide is narrowed to clear
-it; bottom buttons are one row ("Done · 17") with safe-area padding. One
-`guideGeometry()` rect (CameraCapture.tsx, top of file) drives the
-viewfinder, the auto-scan sampler and the capture crop — they can't drift
-any more (before, CSS sized the guide and two hand-copied formulas assumed
-82%/centered). Verified in 375×812 emulation with a stubbed camera stream
-(guide right edge x=297, button column x=319; rows 44/614/96/58 = 812, no
-horizontal overflow). NOT verified: a real phone camera / torch present
-(sound toggle then sits at top-[7.25rem]), the reveal sequence in the new
-chip slot, landscape. If Chris says nay on something, it's layout only —
-do not touch the reveal sequence or the scanner logic.**
+**FIRST ACTION (saved 09-03, session 4): NO pending deploy, tree clean,
+main = vercel-migration = origin, CI green. Present Chris ONE gated task:
+the last POC blocker is Stripe business address + phone (BACKLOG.md line
+11 — Public details → Customer-facing info; UPS Store mailbox easiest, PO
+boxes rejected; swap the personal cell for a Google-Voice-style number).
+It is a dashboard errand only he can do. Everything else is done or parked.**
+
+**SHIPPED SESSION 4 (bd636d3, Chris 09-03: "it looks great"):** scanner HUD
+makeover — full-bleed on phones, status row (auto-scan state + tally) above
+the video, result chip below it, only ✕/torch/sound on the video, guide
+narrowed to clear them; one `guideGeometry()` rect drives the viewfinder,
+auto-scan sampler and capture crop. Layout only; reveal sequence untouched.
 
 **ALSO SHIPPED LATE SESSION 3 (all deployed, CI green):** Ready-by-default
 status rule (6e96b6a); camera capture crops to the guide (ba4ba91);
