@@ -42,6 +42,21 @@ ready/review unchanged — only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
+**PRINTING WORK SCRATCHED (Chris, 09-03 late: "scratch the whole idea for
+now, remove the printing section and revert it back to how it was"):**
+the printing-aware eBay comps commit (e247208: comps searched per printing,
+dropdown = printings only, quote prefers the printing's own eBay row) is
+REVERTED (9249f16); the Printing dropdown is gone from CardEditor
+(7403f62); the scan no longer sets item.variant from the photo's finish.
+Quotes sit on the eBay-first default basis (pickPrice: eBay sold → eBay
+asking → normal → holo …). What REMAINS: pattern variants in the price
+refresh (pokeBallPattern / masterBallPattern, mislabelled "holofoil" rows
+cleaned nightly), normal-first VARIANT_PRIORITY, no "Printing: Normal"
+line, title/description printing tokens when a holo/reverse/pattern row
+drives the quote, vision's `finish` field (read, unused). Hoothoot PRE 077
+was the trigger: "eBay asking (91 listings) — $1.45" vs TCGplayer reverse
+$0.18 / normal $0.06 in one dropdown.
+
 **SCAN SPEED — BACKBURNERED (Chris, 09-03 eve):** ~4s/card is the Sonnet 5
 vision call itself (09-02 A/B: median 4.0s, p90 6.7s, ~110 out tokens).
 Shipped 22b65ad: pump runs SCAN_WORKERS=2 cards concurrently (stacks ~2x
