@@ -102,8 +102,12 @@ exception to the no-exclamation-marks voice rule — Chris's call, 08-16:
 the scanner is allowed to celebrate. (A full-frame "scene" + per-scan
 personal line was built and reverted the same hour at Chris's request —
 don't rebuild without asking.) Sound + haptics are one toggle in the HUD,
-remembered (`cardflip.scanFx`), default on. A running tally pill (cards ·
-value) sits under the status pill. All one-shot after the sweep — nothing
+remembered (`cardflip.scanFx`), default on. HUD zoning (09-03, Chris's
+phone: "everything overlaps"): the auto-scan state + running tally (cards ·
+value) are one status row ABOVE the viewfinder, the result chip sits BELOW
+it, only the ✕ / torch / sound column stays on the video and the guide is
+narrowed to clear it (`guideGeometry` in CameraCapture — one rect drives
+the viewfinder, sampler and crop). Full-bleed below `sm`. All one-shot after the sweep — nothing
 loops once a match is showing. Voice stays dry: the labels are the only
 celebration copy.
 

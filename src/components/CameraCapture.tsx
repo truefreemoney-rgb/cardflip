@@ -63,6 +63,71 @@ const SIG_W = 24;
 const SIG_H = 32;
 
 /**
+ * Room between the guide and the viewfinder's edge for the ✕ / torch /
+ * sound column, so the brackets never sit under a button (Chris, 09-02,
+ * phone: "everything overlaps, you can't see the square scan lines").
+ */
+const GUIDE_GUTTER_PX = 64;
+
+interface GuideRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The card guide, in both spaces at once: where the viewfinder draws it
+ * (display px, relative to the video element's box) and the matching region
+ * of the raw frame (video px) that the auto-scan sampler reads and the
+ * capture crops. One function so the three can't drift.
+ *
+ * The guide is 82% of the displayed video's height at 63:88 and centered,
+ * unless that would run under the HUD's button column — then it's narrowed
+ * to leave GUIDE_GUTTER_PX each side and the height follows. object-contain
+ * letterboxing is accounted for, so a pillarboxed phone stream maps 1:1.
+ * Null until the element is laid out and the stream has a size.
+ */
+function guideGeometry(
+  video: HTMLVideoElement,
+): { display: GuideRect; video: GuideRect } | null {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const ew = video.clientWidth;
+  const eh = video.clientHeight;
+  if (!vw || !vh || !ew || !eh) return null;
+  const scale = Math.min(ew / vw, eh / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  const dx = (ew - dw) / 2;
+  const dy = (eh - dh) / 2;
+  let gh = dh * 0.82;
+  let gw = gh * (63 / 88);
+  const maxW = Math.min(dw, Math.max(dw * 0.5, ew - 2 * GUIDE_GUTTER_PX));
+  if (gw > maxW) {
+    gw = maxW;
+    gh = gw * (88 / 63);
+  }
+  const gx = dx + (dw - gw) / 2;
+  const gy = dy + (dh - gh) / 2;
+  return {
+    display: { x: gx, y: gy, w: gw, h: gh },
+    video: { x: (gx - dx) / scale, y: (gy - dy) / scale, w: gw / scale, h: gh / scale },
+  };
+}
+
+/** Guide in video px, falling back to the centered 82% rect if not laid out. */
+function guideInVideo(video: HTMLVideoElement): GuideRect {
+  const g = guideGeometry(video);
+  if (g) return g.video;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const h = vh * 0.82;
+  const w = Math.min(vw, h * (63 / 88));
+  return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+}
+
+/**
  * Live camera capture, so a stack of cards can be scanned without ever
  * leaving the page.
  *
@@ -102,6 +167,26 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
   const [torch, setTorch] = useState<"unavailable" | "off" | "on">(
     "unavailable",
   );
+  // Where the guide is drawn, in the video element's box. Measured, not
+  // CSS-sized, so the sampler and the crop read exactly what's on screen.
+  const [guide, setGuide] = useState<GuideRect | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !ready) return;
+    const measure = () => setGuide(guideGeometry(video)?.display ?? null);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(video);
+    // 'resize' on a video fires when the stream's dimensions change.
+    video.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      ro.disconnect();
+      video.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [ready]);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,16 +273,15 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     // everything outside the card-shaped guide, so the seller frames the card
     // IN the guide — saving the full frame put a small card in a sea of table
     // (Chris, 09-02: "looks like I'm much closer than the photo comes out").
-    // Same guide geometry as the auto-scan sampler (82% of the height at
-    // 63:88, centered), plus a 5% margin so a card nosing past a bracket
+    // Same guide geometry as the viewfinder and the auto-scan sampler
+    // (guideInVideo), plus a 5% margin so a card nosing past a bracket
     // keeps its edge. What's saved is what was framed, 1:1.
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const gh = vh * 0.82;
-    const gw = Math.min(vw, gh * (63 / 88));
+    const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
     const pad = gw * 0.05;
-    const sx = Math.max(0, (vw - gw) / 2 - pad);
-    const sy = Math.max(0, (vh - gh) / 2 - pad);
+    const sx = Math.max(0, gx - pad);
+    const sy = Math.max(0, gy - pad);
     const sw = Math.min(vw - sx, gw + pad * 2);
     const sh = Math.min(vh - sy, gh + pad * 2);
 
@@ -258,14 +342,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
 
     const timer = window.setInterval(() => {
       if (video.videoWidth === 0 || video.paused) return;
-      // Guide region in video pixels: the guide is 82% of the displayed
-      // height at 63:88 and centered; object-contain keeps that mapping.
-      const vh = video.videoHeight;
-      const vw = video.videoWidth;
-      const gh = vh * 0.82;
-      const gw = Math.min(vw, gh * (63 / 88));
-      const gx = (vw - gw) / 2;
-      const gy = (vh - gh) / 2;
+      // Guide region in video pixels — the same rect the viewfinder draws.
+      const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
       ctx.drawImage(video, gx, gy, gw, gh, 0, 0, SIG_W, SIG_H);
       const { data } = ctx.getImageData(0, 0, SIG_W, SIG_H);
       const n = SIG_W * SIG_H;
@@ -368,44 +446,97 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
     };
   }, []);
 
+  const statusDot = error
+    ? "bg-amber-400"
+    : !ready
+      ? "bg-zinc-600"
+      : !auto
+        ? "bg-zinc-500"
+        : phase === "settling"
+          ? "bg-holo-pink animate-pulse"
+          : phase === "captured"
+            ? "bg-emerald-400"
+            : "bg-brand-400";
+  const statusText = error
+    ? "Camera unavailable"
+    : !ready
+      ? "Opening the camera…"
+      : !auto
+        ? "Auto-scan off — tap Capture"
+        : phase === "settling"
+          ? "Hold still…"
+          : phase === "captured"
+            ? "Captured — swap the card"
+            : "Auto-scan on — fill the guide, not too close";
+
   return (
     <div
       onPointerDown={() => void primeScanFx()}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4"
     >
+      {/* .scanner-hud: the scanner's motion is exempt from the reduced-motion
+          kill in globals.css — see the motion policy. Full-bleed on phones
+          (the viewfinder is the screen, every zone gets its own row so
+          nothing sits on the guide); a card in a backdrop from sm up. */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Camera scanner"
         tabIndex={-1}
-        className="flex w-full max-w-lg flex-col gap-4 rounded-3xl border border-edge bg-surface-1 p-4 outline-none"
+        className="scanner-hud flex h-full w-full flex-col bg-surface-1 pt-[env(safe-area-inset-top)] outline-none sm:h-auto sm:max-w-lg sm:gap-3 sm:rounded-3xl sm:border sm:border-edge sm:p-4"
       >
-        {/* .scanner-hud: this overlay's motion is exempt from the
-            reduced-motion kill in globals.css — see the motion policy. */}
-        <div className="scanner-hud relative overflow-hidden rounded-2xl bg-black">
+        {/* Status row: what auto-scan is doing (left) and the running score
+            for the session (right). Fixed height so the viewfinder never
+            jumps as the text changes. */}
+        <div className="flex h-11 shrink-0 items-center gap-3 px-4 text-[11px] sm:h-auto sm:px-1">
+          <div className="flex min-w-0 flex-1 items-center gap-2 font-medium">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} />
+            <span className="truncate text-zinc-200">{statusText}</span>
+          </div>
+          {tally && tally.count > 0 && (
+            <div className="flex shrink-0 items-baseline gap-1.5">
+              <span className="font-display text-sm font-semibold text-white">{tally.count}</span>
+              <span className="text-zinc-400">{tally.count === 1 ? "card" : "cards"}</span>
+              {tally.value > 0 && (
+                <>
+                  <span className="text-zinc-600">·</span>
+                  <span className="font-display text-sm font-semibold text-holo-gold">
+                    {formatMoney(tally.value)}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:rounded-2xl">
           {/* playsInline keeps iOS from hijacking the stream into a
               fullscreen player, which would hide the capture button. */}
           <video
             ref={videoRef}
             playsInline
             muted
-            className="max-h-[60dvh] min-h-64 w-full object-contain"
+            className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64"
           />
 
           {/* Card-shaped framing guide: real cards are 63×88mm, and a guide
               at that ratio nudges the photo toward filling the frame, which
-              is most of what separates a good scan from a bad one. The huge
+              is most of what separates a good scan from a bad one. Placed by
+              guideGeometry so it clears the button column. The huge
               box-shadow dims everything outside the guide. Bracket colour is
               the auto-scan state: brand = looking, pink = hold still,
               green = captured. */}
-          {ready && (
+          {ready && guide && (
             <div
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
               aria-hidden
             >
               {burst && <span key={burst} className="reveal-burst" aria-hidden />}
-              <div className="relative aspect-[63/88] h-[82%] rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
+              <div
+                className="absolute rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+                style={{ left: guide.x, top: guide.y, width: guide.w, height: guide.h }}
+              >
                 {/* The laser sweep (reference: Scrydex Vision) — runs while
                     the scanner is looking or reading, rests once the card
                     is captured and matched. Clipped to the guide. */}
@@ -433,22 +564,31 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
             </div>
           )}
 
-          {/* Top-left status pill: what auto-scan is doing right now. */}
-          {/* Running score for the session: cards in the queue and what
-              they're worth so far. Turns a stack into progress. */}
-          {ready && tally && tally.count > 0 && (
-            <div className="absolute left-3 top-12 z-10 flex items-baseline gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[11px] backdrop-blur">
-              <span className="font-display text-sm font-semibold text-white">{tally.count}</span>
-              <span className="text-zinc-400">{tally.count === 1 ? "card" : "cards"}</span>
-              {tally.value > 0 && (
-                <>
-                  <span className="text-zinc-600">·</span>
-                  <span className="font-display text-sm font-semibold text-holo-gold">
-                    {formatMoney(tally.value)}
-                  </span>
-                </>
-              )}
-            </div>
+          {/* The one column that stays on the video: close, torch, sound —
+              a phone user reaches for the corner. The guide is narrowed to
+              clear it (GUIDE_GUTTER_PX). */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close scanner"
+            className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg leading-none text-white backdrop-blur transition hover:border-white/40 hover:bg-black/80"
+          >
+            ✕
+          </button>
+
+          {torch !== "unavailable" && (
+            <button
+              onClick={toggleTorch}
+              aria-pressed={torch === "on"}
+              aria-label="Camera light"
+              className={`absolute right-3 top-16 z-20 flex h-11 w-11 items-center justify-center rounded-full border text-lg backdrop-blur transition ${
+                torch === "on"
+                  ? "border-amber-300/60 bg-amber-400/90 shadow-lg shadow-amber-400/40"
+                  : "border-white/20 bg-black/60 hover:border-white/40"
+              }`}
+            >
+              {torch === "on" ? "🔆" : "🔦"}
+            </button>
           )}
 
           {/* Sound + haptics toggle, remembered. Sits under the torch. */}
@@ -462,59 +602,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
               }}
               aria-pressed={fxOn}
               aria-label={fxOn ? "Scan sounds on" : "Scan sounds off"}
-              className={`absolute right-3 flex h-9 w-9 items-center justify-center rounded-full border text-sm backdrop-blur transition ${
-                torch !== "unavailable" ? "top-[7.5rem]" : "top-16"
+              className={`absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border text-base backdrop-blur transition ${
+                torch !== "unavailable" ? "top-[7.25rem]" : "top-16"
               } ${fxOn ? "border-white/20 bg-black/60" : "border-white/10 bg-black/40 text-zinc-500"}`}
             >
               {fxOn ? "🔊" : "🔇"}
-            </button>
-          )}
-
-          {/* Close — always reachable, top-right of the viewfinder, above the
-              torch and sound toggles. Same as "Done"/"Cancel" below; a phone
-              user reaches for the corner. */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close scanner"
-            className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg leading-none text-white backdrop-blur transition hover:border-white/40 hover:bg-black/80"
-          >
-            ✕
-          </button>
-
-          {ready && auto && (
-            <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[11px] font-medium backdrop-blur">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  phase === "settling"
-                    ? "bg-holo-pink animate-pulse"
-                    : phase === "captured"
-                      ? "bg-emerald-400"
-                      : "bg-brand-400"
-                }`}
-              />
-              <span className="text-zinc-200">
-                {phase === "settling"
-                  ? "Hold still…"
-                  : phase === "captured"
-                    ? "Captured — swap the card"
-                    : "Auto-scan on — fill the frame, not too close"}
-              </span>
-            </div>
-          )}
-
-          {torch !== "unavailable" && (
-            <button
-              onClick={toggleTorch}
-              aria-pressed={torch === "on"}
-              aria-label="Camera light"
-              className={`absolute right-3 top-16 flex h-11 w-11 items-center justify-center rounded-full border text-lg backdrop-blur transition ${
-                torch === "on"
-                  ? "border-amber-300/60 bg-amber-400/90 shadow-lg shadow-amber-400/40"
-                  : "border-white/20 bg-black/60 hover:border-white/40"
-              }`}
-            >
-              {torch === "on" ? "🔆" : "🔦"}
             </button>
           )}
 
@@ -562,24 +654,31 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
               />
             </div>
           )}
-
-          {lastScan && <ScanToast key={lastScan.id} item={lastScan} />}
         </div>
 
-        <p className="text-center text-xs text-zinc-500">
-          {auto
-            ? "Hold a card in the guide — it captures itself. Swap cards to keep going; each one is identified while you line up the next."
-            : "Fill the guide with one card, then capture. Keep going for a whole stack — each shot is scanned while you line up the next."}
-        </p>
+        {/* The result chip lives under the viewfinder, not over the guide —
+            on a phone the guide is most of the frame and a chip on it hid
+            the card. Until the first scan the slot carries the how-to. */}
+        <div className="flex min-h-24 shrink-0 items-center px-3 py-1 sm:px-0 sm:py-0">
+          {lastScan ? (
+            <ScanToast key={lastScan.id} item={lastScan} />
+          ) : (
+            <p className="w-full text-center text-xs text-zinc-500">
+              {auto
+                ? "Hold a card in the guide — it captures itself. Swap cards to keep going; each one is identified while you line up the next."
+                : "Fill the guide with one card, then capture. Keep going for a whole stack — each shot is scanned while you line up the next."}
+            </p>
+          )}
+        </div>
 
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
           <button
             onClick={() => {
               setAuto((a) => !a);
               setPhase("idle");
             }}
             aria-pressed={auto}
-            className={`rounded-full border px-4 py-3 text-xs font-semibold transition ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-3 text-xs font-semibold transition ${
               auto
                 ? "border-brand-400/50 bg-brand-500/15 text-brand-200"
                 : "border-edge bg-surface-2 text-zinc-400 hover:border-edge-strong"
@@ -590,15 +689,15 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
           <button
             onClick={capture}
             disabled={!ready}
-            className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
             Capture card
           </button>
           <button
             onClick={onClose}
-            className="rounded-full border border-edge bg-surface-2 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
+            className="shrink-0 whitespace-nowrap rounded-full border border-edge bg-surface-2 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
           >
-            {captured > 0 ? `Done (${captured} scanned)` : "Cancel"}
+            {captured > 0 ? `Done · ${captured}` : "Cancel"}
           </button>
         </div>
       </div>
@@ -613,16 +712,16 @@ function meanAbsDiff(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
 }
 
 /**
- * The live result strip over the viewfinder for the most recent capture — a
- * glass chip that slides up over the bottom of the frame: icon, MATCH FOUND,
- * name, and confidence when vision reports one.
+ * The live result strip under the viewfinder for the most recent capture — a
+ * glass chip that fades up in its own row (never over the guide): icon,
+ * MATCH FOUND, name, and confidence when vision reports one.
  */
 function ScanToast({ item }: { item: ScanItem }) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
     return (
-      <div className="animate-fade-up absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md">
+      <div className="animate-fade-up flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/20">
           <span className="h-2 w-2 animate-pulse rounded-full bg-brand-300" />
         </span>
@@ -638,7 +737,7 @@ function ScanToast({ item }: { item: ScanItem }) {
 
   if (!item.card) {
     return (
-      <div className="animate-fade-up absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border border-amber-400/30 bg-black/75 px-4 py-3 backdrop-blur-md">
+      <div className="animate-fade-up flex w-full items-center gap-3 rounded-2xl border border-amber-400/30 bg-black/75 px-4 py-3 backdrop-blur-md">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
           ?
         </span>
@@ -723,7 +822,7 @@ function RevealChip({ item }: { item: ScanItem }) {
 
   return (
     <div
-      className={`animate-fade-up absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
+      className={`animate-fade-up flex w-full items-center gap-3 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
     >
       <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
         {card.imageSmall ? (
