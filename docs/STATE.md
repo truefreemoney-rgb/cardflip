@@ -30,6 +30,18 @@ the last POC blocker is Stripe business address + phone (BACKLOG.md line
 boxes rejected; swap the personal cell for a Google-Voice-style number).
 It is a dashboard errand only he can do. Everything else is done or parked.**
 
+**SHIPPED SESSION 4 — VERIFY MATCH GATE (Chris's "big safety feature",
+09-03): every identified card is "Verify match" (amber) until the seller
+taps Verify match (CardEditor block under the set line, or the My Cards row
+button) → "Active". Publish locked client-side (EbayPostActions 🔒 button,
+sendAllToEbay filter + note) AND server-side (ebaySell requireVerified →
+409 on createDraft/pushDraft/publishDraft). Persisted as cards.verified_at
+(COLUMN_PROBES; PATCH /api/cards/[id] accepts verifiedAt), hydrated on
+resume, cleared by candidate pick / name search / rescan. Internal statuses
+ready/review unchanged — only the labels changed (StatusChip verified
+prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
+session (needs a logged-in scan).**
+
 **ALSO SHIPPED SESSION 4 (00fe161): auto-scan false-fire fix** — Chris:
 "taking random pictures without a card, costs people scans". Sampler now
 needs card shape (looksLikeCard: detail in 9/16 cells + ≥2 horizontal row
