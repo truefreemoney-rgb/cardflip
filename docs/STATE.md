@@ -1,6 +1,8 @@
 # Project state
 
-Last updated: 2026-09-01 end of session (resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
+**CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
+
+Last updated: 2026-09-02 late (day-2 session; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 90`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -21,17 +23,60 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**UPDATE 09-02 ~8:40am ET: (0) DONE — 63c1f8e is on origin/main, Sonnet
-switch deployed. PSA findings from a local probe (scripts/psa-quota-check.mjs):
-PSA returns 429 "quota exceeded 100/day" even for a GARBAGE token (the local
-env had a "[SENSITIVE]" placeholder) — so a 429 does NOT prove our token is
-valid or that OUR quota is spent; yesterday's Swagger "token valid" inference
-is suspect unless it used the real token. Retry-after put the reset at ~6am
-UTC (2am ET), not 6am ET. Also: local .env.vercel.local TURSO creds are STALE
-("group not found" — db recreated since that pull; prod is fine, its secrets
-can't be pulled), so the db psa_calls counter can only be read from prod.
-GATE FOR CHRIS: tap Verify on a graded card on cardflip.io in a real session
-and report the result — that single tap is the clean IP-block test.**
+**FIRST ACTION (saved 09-02 LATE — full day-2 session, all deployed +
+CI genuinely green b927454, main = vercel-migration = origin, tree
+clean): NO pending deploy. Present Chris ONE gated task: the last POC
+blocker is Stripe business address + phone (Public details → Customer-
+facing info; UPS Store mailbox easiest, PO boxes rejected; swap the
+personal cell for a Google-Voice-style number). Everything else is
+done or parked.**
+
+**SHIPPED TODAY (day 2, ~9 commits, each live-verified):**
+- Durable daily budgets (6eed61f): dayBudget.ts db counters on vision
+  scans (500/day user, 60/day demo) + PSA route; pre-scale item 4 done.
+  In-memory daily caps never bound on serverless = free unlimited scans
+  hole, now closed.
+- /help center + legal refresh (f49e10d): 13 fact-checked articles,
+  footer link, account-page Help section (270a752); privacy/terms
+  caught up to live product (Stripe/Vercel/Turso, eBay present-tense).
+  Error states deep-link to /help#ids (9b80008).
+- Shiny Vault match fix (9d7512b): TCGdex hyphenates names
+  ("Charizard-GX") vs card/vision "Charizard GX" — 170 rows were
+  unfindable, matched wrong printing. Hyphens now fold to spaces both
+  sides; vision reads lettered fractions (SV49/SV94).
+- MTG special-printing fix (3c57174 + 9fd807b): plain M11 Pyretic
+  Ritual matched the Mystical Archive showcase; special set_types +
+  The List (plst) now need evidence (set code / number / full-art
+  frame) to win. searchMtgCardsLocal takes art now.
+- Sold rows show "listed $X" (9a8235c).
+- In-app confirm dialog (1483b41): iOS kills window.confirm in
+  standalone PWAs → mobile bulk-delete silently no-oped. ConfirmDialog.tsx
+  (host in Toaster + EbayConnectCard), all 6 confirm sites converted.
+  SAME commit fixed a CardEditor setState-in-effect lint error.
+- Scanner cleanup (45b158b): removed the eBay drafts-CSV button (Send
+  all to eBay covers bulk; collection CSV export kept); searchCards
+  retries once on 429 (fast bulk scan tripped the per-IP limiter =
+  "card lookup is down" 1-in-50); StatusChip tooltips explain
+  Ready (1 match) vs Check match (several, glance before publish).
+- CI un-rotted (b927454): test-mirror seed section was libsql-write /
+  node:sqlite-read, platform-split; now single-library. See top-of-file
+  note + memory ci-verify-actual-run. WAS red ~18 commits unnoticed.
+
+**PSA (CONFIRMED, do not retest):** prod 403s graded verify — Vercel
+IPs blocked at PSA's edge (Chris tapped Verify cert 26573583 on a real
+session, fresh quota, 09-02 = airtight). Corroborated: r/psagrading
+thread + our garbage-token 429 = PSA free tier pooled/per-IP & broken
+≥1yr. ONLY fix = collectors-apis reply (emailed 09-01 from
+support@cardflip.io, watch Fastmail — NOT in as of 09-02). App
+degrades fine (manual grade + help link). Not a launch blocker.
+
+**PARKED / WAITING:** TCGplayer selling road (Chris thinking about it —
+API closed to new devs, v1 = CSV export like eBay; unblock = his seller
+account + an Export-From-Live CSV; scoped in BACKLOG backburner).
+eBay Marketplace Insights re-apply = post-POC (needs revenue+LLC).
+Backburner trimmed to 8 real items (superiormarketing SPF removed).
+
+**--- older context below, keep for reference ---**
 
 **FIRST ACTION (saved 09-02 END OF NIGHT): (0) Chris must run the main ff-push deploy line FIRST if he hasn't (63c1f8e pending: SONNET SCAN SWITCH — A/B on 64 prod photos proved identical identification at 2.5x cheaper, $0.011 vs $0.028/scan; also pre-scale docs). THEN: (1) PSA counter-vs-quota comparison when a fresh window shows. (2) BUSINESS PLAN LOCKED 09-02 night: Chris is a professional advertiser, plan = POC month of real sales, then scale hard if numbers hold — see BACKLOG PRE-SCALE TRACK (10 items, what breaks at 5-25k users). Chris blockers for POC launch: business address+phone only. Margin analysis + competitor research done (CollX $10M ARR profitable = model proven; Ludex $19.99; nobody does scan→publish→auto-reprice at $9.99). Older same-day context: PSA quota mystery SOLVED — it was OUR leak (ad0427f, deployed): public demo login could reach the PSA route AND the 80/day global limiter was in-memory (never binds on serverless). Demo now refused + durable db day-counter (price_history_meta psa_calls_<day>). Tomorrow post-reset (~6am ET) = clean test: if prod still 403s on fresh quota, IP-block diagnosis is airtight. NOTE: demo-login curl can no longer test PSA (blocked by our fix) — Chris must tap Verify on a graded card, or use a real session. Swagger re-proof 09-02 eve: token valid (429 quota, not auth error). Earlier same day: PSA retested after quota
 reset — prod STILL 403 (demo-login + cert 28400235 → PSA answered
