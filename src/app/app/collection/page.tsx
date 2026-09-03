@@ -430,14 +430,6 @@ export default function CollectionPage() {
     return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
   }, [cards]);
 
-  function toggleSelected(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   async function removeSelected() {
     const ids = [...selected].filter((id) => {
@@ -538,6 +530,34 @@ export default function CollectionPage() {
       return b.createdAt - a.createdAt;
     });
   }, [cards, filter, query, sort]);
+
+  // Shift+click fills the run between the last box clicked and this one
+  // (Chris, 09-03), the way a mail client does. The anchor is the last box
+  // clicked without shift; the range follows the visible (sorted, filtered)
+  // order, and takes the state the anchor's click left it in.
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  function toggleSelected(id: string, shift = false) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (shift && anchorId && anchorId !== id) {
+        const order = visible.map((c) => c.id);
+        const a = order.indexOf(anchorId);
+        const b = order.indexOf(id);
+        if (a >= 0 && b >= 0) {
+          const on = prev.has(anchorId);
+          for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
+            if (on) next.add(order[i]);
+            else next.delete(order[i]);
+          }
+          return next;
+        }
+      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    if (!shift) setAnchorId(id);
+  }
 
   if (!user) return <PageSkeleton />;
 
@@ -985,7 +1005,9 @@ export default function CollectionPage() {
                 <input
                   type="checkbox"
                   checked={selected.has(card.id)}
-                  onChange={() => toggleSelected(card.id)}
+                  // onClick, not onChange: the change event has no shiftKey.
+                  onClick={(e) => toggleSelected(card.id, e.shiftKey)}
+                  onChange={() => {}}
                   aria-label={`Select ${card.cardName}`}
                   className="h-4 w-4 shrink-0 accent-brand-500"
                 />
