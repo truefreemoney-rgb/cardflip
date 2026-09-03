@@ -553,11 +553,6 @@ export default function AppPage() {
     const resumeId = params.get("resume");
     if (!resumeId) return;
     resumedRef.current = true;
-    // On a client-side navigation Next updates window.location AFTER the
-    // first render, so the state initializer above saw the previous URL and
-    // started false — the first-scan hero then sat there for the whole
-    // rebuild (Chris, 09-02: "hanging on this screen for 5-7 seconds").
-    setResuming(true);
     // My Cards passes the card's identity alongside the id so the catalog
     // search runs in PARALLEL with the ledger fetch — sequentially they were
     // two-plus seconds of blank stare on a cold function (Chris, 09-02).
@@ -566,6 +561,14 @@ export default function AppPage() {
     const hintGame = params.get("rg") === "mtg" ? "mtg" : "pokemon";
     window.history.replaceState(null, "", window.location.pathname);
     void (async () => {
+      // On a client-side navigation Next updates window.location AFTER the
+      // first render, so the state initializer above saw the previous URL
+      // and started false — the first-scan hero then sat there for the whole
+      // rebuild (Chris, 09-02: "hanging on this screen for 5-7 seconds").
+      // Set here, past the effect's synchronous body (react-hooks rule), a
+      // microtask later and long before any network answer.
+      await Promise.resolve();
+      setResuming(true);
       const eagerSearch = hintName
         ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
         : null;
