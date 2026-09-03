@@ -10,6 +10,7 @@ import { getAdminOverview } from "@/lib/server/adminStats";
 import { isDemoUser, listAllUsers } from "@/lib/server/users";
 import { listAllCards } from "@/lib/server/cards";
 import { errorCount24h, listRecentErrors } from "@/lib/server/errorLog";
+import { scanSpendSince } from "@/lib/server/scanUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,13 @@ export default async function AdminPage() {
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
   }));
   const cards = await listAllCards(60);
-  const [recentErrors, errors24h] = await Promise.all([listRecentErrors(50), errorCount24h()]);
+  const DAY = 24 * 60 * 60 * 1000;
+  const [recentErrors, errors24h, spend24h, spend30d] = await Promise.all([
+    listRecentErrors(50),
+    errorCount24h(),
+    scanSpendSince(Date.now() - DAY),
+    scanSpendSince(Date.now() - 30 * DAY),
+  ]);
   const userById = new Map(users.map((u) => [u.id, u]));
   const s = o.stats;
 
@@ -74,6 +81,20 @@ export default async function AdminPage() {
     { label: "Net to sellers", value: money(s.netRevenue), accent: "good" },
     { label: "Watchlist items", value: num(s.wishlistItems) },
     { label: "Price checks", value: `${num(s.priceChecks7d)}`, sub: "this week" },
+    // The measured Anthropic bill (scan_usage), not an estimate — the number
+    // the $9.99/500 margin actually rests on. Per-scan is the headline.
+    {
+      label: "Vision cost / scan",
+      value: spend30d.scans ? `$${(spend30d.usd / spend30d.scans).toFixed(4)}` : "—",
+      sub: spend30d.scans
+        ? `${num(spend30d.scans)} scans / 30d · $${spend30d.usd.toFixed(2)} · ~${num(spend30d.avgInputTokens)} in / ${num(spend30d.avgOutputTokens)} out tokens`
+        : "no scans recorded yet",
+    },
+    {
+      label: "Vision spend 24h",
+      value: `$${spend24h.usd.toFixed(2)}`,
+      sub: `${num(spend24h.scans)} scans`,
+    },
   ];
 
   return (

@@ -190,12 +190,33 @@ function normalizeMediaType(value: string): ImageMediaType {
  * `languageHint` is what the seller picked in the UI. It's a hint, not a
  * constraint — the photo is the authority, since sellers sort a stack wrong.
  */
+/** The model every scan runs on — exported so the usage ledger prices by it. */
+export const VISION_MODEL = "claude-sonnet-5";
+
+/** Anthropic's token bill for one call, as the API reported it. */
+export interface VisionUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 export async function analyzeCardImage(
   base64Image: string,
   mediaType: string,
   languageHint: ScanLanguage,
   game: GameId = "pokemon",
 ): Promise<VisionCardRead> {
+  return (await analyzeCardImageWithUsage(base64Image, mediaType, languageHint, game)).read;
+}
+
+/** Same read, plus the usage the scan route records to scan_usage. */
+export async function analyzeCardImageWithUsage(
+  base64Image: string,
+  mediaType: string,
+  languageHint: ScanLanguage,
+  game: GameId = "pokemon",
+): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
   const response = await getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
     // backups/ab-vision-0902.json): identification IDENTICAL (name 64/64,
@@ -204,7 +225,7 @@ export async function analyzeCardImage(
     // margin. Tradeoff: Sonnet abstains on photo-judged condition more often
     // (34/64 vs 60/64), so sellers pick condition manually more — fine, a
     // photo-guessed condition was always soft.
-    model: "claude-sonnet-5",
+    model: VISION_MODEL,
     max_tokens: 2000,
     // Reading a card is perception, not deep reasoning, and this runs once per
     // photo in a batch — low effort keeps a stack of cards moving.
@@ -250,7 +271,7 @@ export async function analyzeCardImage(
   }
 
   const parsed = JSON.parse(text.text) as VisionCardRead;
-  return {
+  const read: VisionCardRead = {
     ...parsed,
     // Schema-constrained, but the number still reaches a regex downstream.
     cardNumber: parsed.cardNumber?.trim() || null,
@@ -258,5 +279,15 @@ export async function analyzeCardImage(
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     name: parsed.name.trim(),
+  };
+  const u = response.usage;
+  return {
+    read,
+    usage: {
+      inputTokens: u.input_tokens,
+      outputTokens: u.output_tokens,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+    },
   };
 }

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import {
+  VISION_MODEL,
   VisionNotConfiguredError,
-  analyzeCardImage,
+  analyzeCardImageWithUsage,
   isVisionConfigured,
 } from "@/lib/server/vision";
+import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { isDemoUser } from "@/lib/server/users";
@@ -84,10 +86,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const card = await analyzeCardImage(image, mediaType, language, parseGame(body?.game));
+    const { read: card, usage: tokens } = await analyzeCardImageWithUsage(
+      image,
+      mediaType,
+      language,
+      parseGame(body?.game),
+    );
     // Metered for everyone (launch pricing needs the data), enforced above
     // for subscribers only. After the call — a failed scan shouldn't count.
-    const usage = await recordScan(user);
+    // The token bill is written alongside; a ledger failure must never fail
+    // a scan the seller already paid for.
+    const [usage] = await Promise.all([
+      recordScan(user),
+      recordScanUsage(user.id, VISION_MODEL, tokens).catch((err) =>
+        console.error("scan_usage write failed:", err instanceof Error ? err.message : err),
+      ),
+    ]);
     return NextResponse.json({ status: "done", card, usage });
   } catch (err) {
     if (err instanceof AuthError) {

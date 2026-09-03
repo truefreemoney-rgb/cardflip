@@ -191,6 +191,28 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_error_events_at ON error_events(at);
 
+  -- One row per vision call: the token bill as Anthropic reported it, and
+  -- the dollar cost computed at insert time from that model's rate — so a
+  -- later model or price change never rewrites history. This is the source
+  -- of truth for scan margin (09-02: an 82-scan stress test was estimated
+  -- at ~$3.50 from the console; the real answer was ~$0.90 plus a $2.52
+  -- A/B run — guessing from the org bill doesn't work).
+  CREATE TABLE IF NOT EXISTS scan_usage (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    input_tokens INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    -- Microdollars (1e-6 USD) so cents never round away a $0.006 scan.
+    cost_micros INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scan_usage_at ON scan_usage(at);
+  CREATE INDEX IF NOT EXISTS idx_scan_usage_user ON scan_usage(user_id, at);
+
   -- English species name by National Pokédex number, so a Japanese/Chinese
   -- card name has a readable overlay ("ピカチュウ" -> "Pikachu") without a
   -- live translation call. Populated by scripts/sync-species-names.mjs.
