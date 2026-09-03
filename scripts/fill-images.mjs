@@ -12,6 +12,11 @@
 // 3. pokemontcg.io, for sets the sync's date-join can't pair (their release
 //    dates differ from TCGdex's by a day): images.pokemontcg.io/<set>/<n>.png
 //    is deterministic, so a hand-kept set map is enough — no API call.
+// 4. TCGplayer via tcgcsv.com (the public mirror the price backfill already
+//    uses): a hand-kept TCGdex set → TCGplayer group map, products matched
+//    on collector number (name as tiebreak, or alone when the product has
+//    no number). Covers McDonald's, trainer kits, My First Battle, promos —
+//    Chris, 09-03: "tcgplayer has all these cards on their website".
 //
 // Writes the local mirror (data/cardflip.db) always; --prod also writes
 // Turso (.env.migration.json creds), only where image_url is still ''.
@@ -66,6 +71,69 @@ function ptcgioCandidates(card) {
   return nums.flatMap((n) => [`https://images.pokemontcg.io/${set}/${n}_hires.png`, `https://images.pokemontcg.io/${set}/${n}.png`]);
 }
 
+// TCGdex set_name → tcgcsv/TCGplayer groupId(s) (category 3 = Pokémon,
+// https://tcgcsv.com/tcgplayer/3/groups). Trainer-kit groups hold both
+// half-decks, so numbers repeat and the name settles it.
+const TCGCSV_GROUPS = {
+  "McDonald's Collection 2016": [3087],
+  "McDonald's Collection 2017": [2148],
+  "McDonald's Collection 2018": [2364],
+  "McDonald's Collection 2023": [23306],
+  "McDonald's Collection 2024": [24163],
+  "My First Battle": [23330],
+  "MEP Black Star Promos": [24451],
+  "SVP Black Star Promos": [22872],
+  "SWSH Black Star Promos": [2545],
+  "HGSS Black Star Promos": [1453],
+  "Celebrations Classic Collection": [2931],
+  "Yellow A Alternate": [1938],
+  "XY trainer Kit (Pikachu Libre)": [1796],
+  "XY trainer Kit (Suicune)": [1796],
+  "XY trainer Kit (Latias)": [1536],
+  "XY trainer Kit (Latios)": [1536],
+  "XY trainer Kit (Bisharp)": [1533],
+  "XY trainer Kit (Wigglytuff)": [1533],
+  "XY trainer Kit (Sylveon)": [1532],
+  "XY trainer Kit (Noivern)": [1532],
+  "BW trainer Kit (Excadrill)": [1538],
+  "BW trainer Kit (Zoroark)": [1538],
+  "HS trainer Kit (Gyarados)": [1540],
+  "HS trainer Kit (Raichu)": [1540],
+  "DP trainer Kit (Manaphy)": [1541],
+  "DP trainer Kit (Lucario)": [1541],
+  "SM trainer Kit (Lycanroc)": [2069],
+  "SM trainer Kit (Alolan Raichu)": [2069],
+};
+const groupCache = new Map();
+async function groupProducts(groupId) {
+  if (!groupCache.has(groupId)) {
+    try {
+      const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${groupId}/products`, { signal: AbortSignal.timeout(20000), headers: { "User-Agent": "cardflip-fill-images/1.0 (support@cardflip.io)" } });
+      const json = await res.json();
+      groupCache.set(groupId, (json.results ?? []).map((p) => {
+        const ed = Object.fromEntries((p.extendedData ?? []).map((e) => [e.name, e.value]));
+        return { id: p.productId, name: p.name, number: ed.Number ? String(ed.Number) : null };
+      }));
+    } catch {
+      groupCache.set(groupId, []);
+    }
+  }
+  return groupCache.get(groupId);
+}
+const normNum = (n) => String(n ?? "").split("/")[0].trim().replace(/^([A-Za-z]*)0+(?=\d)/, "$1").toLowerCase();
+const normName = (n) => String(n ?? "").replace(/\s*[-–]\s*\d+\s*$/, "").replace(/\s*\([^)]*\)\s*$/, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+async function tcgcsvCandidates(card) {
+  const groups = TCGCSV_GROUPS[card.set_name];
+  if (!groups) return [];
+  const products = (await Promise.all(groups.map(groupProducts))).flat();
+  const num = normNum(card.local_id);
+  const name = normName(card.name);
+  let hits = products.filter((p) => p.number && normNum(p.number) === num);
+  if (hits.length > 1) hits = hits.filter((p) => normName(p.name) === name);
+  if (hits.length === 0) hits = products.filter((p) => !p.number && normName(p.name) === name);
+  return hits.map((p) => ({ url: `https://tcgplayer-cdn.tcgplayer.com/product/${p.id}_in_1000x1000.jpg`, id: p.id }));
+}
+
 async function imageOk(url) {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
@@ -112,6 +180,18 @@ for (const card of missing) {
       if (await imageOk(url)) {
         await setImage(card.id, url);
         console.log(`  ptcgio ${card.id} ${card.name} (${card.set_name}) ← ${url}`);
+        filled++;
+        done = true;
+        break;
+      }
+    }
+  }
+  // 4. TCGplayer via tcgcsv group map
+  if (!done) {
+    for (const c of await tcgcsvCandidates(card)) {
+      if (await imageOk(c.url)) {
+        await setImage(card.id, c.url);
+        console.log(`  tcgcsv ${card.id} ${card.name} (${card.set_name}) ← ${c.id}`);
         filled++;
         done = true;
         break;
