@@ -77,11 +77,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * on a tabular column, so "asking − fees − postage = the big number" reads
  * at a glance (Chris, 09-03: the one-line version was "kinda sloppy").
  */
-function Breakdown({ rows }: { rows: [string, number][] }) {
+function Breakdown({ rows, muted = false }: { rows: [string, number][]; muted?: boolean }) {
   return (
-    <dl className="mt-2.5 space-y-0.5 border-t border-edge/60 pt-2 text-[11px]">
+    <dl className={`mt-3 space-y-1 border-t border-edge/60 pt-2.5 text-xs ${muted ? "opacity-50" : ""}`}>
       {rows.map(([label, amount]) => (
-        <div key={label} className="flex items-baseline justify-between gap-2">
+        <div key={label} className="flex items-baseline justify-between gap-3">
           <dt className="truncate text-zinc-500">{label}</dt>
           <dd className={`shrink-0 tabular-nums ${amount < 0 ? "text-zinc-400" : "text-zinc-300"}`}>
             {amount < 0 ? "−" : ""}${Math.abs(amount).toFixed(2)}
@@ -529,59 +529,74 @@ export default function CollectionPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-edge bg-surface-1 p-4">
-          <p className="text-xs text-zinc-500">Drafts</p>
-          <p className="mt-1 text-xl font-semibold text-white">
-            {stats.drafts.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-edge bg-surface-1 p-4">
-          <p className="text-xs text-zinc-500">Listed</p>
-          <p className="mt-1 text-xl font-semibold text-sky-300">
-            {stats.listed.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-edge bg-surface-1 p-4">
-          <p className="text-xs text-zinc-500">In play</p>
-          <p className="mt-1 font-display text-xl font-semibold text-white">
-            ${stats.inPlay.toFixed(2)}
-          </p>
-          <p className="text-[11px] text-zinc-600">take-home if every draft and live listing sells</p>
-          {/* The math, as a ledger: asking, less fees, less postage. Numbers
-              align on a tabular column so the eye can subtract. */}
-          <Breakdown
-            rows={[
-              ["Asking", stats.inPlayGross],
-              ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
-              [`Postage · ${stats.inPlayCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.inPlayCopies * POSTAGE_USD)],
-            ]}
-          />
-        </div>
-        <div className="rounded-2xl border border-edge bg-surface-1 p-4">
-          {/* The big number is the money that actually reached the seller --
-              net after eBay fees, same as the admin panel leads with. Gross
-              and the fee estimate drop to the detail line (Chris, 08-31:
-              sellers need to see the sale the way admin does). */}
-          <p className="text-xs text-zinc-500">Earned</p>
-          <p className="mt-1 font-display text-xl font-semibold text-emerald-400">
-            ${stats.net.toFixed(2)}
-          </p>
-          <p className="text-[11px] text-zinc-600">
-            {stats.sold.length} sold
-            {stats.avgDays !== null && ` · ~${Math.max(1, Math.round(stats.avgDays))}d to sell`}
-          </p>
-          {stats.sold.length > 0 && (
+      {/* One panel, two money columns of equal weight (the ledgers keep
+          them the same height), and the counts as a quiet strip beneath —
+          instead of four equal tiles where three sat empty around a lone
+          number (Chris, 09-03: "this whole design isn't sitting well"). */}
+      <section className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
+        <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
+          <div className="p-5">
+            <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
+            <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-white">
+              ${stats.inPlay.toFixed(2)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             <Breakdown
               rows={[
-                ["Sold for", stats.earned],
-                [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
-                [`Postage · ${stats.soldCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.soldCopies * POSTAGE_USD)],
+                ["Asking", stats.inPlayGross],
+                ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
+                [`Postage · ${stats.inPlayCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.inPlayCopies * POSTAGE_USD)],
               ]}
             />
-          )}
+          </div>
+          <div className="border-t border-edge/60 p-5 sm:border-t-0">
+            {/* The big number is the money that actually reached the seller —
+                net after eBay fees and postage, same as the admin panel leads
+                with (Chris, 08-31: sellers need to see the sale the way admin
+                does). */}
+            <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
+            <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-emerald-400">
+              ${stats.net.toFixed(2)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {stats.sold.length === 0
+                ? "Nothing sold yet — it starts counting at the first sale"
+                : `Take-home from ${stats.sold.length} sale${stats.sold.length === 1 ? "" : "s"}${
+                    stats.avgDays !== null ? ` · ~${Math.max(1, Math.round(stats.avgDays))} days to sell` : ""
+                  }`}
+            </p>
+            {stats.sold.length > 0 ? (
+              <Breakdown
+                rows={[
+                  ["Sold for", stats.earned],
+                  [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
+                  [`Postage · ${stats.soldCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.soldCopies * POSTAGE_USD)],
+                ]}
+              />
+            ) : (
+              <Breakdown
+                rows={[
+                  ["Sold for", 0],
+                  ["eBay fees", 0],
+                  ["Postage", 0],
+                ]}
+                muted
+              />
+            )}
+          </div>
         </div>
-      </div>
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
+          <span className="text-zinc-400">
+            <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> drafts
+          </span>
+          <span className="text-zinc-400">
+            <span className="font-display text-base font-semibold text-sky-300">{stats.listed.length}</span> live
+          </span>
+          <span className="text-zinc-400">
+            <span className="font-display text-base font-semibold text-emerald-300">{stats.sold.length}</span> sold
+          </span>
+        </div>
+      </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-full border border-edge bg-surface-1 p-1">
