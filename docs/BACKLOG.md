@@ -37,6 +37,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Graded-chart polish r2 — DONE 09-02 late (9b28f1d): neighbor-grade prefetch after each lookup (cache-warm, 60/min limit), skeleton tiles during first fetch. Axis already re-derives per tween frame
 - [x] Graded price history accumulation — DONE 09-02 late (7dbec86): comps route records graded averages as price_series points (variant graded-psa-10, source ebay); chart prefers the recorded series over the estimate the moment it exists (chip "PSA 10 (recorded)")
 - [ ] Anthropic credits auto-reload — CHRIS 1-min errand: console.anthropic.com → Billing → enable auto-reload (ran dry once 09-01; optional)
+- [ ] **Remove "Mark sold" from Live rows** (Chris 09-03: "I don't want the user having that control" — eBay order sync + daily job flip sold automatically). Leave for now; when pulled, keep only the bulk-select "Mark sold (n)" as the off-eBay escape hatch, and think about the no-orders-scope / not-connected sellers.
 - [ ] Known drift to watch: queue rows/CSV quote the pricing snapshot, not the chart's current-day rebase — flag if Chris notices
 
 ### PRE-SCALE TRACK (added 09-02 night — Chris is a professional advertiser; plan = POC month of real sales FIRST ("i need to see at least one month of sales"), then if numbers hold, aggressive paid acquisition. Items 1 + address are POC-relevant; the rest gate on the POC verdict. Order = what breaks first at 5-25k users)
