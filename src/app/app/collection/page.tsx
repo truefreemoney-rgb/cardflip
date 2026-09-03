@@ -1065,21 +1065,17 @@ export default function CollectionPage() {
                       // catalog search in parallel with the ledger fetch —
                       // sequential round trips made this feel stuck (09-02).
                       href={`/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}`}
-                      className="rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
+                      // Verifying only happens on the listing screen, where
+                      // the seller's photo sits beside the match (Chris,
+                      // 09-03) — so an unverified draft's link IS the ask.
+                      className={
+                        card.verifiedAt
+                          ? "rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
+                          : "rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/25"
+                      }
                     >
-                      Build listing
+                      {card.verifiedAt ? "Build listing" : "Verify match"}
                     </Link>
-                  )}
-                  {card.status === "ready" && !card.verifiedAt && card.kind !== "sealed" && (
-                    <button
-                      onClick={() => {
-                        void applyPatch(card, { verifiedAt: Date.now() });
-                        toast(`${card.cardName} verified — now active`);
-                      }}
-                      className="rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/25"
-                    >
-                      Verify match
-                    </button>
                   )}
                   {card.status === "ready" && (
                     <button
