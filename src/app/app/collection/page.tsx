@@ -46,6 +46,10 @@ const STATUS_LABEL: Record<ServerCard["status"], string> = {
   sold: "Sold",
 };
 
+/** Grid or rows — remembered per browser (Chris, 09-04: "way more visual"). */
+const VIEW_KEY = "cardflip.inventoryView";
+type InventoryView = "grid" | "list";
+
 const STATUS_CHIP: Record<ServerCard["status"], string> = {
   ready: "bg-zinc-400/10 text-zinc-300",
   listed: "bg-emerald-500/20 text-emerald-300",
@@ -262,6 +266,21 @@ export default function CollectionPage() {
   const [cards, setCards] = useState<ServerCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [view, setView] = useState<InventoryView>(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid";
+    } catch {
+      return "grid";
+    }
+  });
+  function chooseView(next: InventoryView) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Private mode / blocked storage: the choice just doesn't persist.
+    }
+  }
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   // "Mark sold" asks what it actually went for (prefilled with the asking
@@ -871,6 +890,33 @@ export default function CollectionPage() {
         {/* Wraps on a phone: without it the filter box was squeezed to two
             letters between the sort select and Export CSV (Chris, 09-02). */}
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-edge bg-surface-1" role="group" aria-label="View">
+            {(["grid", "list"] as InventoryView[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => chooseView(v)}
+                aria-pressed={view === v}
+                title={v === "grid" ? "Binder view" : "List view"}
+                className={`flex h-9 w-9 items-center justify-center transition ${
+                  view === v ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {v === "grid" ? (
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                    <rect x="3" y="3" width="6" height="6" rx="1.2" />
+                    <rect x="11" y="3" width="6" height="6" rx="1.2" />
+                    <rect x="3" y="11" width="6" height="6" rx="1.2" />
+                    <rect x="11" y="11" width="6" height="6" rx="1.2" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+                    <path d="M4 5.5h12M4 10h12M4 14.5h12" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
@@ -1182,6 +1228,213 @@ export default function CollectionPage() {
             </Link>
           )}
         </div>
+      ) : view === "grid" ? (
+        /* Binder view (Chris, 09-04): the card IS the row. Your own photo when
+           one is stored, status as a pill on the art, the price where a price
+           sticker goes, a Sold stamp across sold copies. The art is the
+           primary action — a draft opens in the editor, a live listing opens
+           the reprice sheet. Select and Delete reveal on hover / show on
+           touch, like the watchlist tiles. */
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          {visible.map((card) => {
+            const live = isLive(card);
+            const ended = isEnded(card);
+            const sold = card.status === "sold";
+            const draft = card.status === "ready";
+            const isSelected = selected.has(card.id);
+            const img = card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl;
+            const resumeHref = `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
+            const glow = live
+              ? "ring-emerald-400/40 shadow-emerald-500/15"
+              : ended
+                ? "ring-amber-400/40 shadow-amber-500/10"
+                : sold
+                  ? "ring-sky-400/30 shadow-sky-500/10"
+                  : draft && !card.verifiedAt
+                    ? "ring-amber-300/25 shadow-black/40"
+                    : "ring-white/10 shadow-black/40";
+            const art = (
+              <>
+                <CardImage
+                  src={img}
+                  alt={card.cardName}
+                  className={`h-full w-full ${sold ? "opacity-70 saturate-50" : ""}`}
+                />
+                {sold && (
+                  <span
+                    aria-hidden
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-md border-2 border-sky-300/80 px-3 py-1 font-display text-lg font-bold uppercase tracking-[0.3em] text-sky-200/90 shadow-lg"
+                  >
+                    Sold
+                  </span>
+                )}
+                {/* Price sticker — the one number a seller scans a binder for. */}
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2.5 pb-2 pt-8">
+                  <span className="min-w-0 pr-2 text-left">
+                    <span className="block truncate text-xs font-semibold text-white">{card.cardName}</span>
+                    <span className="block truncate text-[10px] text-zinc-400">{card.setName}</span>
+                  </span>
+                  <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
+                    {sold && card.soldPrice != null
+                      ? `${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}`
+                      : `${card.price.toFixed(2)}`}
+                  </span>
+                </span>
+              </>
+            );
+            return (
+              <li
+                key={card.id}
+                className={`group relative flex flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 shadow-lg ring-1 transition hover:-translate-y-1 hover:shadow-xl ${glow} ${
+                  isSelected ? "outline outline-2 outline-brand-400" : ""
+                }`}
+              >
+                {draft && card.kind !== "sealed" ? (
+                  <Link
+                    href={resumeHref}
+                    title={card.verifiedAt ? "Build the listing" : "Verify the match and build the listing"}
+                    className="relative block aspect-[5/7] bg-black/40"
+                  >
+                    {art}
+                  </Link>
+                ) : live && card.ebayOfferId ? (
+                  <button
+                    type="button"
+                    onClick={() => setPriceSheet(card.id)}
+                    title="Change the listing price — updates your eBay listing too"
+                    className="relative block aspect-[5/7] w-full bg-black/40 text-left"
+                  >
+                    {art}
+                  </button>
+                ) : (
+                  <div className="relative aspect-[5/7] bg-black/40">{art}</div>
+                )}
+
+                {/* Status, top-left, on the art. */}
+                <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1">
+                  {live ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      </span>
+                      Live
+                    </span>
+                  ) : ended ? (
+                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-amber-300 backdrop-blur">Auction ended</span>
+                  ) : draft && !card.verifiedAt ? (
+                    <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">Verify match</span>
+                  ) : draft ? (
+                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur">Active</span>
+                  ) : null}
+                  {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
+                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-brand-300 backdrop-blur">1st Edition</span>
+                  )}
+                  {card.matchDoubt && (
+                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-amber-300/90 backdrop-blur" title={card.matchDoubt}>
+                      ⚠ check
+                    </span>
+                  )}
+                  {(card.quantity || 1) > 1 && (
+                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-200 backdrop-blur">×{card.quantity}</span>
+                  )}
+                </div>
+
+                {/* Select + Delete, top-right: hover on a mouse, always on touch. */}
+                <div
+                  className={`absolute right-2 top-2 flex items-center gap-1.5 transition [@media(hover:hover)]:group-hover:opacity-100 ${
+                    isSelected || selected.size > 0 ? "" : "[@media(hover:hover)]:opacity-0"
+                  }`}
+                >
+                  {!live && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={(e) => toggleSelected(card.id, e.shiftKey)}
+                      onChange={() => {}}
+                      aria-label={`Select ${card.cardName}`}
+                      className="h-5 w-5 cursor-pointer rounded border-zinc-500 bg-black/60 accent-brand-500"
+                    />
+                  )}
+                  {(card.status !== "listed" || ended) && (
+                    <button
+                      onClick={() => remove(card)}
+                      aria-label={`Delete ${card.cardName}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-zinc-300 backdrop-blur transition hover:bg-black/90 hover:text-white"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* One action under the art — the thing this card needs next. */}
+                <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+                  <span className="truncate text-[11px] text-zinc-500">
+                    {sold && card.soldPrice != null
+                      ? `sold ${card.soldPrice.toFixed(2)} · net`
+                      : live
+                        ? "Awaiting sale"
+                        : ended
+                          ? formatDate(card.ebayEndedAt!)
+                          : card.cardNumber
+                            ? `#${card.cardNumber}`
+                            : ""}
+                  </span>
+                  {draft && card.kind !== "sealed" ? (
+                    <Link
+                      href={resumeHref}
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                        card.verifiedAt
+                          ? "bg-white/5 text-zinc-200 hover:bg-white/10"
+                          : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
+                      }`}
+                    >
+                      {card.verifiedAt ? "Build listing" : "Verify"}
+                    </Link>
+                  ) : live ? (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {nudges[card.id] && (
+                        <button
+                          onClick={() => void applyReprice(card, nudges[card.id])}
+                          disabled={repricing === card.id}
+                          title={`Market moved ${nudges[card.id].drift > 0 ? "up" : "down"} — reprice to ${nudges[card.id].market.toFixed(2)} here and on eBay`}
+                          className="rounded-full bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
+                        >
+                          {nudges[card.id].drift > 0 ? "↑" : "↓"} ${nudges[card.id].market.toFixed(2)}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => void endListing(card)}
+                        disabled={ending === card.id}
+                        className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                      >
+                        {ending === card.id ? "Ending…" : "End"}
+                      </button>
+                    </div>
+                  ) : ended ? (
+                    <button
+                      onClick={() => void relist(card)}
+                      className="shrink-0 rounded-full bg-brand-500/15 px-2.5 py-1 text-[11px] font-semibold text-brand-300 transition hover:bg-brand-500/25"
+                    >
+                      Relist
+                    </button>
+                  ) : sold && card.ebayListingUrl ? (
+                    <a
+                      href={card.ebayListingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-[11px] text-zinc-400 underline decoration-zinc-700 underline-offset-2 hover:text-zinc-200"
+                    >
+                      eBay ↗
+                    </a>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
           <ul className="divide-y divide-white/5">
