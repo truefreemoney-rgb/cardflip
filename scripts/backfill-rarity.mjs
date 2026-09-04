@@ -69,6 +69,41 @@ for (const row of rows) {
   filled++;
   process.stdout.write(`\r${filled}/${rows.length} filled`);
 }
-console.log(`\nfilled ${filled}, unresolved ${missed.length}`);
-if (missed.length) console.log(missed.slice(0, 20).join("\n"));
+// Second pass: sets the upstream catalog doesn't carry yet (Black Bolt and
+// White Flare on 09-04). TCGplayer's product feed lists Rarity, and the
+// row's catalog id maps to a product — one products fetch per group.
+const left = await db
+  .prepare(
+    `SELECT c.id, c.card_name, p.product_id, p.group_id
+       FROM cards c JOIN tcgplayer_products p ON p.card_id = c.catalog_card_id
+      WHERE c.kind = 'card' AND c.rarity IS NULL AND c.game = 'pokemon'`,
+  )
+  .all();
+const byGroup = new Map();
+for (const r of left) {
+  if (!byGroup.has(r.group_id)) byGroup.set(r.group_id, []);
+  byGroup.get(r.group_id).push(r);
+}
+let second = 0;
+for (const [gid, list] of byGroup) {
+  try {
+    const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, {
+      headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" },
+    });
+    const products = (await res.json()).results ?? [];
+    const rarityOf = new Map(
+      products.map((p) => [p.productId, (p.extendedData ?? []).find((e) => e.name === "Rarity")?.value ?? null]),
+    );
+    for (const r of list) {
+      const rarity = rarityOf.get(r.product_id);
+      if (!rarity) continue;
+      await db.prepare("UPDATE cards SET rarity = ? WHERE id = ?").run(rarity, r.id);
+      second++;
+    }
+  } catch (err) {
+    console.warn(`tcgcsv group ${gid}: ${err instanceof Error ? err.message : err}`);
+  }
+}
+const stillMissing = await db.prepare("SELECT count(*) AS n FROM cards WHERE kind = 'card' AND rarity IS NULL").get();
+console.log(`\nfilled ${filled} from the catalog, ${second} from TCGplayer; ${stillMissing?.n ?? "?"} rows still without a rarity`);
 process.exit(0);
