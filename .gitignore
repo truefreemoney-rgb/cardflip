@@ -51,3 +51,6 @@ backups/
 
 .vercel
 .env*
+
+# local secret scratch files
+stripe2.txt
