@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-03 ~3:15pm ET (session 4 save; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 110`).
+Last updated: 2026-09-03 ~11:50pm ET (session 5 end; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,56 +23,52 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-03 ~3:15pm ET, session 4, mid-stress-test — Chris
-/cleared to save context): (1) CONFIRM b256b02 (My Cards stats panel
-makeover) — DONE 09-03 ~3:20pm: deployed (8041feb Production success) and
-Chris said "much better" → YEA, keep it. `gh` CLI is now logged in
-(truefreemoney-rgb, 5000/hr) — use `gh api` for deploy/CI checks, not curl.
-(2) VERIFY MATCH gate: Chris said "looks great" (09-03 ~3:35pm) → YEA.
-Shipped after that, all on main: Copies input removed from the editor
-(3f381b5); Account page build stamp "build <sha>" (4efc2f6) — his iPhone
-had held a 3-hour-old bundle through a refresh, private tab fixed it;
-quick sale is a $5+ option, under that quotePrice treats "quick" as market
-and the editor shows one Market tile (8eacbda); My Cards status chip sits
-under the thumbnail (d4a0524). (3) Session 5 cont. (09-03 eve), all on main, last = c481b19 deployed
-success: Inventory (was My cards) tab/heading; row states Live → "Awaiting
-sale" + "End auction" (POST /api/ebay/end → offer withdraw → ebay_ended_at),
-ended → "Auction ended" pill + Relist/Delete (relist = draft + editor,
-verification kept), sold → Sold + Delete; ended cards have own count/filter
-and are out of In play; editor header makeover (title + Watch, verify strip
-no Undo — verification is final, facts panel, no "Not this card?"); pricing
-labels "Suggested listing price" / at $5+ "Listing price": Quick sale +
-Full value; McDonald's 2024 #1 Charizard art served from public/cards (no
-provider has 2023/2024 sets). FINAL stress test DONE 09-03 eve — clean, no
-issues reported ("last one for a long time unless I find something odd").
-After that (09-03 late): stress-test errors replayed from stored photos →
-ranker fixes (numerator can't outvote set total; newest-first ties; promo
-"SVP 212" prefix stripped; scripts/replay-scans.mjs); "Not your card?"
-back (hidden once verified); editor Delete beside Watch; no-art match
-shows a labelled placeholder; catalogue art 661 → 184 missing via
-scripts/fill-images.mjs (see BACKLOG); scanner BLUR GATE (d79e9bb:
-lib/sharpness.ts, text-band Laplacian variance ≥ 90 at 480px, refuses a
-soft frame ONCE with an amber nudge, next tap always goes through —
-conservative on purpose, Chris hates false fires; raise toward 150 only if
-he asks for a stricter gate). MTG STRESS TEST (09-03 late): 35 scans, 24 clean. Replayed the 11
-flagged (replay-scans now does Magic): FF TOKENS ("Hero" T0005, "Bird"
-T 0016 — not in the mirror) substring-matched priced Marvel cards →
-scanner now says "That's a token" on T-numbers and the ranker requires
-word-boundary name matches; a 5%-confidence "Unknown" read became
-Unknown Shores → UNREADABLE_CONFIDENCE=0.2 floor asks for a retake. The
-rest were vision variance (replay correct). Search cards got a makeover +
-set browser + sort/filter; Watchlist makeover; Inventory split by game.
-NEXT (Chris said "tomorrow" =
-09-04): the Stripe public-details errand —
-business address + phone that aren't his home/cell (BACKLOG §0 item 1);
-that's his side, I gate on it. Then post-launch cadence: batch weekly.
-The day's rules still hold —
-expect more screenshots; the day's rules: TCGplayer current-day point =
-value, eBay asking = reference chip, fee-aware floor $1.79 ($0.50 net +
-$0.75 postage) on cheap cards, ONE quote everywhere (ScanItem.currentPoint).
-Auto-scan is GONE; printings work is REVERTED; don't touch pickPrice /
-pointCanRebase without a one-card agreement with Chris. Stripe public
-details errand still pending on his side. Main = vercel-migration = origin.**
+**FIRST ACTION (saved 09-03 ~11:50pm ET, session 5 end — Chris /cleared):
+(1) Chris's side first: the STRIPE PUBLIC-DETAILS errand (business address
++ phone that aren't his home/cell, BACKLOG §0 item 1) — gate on it, then
+post-launch cadence = batch weekly. (2) If he sends MTG scan issues: pull
+the read straight from prod — scan_usage.read now stores every vision
+read (name/number/code/kind/conf) so a NO-MATCH scan is replayable without
+a photo; `npm run replay:scans <cardId>` replays rows WITH photos (Pokémon
++ Magic), `--file img --game mtg` replays a local image. Open MTG thread:
+FF TOKENS (Hero/Bird, T-numbers) are REFUSED ON PURPOSE ("That's a token")
+— Chris was told; if he wants tokens kept as unpriced inventory, add them.
+FF ART CARD: reader flags kind=art but read the name as "Unknown" (10%) —
+tiny text along the bottom edge; needs a sharp close photo, chip now says
+so. Art Series cards (2,650, 40 sets) ARE in the mirror since tonight
+(scripts/sync-mtg-art.mjs, local + prod; EUR-only prices — BACKLOG). (3)
+Everything below is on main and deployed (last = 49fb3cb).**
+
+**SESSION 5 SHIPPED (09-03, all main, all deployed):** Inventory (was My
+cards): Live → "Awaiting sale" + "End auction" (POST /api/ebay/end
+withdraws the eBay offer → ebay_ended_at), ended → "Auction ended" pill +
+Relist/Delete, sold → Sold + Delete, ended cards have own count/filter and
+are out of In play; Pokémon/Magic split (game toggle + counts); shift+click
+range select. Editor: header makeover (title + Watch + Delete, verify strip
+— verification is FINAL, no Undo; facts panel; "Not your card? N other
+matches" back, hidden once verified); no-art match shows a labelled
+placeholder; Copies input gone; pricing labels "Suggested listing price" /
+at $5+ "Listing price": Quick sale + Full value (quick sale is a $5+ option).
+Search cards: makeover, By name / By set (dropdown of every set → all cards
+priced via price_series batch), sort (set/price/rarity/name) + filter.
+Watchlist: makeover (Watching + Total value strip, tiles with now-vs-saved,
+alert pill + badge). Scanner: BLUR GATE (lib/sharpness.ts, text-band
+Laplacian ≥ 90, refuses once, next tap always goes through — conservative,
+Chris hates false fires); vision read gains `kind` (card/token/art);
+tokens refused; art → artOnly search over Art Series sets;
+UNREADABLE_CONFIDENCE=0.2 retake floor (art exempt); camera chip shows the
+specific reason; photo upload retries once. Identification: numerator can't
+outvote set total; newest-first ties; promo "SVP 212" prefix stripped; MTG
+name matches need word boundaries (Hero ≠ Heroic Return); DFC/colon names
+survive the route (mirror gets the raw name); resume fetches by catalog id
+first. Catalogue art 661 → 184 missing (scripts/fill-images.mjs: TCGplayer
+CDN, pokemontcg.io map, tcgcsv group map, public/cards hand files; Chris
+scanned all 29 MEP promos). Account page shows "build <sha>" (his iPhone
+held a 3-hour-old bundle through a refresh — private tab / kill app fixes).
+Day rules still hold: TCGplayer current-day point = value, eBay asking =
+reference chip, fee-aware floor $1.79, ONE quote everywhere; auto-scan is
+GONE; don't touch pickPrice / pointCanRebase without a one-card agreement.
+Main = vercel-migration = origin. `gh` is logged in (use gh api).**
 
 **SHIPPED SESSION 4 — VERIFY MATCH GATE (Chris's "big safety feature",
 09-03): every identified card is "Verify match" (amber) until the seller
