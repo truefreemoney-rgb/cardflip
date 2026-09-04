@@ -185,7 +185,7 @@ export default async function Home() {
             between. The only local light is the glow behind the phone. */}
         <section className="relative overflow-hidden">
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
-            <div className="flex flex-col items-start gap-6 text-left">
+            <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 Pokémon TCG · Magic: The Gathering
               </div>
@@ -207,7 +207,7 @@ export default async function Home() {
                 listing. You tap Post.
               </p>
 
-              <div className="animate-fade-up flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "180ms" }}>
+              <div className="animate-fade-up flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row" style={{ animationDelay: "180ms" }}>
                 <Link
                   href="/signup"
                   className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
@@ -222,7 +222,7 @@ export default async function Home() {
                 </a>
               </div>
 
-              <ul className="animate-fade-up mt-2 flex flex-wrap gap-x-6 gap-y-2 text-xs text-zinc-500" style={{ animationDelay: "240ms" }}>
+              <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 sm:justify-start" style={{ animationDelay: "240ms" }}>
                 {[
                   `${catalogLabel} printings, each priced on its own`,
                   "TCGplayer market plus live eBay comps",
