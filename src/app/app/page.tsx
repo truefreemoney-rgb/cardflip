@@ -1121,6 +1121,10 @@ export default function AppPage() {
       }}
       onCapture={onCameraCapture}
       onClose={closeCamera}
+      onOpen={(id) => {
+        setSelectedId(id);
+        closeCamera();
+      }}
     />
   );
 

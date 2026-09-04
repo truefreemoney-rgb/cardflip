@@ -35,6 +35,8 @@ interface Props {
   tally?: { count: number; value: number } | null;
   onCapture: (file: File) => void;
   onClose: () => void;
+  /** Tap on the result chip: leave the camera with this card open in the editor. */
+  onOpen?: (id: string) => void;
 }
 
 /**
@@ -117,7 +119,7 @@ function guideInVideo(video: HTMLVideoElement): GuideRect {
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ lastScan, tally, onCapture, onClose }: Props) {
+export default function CameraCapture({ lastScan, tally, onCapture, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -576,7 +578,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} />
           ) : (
             <p className="w-full text-center text-xs text-zinc-500">
               Fill the guide with one card, then tap Capture. Keep going for a whole
@@ -610,7 +612,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose }: P
  * glass chip that fades up in its own row (never over the guide): icon,
  * MATCH FOUND, name, and confidence when vision reports one.
  */
-function ScanToast({ item }: { item: ScanItem }) {
+function ScanToast({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => void }) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -644,7 +646,7 @@ function ScanToast({ item }: { item: ScanItem }) {
     );
   }
 
-  return <RevealChip item={item} />;
+  return <RevealChip item={item} onOpen={onOpen} />;
 }
 
 /**
@@ -720,7 +722,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item }: { item: ScanItem }) {
+function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => void }) {
   const card = item.card!;
   // Hold the number until pricing has settled — eBay comps answered and the
   // chart point fetched (undefined = not yet). Before this the chip showed
@@ -737,8 +739,9 @@ function RevealChip({ item }: { item: ScanItem }) {
 
   return (
     <div
-      className={`animate-fade-up flex w-full items-center gap-3 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
+      className={`animate-fade-up flex w-full flex-col gap-2 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
     >
+    <div className="flex w-full items-center gap-3">
       <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
         {card.imageSmall ? (
           <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
@@ -781,6 +784,18 @@ function RevealChip({ item }: { item: ScanItem }) {
           </p>
         )}
       </div>
+    </div>
+      {/* The next step lives on the result (Chris, 09-04): one button, names
+          the outcome. Keeps scanning if ignored. */}
+      {onOpen && (
+        <button
+          type="button"
+          onClick={() => onOpen(item.id)}
+          className="w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+        >
+          Check and publish
+        </button>
+      )}
     </div>
   );
 }
