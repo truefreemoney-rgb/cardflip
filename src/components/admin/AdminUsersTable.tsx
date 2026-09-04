@@ -51,21 +51,21 @@ const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
 
 const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
   { value: "", label: "Automatic" },
-  { value: "unlimited", label: "Unlimited" },
-  { value: "comp_standard", label: "Comp · 500 / month" },
-  { value: "comp_pro", label: "Comp Pro · 2,000 / month" },
+  { value: "unlimited", label: "Owner · unlimited" },
+  { value: "comp_standard", label: "Subscribed · 500 / month (comped)" },
+  { value: "comp_pro", label: "Pro · 2,000 / month (comped)" },
   { value: "legacy", label: "Legacy · 100 / day" },
-  { value: "trial", label: "Trial · 10 scans" },
+  { value: "trial", label: "Trial · 10 scans, no selling" },
 ];
 
 /** What "Automatic" resolves to for this account, so the admin knows what clearing does. */
 function automaticLabel(u: AdminUserRow): string {
-  if (u.role === "admin") return "owner (admin)";
-  if (u.subStatus === "active" || u.subStatus === "trialing" || u.subStatus === "past_due") return `Stripe ${u.plan === "pro" ? "Pro" : "standard"}`;
-  return "legacy or trial by signup date";
+  if (u.role === "admin") return "Owner (admin)";
+  if (u.subStatus === "active" || u.subStatus === "trialing" || u.subStatus === "past_due") return u.plan === "pro" ? "Pro via Stripe" : "Subscribed via Stripe";
+  return u.tier === "legacy" ? "Legacy" : "Trial";
 }
 
-function PlanSelect({ user }: { user: AdminUserRow }) {
+function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,24 +87,33 @@ function PlanSelect({ user }: { user: AdminUserRow }) {
       setPending(false);
     }
   }
+  // The pill IS the dropdown (Chris, 09-04: "each plan needs a dropdown
+  // menu"): coloured by the tier it resolves to, with the automatic
+  // resolution as the first option so clearing an override is one pick.
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <span className="block min-w-0" onClick={(e) => e.stopPropagation()}>
       <select
         value={user.accessOverride ?? ""}
         onChange={(e) => change(e.target.value)}
         disabled={pending}
-        aria-label="Plan"
-        className="rounded-full border border-edge bg-black/40 px-3 py-1 text-xs text-white outline-none focus:border-brand-400 disabled:opacity-50"
+        aria-label={`Plan for ${user.name}`}
+        className={`max-w-full cursor-pointer appearance-none rounded-full border border-transparent py-0.5 pl-2 pr-6 text-[11px] font-medium outline-none transition hover:border-edge-strong focus:border-brand-400 disabled:opacity-50 ${tierCls}`}
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 3.5l3 3 3-3' fill='none' stroke='%23a1a1aa' stroke-width='1.5' stroke-linecap='round'/></svg>\")",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right 6px center",
+        }}
       >
-        {OVERRIDE_OPTIONS.map((o) => (
+        <option value="">Automatic · {automaticLabel(user)}</option>
+        {OVERRIDE_OPTIONS.filter((o) => o.value !== "").map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
       </select>
-      <span className="text-[11px] text-zinc-600">{user.accessOverride ? "override" : `automatic → ${automaticLabel(user)}`}</span>
-      {error && <span className="text-[11px] text-red-400">{error}</span>}
-    </div>
+      {error && <span className="mt-0.5 block text-[11px] text-red-400">{error}</span>}
+    </span>
   );
 }
 
@@ -228,10 +237,9 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     : `${u.scansUsed}/${u.monthlyScans} this month`;
             return (
               <li key={u.id} className={open ? "bg-white/[0.03]" : ""}>
-                <button
+                <div
                   onClick={() => setOpenId(open ? null : u.id)}
-                  aria-expanded={open}
-                  className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03] ${GRID}`}
+                  className={`grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03] ${GRID}`}
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span
@@ -253,7 +261,9 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                         <span>{r?.cards ?? 0} cards</span>
                         <span>{r?.sold ?? 0} sold</span>
                         <span className="text-emerald-400">${(r?.revenue ?? 0).toFixed(2)}</span>
-                        <span className={`rounded-full px-1.5 ${tier.cls}`}>{tier.label}</span>
+                      </span>
+                      <span className="mt-1 block md:hidden">
+                        <PlanSelect user={u} tierCls={tier.cls} />
                       </span>
                     </span>
                   </span>
@@ -262,24 +272,25 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.sold ?? 0}</span>
                   <span className={`hidden text-right tabular-nums md:block ${r?.revenue ? "text-emerald-400" : "text-zinc-600"}`}>${(r?.revenue ?? 0).toFixed(2)}</span>
                   <span className="hidden min-w-0 md:block">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tier.cls}`}>
-                      {u.accessOverride === "comp_pro" || (u.tier === "subscribed" && u.plan === "pro") ? "Pro" : tier.label}
-                      {u.accessOverride && <span className="ml-1 opacity-70">· set by admin</span>}
-                    </span>
+                    <PlanSelect user={u} tierCls={tier.cls} />
                     <span className="mt-0.5 block truncate text-[11px] text-zinc-600">{scansLabel}</span>
                   </span>
                   <span className="hidden text-xs text-zinc-500 md:block">{fmtDate(u.createdAt)}</span>
                   <span className="hidden text-xs text-zinc-500 md:block">{fmtDate(r?.lastActive ?? null)}</span>
-                  <span className={`justify-self-end text-zinc-600 transition ${open ? "rotate-180" : ""}`} aria-hidden>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenId(open ? null : u.id);
+                    }}
+                    aria-expanded={open}
+                    aria-label={open ? "Hide actions" : "Show actions"}
+                    className={`flex h-7 w-7 items-center justify-center justify-self-end rounded-full text-zinc-500 transition hover:bg-white/10 hover:text-white ${open ? "rotate-180" : ""}`}
+                  >
                     ▾
-                  </span>
-                </button>
+                  </button>
+                </div>
                 {open && (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-edge bg-black/20 px-4 py-3 md:pl-16">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] uppercase tracking-wider text-zinc-600">Plan</span>
-                      <PlanSelect user={u} />
-                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Password</span>
                       <ResetLinkButton userId={u.id} disabled={u.isDemo} />
