@@ -1763,7 +1763,20 @@ export default function CollectionPage() {
                   className="h-16 w-12 shrink-0 rounded-md"
                 />
 
-                <div className="min-w-[9rem] flex-1">
+                <div
+                  // Tappable (QA leftover): the row's name block opens the card,
+                  // same as the binder art. Buttons inside the row stay their own.
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void openDetail(card)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      void openDetail(card);
+                    }
+                  }}
+                  className="min-w-[9rem] flex-1 cursor-pointer rounded-lg outline-none transition hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-brand-400"
+                >
                   <p className="truncate text-sm font-semibold text-white">
                     {card.cardName}
                     {(card.quantity || 1) > 1 && (

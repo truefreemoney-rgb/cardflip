@@ -41,10 +41,10 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Camera controls / torch positions on a real device after the HUD rezoning.
 
 ### D. Code work I can do next (ranked, easiest first)
-- [ ] Delete PriceTicker (unused; Chris hates it) + dead S3/Fly backup path in lib/server/backup.ts + stale "Fly secrets" copy on the admin page.
-- [ ] Dead "demo" copy in account / EbayConnectCard / admin table.
-- [ ] .env.example drift: add TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, STRIPE_PRO_PRICE_ID, EBAY_DRAFT_SCOPE, NEXT_PUBLIC_BUILD_SHA, NEXT_PUBLIC_DEV_LOGIN*; drop ADMIN_EMAIL; note CARDFLIP_DB_PATH is scripts-only.
-- [ ] QA leftovers: signup "Already have an account" link; error focus; 32px nav targets; 134px mobile header; "Move your cursor" hidden on touch; one word for verified-unlisted; condition-change price feedback; category prompt on photo uploads; tappable Text-view rows; Inventory search by card number; set picker type-ahead.
+- [x] Delete PriceTicker + dead S3/Fly backup path + stale "Fly secrets" copy — DONE 09-04 night.
+- [ ] Dead "demo" copy in account / EbayConnectCard / admin table — NOT dead: the demo@cardflip.dev row still exists in prod, so the read-only guards still protect it; leave until that account is deleted.
+- [x] .env.example drift (DONE 09-04 night): add TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, STRIPE_PRO_PRICE_ID, EBAY_DRAFT_SCOPE, NEXT_PUBLIC_BUILD_SHA, NEXT_PUBLIC_DEV_LOGIN*; drop ADMIN_EMAIL; note CARDFLIP_DB_PATH is scripts-only.
+- [x] QA leftovers — DONE 09-04 night: signup Log in link; error focus; 36px nav targets; shorter phone header; hover hint hidden on touch; condition-change price note; category prompt on photo uploads; tappable Text-view rows; Inventory search by number; set picker type-ahead. (verified-unlisted chip already reads "Active".)
 - [ ] Remove "Mark sold" from Live rows (keep bulk) — Chris said leave for now.
 - [ ] TOTP backup codes (lost phone = manual column clear today).
 - [ ] MTG Art Series USD prices (needs a TCGplayer product map for MTG).

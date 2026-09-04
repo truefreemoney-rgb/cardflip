@@ -868,6 +868,25 @@ export default function AppPage() {
     setCameraOpen(true);
   }, []);
 
+  /** Photo uploads (QA leftover): same category ask as the first camera
+   *  capture, once per session; the picked category reaches every card
+   *  added this session, saved or not yet. */
+  const addUploads = useCallback(
+    (files: File[]) => {
+      const ids = addFiles(files);
+      sessionItemIdsRef.current.push(...ids);
+      if (ids.length > 0 && !categoryAskedRef.current) {
+        categoryAskedRef.current = true;
+        setCategoryPrompt({ existing: [] });
+        void fetchServerCards().then((rows) => {
+          setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+        });
+      }
+      return ids;
+    },
+    [addFiles],
+  );
+
   /** First capture of a camera session: ask "which category?" over the
    *  viewfinder while the scan runs. Later captures file silently. */
   const onCameraCapture = useCallback(
@@ -1234,7 +1253,7 @@ export default function AppPage() {
             </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
-          <Uploader onFiles={addFiles} onOpenCamera={openCamera} showcase={showcase} />
+          <Uploader onFiles={addUploads} onOpenCamera={openCamera} showcase={showcase} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —
               a card with no scan photo can only draft with catalog art eBay
@@ -1289,7 +1308,7 @@ export default function AppPage() {
             <div className="flex flex-wrap items-center gap-2">
               <GameToggle game={game} onChange={setGame} compact />
               <Uploader
-                onFiles={addFiles}
+                onFiles={addUploads}
                 onOpenCamera={openCamera}
                 variant="compact"
               />

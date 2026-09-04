@@ -244,6 +244,15 @@ function PsaCertVerify({
 const gradedCompsCache = new Map<string, { average: number; count: number } | null>();
 
 export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll, onRemove }: Props) {
+  // Condition-change feedback (QA leftover): the price moves silently
+  // otherwise, and a seller picking Lightly Played wonders if it took.
+  const [conditionNote, setConditionNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!conditionNote) return;
+    const t = window.setTimeout(() => setConditionNote(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [conditionNote]);
+
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -1027,6 +1036,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 syncLedgerCondition({ condition });
                 // Remembered per browser — the next scanned card starts here.
                 saveCondition(condition);
+                setConditionNote(`Priced as ${condition} — the suggested price below follows the condition.`);
               }}
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
             >
@@ -1036,6 +1046,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 </option>
               ))}
             </select>
+            {conditionNote && (
+              <span role="status" className="text-xs font-normal text-emerald-300">
+                {conditionNote}
+              </span>
+            )}
             {/* Grading a whole box the same: one click instead of per-card. */}
             {onApplyConditionToAll && (
               <button
