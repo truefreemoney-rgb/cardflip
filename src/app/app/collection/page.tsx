@@ -4,9 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
+import CardDetailModal from "@/components/CardDetailModal";
+import { fetchCardById, searchCards } from "@/lib/cards";
+import { normalizeNumber } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
 import { readSavedGame, saveGame } from "@/lib/games";
-import type { GameId } from "@/lib/types";
+import type { GameId, PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
 import PriceInput from "@/components/PriceInput";
@@ -45,6 +48,29 @@ const STATUS_LABEL: Record<ServerCard["status"], string> = {
   listed: "Live",
   sold: "Sold",
 };
+
+/** The listing page for a ledger row, with the hints that make reopening instant. */
+function resumeHrefFor(card: ServerCard): string {
+  return `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
+}
+
+/** What the ledger row already knows about its catalog card, shaped for the
+ * detail modal — shown the instant a tile is tapped while the real row loads. */
+function catalogStub(card: ServerCard): PokemonCard {
+  return {
+    id: card.catalogCardId ?? "",
+    name: card.cardName,
+    setName: card.setName,
+    setSeries: "",
+    number: card.cardNumber,
+    rarity: null,
+    imageSmall: card.imageUrl,
+    imageLarge: card.imageUrl,
+    prices: [],
+    englishName: null,
+    ...(card.game === "mtg" ? { game: "mtg" as const } : {}),
+  };
+}
 
 /** Grid or rows — remembered per browser (Chris, 09-04: "way more visual"). */
 const VIEW_KEY = "cardflip.inventoryView";
@@ -291,6 +317,183 @@ export default function CollectionPage() {
   // a seller never has to go to eBay (Chris, 09-04). Live rows only — a draft
   // is priced in the editor, a sold row records what it went for.
   const [priceSheet, setPriceSheet] = useState<string | null>(null);
+  // Tile art → the full card view (Chris, 09-04): everything the listing page
+  // shows about the card — holo art, prices, history — plus this copy's
+  // status and the one action it needs, which for drafts is "go verify /
+  // list it on the listing page". Catalog rows are cached per ledger row.
+  const [detail, setDetail] = useState<{ id: string; catalog: PokemonCard; loading: boolean } | null>(null);
+  const catalogCache = useRef<Record<string, PokemonCard>>({});
+
+  async function openDetail(card: ServerCard) {
+    const cached = catalogCache.current[card.id];
+    if (cached) {
+      setDetail({ id: card.id, catalog: cached, loading: false });
+      return;
+    }
+    setDetail({ id: card.id, catalog: catalogStub(card), loading: true });
+    const game: GameId = card.game === "mtg" ? "mtg" : "pokemon";
+    let found: PokemonCard | null = null;
+    try {
+      if (card.catalogCardId) found = await fetchCardById(card.catalogCardId, game);
+      if (!found) {
+        const results = await searchCards(card.cardName, card.cardNumber || null, "en", undefined, game);
+        found =
+          results.find((c) => card.catalogCardId && c.id === card.catalogCardId) ??
+          results.find((c) => c.name === card.cardName && normalizeNumber(c.number) === normalizeNumber(card.cardNumber)) ??
+          results[0] ??
+          null;
+      }
+    } catch {
+      found = null;
+    }
+    if (found) catalogCache.current[card.id] = found;
+    setDetail((d) => (d?.id === card.id ? { id: card.id, catalog: found ?? d.catalog, loading: false } : d));
+  }
+
+  /** The Inventory half of the detail view: this copy's status, dates and actions. */
+  function renderDetailAside(card: ServerCard) {
+    const live = isLive(card);
+    const ended = isEnded(card);
+    const sold = card.status === "sold";
+    const draft = card.status === "ready";
+    const href = resumeHrefFor(card);
+    const primary = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white transition";
+    const quiet = "inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
+    const facts: [string, string][] = [
+      ["Condition", card.condition],
+      ["Copies", String(card.quantity || 1)],
+      ["Scanned", formatDate(card.createdAt)],
+      ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
+      ...(sold && card.soldAt ? ([["Sold", formatDate(card.soldAt)]] as [string, string][]) : []),
+    ];
+    return (
+      <div className="mt-4 rounded-xl border border-edge bg-surface-1 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {live ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live on eBay
+            </span>
+          ) : ended ? (
+            <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
+          ) : sold ? (
+            <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
+          ) : card.verifiedAt ? (
+            <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active draft</span>
+          ) : (
+            <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
+          )}
+          {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
+            <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
+          )}
+          {card.matchDoubt && (
+            <span className="rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">⚠ {card.matchDoubt}</span>
+          )}
+        </div>
+
+        <p className="mt-3 text-sm text-zinc-300">
+          {sold && card.soldPrice != null ? (
+            <>
+              Sold for <span className="font-semibold text-white">${card.soldPrice.toFixed(2)}</span>
+              {" · "}net <span className="font-semibold text-emerald-400">${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}</span>
+              <span className="text-zinc-500"> after {card.soldFees != null ? "eBay fees" : "estimated fees"}</span>
+            </>
+          ) : live ? (
+            <>
+              Listed at <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
+              <span className="text-zinc-500"> · awaiting sale — flips to Sold on its own when eBay reports the order</span>
+            </>
+          ) : ended ? (
+            <>
+              Ended {card.ebayEndedAt ? formatDate(card.ebayEndedAt) : ""} without a sale at{" "}
+              <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
+            </>
+          ) : (
+            <>
+              Suggested price <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
+              <span className="text-zinc-500">
+                {card.verifiedAt ? " · verified, not listed yet" : " · check the match against your photo before listing"}
+              </span>
+            </>
+          )}
+        </p>
+
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+          {facts.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</dt>
+              <dd className="truncate text-sm text-zinc-200">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {draft && card.kind !== "sealed" && (
+            <Link href={href} className={`${primary} ${card.verifiedAt ? "bg-brand-500 hover:bg-brand-400" : "bg-amber-400 !text-black hover:bg-amber-300"}`}>
+              {card.verifiedAt ? "Build the listing →" : "Verify match on the listing page →"}
+            </Link>
+          )}
+          {live && card.ebayListingUrl && (
+            <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={`${primary} bg-ebay hover:bg-ebay-hover`}>
+              View on eBay ↗
+            </a>
+          )}
+          {live && card.ebayOfferId && (
+            <button
+              type="button"
+              onClick={() => {
+                setDetail(null);
+                setPriceSheet(card.id);
+              }}
+              className={quiet}
+            >
+              Change price
+            </button>
+          )}
+          {live && (
+            <button
+              type="button"
+              onClick={() => {
+                setDetail(null);
+                void endListing(card);
+              }}
+              className={quiet}
+            >
+              End auction
+            </button>
+          )}
+          {ended && (
+            <button
+              type="button"
+              onClick={() => {
+                setDetail(null);
+                void relist(card);
+              }}
+              className={`${primary} bg-brand-500 hover:bg-brand-400`}
+            >
+              Relist →
+            </button>
+          )}
+          {sold && card.ebayListingUrl && (
+            <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
+              View the sale on eBay ↗
+            </a>
+          )}
+          {(card.status !== "listed" || ended) && (
+            <button
+              type="button"
+              onClick={() => {
+                setDetail(null);
+                void remove(card);
+              }}
+              className="inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
   const [ending, setEnding] = useState<string | null>(null);
   const router = useRouter();
 
@@ -1305,26 +1508,16 @@ export default function CollectionPage() {
                   isSelected ? "outline outline-2 outline-brand-400" : ""
                 }`}
               >
-                {draft && card.kind !== "sealed" ? (
-                  <Link
-                    href={resumeHref}
-                    title={card.verifiedAt ? "Build the listing" : "Verify the match and build the listing"}
-                    className="relative block aspect-[5/7] bg-black/40"
-                  >
-                    {art}
-                  </Link>
-                ) : live && card.ebayOfferId ? (
-                  <button
-                    type="button"
-                    onClick={() => setPriceSheet(card.id)}
-                    title="Change the listing price — updates your eBay listing too"
-                    className="relative block aspect-[5/7] w-full bg-black/40 text-left"
-                  >
-                    {art}
-                  </button>
-                ) : (
-                  <div className="relative aspect-[5/7] bg-black/40">{art}</div>
-                )}
+                {/* The art opens the full card view — prices, history, this
+                    copy's status and actions (Chris, 09-04). */}
+                <button
+                  type="button"
+                  onClick={() => void openDetail(card)}
+                  title={`Open ${card.cardName}`}
+                  className="relative block aspect-[5/7] w-full bg-black/40 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+                >
+                  {art}
+                </button>
 
                 {/* Status, top-left, on the art. */}
                 <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1">
@@ -1739,6 +1932,22 @@ export default function CollectionPage() {
           </ul>
         </div>
       )}
+
+      {detail && (() => {
+        const card = cards.find((c) => c.id === detail.id);
+        if (!card) return null;
+        return (
+          <CardDetailModal
+            card={detail.catalog}
+            language="en"
+            logging={false}
+            loading={detail.loading}
+            photo={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : null}
+            aside={renderDetailAside(card)}
+            onClose={() => setDetail(null)}
+          />
+        );
+      })()}
 
       {priceSheet && (() => {
         const card = cards.find((c) => c.id === priceSheet);

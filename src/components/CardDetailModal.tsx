@@ -23,6 +23,11 @@ interface Props {
   watchlistControls?: React.ReactNode;
   /** The catalog row is still on its way — show the card now, prices shortly. */
   loading?: boolean;
+  /** Owner-supplied panel under the card facts — Inventory puts the row's
+   * status, dates and actions here (09-04). */
+  aside?: React.ReactNode;
+  /** The seller's own photo of this copy, shown beside the catalogue art. */
+  photo?: string | null;
   onClose: () => void;
 }
 
@@ -31,7 +36,7 @@ interface Props {
  * expanding inline — clicking a thumbnail should feel like stepping into a
  * focused space to inspect that card, not just growing the same page.
  */
-export default function CardDetailModal({ card, language, logging, onWatchlist = false, watchlistControls, loading = false, onClose }: Props) {
+export default function CardDetailModal({ card, language, logging, onWatchlist = false, watchlistControls, loading = false, aside, photo, onClose }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -95,10 +100,20 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
               alt={card.name}
               className="aspect-[5/7] w-full"
             />
-            {hasImage && (
+            {hasImage && !photo && (
               <p className="mt-2 text-center text-[11px] text-zinc-600">
                 Move your cursor over the card
               </p>
+            )}
+            {photo && (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-edge bg-surface-1 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo} alt="Your photo of this card" className="h-16 w-12 shrink-0 rounded-md object-cover" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-zinc-200">Your photo</p>
+                  <p className="text-[11px] leading-snug text-zinc-500">The picture buyers see on eBay.</p>
+                </div>
+              </div>
             )}
           </div>
 
@@ -119,6 +134,8 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
                 <Spinner className="h-3 w-3" /> Saving to history…
               </p>
             )}
+
+            {aside}
 
             {onWatchlist ? (
               <>
