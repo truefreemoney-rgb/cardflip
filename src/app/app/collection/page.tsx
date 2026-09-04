@@ -345,6 +345,8 @@ export default function CollectionPage() {
   // Category filter (Chris, 09-04): "all" | "none" (uncategorized) | a name.
   const [category, setCategory] = useState<string>("all");
   const [moveSheet, setMoveSheet] = useState(false);
+  // One card's category, from the detail view's Category cell (Chris, 09-04).
+  const [categoryTarget, setCategoryTarget] = useState<ServerCard | null>(null);
   const [moving, setMoving] = useState(false);
   // Tile art → the full card view (Chris, 09-04): everything the listing page
   // shows about the card — holo art, prices, history — plus this copy's
@@ -405,7 +407,6 @@ export default function CollectionPage() {
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
-      ["Category", card.category ?? "—"],
       ["Scanned", formatDate(card.createdAt)],
       ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
       ...(sold && card.soldAt ? ([["Sold", formatDate(card.soldAt)]] as [string, string][]) : []),
@@ -480,8 +481,24 @@ export default function CollectionPage() {
               <dd className="truncate text-sm text-zinc-100">{value}</dd>
             </div>
           ))}
-          {facts.length % 3 !== 0 &&
-            Array.from({ length: 3 - (facts.length % 3) }).map((_, i) => <div key={`pad-${i}`} className="bg-surface-1" />)}
+          {/* Category is a link: add one, or change it (Chris, 09-04). */}
+          <div className="min-w-0 bg-surface-1 px-4 py-2.5">
+            <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Category</dt>
+            <dd className="truncate text-sm">
+              <button
+                type="button"
+                onClick={() => setCategoryTarget(card)}
+                className={`inline-flex max-w-full items-center gap-1 underline-offset-4 transition hover:underline ${
+                  card.category ? "text-zinc-100 hover:text-white" : "text-brand-300 hover:text-brand-200"
+                }`}
+              >
+                <span className="truncate">{card.category ?? "Add to category"}</span>
+                {card.category && <span className="text-[10px] text-zinc-500">change</span>}
+              </button>
+            </dd>
+          </div>
+          {(facts.length + 1) % 3 !== 0 &&
+            Array.from({ length: 3 - ((facts.length + 1) % 3) }).map((_, i) => <div key={`pad-${i}`} className="bg-surface-1" />)}
         </dl>
 
         {/* Actions: one primary, then the quiet row */}
@@ -2050,6 +2067,27 @@ export default function CollectionPage() {
         );
       })()}
 
+      {categoryTarget && (
+        <CategorySheet
+          title={`Category for ${categoryTarget.cardName}`}
+          hint="Pick a category, or type a new one. Choose No category to clear it."
+          categories={categories}
+          current={categoryTarget.category}
+          confirmLabel="Save"
+          busy={moving}
+          onClose={() => setCategoryTarget(null)}
+          onPick={async (next) => {
+            const target = cards.find((c) => c.id === categoryTarget.id) ?? categoryTarget;
+            if (target.category !== next) {
+              setMoving(true);
+              await applyPatch(target, { category: next });
+              setMoving(false);
+              toast(next ? `${target.cardName} → ${next}` : `${target.cardName} uncategorized`);
+            }
+            setCategoryTarget(null);
+          }}
+        />
+      )}
       {moveSheet && (
         <CategorySheet
           title={`Move ${selected.size} card${selected.size === 1 ? "" : "s"} to…`}
