@@ -37,21 +37,67 @@ const inputCls =
 const labelCls = "block text-xs font-medium text-zinc-400";
 const primaryBtn =
   "rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60";
-const ghostBtn =
-  "rounded-lg border border-edge px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-surface-2 disabled:opacity-60";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+/** A labelled cluster of rows (Selling / Security / ...). */
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-edge bg-surface-1 p-5">
-      <h2 className="text-base font-semibold text-white">{title}</h2>
-      {hint && <p className="mt-1 text-sm text-zinc-500">{hint}</p>}
-      <div className="mt-4">{children}</div>
+    <section>
+      <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</h2>
+      <div className="divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">{children}</div>
     </section>
   );
+}
+
+/**
+ * One settings row: title + current state on the left, the action on the
+ * right, and an optional form that unfolds underneath (Chris, 09-04 makeover:
+ * a settings page is a list of rows, not five open forms).
+ */
+function Row({
+  title,
+  status,
+  action,
+  open = false,
+  hint,
+  children,
+}: {
+  title: string;
+  status?: React.ReactNode;
+  action?: React.ReactNode;
+  open?: boolean;
+  hint?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="px-4 py-3.5 sm:px-5">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-white">{title}</p>
+          {status && <div className="mt-0.5 text-xs text-zinc-500">{status}</div>}
+        </div>
+        {action}
+      </div>
+      {open && children && (
+        <div className="mt-4 border-t border-edge pt-4">
+          {hint && <p className="mb-3 text-xs text-zinc-500">{hint}</p>}
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const rowBtn =
+  "shrink-0 rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-50";
+const rowPrimary =
+  "shrink-0 rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50";
+
+function Dot({ on }: { on: boolean }) {
+  return <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${on ? "bg-emerald-400" : "bg-zinc-600"}`} />;
 }
 
 function Notice({ kind, children }: { kind: "ok" | "err"; children: React.ReactNode }) {
@@ -134,6 +180,7 @@ function AccountSettings({
   const [email, setEmail] = useState(user.email);
   const [emailPassword, setEmailPassword] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   // fetchAccount answers null on any failure; without a retry the page used
@@ -187,6 +234,7 @@ function AccountSettings({
   const [newPw2, setNewPw2] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [pwBusy, setPwBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   async function savePassword(e: FormEvent) {
@@ -306,16 +354,77 @@ function AccountSettings({
   }
 
   const d = overview?.data;
+  const initial = (user.name || user.email || "?").trim().charAt(0).toUpperCase();
+  const subscribed = user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+  const closeProfile = () => {
+    setProfileOpen(false);
+    setName(user.name);
+    setEmail(user.email);
+    setEmailPassword("");
+    setProfileMsg(null);
+  };
+  const closePw = () => {
+    setPwOpen(false);
+    setCurPw("");
+    setNewPw("");
+    setNewPw2("");
+    setPwMsg(null);
+  };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-10 sm:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Account</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {user.email} · member since {formatDate(user.createdAt)}
-          {user.role === "admin" && <> · <Link href="/admin" className="text-brand-300 hover:underline">admin console</Link></>}
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
+      {/* Identity card: who this is, plan, and the numbers that matter. */}
+      <section className="rounded-2xl border border-edge bg-surface-1 p-5">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-500/20 font-display text-xl font-bold text-brand-200 ring-1 ring-brand-400/30">
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-semibold text-white">{user.name || "Your account"}</h1>
+            <p className="truncate text-sm text-zinc-500">{user.email}</p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              subscribed ? "bg-emerald-400/15 text-emerald-300" : "bg-holo-violet/15 text-holo-violet"
+            }`}
+          >
+            {subscribed ? "CardFlip · $9.99/mo" : "Early access"}
+          </span>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+          <span>Member since {formatDate(user.createdAt)}</span>
+          {overview && (
+            <span>
+              <Dot on={overview.ebay.connected} />
+              {overview.ebay.connected ? "eBay connected" : "eBay not connected"}
+            </span>
+          )}
+          <span>
+            <Dot on={!!user.totpEnabled} />
+            {user.totpEnabled ? "Two-step on" : "Two-step off"}
+          </span>
+          {user.role === "admin" && (
+            <Link href="/admin" className="text-brand-300 hover:underline">
+              Admin console
+            </Link>
+          )}
+        </div>
+        {d && (
+          <dl className="mt-4 grid grid-cols-4 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+            {[
+              ["Cards", d.cards],
+              ["Listed", d.listed],
+              ["Sold", d.sold],
+              ["Watchlist", d.wishlist],
+            ].map(([k, v]) => (
+              <div key={k} className="bg-black/30 px-3 py-2.5">
+                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{k}</dt>
+                <dd className="font-display text-lg font-semibold tabular-nums text-white">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </section>
 
       {demo && (
         <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
@@ -345,283 +454,302 @@ function AccountSettings({
         </div>
       )}
 
-      {/* Your data */}
-      {d && (
-        <Section title="Your data" hint="Everything here belongs to this account and is deleted with it.">
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["Cards", d.cards],
-              ["Listed", d.listed],
-              ["Sold", d.sold],
-              ["Watchlist", d.wishlist],
-            ].map(([k, v]) => (
-              <div key={k} className="rounded-xl bg-black/30 px-3 py-2.5">
-                <dt className="text-[11px] uppercase tracking-wide text-zinc-500">{k}</dt>
-                <dd className="font-display text-xl font-semibold tabular-nums text-white">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-xs text-zinc-500">
-            {d.priceChecks} price check{d.priceChecks === 1 ? "" : "s"} · {d.sessions} signed-in device{d.sessions === 1 ? "" : "s"}
-          </p>
-        </Section>
-      )}
+      <Group label="Selling">
+        <Row
+          title="eBay"
+          status={
+            overview ? (
+              overview.ebay.connected ? (
+                <>
+                  <Dot on />Connected{overview.ebay.ebayUsername ? ` as ${overview.ebay.ebayUsername}` : ""}
+                  {overview.ebay.connectedAt && <> · since {formatDate(overview.ebay.connectedAt)}</>}
+                </>
+              ) : demo ? (
+                "The demo account can't link an eBay account."
+              ) : overview.ebay.available ? (
+                "Not connected — drafts you push from the editor land in the eBay account linked here."
+              ) : (
+                "eBay sign-in isn't configured on this server."
+              )
+            ) : overviewFailed ? (
+              "Couldn't load — use Try again above."
+            ) : (
+              "Loading…"
+            )
+          }
+          action={
+            overview && !demo && overview.ebay.available ? (
+              <Link
+                href="/connect-ebay"
+                className={overview.ebay.connected ? rowBtn : "shrink-0 rounded-full bg-ebay px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"}
+              >
+                {overview.ebay.connected ? "Manage" : "Connect eBay"}
+              </Link>
+            ) : undefined
+          }
+        />
+        <PlanSection
+          user={overview?.user ?? user}
+          quota={overview?.quota}
+          demo={demo}
+          billingReturn={billingReturn}
+          billingPhase={billingPhase}
+        />
+      </Group>
 
-      {/* Profile */}
-      <Section title="Profile" hint="Your name shows in the app header; the email is what you sign in with.">
-        <form onSubmit={saveProfile} className="flex flex-col gap-3">
-          <label className={labelCls}>
-            Name
-            <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={demo || profileBusy} maxLength={80} required autoComplete="name" />
-          </label>
-          <label className={labelCls}>
-            Email
-            <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={demo || profileBusy} required autoComplete="email" inputMode="email" />
-          </label>
-          {emailChanged && (
-            <label className={labelCls}>
-              Current password <span className="text-zinc-600">(required to change email)</span>
-              <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={demo || profileBusy} required autoComplete="current-password" />
-            </label>
-          )}
-          <div className="flex items-center gap-3">
-            <button type="submit" className={primaryBtn} disabled={demo || profileBusy || (!nameChanged && !emailChanged)}>
-              {profileBusy ? "Saving…" : "Save changes"}
+      <Group label="Security">
+        <Row
+          title="Password"
+          status={pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
+          action={
+            <button type="button" className={rowBtn} onClick={() => (pwOpen ? closePw() : setPwOpen(true))} disabled={demo || pwBusy}>
+              {pwOpen ? "Cancel" : "Change"}
             </button>
-            {(nameChanged || emailChanged) && !profileBusy && (
-              <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setName(user.name); setEmail(user.email); setEmailPassword(""); setProfileMsg(null); }}>
-                Reset
+          }
+          open={pwOpen}
+        >
+          <form onSubmit={savePassword} className="flex flex-col gap-3">
+            <label className={labelCls}>
+              Current password
+              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={demo || pwBusy} required autoComplete="current-password" />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={labelCls}>
+                New password
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
+                <span className={`mt-1 block text-[11px] ${newPw.length === 0 ? "text-zinc-600" : newPw.length >= 6 ? "text-emerald-400" : "text-amber-300"}`}>
+                  {newPw.length === 0 ? "At least 6 characters" : newPw.length >= 6 ? "Long enough" : `${6 - newPw.length} more character${6 - newPw.length === 1 ? "" : "s"}`}
+                </span>
+              </label>
+              <label className={labelCls}>
+                Repeat new password
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
+                {newPw2.length > 0 && newPw2 !== newPw && <span className="mt-1 block text-[11px] text-amber-300">Doesn&apos;t match yet</span>}
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="submit" className={primaryBtn} disabled={demo || pwBusy || !curPw || !newPw || !newPw2}>
+                {pwBusy ? "Changing…" : "Change password"}
               </button>
-            )}
-          </div>
-          {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
-        </form>
-      </Section>
+              <label className="flex items-center gap-2 text-xs text-zinc-500">
+                <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} className="accent-brand-500" />
+                Show passwords
+              </label>
+              {!demo && <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot it?</Link>}
+            </div>
+            {pwMsg && <Notice kind={pwMsg.kind}>{pwMsg.text}</Notice>}
+          </form>
+        </Row>
 
-      {/* Password */}
-      <Section title="Password" hint="Changing it signs out every other device.">
-        <form onSubmit={savePassword} className="flex flex-col gap-3">
-          <label className={labelCls}>
-            Current password
-            <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={demo || pwBusy} required autoComplete="current-password" />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className={labelCls}>
-              New password
-              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
-              <span className={`mt-1 block text-[11px] ${newPw.length === 0 ? "text-zinc-600" : newPw.length >= 6 ? "text-emerald-400" : "text-amber-300"}`}>
-                {newPw.length === 0 ? "At least 6 characters" : newPw.length >= 6 ? "Long enough" : `${6 - newPw.length} more character${6 - newPw.length === 1 ? "" : "s"}`}
-              </span>
-            </label>
-            <label className={labelCls}>
-              Repeat new password
-              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
-              {newPw2.length > 0 && newPw2 !== newPw && <span className="mt-1 block text-[11px] text-amber-300">Doesn&apos;t match yet</span>}
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="submit" className={primaryBtn} disabled={demo || pwBusy || !curPw || !newPw || !newPw2}>
-              {pwBusy ? "Changing…" : "Change password"}
-            </button>
-            <label className="flex items-center gap-2 text-xs text-zinc-500">
-              <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} className="accent-brand-500" />
-              Show passwords
-            </label>
-            {!demo && <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot it?</Link>}
-          </div>
-          {pwMsg && <Notice kind={pwMsg.kind}>{pwMsg.text}</Notice>}
-        </form>
-      </Section>
-
-      {/* Two-step verification */}
-      <Section
-        title="Two-step verification"
-        hint={
-          user.role === "admin"
-            ? "Admin accounts sign in with password only — codes are never asked for."
-            : "A 6-digit code from an authenticator app is asked for at every sign-in, on top of your password."
-        }
-      >
-        {user.totpEnabled ? (
-          <div className="flex flex-col gap-3">
-            <p className="flex items-center gap-2 text-sm text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              On — your authenticator app holds the code.
-            </p>
-            {!totpOffOpen ? (
-              <div>
-                <button type="button" className={ghostBtn} onClick={() => { setTotpOffOpen(true); setTotpMsg(null); }} disabled={totpBusy}>
-                  Turn off…
+        <Row
+          title="Two-step verification"
+          status={
+            user.role === "admin" ? (
+              "Admin accounts sign in with password only."
+            ) : user.totpEnabled ? (
+              <><Dot on />On — a code from your authenticator app is asked for at every sign-in.</>
+            ) : demo ? (
+              "The demo account can't use two-step verification."
+            ) : (
+              <><Dot on={false} />Off — only your password protects this account.</>
+            )
+          }
+          action={
+            user.totpEnabled ? (
+              !totpOffOpen ? (
+                <button type="button" className={rowBtn} onClick={() => { setTotpOffOpen(true); setTotpMsg(null); }} disabled={totpBusy}>
+                  Turn off
+                </button>
+              ) : undefined
+            ) : !totpEnroll ? (
+              <button type="button" className={rowPrimary} onClick={startTotp} disabled={demo || totpBusy}>
+                {totpBusy ? "Starting…" : "Set up"}
+              </button>
+            ) : undefined
+          }
+          open={!!totpEnroll || totpOffOpen || !!totpMsg}
+        >
+          {user.totpEnabled && totpOffOpen ? (
+            <form onSubmit={disableTotpNow} className="flex flex-col gap-3">
+              <label className={labelCls}>
+                Your password <span className="text-zinc-600">(required to turn two-step off)</span>
+                <input type="password" className={`${inputCls} mt-1`} value={totpOffPw} onChange={(e) => setTotpOffPw(e.target.value)} required autoComplete="current-password" disabled={totpBusy} />
+              </label>
+              <div className="flex items-center gap-3">
+                <button type="submit" className={primaryBtn} disabled={totpBusy || !totpOffPw}>
+                  {totpBusy ? "Turning off…" : "Turn off two-step"}
+                </button>
+                <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpOffOpen(false); setTotpOffPw(""); }} disabled={totpBusy}>
+                  Cancel
                 </button>
               </div>
-            ) : (
-              <form onSubmit={disableTotpNow} className="flex flex-col gap-3">
-                <label className={labelCls}>
-                  Your password <span className="text-zinc-600">(required to turn two-step off)</span>
-                  <input type="password" className={`${inputCls} mt-1`} value={totpOffPw} onChange={(e) => setTotpOffPw(e.target.value)} required autoComplete="current-password" disabled={totpBusy} />
-                </label>
-                <div className="flex items-center gap-3">
-                  <button type="submit" className={primaryBtn} disabled={totpBusy || !totpOffPw}>
-                    {totpBusy ? "Turning off…" : "Turn off two-step"}
-                  </button>
-                  <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpOffOpen(false); setTotpOffPw(""); }} disabled={totpBusy}>
-                    Cancel
-                  </button>
+            </form>
+          ) : totpEnroll ? (
+            <form onSubmit={confirmTotp} className="flex flex-col gap-4">
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-400">
+                <li>Open your authenticator app (Google Authenticator, Authy, 1Password…).</li>
+                <li>Scan this QR code, or type the setup key below into the app.</li>
+                <li>Enter the 6-digit code the app shows to finish.</li>
+              </ol>
+              <div className="flex flex-wrap items-center gap-5">
+                {/* eslint-disable-next-line @next/next/no-img-element -- data URL QR, no optimizer involved */}
+                <img src={totpEnroll.qrDataUrl} alt="QR code for your authenticator app" width={160} height={160} className="rounded-lg bg-white p-2" />
+                <div className="min-w-0 flex-1">
+                  <p className={labelCls}>Setup key (if you can&apos;t scan)</p>
+                  <p className="mt-1 break-all font-mono text-xs text-zinc-300">{totpEnroll.secret}</p>
                 </div>
-              </form>
-            )}
-          </div>
-        ) : totpEnroll ? (
-          <form onSubmit={confirmTotp} className="flex flex-col gap-4">
-            <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-400">
-              <li>Open your authenticator app (Google Authenticator, Authy, 1Password…).</li>
-              <li>Scan this QR code, or type the setup key below into the app.</li>
-              <li>Enter the 6-digit code the app shows to finish.</li>
-            </ol>
-            <div className="flex flex-wrap items-center gap-5">
-              {/* eslint-disable-next-line @next/next/no-img-element -- data URL QR, no optimizer involved */}
-              <img src={totpEnroll.qrDataUrl} alt="QR code for your authenticator app" width={160} height={160} className="rounded-lg bg-white p-2" />
-              <div className="min-w-0 flex-1">
-                <p className={labelCls}>Setup key (if you can&apos;t scan)</p>
-                <p className="mt-1 break-all font-mono text-xs text-zinc-300">{totpEnroll.secret}</p>
               </div>
-            </div>
-            <label className={labelCls}>
-              6-digit code from the app
-              <input
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                autoComplete="one-time-code"
-                className={`${inputCls} mt-1 max-w-40 text-center tracking-[0.4em]`}
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
-                required
-                disabled={totpBusy}
-              />
-            </label>
-            <div className="flex items-center gap-3">
-              <button type="submit" className={primaryBtn} disabled={totpBusy || totpCode.length !== 6}>
-                {totpBusy ? "Checking…" : "Turn on two-step"}
-              </button>
-              <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpEnroll(null); setTotpCode(""); setTotpMsg(null); }} disabled={totpBusy}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-zinc-400">
-              {demo ? "The demo account can't use two-step verification." : "Off — only your password protects this account."}
-            </p>
-            <button type="button" className={primaryBtn} onClick={startTotp} disabled={demo || totpBusy}>
-              {totpBusy ? "Starting…" : "Set up two-step"}
-            </button>
-          </div>
-        )}
-        {totpMsg && <Notice kind={totpMsg.kind}>{totpMsg.text}</Notice>}
-      </Section>
+              <label className={labelCls}>
+                6-digit code from the app
+                <input
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  className={`${inputCls} mt-1 max-w-40 text-center tracking-[0.4em]`}
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                  required
+                  disabled={totpBusy}
+                />
+              </label>
+              <div className="flex items-center gap-3">
+                <button type="submit" className={primaryBtn} disabled={totpBusy || totpCode.length !== 6}>
+                  {totpBusy ? "Checking…" : "Turn on two-step"}
+                </button>
+                <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpEnroll(null); setTotpCode(""); setTotpMsg(null); }} disabled={totpBusy}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : null}
+          {totpMsg && <Notice kind={totpMsg.kind}>{totpMsg.text}</Notice>}
+        </Row>
 
-      {/* eBay */}
-      <Section title="eBay" hint="Drafts you push from the editor land in the eBay account linked here.">
-        {overview ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm">
-              {overview.ebay.connected ? (
-                <p className="flex items-center gap-2 text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  Connected{overview.ebay.ebayUsername ? ` as ${overview.ebay.ebayUsername}` : ""}
-                  {overview.ebay.connectedAt && <span className="text-zinc-500"> · since {formatDate(overview.ebay.connectedAt)}</span>}
-                </p>
-              ) : demo ? (
-                <p className="text-zinc-400">The demo account can&apos;t link an eBay account.</p>
-              ) : overview.ebay.available ? (
-                <p className="text-zinc-400">Not connected — link it to push drafts straight to eBay.</p>
-              ) : (
-                <p className="text-zinc-400">eBay sign-in isn&apos;t configured on this server.</p>
-              )}
+        <Row
+          title="Devices"
+          status={d ? `${d.sessions} device${d.sessions === 1 ? "" : "s"} signed in, including this one.` : "Signed in on a shared or lost phone? Sign it out from here."}
+          action={
+            <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={devBusy}>
+              {devBusy ? "Signing out…" : "Sign out others"}
+            </button>
+          }
+          open={!!devMsg}
+        >
+          {devMsg && <Notice kind={devMsg.kind}>{devMsg.text}</Notice>}
+        </Row>
+      </Group>
+
+      <Group label="Profile">
+        <Row
+          title="Name & email"
+          status={profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
+          action={
+            <button type="button" className={rowBtn} onClick={() => (profileOpen ? closeProfile() : setProfileOpen(true))} disabled={demo || profileBusy}>
+              {profileOpen ? "Cancel" : "Edit"}
+            </button>
+          }
+          open={profileOpen}
+        >
+          <form onSubmit={saveProfile} className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={labelCls}>
+                Name
+                <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={demo || profileBusy} maxLength={80} required autoComplete="name" />
+              </label>
+              <label className={labelCls}>
+                Email
+                <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={demo || profileBusy} required autoComplete="email" inputMode="email" />
+              </label>
             </div>
-            {!demo && overview.ebay.available && (
-              <Link href="/connect-ebay" className={overview.ebay.connected ? ghostBtn : "rounded-lg bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover"}>
-                {overview.ebay.connected ? "Manage connection" : "Connect eBay"}
-              </Link>
+            {emailChanged && (
+              <label className={labelCls}>
+                Current password <span className="text-zinc-600">(required to change email)</span>
+                <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={demo || profileBusy} required autoComplete="current-password" />
+              </label>
+            )}
+            <div className="flex items-center gap-3">
+              <button type="submit" className={primaryBtn} disabled={demo || profileBusy || (!nameChanged && !emailChanged)}>
+                {profileBusy ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+            {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
+          </form>
+        </Row>
+      </Group>
+
+      <Group label="Support">
+        <Row
+          title="Help center"
+          status="Short articles on how every part of CardFlip works."
+          action={
+            <Link href="/help" className={rowBtn}>
+              Open
+            </Link>
+          }
+        />
+        <Row
+          title="Contact"
+          status={
+            <a href="mailto:support@cardflip.io" className="transition hover:text-zinc-300">
+              support@cardflip.io
+            </a>
+          }
+          action={
+            /* Build stamp: which deploy this phone is actually running (09-03:
+               Chris's iPhone kept an hours-old bundle through a refresh). */
+            <span className="shrink-0 font-mono text-[11px] text-zinc-600">
+              build {process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) || "dev"}
+            </span>
+          }
+        />
+      </Group>
+
+      <section>
+        <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-red-400/80">Danger zone</h2>
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] px-4 py-3.5 sm:px-5">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-red-200">Delete account</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Removes your cards, photos, watchlist, price checks and eBay link. Anything already on eBay stays on eBay. Can&apos;t be undone.
+              </p>
+            </div>
+            {!delOpen && (
+              <button
+                type="button"
+                className="shrink-0 rounded-full border border-red-500/30 px-3.5 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setDelOpen(true)}
+                disabled={demo}
+              >
+                Delete…
+              </button>
             )}
           </div>
-        ) : (
-          <p className="text-sm text-zinc-500">
-            {overviewFailed ? "Couldn't load your eBay status — use Try again above." : "Loading…"}
-          </p>
-        )}
-      </Section>
-
-      {/* Devices */}
-      <Section title="Devices" hint="Signed in on a shared or lost phone? Sign it out from here.">
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className={ghostBtn} onClick={signOutElsewhere} disabled={devBusy}>
-            {devBusy ? "Signing out…" : "Sign out other devices"}
-          </button>
-          {d && <span className="text-xs text-zinc-500">{d.sessions} device{d.sessions === 1 ? "" : "s"} currently signed in, including this one</span>}
+          {delOpen && (
+            <form onSubmit={confirmDelete} className="mt-4 flex flex-col gap-3 border-t border-red-500/15 pt-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={labelCls}>
+                  Your password
+                  <input type="password" className={`${inputCls} mt-1`} value={delPw} onChange={(e) => setDelPw(e.target.value)} required autoComplete="current-password" disabled={delBusy} />
+                </label>
+                <label className={labelCls}>
+                  Type <span className="font-mono text-zinc-200">DELETE</span> to confirm
+                  <input className={`${inputCls} mt-1`} value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} required disabled={delBusy} autoCapitalize="characters" />
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="submit" className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60" disabled={delBusy || !delPw || delConfirm.trim().toUpperCase() !== "DELETE"}>
+                  {delBusy ? "Deleting…" : "Permanently delete"}
+                </button>
+                <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setDelOpen(false); setDelPw(""); setDelConfirm(""); setDelMsg(null); }} disabled={delBusy}>
+                  Cancel
+                </button>
+              </div>
+              {delMsg && <Notice kind="err">{delMsg}</Notice>}
+            </form>
+          )}
         </div>
-        {devMsg && <Notice kind={devMsg.kind}>{devMsg.text}</Notice>}
-      </Section>
-
-      {/* Plan */}
-      <PlanSection
-        user={overview?.user ?? user}
-        quota={overview?.quota}
-        demo={demo}
-        billingReturn={billingReturn}
-        billingPhase={billingPhase}
-      />
-
-      {/* Help */}
-      <Section title="Help" hint="Short articles on how every part of CardFlip works.">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/help" className={ghostBtn}>
-            Open the help center
-          </Link>
-          <a href="mailto:support@cardflip.io" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-            support@cardflip.io
-          </a>
-          {/* Build stamp: which deploy this phone is actually running (09-03:
-              Chris's iPhone kept an hours-old bundle through a refresh). */}
-          <span className="ml-auto text-[11px] text-zinc-600">
-            build {process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) || "dev"}
-          </span>
-        </div>
-      </Section>
-
-      {/* Delete */}
-      <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
-        <h2 className="text-base font-semibold text-red-300">Delete account</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Removes your cards, photos, watchlist, price checks and eBay link from CardFlip. Anything already published on eBay stays on eBay. This can&apos;t be undone.
-        </p>
-        {!delOpen ? (
-          <button type="button" className="mt-4 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50" onClick={() => setDelOpen(true)} disabled={demo}>
-            Delete my account…
-          </button>
-        ) : (
-          <form onSubmit={confirmDelete} className="mt-4 flex flex-col gap-3">
-            <label className={labelCls}>
-              Your password
-              <input type="password" className={`${inputCls} mt-1`} value={delPw} onChange={(e) => setDelPw(e.target.value)} required autoComplete="current-password" disabled={delBusy} />
-            </label>
-            <label className={labelCls}>
-              Type <span className="font-mono text-zinc-200">DELETE</span> to confirm
-              <input className={`${inputCls} mt-1`} value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} required disabled={delBusy} autoCapitalize="characters" />
-            </label>
-            <div className="flex items-center gap-3">
-              <button type="submit" className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60" disabled={delBusy || !delPw || delConfirm.trim().toUpperCase() !== "DELETE"}>
-                {delBusy ? "Deleting…" : "Permanently delete"}
-              </button>
-              <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setDelOpen(false); setDelPw(""); setDelConfirm(""); setDelMsg(null); }} disabled={delBusy}>
-                Cancel
-              </button>
-            </div>
-            {delMsg && <Notice kind="err">{delMsg}</Notice>}
-          </form>
-        )}
       </section>
     </main>
   );
@@ -661,67 +789,59 @@ function PlanSection({
     }
   }
 
+  const status = subscribed ? (
+    <>
+      <Dot on />
+      {user.subStatus === "past_due"
+        ? "Last payment failed — update your card."
+        : user.subPeriodEnd
+          ? `500 scans a month · renews ${formatDate(user.subPeriodEnd)}.`
+          : "500 scans a month · active."}
+    </>
+  ) : user.subStatus === "canceled" ? (
+    "Your subscription has ended — the app still works during early access."
+  ) : demo ? (
+    "Free during early access. The shared demo account can't subscribe."
+  ) : (
+    "Free during early access. Subscribing early supports the build: $9.99/mo, 500 scans included."
+  );
+  const showBody = billingReturn !== null || (subscribed && !!quota) || !!msg;
+
   return (
-    <Section
+    <Row
       title="Plan"
-      hint={subscribed ? "500 scans a month, rebilled monthly." : "CardFlip is free during early access."}
-    >
-      {billingReturn === "success" && (
-        <div className="mb-4">
-          {billingPhase === "confirmed" ? (
-            <Notice kind="ok">Subscription active — thanks for supporting the build!</Notice>
-          ) : billingPhase === "stalled" ? (
-            <Notice kind="ok">
-              Payment received. Stripe is taking longer than usual to confirm — your plan will show as
-              active shortly; check back in a minute.
-            </Notice>
-          ) : (
-            <Notice kind="ok">
-              <span className="inline-flex items-center gap-2">
-                <Spinner className="h-3.5 w-3.5" /> Payment received — confirming your subscription…
-              </span>
-            </Notice>
-          )}
-        </div>
-      )}
-      {billingReturn === "canceled" && (
-        <p className="mb-4 text-sm text-zinc-400">Checkout canceled — nothing was charged.</p>
-      )}
-      <div className="flex flex-wrap items-center gap-3">
-        {subscribed ? (
-          <>
-            <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-              CardFlip · $9.99/mo
-            </span>
-            <span className="text-sm text-zinc-400">
-              {user.subStatus === "past_due"
-                ? "Last payment failed — update your card."
-                : user.subPeriodEnd
-                  ? `Renews ${formatDate(user.subPeriodEnd)}.`
-                  : "Active."}
-            </span>
-            <button type="button" className={ghostBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
-              {busy ? "Opening…" : "Manage billing"}
-            </button>
-          </>
+      status={status}
+      action={
+        subscribed ? (
+          <button type="button" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
+            {busy ? "Opening…" : "Manage billing"}
+          </button>
         ) : (
-          <>
-            <span className="rounded-full bg-holo-violet/15 px-2.5 py-0.5 text-xs font-medium text-holo-violet">
-              Early access
+          <button type="button" className={rowPrimary} onClick={() => go(startCheckout)} disabled={busy || demo}>
+            {busy ? "Opening…" : "Subscribe · $9.99/mo"}
+          </button>
+        )
+      }
+      open={showBody}
+    >
+      {billingReturn === "success" &&
+        (billingPhase === "confirmed" ? (
+          <Notice kind="ok">Subscription active — thanks for supporting the build!</Notice>
+        ) : billingPhase === "stalled" ? (
+          <Notice kind="ok">
+            Payment received. Stripe is taking longer than usual to confirm — your plan will show as
+            active shortly; check back in a minute.
+          </Notice>
+        ) : (
+          <Notice kind="ok">
+            <span className="inline-flex items-center gap-2">
+              <Spinner className="h-3.5 w-3.5" /> Payment received — confirming your subscription…
             </span>
-            <span className="text-sm text-zinc-400">
-              {user.subStatus === "canceled"
-                ? "Your subscription has ended — the app still works during early access."
-                : "Free for now. Subscribing early supports the build: $9.99/mo, 500 scans included."}
-            </span>
-            <button type="button" className={primaryBtn} onClick={() => go(startCheckout)} disabled={busy || demo}>
-              {busy ? "Opening…" : "Subscribe · $9.99/mo"}
-            </button>
-          </>
-        )}
-      </div>
+          </Notice>
+        ))}
+      {billingReturn === "canceled" && <p className="text-sm text-zinc-400">Checkout canceled — nothing was charged.</p>}
       {subscribed && quota && (
-        <div className="mt-4 max-w-sm">
+        <div className="max-w-sm">
           <p className="text-xs text-zinc-400">
             {quota.used} of {quota.included} scans used this month
           </p>
@@ -734,8 +854,7 @@ function PlanSection({
           <p className="mt-1.5 text-xs text-zinc-600">Your allowance resets at the start of each month.</p>
         </div>
       )}
-      {demo && <p className="mt-2 text-xs text-zinc-600">The shared demo account can&apos;t subscribe.</p>}
       {msg && <Notice kind="err">{msg}</Notice>}
-    </Section>
+    </Row>
   );
 }
