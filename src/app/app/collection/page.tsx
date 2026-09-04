@@ -1561,32 +1561,32 @@ export default function CollectionPage() {
                 </button>
 
                 {/* Status, top-left, on the art. */}
-                <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1">
+                <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
                   {live ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur">
-                      <span className="relative flex h-1.5 w-1.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-emerald-300 backdrop-blur">
+                      <span className="relative flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                       </span>
                       Live
                     </span>
                   ) : ended ? (
-                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-amber-300 backdrop-blur">Auction ended</span>
+                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-amber-300 backdrop-blur">Auction ended</span>
                   ) : draft && !card.verifiedAt ? (
-                    <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">Verify match</span>
+                    <span className="rounded-full bg-amber-400/90 px-2.5 py-1 text-xs font-semibold text-black shadow">Verify match</span>
                   ) : draft ? (
-                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur">Active</span>
+                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-emerald-300 backdrop-blur">Active</span>
                   ) : null}
                   {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
-                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-brand-300 backdrop-blur">1st Edition</span>
+                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-brand-300 backdrop-blur">1st Edition</span>
                   )}
                   {card.matchDoubt && (
-                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-amber-300/90 backdrop-blur" title={card.matchDoubt}>
+                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-medium text-amber-300/90 backdrop-blur" title={card.matchDoubt}>
                       ⚠ check
                     </span>
                   )}
                   {(card.quantity || 1) > 1 && (
-                    <span className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-200 backdrop-blur">×{card.quantity}</span>
+                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-zinc-200 backdrop-blur">×{card.quantity}</span>
                   )}
                 </div>
 
