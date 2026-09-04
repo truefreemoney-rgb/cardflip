@@ -248,6 +248,12 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  // "Not your card?" lists EVERY printing that shares the name — Charizard,
+  // Charizard ex, V, VMAX, Mega, Dark — not the scanner's top two dozen
+  // (Chris, 09-04: "so it's impossible not to find"). Loaded when opened,
+  // keyed by the card it was loaded for so a swap reloads.
+  const [allMatches, setAllMatches] = useState<{ forId: string; cards: PokemonCard[] } | null>(null);
+  const [allLoading, setAllLoading] = useState(false);
   // Testing aid (Chris, 09-03): a match the seller changed is a mismatch
   // worth tracing. Records what the scanner had picked, in the same tag
   // My Cards and the queue show for a doubtful read.
@@ -508,6 +514,41 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const selectedStrategy: PriceStrategy = showQuick ? item.strategy : "market";
 
   const facts = { firstEdition: itemFirstEdition(item), grading: item.grading };
+
+  // The species behind the printed name: "Charizard ex" / "Charizard VMAX" /
+  // "Mega Charizard Y ex" all search as "Charizard", and the mirror's
+  // substring match then returns every card carrying it. Magic names are
+  // exact — no suffix stripping there.
+  const speciesName = (name: string): string => {
+    if (item.game === "mtg") return name;
+    let base = name.trim().replace(/^(mega|m|dark|light|shining|radiant|shadow|team rocket's|giovanni's|blaine's|brock's|erika's|koga's|lt. surge's|misty's|sabrina's|rocket's)s+/i, "");
+    for (let guard = 0; guard < 3; guard++) {
+      const next = base.replace(/s+(vmax|vstar|v-union|v|gx|ex|lv.?s?x|break|prime|legend|star|δ|delta species|[XY])$/i, "").trim();
+      if (next === base) break;
+      base = next;
+    }
+    return base || name;
+  };
+  const alternatives: PokemonCard[] =
+    allMatches?.forId === card.id ? allMatches.cards : item.candidates;
+
+  async function openAlternatives() {
+    setShowAlternatives(true);
+    if (allMatches?.forId === card.id || allLoading) return;
+    setAllLoading(true);
+    const base = speciesName(card.englishName || card.name);
+    const found = await searchCards(base, null, item.language, 200, item.game).catch(() => [] as PokemonCard[]);
+    setAllLoading(false);
+    const seen = new Set<string>();
+    const merged: PokemonCard[] = [];
+    // The scanner's own ranking first (the likely fixes), then everything else.
+    for (const c of [...item.candidates, ...found]) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      merged.push(c);
+    }
+    setAllMatches({ forId: card.id, cards: merged });
+  }
 
   /** Switch this item to the other printing's catalog card (the "-1st" twin
    *  or the unlimited card) — a different product with its own price. */
@@ -796,25 +837,30 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           {/* Back by request (Chris, 09-03, after the stress test): the
               other matches are the one-tap fix for a blurry-photo
               misidentification. Hidden once the match is verified. */}
-          {item.candidates.length > 1 && !item.verifiedAt && (
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">
-                {showAlternatives ? "Pick the right printing" : ""}
+          {!item.verifiedAt && (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-xs text-zinc-500">
+                {showAlternatives &&
+                  (allLoading ? (
+                    <>
+                      <Spinner className="h-3 w-3" /> Loading every {speciesName(card.englishName || card.name)} printing…
+                    </>
+                  ) : (
+                    `Every ${speciesName(card.englishName || card.name)} printing (${alternatives.length}) — tap yours`
+                  ))}
               </p>
               <button
-                onClick={() => setShowAlternatives((v) => !v)}
-                className="text-xs text-brand-300 underline underline-offset-4 hover:text-brand-200"
+                onClick={() => (showAlternatives ? setShowAlternatives(false) : void openAlternatives())}
+                className="shrink-0 text-xs text-brand-300 underline underline-offset-4 hover:text-brand-200"
               >
-                {showAlternatives
-                  ? "Hide"
-                  : `Not your card? ${item.candidates.length - 1} other match${item.candidates.length > 2 ? "es" : ""}`}
+                {showAlternatives ? "Hide" : `Not your card? See every ${speciesName(card.englishName || card.name)}`}
               </button>
             </div>
           )}
 
           {showAlternatives && (
-            <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-5">
-              {item.candidates.map((c: PokemonCard) => (
+            <div className="mt-2 grid max-h-[60vh] grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
+              {alternatives.map((c: PokemonCard) => (
                 <button
                   key={c.id}
                   onClick={() => {
@@ -855,6 +901,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                       <span className="text-[10px] text-zinc-500">{displayCardNumber(c)}</span>
                     </span>
                   )}
+                  {/* Tooltips don't exist on a phone — name the printing under the art. */}
+                  <span className="block truncate px-1 py-0.5 text-left text-[9px] leading-tight text-zinc-500">
+                    {c.name !== card.name ? `${c.name} · ` : ""}{c.setName} {displayCardNumber(c)}
+                  </span>
                 </button>
               ))}
             </div>
