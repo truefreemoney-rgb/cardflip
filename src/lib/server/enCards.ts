@@ -341,6 +341,25 @@ export async function enrichWithPricing(
   }
 }
 
+/**
+ * Every card in one English set, in printed order (numeric collector
+ * number first, lettered promos after) — the set browser (Chris, 09-03:
+ * "choose from all sets and when chosen, it shows all cards in that set").
+ * Prices come from price_series via latestUsdPrices, not the upstream.
+ */
+export async function englishCardsBySet(setName: string): Promise<PokemonCard[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT ${CARD_COLUMNS}
+         FROM en_cards
+        WHERE set_name = ?
+        ORDER BY CASE WHEN local_id GLOB '[0-9]*' THEN 0 ELSE 1 END,
+                 CAST(local_id AS INTEGER), local_id`,
+    )
+    .all(setName)) as unknown as EnCardRow[];
+  return rows.map(toCard);
+}
+
 /** Whether the English mirror has been synced (npm run sync:en). */
 export async function hasEnglishMirror(): Promise<boolean> {
   try {

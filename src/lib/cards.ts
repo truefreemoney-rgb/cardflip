@@ -24,6 +24,30 @@ export async function fetchCardById(id: string, game: GameId = "pokemon"): Promi
   return data.cards?.[0] ?? null;
 }
 
+/** Every card in a set (Pokémon: set name; MTG: set code), printed order, with the latest held price. */
+export async function fetchSetCards(set: string, game: GameId = "pokemon"): Promise<PokemonCard[]> {
+  const params = new URLSearchParams({ set });
+  if (game !== "pokemon") params.set("game", game);
+  const res = await fetch(apiPath(`/api/set-cards?${params.toString()}`), {
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`Set lookup failed (${res.status})`);
+  const data = await res.json();
+  return Array.isArray(data.cards) ? data.cards : [];
+}
+
+/** The set catalogue for a game, newest first. */
+export async function fetchSets(game: GameId = "pokemon"): Promise<import("@/lib/grading").SetInfo[]> {
+  const params = new URLSearchParams();
+  if (game !== "pokemon") params.set("game", game);
+  const res = await fetch(apiPath(`/api/sets${params.size ? "?" + params.toString() : ""}`), {
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`Set list failed (${res.status})`);
+  const data = await res.json();
+  return Array.isArray(data.sets) ? data.sets : [];
+}
+
 export async function searchCards(
   name: string,
   printed?: PrintedNumber | string | null,

@@ -120,6 +120,39 @@ export async function latestUsdPrice(cardId: string): Promise<number | null> {
   return points[points.length - 1]?.price ?? null;
 }
 
+/**
+ * latestUsdPrice for a whole set at once: one query, the same variant
+ * preference. Returns variant + price so the browser grid can label it.
+ */
+export async function latestUsdPrices(
+  cardIds: string[],
+): Promise<Map<string, { price: number; variant: string }>> {
+  const out = new Map<string, { price: number; variant: string }>();
+  for (let i = 0; i < cardIds.length; i += 400) {
+    const chunk = cardIds.slice(i, i + 400);
+    const rows = (await db
+      .prepare(
+        `SELECT card_id, variant, prices FROM price_series
+          WHERE currency = 'USD' AND card_id IN (${chunk.map(() => "?").join(",")})`,
+      )
+      .all(...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
+    for (const r of rows) {
+      const prices = decodePrices(r.prices);
+      let last: number | null = null;
+      for (let j = prices.length - 1; j >= 0; j--) {
+        if (prices[j] != null) { last = prices[j]; break; }
+      }
+      if (last == null) continue;
+      const rank = VARIANT_ORDER.indexOf(r.variant) + 1 || 99;
+      const have = out.get(r.card_id);
+      if (!have || rank < ((VARIANT_ORDER.indexOf(have.variant) + 1) || 99)) {
+        out.set(r.card_id, { price: last, variant: r.variant });
+      }
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Lazy daily sweep of the cards people actually hold.
 

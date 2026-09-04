@@ -239,6 +239,18 @@ export async function listMtgSets(): Promise<SetInfo[]> {
   return rows.map((r) => ({ name: r.name, releaseDate: r.released_at, logoUrl: r.icon_url, code: r.code }));
 }
 
+/** Every printing in one set, in collector-number order — the set browser. */
+export async function mtgCardsBySet(setCode: string): Promise<PokemonCard[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT ${CARD_COLUMNS} FROM mtg_cards
+        WHERE set_code = ?
+        ORDER BY CAST(collector_number AS INTEGER), collector_number`,
+    )
+    .all(setCode.toLowerCase())) as unknown as MtgCardRow[];
+  return rows.map(toCard);
+}
+
 /** True once scripts/sync-mtg.mjs has populated the mirror. */
 export async function hasMtgMirror(): Promise<boolean> {
   try {
