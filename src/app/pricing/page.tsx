@@ -58,7 +58,7 @@ export default function PricingPage() {
       <main className="flex w-full flex-1 flex-col">
         <section className="hero-mesh grain relative overflow-hidden">
           <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden />
-          <div className="relative mx-auto w-full max-w-6xl px-6 pb-10 pt-12 sm:pt-16">
+          <div className="relative mx-auto w-full max-w-6xl px-6 pb-8 pt-10 sm:pt-12">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
               <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-white sm:text-6xl">
@@ -68,18 +68,18 @@ export default function PricingPage() {
                 No tiers, no add-ons, nothing to compare. {PLAN.price} a month for the whole product.
               </p>
             </div>
-            <PlanCard className="mx-auto mt-8 max-w-lg" cta="Start scanning" />
+            <PlanCard className="mx-auto mt-6 max-w-lg" cta="Start scanning" />
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-16">
+        <section className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-12">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">What a scan is</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">500 goes a long way.</h2>
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {covers.map((c) => (
-              <div key={c.label} className="reveal rounded-3xl border border-edge bg-surface-1 p-7">
+              <div key={c.label} className="reveal rounded-3xl border border-edge bg-surface-1 p-6">
                 <p className="font-display text-5xl font-bold text-white">
                   {c.n} <span className="text-lg font-semibold text-zinc-400">{c.label}</span>
                 </p>
@@ -89,7 +89,7 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
           <div className="reveal grid gap-6 rounded-3xl border border-edge bg-surface-1 p-8 sm:grid-cols-[1fr_auto] sm:items-center sm:p-10">
             <div>
               <h2 className="font-display text-2xl font-semibold text-white">The only other fees are eBay&apos;s.</h2>
@@ -112,11 +112,11 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Billing questions</p>
           </div>
-          <div className="reveal mx-auto mt-6 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
+          <div className="reveal mx-auto mt-4 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
             {billing.map((f) => (
               <details key={f.q} className="group px-5 py-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white marker:content-none">
@@ -129,7 +129,7 @@ export default function PricingPage() {
               </details>
             ))}
           </div>
-          <p className="mt-6 text-center text-sm text-zinc-500">
+          <p className="mt-5 text-center text-sm text-zinc-500">
             Something else?{" "}
             <Link href="/help" className="text-brand-300 hover:text-brand-200">
               Read the help center

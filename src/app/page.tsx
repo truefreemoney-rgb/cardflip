@@ -186,7 +186,7 @@ export default async function Home() {
           {/* Soft landing into the page: the tinted hero used to stop on a
               hard edge with ~9rem of dead space under it (Chris, 09-04). */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" aria-hidden />
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 pb-8 pt-12 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-10">
+          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             <div className="flex flex-col items-start gap-6 text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 Pokémon TCG · Magic: The Gathering
@@ -298,7 +298,7 @@ export default async function Home() {
         </section>
 
         {/* =========================== How it works ========================= */}
-        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-14 pt-8 sm:pb-16 sm:pt-10">
+        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-10 pt-6 sm:pb-12 sm:pt-8">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">How it works</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
@@ -308,10 +308,10 @@ export default async function Home() {
             </h2>
           </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="mt-6 grid gap-3 lg:grid-cols-3">
             {steps.map((step, i) => (
               <div key={step.title} className="reveal flex flex-col overflow-hidden rounded-3xl border border-edge bg-surface-1">
-                <div className="p-6 pb-0">
+                <div className="p-5 pb-0">
                   <div className="holo-text font-display text-6xl font-bold leading-none" aria-hidden>
                     {String(i + 1).padStart(2, "0")}
                   </div>
@@ -319,7 +319,7 @@ export default async function Home() {
                   <p className="mt-2 leading-relaxed text-zinc-400">{step.body}</p>
                 </div>
 
-                <div className="mt-6 border-t border-edge bg-black/25 p-5">
+                <div className="mt-5 border-t border-edge bg-black/25 p-4">
                   {i === 0 && (
                     <div className="relative mx-auto aspect-[4/3] w-full max-w-[16rem] overflow-hidden rounded-xl bg-black/50">
                       {heroCard && (
@@ -385,7 +385,7 @@ export default async function Home() {
         </section>
 
         {/* ============================ Bento ============================== */}
-        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Built for the pile</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
@@ -393,9 +393,9 @@ export default async function Home() {
             </h2>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-6">
+          <div className="mt-6 grid gap-3 md:grid-cols-6">
             {/* Inventory */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-4">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-4">
               <h3 className="font-display text-xl font-semibold text-white">Inventory that looks like a binder</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
                 Every scan lands in your Inventory with its price, status and photo. Sort by
@@ -419,7 +419,7 @@ export default async function Home() {
             </div>
 
             {/* Price history */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-2">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Price history, per printing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Our own daily record of the market, so you can see whether to sell now or sit on it.
@@ -439,7 +439,7 @@ export default async function Home() {
             </div>
 
             {/* Variants */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-2">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Every variant, its own price</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Holo, reverse holo, 1st Edition, foil and etched are priced separately. Never averaged into a number that matches nothing.
@@ -457,7 +457,7 @@ export default async function Home() {
             </div>
 
             {/* eBay */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-2">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Your eBay, your money</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Listings publish under your own account. Change a price in CardFlip and the live listing changes with it. Sales flip to Sold on their own.
@@ -472,7 +472,7 @@ export default async function Home() {
             </div>
 
             {/* Fees */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-2">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Fee-aware pricing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Every suggestion accounts for eBay&apos;s {feePct} plus {money(EBAY_FLAT_FEE)} per order and {money(POSTAGE_USD)} postage, so a cheap card never lists at a loss.
@@ -494,14 +494,14 @@ export default async function Home() {
         </section>
 
         {/* ============================ Pricing ============================= */}
-        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-14 pt-4 sm:pb-16 sm:pt-6">
+        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-10 pt-2 sm:pb-12 sm:pt-4">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">One plan. Everything in it.</h2>
           </div>
 
-          <PlanCard className="reveal mx-auto mt-8 max-w-lg" cta="Start scanning" />
-          <p className="mt-5 text-center text-sm text-zinc-500">
+          <PlanCard className="reveal mx-auto mt-6 max-w-lg" cta="Start scanning" />
+          <p className="mt-4 text-center text-sm text-zinc-500">
             <Link href="/pricing" className="text-brand-300 hover:text-brand-200">
               What a scan is, and every billing question →
             </Link>
@@ -509,11 +509,11 @@ export default async function Home() {
         </section>
 
         {/* ============================== FAQ =============================== */}
-        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Questions</p>
           </div>
-          <div className="reveal mx-auto mt-6 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
+          <div className="reveal mx-auto mt-4 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
             {faqs.map((faq) => (
               <details key={faq.q} className="group px-5 py-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white marker:content-none">
@@ -529,8 +529,8 @@ export default async function Home() {
         </section>
 
         {/* =========================== Final CTA ============================ */}
-        <section className="hero-mesh aurora grain relative overflow-hidden py-16 sm:py-20">
-          <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-5 px-6 text-center">
+        <section className="hero-mesh aurora grain relative overflow-hidden py-12 sm:py-14">
+          <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-6 text-center">
             <h2 className="reveal font-display text-4xl font-bold text-white sm:text-6xl">
               The binder isn&apos;t going
               <br />
