@@ -43,9 +43,6 @@ export default function MarketingNav() {
           <Link href="/pricing" className="transition hover:text-white">
             Pricing
           </Link>
-          <Link href="/help" className="transition hover:text-white">
-            Help
-          </Link>
         </div>
         <div className="flex items-center gap-2 text-sm sm:gap-5">
           <Link href="/pricing" className="px-2 py-2 text-zinc-300 transition hover:text-white md:hidden">
