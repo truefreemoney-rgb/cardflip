@@ -65,7 +65,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Off-site backup copy (S3/Drive) on top of the nightly Turso dump.
 - [ ] Move support@ out of personal Fastmail triage.
 - [ ] Infra tiers: Vercel (now Pro) / Turso plan at 10k+ users.
-- [ ] Vercel Hobby cap note is obsolete (Pro since 09-04).
+- [x] Vercel Hobby cap note retired (Pro since 09-04).
 
 ### G. Pre-scale / business (unchanged from §0 PRE-SCALE)
 - [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).
