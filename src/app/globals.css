@@ -738,6 +738,58 @@ p {
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
+/* First-login tutorial (TourOverlay). The spotlight glides between targets
+   on the same page; two rings breathe out of the target as the pointer; the
+   overlay fades in (a slide read as jarring). Under reduced motion the kill
+   below freezes the rings at rest — a static single ring, still a pointer. */
+@keyframes tour-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tour-halo {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+.tour-in {
+  animation: tour-in 0.25s ease-out both;
+}
+.tour-spot {
+  box-shadow: 0 0 0 9999px rgba(5, 6, 12, 0.72);
+  transition:
+    top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tour-halo {
+  border: 2px solid var(--color-holo-violet, #a78bfa);
+  box-shadow: 0 0 18px rgba(167, 139, 250, 0.45);
+  animation: tour-halo 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  transition:
+    top 0.35s,
+    left 0.35s,
+    width 0.35s,
+    height 0.35s;
+}
+.tour-halo-2 {
+  animation-delay: 1s;
+}
+.tour-card {
+  transition:
+    top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

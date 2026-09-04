@@ -11,9 +11,14 @@ import { markTourSeen, takeTourReplay } from "@/lib/client/tour";
  * page has a few steps; the last step on a page hands off to the next page
  * (Chris, 09-04: "one page leads to another"). A spotlight (box-shadow
  * cut-out, so the element underneath stays live and un-blurred) sits on
- * the anchor, the card sits beside it — or at the bottom of a phone screen.
- * Steps whose anchor isn't on the page (the editor only exists after a
- * scan; the Inventory toolbar only with cards) run as a centred card.
+ * the anchor with two soft rings breathing out of it as the pointer; the
+ * card carries a tooltip tail on the edge that faces the target. Steps
+ * whose anchor isn't on the page (the editor only exists after a scan; the
+ * Inventory toolbar only with cards) run as a centred card.
+ *
+ * Voice (Chris, 09-04): the guide is a slightly self-aware robot that
+ * knows it lives in an overlay — the one place the dry-voice rule bends,
+ * to loosen a new seller up. Keep it deadpan; no exclamation marks.
  *
  * Progress lives in sessionStorage so a navigation or reload mid-tour
  * resumes where it was. Shown once per account (users.tour_seen_at,
@@ -39,50 +44,50 @@ const STEPS: Step[] = [
     sel: '[data-tour="capture"]',
     round: true,
     title: "Scan a card",
-    body: "Point the camera at a card and tap Capture. CardFlip names it, finds the printing and prices it from live sales.",
+    body: "Hello. I am the tutorial. I live in this overlay. Point the camera at a card and tap Capture; I name it, find the exact printing and price it from live sales. I do not get tired and I am not paid.",
   },
   {
     path: "/app",
     title: "Check, then sell",
-    body: "Every scan opens an editor. Confirm it's the card in your hand with Verify match, then Publish on eBay — photo, title and price included.",
+    body: "Every scan opens an editor. Look at the match, tap Verify if it's the card in your hand, then Publish on eBay. Photo, title, price, all handled. You do the packing tape. I have no hands.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Card game"]',
     round: true,
     title: "Inventory",
-    body: "Everything you've scanned lives here, Pokémon and Magic kept apart. In play, listed, ended and sold each have their own count.",
+    body: "Everything you scan ends up here, Pokémon and Magic kept apart. In play, listed, ended and sold each get their own count. I keep them tidy. It is most of my personality.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Switch view"]',
     round: true,
     title: "Image or Text",
-    body: "Binder view shows the art; Text view is a tight list. Tap a tile to open the card, tap a price to change it — even on a live listing.",
+    body: "Binder view shows the art. Text view is a list, for people in a hurry. Tap a tile to open a card, tap a price to change it, even on a live listing. Go on. I'm not looking.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Sort cards"]',
     round: true,
     title: "Sort and filter",
-    body: "Sort by value, rarity or date, and filter by name or set when the binder gets big.",
+    body: "Sort by value, rarity or date, filter by name or set. Useful once the binder gets big. It will get big. They always do.",
   },
   {
     path: "/app/price-check",
     sel: CARD_INPUT,
     title: "Search cards",
-    body: "Look up any card without scanning it — name or number. Same live pricing, every printing.",
+    body: "Look up any card without scanning it. Name or number, same live pricing, every printing. This is the page I would use, if I could hold cards.",
   },
   {
     path: "/app/wishlist",
     sel: CARD_INPUT,
     title: "Watchlist",
-    body: "Cards you don't own yet. Watch them and CardFlip emails you when the price dips.",
+    body: "Cards you don't own yet. Watch one and I email you when the price dips. I have nothing else to do at 3am.",
   },
   {
     path: "/app/wishlist",
     title: "That's the tour",
-    body: "Replay it any time from Account → Tutorial. Now go scan something.",
+    body: "Replay it from Account → Tutorial whenever you miss me. Now go scan something. I'll be here. I am always here.",
   },
 ];
 
@@ -95,6 +100,8 @@ interface Rect {
   width: number;
   height: number;
 }
+
+type Side = "top" | "bottom" | "left" | "right";
 
 function readProgress(): number | null {
   try {
@@ -130,8 +137,8 @@ export default function TourOverlay() {
   // string in a mount effect, which runs before this one.
   const [urlStart] = useState(urlAsksForTour);
   const [rect, setRect] = useState<Rect | null>(null);
-  /** Arrow from the card to the spotlight, viewport coordinates. */
-  const [arrow, setArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  /** Pointer tail on the card: which edge faces the target, and where along it (px). */
+  const [tail, setTail] = useState<{ side: Side; at: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const open = step !== null;
 
@@ -167,17 +174,16 @@ export default function TourOverlay() {
   // Between pages (Next just navigated) the card hides until the new page is up.
   const current = open && pathname === STEPS[step].path ? STEPS[step] : null;
 
-  // One measurement pass for the spotlight AND the arrow, so they never
-  // disagree. State only changes when the rounded numbers change — the old
-  // version re-rendered on every scroll event and the arrow chased a card
-  // that was still sliding in (Chris, 09-04: "the arrows are bouncing").
+  // One measurement pass for the spotlight AND the card's tail, so they
+  // never disagree. State only changes when the rounded numbers change
+  // (09-04: a per-scroll re-render made the old arrow chase a sliding card).
   useLayoutEffect(() => {
     if (!current) return;
     const el = current.sel ? document.querySelector<HTMLElement>(current.sel) : null;
     if (!el) {
       const t = window.setTimeout(() => {
         setRect(null);
-        setArrow(null);
+        setTail(null);
       }, 0);
       return () => window.clearTimeout(t);
     }
@@ -198,32 +204,19 @@ export default function TourOverlay() {
       );
       const card = panelRef.current?.getBoundingClientRect();
       if (!card) return;
-      const targetCx = next.left + next.width / 2;
-      const cardCx = card.left + card.width / 2;
-      const spotAbove = next.top + next.height <= card.top;
-      const spotBelow = next.top >= card.bottom;
-      let a: { x1: number; y1: number; x2: number; y2: number };
-      if (spotAbove) {
-        a = { x1: cardCx, y1: card.top - 2, x2: targetCx, y2: next.top + next.height + 4 };
-      } else if (spotBelow) {
-        a = { x1: cardCx, y1: card.bottom + 2, x2: targetCx, y2: next.top - 4 };
-      } else {
-        // Side by side (wide screens): leave from the nearer card edge.
-        const targetCy = next.top + next.height / 2;
-        const leftOf = next.left + next.width <= card.left;
-        a = {
-          x1: leftOf ? card.left - 2 : card.right + 2,
-          y1: Math.min(Math.max(targetCy, card.top + 16), card.bottom - 16),
-          x2: leftOf ? next.left + next.width + 4 : next.left - 4,
-          y2: targetCy,
-        };
-      }
-      a = { x1: Math.round(a.x1), y1: Math.round(a.y1), x2: Math.round(a.x2), y2: Math.round(a.y2) };
-      const tooShort = Math.hypot(a.x2 - a.x1, a.y2 - a.y1) < 28;
-      setArrow((prev) => {
-        if (tooShort) return prev === null ? prev : null;
-        return prev && prev.x1 === a.x1 && prev.y1 === a.y1 && prev.x2 === a.x2 && prev.y2 === a.y2 ? prev : a;
-      });
+      const cx = next.left + next.width / 2;
+      const cy = next.top + next.height / 2;
+      const clampX = Math.round(Math.min(Math.max(cx - card.left, 24), card.width - 24));
+      const clampY = Math.round(Math.min(Math.max(cy - card.top, 24), card.height - 24));
+      const t: { side: Side; at: number } =
+        next.top + next.height <= card.top
+          ? { side: "top", at: clampX }
+          : next.top >= card.bottom
+            ? { side: "bottom", at: clampX }
+            : next.left + next.width <= card.left
+              ? { side: "left", at: clampY }
+              : { side: "right", at: clampY };
+      setTail((prev) => (prev && prev.side === t.side && prev.at === t.at ? prev : t));
     };
 
     // Off the effect body (react-hooks rule) and as timeouts, not rAF —
@@ -242,13 +235,12 @@ export default function TourOverlay() {
     window.addEventListener("resize", throttled);
     window.addEventListener("scroll", throttled, true);
     return () => {
-      timers.forEach((t) => window.clearTimeout(t));
+      timers.forEach((id) => window.clearTimeout(id));
       if (pending != null) window.clearTimeout(pending);
       window.removeEventListener("resize", throttled);
       window.removeEventListener("scroll", throttled, true);
     };
   }, [current]);
-
 
   const finish = useCallback(async () => {
     setStep(null);
@@ -281,52 +273,46 @@ export default function TourOverlay() {
 
   const last = step === STEPS.length - 1;
   const nextLeavesPage = !last && STEPS[step + 1].path !== current.path;
-  const nextLabel = last ? "Done" : nextLeavesPage ? `Next: ${STEPS[step + 1].title}` : "Next";
+  const nextLabel = last ? "Bye, robot" : nextLeavesPage ? `On to ${STEPS[step + 1].title}` : "Next";
+  const radius = current.round ? 9999 : 14;
+  const box = rect ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height, borderRadius: radius } : undefined;
 
   // Card placement (sm and up): under the anchor if there's room, else above.
   // Below sm the card is a bottom sheet regardless.
   let panelStyle: React.CSSProperties | undefined;
   if (rect && typeof window !== "undefined" && window.innerWidth >= 640) {
-    const below = rect.top + rect.height + 12;
+    const below = rect.top + rect.height + 18;
     const roomBelow = window.innerHeight - below > 220;
     const left = Math.min(Math.max(rect.left, 16), window.innerWidth - 16 - 360);
-    panelStyle = roomBelow ? { top: below, left } : { bottom: window.innerHeight - rect.top + 12, left };
+    panelStyle = roomBelow ? { top: below, left } : { bottom: window.innerHeight - rect.top + 18, left };
   }
 
+  // The tail: a rotated square poking out of the card edge that faces the
+  // target — the tooltip idiom, much quieter than a drawn arrow.
+  const tailStyle: React.CSSProperties | undefined = tail
+    ? {
+        ...(tail.side === "top" ? { top: -7, left: tail.at - 7 } : {}),
+        ...(tail.side === "bottom" ? { bottom: -7, left: tail.at - 7 } : {}),
+        ...(tail.side === "left" ? { left: -7, top: tail.at - 7 } : {}),
+        ...(tail.side === "right" ? { right: -7, top: tail.at - 7 } : {}),
+        borderTopWidth: tail.side === "top" || tail.side === "right" ? 1 : 0,
+        borderLeftWidth: tail.side === "top" || tail.side === "left" ? 1 : 0,
+        borderBottomWidth: tail.side === "bottom" || tail.side === "left" ? 1 : 0,
+        borderRightWidth: tail.side === "bottom" || tail.side === "right" ? 1 : 0,
+      }
+    : undefined;
+
   return (
-    <div className="fixed inset-0 z-[60]">
-      {rect ? (
-        <div
-          className="pointer-events-none absolute"
-          style={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-            borderRadius: current.round ? 9999 : 14,
-            boxShadow: "0 0 0 9999px rgba(5, 6, 12, 0.78), 0 0 0 2px rgba(167, 139, 250, 0.7)",
-          }}
-        />
+    <div className="tour-in fixed inset-0 z-[60]">
+      {box ? (
+        <>
+          <div className="tour-spot pointer-events-none absolute" style={box} />
+          {/* Two soft rings breathing out of the target — the pointer. */}
+          <div className="tour-halo pointer-events-none absolute" style={box} />
+          <div className="tour-halo tour-halo-2 pointer-events-none absolute" style={box} />
+        </>
       ) : (
-        <div className="absolute inset-0 bg-[#05060c]/80" />
-      )}
-      {arrow && (
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-          <defs>
-            <marker id="tour-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa" />
-            </marker>
-          </defs>
-          <path
-            d={`M${arrow.x1},${arrow.y1} Q${(arrow.x1 + arrow.x2) / 2 + (arrow.y2 < arrow.y1 ? 28 : -28)},${(arrow.y1 + arrow.y2) / 2} ${arrow.x2},${arrow.y2}`}
-            fill="none"
-            stroke="#a78bfa"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            markerEnd="url(#tour-arrowhead)"
-            style={{ filter: "drop-shadow(0 0 6px rgba(167,139,250,0.6))" }}
-          />
-        </svg>
+        <div className="absolute inset-0 bg-[#05060c]/75" />
       )}
       {/* Click-away ends the tour, same as Skip. */}
       <button className="absolute inset-0 cursor-default" aria-label="Skip the tutorial" onClick={() => void finish()} />
@@ -336,15 +322,23 @@ export default function TourOverlay() {
         aria-modal="true"
         aria-label={`Tutorial, step ${step + 1} of ${STEPS.length}: ${current.title}`}
         tabIndex={-1}
-        className={`absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
+        className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
         }`}
         style={panelStyle}
       >
+        {tailStyle && <span aria-hidden className="absolute h-3.5 w-3.5 rotate-45 border-edge bg-surface-1" style={tailStyle} />}
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            {step + 1} of {STEPS.length}
-          </p>
+          <div className="flex items-center gap-1.5" aria-hidden>
+            {STEPS.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === step ? "w-4 bg-brand-400" : i < step ? "w-1.5 bg-brand-400/50" : "w-1.5 bg-zinc-700"
+                }`}
+              />
+            ))}
+          </div>
           <button
             onClick={() => void finish()}
             aria-label="Close the tutorial"
@@ -353,24 +347,21 @@ export default function TourOverlay() {
             ✕
           </button>
         </div>
-        <h2 className="font-display mt-1 text-lg font-semibold text-white">{current.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{current.body}</p>
+        <h2 className="font-display mt-2 text-lg font-semibold text-white">{current.title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-300">{current.body}</p>
         <div className="mt-4 flex items-center justify-between gap-3">
           {last ? (
             <span />
           ) : (
-            <button
-              onClick={() => void finish()}
-              className="rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-edge-strong hover:text-white"
-            >
-              Skip tutorial
+            <button onClick={() => void finish()} className="text-xs font-medium text-zinc-500 transition hover:text-zinc-200">
+              Skip
             </button>
           )}
           <div className="flex items-center gap-2">
             {step > 0 && (
               <button
                 onClick={() => go(step - 1)}
-                className="rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-surface-2 hover:text-white"
               >
                 Back
               </button>
