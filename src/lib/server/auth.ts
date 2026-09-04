@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
-import { canUseApp, findUserById, type User } from "@/lib/server/users";
+import { canUseApp, findUserById, scanTier, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = "cardflip_session";
 
@@ -48,6 +48,21 @@ export class AuthError extends Error {}
  * subscription. Admins pass. The client's SubscriptionGate shows the wall
  * before a seller ever reaches these; this is the backstop.
  */
+/**
+ * Selling is paid (Chris, 09-04): the free trial covers scanning and
+ * pricing, never publishing. Trial accounts get 402 here even with scans
+ * left; everyone else falls through to the usual gate.
+ */
+export function sellingGate(user: User): NextResponse | null {
+  if (user.role !== "admin" && scanTier(user) === "trial") {
+    return NextResponse.json(
+      { error: "Publishing on eBay starts with a subscription — the free scans are for pricing", paywall: true, selling: true },
+      { status: 402 },
+    );
+  }
+  return subscriptionGate(user);
+}
+
 export function subscriptionGate(user: User): NextResponse | null {
   if (user.role === "admin" || canUseApp(user)) return null;
   return NextResponse.json(

@@ -42,7 +42,7 @@ const billing = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes. Every new account gets 10 scans free, with the whole product open and no card on file. When they're used, the app asks you to subscribe; everything you scanned stays on the account.",
+    a: "Yes. Every new account gets 10 scans free with no card on file: scan, see live prices, build your inventory. Publishing to eBay starts with a subscription. When the free scans are used, the app asks you to subscribe; everything you scanned stays on the account.",
   },
   {
     q: "Do I need my own eBay account?",

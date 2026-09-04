@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
+import { useSession } from "@/components/SessionProvider";
 import StagedProgress from "@/components/StagedProgress";
 import {
   publishEbayDraft,
@@ -44,6 +45,10 @@ const PUBLISH_STEPS = ["Saving the draft", "Attaching your photo", "Publishing o
 const PUBLISH_STAGE_MS = [1200, 2800] as const;
 
 export default function EbayPostActions({ item, listing, price, ebayConnected, onChange }: Props) {
+  // Selling is paid (Chris, 09-04): the free trial scans and prices, it
+  // doesn't publish. The server's sellingGate is the backstop.
+  const { user } = useSession();
+  const trialOnly = !!user && user.role !== "admin" && user.tier === "trial";
   const [busy, setBusy] = useState<"push" | "publish" | null>(null);
   // The publish popup: confirm ("this goes live"), then a loading state. On
   // success the item flips to listed and the Live panel (with its View on
@@ -294,7 +299,11 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             (ebayDraftUrl): that draft lives on eBay and can only be
             finished there. */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          {canPost && !verified ? (
+          {trialOnly ? (
+            <Link href="/app/account" className={ebayButton + " text-center"}>
+              Subscribe to publish on eBay — $9.99 a month
+            </Link>
+          ) : canPost && !verified ? (
             <button
               disabled
               title="Tap Verify match above once you've checked this is the right card"

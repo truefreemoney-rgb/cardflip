@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, subscriptionGate } from "@/lib/server/auth";
+import { requireUser, sellingGate } from "@/lib/server/auth";
 import { publishDraft } from "@/lib/server/ebaySell";
 import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 
@@ -11,7 +11,7 @@ import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    const wall = subscriptionGate(user);
+    const wall = sellingGate(user);
     if (wall) return wall;
     const body = (await request.json().catch(() => null)) as {
       cardId?: unknown;

@@ -35,11 +35,11 @@ export const TRIAL = {
   scans: 10,
   lines: [
     "10 card scans, camera or photos",
-    "The whole product, nothing held back",
-    "Live pricing, eBay publishing, inventory, watchlist",
+    "Live pricing for the exact printing",
+    "Inventory and watchlist",
     "No card on file",
     "Everything you scan stays on the account",
-    "Subscribe whenever the binder outgrows it",
+    "Subscribe to publish on eBay",
   ],
 };
 

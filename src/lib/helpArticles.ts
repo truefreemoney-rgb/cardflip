@@ -24,7 +24,7 @@ export const helpArticles: HelpArticle[] = [
     id: "scan-limits",
     heading: "Scan limits",
     paragraphs: [
-      "A subscription includes 500 scans per calendar month (2,000 on Pro); the counter resets at the start of each month (UTC). Failed scans don't count against your allowance. New accounts get 10 free scans before subscribing.",
+      "A subscription includes 500 scans per calendar month (2,000 on Pro); the counter resets at the start of each month (UTC). Failed scans don't count against your allowance. New accounts get 10 free scans before subscribing — scanning and pricing only; publishing to eBay starts with a subscription.",
       "There are also daily and per-minute caps that protect the service from abuse. If you hit one, wait and try again — a normal scanning session never gets near them.",
     ],
   },

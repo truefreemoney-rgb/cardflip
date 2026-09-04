@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, subscriptionGate } from "@/lib/server/auth";
+import { requireUser, sellingGate } from "@/lib/server/auth";
 import { createDraft } from "@/lib/server/ebaySell";
 import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 import { draftInputFromBody } from "@/lib/server/ebayDraftBody";
@@ -12,7 +12,7 @@ import { draftInputFromBody } from "@/lib/server/ebayDraftBody";
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    const wall = subscriptionGate(user);
+    const wall = sellingGate(user);
     if (wall) return wall;
     const input = draftInputFromBody(await request.json().catch(() => null));
     if (!input) {

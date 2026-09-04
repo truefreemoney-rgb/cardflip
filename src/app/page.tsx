@@ -49,7 +49,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "Your first 10 scans are free, no card needed. After that it's $9.99 a month for everything: 500 scans, card reading, live pricing, eBay publishing, inventory and the watchlist. Cancel any time. You keep 100% of every eBay payout.",
+    a: "Your first 10 scans are free, no card needed: scan, price, build your inventory. Publishing to eBay starts with a subscription, $9.99 a month for 500 scans, live pricing, eBay publishing, inventory and the watchlist. Cancel any time. You keep 100% of every eBay payout.",
   },
 ];
 
