@@ -283,10 +283,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [fetchedGradedComps, setFetchedGradedComps] = useState<{ average: number; count: number } | null>(null);
   // 1st Edition ↔ unlimited: the other printing is a separate catalog card.
   const [swapping, setSwapping] = useState(false);
-  // One question at a time (Chris, 09-04): after Verify the screen is the
-  // price and Publish; condition, grading, pricing tiles and copy live
-  // behind "Change".
-  const [showDetails, setShowDetails] = useState(false);
   const [gradedSettledKey, setGradedSettledKey] = useState("");
   const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
   const gradedCacheHit = gradeKey ? gradedCompsCache.get(gradeKey) : undefined;
@@ -604,8 +600,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
   const verified = Boolean(item.verifiedAt) || Boolean(item.ebayOfferId);
-  // No market price and nothing set yet: the price field can't hide.
-  const detailsOpen = showDetails || (!quote && item.priceOverride == null);
   // History chart altitude: the raw NM curve's shape is real demand signal,
   // but a slab or played copy lives at a different level — rescale the chart
   // to the graded average (ratio vs the raw quote it floors on) or the
@@ -844,7 +838,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
-          {verified && detailsOpen && item.vision?.conditionNotes && (
+          {verified && item.vision?.conditionNotes && (
             <p className="mt-2 text-sm leading-snug text-zinc-500">
               <span className="font-medium text-zinc-400">
                 Graded {item.vision.condition ?? "from photo"}:
@@ -931,30 +925,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </div>
       </div>
 
+      {/* After Verify the whole listing sheet shows (Chris, 09-04 night:
+          hiding it behind "Change" read as "the listing data is gone"). */}
       {verified && (
-        // The answer screen: one number, one line under it, Publish below.
-        <div className="flex items-end justify-between gap-4 rounded-xl border border-edge bg-surface-1 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Listing price</p>
-            <p className="font-display text-3xl font-bold text-white">{quote || item.priceOverride != null ? `${price.toFixed(2)}` : "—"}</p>
-            <p className="mt-0.5 truncate text-xs text-zinc-500">
-              {item.priceOverride != null ? "Your price" : quote ? quote.price.label : "No market price yet"}
-              {" · "}
-              {item.grading ? gradeLabel(item.grading) : item.condition}
-              {isFirstEdition ? " · 1st Edition" : ""}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowDetails((v) => !v)}
-            className="shrink-0 text-sm font-medium text-brand-300 underline underline-offset-4 hover:text-brand-200"
-          >
-            {detailsOpen ? "Done" : "Change"}
-          </button>
-        </div>
-      )}
-
-      {verified && detailsOpen && (
       <>
       {!quote && (
         <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
