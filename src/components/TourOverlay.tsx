@@ -18,9 +18,9 @@ import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
  * whose anchor isn't on the page (the editor only exists after a scan; the
  * Inventory toolbar only with cards) run as a centred card.
  *
- * Voice (Chris, 09-04, then dialled back the same night: "family
- * friendly"): a friendly robot with a light touch — one gentle wink at
- * most, never weird, never at the seller's expense. No exclamation marks.
+ * Voice (Chris, 09-04): the guide is a slightly self-aware robot that
+ * knows it lives in an overlay — the one place the dry-voice rule bends,
+ * to loosen a new seller up. Keep it deadpan; no exclamation marks.
  *
  * Progress lives in sessionStorage so a navigation or reload mid-tour
  * resumes where it was. Shown once per account (users.tour_seen_at,
@@ -46,57 +46,57 @@ const STEPS: Step[] = [
     sel: '[data-tour="help"]',
     round: true,
     title: "That's me",
-    body: "I live up here. Tap me any time you have a question.",
+    body: "I live up here. Tap me for help, tours, moral support.",
   },
   {
     path: "/app",
     sel: '[data-tour="capture"]',
     round: true,
     title: "Scan a card",
-    body: "Point at a card, tap Capture. I name it and price it.",
+    body: "Point, tap Capture. I name it and price it. You get the credit.",
   },
   {
     path: "/app",
     title: "Check, then sell",
-    body: "Check the match, tap Verify, then Publish on eBay. Photo included.",
+    body: "Tap Verify if I got it right, then Publish. I always get it right.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Card game"]',
     round: true,
     title: "Inventory",
-    body: "Every card you scan lives here, all nice and tidy.",
+    body: "Every card you scan, kept tidy. It's most of my personality.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Switch view"]',
     round: true,
     title: "Image or Text",
-    body: "Pictures or a list, your call. Tap a price to change it, even on a live listing.",
+    body: "Art or list. Tap a price to change it, even live. I won't tell eBay.",
   },
   {
     path: "/app/collection",
     sel: '[aria-label="Sort cards"]',
     round: true,
     title: "Sort and filter",
-    body: "Sort and filter. Handy once the binder gets big, and it will.",
+    body: "Sort and filter. You'll need it. Binders always get big.",
   },
   {
     path: "/app/price-check",
     sel: CARD_INPUT,
     title: "Search cards",
-    body: "Price any card without scanning it. Name or number does the trick.",
+    body: "Price any card, no scan. For cards you can't hold. I relate.",
   },
   {
     path: "/app/wishlist",
     sel: CARD_INPUT,
     title: "Watchlist",
-    body: "Watch a card and I'll email you when the price dips.",
+    body: "Watch a card, I email you when it dips. I'm up anyway.",
   },
   {
     path: "/app/wishlist",
     title: "That's the tour",
-    body: "I'm up in the header whenever you need me. Go scan something.",
+    body: "I'm in the header if you need me. Now go scan something.",
   },
 ];
 
@@ -282,7 +282,7 @@ export default function TourOverlay() {
 
   const last = step === STEPS.length - 1;
   const nextLeavesPage = !last && STEPS[step + 1].path !== current.path;
-  const nextLabel = last ? "Done" : nextLeavesPage ? `On to ${STEPS[step + 1].title}` : "Next";
+  const nextLabel = last ? "Bye, robot" : nextLeavesPage ? `On to ${STEPS[step + 1].title}` : "Next";
   const radius = current.round ? 9999 : 14;
   const box = rect ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height, borderRadius: radius } : undefined;
 

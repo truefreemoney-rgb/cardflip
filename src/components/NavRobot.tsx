@@ -24,7 +24,7 @@ interface Msg {
   content: string;
 }
 
-const OPENER = "Hi. Ask me anything about CardFlip: scanning, prices, eBay, billing. I know the help pages by heart.";
+const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
 
 export default function NavRobot() {
   const router = useRouter();
@@ -155,7 +155,7 @@ export default function NavRobot() {
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-white">The robot</p>
-                <p className="truncate text-[11px] text-zinc-500">Here to help</p>
+                <p className="truncate text-[11px] text-zinc-500">Help, tours, moral support</p>
               </div>
               {messages && messages.length > 0 && (
                 <button onClick={clear} className="text-[11px] text-zinc-500 transition hover:text-zinc-300">
@@ -205,7 +205,7 @@ export default function NavRobot() {
                 Replay the tour
               </button>
               <a href="mailto:support@cardflip.io" className="transition hover:text-zinc-300">
-                Email support
+                Email a human
               </a>
             </div>
 

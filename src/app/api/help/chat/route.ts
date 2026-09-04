@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ reply });
     } catch (err) {
       if (err instanceof HelpCapError) {
-        return NextResponse.json({ error: `That's ${HELP_DAILY_CAP} questions for today. For anything urgent, email support@cardflip.io.` }, { status: 429 });
+        return NextResponse.json({ error: `That's ${HELP_DAILY_CAP} questions today. I need to recharge. Email support@cardflip.io.` }, { status: 429 });
       }
       if (err instanceof HelpNotConfiguredError) {
-        return NextResponse.json({ error: "The help robot isn't available right now. Email support@cardflip.io." }, { status: 503 });
+        return NextResponse.json({ error: "The robot is offline here. Email support@cardflip.io." }, { status: 503 });
       }
       throw err;
     }

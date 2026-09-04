@@ -136,9 +136,9 @@ Plain, confident, a little dry ("CardFlip does the other nine."). No hype
 adjectives, no exclamation marks, no crypto/NFT vocabulary.
 
 Exception (Chris, 09-04): the first-login tutorial (TourOverlay) speaks as
-a friendly robot with a light touch — one gentle, family-friendly wink at
-most (Chris tried deadpan-weird first and pulled it back the same night:
-"family friendly"). Still no exclamation marks, still no hype. Nowhere
-else in the product talks like this. Its pointer is
+a slightly self-aware robot that knows it lives in an overlay — deadpan
+weird comedy to loosen a new seller up ("I do not get tired and I am not
+paid", "I have nothing else to do at 3am"). Still no exclamation marks,
+still no hype. Nowhere else in the product talks like this. Its pointer is
 two breathing halo rings on the target plus a tooltip tail on the card —
 a drawn arrow line was tried and read as robotic.
