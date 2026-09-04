@@ -4,15 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import { confirmAction } from "@/components/ConfirmDialog";
 import CardImage from "@/components/CardImage";
+import CardTile from "@/components/CardTile";
+import SetBrowser from "@/components/SetBrowser";
 import CardDetailModal from "@/components/CardDetailModal";
 import GameToggle from "@/components/GameToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { fetchCardById, fetchSetCards, fetchSets, searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import { pickPrice } from "@/lib/listing";
-import type { SetInfo } from "@/lib/grading";
 import {
   clearPriceChecks,
   deletePriceCheck,
@@ -30,12 +31,6 @@ function formatDate(ts: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-/** Set option label: "Destined Rivals · 2025". */
-function setLabel(set: SetInfo): string {
-  const year = set.releaseDate?.slice(0, 4);
-  return year ? `${set.name} · ${year}` : set.name;
 }
 
 type Mode = "search" | "browse";
@@ -94,9 +89,7 @@ export default function PriceCheckPage() {
     setResults([]);
     setResultsTitle(null);
     setSelected(null);
-    setSetKey("");
     saveGame(next);
-    if (mode === "browse") void ensureSets(next);
   }
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
@@ -112,10 +105,6 @@ export default function PriceCheckPage() {
   const [sort, setSort] = useState<SortKey>("set");
   const [gridQuery, setGridQuery] = useState("");
 
-  // Set browser: the catalogue per game, loaded once when the tab is opened.
-  const [sets, setSets] = useState<Record<GameId, SetInfo[] | null>>({ pokemon: null, mtg: null });
-  const [setsLoading, setSetsLoading] = useState(false);
-  const [setKey, setSetKey] = useState("");
 
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -137,21 +126,6 @@ export default function PriceCheckPage() {
     if (!userId) return;
     loadHistory();
   }, [userId, loadHistory]);
-
-  // The set list for a game, fetched the first time Browse needs it
-  // (on the By set pill, and on a game switch while browsing).
-  async function ensureSets(g: GameId) {
-    if (sets[g] !== null || setsLoading) return;
-    setSetsLoading(true);
-    try {
-      const list = await fetchSets(g);
-      setSets((prev) => ({ ...prev, [g]: list }));
-    } catch {
-      setSearchError("Couldn't load the set list — check your connection.");
-    } finally {
-      setSetsLoading(false);
-    }
-  }
 
   async function handleSearch() {
     if (!query.trim()) return;
@@ -198,35 +172,6 @@ export default function PriceCheckPage() {
     }
   }
 
-  async function browseSet(key: string) {
-    setSetKey(key);
-    setSelected(null);
-    setSearchError(null);
-    if (!key) {
-      setResults([]);
-      setResultsTitle(null);
-      return;
-    }
-    const list = sets[game] ?? [];
-    const set = list.find((s) => (s.code ?? s.name) === key);
-    const seq = ++searchSeq.current;
-    setSearching(true);
-    try {
-      const cards = await fetchSetCards(key, game);
-      if (seq !== searchSeq.current) return;
-      setResults(cards);
-      setResultsTitle(
-        cards.length > 0 ? `All ${cards.length} cards in ${set?.name ?? key}` : null,
-      );
-      if (cards.length === 0) setSearchError("That set has no cards in the catalogue yet.");
-    } catch {
-      if (seq !== searchSeq.current) return;
-      setSearchError("Couldn't load that set — check your connection.");
-    } finally {
-      if (seq === searchSeq.current) setSearching(false);
-    }
-  }
-
   function clearResults() {
     setGridQuery("");
     setResults([]);
@@ -234,7 +179,6 @@ export default function PriceCheckPage() {
     setSelected(null);
     setSearchError(null);
     setQuery("");
-    setSetKey("");
   }
 
   async function selectCard(card: PokemonCard) {
@@ -328,14 +272,12 @@ export default function PriceCheckPage() {
 
   if (!user) return <PageSkeleton />;
 
-  const setList = sets[game] ?? [];
   const modePill = (value: Mode, label: string) => (
     <button
       type="button"
       onClick={() => {
         setMode(value);
         setSearchError(null);
-        if (value === "browse") void ensureSets(game);
       }}
       className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
         mode === value ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
@@ -384,30 +326,19 @@ export default function PriceCheckPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-zinc-500" htmlFor="set-picker">
-              Set
-            </label>
-            <div className="relative">
-              <select
-                id="set-picker"
-                value={setKey}
-                disabled={setsLoading || setList.length === 0}
-                onChange={(e) => void browseSet(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-edge bg-black/40 py-2.5 pl-3 pr-10 text-sm text-white outline-none transition focus:border-brand-400 disabled:opacity-60"
-              >
-                <option value="">
-                  {setsLoading ? "Loading sets…" : `Choose a set (${setList.length})`}
-                </option>
-                {setList.map((set) => (
-                  <option key={set.code ?? set.name} value={set.code ?? set.name}>
-                    {setLabel(set)}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">
-                {searching ? <Spinner className="h-4 w-4" /> : "▾"}
-              </span>
-            </div>
+            {/* Shared with Watchlist (components/SetBrowser). */}
+            <SetBrowser
+              key={game}
+              game={game}
+              onBusy={setSearching}
+              onError={setSearchError}
+              onResults={(cards, title) => {
+                ++searchSeq.current;
+                setSelected(null);
+                setResults(cards);
+                setResultsTitle(title);
+              }}
+            />
             <p className="text-[11px] text-zinc-600">
               Newest sets first. Every card in the set, in printed order, with the latest price we hold.
             </p>
@@ -461,38 +392,24 @@ export default function PriceCheckPage() {
               Nothing matches that filter.
             </p>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
+          {/* The Watchlist's card tile (components/CardTile) — Chris, 09-04:
+              "I love the card view, push that into Search cards". */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {shown.map((card) => {
               const price = pickPrice(card);
               return (
-                <button
+                <CardTile
                   key={card.id}
-                  onClick={() => selectCard(card)}
-                  className={`group flex flex-col gap-2 rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 ${
-                    selected?.id === card.id
-                      ? "border-brand-400 bg-brand-500/10"
-                      : "border-edge bg-surface-1 hover:border-edge-strong"
-                  }`}
-                >
-                  <CardImage
-                    src={card.imageSmall}
-                    alt={card.name}
-                    className="aspect-[5/7] w-full rounded-lg"
-                  />
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="truncate text-xs font-medium text-white">{card.name}</span>
-                    {card.englishName && (
-                      <span className="truncate text-[11px] font-medium text-brand-300">{card.englishName}</span>
-                    )}
-                    <span className="truncate text-[11px] text-zinc-500">
-                      {mode === "browse" ? displayCardNumber(card) : `${card.setName} · ${displayCardNumber(card)}`}
-                      {card.rarity ? ` · ${card.rarity}` : ""}
-                    </span>
-                    <span className={`font-display text-sm font-semibold ${price ? "text-emerald-400" : "text-zinc-600"}`}>
-                      {price && price.market != null ? `$${price.market.toFixed(2)}` : "—"}
-                    </span>
-                  </span>
-                </button>
+                  imageUrl={card.imageSmall}
+                  name={card.name}
+                  englishName={card.englishName}
+                  subtitle={mode === "browse" ? displayCardNumber(card) : `${card.setName} · ${displayCardNumber(card)}`}
+                  price={price?.market ?? null}
+                  priceNote={price?.label ? `${price.label} · market` : undefined}
+                  aside={card.rarity ? <span className="max-w-[45%] truncate rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">{card.rarity}</span> : undefined}
+                  selected={selected?.id === card.id}
+                  onOpen={() => void selectCard(card)}
+                />
               );
             })}
           </div>

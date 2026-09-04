@@ -6,6 +6,7 @@ import CardDetailModal from "@/components/CardDetailModal";
 import Spinner from "@/components/Spinner";
 import GameToggle from "@/components/GameToggle";
 import PriceSparkline from "@/components/PriceSparkline";
+import SetBrowser from "@/components/SetBrowser";
 import { toast } from "@/components/Toaster";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
@@ -285,6 +286,9 @@ export default function WishlistPage() {
   const [busy, setBusy] = useState<"search" | "identify" | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [results, setResults] = useState<PokemonCard[]>([]);
+  // Add by name/photo, or open a whole set (Search cards' set browser,
+  // shared — Chris, 09-04: "push that set view into watchlist").
+  const [addMode, setAddMode] = useState<"search" | "browse">("search");
   // Vision may identify a dropped image as a different language than the
   // toggle, so the save has to use what the results actually are.
   const [resultsLanguage, setResultsLanguage] = useState<ScanLanguage>("en");
@@ -522,8 +526,32 @@ export default function WishlistPage() {
       <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <GameToggle game={game} onChange={setGame} compact />
-          <p className="text-xs text-zinc-600">Add a card by name, or from a photo — no need to have it in hand.</p>
+          <div className="flex items-center gap-1 rounded-full border border-edge bg-black/30 p-1">
+            {(["search", "browse"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setAddMode(m);
+                  setAddError(null);
+                }}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  addMode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {m === "search" ? "By name" : "By set"}
+              </button>
+            ))}
+          </div>
         </div>
+        {addMode === "browse" ? (
+          <SetBrowser
+            key={game}
+            game={game}
+            onError={setAddError}
+            onResults={(cards) => setResults(cards)}
+          />
+        ) : (
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -573,6 +601,7 @@ export default function WishlistPage() {
             </button>
           </div>
         </div>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -584,6 +613,9 @@ export default function WishlistPage() {
           }}
         />
 
+        <p className="text-xs text-zinc-600">
+          {addMode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name, or from a photo — no need to have it in hand."}
+        </p>
         {addError && <p className="text-xs text-red-400">{addError}</p>}
 
         {results.length > 0 && (
