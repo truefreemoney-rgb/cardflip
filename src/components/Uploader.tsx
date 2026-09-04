@@ -145,6 +145,7 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
         {onOpenCamera && (
           <button
             onClick={onOpenCamera}
+            data-tour="capture"
             className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:-translate-y-0.5 hover:bg-brand-400"
           >
             <span aria-hidden>📷</span> Use camera

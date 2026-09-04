@@ -496,6 +496,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // off (the default — sending emails real buyers, so it's strictly opt-in).
     "auto_offer_percent INTEGER",
     "auto_offer_message TEXT",
+    // First-login tutorial (09-04): when the coach-mark tour was finished or
+    // skipped. NULL = show it on the next visit to the scanner.
+    "tour_seen_at INTEGER",
   ]],
 ];
 

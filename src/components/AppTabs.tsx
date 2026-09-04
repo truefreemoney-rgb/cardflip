@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/app", label: "Scanner" },
-  { href: "/app/collection", label: "Inventory" },
-  { href: "/app/price-check", label: "Search cards" },
+  { href: "/app", label: "Scanner", tour: "tab-scanner" },
+  { href: "/app/collection", label: "Inventory", tour: "tab-inventory" },
+  { href: "/app/price-check", label: "Search cards", tour: "tab-search" },
   // "Watchlist" to the user; the route and code stay `wishlist`.
-  { href: "/app/wishlist", label: "Watchlist" },
+  { href: "/app/wishlist", label: "Watchlist", tour: "tab-watchlist" },
 ];
 
 export default function AppTabs() {
@@ -24,6 +24,7 @@ export default function AppTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
+            data-tour={tab.tour}
             className={`flex-1 whitespace-nowrap rounded-full px-1 py-1.5 text-center text-[13px] font-medium transition sm:flex-none sm:px-3.5 sm:text-sm ${
               active
                 ? "bg-brand-500 text-white"

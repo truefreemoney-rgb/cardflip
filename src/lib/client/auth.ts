@@ -23,6 +23,8 @@ export interface SessionUser {
   tier?: "owner" | "subscribed" | "legacy" | "trial";
   /** Server truth: is the app open to this account right now. */
   appAccess?: boolean;
+  /** First-login tutorial done; null/absent = show it on the scanner. */
+  tourSeenAt?: number | null;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

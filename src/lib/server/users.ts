@@ -32,6 +32,8 @@ export interface User {
   /** Auto-offers to watchers: percent set = daily job may send on slow movers; NULL = off. */
   autoOfferPercent: number | null;
   autoOfferMessage: string | null;
+  /** First-login tutorial finished/skipped; NULL = still owed. */
+  tourSeenAt: number | null;
 }
 
 interface UserRow {
@@ -54,6 +56,7 @@ interface UserRow {
   trial_scans_used: number | null;
   auto_offer_percent: number | null;
   auto_offer_message: string | null;
+  tour_seen_at: number | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -77,6 +80,7 @@ function fromRow(row: UserRow): User {
     trialScansUsed: row.trial_scans_used ?? 0,
     autoOfferPercent: row.auto_offer_percent ?? null,
     autoOfferMessage: row.auto_offer_message ?? null,
+    tourSeenAt: row.tour_seen_at ?? null,
   };
 }
 
@@ -171,6 +175,11 @@ export async function enableTotp(userId: string): Promise<void> {
   await db.prepare("UPDATE users SET totp_enabled_at = ? WHERE id = ?").run(Date.now(), userId);
 }
 
+/** Tutorial finished or skipped — never auto-shown again (replay lives on the account page). */
+export async function markTourSeen(userId: string): Promise<void> {
+  await db.prepare("UPDATE users SET tour_seen_at = ? WHERE id = ?").run(Date.now(), userId);
+}
+
 export async function disableTotp(userId: string): Promise<void> {
   await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL WHERE id = ?").run(userId);
 }
@@ -227,6 +236,7 @@ export async function createUser(
     trialScansUsed: 0,
     autoOfferPercent: null,
     autoOfferMessage: null,
+    tourSeenAt: null,
   };
 }
 
@@ -357,6 +367,8 @@ export interface PublicUser {
   tier: ScanTier;
   /** Whether the app is open to this account right now (server truth). */
   appAccess: boolean;
+  /** First-login tutorial done; null = the scanner shows it next visit. */
+  tourSeenAt: number | null;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -369,5 +381,6 @@ export function toPublicUser(user: User): PublicUser {
     monthlyScans: monthlyScans(user),
     tier: scanTier(user),
     appAccess: canUseApp(user),
+    tourSeenAt: user.tourSeenAt ?? null,
   };
 }

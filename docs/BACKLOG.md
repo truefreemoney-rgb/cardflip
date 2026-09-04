@@ -58,7 +58,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### BACKBURNER (Chris's explicit parks)
 - [ ] TCGplayer selling road — Chris "thinking about it" 09-02. Scoped: their API is CLOSED to new devs (docs still say so 08-2026; docs-portal login ≠ access), so v1 = CSV export in their Staged Inventory format next to the eBay drafts button (Seller Portal → Import to Staged → Move to Live), per-stack marketplace choice. tcgplayer_products map already covers 21,116/21,186 Pokémon cards; MTG ids come free via Scryfall's tcgplayer_id in sync-mtg. Unblock = Chris confirms a TCGplayer seller account + drops an Export-From-Live CSV (header row = ground truth, like the Seller Hub validation). API application = post-POC long-shot email.
-- [ ] First-login overlay tour (M, coach marks + tour_seen_at) — "totally want to add those one day". Its /help FAQ prerequisite SHIPPED 09-02 (13 articles + error-state deep-links + account-page section, all deployed)
+- [x] First-login overlay tour — SHIPPED 09-04 (TourOverlay.tsx in the app layout: 4 steps, spotlight via box-shadow cut-out on data-tour anchors, users.tour_seen_at stamped by POST /api/account/tour on Done/Skip/Esc/click-away, Replay row on Account → sessionStorage cardflip.tourReplay). Awaiting Chris yea/nay on copy + placement. — "totally want to add those one day". Its /help FAQ prerequisite SHIPPED 09-02 (13 articles + error-state deep-links + account-page section, all deployed)
 - [ ] Own eBay price series: record asking avg in comps route + ~150/day sweep; chart prefers ebay source once points exist
 - [ ] Photo-first sealed re-add in the scanner — "sometime later"
 - [ ] Merge Search cards into Watchlist — post-launch maybe, only if real users get confused

@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import type { SessionUser } from "@/lib/client/auth";
+import { requestTourReplay } from "@/lib/client/tour";
 import {
   changePassword,
   deleteAccount,
@@ -688,6 +689,21 @@ function AccountSettings({
       </Group>
 
       <Group label="Support">
+        <Row
+          title="Tutorial"
+          status="The four-step walk through the scanner, Inventory and the watchlist."
+          action={
+            <button
+              onClick={() => {
+                requestTourReplay();
+                router.push("/app");
+              }}
+              className={rowBtn}
+            >
+              Replay
+            </button>
+          }
+        />
         <Row
           title="Help center"
           status="Short articles on how every part of CardFlip works."

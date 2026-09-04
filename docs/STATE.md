@@ -23,7 +23,7 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-04 ~9:40am ET, session 8 end — Chris /cleared):
+**FIRST ACTION (saved 09-04 ~9:40am ET, session 8 end — Chris /cleared; SESSION 9 addendum 09-04 midday: FIRST-LOGIN TUTORIAL shipped to main — src/components/TourOverlay.tsx mounted in app/app/layout.tsx, 4 coach marks (capture button → "Check, then sell" centred card → Inventory tab → Watchlist tab) over the real /app page, anchors are data-tour attrs (Uploader "Use camera", AppTabs); users.tour_seen_at (db.ts COLUMN_PROBES + users.ts markTourSeen + PublicUser/SessionUser tourSeenAt) stamped by POST /api/account/tour; Account → Support → Tutorial "Replay" sets sessionStorage cardflip.tourReplay and routes to /app. Every existing account (Chris included) sees it ONCE on the next /app visit — that is the yea/nay. Verified locally in mobile emulation: steps advance, anchors found, flag stamped, Replay works. Spotlight has no transition on purpose (reduced-motion global transition froze it in a hidden tab). Chris also set the live paid-signup E2E test as TOP PRIORITY for later (BACKLOG §0 top).):
 (0) GIT: checkout is vercel-migration; ALWAYS `git push origin HEAD:main`
 and confirm origin/main moved. Vercel Hobby deploy cap (100/day rolling)
 tripped twice tonight — if a push doesn't deploy, check `gh api
