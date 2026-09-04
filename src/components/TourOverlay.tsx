@@ -5,14 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { markTourSeen, takeTourReplay } from "@/lib/client/tour";
+import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
 
 /**
  * First-login tutorial: coach marks over the real app, page by page. Each
  * page has a few steps; the last step on a page hands off to the next page
  * (Chris, 09-04: "one page leads to another"). A spotlight (box-shadow
  * cut-out, so the element underneath stays live and un-blurred) sits on
- * the anchor with two soft rings breathing out of it as the pointer; the
- * card carries a tooltip tail on the edge that faces the target. Steps
+ * the anchor; the robot (RobotBuddy) sits on the card's corner and points
+ * at the target — he IS the pointer (Chris, 09-04: the arrows and rings
+ * read as robotic; the robot doesn't, oddly). Steps
  * whose anchor isn't on the page (the editor only exists after a scan; the
  * Inventory toolbar only with cards) run as a centred card.
  *
@@ -281,35 +283,29 @@ export default function TourOverlay() {
   // Below sm the card is a bottom sheet regardless.
   let panelStyle: React.CSSProperties | undefined;
   if (rect && typeof window !== "undefined" && window.innerWidth >= 640) {
-    const below = rect.top + rect.height + 18;
+    // 56px gap: room for the robot on the card's corner between the two.
+    const below = rect.top + rect.height + 56;
     const roomBelow = window.innerHeight - below > 220;
     const left = Math.min(Math.max(rect.left, 16), window.innerWidth - 16 - 360);
-    panelStyle = roomBelow ? { top: below, left } : { bottom: window.innerHeight - rect.top + 18, left };
+    panelStyle = roomBelow ? { top: below, left } : { bottom: window.innerHeight - rect.top + 56, left };
   }
 
-  // The tail: a rotated square poking out of the card edge that faces the
-  // target — the tooltip idiom, much quieter than a drawn arrow.
-  const tailStyle: React.CSSProperties | undefined = tail
-    ? {
-        ...(tail.side === "top" ? { top: -7, left: tail.at - 7 } : {}),
-        ...(tail.side === "bottom" ? { bottom: -7, left: tail.at - 7 } : {}),
-        ...(tail.side === "left" ? { left: -7, top: tail.at - 7 } : {}),
-        ...(tail.side === "right" ? { right: -7, top: tail.at - 7 } : {}),
-        borderTopWidth: tail.side === "top" || tail.side === "right" ? 1 : 0,
-        borderLeftWidth: tail.side === "top" || tail.side === "left" ? 1 : 0,
-        borderBottomWidth: tail.side === "bottom" || tail.side === "left" ? 1 : 0,
-        borderRightWidth: tail.side === "bottom" || tail.side === "right" ? 1 : 0,
-      }
-    : undefined;
+  // The robot points where the target is; with nothing to point at he
+  // waves in, thinks, or celebrates the end.
+  const pose: RobotPose =
+    rect && tail
+      ? ((tail.side === "top" ? "point-up" : tail.side === "bottom" ? "point-down" : `point-${tail.side}`) as RobotPose)
+      : last
+        ? "celebrate"
+        : step === 0
+          ? "wave"
+          : "think";
 
   return (
     <div className="tour-in fixed inset-0 z-[60]">
       {box ? (
         <>
           <div className="tour-spot pointer-events-none absolute" style={box} />
-          {/* Two soft rings breathing out of the target — the pointer. */}
-          <div className="tour-halo pointer-events-none absolute" style={box} />
-          <div className="tour-halo tour-halo-2 pointer-events-none absolute" style={box} />
         </>
       ) : (
         <div className="absolute inset-0 bg-[#05060c]/75" />
@@ -327,7 +323,9 @@ export default function TourOverlay() {
         }`}
         style={panelStyle}
       >
-        {tailStyle && <span aria-hidden className="absolute h-3.5 w-3.5 rotate-45 border-edge bg-surface-1" style={tailStyle} />}
+        <div className="pointer-events-none absolute -top-12 left-2">
+          <RobotBuddy pose={pose} size={60} />
+        </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5" aria-hidden>
             {STEPS.map((_, i) => (
