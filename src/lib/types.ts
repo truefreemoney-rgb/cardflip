@@ -112,6 +112,9 @@ export interface VisionCardRead {
  * multi-card / unreadable-name-band shots at 0.5, so those always fall under.
  */
 export const LOW_CONFIDENCE = 0.6;
+/** Below this the read is noise, not a card — the scanner asks for a retake
+ *  instead of matching a stray word (09-03: "Unknown" at 5% → Unknown Shores). */
+export const UNREADABLE_CONFIDENCE = 0.2;
 
 export type VisionStatus = "idle" | "unconfigured" | "done" | "error" | "quota";
 

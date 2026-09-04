@@ -140,6 +140,10 @@ for (const [id, name, code, setName, num, date, usd] of [
   // The List: normal-looking set_type ("masters"), priced, newer than M11 —
   // exactly the row that stole the top slot on prod after the first fix.
   ["plst-m11-153", "Pyretic Ritual", "plst", "The List", "M11-153", "2020-03-13", 5.5],
+  // 09-03 MTG stress test: Final Fantasy tokens ("Hero", "Bird") aren't in
+  // the mirror and substring-matched these priced Marvel cards.
+  ["msc-17",  "Heroic Return",    "msc", "Marvel Super Heroes Commander", "17",  "2025-10-24", 1.79],
+  ["msc-170", "Birds of Paradise", "msc", "Marvel Super Heroes Commander", "170", "2025-10-24", 7.99],
 ]) {
   await db.prepare(
     `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at)
@@ -159,6 +163,14 @@ check("an agreeing number is evidence enough for the special set",
   await mtgTop("Pyretic Ritual", "46", null), "soa-46");
 check("set code still pins the printing exactly",
   await mtgTop("Pyretic Ritual", null, "soa"), "soa-46");
+check("'Hero' (a token name) is not a prefix of Heroic Return",
+  await mtgTop("Hero", "T0005", "fin"), null);
+check("'Bird' is not inside Birds of Paradise",
+  await mtgTop("Bird", null, null), null);
+check("a whole first word still prefix-matches",
+  await mtgTop("Heroic", null, null), "msc-17");
+check("a whole inner word still matches",
+  await mtgTop("Paradise", null, null), "msc-170");
 
 check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);

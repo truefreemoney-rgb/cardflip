@@ -54,7 +54,15 @@ scripts/fill-images.mjs (see BACKLOG); scanner BLUR GATE (d79e9bb:
 lib/sharpness.ts, text-band Laplacian variance ≥ 90 at 480px, refuses a
 soft frame ONCE with an amber nudge, next tap always goes through —
 conservative on purpose, Chris hates false fires; raise toward 150 only if
-he asks for a stricter gate). NEXT (Chris said "tomorrow" =
+he asks for a stricter gate). MTG STRESS TEST (09-03 late): 35 scans, 24 clean. Replayed the 11
+flagged (replay-scans now does Magic): FF TOKENS ("Hero" T0005, "Bird"
+T 0016 — not in the mirror) substring-matched priced Marvel cards →
+scanner now says "That's a token" on T-numbers and the ranker requires
+word-boundary name matches; a 5%-confidence "Unknown" read became
+Unknown Shores → UNREADABLE_CONFIDENCE=0.2 floor asks for a retake. The
+rest were vision variance (replay correct). Search cards got a makeover +
+set browser + sort/filter; Watchlist makeover; Inventory split by game.
+NEXT (Chris said "tomorrow" =
 09-04): the Stripe public-details errand —
 business address + phone that aren't his home/cell (BACKLOG §0 item 1);
 that's his side, I gate on it. Then post-launch cadence: batch weekly.

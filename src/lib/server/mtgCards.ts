@@ -185,11 +185,30 @@ export async function searchMtgCardsLocal(
       .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
   }
 
+  // A name match has to end on a word boundary: "Hero" is not a prefix of
+  // "Heroic Return" and "Bird" is not inside "Birds of Paradise". Chris's
+  // 09-03 MTG stress test: Final Fantasy TOKENS (Hero, Bird — not in the
+  // mirror) rode those substrings onto priced Marvel cards. Substring
+  // matches also need a real word (5+ chars) — three letters of OCR debris
+  // match half the catalogue.
+  const boundary = (text: string, at: number) => at >= text.length || /[\s,'’\-:]/.test(text[at]);
+  const wordPrefix = (text: string) => text.startsWith(needle) && boundary(text, needle.length);
+  const wordInside = (text: string) => {
+    if (needle.length < 5) return false;
+    let from = 0;
+    for (;;) {
+      const i = text.indexOf(needle, from);
+      if (i < 0) return false;
+      if ((i === 0 || /[\s,'’\-:]/.test(text[i - 1])) && boundary(text, i + needle.length)) return true;
+      from = i + 1;
+    }
+  };
   const score = (row: MtgCardRow): number => {
     const rowName = row.name.toLowerCase().replace(/,/g, "");
     const frontFace = rowName.split(" // ")[0];
     const exactName = needle !== "" && (rowName === needle || frontFace === needle);
-    const prefixName = !exactName && needle !== "" && rowName.startsWith(needle);
+    const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace));
+    const insideName = !exactName && !prefixName && needle !== "" && wordInside(rowName);
     const exactNumber = Boolean(wantedNumber) && normalizeCollectorNumber(row.collector_number) === wantedNumber;
     const codeAgrees = wantedCode ? row.set_code.toLowerCase() === wantedCode : null;
 
@@ -197,6 +216,8 @@ export async function searchMtgCardsLocal(
     if (exactName && exactNumber) tier = 0;
     else if (exactName) tier = 1;
     else if (prefixName) tier = 2;
+    else if (insideName) tier = 3;
+    else if (needle !== "") return Infinity; // name read, and this row's name isn't it
     else if (exactNumber) tier = 3;
     else tier = 4;
 
@@ -221,7 +242,12 @@ export async function searchMtgCardsLocal(
     return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty;
   };
 
-  const ranked = [...rows].sort((a, b) => score(a) - score(b)).slice(0, limit);
+  const ranked = rows
+    .map((row) => ({ row, s: score(row) }))
+    .filter((x) => Number.isFinite(x.s))
+    .sort((a, b) => a.s - b.s)
+    .slice(0, limit)
+    .map((x) => x.row);
   return ranked.map(toCard);
 }
 

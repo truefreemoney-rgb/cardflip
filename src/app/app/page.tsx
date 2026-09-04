@@ -35,7 +35,7 @@ import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, type ScanUsage } from "@/lib/client/visionApi";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
-import { LOW_CONFIDENCE } from "@/lib/types";
+import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
 import type {
   ArtStyle,
   Condition,
@@ -316,6 +316,7 @@ export default function AppPage() {
           // Frame style from the photo — the tiebreak that keeps a full-art
           // card off its promo/regular printing when the number is unread.
           let art: ArtStyle = null;
+          let readError: string | null = null;
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
@@ -343,6 +344,21 @@ export default function AppPage() {
               language,
               ...(condition ? { condition } : {}),
             });
+
+            // Two reads that must not become a guess (Chris's 09-03 MTG stress
+            // test): a near-zero confidence read ("Unknown", 5%) whose one
+            // word prefix-matched a real card, and Magic TOKENS (collector
+            // number "T 0016") that aren't in the mirror and rode a
+            // substring onto a priced card. Say what happened instead.
+            if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE) {
+              readError = `Couldn't read this card (${Math.round(read.confidence * 100)}% sure) — retake with the whole card in the guide and no glare`;
+              nameCandidates = [];
+              printed = null;
+            } else if (next.game === "mtg" && read.cardNumber && /^T\s*\d+$/i.test(read.cardNumber.trim())) {
+              readError = "That's a token — tokens aren't priced or listed";
+              nameCandidates = [];
+              printed = null;
+            }
           } else {
             patchItem(next.id, { visionStatus: vision.status });
             const scan = await scanCard(next.file, next.language);
@@ -415,7 +431,7 @@ export default function AppPage() {
               status: "review",
               candidates: [],
               card: null,
-              error: "No match found — search by name",
+              error: readError ?? "No match found — search by name",
             });
           } else {
             const card = matches[0];
