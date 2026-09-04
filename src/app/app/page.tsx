@@ -778,9 +778,25 @@ export default function AppPage() {
       setResuming(false);
       for (const item of items) {
         if (item.status !== "listed" && item.card) void loadEbayComps(item.id, item.card);
+        // The id fetch above is why reopening is instant, but it leaves the
+        // item with a single candidate — and "Not your card? N other
+        // matches" is gated on having more than one (09-04: the link was
+        // gone on every resumed card). Fill the alternatives behind the
+        // scenes; the card itself stays what the ledger row points at.
+        if (item.card && item.candidates.length <= 1 && !item.verifiedAt) {
+          const { id, card } = item;
+          void searchCards(card.englishName || card.name, card.number || null, "en", undefined, item.game)
+            .then((found) => {
+              const cur = itemsRef.current.find((i) => i.id === id);
+              if (!cur || cur.card?.id !== card.id || cur.candidates.length > 1) return;
+              const others = found.filter((c) => c.id !== card.id);
+              if (others.length > 0) patchItem(id, { candidates: [card, ...others] });
+            })
+            .catch(() => {});
+        }
       }
     })();
-  }, [commit, loadEbayComps]);
+  }, [commit, loadEbayComps, patchItem]);
 
 
   const openCamera = useCallback(() => {
