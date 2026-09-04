@@ -59,11 +59,15 @@ export async function searchCards(
   art: ArtStyle = null,
   /** MTG: vision saw an Art Series card — only art sets may answer. */
   artOnly = false,
+  /** Pokémon: vision's read of the 1st Edition stamp — true ranks the 1st Edition twin first. */
+  firstEdition: boolean | null = null,
 ): Promise<PokemonCard[]> {
   const params = new URLSearchParams({ name, lang });
   if (game !== "pokemon") params.set("game", game);
   if (art) params.set("art", art);
   if (artOnly) params.set("art_series", "1");
+  if (firstEdition === true) params.set("first", "1");
+  else if (firstEdition === false) params.set("first", "0");
   if (limit) params.set("limit", String(limit));
 
   if (typeof printed === "string") {

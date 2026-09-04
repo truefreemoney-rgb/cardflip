@@ -405,6 +405,12 @@ export async function setCardListingEnded(id: string, userId: string, endedAt: n
 }
 
 export interface CardUpdate {
+  /** The catalog card behind the row changed (candidate pick, printing swap). */
+  cardName?: string;
+  setName?: string;
+  cardNumber?: string;
+  imageUrl?: string;
+  catalogCardId?: string | null;
   condition?: string;
   price?: number;
   quantity?: number;
@@ -432,6 +438,11 @@ export async function updateCard(
 
   const merged: CardRow = {
     ...existingRow,
+    card_name: patch.cardName ?? existingRow.card_name,
+    set_name: patch.setName ?? existingRow.set_name,
+    card_number: patch.cardNumber ?? existingRow.card_number,
+    image_url: patch.imageUrl ?? existingRow.image_url,
+    catalog_card_id: patch.catalogCardId !== undefined ? patch.catalogCardId : existingRow.catalog_card_id,
     condition: patch.condition ?? existingRow.condition,
     price: patch.price ?? existingRow.price,
     quantity: patch.quantity ?? existingRow.quantity ?? 1,
@@ -456,10 +467,15 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
+      merged.card_name,
+      merged.set_name,
+      merged.card_number,
+      merged.image_url,
+      merged.catalog_card_id ?? null,
       merged.condition,
       merged.price,
       merged.quantity ?? 1,

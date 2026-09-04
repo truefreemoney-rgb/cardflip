@@ -63,6 +63,12 @@ export interface CreateCardInput {
 }
 
 export interface UpdateCardInput {
+  /** The catalog card behind the row changed (candidate pick, printing swap). */
+  cardName?: string;
+  setName?: string;
+  cardNumber?: string;
+  imageUrl?: string;
+  catalogCardId?: string | null;
   condition?: string;
   price?: number;
   quantity?: number;

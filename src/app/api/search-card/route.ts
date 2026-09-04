@@ -124,6 +124,10 @@ export async function GET(req: NextRequest) {
   const setCode = sanitize(req.nextUrl.searchParams.get("setCode") ?? "") || null;
   const artParam = req.nextUrl.searchParams.get("art");
   const art: ArtStyle = artParam === "standard" || artParam === "full-art" ? artParam : null;
+  // Vision's read of the 1st Edition stamp: "1" lifts the 1st Edition twin
+  // over the unlimited card, anything else lifts the unlimited card.
+  const firstParam = req.nextUrl.searchParams.get("first");
+  const firstEdition: boolean | null = firstParam === "1" ? true : firstParam === "0" ? false : null;
   const langParam = req.nextUrl.searchParams.get("lang");
   const lang: ScanLanguage =
     langParam === "ja" || langParam === "zh" ? langParam : "en";
@@ -205,6 +209,7 @@ export async function GET(req: NextRequest) {
     setTotal ? `${number}/${setTotal}` : number,
     limit === DEFAULT_LIMIT ? "" : `#${limit}`,
     art ? `@${art}` : "",
+    firstEdition === true ? "!1st" : "",
   ].join("");
 
   // What the answer was actually keyed on, so the client can say how sure the
@@ -245,7 +250,7 @@ export async function GET(req: NextRequest) {
     // outage can no longer fail a scan. Prices are layered on afterwards and
     // are allowed to fail on their own.
     if (await hasEnglishMirror()) {
-      const local = await searchEnglishCardsLocal(name, printed, limit, art);
+      const local = await searchEnglishCardsLocal(name, printed, limit, art, firstEdition);
       if (local.cards.length > 0) {
         // enrichWithPricing never rejects (it returns the cards unpriced on
         // upstream failure), so racing it against the budget is safe.

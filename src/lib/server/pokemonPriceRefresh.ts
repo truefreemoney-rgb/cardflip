@@ -43,6 +43,13 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   // batched write-back at the end — per-row SELECT+UPSERT was ~60k Turso
   // round trips and timed out Vercel's function limit (08-26).
   const existingSeries = await readSeriesMap("pokemon", "tcgplayer");
+  // 1st Edition twins (scripts/sync-first-edition.mjs): the stamped printing
+  // is its own catalog card, so a product's 1st Edition variants are written
+  // under the twin's id; a twin mapped straight to a TCGplayer product (Base
+  // Set Shadowless) ignores that product's unlimited variants.
+  const twins = new Set(
+    ((await db.prepare("SELECT id FROM en_cards WHERE id LIKE '%-1st'").all()) as { id: string }[]).map((r) => r.id),
+  );
 
   let groupsFailed = 0;
   const upserts: SeriesUpsert[] = [];
@@ -59,10 +66,13 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       continue;
     }
     for (const r of results) {
-      const cardId = productToCard.get(r.productId);
+      const mapped = productToCard.get(r.productId);
       const price = r.marketPrice ?? null;
-      if (!cardId || price == null || !(price > 0)) continue;
+      if (!mapped || price == null || !(price > 0)) continue;
       const variant = tcgplayerVariantKey(r.subTypeName);
+      const stamped = variant.startsWith("1stEdition");
+      if (mapped.endsWith("-1st") && !stamped) continue;
+      const cardId = stamped && twins.has(`${mapped}-1st`) ? `${mapped}-1st` : mapped;
       const key = `${cardId}|${variant}`;
       if (touched.has(key)) continue;
       const existing = existingSeries.get(key);

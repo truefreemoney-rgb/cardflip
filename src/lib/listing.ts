@@ -89,6 +89,22 @@ const FIRST_EDITION_SETS = new Set([
 /** TCGplayer's 1st Edition variant keys, most specific first. */
 const FIRST_EDITION_VARIANTS = ["1stEditionHolofoil", "1stEdition", "1stEditionNormal"];
 
+/** The catalog suffix scripts/sync-first-edition.mjs gives a twin's set. */
+export const FIRST_EDITION_SET_SUFFIX = " (1st Edition)";
+
+/**
+ * Is this catalog card the 1st Edition twin (its own card, its own set, its
+ * own price — scripts/sync-first-edition.mjs) rather than the unlimited print?
+ */
+export function isFirstEditionCard(card: PokemonCard | null | undefined): boolean {
+  return Boolean(card && (/-1st$/.test(card.id) || card.setName.endsWith(FIRST_EDITION_SET_SUFFIX)));
+}
+
+/** Whether the item is being sold as a 1st Edition copy — the twin card says so by itself. */
+export function itemFirstEdition(item: ScanItem): boolean {
+  return item.firstEdition || isFirstEditionCard(item.card);
+}
+
 /**
  * Whether the 1st Edition toggle applies to this card. Base Set Machamp is
  * carved out: it shipped 1st-edition-stamped in every 2-Player Starter Set, so
@@ -98,8 +114,12 @@ export function canBeFirstEdition(card: PokemonCard): boolean {
   // MTG's collectible printings (Alpha/Beta, foil, etched) are separate
   // Scryfall printings / finishes, not a stamp on the same card.
   if (gameOf(card) !== "pokemon") return false;
-  if (!FIRST_EDITION_SETS.has(card.setName)) return false;
-  return !(card.setName === "Base Set" && card.name === "Machamp");
+  // The twin's set carries the suffix; it had a run by definition.
+  const setName = card.setName.endsWith(FIRST_EDITION_SET_SUFFIX)
+    ? card.setName.slice(0, -FIRST_EDITION_SET_SUFFIX.length)
+    : card.setName;
+  if (!FIRST_EDITION_SETS.has(setName)) return false;
+  return !(setName === "Base Set" && card.name === "Machamp");
 }
 
 /**
@@ -136,7 +156,7 @@ export function isFirstEditionVariant(variant: string): boolean {
  */
 export function effectiveVariant(item: ScanItem): string | undefined {
   if (item.variant) return item.variant;
-  if (item.firstEdition && item.card) {
+  if (itemFirstEdition(item) && item.card) {
     const tracked = firstEditionPrice(item.card)?.variant;
     if (tracked) return tracked;
     // Base Set 1st Edition has no TCGplayer line. The eBay comps on the card

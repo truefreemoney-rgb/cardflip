@@ -9,7 +9,9 @@ import {
   normalizeNumber,
   type PrintedNumber,
 } from "@/lib/cardNumber";
-import type { ArtStyle, PokemonCard } from "@/lib/types";
+import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
+import { decodePrices } from "@/lib/priceSeries";
+import { formatVariantLabel } from "@/lib/listing";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -88,6 +90,23 @@ const TOTAL_PENALTY = { match: 0, unknown: 2, mismatch: 4 } as const;
 const CODE_PENALTY = { match: 0, unknown: 1, mismatch: 2 } as const;
 const ART_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
 const NAME_TIER = 8;
+// 1st Edition twins (scripts/sync-first-edition.mjs) share name, number and
+// totals with the unlimited card; only the read of the stamp tells them
+// apart. Inside a tier the wrong printing loses — a read of "stamped" lifts
+// the twin, anything else (not stamped, couldn't see) lifts the unlimited
+// card, which is what a phone scanner overwhelmingly sees.
+const FIRST_EDITION_PENALTY = 3;
+
+/** Whether a mirror id is a 1st Edition twin. */
+export function isFirstEditionId(id: string): boolean {
+  return id.endsWith("-1st");
+}
+
+function printingPenalty(id: string, firstEdition: boolean | null): number {
+  const twin = isFirstEditionId(id);
+  if (firstEdition === true) return twin ? 0 : FIRST_EDITION_PENALTY;
+  return twin ? FIRST_EDITION_PENALTY : 0;
+}
 
 function agreesWithArt(art: ArtStyle, secretNumbered: boolean): keyof typeof ART_PENALTY {
   if (!art) return "unknown";
@@ -165,6 +184,8 @@ export async function searchEnglishCardsLocal(
   printed: PrintedNumber | null,
   limit = 24,
   art: ArtStyle = null,
+  /** Vision's read of the 1st Edition stamp: true lifts the twin, else the unlimited card. */
+  firstEdition: boolean | null = null,
 ): Promise<LocalSearchResult> {
   const needle = normalizeName(name);
 
@@ -172,7 +193,7 @@ export async function searchEnglishCardsLocal(
   // on the numbers alone rather than giving up.
   if (!needle) {
     return printed?.setTotal
-      ? lookupByPrintedNumber(printed, limit)
+      ? lookupByPrintedNumber(printed, limit, firstEdition)
       : { cards: [], releaseDates: new Map() };
   }
 
@@ -190,7 +211,7 @@ export async function searchEnglishCardsLocal(
   // depend on having read the name, so it can still identify the card.
   if (rows.length === 0) {
     return printed?.setTotal
-      ? lookupByPrintedNumber(printed, limit)
+      ? lookupByPrintedNumber(printed, limit, firstEdition)
       : { cards: [], releaseDates: new Map() };
   }
 
@@ -221,7 +242,7 @@ export async function searchEnglishCardsLocal(
     const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
     const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official));
 
-    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code] + ART_PENALTY[frame];
+    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code] + ART_PENALTY[frame] + printingPenalty(row.id, firstEdition);
   };
 
   // Stable sort, so release-date order from the query survives as the final
@@ -255,6 +276,7 @@ export async function searchEnglishCardsLocal(
 export async function lookupByPrintedNumber(
   printed: PrintedNumber,
   limit = 24,
+  firstEdition: boolean | null = null,
 ): Promise<LocalSearchResult> {
   if (!printed.setTotal) return { cards: [], releaseDates: new Map() };
 
@@ -272,13 +294,12 @@ export async function lookupByPrintedNumber(
       .all(printed.setTotal)) as unknown as EnCardRow[]
   ).filter((row) => normalizeNumber(row.local_id) === normalizeNumber(printed.number));
 
-  const ranked = printed.setCode
-    ? [...rows].sort(
-        (a, b) =>
-          CODE_PENALTY[agreesWithSetCode(printed.setCode, a.set_code || null)] -
-          CODE_PENALTY[agreesWithSetCode(printed.setCode, b.set_code || null)],
-      )
-    : rows;
+  const codePenalty = (row: EnCardRow) =>
+    printed.setCode ? CODE_PENALTY[agreesWithSetCode(printed.setCode, row.set_code || null)] : 0;
+  const ranked = [...rows].sort(
+    (a, b) =>
+      codePenalty(a) + printingPenalty(a.id, firstEdition) - (codePenalty(b) + printingPenalty(b.id, firstEdition)),
+  );
 
   const limited = ranked.slice(0, limit);
 
@@ -317,7 +338,7 @@ export async function enrichWithPricing(
       if (!byKey.has(key)) byKey.set(key, card);
     }
 
-    return cards.map((card) => {
+    return splitFirstEditionPrices(cards.map((card) => {
       const released = normalizeDate(releaseDates.get(card.id));
       if (!released) return card;
 
@@ -333,11 +354,69 @@ export async function enrichWithPricing(
         imageSmall: card.imageSmall || mapped.imageSmall,
         imageLarge: card.imageLarge || mapped.imageLarge,
       };
-    });
+    }));
   } catch {
     // Upstream is down. Identification already succeeded, which is the part
     // that matters — pricing can come from eBay comps or the seller.
-    return cards;
+    return splitFirstEditionPrices(cards);
+  }
+}
+
+const isFirstEditionVariant = (variant: string) => variant.startsWith("1stEdition");
+
+/**
+ * The upstream joins a twin to the same pokemontcg.io card as its unlimited
+ * sibling (same number, same release date), so both arrive with the whole
+ * price table. Split it: the twin keeps only 1st Edition variants, the
+ * unlimited card loses them — one card, one printing, one price. A twin
+ * the upstream has no 1st Edition line for (Base Set — TCGplayer sells it as
+ * the Shadowless product line) is priced from its own price_series, which
+ * the daily tcgcsv refresh feeds from that product.
+ */
+export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  const out: PokemonCard[] = [];
+  for (const card of cards) {
+    if (!isFirstEditionId(card.id)) {
+      out.push({ ...card, prices: card.prices.filter((p) => !isFirstEditionVariant(p.variant)) });
+      continue;
+    }
+    let prices = card.prices.filter((p) => isFirstEditionVariant(p.variant));
+    if (prices.length === 0) prices = await ownSeriesPrices(card.id);
+    out.push({ ...card, prices });
+  }
+  return out;
+}
+
+/** Latest USD point of each of a card's own 1st Edition series, as price rows. */
+async function ownSeriesPrices(cardId: string): Promise<CardPrice[]> {
+  try {
+    const rows = (await db
+      .prepare(
+        `SELECT variant, source, prices FROM price_series
+          WHERE card_id = ? AND currency = 'USD' AND variant LIKE '1stEdition%'`,
+      )
+      .all(cardId)) as unknown as { variant: string; source: string; prices: string }[];
+    const out: CardPrice[] = [];
+    for (const r of rows) {
+      const points = decodePrices(r.prices);
+      let last: number | null = null;
+      for (let j = points.length - 1; j >= 0; j--) {
+        if (points[j] != null) { last = points[j]; break; }
+      }
+      if (last == null || !(last > 0)) continue;
+      out.push({
+        source: r.source as CardPrice["source"],
+        variant: r.variant,
+        label: formatVariantLabel(r.variant),
+        currency: "USD",
+        market: last,
+        low: null,
+        high: null,
+      });
+    }
+    return out;
+  } catch {
+    return [];
   }
 }
 

@@ -10,7 +10,7 @@ import {
   type EbayPushSuccess,
 } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { mtgFinishOf } from "@/lib/listing";
+import { itemFirstEdition, mtgFinishOf } from "@/lib/listing";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 
 interface Props {
@@ -104,7 +104,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       kind: item.kind,
       condition: item.condition,
       grading: item.grading,
-      firstEdition: item.firstEdition,
+      firstEdition: itemFirstEdition(item),
       quantity: item.quantity ?? 1,
       productType: item.productType,
       language: item.language,

@@ -11,11 +11,11 @@ import ListingCopyFields from "@/components/ListingCopyFields";
 import PriceInput from "@/components/PriceInput";
 import { updateServerCard } from "@/lib/client/cardsApi";
 import { fetchEbayComps } from "@/lib/client/ebayApi";
-import { searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, firstEditionPrice, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
@@ -266,6 +266,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // on screen (the double-jump fix). settledKey ends the loading state even
   // when a failed fetch caches nothing.
   const [fetchedGradedComps, setFetchedGradedComps] = useState<{ average: number; count: number } | null>(null);
+  // 1st Edition ↔ unlimited: the other printing is a separate catalog card.
+  const [swapping, setSwapping] = useState(false);
   const [gradedSettledKey, setGradedSettledKey] = useState("");
   const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
   const gradedCacheHit = gradeKey ? gradedCompsCache.get(gradeKey) : undefined;
@@ -493,7 +495,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   }
 
   const firstEdEligible = canBeFirstEdition(card);
-  const firstEdPrice = firstEdEligible ? firstEditionPrice(card) : null;
+  const isFirstEdition = isFirstEditionCard(card);
 
   const variant = effectiveVariant(item);
   const quote = quoteForItem(item, currentPoint);
@@ -505,7 +507,33 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const showQuick = Boolean(item.grading) || quickSaleEligible(marketQuote?.suggested);
   const selectedStrategy: PriceStrategy = showQuick ? item.strategy : "market";
 
-  const facts = { firstEdition: item.firstEdition, grading: item.grading };
+  const facts = { firstEdition: itemFirstEdition(item), grading: item.grading };
+
+  /** Switch this item to the other printing's catalog card (the "-1st" twin
+   *  or the unlimited card) — a different product with its own price. */
+  async function swapPrinting(targetId: string) {
+    setSwapping(true);
+    setSearchError(null);
+    const other = await fetchCardById(targetId, "pokemon").catch(() => null);
+    setSwapping(false);
+    if (!other) {
+      setSearchError("Couldn't load that printing right now — try again in a moment.");
+      return;
+    }
+    onChange({
+      card: other,
+      candidates: [other, ...item.candidates.filter((c) => c.id !== other.id)],
+      status: "ready",
+      verifiedAt: null,
+      priceOverride: null,
+      variant: null,
+      firstEdition: isFirstEditionCard(other),
+      ebay: null,
+      ebayStatus: "idle",
+      ebaySold: null,
+      ebaySoldStatus: "unavailable",
+    });
+  }
 
   // Grade/condition changes reach the ledger immediately, not just at the
   // listed/sold checkpoint (Chris, 09-01: graded cards matter — a resumed
@@ -797,7 +825,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                       matchDoubt: c.id !== card.id ? correctedFrom() : item.matchDoubt,
                       priceOverride: null,
                       variant: null,
-                      firstEdition: false,
+                      firstEdition: isFirstEditionCard(c),
                       grading: null,
                       ebay: null,
                       ebayStatus: "idle",
@@ -849,7 +877,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         // about the 1st Edition toggle or grading — rebuild it client-side
         // when either is set.
         soldUrl={
-          item.firstEdition || item.grading
+          facts.firstEdition || item.grading
             ? ebaySoldSearchUrl(card, facts)
             : (item.ebaySoldUrl ?? ebaySoldSearchUrl(card))
         }
@@ -863,46 +891,32 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
       {firstEdEligible && (
         <div className="rounded-xl border border-edge bg-surface-1 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={item.firstEdition}
-              onChange={(e) =>
-                onChange({
-                  firstEdition: e.target.checked,
-                  // The toggle owns the printing choice — a stale dropdown
-                  // pick or manual price from the other printing would
-                  // otherwise keep driving the quote.
-                  variant: null,
-                  priceOverride: null,
-                })
-              }
-              className="mt-0.5 h-4 w-4 accent-brand-500"
-            />
-            <span className="min-w-0">
-              <span className="block text-sm font-medium text-zinc-200">
-                1st Edition stamp
-                {firstEdPrice && (
-                  <span className="ml-2 font-semibold text-brand-300">
-                    {formatMoney(firstEdPrice.market, firstEdPrice.currency)}
-                  </span>
-                )}
-              </span>
-              <span className="mt-0.5 block text-xs leading-snug text-zinc-500">
-                {item.vision?.firstEdition === true
-                  ? "The scan saw the 1st Edition stamp by the artwork — untick this if it's wrong."
-                  : `${card.setName} had a 1st Edition print run worth a premium — check the box if your card has the stamp by the artwork.`}
-              </span>
-            </span>
-          </label>
-          {item.firstEdition && !firstEdPrice && (
-            <p className="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-300">
-              Our price source doesn&apos;t track 1st Edition {card.setName}{" "}
-              separately, so the price comes from what 1st Edition copies are
-              listed for on eBay right now (the comps above search 1st Edition
-              only). Check the eBay links and set your own price if it looks off.
-            </p>
-          )}
+          {/* 1st Edition is its own catalog card (Chris, 09-04: "a totally
+              different card with a totally different price"), so this is a
+              swap between two products, not a checkbox on one. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            {isFirstEdition ? (
+              <p className="flex min-w-0 items-center gap-2 text-sm text-zinc-300">
+                <span className="shrink-0 rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
+                  1st Edition
+                </span>
+                <span className="text-xs text-zinc-500">Its own printing — priced against 1st Edition copies only.</span>
+              </p>
+            ) : (
+              <p className="min-w-0 text-xs leading-snug text-zinc-500">
+                {card.setName} had a 1st Edition print run. A copy with the stamp by the artwork is a
+                different card with its own price.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void swapPrinting(isFirstEdition ? card.id.replace(/-1st$/, "") : `${card.id}-1st`)}
+              disabled={swapping}
+              className="shrink-0 text-xs font-medium text-brand-300 underline underline-offset-4 hover:text-brand-200 disabled:opacity-50"
+            >
+              {swapping ? "Switching…" : isFirstEdition ? "No stamp? Use the unlimited card" : "Has the 1st Edition stamp? Use that card"}
+            </button>
+          </div>
         </div>
       )}
 

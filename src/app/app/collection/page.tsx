@@ -1142,7 +1142,7 @@ export default function CollectionPage() {
                     ⚠ {card.matchDoubt}
                   </span>
                 )}
-                {card.firstEdition && (
+                {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
                   <span
                     className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 text-[11px] font-semibold text-brand-300"
                     title="1st Edition stamp — priced and listed as its own printing"

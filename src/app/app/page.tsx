@@ -16,7 +16,7 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
-import { buildListing, buildSealedListing, canBeFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
+import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
@@ -405,7 +405,7 @@ export default function AppPage() {
           // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly);
+              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null);
               if (found.length === 0) continue;
               if (matches.length === 0) matches = found;
               if (
@@ -430,7 +430,7 @@ export default function AppPage() {
               : Boolean(printed?.setTotal) && language === "en";
           if (matches.length === 0 && printed && numbersIdentify) {
             try {
-              matches = await searchCards("", printed, language, undefined, next.game);
+              matches = await searchCards("", printed, language, undefined, next.game, null, false, vision.read?.firstEdition ?? null);
             } catch {
               lookupErrors++;
             }
@@ -481,10 +481,9 @@ export default function AppPage() {
               status: lowConfidence || ambiguous ? "review" : "ready",
               candidates: matches,
               card,
-              // The stamp the model saw flips the 1st Edition toggle itself
-              // (Chris, 09-04: a stamped Base Set Charizard was priced and
-              // filed as the unlimited one). Only where the set had a run.
-              firstEdition: vision.read?.firstEdition === true && canBeFirstEdition(card),
+              // 1st Edition is its own catalog card (the "-1st" twin); the
+              // stamp vision read chose it in the search ranking above.
+              firstEdition: isFirstEditionCard(card),
               error: null,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
@@ -599,7 +598,8 @@ export default function AppPage() {
         // 1st Edition copies are their own eBay market — the comps are pulled
         // for the printing the item claims to be (stamped listings excluded
         // for an unlimited copy of a set that had a run).
-        const stamped = firstEditionOverride ?? itemsRef.current.find((i) => i.id === id)?.firstEdition ?? false;
+        const current = itemsRef.current.find((i) => i.id === id);
+        const stamped = firstEditionOverride ?? (current ? itemFirstEdition(current) : false);
         const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null);
         const item = itemsRef.current.find((i) => i.id === id);
         // Dropped from the queue, or the seller corrected the match while we
@@ -923,7 +923,7 @@ export default function AppPage() {
         item.kind === "sealed"
           ? buildSealedListing(item.card!, price, item.productType)
           : buildListing(item.card!, price, item.condition, quote?.price.label, {
-              firstEdition: item.firstEdition,
+              firstEdition: itemFirstEdition(item),
               grading: item.grading,
             }),
         item,
@@ -946,7 +946,7 @@ export default function AppPage() {
         kind: item.kind,
         condition: item.condition,
         grading: item.grading,
-        firstEdition: item.firstEdition,
+        firstEdition: itemFirstEdition(item),
         quantity: item.quantity ?? 1,
         productType: item.productType,
         language: item.language,
@@ -1269,11 +1269,19 @@ export default function AppPage() {
                     ebayConnected={user.ebayConnected}
                     onChange={(patch) => {
                       patchItem(selected.id, patch);
-                      // The 1st Edition toggle changes what the card IS on
-                      // eBay: persist it and re-pull comps for that market.
-                      if (patch.firstEdition !== undefined) {
-                        if (selected.serverId) void updateServerCard(selected.serverId, { firstEdition: Boolean(patch.firstEdition) });
-                        if (selected.card) void loadEbayComps(selected.id, selected.card, Boolean(patch.firstEdition));
+                      // A different catalog card (candidate pick, name
+                      // search, 1st Edition ↔ unlimited swap) is a different
+                      // product: the ledger row follows it, so Inventory
+                      // shows the right name, set, image and 1st Edition pill.
+                      if (patch.card && patch.card.id !== selected.card?.id && selected.serverId) {
+                        void updateServerCard(selected.serverId, {
+                          cardName: patch.card.englishName || patch.card.name,
+                          setName: patch.card.setName,
+                          cardNumber: patch.card.number,
+                          imageUrl: patch.card.imageSmall,
+                          catalogCardId: patch.card.id || null,
+                          firstEdition: isFirstEditionCard(patch.card),
+                        });
                       }
                     }}
                     onNext={selectNext}

@@ -18,7 +18,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ? body.status
         : undefined;
 
+    const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
     const card = await updateCard(id, user.id, {
+      cardName: str(body?.cardName, 200),
+      setName: str(body?.setName, 200),
+      cardNumber: str(body?.cardNumber, 40),
+      imageUrl: str(body?.imageUrl, 500),
+      catalogCardId:
+        "catalogCardId" in (body ?? {}) ? (typeof body.catalogCardId === "string" ? body.catalogCardId.slice(0, 80) : null) : undefined,
       condition: typeof body?.condition === "string" ? body.condition : undefined,
       price: typeof body?.price === "number" ? body.price : undefined,
       quantity:
