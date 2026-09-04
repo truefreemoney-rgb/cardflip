@@ -1,5 +1,6 @@
 "use client";
 
+import HoloCard from "@/components/HoloCard";
 import { useRef, useState } from "react";
 
 interface Props {
@@ -11,9 +12,19 @@ interface Props {
    */
   onOpenCamera?: () => void;
   variant?: "hero" | "compact";
+  /** A real, live-priced card for the stage (from /api/cards/featured); null = no card yet. */
+  showcase?: ShowcaseCard | null;
 }
 
-export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Props) {
+export interface ShowcaseCard {
+  name: string;
+  setName: string;
+  number: string;
+  imageUrl: string;
+  price: number | null;
+}
+
+export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = null }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -125,28 +136,30 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero" }: Pr
       />
 
       <div className="relative flex flex-col items-center px-6 pb-6 pt-7 sm:pb-7 sm:pt-8">
-        {/* Card guide: 2.5 × 3.5, the shape a card takes in the real HUD. */}
-        <div className="relative h-[196px] w-[140px] sm:h-[224px] sm:w-[160px]" aria-hidden>
-          <div
-            className={`absolute inset-0 overflow-hidden rounded-xl border transition-colors ${
-              dragOver ? "border-brand-400/70 bg-brand-500/15" : "border-white/15 bg-white/[0.03]"
-            }`}
-          >
-            <span className="scan-sweep" />
+        {/* A real card, live-priced, in the 3D holo tilt — the same one the
+            landing page leads with. Nothing fabricated (DESIGN.md data
+            honesty); while it loads, or if it can't, the stage is just the
+            buttons. Chris, 09-04: the ghost outline "I hate this image". */}
+        {showcase && (
+          <div className={`w-[150px] transition-transform duration-300 sm:w-[168px] ${dragOver ? "scale-95 opacity-60" : ""}`}>
+            <HoloCard src={showcase.imageUrl} alt={showcase.name} />
           </div>
-          {/* Holo brackets, one spectrum colour per corner */}
-          <span className="absolute -left-1 -top-1 h-6 w-6 rounded-tl-lg border-l-2 border-t-2 border-holo-sky" />
-          <span className="absolute -right-1 -top-1 h-6 w-6 rounded-tr-lg border-r-2 border-t-2 border-holo-violet" />
-          <span className="absolute -bottom-1 -left-1 h-6 w-6 rounded-bl-lg border-b-2 border-l-2 border-holo-pink" />
-          <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-br-lg border-b-2 border-r-2 border-holo-gold" />
-          {/* Ghost card: name plate, art box, footer so the guide reads as a card */}
-          <div className="absolute inset-x-3 top-3 h-2.5 rounded bg-white/10" />
-          <div className="absolute inset-x-3 top-8 h-[44%] rounded-md bg-white/[0.05]" />
-          <div className="absolute inset-x-3 bottom-3 h-2 rounded bg-white/[0.07]" />
-        </div>
+        )}
+        {showcase && (
+          <p className="mt-4 text-center text-xs text-zinc-400">
+            <span className="font-medium text-zinc-200">{showcase.name}</span>
+            {showcase.price != null && (
+              <>
+                {" "}
+                · <span className="font-display font-semibold text-white">${showcase.price.toFixed(2)}</span>
+                <span className="text-zinc-600"> live</span>
+              </>
+            )}
+          </p>
+        )}
 
-        <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-          {dragOver ? "Drop to scan" : "Ready when you are"}
+        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${showcase ? "mt-2" : "mt-1"}`}>
+          {dragOver ? "Drop to scan" : showcase ? "Yours next" : "Ready when you are"}
         </p>
 
         <div className="mt-3 flex w-full max-w-xs flex-col items-stretch gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
+import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCapture";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
@@ -153,6 +154,21 @@ export default function AppPage() {
   // Which game the scanner reads: Pokémon or Magic. Remembered per browser;
   // every item entering the queue carries the game it was scanned under, so
   // switching mid-session doesn't relabel what's already there.
+  // The stage's real card (empty state only). One fetch, cached an hour
+  // server-side; a miss just leaves the stage as the buttons.
+  const [showcase, setShowcase] = useState<ShowcaseCard | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(apiPath("/api/cards/featured"))
+      .then((r) => (r.ok ? r.json() : { card: null }))
+      .then((d) => {
+        if (!cancelled) setShowcase(d.card ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [game, setGameState] = useState<GameId>(readSavedGame);
   const setGame = useCallback((next: GameId) => {
     setGameState(next);
@@ -1218,7 +1234,7 @@ export default function AppPage() {
             </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
-          <Uploader onFiles={addFiles} onOpenCamera={openCamera} />
+          <Uploader onFiles={addFiles} onOpenCamera={openCamera} showcase={showcase} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —
               a card with no scan photo can only draft with catalog art eBay
