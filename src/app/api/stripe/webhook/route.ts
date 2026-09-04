@@ -61,8 +61,11 @@ export async function POST(req: NextRequest) {
         const items = obj.items as { data?: { current_period_end?: number; price?: { id?: string } }[] } | undefined;
         const item = items?.data?.[0];
         const end = item?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;
-        // A plan switch in the billing portal arrives as .updated with the new price.
-        const plan = deleted ? undefined : planForPrice(item?.price?.id);
+        // A plan switch in the billing portal arrives as .updated with the new
+        // price. No price on the event = leave the plan column alone (mapping
+        // "unknown" to standard would demote a Pro seller).
+        const priceId = item?.price?.id;
+        const plan = deleted || !priceId ? undefined : planForPrice(priceId);
         await setSubscription(user.id, status, end ? end * 1000 : null, plan);
         console.info(`stripe: ${user.email} subscription ${status}${plan ? ` (${plan})` : ""}`);
       }
