@@ -7,7 +7,7 @@ import DailyJobControl from "@/components/admin/DailyJobControl";
 import AdminSignOut from "@/components/admin/AdminSignOut";
 import { hasAdminSession } from "@/lib/server/adminGate";
 import { getAdminOverview } from "@/lib/server/adminStats";
-import { isDemoUser, listAllUsers } from "@/lib/server/users";
+import { isDemoUser, listAllUsers, monthlyScans, scanTier } from "@/lib/server/users";
 import { listAllCards } from "@/lib/server/cards";
 import { errorCount24h, listRecentErrors } from "@/lib/server/errorLog";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
@@ -56,6 +56,7 @@ export default async function AdminPage() {
   const o = await getAdminOverview();
   const users = (await listAllUsers()).map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
+    tier: scanTier(u), plan: u.plan, scansUsed: u.scansUsed, monthlyScans: monthlyScans(u), trialScansUsed: u.trialScansUsed,
   }));
   const cards = await listAllCards(60);
   const [recentErrors, errors24h, { last24h: spend24h, last30d: spend30d }] = await Promise.all([
@@ -164,7 +165,12 @@ export default async function AdminPage() {
 
         {/* ------------------------------------------------------------- Users */}
         <section id="users" className="scroll-mt-24">
-          <h2 className="mb-3 text-lg font-semibold text-white">Users <span className="text-sm font-normal text-zinc-500">({users.length})</span></h2>
+          <div className="mb-3 flex items-end justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Users <span className="text-sm font-normal text-zinc-500">({users.length})</span></h2>
+              <p className="mt-0.5 text-xs text-zinc-500">Tap a row for reset link, role and delete. Add account creates a seller by hand.</p>
+            </div>
+          </div>
           <AdminUsersTable users={users} rollups={o.userRollups} />
         </section>
 
