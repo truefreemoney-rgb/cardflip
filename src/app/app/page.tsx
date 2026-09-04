@@ -887,23 +887,29 @@ export default function AppPage() {
     [addFiles],
   );
 
-  /** First capture of a camera session: ask "which category?" over the
-   *  viewfinder while the scan runs. Later captures file silently. */
+  /** Captures file silently; the category ask waits for Done (Chris,
+   *  09-04: the sheet was covering the card the scanner had just found). */
   const onCameraCapture = useCallback(
     (file: File) => {
       const id = addFiles([file])[0] ?? null;
       setCameraItemId(id);
       if (id) sessionItemIdsRef.current.push(id);
-      if (!categoryAskedRef.current) {
-        categoryAskedRef.current = true;
-        setCategoryPrompt({ existing: [] });
-        void fetchServerCards().then((rows) => {
-          setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
-        });
-      }
     },
     [addFiles],
   );
+
+  /** Camera closed: if this session scanned anything and hasn't been asked
+   *  yet, ask "which category?" now, over the queue — never over the reveal. */
+  const closeCamera = useCallback(() => {
+    setCameraOpen(false);
+    if (sessionItemIdsRef.current.length > 0 && !categoryAskedRef.current) {
+      categoryAskedRef.current = true;
+      setCategoryPrompt({ existing: [] });
+      void fetchServerCards().then((rows) => {
+        setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+      });
+    }
+  }, []);
 
   // Removal is undoable (Chris, 09-01 QoL pass): the ✕ used to hard-delete
   // the server card instantly — a misclick on a priced, photographed card was
@@ -1114,7 +1120,7 @@ export default function AppPage() {
         value: items.reduce((sum, item) => sum + (item.card ? currentPrice(item) : 0), 0),
       }}
       onCapture={onCameraCapture}
-      onClose={() => setCameraOpen(false)}
+      onClose={closeCamera}
     />
   );
 
@@ -1439,10 +1445,10 @@ export default function AppPage() {
       {categoryPrompt && (
         <CategorySheet
           title="Which category?"
-          hint="This session's scans are filed here in Inventory. You can move cards later."
+          hint="The cards you just scanned are filed here in Inventory. You can move them later."
           categories={distinctCategories([...categoryPrompt.existing.map((c) => ({ category: c })), { category: scanCategory }])}
           current={scanCategory}
-          confirmLabel="Keep scanning"
+          confirmLabel="Save"
           onClose={() => setCategoryPrompt(null)}
           onPick={(category) => {
             setScanCategory(category);
