@@ -180,12 +180,10 @@ export default async function Home() {
 
       <main className="flex w-full flex-1 flex-col">
         {/* ============================== Hero ============================== */}
-        <section className="hero-mesh aurora grain relative overflow-hidden">
-          <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden />
-
-          {/* Soft landing into the page: the tinted hero used to stop on a
-              hard edge with ~9rem of dead space under it (Chris, 09-04). */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" aria-hidden />
+        {/* Seamless (Chris, 09-04): no section backgrounds on this page — the
+            body ambient is the only ground, so there is nothing to transition
+            between. The only local light is the glow behind the phone. */}
+        <section className="relative overflow-hidden">
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             <div className="flex flex-col items-start gap-6 text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
@@ -529,7 +527,7 @@ export default async function Home() {
         </section>
 
         {/* =========================== Final CTA ============================ */}
-        <section className="hero-mesh aurora grain relative overflow-hidden py-12 sm:py-14">
+        <section className="relative py-12 sm:py-14">
           <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-6 text-center">
             <h2 className="reveal font-display text-4xl font-bold text-white sm:text-6xl">
               The binder isn&apos;t going
