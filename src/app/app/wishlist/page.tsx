@@ -118,11 +118,15 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         setEditing(true);
       }}
       title="Get an email when this card's market price dips to your target"
-      className="rounded-full px-2 py-1 text-sm text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
+      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+        item.alertPrice != null
+          ? "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
+          : "border-edge text-zinc-500 hover:border-edge-strong hover:text-zinc-300"
+      }`}
     >
       {item.alertPrice != null
-        ? `🔔 alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
-        : "🔔 Email me a price alert"}
+        ? `🔔 Alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
+        : "🔔 Price alert"}
     </button>
   );
 }
@@ -204,27 +208,23 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   return { prices, cardIds };
 }
 
-/** "Then vs now" for a saved card; quiet when the move is under a dollar and 1%. */
+/** Since-saved move as a chip; quiet when under a dollar and 1%. */
 function PriceDelta({ saved, now }: { saved: number; now: number }) {
   const delta = now - saved;
   const pct = saved > 0 ? (delta / saved) * 100 : 0;
-
   if (Math.abs(delta) < 1 && Math.abs(pct) < 1) {
-    return (
-      <span className="text-xs text-zinc-500">
-        Now ${now.toFixed(2)} · steady
-      </span>
-    );
+    return <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-500">steady</span>;
   }
-
   const up = delta > 0;
   return (
     <span
-      className={`text-xs font-medium ${up ? "text-emerald-400" : "text-red-400"}`}
+      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+        up ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+      }`}
+      title={`${up ? "Up" : "Down"} since you saved it at $${saved.toFixed(2)}`}
     >
-      Now ${now.toFixed(2)} · {up ? "▲" : "▼"} {up ? "+" : "−"}$
-      {Math.abs(delta).toFixed(2)} ({pct > 0 ? "+" : ""}
-      {pct.toFixed(0)}%)
+      {up ? "▲" : "▼"} {up ? "+" : "−"}$
+      {Math.abs(delta).toFixed(2)} · {Math.abs(pct).toFixed(0)}%
     </span>
   );
 }
@@ -408,55 +408,46 @@ export default function WishlistPage() {
   if (!user) return <PageSkeleton />;
 
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
+  // Current market where the repricing pass has answered, saved price elsewhere.
+  const nowTotal = items.reduce((sum, i) => sum + (nowPrices[i.id] ?? i.price ?? 0), 0);
   // How many rows the repricing pass actually covers, for the cap disclosure.
   const repriceEligible = items.filter((i) => i.language === "en" && i.price != null).length;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      {/* 09-03 makeover (Chris): summary strip, one add panel that matches
+          Search cards, tiles with a real price row (now vs saved) and the
+          alert as a pill. Layout only — the data flow is unchanged. */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Watchlist</h1>
+          <h1 className="font-display text-2xl font-semibold text-white">Watchlist</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Cards you&apos;re hunting for — search the database or add one
-            from a photo.
+            Cards you&apos;re hunting for — we track the market and email you when one dips.
           </p>
         </div>
         {items.length > 0 && (
-          <div className="text-right">
-            <p className="text-lg font-semibold text-emerald-400">
-              ${total.toFixed(2)}
-            </p>
-            <p className="text-xs text-zinc-500">
-              {items.length} card{items.length === 1 ? "" : "s"} saved
-            </p>
+          <div className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1">
+            <div className="px-4 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</p>
+              <p className="font-display text-lg font-semibold text-white">{items.length}</p>
+            </div>
+            <div className="px-4 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Now</p>
+              <p className="font-display text-lg font-semibold text-emerald-400">${nowTotal.toFixed(2)}</p>
+            </div>
+            <div className="px-4 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">When saved</p>
+              <p className="font-display text-lg font-semibold text-zinc-300">${total.toFixed(2)}</p>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-5">
-        <GameToggle game={game} onChange={setGame} compact />
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
-            className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-          />
-          <button
-            onClick={handleSearch}
-            disabled={busy !== null}
-            className="flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
-          >
-            {busy === "search" && <Spinner className="h-4 w-4" />}
-            Search
-          </button>
+      <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <GameToggle game={game} onChange={setGame} compact />
+          <p className="text-xs text-zinc-600">Add a card by name, or from a photo — no need to have it in hand.</p>
         </div>
-
-        {/* Same road as the scanner: a plain Choose-photos button (Chris,
-            09-01 — the dashed drop zone read as clutter, especially on
-            phones where dragging doesn't exist). Desktop drag-and-drop
-            still works: the button doubles as the drop target. */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -468,26 +459,43 @@ export default function WishlistPage() {
             setDragActive(false);
             void handleImage(e.dataTransfer.files?.[0]);
           }}
-          className="flex items-center gap-3"
+          className="flex flex-col gap-2 sm:flex-row"
         >
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={busy === "identify"}
-            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-70 ${
-              dragActive ? "bg-brand-400 ring-2 ring-brand-300" : "bg-brand-500 hover:bg-brand-400"
-            }`}
-          >
-            {busy === "identify" ? (
-              <>
-                <Spinner className="h-4 w-4" /> Identifying…
-              </>
-            ) : (
-              "Choose photos"
-            )}
-          </button>
-          <span className="text-xs text-zinc-600">
-            No card in hand? A photo works — we&apos;ll identify it.
-          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
+            className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={busy !== null}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60 sm:flex-none"
+            >
+              {busy === "search" && <Spinner className="h-4 w-4" />}
+              Search
+            </button>
+            {/* Doubles as the drop target on desktop (Chris, 09-01: no dashed zone). */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy === "identify"}
+              className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:opacity-70 sm:flex-none ${
+                dragActive
+                  ? "border-brand-300 bg-brand-500/20 text-white"
+                  : "border-edge text-zinc-200 hover:border-edge-strong"
+              }`}
+            >
+              {busy === "identify" ? (
+                <>
+                  <Spinner className="h-4 w-4" /> Identifying…
+                </>
+              ) : (
+                "From a photo"
+              )}
+            </button>
+          </div>
         </div>
         <input
           ref={fileInputRef}
@@ -504,12 +512,12 @@ export default function WishlistPage() {
 
         {results.length > 0 && (
           <>
-            {/* A big result set buries the saved cards below — the seller
-                needs a way out that isn't a page refresh (Chris, 09-01). */}
             <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-500">
-                {results.length} result{results.length === 1 ? "" : "s"} — add one, or clear to
-                see your watchlist
+              <p className="text-sm text-zinc-400">
+                <span className="font-medium text-zinc-200">
+                  {results.length} result{results.length === 1 ? "" : "s"}
+                </span>
+                <span className="text-zinc-600"> · tap one to add it</span>
               </p>
               <button
                 onClick={() => {
@@ -519,55 +527,57 @@ export default function WishlistPage() {
                 }}
                 className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
               >
-                ✕ Clear results
+                ✕ Clear
               </button>
             </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {results.map((card) => {
-              const added = addedIds.has(card.id);
-              return (
-                <button
-                  key={card.id}
-                  onClick={() => handleAdd(card)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-left transition ${
-                    added
-                      ? "border-emerald-500/40 bg-emerald-500/10"
-                      : "border-edge bg-black/20 hover:-translate-y-0.5 hover:border-edge-strong"
-                  }`}
-                >
-                  <CardImage
-                    src={card.imageSmall}
-                    alt={card.name}
-                    className="aspect-[5/7] w-full rounded-lg"
-                  />
-                  <span className="w-full truncate text-center text-xs font-medium text-white">
-                    {card.name}
-                  </span>
-                  <span className="w-full truncate text-center text-[11px] text-zinc-500">
-                    {card.setName} · {displayCardNumber(card)}
-                  </span>
-                  <span
-                    className={`text-[11px] font-semibold ${
-                      added ? "text-emerald-400" : "text-brand-300"
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
+              {results.map((card) => {
+                const added = addedIds.has(card.id);
+                const price = pickPrice(card)?.market ?? null;
+                return (
+                  <button
+                    key={card.id}
+                    onClick={() => handleAdd(card)}
+                    className={`flex flex-col gap-2 rounded-xl border p-2.5 text-left transition ${
+                      added
+                        ? "border-emerald-500/40 bg-emerald-500/10"
+                        : "border-edge bg-black/20 hover:-translate-y-0.5 hover:border-edge-strong"
                     }`}
                   >
-                    {added ? "★ On watchlist" : "☆ Add to watchlist"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <CardImage
+                      src={card.imageSmall}
+                      alt={card.name}
+                      className="aspect-[5/7] w-full rounded-lg"
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate text-xs font-medium text-white">{card.name}</span>
+                      <span className="truncate text-[11px] text-zinc-500">
+                        {card.setName} · {displayCardNumber(card)}
+                      </span>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className={`font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                          {price != null ? `$${price.toFixed(2)}` : "—"}
+                        </span>
+                        <span className={`text-[11px] font-semibold ${added ? "text-emerald-400" : "text-brand-300"}`}>
+                          {added ? "★ Saved" : "☆ Add"}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 5 }, (_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="flex animate-pulse flex-col gap-2 rounded-xl border border-edge bg-surface-1 p-3">
               <div className="aspect-[5/7] w-full rounded-lg bg-white/5" />
-              <div className="h-3 w-3/4 self-center rounded bg-white/5" />
-              <div className="h-3 w-1/2 self-center rounded bg-white/5" />
+              <div className="h-3 w-3/4 rounded bg-white/5" />
+              <div className="h-3 w-1/2 rounded bg-white/5" />
             </div>
           ))}
         </div>
@@ -584,101 +594,124 @@ export default function WishlistPage() {
         </div>
       ) : (
         <>
-          {items.length > 1 && (
-            <div className="-mb-3 flex flex-wrap items-center gap-2">
-              <input
-                value={listFilter}
-                onChange={(e) => setListFilter(e.target.value)}
-                placeholder="Filter your watchlist…"
-                className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-              />
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as typeof sort)}
-                aria-label="Sort watchlist"
-                className="rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-xs text-zinc-300 outline-none transition focus:border-brand-400"
-              >
-                <option value="newest">Newest first</option>
-                <option value="name">Name A–Z</option>
-                <option value="price-high">Price: high to low</option>
-                <option value="price-low">Price: low to high</option>
-              </select>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Watching · {items.length}
+              {listFilter.trim() && visibleItems.length !== items.length ? ` · showing ${visibleItems.length}` : ""}
+            </h2>
+            {items.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value)}
+                  placeholder="Filter your watchlist…"
+                  className="w-44 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+                />
+                <div className="relative">
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    aria-label="Sort watchlist"
+                    className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="price-high">Price: high to low</option>
+                    <option value="price-low">Price: low to high</option>
+                  </select>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">▾</span>
+                </div>
+              </div>
+            )}
+          </div>
           {visibleItems.length === 0 ? (
-            <p className="text-sm text-zinc-500">Nothing matches that filter.</p>
+            <p className="rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center text-sm text-zinc-500">
+              Nothing matches that filter.
+            </p>
           ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {visibleItems.map((item) => (
-            <div
-              key={item.id}
-              className="group relative flex flex-col items-center gap-2 rounded-xl border border-edge bg-surface-1 p-4"
-            >
-              <button
-                onClick={() => handleRemove(item.id)}
-                aria-label={`Remove ${item.cardName} from watchlist`}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
-              >
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
-                </svg>
-              </button>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+              {visibleItems.map((item) => {
+                const now = nowPrices[item.id];
+                const shownPrice = now ?? item.price;
+                return (
+                  <div
+                    key={item.id}
+                    className="group relative flex flex-col gap-2.5 rounded-xl border border-edge bg-surface-1 p-3"
+                  >
+                    <button
+                      onClick={() => handleRemove(item.id)}
+                      aria-label={`Remove ${item.cardName} from watchlist`}
+                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                      </svg>
+                    </button>
 
-              <button
-                onClick={() => void openDetail(item)}
-                title={`Open ${item.cardName}`}
-                className="relative w-full rounded-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
-              >
-                <CardImage
-                  src={item.imageUrl}
-                  alt={item.cardName}
-                  className="aspect-[5/7] w-full rounded-lg"
-                />
-                {detailOpeningId === item.id && (
-                  <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
-                    <Spinner className="h-5 w-5" />
-                  </span>
-                )}
-              </button>
-              <span className="w-full truncate text-center text-sm font-medium text-white">
-                {item.cardName}
-              </span>
-              {item.englishName && (
-                <span className="w-full truncate text-center text-xs font-medium text-brand-300">
-                  {item.englishName}
-                </span>
-              )}
-              <span className="w-full truncate text-center text-xs text-zinc-500">
-                {item.setName} · {item.cardNumber}
-              </span>
-              <span className="w-full truncate text-center text-[11px] text-zinc-600">
-                {LANGUAGE_LABEL[item.language]} · {formatDate(item.addedAt)}
-              </span>
-              {item.price != null && (
-                <span className="text-lg font-semibold text-emerald-400">
-                  ${item.price.toFixed(2)}
-                  <span className="ml-1 text-xs font-normal text-zinc-600">
-                    saved
-                  </span>
-                </span>
-              )}
-              {item.price != null && nowPrices[item.id] != null && (
-                <PriceDelta saved={item.price} now={nowPrices[item.id]} />
-              )}
-              {(item.cardId ?? resolvedIds[item.id]) && (
-                <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} className="mt-0.5" />
-              )}
-              {item.cardId && (
-                <AlertControl
-                  item={item}
-                  onSaved={(saved) =>
-                    setItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)))
-                  }
-                />
-              )}
+                    <button
+                      onClick={() => void openDetail(item)}
+                      title={`Open ${item.cardName}`}
+                      className="relative w-full rounded-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+                    >
+                      <CardImage
+                        src={item.imageUrl}
+                        alt={item.cardName}
+                        className="aspect-[5/7] w-full rounded-lg"
+                      />
+                      {item.alertPrice != null && (
+                        <span className="absolute left-2 top-2 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">
+                          🔔 ${item.alertPrice.toFixed(2)}
+                        </span>
+                      )}
+                      {detailOpeningId === item.id && (
+                        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+                          <Spinner className="h-5 w-5" />
+                        </span>
+                      )}
+                    </button>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-white">{item.cardName}</p>
+                      {item.englishName && (
+                        <p className="truncate text-xs font-medium text-brand-300">{item.englishName}</p>
+                      )}
+                      <p className="truncate text-xs text-zinc-500">
+                        {item.setName} · {item.cardNumber}
+                        {item.language !== "en" ? ` · ${LANGUAGE_LABEL[item.language]}` : ""}
+                      </p>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className={`font-display text-lg font-semibold leading-tight ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                          {shownPrice != null ? `$${shownPrice.toFixed(2)}` : "—"}
+                        </p>
+                        <p className="text-[11px] text-zinc-600">
+                          {now != null && item.price != null
+                            ? `saved at $${item.price.toFixed(2)} · ${formatDate(item.addedAt)}`
+                            : `saved ${formatDate(item.addedAt)}`}
+                        </p>
+                      </div>
+                      {item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
+                    </div>
+
+                    {(item.cardId ?? resolvedIds[item.id]) && (
+                      <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} />
+                    )}
+                    {item.cardId && (
+                      <div className="flex justify-start">
+                        <AlertControl
+                          item={item}
+                          onSaved={(saved) =>
+                            setItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)))
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
           )}
           {repriceEligible > REPRICE_LIMIT && (
             <p className="text-xs text-zinc-600">
