@@ -10,6 +10,7 @@ import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import { isSubscribed } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
   LIMITS,
@@ -40,11 +41,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // 500 scans a month per subscriber.
+    // 500 scans a month per subscriber; 10 lifetime on the free trial.
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {
-          error: "You've used all 500 scans this month — your allowance resets at the start of next month",
+          error: isSubscribed(user)
+            ? "You've used all 500 scans this month — your allowance resets at the start of next month"
+            : "Your 10 free scans are used — subscribe to keep scanning",
           quota: true,
           usage: scanQuota(user),
         },

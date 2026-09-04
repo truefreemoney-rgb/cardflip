@@ -143,7 +143,7 @@ const RESUME_STAGE_MS = [900, 2000] as const;
 
 export default function AppPage() {
   const router = useRouter();
-  const { user } = useSession();
+  const { user, refresh } = useSession();
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -322,6 +322,9 @@ export default function AppPage() {
           const vision = await scanCardWithVision(next.file, next.language, next.game);
 
           if (vision.usage) setScanUsage(vision.usage);
+          // A trial that just ran out: re-read the session so the
+          // SubscriptionGate swaps the scanner for the paywall.
+          if (vision.status === "quota") void refresh();
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
             setQuotaNote(
               vision.error ??
@@ -585,7 +588,7 @@ export default function AppPage() {
     } finally {
       pumpingRef.current--;
     }
-  }, [patchItem]);
+  }, [patchItem, refresh]);
 
   /**
    * Price the card against what it's actually going for on eBay. Deliberately

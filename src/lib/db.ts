@@ -485,6 +485,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "scan_month TEXT",
     "scans_used INTEGER NOT NULL DEFAULT 0",
     "extra_scans INTEGER NOT NULL DEFAULT 0",
+    // Free trial (09-04, Chris: "10 scans for free"): lifetime count of scans
+    // taken without a subscription. TRIAL_SCANS in scanQuota.ts is the cap.
+    "trial_scans_used INTEGER NOT NULL DEFAULT 0",
     // Auto-offers to watchers (lib/server/ebayNegotiation.ts): percent set =
     // the daily job may send offers on slow movers for this seller; NULL =
     // off (the default — sending emails real buyers, so it's strictly opt-in).

@@ -42,7 +42,7 @@ const billing = [
   },
   {
     q: "Is there a free trial?",
-    a: "No. The plan is $9.99 a month from day one, and you can cancel any time from Manage billing.",
+    a: "Yes. Every new account gets 10 scans free, with the whole product open and no card on file. When they're used, the app asks you to subscribe; everything you scanned stays on the account.",
   },
   {
     q: "Do I need my own eBay account?",
@@ -65,10 +65,10 @@ export default function PricingPage() {
                 One plan. Everything in it.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
-                No tiers, no add-ons, nothing to compare. {PLAN.price} a month for the whole product.
+                Ten scans free to start. Then {PLAN.price} a month for the whole product, no tiers, no add-ons.
               </p>
             </div>
-            <PlanCard className="mx-auto mt-6 max-w-lg" cta="Start scanning" />
+            <PlanCard className="mx-auto mt-6 max-w-lg" cta="Try 10 scans free" />
           </div>
         </section>
 

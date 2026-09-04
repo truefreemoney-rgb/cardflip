@@ -25,6 +25,8 @@ export interface User {
   scanMonth: string | null;
   scansUsed: number;
   extraScans: number;
+  /** Free trial: scans taken without a subscription, lifetime. */
+  trialScansUsed: number;
   /** Auto-offers to watchers: percent set = daily job may send on slow movers; NULL = off. */
   autoOfferPercent: number | null;
   autoOfferMessage: string | null;
@@ -46,6 +48,7 @@ interface UserRow {
   scan_month: string | null;
   scans_used: number | null;
   extra_scans: number | null;
+  trial_scans_used: number | null;
   auto_offer_percent: number | null;
   auto_offer_message: string | null;
 }
@@ -67,6 +70,7 @@ function fromRow(row: UserRow): User {
     scanMonth: row.scan_month ?? null,
     scansUsed: row.scans_used ?? 0,
     extraScans: row.extra_scans ?? 0,
+    trialScansUsed: row.trial_scans_used ?? 0,
     autoOfferPercent: row.auto_offer_percent ?? null,
     autoOfferMessage: row.auto_offer_message ?? null,
   };
@@ -75,6 +79,19 @@ function fromRow(row: UserRow): User {
 /** An active (or grace-period) paid subscription. */
 export function isSubscribed(user: Pick<User, "subStatus">): boolean {
   return user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+}
+
+/** Free trial (09-04): ten scans on a fresh account, no card. */
+export const TRIAL_SCANS = 10;
+
+export function trialScansLeft(user: Pick<User, "subStatus" | "trialScansUsed">): number {
+  if (isSubscribed(user)) return 0;
+  return Math.max(0, TRIAL_SCANS - (user.trialScansUsed ?? 0));
+}
+
+/** Subscribed, or still inside the free trial. Admins are handled by callers. */
+export function canUseApp(user: Pick<User, "subStatus" | "trialScansUsed">): boolean {
+  return isSubscribed(user) || trialScansLeft(user) > 0;
 }
 
 export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
@@ -162,6 +179,7 @@ export async function createUser(
     scanMonth: null,
     scansUsed: 0,
     extraScans: 0,
+    trialScansUsed: 0,
     autoOfferPercent: null,
     autoOfferMessage: null,
   };
@@ -284,10 +302,15 @@ export interface PublicUser {
   totpEnabled: boolean;
   subStatus: string | null;
   subPeriodEnd: number | null;
+  /** Free-trial scans still available (0 once used up or when subscribed). */
+  trialScansLeft: number;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
 export function toPublicUser(user: User): PublicUser {
   const { id, name, email, role, ebayConnected, createdAt, subStatus, subPeriodEnd } = user;
-  return { id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user), subStatus, subPeriodEnd };
+  return {
+    id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user), subStatus, subPeriodEnd,
+    trialScansLeft: trialScansLeft(user),
+  };
 }

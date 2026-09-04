@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { isSubscribed, type User } from "@/lib/server/users";
+import { isSubscribed, TRIAL_SCANS, type User } from "@/lib/server/users";
 
 /**
  * Scan metering. The subscription includes MONTHLY_SCANS per calendar month
@@ -26,11 +26,16 @@ export interface ScanQuota {
 }
 
 export function scanQuota(user: User): ScanQuota {
+  if (!isSubscribed(user)) {
+    // Free trial: a lifetime allowance, not a monthly one.
+    const t = user.trialScansUsed ?? 0;
+    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+  }
   const used = user.scanMonth === month() ? user.scansUsed : 0;
   return {
     used,
     included: MONTHLY_SCANS,
-    remaining: isSubscribed(user) ? Math.max(0, MONTHLY_SCANS - used) : null,
+    remaining: Math.max(0, MONTHLY_SCANS - used),
   };
 }
 
@@ -43,12 +48,17 @@ export function scanQuotaExhausted(user: User): boolean {
 /** Count one scan, resetting the counter on month rollover. Answers the
  * post-scan quota so the scan response can carry usage without a re-read. */
 export async function recordScan(user: User): Promise<ScanQuota> {
+  if (!isSubscribed(user)) {
+    const t = (user.trialScansUsed ?? 0) + 1;
+    await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(t, user.id);
+    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+  }
   const m = month();
   const used = (user.scanMonth === m ? user.scansUsed : 0) + 1;
   await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
   return {
     used,
     included: MONTHLY_SCANS,
-    remaining: isSubscribed(user) ? Math.max(0, MONTHLY_SCANS - used) : null,
+    remaining: Math.max(0, MONTHLY_SCANS - used),
   };
 }

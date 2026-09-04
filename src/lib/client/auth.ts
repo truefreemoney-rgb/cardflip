@@ -13,6 +13,8 @@ export interface SessionUser {
   /** Stripe subscription mirror — null/absent = never subscribed. */
   subStatus?: string | null;
   subPeriodEnd?: number | null;
+  /** Free-trial scans left (0 once used, or when subscribed). */
+  trialScansLeft?: number;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */
@@ -96,4 +98,9 @@ export async function logout(): Promise<void> {
 export function isSubscribed(user: Pick<SessionUser, "subStatus"> | null | undefined): boolean {
   const s = user?.subStatus ?? null;
   return s === "active" || s === "trialing" || s === "past_due";
+}
+
+/** Subscribed, or still inside the 10-scan free trial. */
+export function canUseApp(user: Pick<SessionUser, "subStatus" | "trialScansLeft"> | null | undefined): boolean {
+  return isSubscribed(user) || (user?.trialScansLeft ?? 0) > 0;
 }

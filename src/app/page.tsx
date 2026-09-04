@@ -49,7 +49,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "$9.99 a month for everything: 500 scans, card reading, live pricing, eBay publishing, inventory and the watchlist. Cancel any time. You keep 100% of every eBay payout.",
+    a: "Your first 10 scans are free, no card needed. After that it's $9.99 a month for everything: 500 scans, card reading, live pricing, eBay publishing, inventory and the watchlist. Cancel any time. You keep 100% of every eBay payout.",
   },
 ];
 
@@ -212,7 +212,7 @@ export default async function Home() {
                   href="/signup"
                   className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
                 >
-                  Start scanning · $9.99/mo
+                  Try 10 scans free
                 </Link>
                 <a
                   href="#how-it-works"
@@ -498,7 +498,7 @@ export default async function Home() {
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">One plan. Everything in it.</h2>
           </div>
 
-          <PlanCard className="reveal mx-auto mt-6 max-w-lg" cta="Start scanning" />
+          <PlanCard className="reveal mx-auto mt-6 max-w-lg" cta="Try 10 scans free" />
           <p className="mt-4 text-center text-sm text-zinc-500">
             <Link href="/pricing" className="text-brand-300 hover:text-brand-200">
               What a scan is, and every billing question →
@@ -541,7 +541,7 @@ export default async function Home() {
               href="/signup"
               className="reveal sheen rounded-full bg-brand-500 px-9 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:-translate-y-0.5 hover:bg-brand-400"
             >
-              Start scanning · $9.99/mo
+              Try 10 scans free
             </Link>
           </div>
         </section>

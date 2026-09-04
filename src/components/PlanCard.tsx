@@ -23,7 +23,7 @@ function Check() {
   );
 }
 
-export default function PlanCard({ cta = "Start scanning", className = "" }: { cta?: string; className?: string }) {
+export default function PlanCard({ cta = "Try 10 scans free", className = "" }: { cta?: string; className?: string }) {
   return (
     <div className={`foil-edge relative overflow-hidden rounded-3xl p-8 [--foil-fill:#0b0d13] sm:p-10 ${className}`}>
       <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 translate-x-1/3 -translate-y-1/3 rounded-full bg-brand-500/25 blur-3xl" aria-hidden />
@@ -54,7 +54,7 @@ export default function PlanCard({ cta = "Start scanning", className = "" }: { c
         >
           {cta}
         </Link>
-        <p className="mt-3 text-center text-xs text-zinc-500">Cancel any time. You keep 100% of every eBay payout.</p>
+        <p className="mt-3 text-center text-xs text-zinc-500">First 10 scans free, no card needed. Cancel any time. You keep 100% of every eBay payout.</p>
       </div>
     </div>
   );

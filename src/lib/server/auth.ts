@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
-import { findUserById, isSubscribed, type User } from "@/lib/server/users";
+import { canUseApp, findUserById, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = "cardflip_session";
 
@@ -49,9 +49,9 @@ export class AuthError extends Error {}
  * before a seller ever reaches these; this is the backstop.
  */
 export function subscriptionGate(user: User): NextResponse | null {
-  if (user.role === "admin" || isSubscribed(user)) return null;
+  if (user.role === "admin" || canUseApp(user)) return null;
   return NextResponse.json(
-    { error: "Subscribe to keep going — CardFlip is $9.99 a month", paywall: true },
+    { error: "Your 10 free scans are used — CardFlip is $9.99 a month from here", paywall: true, quota: true },
     { status: 402 },
   );
 }

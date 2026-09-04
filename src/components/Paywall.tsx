@@ -20,7 +20,7 @@ export default function Paywall() {
   const { user, refresh } = useSession();
   const [busy, setBusy] = useState<"checkout" | "portal" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const lapsed = Boolean(user?.subStatus) && user?.subStatus !== null;
+  const lapsed = Boolean(user?.subStatus);
 
   async function go(kind: "checkout" | "portal", fn: () => Promise<string>) {
     setBusy(kind);
@@ -37,12 +37,12 @@ export default function Paywall() {
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <Logo />
       <h1 className="mt-8 font-display text-3xl font-bold text-white sm:text-4xl">
-        {lapsed ? "Your subscription has ended." : "CardFlip is $9.99 a month."}
+        {lapsed ? "Your subscription has ended." : "Your 10 free scans are used."}
       </h1>
       <p className="mt-3 max-w-md text-zinc-400">
         {lapsed
           ? "Your cards and settings are still here. Pick the plan back up to keep scanning, pricing and posting."
-          : "500 scans a month, live pricing for the exact printing, eBay listings written and published for you. Cancel any time."}
+          : "Everything you scanned is saved. Keep going for $9.99 a month: 500 scans, live pricing for the exact printing, eBay listings written and published for you. Cancel any time."}
       </p>
 
       <div className="foil-edge mt-8 w-full rounded-2xl p-6 text-left [--foil-fill:#0b0d13]">

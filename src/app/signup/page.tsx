@@ -11,7 +11,6 @@ import OnboardingSteps from "@/components/OnboardingSteps";
 import EbayConnectCard from "@/components/EbayConnectCard";
 import DevLoginButton from "@/components/DevLoginButton";
 import { fetchCurrentUser, signup } from "@/lib/client/auth";
-import { startCheckout } from "@/lib/client/accountApi";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -182,14 +181,8 @@ export default function SignupPage() {
           <Suspense fallback={null}>
             <EbayConnectCard
               firstName={firstName}
-              doneLabel="Subscribe · $9.99/mo"
-              onDone={() => {
-                // Paid-only: the plan comes before the first scan. If
-                // checkout can't open, the app's own wall takes over.
-                void startCheckout()
-                  .then((url) => window.location.assign(url))
-                  .catch(() => router.push("/app"));
-              }}
+              doneLabel="Start scanning · 10 free"
+              onDone={() => router.push("/app")}
             />
           </Suspense>
         </div>
