@@ -319,6 +319,7 @@ export default function AppPage() {
           let readError: string | null = null;
           // MTG Art Series: vision flagged it, so only art sets may answer.
           let artOnly = false;
+          let artMiss: string | null = null;
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
@@ -374,6 +375,10 @@ export default function AppPage() {
               // same name (09-03).
               artOnly = true;
               art = "full-art";
+              // The name on an art card is small type along the bottom edge;
+              // when the reader can't make it out ("Unknown", 09-03) say
+              // that instead of the generic no-match line.
+              artMiss = "Art card — couldn't read the name along the bottom edge. Retake closer, sharp, no glare";
               if (printed) {
                 const code = (printed.setCode ?? "").toUpperCase();
                 if (code && !code.startsWith("A")) printed = { ...printed, setCode: `A${code}` };
@@ -451,7 +456,7 @@ export default function AppPage() {
               status: "review",
               candidates: [],
               card: null,
-              error: readError ?? "No match found — search by name",
+              error: readError ?? artMiss ?? "No match found — search by name",
             });
           } else {
             const card = matches[0];
