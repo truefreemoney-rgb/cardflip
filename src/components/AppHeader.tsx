@@ -74,7 +74,7 @@ export default function AppHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex flex-col gap-2 bg-background/85 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <header className="sticky top-0 z-40 flex flex-col gap-1.5 bg-background/85 px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-2 sm:py-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
       {/* Grid from sm keeps the tabs centered (below sm they wrap to a full
           line). The third cell is the personal strip from xl up, an empty
           balancer before that. */}

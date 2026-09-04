@@ -101,7 +101,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
               className="aspect-[5/7] w-full"
             />
             {hasImage && !photo && (
-              <p className="mt-2 text-center text-[11px] text-zinc-600">
+              <p className="mt-2 hidden text-center text-[11px] text-zinc-600 [@media(hover:hover)]:block">
                 Move your cursor over the card
               </p>
             )}

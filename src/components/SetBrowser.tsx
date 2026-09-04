@@ -31,6 +31,8 @@ function setLabel(set: SetInfo): string {
 export default function SetBrowser({ game, onResults, onError, onBusy }: Props) {
   const [list, setList] = useState<SetInfo[] | null>(null);
   const [key, setKey] = useState("");
+  // Type-ahead (QA leftover): hundreds of sets, so a filter box above the picker.
+  const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
   // A slow older response must not overwrite a newer pick.
   const seq = useRef(0);
@@ -89,12 +91,22 @@ export default function SetBrowser({ game, onResults, onError, onBusy }: Props) 
   }
 
   const loading = list === null;
-  const sets = list ?? [];
+  const needle = filter.trim().toLowerCase();
+  const sets = (list ?? []).filter((s) => !needle || s.name.toLowerCase().includes(needle) || (s.code ?? "").toLowerCase().includes(needle));
   return (
     <div className="flex flex-col gap-2">
       <label className="text-xs font-medium uppercase tracking-wide text-zinc-500" htmlFor={`set-picker-${game}`}>
         Set
       </label>
+      <input
+        type="search"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder={loading ? "Loading sets…" : "Type to narrow the sets"}
+        aria-label="Filter sets"
+        disabled={loading}
+        className="w-full rounded-lg border border-edge bg-black/40 px-3 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 disabled:opacity-60 sm:text-sm"
+      />
       <div className="relative">
         <select
           id={`set-picker-${game}`}
@@ -103,7 +115,7 @@ export default function SetBrowser({ game, onResults, onError, onBusy }: Props) 
           onChange={(e) => void browse(e.target.value)}
           className="w-full appearance-none rounded-lg border border-edge bg-black/40 py-2.5 pl-3 pr-10 text-sm text-white outline-none transition focus:border-brand-400 disabled:opacity-60"
         >
-          <option value="">{loading ? "Loading sets…" : `Choose a set (${sets.length})`}</option>
+          <option value="">{loading ? "Loading sets…" : needle ? `${sets.length} matching sets` : `Choose a set (${sets.length})`}</option>
           {sets.map((set) => (
             <option key={set.code ?? set.name} value={set.code ?? set.name}>
               {setLabel(set)}

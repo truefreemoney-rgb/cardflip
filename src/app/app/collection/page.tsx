@@ -942,7 +942,8 @@ export default function CollectionPage() {
       if (!needle) return true;
       return (
         card.cardName.toLowerCase().includes(needle) ||
-        card.setName.toLowerCase().includes(needle)
+        card.setName.toLowerCase().includes(needle) ||
+        card.cardNumber.toLowerCase().includes(needle)
       );
     });
     if (sort === "newest") return shown; // the server's own order
@@ -1122,10 +1123,10 @@ export default function CollectionPage() {
             </svg>
             <input
               type="search"
-              aria-label="Filter cards by name or set"
+              aria-label="Filter cards by name, set or number"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name or set"
+              placeholder="Search name, set or number"
               className="h-10 w-full rounded-full border border-edge bg-black/25 pl-9 pr-3 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:h-9 sm:text-sm"
             />
           </div>

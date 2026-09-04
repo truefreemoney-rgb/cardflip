@@ -2,7 +2,7 @@
 
 import PasswordField from "@/components/PasswordField";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
@@ -26,6 +26,11 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Errors take focus (QA leftover): announced, and scrolled into view on a phone.
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) alertRef.current?.focus();
+  }, [error]);
 
   const [firstName, setFirstName] = useState("");
 
@@ -143,7 +148,7 @@ export default function SignupPage() {
               />
             </div>
 
-            <p role="alert" aria-live="polite" className="min-h-0">
+            <p ref={alertRef} tabIndex={-1} role="alert" aria-live="polite" className="min-h-0 outline-none">
               {error && (
                 <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
                   {error}
@@ -163,7 +168,14 @@ export default function SignupPage() {
 
           <DevLoginButton />
 
-          <p className="mt-6 text-center text-xs text-zinc-600">
+          <p className="mt-5 text-center text-sm text-zinc-400">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-brand-300 transition hover:text-brand-200">
+              Log in
+            </Link>
+          </p>
+
+          <p className="mt-3 text-center text-xs text-zinc-600">
             By continuing you agree to the{" "}
             <Link href="/terms" className="underline transition hover:text-zinc-300">
               Terms of Service

@@ -2,7 +2,7 @@
 
 import PasswordField from "@/components/PasswordField";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
@@ -21,6 +21,11 @@ export default function LoginPage() {
   const [needsCode, setNeedsCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Errors take focus (QA leftover): announced, and scrolled into view on a phone.
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) alertRef.current?.focus();
+  }, [error]);
 
   // Already signed in? Straight to the app. Without this the page always
   // shows the empty form, which -- paired with the old always-logged-out
@@ -151,7 +156,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <p role="alert" aria-live="polite" className="min-h-0">
+          <p ref={alertRef} tabIndex={-1} role="alert" aria-live="polite" className="min-h-0 outline-none">
             {error && (
               <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
                 {error}
