@@ -691,7 +691,7 @@ function AccountSettings({
       <Group label="Support">
         <Row
           title="Tutorial"
-          status="The four-step walk through the scanner, Inventory and the watchlist."
+          status="The walk through the scanner, Inventory, Search cards and the watchlist, one page after another."
           action={
             <button
               onClick={() => {
