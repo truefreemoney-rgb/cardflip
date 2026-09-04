@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
 import Spinner from "@/components/Spinner";
@@ -67,6 +68,23 @@ export default function NavRobot() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // The panel is portalled to <body>: the header's backdrop-blur makes it a
+  // containing block for position:fixed, so a sheet rendered inside it was
+  // pinned to the header instead of the screen (Chris, 09-04, iPhone). On
+  // desktop the panel anchors under the button by measuring it.
+  const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      const desktop = window.matchMedia("(min-width: 640px)").matches;
+      setAnchor(desktop && r ? { left: r.left, top: r.bottom + 6 } : null);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
 
   // Wander through moods. Never the same one twice in a row.
   useEffect(() => {
@@ -170,6 +188,7 @@ export default function NavRobot() {
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen((o) => !o)}
         aria-label="Help"
         data-tour="help"
@@ -181,7 +200,7 @@ export default function NavRobot() {
         Help
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
           {/* Phones: dim the page behind the sheet; a tap outside closes. */}
           <button
@@ -192,7 +211,8 @@ export default function NavRobot() {
           <div
             role="dialog"
             aria-label="Help"
-            className="fixed inset-x-0 bottom-0 z-50 panel-solid flex max-h-[80dvh] flex-col rounded-t-2xl border shadow-2xl shadow-black/70 sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-11 sm:h-[520px] sm:max-h-[70vh] sm:w-[360px] sm:rounded-2xl"
+            style={anchor ?? undefined}
+            className="fixed inset-x-0 bottom-0 z-50 panel-solid flex max-h-[80dvh] flex-col rounded-t-2xl border shadow-2xl shadow-black/70 sm:inset-x-auto sm:bottom-auto sm:h-[520px] sm:max-h-[70vh] sm:w-[360px] sm:rounded-2xl"
           >
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />
@@ -325,7 +345,8 @@ export default function NavRobot() {
               </button>
             </form>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
