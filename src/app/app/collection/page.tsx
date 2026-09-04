@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
+import GameToggle from "@/components/GameToggle";
+import { readSavedGame, saveGame } from "@/lib/games";
+import type { GameId } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
@@ -391,13 +394,35 @@ export default function CollectionPage() {
     toast(`${card.cardName} removed`);
   }
 
+  // Pokémon and Magic are separate sections (Chris, 09-03: "when I upload
+  // these magic cards, it should be separate from the pokemon cards").
+  // Same remembered game as the scanner; stats, filters and bulk actions
+  // all see only the selected game's cards.
+  const [gameView, setGameView] = useState<GameId>(readSavedGame);
+  const gameCards = useMemo(
+    () => cards.filter((c) => (c.game ?? "pokemon") === gameView),
+    [cards, gameView],
+  );
+  const gameCounts = useMemo(
+    () => ({
+      pokemon: cards.filter((c) => (c.game ?? "pokemon") === "pokemon").length,
+      mtg: cards.filter((c) => c.game === "mtg").length,
+    }),
+    [cards],
+  );
+  function switchGame(next: GameId) {
+    setGameView(next);
+    setSelected(new Set());
+    saveGame(next);
+  }
+
   const stats = useMemo(() => {
-    const drafts = cards.filter((c) => c.status === "ready");
+    const drafts = gameCards.filter((c) => c.status === "ready");
     // "1 live" while nothing was live (Chris, 09-03): an ended auction is
     // neither live nor in play — it waits for Relist or Delete.
-    const listed = cards.filter(isLive);
-    const ended = cards.filter(isEnded);
-    const sold = cards.filter((c) => c.status === "sold");
+    const listed = gameCards.filter(isLive);
+    const ended = gameCards.filter(isEnded);
+    const sold = gameCards.filter((c) => c.status === "sold");
 
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
     // Net = after eBay fees AND the postage the seller pays per sale (Chris,
@@ -428,7 +453,7 @@ export default function CollectionPage() {
     const inPlayCopies = [...drafts, ...listed].reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
     const soldCopies = sold.filter((c) => c.soldPrice != null).length;
     return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
-  }, [cards]);
+  }, [gameCards]);
 
 
   async function removeSelected() {
@@ -498,7 +523,7 @@ export default function CollectionPage() {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const shown = cards.filter((card) => {
+    const shown = gameCards.filter((card) => {
       if (filter === "listed" && !isLive(card)) return false;
       if (filter === "ended" && !isEnded(card)) return false;
       if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
@@ -529,7 +554,7 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [cards, filter, query, sort]);
+  }, [gameCards, filter, query, sort]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -563,12 +588,20 @@ export default function CollectionPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Inventory</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Everything you&apos;ve scanned, and where each card is on its way
-          to sold.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-white">Inventory</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Everything you&apos;ve scanned, and where each card is on its way
+            to sold.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <GameToggle game={gameView} onChange={switchGame} compact />
+          <p className="text-[11px] text-zinc-600">
+            {gameCounts.pokemon} Pokémon · {gameCounts.mtg} Magic
+          </p>
+        </div>
       </div>
 
       {syncError && (
