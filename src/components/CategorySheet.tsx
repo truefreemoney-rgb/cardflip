@@ -35,7 +35,13 @@ export default function CategorySheet({
   onPick: (category: string | null) => void;
 }) {
   const [choice, setChoice] = useState<string | null>(current);
-  const [creating, setCreating] = useState(categories.length === 0);
+  // Never start in "new" mode: on an iPhone the autofocused field raised
+  // the keyboard over the sheet before the seller saw it (Chris, 09-04).
+  const [creating, setCreating] = useState(false);
+  const [touched, setTouched] = useState(false);
+  // iOS keeps a fixed overlay under the keyboard; pad the bottom by the
+  // keyboard's height (layout viewport − visual viewport) so the sheet rides up.
+  const [kbd, setKbd] = useState(0);
   const [draft, setDraft] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +56,20 @@ export default function CategorySheet({
     };
   }, [onClose]);
   useEffect(() => {
-    if (creating) inputRef.current?.focus();
-  }, [creating]);
+    if (creating && touched) inputRef.current?.focus();
+  }, [creating, touched]);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbd(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   const trimmed = draft.trim().slice(0, CATEGORY_MAX);
   const dup = trimmed && categories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
@@ -68,6 +86,7 @@ export default function CategorySheet({
   return (
     <div
       className="animate-fade-up fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      style={kbd > 0 ? { paddingBottom: kbd } : undefined}
       onClick={onClose}
     >
       <div
@@ -120,7 +139,14 @@ export default function CategorySheet({
               <span className="truncate">{c}</span>
             </button>
           ))}
-          <button type="button" onClick={() => setCreating(true)} className={chip(creating)}>
+          <button
+            type="button"
+            onClick={() => {
+              setTouched(true);
+              setCreating(true);
+            }}
+            className={chip(creating)}
+          >
             + New category
           </button>
         </div>
