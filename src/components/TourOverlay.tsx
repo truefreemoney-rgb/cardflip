@@ -177,15 +177,31 @@ export default function TourOverlay() {
         }`}
         style={panelStyle}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-          {step + 1} of {STEPS.length}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            {step + 1} of {STEPS.length}
+          </p>
+          <button
+            onClick={() => void finish()}
+            aria-label="Close the tutorial"
+            className="-mr-1.5 -mt-1.5 flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
         <h2 className="font-display mt-1 text-lg font-semibold text-white">{current.title}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{current.body}</p>
         <div className="mt-4 flex items-center justify-between gap-3">
-          <button onClick={() => void finish()} className="text-xs text-zinc-500 transition hover:text-zinc-300">
-            {last ? "" : "Skip"}
-          </button>
+          {last ? (
+            <span />
+          ) : (
+            <button
+              onClick={() => void finish()}
+              className="rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-edge-strong hover:text-white"
+            >
+              Skip tutorial
+            </button>
+          )}
           <div className="flex items-center gap-2">
             {step > 0 && (
               <button
