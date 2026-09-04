@@ -126,6 +126,9 @@ export default function TourOverlay() {
   const pathname = usePathname();
   const router = useRouter();
   const [step, setStepState] = useState<number | null>(null);
+  // Captured during the first render: the scanner page wipes its query
+  // string in a mount effect, which runs before this one.
+  const [urlStart] = useState(urlAsksForTour);
   const [rect, setRect] = useState<Rect | null>(null);
   /** Arrow from the card to the spotlight, viewport coordinates. */
   const [arrow, setArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
@@ -146,7 +149,7 @@ export default function TourOverlay() {
     const here = STEPS.findIndex((s) => s.path === pathname);
     const resume = readProgress();
     let start: number | null = null;
-    if (takeTourReplay() || urlAsksForTour()) {
+    if (takeTourReplay() || urlStart) {
       start = here >= 0 ? here : 0;
     } else if (resume != null) {
       // Same page: pick up where it was. Another tour page: the seller
@@ -159,7 +162,7 @@ export default function TourOverlay() {
     // Let the page paint its anchors first.
     const t = window.setTimeout(() => setStep(start), 400);
     return () => window.clearTimeout(t);
-  }, [ready, open, pathname, user?.tourSeenAt, setStep]);
+  }, [ready, open, pathname, user?.tourSeenAt, urlStart, setStep]);
 
   // Between pages (Next just navigated) the card hides until the new page is up.
   const current = open && pathname === STEPS[step].path ? STEPS[step] : null;
