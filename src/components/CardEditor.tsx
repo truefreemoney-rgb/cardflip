@@ -747,7 +747,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   </p>
                 </div>
                 <button
-                  onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null })}
+                  onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null, matchDoubt: null })}
                   className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
                 >
                   Verify match

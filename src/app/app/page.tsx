@@ -15,7 +15,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
+import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
@@ -791,8 +791,7 @@ export default function AppPage() {
         const results = direct
           ? [direct]
           : (eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game).catch(() => [])));
-        const card =
-          results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
+        const card = pickPrinting(results, row);
         if (!card) return null;
         return buildResumed(row, game, results, card);
       };

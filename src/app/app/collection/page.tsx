@@ -7,7 +7,7 @@ import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { normalizeNumber } from "@/lib/cardNumber";
+import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
 import { readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
@@ -343,7 +343,7 @@ export default function CollectionPage() {
   // is priced in the editor, a sold row records what it went for.
   const [priceSheet, setPriceSheet] = useState<string | null>(null);
   // Category filter (Chris, 09-04): "all" | "none" (uncategorized) | a name.
-  const [category, setCategory] = useState<string>("all");
+  const [categoryRaw, setCategory] = useState<string>("all");
   const [moveSheet, setMoveSheet] = useState(false);
   // One card's category, from the detail view's Category cell (Chris, 09-04).
   const [categoryTarget, setCategoryTarget] = useState<ServerCard | null>(null);
@@ -368,11 +368,7 @@ export default function CollectionPage() {
       if (card.catalogCardId) found = await fetchCardById(card.catalogCardId, game);
       if (!found) {
         const results = await searchCards(card.cardName, card.cardNumber || null, "en", undefined, game);
-        found =
-          results.find((c) => card.catalogCardId && c.id === card.catalogCardId) ??
-          results.find((c) => c.name === card.cardName && normalizeNumber(c.number) === normalizeNumber(card.cardNumber)) ??
-          results[0] ??
-          null;
+        found = pickPrinting(results, card);
       }
     } catch {
       found = null;
@@ -860,6 +856,12 @@ export default function CollectionPage() {
     [cards],
   );
   const categories = useMemo(() => distinctCategories(cards), [cards]);
+  // Filtering on a category, then emptying it, left "Nothing matches" with
+  // no chip to clear it (QA, 09-04) — a vanished category reads as All.
+  const category =
+    categoryRaw === "all" || (categoryRaw === "none" ? categories.length > 0 : categories.includes(categoryRaw))
+      ? categoryRaw
+      : "all";
   function switchGame(next: GameId) {
     setGameView(next);
     setSelected(new Set());

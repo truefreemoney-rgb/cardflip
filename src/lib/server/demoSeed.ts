@@ -32,6 +32,7 @@ const SEEDS: Seed[] = [
 ];
 
 interface CatalogHit {
+  id: string;
   set_name: string;
   local_id: string;
   image_url: string;
@@ -42,7 +43,7 @@ async function findCatalog(seed: Seed): Promise<CatalogHit | null> {
   if (seed.game === "mtg") {
     const row = (await db
       .prepare(
-        `SELECT set_name, collector_number AS local_id, image_url FROM mtg_cards
+        `SELECT id, set_name, collector_number AS local_id, image_url FROM mtg_cards
          WHERE name = ? AND (? = '' OR collector_number = ?) AND image_url != '' AND price_usd IS NOT NULL
          ORDER BY set_release_date ${order} LIMIT 1`,
       )
@@ -51,7 +52,7 @@ async function findCatalog(seed: Seed): Promise<CatalogHit | null> {
   }
   const row = (await db
     .prepare(
-      `SELECT set_name, local_id, image_url FROM en_cards
+      `SELECT id, set_name, local_id, image_url FROM en_cards
        WHERE name = ? AND local_id = ? AND image_url != ''
        ORDER BY set_release_date ${order} LIMIT 1`,
     )
@@ -72,6 +73,7 @@ export async function seedDemoCards(userId: string): Promise<void> {
       setName: hit.set_name,
       cardNumber: hit.local_id,
       imageUrl: hit.image_url,
+      catalogCardId: hit.id,
       condition: seed.condition,
       price: seed.price,
     });

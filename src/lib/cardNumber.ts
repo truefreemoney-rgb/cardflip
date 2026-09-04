@@ -313,3 +313,36 @@ export function agreesWithSetCode(
     ? "match"
     : "mismatch";
 }
+
+/**
+ * Which catalog printing is THIS ledger row? Name + number alone is
+ * ambiguous (Pikachu 25 exists in a dozen sets; Charizard 4 is Base Set AND
+ * Base Set 2), and "first hit wins" priced a McDonald's Pikachu as a 151
+ * card (QA, 09-04). Order: the row's catalog id → name + number + set →
+ * name + number → first result.
+ */
+export function pickPrinting<
+  T extends { id: string; name: string; englishName?: string | null; number: string; setName: string },
+>(
+  results: T[],
+  row: { catalogCardId?: string | null; cardName: string; cardNumber?: string | null; setName?: string | null },
+): T | null {
+  if (results.length === 0) return null;
+  const byId = row.catalogCardId ? results.find((c) => c.id === row.catalogCardId) : undefined;
+  if (byId) return byId;
+  const wantName = row.cardName.trim().toLowerCase();
+  const wantNum = normalizeNumber(row.cardNumber || "");
+  const wantSet = (row.setName || "").trim().toLowerCase();
+  const nameMatches = (c: T) =>
+    c.name.trim().toLowerCase() === wantName || (c.englishName ?? "").trim().toLowerCase() === wantName;
+  const numMatches = (c: T) => !wantNum || normalizeNumber(c.number) === wantNum;
+  const nameNum = results.filter((c) => nameMatches(c) && numMatches(c));
+  if (wantSet) {
+    const exact = nameNum.find((c) => c.setName.trim().toLowerCase() === wantSet);
+    if (exact) return exact;
+    // A row saved before 1st Edition twins existed: "Base Set" vs "Base Set (1st Edition)".
+    const loose = nameNum.find((c) => c.setName.trim().toLowerCase().startsWith(wantSet));
+    if (loose) return loose;
+  }
+  return nameNum[0] ?? results[0];
+}

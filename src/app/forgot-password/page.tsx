@@ -28,6 +28,10 @@ export default function ForgotPasswordPage() {
       setError("Enter the email you signed up with.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(apiPath("/api/auth/forgot"), {

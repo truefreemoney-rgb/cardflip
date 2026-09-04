@@ -186,7 +186,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => {
               void startDemoSession()
-                .then(() => router.replace("/app"))
+                .then(() => router.replace(afterLoginPath()))
                 .catch((err) => setError(err instanceof Error ? err.message : "Couldn't start the demo."));
             }}
             className="text-brand-300 underline-offset-4 hover:text-brand-200 hover:underline"

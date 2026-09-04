@@ -500,7 +500,7 @@ function AccountSettings({
       <Group label="Security">
         <Row
           title="Password"
-          status={pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
+          status={demo ? "The demo account can't change its password." : pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
           action={
             <button type="button" className={rowBtn} onClick={() => (pwOpen ? closePw() : setPwOpen(true))} disabled={demo || pwBusy}>
               {pwOpen ? "Cancel" : "Change"}
@@ -628,9 +628,15 @@ function AccountSettings({
 
         <Row
           title="Devices"
-          status={d ? `${d.sessions} device${d.sessions === 1 ? "" : "s"} signed in, including this one.` : "Signed in on a shared or lost phone? Sign it out from here."}
+          status={
+            demo
+              ? "The shared demo account stays signed in everywhere."
+              : d
+                ? `Signed in on ${d.sessions} device${d.sessions === 1 ? "" : "s"}, including this one.`
+                : "Signed in on a shared or lost phone? Sign it out from here."
+          }
           action={
-            <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={devBusy}>
+            <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={demo || devBusy}>
               {devBusy ? "Signing out…" : "Sign out others"}
             </button>
           }
@@ -643,7 +649,7 @@ function AccountSettings({
       <Group label="Profile">
         <Row
           title="Name & email"
-          status={profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
+          status={demo ? "The demo account's name and email are fixed." : profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
           action={
             <button type="button" className={rowBtn} onClick={() => (profileOpen ? closeProfile() : setProfileOpen(true))} disabled={demo || profileBusy}>
               {profileOpen ? "Cancel" : "Edit"}

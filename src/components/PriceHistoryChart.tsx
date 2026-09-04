@@ -100,17 +100,24 @@ export function cardTrend(card: Pick<PokemonCard, "prices">): TrendAverages | nu
   };
 }
 
-const cache = new Map<string, Series[]>();
+// The promise is cached, not the result, so four panels opening the same
+// card at once share ONE request (QA, 09-04: 4× identical fetches per open).
+const cache = new Map<string, Promise<Series[]>>();
 
 /** Fetches (and memoizes per page) every series we hold for a card. Shared with PriceSparkline. */
-export async function loadSeries(cardId: string): Promise<Series[]> {
+export function loadSeries(cardId: string): Promise<Series[]> {
+  if (!cardId) return Promise.resolve([]);
   const hit = cache.get(cardId);
   if (hit) return hit;
-  const res = await fetch(apiPath(`/api/price-history?cardId=${encodeURIComponent(cardId)}`));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = (await res.json()) as { series: Series[] };
-  cache.set(cardId, data.series);
-  return data.series;
+  const p = (async () => {
+    const res = await fetch(apiPath(`/api/price-history?cardId=${encodeURIComponent(cardId)}`));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { series: Series[] };
+    return data.series;
+  })();
+  cache.set(cardId, p);
+  p.catch(() => cache.delete(cardId));
+  return p;
 }
 
 export function pickSeries(all: Series[], prefer: string | null | undefined): Series | null {
@@ -224,7 +231,6 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
       return from;
     });
     return () => { if (tweenRef.current !== null) cancelAnimationFrame(tweenRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetFactor]);
   const scaled = targetFactor !== 1;
   if (scaled || exactVariant) trend = null; // raw source averages would contradict a scaled or graded curve
@@ -236,6 +242,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
   const [loaded, setLoaded] = useState<{ id: string; series: Series[] | null; failed: boolean }>({ id: "", series: null, failed: false });
   useEffect(() => {
     let alive = true;
+    // A stub card (detail view still resolving the printing) has no id yet:
+    // stay in the loading state instead of a 400 + "Couldn't load" flash.
+    if (!cardId) return;
     loadSeries(cardId)
       .then((s) => { if (alive) { setLoaded({ id: cardId, series: s, failed: false }); setLoadedForFactor(s); } })
       .catch(() => { if (alive) { setLoaded({ id: cardId, series: null, failed: true }); setLoadedForFactor(null); } });

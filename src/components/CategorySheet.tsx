@@ -47,11 +47,17 @@ export default function CategorySheet({
   const inputRef = useRef<HTMLInputElement>(null);
   useFocusTrap(panelRef);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
+    // Capture phase + stopPropagation: the sheet stacks over the card detail
+    // modal, which also closes on Escape (QA, 09-04: one Esc closed both).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("keydown", onKey, true);
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       document.body.style.overflow = "";
     };
   }, [onClose]);

@@ -28,7 +28,7 @@ const articles: HelpArticle[] = [
     id: "scanning",
     heading: "Scanning cards",
     paragraphs: [
-      "Point the camera at a card and hold still — the scanner reads it automatically, matches it against the catalogue, and shows the market price. Fill the frame with the card, but not so close that the edges are cut off; the status pill under the viewfinder tells you when to adjust.",
+      "Point the camera at a card, fill the frame, and tap Capture — the scanner reads the name and number, matches it against the catalogue, and shows the market price. Don't get so close that the edges are cut off; the status pill under the viewfinder tells you when to adjust.",
       "Pokémon and Magic: The Gathering are both supported. English cards only for now — Japanese and Chinese support is built and will be enabled later.",
       "Holos and heavily reflective cards scan fine; tilt the card slightly if glare covers the name or number. You can also add cards without the camera: upload photos, or search the catalogue by name and number.",
     ],
