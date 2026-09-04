@@ -166,7 +166,12 @@ export async function GET(req: NextRequest) {
         { status: 503 },
       );
     }
-    const cards = await searchMtgCardsLocal(name, number || null, setCode, limit, art);
+    // The mirror wants the name as printed: sanitize() drops ":" for the
+    // upstream query grammar, which turned "Summon: Alexander" into a name
+    // that matches nothing (09-03: Verify match on a Final Fantasy DFC
+    // bounced to "couldn't look those cards up again").
+    const rawName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim();
+    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }

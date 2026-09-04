@@ -14,7 +14,7 @@ import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
-import { searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
@@ -702,8 +702,15 @@ export default function AppPage() {
           wanted.length === 1 && hintName === row.cardName && (hintNumber || "") === (row.cardNumber || "")
             ? await eagerSearch
             : null;
-        const results =
-          eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game).catch(() => []));
+        // The ledger row's catalog id IS the card — one indexed fetch, no
+        // name walk to get wrong (09-03: a double-faced Magic name failed
+        // the walk and the row couldn't be reopened).
+        const direct = row.catalogCardId
+          ? await fetchCardById(row.catalogCardId, game).catch(() => null)
+          : null;
+        const results = direct
+          ? [direct]
+          : (eager ?? (await searchCards(row.cardName, row.cardNumber || null, "en", undefined, game).catch(() => [])));
         const card =
           results.find((c) => row.catalogCardId && c.id === row.catalogCardId) ?? results[0] ?? null;
         if (!card) return null;
