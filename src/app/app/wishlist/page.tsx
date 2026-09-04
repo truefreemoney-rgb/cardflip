@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
 import Spinner from "@/components/Spinner";
@@ -316,21 +316,55 @@ export default function WishlistPage() {
     };
   }, [userId]);
 
-  async function handleRemove(id: string) {
-    // Optimistic; put it back where it was if the server didn't delete it.
+  // Remove is undoable (QA, 09-04: the DELETE used to fire on the tap). The
+  // tile leaves at once; the server delete waits out the toast's Undo window
+  // and is flushed if the page unmounts first, so nothing silently survives.
+  const pendingRemovals = useRef(new Map<string, { item: WishlistItem; index: number; timer: ReturnType<typeof setTimeout> }>());
+  const putBack = (index: number, item: WishlistItem) =>
+    setItems((prev) => {
+      const next = prev.filter((i) => i.id !== item.id);
+      next.splice(Math.min(index, next.length), 0, item);
+      return next;
+    });
+  const finalizeRemoval = useCallback(async (id: string) => {
+    const pending = pendingRemovals.current.get(id);
+    if (!pending) return;
+    pendingRemovals.current.delete(id);
+    clearTimeout(pending.timer);
+    const ok = await removeFromWishlist(id);
+    if (!ok) {
+      putBack(pending.index, pending.item);
+      setAddError(`Couldn't remove ${pending.item.cardName ?? "that card"} — check your connection and try again.`);
+    }
+  }, []);
+  useEffect(() => {
+    const removals = pendingRemovals.current;
+    return () => {
+      for (const id of [...removals.keys()]) {
+        const pending = removals.get(id)!;
+        removals.delete(id);
+        clearTimeout(pending.timer);
+        void removeFromWishlist(id);
+      }
+    };
+  }, []);
+  function handleRemove(id: string) {
     const index = items.findIndex((i) => i.id === id);
     const item = items[index];
+    if (!item) return;
     setAddError(null);
     setItems((prev) => prev.filter((i) => i.id !== id));
-    const ok = await removeFromWishlist(id);
-    if (!ok && item) {
-      setItems((prev) => {
-        const next = prev.filter((i) => i.id !== id);
-        next.splice(Math.min(index, next.length), 0, item);
-        return next;
-      });
-      setAddError(`Couldn't remove ${item.cardName ?? "that card"} — check your connection and try again.`);
-    }
+    pendingRemovals.current.set(id, { item, index, timer: setTimeout(() => void finalizeRemoval(id), 5500) });
+    toast(`Removed ${item.cardName ?? "card"} from your watchlist`, "info", {
+      label: "Undo",
+      onClick: () => {
+        const pending = pendingRemovals.current.get(id);
+        if (!pending) return;
+        pendingRemovals.current.delete(id);
+        clearTimeout(pending.timer);
+        putBack(pending.index, pending.item);
+      },
+    });
   }
 
   async function handleSearch() {

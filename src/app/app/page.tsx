@@ -495,8 +495,12 @@ export default function AppPage() {
             const numberPinned =
               Boolean(printed?.number) && normalizeNumber(card.number) === normalizeNumber(printed!.number);
             const ambiguous = matches.length > 1 && !numberPinned;
+            // Vision read a number the pick doesn't carry: the catalog is
+            // missing that printing or the read is off — either way it's the
+            // seller's call, not a MATCH.
+            const numberMismatch = Boolean(printed?.number) && !numberPinned;
             patchItem(next.id, {
-              status: lowConfidence || ambiguous ? "review" : "ready",
+              status: lowConfidence || ambiguous || numberMismatch ? "review" : "ready",
               candidates: matches,
               card,
               // 1st Edition is its own catalog card (the "-1st" twin); the
@@ -505,9 +509,11 @@ export default function AppPage() {
               error: null,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
-                : ambiguous
-                  ? `${matches.length} printings matched, no number read`
-                  : null,
+                : numberMismatch
+                  ? `read #${printed!.number}, closest printing is #${card.number}`
+                  : ambiguous
+                    ? `${matches.length} printings matched, no number read`
+                    : null,
             });
 
             // Vision may already have graded the card, so read the condition
