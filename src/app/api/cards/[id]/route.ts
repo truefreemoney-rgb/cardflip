@@ -27,6 +27,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       catalogCardId:
         "catalogCardId" in (body ?? {}) ? (typeof body.catalogCardId === "string" ? body.catalogCardId.slice(0, 80) : null) : undefined,
       rarity: "rarity" in (body ?? {}) ? (typeof body.rarity === "string" ? body.rarity.slice(0, 60) : null) : undefined,
+      category:
+        "category" in (body ?? {}) ? (typeof body.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null) : undefined,
       condition: typeof body?.condition === "string" ? body.condition : undefined,
       price: typeof body?.price === "number" ? body.price : undefined,
       quantity:

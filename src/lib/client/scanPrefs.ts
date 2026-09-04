@@ -43,6 +43,28 @@ export function readSavedStrategy(): PriceStrategy {
   }
 }
 
+/** Last category new scans were filed under; null = uncategorized. */
+const CATEGORY_KEY = "cardflip.category";
+
+export function readSavedCategory(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CATEGORY_KEY);
+    return raw && raw.trim() ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCategory(category: string | null): void {
+  try {
+    if (category) window.localStorage.setItem(CATEGORY_KEY, category);
+    else window.localStorage.removeItem(CATEGORY_KEY);
+  } catch {
+    // Private mode / quota — the choice just doesn't persist.
+  }
+}
+
 export function saveStrategy(strategy: PriceStrategy): void {
   try {
     window.localStorage.setItem(STRATEGY_KEY, strategy);

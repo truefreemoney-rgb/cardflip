@@ -36,6 +36,8 @@ export interface ServerCard {
   firstEdition: boolean;
   /** Catalog rarity; null on rows scanned before it was stored. */
   rarity: string | null;
+  /** Seller-chosen folder; null = uncategorized. */
+  category: string | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
@@ -63,6 +65,7 @@ export interface CreateCardInput {
   price: number;
   catalogCardId?: string | null;
   rarity?: string | null;
+  category?: string | null;
 }
 
 export interface UpdateCardInput {
@@ -73,6 +76,7 @@ export interface UpdateCardInput {
   imageUrl?: string;
   catalogCardId?: string | null;
   rarity?: string | null;
+  category?: string | null;
   condition?: string;
   price?: number;
   quantity?: number;

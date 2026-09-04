@@ -19,7 +19,8 @@ import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/c
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
-import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
+import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
+import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import {
   createServerCard,
   type ServerCard,
@@ -160,6 +161,14 @@ export default function AppPage() {
   // Lives here rather than in Uploader: the first capture swaps the page from
   // the hero layout to the queue layout, and the viewfinder must survive that.
   const [cameraOpen, setCameraOpen] = useState(false);
+  // Category new cards are filed under (Chris, 09-04): asked when the camera
+  // opens, remembered per browser, rides on every createServerCard.
+  const [scanCategory, setScanCategory] = useState<string | null>(readSavedCategory);
+  const scanCategoryRef = useRef<string | null>(null);
+  useEffect(() => {
+    scanCategoryRef.current = scanCategory;
+  }, [scanCategory]);
+  const [categoryPrompt, setCategoryPrompt] = useState<{ existing: string[] } | null>(null);
   // The item created by the camera's most recent capture, so the viewfinder
   // can show that scan's outcome live while the next card is lined up.
   const [cameraItemId, setCameraItemId] = useState<string | null>(null);
@@ -512,6 +521,7 @@ export default function AppPage() {
               game: next.game,
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,
+              category: scanCategoryRef.current,
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.
@@ -820,12 +830,22 @@ export default function AppPage() {
   }, [commit, loadEbayComps, patchItem]);
 
 
-  const openCamera = useCallback(() => {
+  const openCameraNow = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.
     setCameraItemId(null);
     // Inside the tap, so the scan sounds are allowed to play later.
     void primeScanFx();
     setCameraOpen(true);
+  }, []);
+
+  /** Ask "which category?" first, then open the camera (Chris, 09-04). The
+   *  sound priming has to happen inside this tap too, or iOS mutes it. */
+  const openCamera = useCallback(() => {
+    void primeScanFx();
+    setCategoryPrompt({ existing: [] });
+    void fetchServerCards().then((rows) => {
+      setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+    });
   }, []);
 
   // Removal is undoable (Chris, 09-01 QoL pass): the ✕ used to hard-delete
@@ -1356,6 +1376,22 @@ export default function AppPage() {
         </main>
       )}
       {camera}
+      {categoryPrompt && (
+        <CategorySheet
+          title="Which category?"
+          hint="New scans are filed here in Inventory. You can move cards later."
+          categories={distinctCategories([...categoryPrompt.existing.map((c) => ({ category: c })), { category: scanCategory }])}
+          current={scanCategory}
+          confirmLabel="Start scanning"
+          onClose={() => setCategoryPrompt(null)}
+          onPick={(category) => {
+            setScanCategory(category);
+            saveCategory(category);
+            setCategoryPrompt(null);
+            openCameraNow();
+          }}
+        />
+      )}
     </>
   );
 }

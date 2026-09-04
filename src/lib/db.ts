@@ -456,6 +456,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Catalog rarity ("Common", "Illustration Rare", MTG "mythic") copied
       // onto the row so Inventory can sort by it (Chris, 09-04).
       "rarity TEXT",
+      // Seller-chosen folder ("Binder 1", "For sale", ...) — free text, null =
+      // uncategorized (Chris, 09-04: organise Inventory by category).
+      "category TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

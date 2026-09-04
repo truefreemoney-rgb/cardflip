@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
+import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { normalizeNumber } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
@@ -341,6 +342,10 @@ export default function CollectionPage() {
   // a seller never has to go to eBay (Chris, 09-04). Live rows only — a draft
   // is priced in the editor, a sold row records what it went for.
   const [priceSheet, setPriceSheet] = useState<string | null>(null);
+  // Category filter (Chris, 09-04): "all" | "none" (uncategorized) | a name.
+  const [category, setCategory] = useState<string>("all");
+  const [moveSheet, setMoveSheet] = useState(false);
+  const [moving, setMoving] = useState(false);
   // Tile art → the full card view (Chris, 09-04): everything the listing page
   // shows about the card — holo art, prices, history — plus this copy's
   // status and the one action it needs, which for drafts is "go verify /
@@ -400,6 +405,7 @@ export default function CollectionPage() {
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
+      ["Category", card.category ?? "—"],
       ["Scanned", formatDate(card.createdAt)],
       ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
       ...(sold && card.soldAt ? ([["Sold", formatDate(card.soldAt)]] as [string, string][]) : []),
@@ -836,6 +842,7 @@ export default function CollectionPage() {
     }),
     [cards],
   );
+  const categories = useMemo(() => distinctCategories(cards), [cards]);
   function switchGame(next: GameId) {
     setGameView(next);
     setSelected(new Set());
@@ -950,6 +957,7 @@ export default function CollectionPage() {
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const shown = gameCards.filter((card) => {
+      if (category === "none" ? card.category !== null : category !== "all" && card.category !== category) return false;
       if (filter === "listed" && !isLive(card)) return false;
       if (filter === "ended" && !isEnded(card)) return false;
       if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
@@ -984,7 +992,7 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [gameCards, filter, query, sort]);
+  }, [gameCards, filter, query, sort, category]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -1139,6 +1147,41 @@ export default function CollectionPage() {
             </button>
           ))}
         </div>
+        {/* Category chips (Chris, 09-04): only once a category exists. */}
+        {categories.length > 0 && (
+          <div className="flex w-full flex-wrap items-center gap-1.5 sm:order-last">
+            <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">Category</span>
+            {[
+              { value: "all", label: "All" },
+              ...categories.map((c) => ({ value: c, label: c })),
+              { value: "none", label: "Uncategorized" },
+            ].map((c) => {
+              const n =
+                c.value === "all"
+                  ? gameCards.length
+                  : c.value === "none"
+                    ? gameCards.filter((x) => x.category === null).length
+                    : gameCards.filter((x) => x.category === c.value).length;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => {
+                    setCategory(c.value);
+                    setSelected(new Set());
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    category === c.value
+                      ? "border-brand-400 bg-brand-500/15 text-white"
+                      : "border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
+                  }`}
+                >
+                  {c.label}
+                  <span className={category === c.value ? "text-brand-200" : "text-zinc-600"}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {/* Wraps on a phone: without it the filter box was squeezed to two
             letters between the sort select and Export CSV (Chris, 09-02). */}
         <div className="flex flex-wrap items-center gap-2">
@@ -1428,6 +1471,9 @@ export default function CollectionPage() {
                     Mark sold ({listed.length})
                   </button>
                 )}
+                <button onClick={() => setMoveSheet(true)} className={bulkBtn}>
+                  Move to category ({selCards.length})
+                </button>
                 {revertable.length > 0 && (
                   <button
                     onClick={() =>
@@ -2004,6 +2050,29 @@ export default function CollectionPage() {
         );
       })()}
 
+      {moveSheet && (
+        <CategorySheet
+          title={`Move ${selected.size} card${selected.size === 1 ? "" : "s"} to…`}
+          hint="Pick a category, or type a new one. Choose No category to clear it."
+          categories={categories}
+          current={(() => {
+            const first = cards.find((c) => selected.has(c.id));
+            return first?.category ?? null;
+          })()}
+          confirmLabel="Move"
+          busy={moving}
+          onClose={() => setMoveSheet(false)}
+          onPick={async (next) => {
+            const targets = cards.filter((c) => selected.has(c.id) && c.category !== next);
+            setMoving(true);
+            await Promise.all(targets.map((c) => applyPatch(c, { category: next })));
+            setMoving(false);
+            setMoveSheet(false);
+            setSelected(new Set());
+            toast(next ? `${targets.length} moved to ${next}` : `${targets.length} uncategorized`);
+          }}
+        />
+      )}
       {priceSheet && (() => {
         const card = cards.find((c) => c.id === priceSheet);
         if (!card) return null;
