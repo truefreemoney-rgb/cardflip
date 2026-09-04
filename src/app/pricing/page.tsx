@@ -62,13 +62,13 @@ export default function PricingPage() {
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
               <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                One plan. Everything in it.
+                Start free. One plan after.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
                 Ten scans free to start. Then {PLAN.price} a month for the whole product, no tiers, no add-ons.
               </p>
             </div>
-            <PlanCard className="mx-auto mt-6 max-w-lg" cta="Try 10 scans free" />
+            <PlanCard className="mx-auto mt-6 max-w-4xl" />
           </div>
         </section>
 
