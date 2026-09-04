@@ -3,7 +3,6 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
-import PriceTicker from "@/components/PriceTicker";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
@@ -14,8 +13,7 @@ import type { PokemonCard } from "@/lib/types";
 /**
  * The landing page (makeover 09-04, Chris: "the first thing prospecting
  * paying users will see — it needs to be exceptional"). Structure:
- * hero with the scanner itself as the showpiece → live price ticker →
- * three steps, each with the real UI it produces → a bento of what the
+ * hero with the scanner itself as the showpiece → three steps, each with the real UI it produces → a bento of what the
  * product does for a pile of cards → one plan → questions → final ask.
  *
  * Data honesty (docs/DESIGN.md): every card, price, chart point and fee
@@ -302,9 +300,6 @@ export default async function Home() {
             )}
           </div>
         </section>
-
-        {/* ============================ Ticker ============================== */}
-        <PriceTicker cards={showcase} catalogLabel={catalogLabel} />
 
         {/* =========================== How it works ========================= */}
         <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 py-20 sm:py-24">
