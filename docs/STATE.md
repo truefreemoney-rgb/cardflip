@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-04 ~2:45am ET (session 8 end; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
+Last updated: 2026-09-04 ~5am ET (session 8; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,28 +23,40 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-04 ~2:45am ET, session 8 end — Chris hit the
-usage cap, back in ~1h): (0) GIT: checkout is vercel-migration; ALWAYS
-`git push origin HEAD:main` and confirm origin/main moved. (1) Chris still
-owes the STRIPE PUBLIC-DETAILS errand (BACKLOG §0 item 1) — gate on it.
-ALSO: stripe2.txt in the repo root holds a live sk_ key (gitignored 09-04,
-never pushed) — ask what it is for, then have him delete it. (2) SESSION 8
-SHIPPED, all main, all deployed (last = 0dd0635), awaiting yea/nay on the
-iPhone: CATEGORIES — cards.category column (auto-added via COLUMN_PROBES),
-CategorySheet (src/components/CategorySheet.tsx, shared) asks "Which
-category?" ONCE PER CAMERA SESSION AFTER THE FIRST CAPTURE (Chris moved it
-from before-camera after the iPhone keyboard covered the sheet twice; the
-sheet never opens in new-category mode and pads for the keyboard via
-visualViewport); pick remembered in localStorage cardflip.category; Inventory
-gets a Category chip row (All / each / Uncategorized, hidden until one
-exists), bulk "Move to category (N)", detail aside Category cell is a link
-("Add to category" / name + change). Untested on a real phone: the
-post-capture prompt itself. Also today: binder tiles got a "View draft /
-listing / card" chip above the price sticker, bigger status pills, "$" on
-tile prices; detail Inventory aside makeover (status header → price hero →
-facts strip → primary + quiet row). Expect nits on those first. (3) 1ST
-EDITION = own catalog card ("-1st" twins); rarity sort in RARITY_RANK;
-demo Charizard is the unlimited card.**
+**FIRST ACTION (saved 09-04 ~5am ET, session 8 cont.): (0) GIT: checkout
+is vercel-migration; ALWAYS `git push origin HEAD:main` and confirm
+origin/main moved. Vercel Hobby tripped "Deployment rate limited" twice
+tonight (100 deploys/day, rolling) — if a push doesn't deploy, check
+`gh api repos/truefreemoney-rgb/cardflip/commits/<sha>/status`; Pro
+($20/mo) is Chris's call. (1) SITE IS PAID-ONLY since 7ee847e: DEMO IS
+GONE (route, seed, login button); SubscriptionGate (src/components) walls
+every /app page except /app/account with the Paywall component; server
+402 backstop (subscriptionGate in lib/server/auth.ts) on vision/scan,
+cards POST, ebay draft + publish; admins exempt; signup → EbayConnectCard
+"Subscribe · $9.99/mo" → Stripe checkout; a confirmed checkout refreshes
+the session. UNTESTED END-TO-END WITH A REAL CARD — Chris should sign up
+a fresh account on the live site and pay once. Leftover: account page /
+EbayConnectCard / admin table still carry dead "demo" copy paths (harmless,
+demo user can't exist). (2) Chris still owes STRIPE PUBLIC-DETAILS
+(BACKLOG §0 item 1); stripe2.txt (live sk_, gitignored) — ask what it's
+for, then delete. (3) TONIGHT, all main, all deployed, awaiting yea/nay:
+LANDING PAGE MAKEOVER (fd72f74: scanner-in-a-phone hero w/ real featured
+card = dearest live-priced Charizard, PriceTicker wired in, 3 steps with
+real UI, bento w/ own-history sparkline, one plan, 6 FAQs); ACCOUNT PAGE
+MAKEOVER (identity card + grouped rows); INVENTORY TOOLBAR (one panel, CSV
+export REMOVED); CATEGORIES (post-first-capture prompt, chips, bulk move,
+detail cell link); QA batches 1+2 (pickPrinting in lib/cardNumber.ts =
+catalog id → name+number+set; verify clears matchDoubt; price-history
+guards; Esc scoping; number-mismatch = review "read #046, closest is
+#069"; watchlist Undo; MEP 046 + 28 promos pushed to prod via
+scripts/push-catalog.mjs). QA leftovers not done: Inventory search by
+card number, tappable Text-view rows, category prompt for photo uploads,
+condition-change price feedback, "Move your cursor" on touch, one word for
+verified-unlisted, 134px mobile header, 32px nav targets, signup "Already
+have an account" link, error focus, set picker type-ahead. (4) Load
+estimate (question only, nothing built): ~$0.007/scan Sonnet 5; 20
+concurrent users fine; real ceilings = Anthropic tier, eBay Browse
+5,000/day, Vercel Hobby ToS.**
 
 **SESSION 7 SHIPPED (09-04, main, deployed):** Inventory BINDER VIEW (grid default, View: Image | Text slide tab, tile art opens CardDetailModal with an Inventory aside), RepriceSheet for LIVE rows, sort by RARITY (backfill-rarity.mjs), listed panel makeover, StagedProgress for reopen + publish, "Not your card?" lists every same-name printing, watchlist tiles open instantly.
 
