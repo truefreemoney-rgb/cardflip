@@ -78,6 +78,46 @@ check("null month (never scanned) reads as zero",
 check("remaining clamps at zero past the cap",
   scanQuota(sub({ scansUsed: MONTHLY_SCANS + 25 })).remaining, 0);
 
+// --- admin plan overrides (09-04) + the selling gate ---------------------------
+const { scanTier, planOf, isComped, canUseApp } = await import(at("lib/server/users.ts"));
+const { sellingGate, subscriptionGate } = await import(at("lib/server/auth.ts"));
+check("override: unlimited reads as owner, never enforced",
+  [scanTier(fresh({ accessOverride: "unlimited" })), scanQuota(fresh({ accessOverride: "unlimited", scansUsed: 9999 })).remaining],
+  ["owner", null]);
+check("override: comp_standard = subscribed at 500 with no Stripe status",
+  [scanTier(fresh({ accessOverride: "comp_standard" })), scanQuota(fresh({ accessOverride: "comp_standard", scansUsed: 20 })).remaining],
+  ["subscribed", MONTHLY_SCANS - 20]);
+check("override: comp_pro = Pro cap, planOf pro even with plan null",
+  [planOf(fresh({ accessOverride: "comp_pro", plan: null })), scanQuota(fresh({ accessOverride: "comp_pro", scansUsed: 1 })).remaining],
+  ["pro", 2000 - 1]);
+check("override: isComped only for the comp values",
+  ["comp_standard", "comp_pro", "unlimited", "legacy", "trial", null].map((v) => isComped(fresh({ accessOverride: v }))),
+  [true, true, false, false, false, false]);
+check("override: legacy on a fresh account = 100 a day",
+  scanQuota(fresh({ accessOverride: "legacy", scanMonth: today, scansUsed: 2 })).remaining, LEGACY_DAILY_SCANS - 2);
+check("override: trial on a subscriber beats the subscription",
+  scanTier(sub({ accessOverride: "trial" })), "trial");
+check("override: an admin forced to trial is still trial (override wins)",
+  scanTier(fresh({ role: "admin", accessOverride: "trial" })), "trial");
+check("canUseApp: trial with scans left yes, exhausted no, comped yes",
+  [canUseApp(fresh({ trialScansUsed: 3 })), canUseApp(fresh({ trialScansUsed: TRIAL_SCANS })), canUseApp(fresh({ trialScansUsed: TRIAL_SCANS, accessOverride: "comp_standard" }))],
+  [true, false, true]);
+check("sellingGate: trial 402 even with scans left; subscriber, legacy, comped, admin pass",
+  [
+    sellingGate(fresh({ trialScansUsed: 0 }))?.status ?? null,
+    sellingGate(sub({}))?.status ?? null,
+    sellingGate(legacy({ subStatus: null }))?.status ?? null,
+    sellingGate(fresh({ accessOverride: "comp_standard" }))?.status ?? null,
+    sellingGate(fresh({ role: "admin" }))?.status ?? null,
+  ],
+  [402, null, null, null, null]);
+check("subscriptionGate: trial with scans left passes, exhausted 402",
+  [subscriptionGate(fresh({ trialScansUsed: 1 }))?.status ?? null, subscriptionGate(fresh({ trialScansUsed: TRIAL_SCANS }))?.status ?? null],
+  [null, 402]);
+check("sellingGate body flags selling, subscriptionGate body flags quota",
+  [(await sellingGate(fresh({})).json()).selling === true, (await subscriptionGate(fresh({ trialScansUsed: TRIAL_SCANS })).json()).quota === true],
+  [true, true]);
+
 check("exhausted exactly at the cap",
   scanQuotaExhausted(sub({ scansUsed: MONTHLY_SCANS })), true);
 check("one left ≠ exhausted",
