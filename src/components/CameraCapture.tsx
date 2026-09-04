@@ -636,7 +636,9 @@ function ScanToast({ item }: { item: ScanItem }) {
           ?
         </span>
         <p className="text-sm font-medium text-amber-300">
-          No match — line the card up in the guide and try again
+          {/* The scanner says WHY when it knows (token, unreadable read);
+              the generic line is for a real miss (09-03). */}
+          {item.error ?? "No match — line the card up in the guide and try again"}
         </p>
       </div>
     );
