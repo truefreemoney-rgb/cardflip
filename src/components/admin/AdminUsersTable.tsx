@@ -3,7 +3,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
-import RoleToggle from "@/components/admin/RoleToggle";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
@@ -73,13 +72,16 @@ function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) 
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(apiPath(`/api/admin/users/${user.id}/access`), {
+      // "role:admin" / "role:user" ride the same menu (Chris, 09-04: "needs
+      // admin option"); everything else is a plan override.
+      const isRole = value.startsWith("role:");
+      const res = await fetch(apiPath(isRole ? `/api/admin/users/${user.id}/role` : `/api/admin/users/${user.id}/access`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ override: value === "" ? null : value }),
+        body: JSON.stringify(isRole ? { role: value.slice(5) } : { override: value === "" ? null : value }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Couldn't change the plan");
+      if (!res.ok) throw new Error(data.error ?? (isRole ? "Couldn't change the role" : "Couldn't change the plan"));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't change the plan");
@@ -105,12 +107,21 @@ function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) 
           backgroundPosition: "right 6px center",
         }}
       >
-        <option value="">Automatic · {automaticLabel(user)}</option>
-        {OVERRIDE_OPTIONS.filter((o) => o.value !== "").map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
+        <optgroup label="Plan">
+          <option value="">Automatic · {automaticLabel(user)}</option>
+          {OVERRIDE_OPTIONS.filter((o) => o.value !== "").map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Role">
+          {user.role === "admin" ? (
+            <option value="role:user">Remove admin (back to seller)</option>
+          ) : (
+            <option value="role:admin">Make admin · unlimited, sees Magic</option>
+          )}
+        </optgroup>
       </select>
       {error && <span className="mt-0.5 block text-[11px] text-red-400">{error}</span>}
     </span>
@@ -294,10 +305,6 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Password</span>
                       <ResetLinkButton userId={u.id} disabled={u.isDemo} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] uppercase tracking-wider text-zinc-600">Role</span>
-                      <RoleToggle userId={u.id} role={u.role} isSelf={false} />
                     </div>
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     <button
