@@ -215,6 +215,13 @@ const stale = db
   .run(lang, now);
 console.log(`done: ${total} cards over ${page} pages, ${seenSets.size} sets, removed ${stale.changes} stale rows`);
 
+// Art Series cards are "extras" the search above never returns; the stale
+// sweep just removed them, so bring them back (scripts/sync-mtg-art.mjs).
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, [path.join(process.cwd(), "scripts/sync-mtg-art.mjs")], { stdio: "inherit" });
+}
+
 // ---------------------------------------------------------------------------
 // Price history: one point per priced finish per printing for today, in the
 // compact per-series rows (lib/priceSeries.ts). This is the only place Magic

@@ -502,8 +502,18 @@ export default function AppPage() {
               // back to the in-memory file, so a miss costs nothing beyond
               // the old behaviour.
               if (next.file) {
-                void uploadCardPhoto(server.id, next.file).then((uploaded) => {
-                  if (uploaded.ok) patchItem(next.id, { photoAt: uploaded.photoAt });
+                // One retry: 1 of 35 uploads silently missed on the 09-03 MTG
+                // stress test, and a row without its photo can't be listed
+                // after a refresh.
+                const file = next.file;
+                void uploadCardPhoto(server.id, file).then(async (uploaded) => {
+                  if (uploaded.ok) {
+                    patchItem(next.id, { photoAt: uploaded.photoAt });
+                    return;
+                  }
+                  await new Promise((r) => setTimeout(r, 1500));
+                  const again = await uploadCardPhoto(server.id, file);
+                  if (again.ok) patchItem(next.id, { photoAt: again.photoAt });
                 });
               }
             }
