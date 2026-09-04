@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
@@ -9,6 +9,8 @@ import { readSavedGame, saveGame } from "@/lib/games";
 import type { GameId } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
+import PriceInput from "@/components/PriceInput";
+import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
@@ -114,6 +116,147 @@ function watcherOfferNowPatch() {
   return { watcherOfferAt: Date.now() };
 }
 
+/**
+ * The reprice sheet for a live listing: the price big and typed like money
+ * (PriceInput, not a spinner box), quick nudges, the net after fees, and one
+ * button that updates the eBay listing. Bottom sheet on a phone, centered on
+ * a desktop. (Chris, 09-04: the inline box "didn't feel right".)
+ */
+function RepriceSheet({
+  card,
+  nudge,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  card: ServerCard;
+  nudge: RepriceNudge | null;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (price: number) => void;
+}) {
+  const [price, setPrice] = useState(card.price);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  const changed = Math.abs(price - card.price) >= 0.005;
+  const net = price > 0 ? Math.max(0, netAfterFees(price) - POSTAGE_USD) : 0;
+  const nudgeBy = (pct: number) => setPrice(Math.max(0.99, Math.round(card.price * (1 + pct / 100) * 100) / 100));
+  const quick: { label: string; pct: number }[] = [
+    { label: "−10%", pct: -10 },
+    { label: "−5%", pct: -5 },
+    { label: "+5%", pct: 5 },
+    { label: "+10%", pct: 10 },
+  ];
+
+  return (
+    <div
+      className="animate-fade-up fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Change the listing price of ${card.cardName}`}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <CardImage src={card.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded-md" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-semibold text-white">{card.cardName}</p>
+            <p className="truncate text-xs text-zinc-500">
+              {card.setName}
+              {card.cardNumber ? ` · ${card.cardNumber}` : ""}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400">
+              Listed on eBay at <span className="font-semibold text-zinc-200">${card.price.toFixed(2)}</span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-white"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">New listing price</span>
+          <span className="mt-1.5 flex items-center rounded-xl border border-edge bg-black/40 px-4 focus-within:border-brand-400">
+            <span className="text-2xl font-semibold text-zinc-500">$</span>
+            <PriceInput
+              value={price}
+              onValue={setPrice}
+              className="w-full bg-transparent py-3 pl-2 text-right font-display text-3xl font-semibold tracking-tight text-white outline-none"
+            />
+          </span>
+        </label>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quick.map((q) => (
+            <button
+              key={q.label}
+              type="button"
+              onClick={() => nudgeBy(q.pct)}
+              className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+            >
+              {q.label}
+            </button>
+          ))}
+          {nudge && (
+            <button
+              type="button"
+              onClick={() => setPrice(nudge.market)}
+              className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition hover:border-amber-400/50"
+              title="TCGplayer market today"
+            >
+              Market ${nudge.market.toFixed(2)}
+            </button>
+          )}
+        </div>
+
+        <p className="mt-4 text-xs text-zinc-500">
+          You&apos;d net about <span className="font-semibold text-emerald-400">${net.toFixed(2)}</span> after eBay fees and postage.
+        </p>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={busy || !changed || price <= 0}
+            onClick={() => onSubmit(price)}
+            className="flex flex-[2] items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-default disabled:opacity-40"
+          >
+            {busy && <Spinner className="h-3.5 w-3.5" />}
+            {busy ? "Updating eBay…" : "Update eBay listing"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CollectionPage() {
   const { user } = useSession();
   const [cards, setCards] = useState<ServerCard[]>([]);
@@ -125,9 +268,10 @@ export default function CollectionPage() {
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
   const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
-  // Tap-to-edit asking price (Chris, 09-04): change the listing price here
-  // and the live eBay listing follows, so a seller never has to go to eBay.
-  const [priceForm, setPriceForm] = useState<{ id: string; value: string } | null>(null);
+  // Change a LIVE listing's price from here and the eBay listing follows, so
+  // a seller never has to go to eBay (Chris, 09-04). Live rows only — a draft
+  // is priced in the editor, a sold row records what it went for.
+  const [priceSheet, setPriceSheet] = useState<string | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
   const router = useRouter();
 
@@ -1214,51 +1358,21 @@ export default function CollectionPage() {
                         <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
                       )}
                     </>
-                  ) : priceForm?.id === card.id ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const next = Math.round((parseFloat(priceForm.value) || 0) * 100) / 100;
-                        setPriceForm(null);
-                        if (next > 0) void setAskingPrice(card, next);
-                      }}
-                      className="flex items-center justify-end gap-1"
-                    >
-                      <span className="relative">
-                        <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          inputMode="decimal"
-                          autoFocus
-                          value={priceForm.value}
-                          onChange={(e) => setPriceForm({ id: card.id, value: e.target.value })}
-                          onKeyDown={(e) => e.key === "Escape" && setPriceForm(null)}
-                          aria-label="Listing price"
-                          className="w-20 rounded-md border border-edge bg-black/40 py-1 pl-4 pr-1 text-right text-sm text-white outline-none focus:border-brand-400"
-                        />
-                      </span>
-                      <button
-                        type="submit"
-                        className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
-                      >
-                        ✓
-                      </button>
-                    </form>
                   ) : (
                     <>
-                      {/* Tap the price to change it — live eBay listings
-                          reprice in place (Chris, 09-04). */}
-                      <button
-                        onClick={() => setPriceForm({ id: card.id, value: card.price > 0 ? card.price.toFixed(2) : "" })}
-                        disabled={repricing === card.id}
-                        title={card.ebayOfferId ? "Change the listing price — updates your eBay listing too" : "Change the listing price"}
-                        className="group inline-flex items-center gap-1 text-lg font-bold tracking-tight text-white transition hover:text-brand-300 disabled:opacity-50"
-                      >
-                        {repricing === card.id ? "Saving…" : `${card.price.toFixed(2)}`}
-                        <span aria-hidden className="text-xs text-zinc-500 transition group-hover:text-brand-300">✎</span>
-                      </button>
+                      <p className="text-lg font-bold tracking-tight text-white">
+                        {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
+                      </p>
+                      {/* Live listings only: the price changes here AND on
+                          eBay (Chris, 09-04). Drafts are priced in the editor. */}
+                      {isLive(card) && card.ebayOfferId && repricing !== card.id && (
+                        <button
+                          onClick={() => setPriceSheet(card.id)}
+                          className="text-[11px] font-medium text-brand-300 underline decoration-brand-300/40 underline-offset-2 transition hover:text-brand-200"
+                        >
+                          Change price
+                        </button>
+                      )}
                       {card.status === "listed" && nudges[card.id] && (
                         <button
                           onClick={() => void applyReprice(card, nudges[card.id])}
@@ -1356,6 +1470,23 @@ export default function CollectionPage() {
           </ul>
         </div>
       )}
+
+      {priceSheet && (() => {
+        const card = cards.find((c) => c.id === priceSheet);
+        if (!card) return null;
+        return (
+          <RepriceSheet
+            card={card}
+            nudge={nudges[card.id] ?? null}
+            busy={repricing === card.id}
+            onClose={() => setPriceSheet(null)}
+            onSubmit={(price) => {
+              setPriceSheet(null);
+              void setAskingPrice(card, price);
+            }}
+          />
+        );
+      })()}
     </main>
   );
 }
