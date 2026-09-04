@@ -17,6 +17,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
+const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
 const VISION_MODEL = fs.readFileSync(new URL("../src/lib/server/vision.ts", import.meta.url), "utf8").match(/VISION_MODEL = "([^"]+)"/)[1];
 
@@ -56,16 +57,18 @@ const SCHEMA = {
   required: ["name", "englishName", "setName", "cardNumber", "setTotal", "setCode", "artStyle", "language", "condition", "conditionNotes", "confidence"],
   additionalProperties: false,
 };
-const SYSTEM = fs
-  .readFileSync(path.join(root, "src/lib/server/vision.ts"), "utf8")
-  .match(/const SYSTEM = `([\s\S]*?)`;/)[1];
+const visionSrc = fs.readFileSync(path.join(root, "src/lib/server/vision.ts"), "utf8");
+const SYSTEM = visionSrc.match(/const SYSTEM = `([\s\S]*?)`;/)[1];
+// Magic (09-03 MTG stress test): same schema, the MTG system prompt, and the
+// mirror's own search (name + collector number + printed set code).
+const SYSTEM_MTG = visionSrc.match(/const SYSTEM_MTG = `([\s\S]*?)`;/)[1];
 
-async function readCard(b64) {
+async function readCard(b64, game) {
   const response = await anthropic.messages.create({
     model: VISION_MODEL,
     max_tokens: 2000,
     output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
-    system: SYSTEM,
+    system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
     messages: [{
       role: "user",
       content: [
@@ -80,18 +83,19 @@ async function readCard(b64) {
 
 for (const id of ids) {
   const row = (await prod.execute({
-    sql: "SELECT c.card_name, c.set_name, c.card_number, c.catalog_card_id, ph.bytes FROM cards c JOIN card_photos ph ON ph.card_id = c.id WHERE c.id = ?",
+    sql: "SELECT c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.game, ph.bytes FROM cards c JOIN card_photos ph ON ph.card_id = c.id WHERE c.id = ?",
     args: [id],
   })).rows[0];
   if (!row) { console.log(`\n## ${id}: no photo`); continue; }
   let read = cache[id];
   if (!read) {
     const b64 = Buffer.from(row.bytes).toString("base64");
-    read = await readCard(b64);
+    read = await readCard(b64, row.game === "mtg" ? "mtg" : "pokemon");
     cache[id] = read;
     if (cachePath) fs.writeFileSync(cachePath, JSON.stringify(cache, null, 1));
   }
-  console.log(`\n## ${row.card_name} — scanner chose ${row.set_name} ${row.card_number} (${row.catalog_card_id})`);
+  const game = row.game === "mtg" ? "mtg" : "pokemon";
+  console.log(`\n## [${game}] ${row.card_name} — scanner chose ${row.set_name} ${row.card_number} (${row.catalog_card_id})`);
   console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} conf=${read.confidence}`);
 
   // Same walk as src/app/app/page.tsx: name candidates, printed fraction, art.
@@ -101,7 +105,10 @@ for (const id of ids) {
   const names = [read.name, read.englishName].filter(Boolean);
   let matches = [];
   for (const candidate of names) {
-    const found = (await searchEnglishCardsLocal(candidate, printed, 5, read.artStyle ?? null)).cards;
+    const found =
+      game === "mtg"
+        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, read.setCode || null, 5, read.artStyle ?? null)
+        : (await searchEnglishCardsLocal(candidate, printed, 5, read.artStyle ?? null)).cards;
     if (found.length === 0) continue;
     if (matches.length === 0) matches = found;
     if (found[0].name.trim().toLowerCase() === candidate.trim().toLowerCase()) { matches = found; break; }
