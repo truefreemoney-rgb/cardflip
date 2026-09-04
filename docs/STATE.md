@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-04 ~5am ET (session 8; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
+Last updated: 2026-09-04 ~7am ET (session 8; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 80`).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** — pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -23,40 +23,42 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-04 ~5am ET, session 8 cont.): (0) GIT: checkout
+**FIRST ACTION (saved 09-04 ~7am ET, session 8 cont.): (0) GIT: checkout
 is vercel-migration; ALWAYS `git push origin HEAD:main` and confirm
 origin/main moved. Vercel Hobby tripped "Deployment rate limited" twice
-tonight (100 deploys/day, rolling) — if a push doesn't deploy, check
-`gh api repos/truefreemoney-rgb/cardflip/commits/<sha>/status`; Pro
-($20/mo) is Chris's call. (1) SITE IS PAID-ONLY since 7ee847e: DEMO IS
-GONE (route, seed, login button); SubscriptionGate (src/components) walls
-every /app page except /app/account with the Paywall component; server
-402 backstop (subscriptionGate in lib/server/auth.ts) on vision/scan,
-cards POST, ebay draft + publish; admins exempt; signup → EbayConnectCard
-"Subscribe · $9.99/mo" → Stripe checkout; a confirmed checkout refreshes
-the session. UNTESTED END-TO-END WITH A REAL CARD — Chris should sign up
-a fresh account on the live site and pay once. Leftover: account page /
-EbayConnectCard / admin table still carry dead "demo" copy paths (harmless,
-demo user can't exist). (2) Chris still owes STRIPE PUBLIC-DETAILS
-(BACKLOG §0 item 1); stripe2.txt (live sk_, gitignored) — ask what it's
-for, then delete. (3) TONIGHT, all main, all deployed, awaiting yea/nay:
-LANDING PAGE MAKEOVER (fd72f74: scanner-in-a-phone hero w/ real featured
-card = dearest live-priced Charizard, PriceTicker wired in, 3 steps with
-real UI, bento w/ own-history sparkline, one plan, 6 FAQs); ACCOUNT PAGE
-MAKEOVER (identity card + grouped rows); INVENTORY TOOLBAR (one panel, CSV
-export REMOVED); CATEGORIES (post-first-capture prompt, chips, bulk move,
-detail cell link); QA batches 1+2 (pickPrinting in lib/cardNumber.ts =
-catalog id → name+number+set; verify clears matchDoubt; price-history
-guards; Esc scoping; number-mismatch = review "read #046, closest is
-#069"; watchlist Undo; MEP 046 + 28 promos pushed to prod via
-scripts/push-catalog.mjs). QA leftovers not done: Inventory search by
-card number, tappable Text-view rows, category prompt for photo uploads,
-condition-change price feedback, "Move your cursor" on touch, one word for
-verified-unlisted, 134px mobile header, 32px nav targets, signup "Already
-have an account" link, error focus, set picker type-ahead. (4) Load
-estimate (question only, nothing built): ~$0.007/scan Sonnet 5; 20
-concurrent users fine; real ceilings = Anthropic tier, eBay Browse
-5,000/day, Vercel Hobby ToS.**
+tonight (100/day rolling); check `gh api repos/truefreemoney-rgb/cardflip/
+commits/<sha>/status` if a push doesn't deploy. (1) STRIPE, TWO ACCOUNTS:
+.env.local's STRIPE_LIVE_SECRET_KEY is the SANDBOX (acct_…o9G2 "Card Flip
+sandbox"); the REAL live key (acct_…AIAx "CardFlip", rotated 09-02) is
+stripe2.txt in the repo root (gitignored) — DO NOT delete it; Vercel prod
+already has it. Live product = prod_VB68qbGnNfQpty (prod_VAzsshadbHo9Sg
+is a duplicate, unused; "CardFlip scan pack" $4.99 is the dead pack idea).
+Prices: standard price_1UAjvlHrYyCaAIAxazDtv1Dz ($9.99/500), PRO
+price_1UBwtjHrYyCaAIAxHtHBqUl7 ($24.99/2,000, its OWN product
+prod_VCLaeDbdIdU2yA "CardFlip Pro" — Stripe portal refuses two monthly
+prices on one product; the $24.99 on the CardFlip product is archived) — STRIPE_PRO_PRICE_ID set on
+Vercel prod+preview 09-04 via the Vercel env API; portal plan-switching
+turned on by Chris (verify both prices ticked). The classifier blocks
+Stripe WRITES from Bash — Chris does those in the dashboard. (2) PLANS:
+free trial 10 lifetime scans (users.trial_scans_used) → CardFlip $9.99/500
+→ Pro $24.99/2,000 (users.plan from webhook price id; monthlyScans()).
+SubscriptionGate walls /app except /app/account; server 402 on
+scan/cards POST/ebay draft+publish; admins exempt; demo GONE. UNTESTED
+END-TO-END: Chris should sign up fresh on the live site, burn the 10 trial
+scans (or subscribe) and watch the wall + Stripe + webhook. (3) Chris
+still owes STRIPE PUBLIC-DETAILS (BACKLOG §0 item 1). (4) TONIGHT, all
+main, deployed: landing makeover (scanner-in-phone hero, seamless — no
+section backgrounds, flat sticky nav w/ How it works · Pricing, three
+plan cards), /pricing page (PlanCard shared), account makeover, inventory
+toolbar (CSV export REMOVED), categories, QA batches (pickPrinting, verify
+clears doubt, price-history guards, Esc scoping, number-mismatch review,
+watchlist Undo, MEP promos pushed to prod via scripts/push-catalog.mjs).
+Spacing rule: app-tight, sections py-10/12, take spacing DOWN. QA leftovers:
+Inventory search by card number, tappable Text-view rows, category prompt
+on photo uploads, condition-change price feedback, "Move your cursor" on
+touch, one word for verified-unlisted, 134px mobile header, 32px nav
+targets, signup "Already have an account" link, error focus, set picker
+type-ahead; dead "demo" copy in account/EbayConnectCard/admin table.**
 
 **SESSION 7 SHIPPED (09-04, main, deployed):** Inventory BINDER VIEW (grid default, View: Image | Text slide tab, tile art opens CardDetailModal with an Inventory aside), RepriceSheet for LIVE rows, sort by RARITY (backfill-rarity.mjs), listed panel makeover, StagedProgress for reopen + publish, "Not your card?" lists every same-name printing, watchlist tiles open instantly.
 
