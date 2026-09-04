@@ -738,6 +738,14 @@ p {
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
+/* Overlays that carry information sit on a SOLID ground (Chris, 09-04:
+   "transparent popups with information is not what we want"). surface-1 is
+   a 7% tint — fine for a panel on the page, unreadable over a dimmed one. */
+.panel-solid {
+  background: #13161f;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
 /* First-login tutorial (TourOverlay). The spotlight glides between targets
    on the same page; two rings breathe out of the target as the pointer; the
    overlay fades in (a slide read as jarring). Under reduced motion the kill

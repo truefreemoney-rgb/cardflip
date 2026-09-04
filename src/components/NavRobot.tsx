@@ -192,7 +192,7 @@ export default function NavRobot() {
           <div
             role="dialog"
             aria-label="Help"
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-2xl border border-edge bg-surface-1 shadow-2xl shadow-black/60 sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-11 sm:h-[520px] sm:max-h-[70vh] sm:w-[360px] sm:rounded-2xl"
+            className="fixed inset-x-0 bottom-0 z-50 panel-solid flex max-h-[80dvh] flex-col rounded-t-2xl border shadow-2xl shadow-black/70 sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-11 sm:h-[520px] sm:max-h-[70vh] sm:w-[360px] sm:rounded-2xl"
           >
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />

@@ -355,7 +355,7 @@ export default function TourOverlay() {
         aria-modal="true"
         aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${current.title}`}
         tabIndex={-1}
-        className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
+        className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] panel-solid rounded-2xl border p-4 shadow-2xl shadow-black/70 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
         }`}
         style={panelStyle}
