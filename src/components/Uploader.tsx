@@ -136,30 +136,48 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
       />
 
       <div className="relative flex flex-col items-center px-6 pb-6 pt-7 sm:pb-7 sm:pt-8">
-        {/* A real card, live-priced, in the 3D holo tilt — the same one the
-            landing page leads with. Nothing fabricated (DESIGN.md data
-            honesty); while it loads, or if it can't, the stage is just the
-            buttons. Chris, 09-04: the ghost outline "I hate this image". */}
+        {/* The scan, shown before the first scan (Chris, 09-04: "give a view
+            of what it's like to scan and find the card — this is the first
+            thing a new user sees after paying"): a real, live-priced card
+            sits in the viewfinder, the laser sweeps it, and the Found chip
+            reads the match and price under it — the reveal, at rest.
+            Nothing fabricated: the card and price are the landing page's
+            featured catalog row. No card yet = just the buttons. */}
         {showcase && (
-          <div className={`w-[150px] transition-transform duration-300 sm:w-[168px] ${dragOver ? "scale-95 opacity-60" : ""}`}>
-            <HoloCard src={showcase.imageUrl} alt={showcase.name} />
+          <div className="flex flex-col items-center">
+            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">A scan, start to finish</p>
+            <div className={`relative transition-transform duration-300 ${dragOver ? "scale-95 opacity-60" : ""}`}>
+              <div className="w-[150px] sm:w-[168px]">
+                <HoloCard src={showcase.imageUrl} alt={showcase.name} />
+              </div>
+              {/* The laser, over the card, clipped to its shape */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl" aria-hidden>
+                <span className="scan-sweep" />
+              </div>
+              {/* Holo brackets, one spectrum colour per corner */}
+              <span aria-hidden className="absolute -left-2.5 -top-2.5 h-7 w-7 rounded-tl-lg border-l-2 border-t-2 border-holo-sky" />
+              <span aria-hidden className="absolute -right-2.5 -top-2.5 h-7 w-7 rounded-tr-lg border-r-2 border-t-2 border-holo-violet" />
+              <span aria-hidden className="absolute -bottom-2.5 -left-2.5 h-7 w-7 rounded-bl-lg border-b-2 border-l-2 border-holo-pink" />
+              <span aria-hidden className="absolute -bottom-2.5 -right-2.5 h-7 w-7 rounded-br-lg border-b-2 border-r-2 border-holo-gold" />
+            </div>
+            {/* The result chip, as the HUD shows it after a match */}
+            <div className="mt-5 flex max-w-full items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-400/10 py-1.5 pl-2 pr-4 text-left">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-[11px] font-bold text-black">✓</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-white">{showcase.name}</span>
+                <span className="block truncate text-[11px] text-zinc-400">
+                  {showcase.setName} · {showcase.number}
+                </span>
+              </span>
+              {showcase.price != null && (
+                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">${showcase.price.toFixed(2)}</span>
+              )}
+            </div>
           </div>
         )}
-        {showcase && (
-          <p className="mt-4 text-center text-xs text-zinc-400">
-            <span className="font-medium text-zinc-200">{showcase.name}</span>
-            {showcase.price != null && (
-              <>
-                {" "}
-                · <span className="font-display font-semibold text-white">${showcase.price.toFixed(2)}</span>
-                <span className="text-zinc-600"> live</span>
-              </>
-            )}
-          </p>
-        )}
 
-        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${showcase ? "mt-2" : "mt-1"}`}>
-          {dragOver ? "Drop to scan" : showcase ? "Yours next" : "Ready when you are"}
+        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${showcase ? "mt-5" : "mt-1"}`}>
+          {dragOver ? "Drop to scan" : showcase ? "Your turn" : "Ready when you are"}
         </p>
 
         <div className="mt-3 flex w-full max-w-xs flex-col items-stretch gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
