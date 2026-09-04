@@ -1,7 +1,7 @@
 "use client";
 
 import HoloCard from "@/components/HoloCard";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   onFiles: (files: File[]) => void;
@@ -12,8 +12,8 @@ interface Props {
    */
   onOpenCamera?: () => void;
   variant?: "hero" | "compact";
-  /** A real, live-priced card for the stage (from /api/cards/featured); null = no card yet. */
-  showcase?: ShowcaseCard | null;
+  /** Real, live-priced cards for the stage (from /api/cards/featured); empty = no card yet. */
+  showcase?: ShowcaseCard[];
 }
 
 export interface ShowcaseCard {
@@ -24,7 +24,19 @@ export interface ShowcaseCard {
   price: number | null;
 }
 
-export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = null }: Props) {
+const ROTATE_MS = 4500;
+
+export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
+  // The stage rotates through its cards (Chris, 09-04: "pick like 10"),
+  // one every few seconds, fading between them. Rotation is content, not
+  // decoration, so it runs under reduced motion too — minus the fade.
+  const [slot, setSlot] = useState(0);
+  useEffect(() => {
+    if (showcase.length < 2) return;
+    const t = window.setInterval(() => setSlot((n) => n + 1), ROTATE_MS);
+    return () => window.clearInterval(t);
+  }, [showcase.length]);
+  const card = showcase.length ? showcase[slot % showcase.length] : null;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -143,12 +155,12 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
             reads the match and price under it — the reveal, at rest.
             Nothing fabricated: the card and price are the landing page's
             featured catalog row. No card yet = just the buttons. */}
-        {showcase && (
+        {card && (
           <div className="flex flex-col items-center">
             <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">A scan, start to finish</p>
             <div className={`relative transition-transform duration-300 ${dragOver ? "scale-95 opacity-60" : ""}`}>
-              <div className="w-[150px] sm:w-[168px]">
-                <HoloCard src={showcase.imageUrl} alt={showcase.name} />
+              <div key={card.imageUrl} className="tour-in w-[150px] sm:w-[168px]">
+                <HoloCard src={card.imageUrl} alt={card.name} />
               </div>
               {/* The laser, over the card, clipped to its shape */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl" aria-hidden>
@@ -161,23 +173,23 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
               <span aria-hidden className="absolute -bottom-2.5 -right-2.5 h-7 w-7 rounded-br-lg border-b-2 border-r-2 border-holo-gold" />
             </div>
             {/* The result chip, as the HUD shows it after a match */}
-            <div className="mt-5 flex max-w-full items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-400/10 py-1.5 pl-2 pr-4 text-left">
+            <div key={card.imageUrl + "-chip"} className="tour-in mt-5 flex max-w-full items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-400/10 py-1.5 pl-2 pr-4 text-left">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-[11px] font-bold text-black">✓</span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-white">{showcase.name}</span>
+                <span className="block truncate text-sm font-medium text-white">{card.name}</span>
                 <span className="block truncate text-[11px] text-zinc-400">
-                  {showcase.setName} · {showcase.number}
+                  {card.setName} · {card.number}
                 </span>
               </span>
-              {showcase.price != null && (
-                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">${showcase.price.toFixed(2)}</span>
+              {card.price != null && (
+                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">${card.price.toFixed(2)}</span>
               )}
             </div>
           </div>
         )}
 
-        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${showcase ? "mt-5" : "mt-1"}`}>
-          {dragOver ? "Drop to scan" : showcase ? "Your turn" : "Ready when you are"}
+        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${card ? "mt-5" : "mt-1"}`}>
+          {dragOver ? "Drop to scan" : card ? "Your turn" : "Ready when you are"}
         </p>
 
         <div className="mt-3 flex w-full max-w-xs flex-col items-stretch gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">

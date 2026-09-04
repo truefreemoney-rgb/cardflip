@@ -156,13 +156,13 @@ export default function AppPage() {
   // switching mid-session doesn't relabel what's already there.
   // The stage's real card (empty state only). One fetch, cached an hour
   // server-side; a miss just leaves the stage as the buttons.
-  const [showcase, setShowcase] = useState<ShowcaseCard | null>(null);
+  const [showcase, setShowcase] = useState<ShowcaseCard[]>([]);
   useEffect(() => {
     let cancelled = false;
     fetch(apiPath("/api/cards/featured"))
-      .then((r) => (r.ok ? r.json() : { card: null }))
+      .then((r) => (r.ok ? r.json() : { cards: [] }))
       .then((d) => {
-        if (!cancelled) setShowcase(d.card ?? null);
+        if (!cancelled) setShowcase(Array.isArray(d.cards) ? d.cards : []);
       })
       .catch(() => undefined);
     return () => {
