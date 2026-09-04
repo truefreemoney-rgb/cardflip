@@ -1017,7 +1017,7 @@ export default function AppPage() {
     const sendable = targets.filter((item) => item.file || item.photoAt);
     if (sendable.length === 0 && unverified > 0) {
       setBulkNote(
-        `${unverified} card${unverified === 1 ? " needs" : "s need"} the match verified first — open each one and tap Verify match`,
+        `${unverified} card${unverified === 1 ? " needs" : "s need"} the match verified first — open each one and tap "Yes, this is my card"`,
       );
       return;
     }

@@ -283,6 +283,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const [fetchedGradedComps, setFetchedGradedComps] = useState<{ average: number; count: number } | null>(null);
   // 1st Edition ↔ unlimited: the other printing is a separate catalog card.
   const [swapping, setSwapping] = useState(false);
+  // One question at a time (Chris, 09-04): after Verify the screen is the
+  // price and Publish; condition, grading, pricing tiles and copy live
+  // behind "Change".
+  const [showDetails, setShowDetails] = useState(false);
   const [gradedSettledKey, setGradedSettledKey] = useState("");
   const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
   const gradedCacheHit = gradeKey ? gradedCompsCache.get(gradeKey) : undefined;
@@ -599,6 +603,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     });
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
+  const verified = Boolean(item.verifiedAt) || Boolean(item.ebayOfferId);
+  // No market price and nothing set yet: the price field can't hide.
+  const detailsOpen = showDetails || (!quote && item.priceOverride == null);
   // History chart altitude: the raw NM curve's shape is real demand signal,
   // but a slab or played copy lives at a different level — rescale the chart
   // to the graded average (ratio vs the raw quote it floors on) or the
@@ -744,11 +751,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 </span>
               </p>
             ) : (
-              <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-amber-200">Is this the card in your hand?</p>
-                  <p className="text-xs text-amber-200/70">
-                    Check the name, set and number against your photo.
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-semibold text-white">Is this your card?</p>
+                  <p className="mt-0.5 text-sm text-zinc-400">
+                    Same name, set and number as the one in your hand?
                     {item.visionStatus === "done" &&
                       item.vision &&
                       item.vision.confidence < LOW_CONFIDENCE &&
@@ -758,14 +765,14 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 <button
                   data-tour="verify"
                   onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null, matchDoubt: null })}
-                  className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                  className="w-full rounded-full bg-emerald-500 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-400"
                 >
-                  Verify match
+                  Yes, this is my card
                 </button>
               </div>
             ))}
 
-          {(() => {
+          {verified && (() => {
             // One facts panel: label-over-value cells with hairline dividers.
             const cells: { label: string; value: React.ReactNode }[] = [];
             if (item.grading) cells.push({ label: "Grade", value: <span className="text-sky-300">{gradeLabel(item.grading)}</span> });
@@ -837,7 +844,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
-          {item.vision?.conditionNotes && (
+          {verified && detailsOpen && item.vision?.conditionNotes && (
             <p className="mt-2 text-sm leading-snug text-zinc-500">
               <span className="font-medium text-zinc-400">
                 Graded {item.vision.condition ?? "from photo"}:
@@ -924,6 +931,31 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </div>
       </div>
 
+      {verified && (
+        // The answer screen: one number, one line under it, Publish below.
+        <div className="flex items-end justify-between gap-4 rounded-xl border border-edge bg-surface-1 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Listing price</p>
+            <p className="font-display text-3xl font-bold text-white">{quote || item.priceOverride != null ? `${price.toFixed(2)}` : "—"}</p>
+            <p className="mt-0.5 truncate text-xs text-zinc-500">
+              {item.priceOverride != null ? "Your price" : quote ? quote.price.label : "No market price yet"}
+              {" · "}
+              {item.grading ? gradeLabel(item.grading) : item.condition}
+              {isFirstEdition ? " · 1st Edition" : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="shrink-0 text-sm font-medium text-brand-300 underline underline-offset-4 hover:text-brand-200"
+          >
+            {detailsOpen ? "Done" : "Change"}
+          </button>
+        </div>
+      )}
+
+      {verified && detailsOpen && (
+      <>
       {!quote && (
         <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
           No market price is available for this card — set your own price below.
@@ -1220,14 +1252,18 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       </div>
 
       <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
+      </>
+      )}
 
-      <EbayPostActions
-        item={item}
-        listing={listing}
-        price={price}
-        ebayConnected={ebayConnected}
-        onChange={onChange}
-      />
+      {verified && (
+        <EbayPostActions
+          item={item}
+          listing={listing}
+          price={price}
+          ebayConnected={ebayConnected}
+          onChange={onChange}
+        />
+      )}
     </div>
   );
 }
