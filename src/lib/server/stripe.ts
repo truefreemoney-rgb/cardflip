@@ -13,8 +13,22 @@ import { SITE_URL } from "@/lib/siteUrl";
 const env = () => ({
   secretKey: process.env.STRIPE_SECRET_KEY,
   priceId: process.env.STRIPE_PRICE_ID,
+  /** Pro ($24.99/mo, 2,000 scans). Unset = Pro isn't offered yet. */
+  proPriceId: process.env.STRIPE_PRO_PRICE_ID,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 });
+
+export type StripePlan = "standard" | "pro";
+
+export function proConfigured(): boolean {
+  return Boolean(env().proPriceId);
+}
+
+/** Which plan a Stripe price id belongs to. */
+export function planForPrice(priceId: string | null | undefined): StripePlan {
+  const { proPriceId } = env();
+  return priceId && proPriceId && priceId === proPriceId ? "pro" : "standard";
+}
 
 export function stripeConfigured(): boolean {
   const e = env();
@@ -48,14 +62,15 @@ export async function createCustomer(email: string, userId: string): Promise<str
   return c.id;
 }
 
-/** Hosted Checkout for the $9.99/mo subscription; returns the redirect URL. */
-export async function createCheckoutSession(customerId: string, userId: string): Promise<string> {
-  const { priceId } = env();
+/** Hosted Checkout for a subscription; returns the redirect URL. */
+export async function createCheckoutSession(customerId: string, userId: string, plan: StripePlan = "standard"): Promise<string> {
+  const { priceId, proPriceId } = env();
+  const price = plan === "pro" && proPriceId ? proPriceId : priceId!;
   const s = await stripeRequest<{ url: string }>("checkout/sessions", {
     mode: "subscription",
     customer: customerId,
     client_reference_id: userId,
-    "line_items[0][price]": priceId!,
+    "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
     success_url: `${SITE_URL}/app/account?billing=success`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
@@ -76,16 +91,19 @@ export interface SubscriptionState {
   status: string;
   /** ms epoch; Basil-era API keeps period end on the item, older on the sub. */
   periodEnd: number | null;
+  /** From the first item's price id. */
+  plan: StripePlan;
 }
 
 export async function fetchSubscription(subscriptionId: string): Promise<SubscriptionState> {
   const sub = await stripeRequest<{
     status: string;
     current_period_end?: number;
-    items?: { data?: { current_period_end?: number }[] };
+    items?: { data?: { current_period_end?: number; price?: { id?: string } }[] };
   }>(`subscriptions/${subscriptionId}`);
-  const end = sub.items?.data?.[0]?.current_period_end ?? sub.current_period_end ?? null;
-  return { status: sub.status, periodEnd: end ? end * 1000 : null };
+  const item = sub.items?.data?.[0];
+  const end = item?.current_period_end ?? sub.current_period_end ?? null;
+  return { status: sub.status, periodEnd: end ? end * 1000 : null, plan: planForPrice(item?.price?.id) };
 }
 
 /**

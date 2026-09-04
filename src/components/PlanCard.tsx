@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 /**
- * The two ways in, as twin cards (Chris, 09-04: the plan card "should
- * mirror the free trial"). Shared by the landing page and /pricing so the
- * price, the scan counts and the bullet lists can't drift apart.
+ * Free trial · CardFlip · Pro, as matching cards (Chris, 09-04). Shared by
+ * the landing page and /pricing so prices, scan counts and bullets can't
+ * drift apart. Only the scan cap separates the paid tiers — on purpose.
  */
 export const PLAN = {
   price: "$9.99",
@@ -15,6 +15,19 @@ export const PLAN = {
     "eBay listings written, published and repriced from CardFlip",
     "Inventory with categories, sort by value or rarity, sales tracking",
     "Watchlist with price alerts and 90-day history",
+  ],
+};
+
+export const PRO = {
+  price: "$24.99",
+  scans: 2000,
+  lines: [
+    "2,000 card scans a month, camera or photos",
+    "Everything in CardFlip",
+    "Built for a few hundred cards a week",
+    "Same live pricing, same eBay publishing",
+    "Switch between plans any time in billing",
+    "Cancel any time",
   ],
 };
 
@@ -105,7 +118,7 @@ function Card({
 
 export default function PlanCard({ className = "" }: { className?: string }) {
   return (
-    <div className={`grid gap-3 md:grid-cols-2 ${className}`}>
+    <div className={`grid gap-3 md:grid-cols-3 ${className}`}>
       <Card
         name="Free trial"
         sub={`${TRIAL.scans} scans to start`}
@@ -125,6 +138,16 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         cta="Subscribe · $9.99/mo"
         note="Cancel any time. You keep 100% of every eBay payout."
         primary
+      />
+      <Card
+        name="Pro"
+        sub={`${PRO.scans.toLocaleString("en-US")} scans a month`}
+        price={PRO.price}
+        per="/month"
+        lines={PRO.lines}
+        cta="Go Pro · $24.99/mo"
+        note="For volume sellers. Cancel any time."
+        primary={false}
       />
     </div>
   );

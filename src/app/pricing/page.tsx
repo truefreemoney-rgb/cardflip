@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
-import PlanCard, { PLAN } from "@/components/PlanCard";
+import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
 
 export const metadata: Metadata = {
@@ -48,6 +48,10 @@ const billing = [
     q: "Do I need my own eBay account?",
     a: "Yes. You connect it once during signup, or later from your Account page.",
   },
+  {
+    q: "What's the difference between CardFlip and Pro?",
+    a: "Only the scan cap: 500 a month on CardFlip, 2,000 on Pro. Pricing, eBay publishing, inventory and the watchlist are identical. Switch between them any time from Manage billing; the change takes effect on your next invoice.",
+  },
 ];
 
 export default function PricingPage() {
@@ -62,13 +66,13 @@ export default function PricingPage() {
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
               <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                Start free. One plan after.
+                Start free. Pay for the volume you need.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
-                Ten scans free to start. Then {PLAN.price} a month for the whole product, no tiers, no add-ons.
+                Ten scans free to start. Then {PLAN.price} a month, or Pro at {PRO.price} when the binder outgrows it. Same product on both.
               </p>
             </div>
-            <PlanCard className="mx-auto mt-6 max-w-4xl" />
+            <PlanCard className="mx-auto mt-6 max-w-6xl" />
           </div>
         </section>
 

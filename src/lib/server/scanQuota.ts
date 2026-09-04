@@ -1,4 +1,5 @@
 import "server-only";
+import { monthlyScans } from "@/lib/server/users";
 import { db } from "@/lib/db";
 import { isSubscribed, TRIAL_SCANS, type User } from "@/lib/server/users";
 
@@ -32,10 +33,11 @@ export function scanQuota(user: User): ScanQuota {
     return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
   }
   const used = user.scanMonth === month() ? user.scansUsed : 0;
+  const cap = monthlyScans(user);
   return {
     used,
-    included: MONTHLY_SCANS,
-    remaining: Math.max(0, MONTHLY_SCANS - used),
+    included: cap,
+    remaining: Math.max(0, cap - used),
   };
 }
 
@@ -56,9 +58,10 @@ export async function recordScan(user: User): Promise<ScanQuota> {
   const m = month();
   const used = (user.scanMonth === m ? user.scansUsed : 0) + 1;
   await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
+  const cap = monthlyScans(user);
   return {
     used,
-    included: MONTHLY_SCANS,
-    remaining: Math.max(0, MONTHLY_SCANS - used),
+    included: cap,
+    remaining: Math.max(0, cap - used),
   };
 }

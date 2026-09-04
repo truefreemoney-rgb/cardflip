@@ -2,7 +2,7 @@
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { isDemoUser, isSubscribed, setStripeCustomer } from "@/lib/server/users";
-import { createCheckoutSession, createCustomer, stripeConfigured } from "@/lib/server/stripe";
+import { createCheckoutSession, createCustomer, proConfigured, stripeConfigured } from "@/lib/server/stripe";
 
 /** POST — start a $9.99/mo subscription: answers { url } to Stripe Checkout. */
 export async function POST(req: NextRequest) {
@@ -24,7 +24,12 @@ export async function POST(req: NextRequest) {
       customerId = await createCustomer(user.email, user.id);
       await setStripeCustomer(user.id, customerId);
     }
-    return NextResponse.json({ url: await createCheckoutSession(customerId, user.id) });
+    const body = (await req.json().catch(() => null)) as { plan?: unknown } | null;
+    const plan = body?.plan === "pro" ? "pro" : "standard";
+    if (plan === "pro" && !proConfigured()) {
+      return NextResponse.json({ error: "The Pro plan isn't available yet" }, { status: 503 });
+    }
+    return NextResponse.json({ url: await createCheckoutSession(customerId, user.id, plan) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

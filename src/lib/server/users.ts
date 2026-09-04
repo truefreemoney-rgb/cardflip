@@ -21,6 +21,8 @@ export interface User {
   stripeCustomerId: string | null;
   subStatus: string | null;
   subPeriodEnd: number | null;
+  /** 'standard' | 'pro' — from the Stripe price on the subscription. */
+  plan: Plan | null;
   /** Scan metering: counter month (yyyy-mm), scans used in it, purchased bank. */
   scanMonth: string | null;
   scansUsed: number;
@@ -45,6 +47,7 @@ interface UserRow {
   stripe_customer_id: string | null;
   sub_status: string | null;
   sub_period_end: number | null;
+  plan: string | null;
   scan_month: string | null;
   scans_used: number | null;
   extra_scans: number | null;
@@ -67,6 +70,7 @@ function fromRow(row: UserRow): User {
     stripeCustomerId: row.stripe_customer_id ?? null,
     subStatus: row.sub_status ?? null,
     subPeriodEnd: row.sub_period_end ?? null,
+    plan: row.plan === "pro" ? "pro" : row.plan === "standard" ? "standard" : null,
     scanMonth: row.scan_month ?? null,
     scansUsed: row.scans_used ?? 0,
     extraScans: row.extra_scans ?? 0,
@@ -79,6 +83,17 @@ function fromRow(row: UserRow): User {
 /** An active (or grace-period) paid subscription. */
 export function isSubscribed(user: Pick<User, "subStatus">): boolean {
   return user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+}
+
+/** The two paid tiers (09-04). Scan caps per calendar month. */
+export type Plan = "standard" | "pro";
+export const PLAN_SCANS: Record<Plan, number> = { standard: 500, pro: 2000 };
+export const PLAN_PRICE_USD: Record<Plan, string> = { standard: "$9.99", pro: "$24.99" };
+export function planOf(user: Pick<User, "plan">): Plan {
+  return user.plan === "pro" ? "pro" : "standard";
+}
+export function monthlyScans(user: Pick<User, "plan">): number {
+  return PLAN_SCANS[planOf(user)];
 }
 
 /** Free trial (09-04): ten scans on a fresh account, no card. */
@@ -102,8 +117,15 @@ export async function setSubscription(
   userId: string,
   status: string | null,
   periodEnd: number | null,
+  plan?: Plan | null,
 ): Promise<void> {
-  await db.prepare("UPDATE users SET sub_status = ?, sub_period_end = ? WHERE id = ?").run(status, periodEnd, userId);
+  if (plan === undefined) {
+    await db.prepare("UPDATE users SET sub_status = ?, sub_period_end = ? WHERE id = ?").run(status, periodEnd, userId);
+  } else {
+    await db
+      .prepare("UPDATE users SET sub_status = ?, sub_period_end = ?, plan = ? WHERE id = ?")
+      .run(status, periodEnd, plan, userId);
+  }
 }
 
 export async function findUserByStripeCustomer(customerId: string): Promise<User | null> {
@@ -176,6 +198,7 @@ export async function createUser(
     stripeCustomerId: null,
     subStatus: null,
     subPeriodEnd: null,
+    plan: null,
     scanMonth: null,
     scansUsed: 0,
     extraScans: 0,
@@ -304,6 +327,10 @@ export interface PublicUser {
   subPeriodEnd: number | null;
   /** Free-trial scans still available (0 once used up or when subscribed). */
   trialScansLeft: number;
+  /** 'standard' | 'pro' when subscribed. */
+  plan: Plan | null;
+  /** Scans included per month on the current plan. */
+  monthlyScans: number;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -312,5 +339,7 @@ export function toPublicUser(user: User): PublicUser {
   return {
     id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user), subStatus, subPeriodEnd,
     trialScansLeft: trialScansLeft(user),
+    plan: isSubscribed(user) ? planOf(user) : null,
+    monthlyScans: monthlyScans(user),
   };
 }

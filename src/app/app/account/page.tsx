@@ -803,16 +803,16 @@ function PlanSection({
       <Dot on />
       {user.subStatus === "past_due"
         ? "Last payment failed — update your card."
-        : user.subPeriodEnd
-          ? `500 scans a month · renews ${formatDate(user.subPeriodEnd)}.`
-          : "500 scans a month · active."}
+        : `${user.plan === "pro" ? "Pro · 2,000" : "500"} scans a month${user.subPeriodEnd ? ` · renews ${formatDate(user.subPeriodEnd)}` : ""}.${
+            user.plan === "pro" ? "" : " Pro is 2,000 for $24.99 — switch in Manage billing."
+          }`}
     </>
   ) : user.subStatus === "canceled" ? (
-    "Your subscription has ended — the app still works during early access."
+    "Your subscription has ended. Resubscribe to keep scanning."
   ) : demo ? (
     "The demo account can't subscribe."
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of 10 scans left. Subscribe for 500 a month at $9.99.`
+    `Free trial: ${user.trialScansLeft ?? 0} of 10 scans left. Subscribe for 500 a month at $9.99, or Pro at 2,000 for $24.99.`
   );
   const showBody = billingReturn !== null || (subscribed && !!quota) || !!msg;
 
@@ -826,7 +826,7 @@ function PlanSection({
             {busy ? "Opening…" : "Manage billing"}
           </button>
         ) : (
-          <button type="button" className={rowPrimary} onClick={() => go(startCheckout)} disabled={busy || demo}>
+          <button type="button" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy || demo}>
             {busy ? "Opening…" : "Subscribe · $9.99/mo"}
           </button>
         )

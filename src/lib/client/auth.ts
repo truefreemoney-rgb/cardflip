@@ -15,6 +15,10 @@ export interface SessionUser {
   subPeriodEnd?: number | null;
   /** Free-trial scans left (0 once used, or when subscribed). */
   trialScansLeft?: number;
+  /** 'standard' | 'pro' when subscribed. */
+  plan?: "standard" | "pro" | null;
+  /** Scans included per month on the current plan. */
+  monthlyScans?: number;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

@@ -37,7 +37,7 @@ const articles: HelpArticle[] = [
     id: "scan-limits",
     heading: "Scan limits",
     paragraphs: [
-      "A subscription includes 500 scans per calendar month; the counter resets at the start of each month (UTC). Failed scans don't count against your allowance.",
+      "A subscription includes 500 scans per calendar month (2,000 on Pro); the counter resets at the start of each month (UTC). Failed scans don't count against your allowance. New accounts get 10 free scans before subscribing.",
       "There are also daily and per-minute caps that protect the service from abuse. If you hit one, wait and try again — a normal scanning session never gets near them.",
     ],
   },
@@ -118,7 +118,7 @@ const articles: HelpArticle[] = [
     id: "billing",
     heading: "Billing",
     paragraphs: [
-      "CardFlip is $9.99 per month, including 500 scans each month. Payment runs through Stripe; CardFlip never sees your card number.",
+      "CardFlip is $9.99 per month with 500 scans, or Pro at $24.99 per month with 2,000. Payment runs through Stripe; CardFlip never sees your card number.",
       "Cancel any time from the billing portal in your account page — you keep access until the end of the period you've paid for.",
     ],
   },

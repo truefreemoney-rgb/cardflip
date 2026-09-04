@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
-import { fetchSubscription, verifyWebhook } from "@/lib/server/stripe";
+import { fetchSubscription, verifyWebhook, planForPrice } from "@/lib/server/stripe";
 import {
   findUserById,
   findUserByStripeCustomer,
@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
       if (user && subscriptionId) {
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const sub = await fetchSubscription(subscriptionId);
-        await setSubscription(user.id, sub.status, sub.periodEnd);
-        console.info(`stripe: ${user.email} subscribed (${sub.status})`);
+        await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan);
+        console.info(`stripe: ${user.email} subscribed (${sub.status}, ${sub.plan})`);
         // Welcome once, on the not-subscribed -> subscribed edge (`user` was
         // read before setSubscription, so a retried event sees "active" and
         // skips). Never let a mail hiccup 500 the webhook into a Stripe retry.
@@ -58,10 +58,13 @@ export async function POST(req: NextRequest) {
       if (user) {
         const deleted = event.type === "customer.subscription.deleted";
         const status = deleted ? "canceled" : typeof obj.status === "string" ? obj.status : null;
-        const items = obj.items as { data?: { current_period_end?: number }[] } | undefined;
-        const end = items?.data?.[0]?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;
-        await setSubscription(user.id, status, end ? end * 1000 : null);
-        console.info(`stripe: ${user.email} subscription ${status}`);
+        const items = obj.items as { data?: { current_period_end?: number; price?: { id?: string } }[] } | undefined;
+        const item = items?.data?.[0];
+        const end = item?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;
+        // A plan switch in the billing portal arrives as .updated with the new price.
+        const plan = deleted ? undefined : planForPrice(item?.price?.id);
+        await setSubscription(user.id, status, end ? end * 1000 : null, plan);
+        console.info(`stripe: ${user.email} subscription ${status}${plan ? ` (${plan})` : ""}`);
       }
     }
     return NextResponse.json({ received: true });

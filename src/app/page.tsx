@@ -495,10 +495,10 @@ export default async function Home() {
         <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-10 pt-2 sm:pb-12 sm:pt-4">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">Start free. One plan after.</h2>
+            <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">Start free. Pay for the volume you need.</h2>
           </div>
 
-          <PlanCard className="reveal mx-auto mt-6 max-w-4xl" />
+          <PlanCard className="reveal mx-auto mt-6 max-w-6xl" />
           <p className="mt-4 text-center text-sm text-zinc-500">
             <Link href="/pricing" className="text-brand-300 hover:text-brand-200">
               What a scan is, and every billing question →

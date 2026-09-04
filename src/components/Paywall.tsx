@@ -18,11 +18,11 @@ import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
 export default function Paywall() {
   const router = useRouter();
   const { user, refresh } = useSession();
-  const [busy, setBusy] = useState<"checkout" | "portal" | "refresh" | null>(null);
+  const [busy, setBusy] = useState<"checkout" | "pro" | "portal" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const lapsed = Boolean(user?.subStatus);
 
-  async function go(kind: "checkout" | "portal", fn: () => Promise<string>) {
+  async function go(kind: "checkout" | "pro" | "portal", fn: () => Promise<string>) {
     setBusy(kind);
     setError(null);
     try {
@@ -70,12 +70,20 @@ export default function Paywall() {
         </ul>
         <button
           type="button"
-          onClick={() => go("checkout", startCheckout)}
+          onClick={() => go("checkout", () => startCheckout("standard"))}
           disabled={busy !== null}
           className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
         >
           {busy === "checkout" ? <Spinner className="h-4 w-4" /> : null}
           {busy === "checkout" ? "Opening checkout…" : lapsed ? "Resubscribe · $9.99/mo" : "Subscribe · $9.99/mo"}
+        </button>
+        <button
+          type="button"
+          onClick={() => go("pro", () => startCheckout("pro"))}
+          disabled={busy !== null}
+          className="mt-2 w-full rounded-full border border-edge px-6 py-3 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white disabled:opacity-60"
+        >
+          {busy === "pro" ? "Opening checkout…" : "Pro · $24.99/mo · 2,000 scans"}
         </button>
         {lapsed && (
           <button
