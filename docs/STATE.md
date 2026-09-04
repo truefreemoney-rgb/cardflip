@@ -23,21 +23,29 @@ source of truth — tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-03 ~11:50pm ET, session 5 end — Chris /cleared):
-(1) Chris's side first: the STRIPE PUBLIC-DETAILS errand (business address
-+ phone that aren't his home/cell, BACKLOG §0 item 1) — gate on it, then
-post-launch cadence = batch weekly. (2) If he sends MTG scan issues: pull
-the read straight from prod — scan_usage.read now stores every vision
-read (name/number/code/kind/conf) so a NO-MATCH scan is replayable without
-a photo; `npm run replay:scans <cardId>` replays rows WITH photos (Pokémon
-+ Magic), `--file img --game mtg` replays a local image. Open MTG thread:
-FF TOKENS (Hero/Bird, T-numbers) are REFUSED ON PURPOSE ("That's a token")
-— Chris was told; if he wants tokens kept as unpriced inventory, add them.
-FF ART CARD: reader flags kind=art but read the name as "Unknown" (10%) —
-tiny text along the bottom edge; needs a sharp close photo, chip now says
-so. Art Series cards (2,650, 40 sets) ARE in the mirror since tonight
-(scripts/sync-mtg-art.mjs, local + prod; EUR-only prices — BACKLOG). (3)
-Everything below is on main and deployed (last = 49fb3cb).**
+**FIRST ACTION (saved 09-04 evening ET, session 7 end — Chris /cleared):
+(0) GIT: the checkout is branch vercel-migration; local main is a stale
+pointer. ALWAYS `git push origin HEAD:main` (+ `git push origin
+vercel-migration`) and confirm `git log -1 origin/main` moved before
+saying "deploying" — on 09-04 four commits sat unpushed for an hour. (1)
+Chris's side, still open: STRIPE PUBLIC-DETAILS errand (BACKLOG §0 item 1)
+— gate on it. (2) Session 7 is all on main + deployed (last = 399d603) and
+Chris has NOT yet given yea/nay on today's UI: Inventory BINDER VIEW (grid
+default, "View: Image | Text" slide tab, tile art opens CardDetailModal with
+an Inventory aside: status/dates/actions, seller photo thumb), RepriceSheet
+for LIVE rows only ("Change price" → sheet → updates the eBay offer),
+sort by RARITY (cards.rarity column; 202/209 prod rows backfilled via
+scripts/backfill-rarity.mjs), listed panel makeover (no "just now", no
+revert link), StagedProgress trackers for reopen + publish, "Not your
+card?" lists EVERY same-name printing (species-name search, limit 200),
+watchlist tiles open instantly. Expect nits on those first. (3) 1ST EDITION
+= OWN CATALOG CARD: "-1st" twins in en_cards (939, local+prod), Base Set
+twins have TCGplayer Shadowless photos + products mapped; vision reads the
+stamp → search ?first=1 ranks the twin; prices split at source; editor has
+a swap link between printings. If Chris rescans his stamped Charizard it
+should land on "Base Set (1st Edition)" at TCGplayer's $10,000. (4) Rarity
+sort order lives in RARITY_RANK (collection/page.tsx) — extend there if a
+tier sorts wrong. Demo account Charizard is still the unlimited card.**
 
 **SESSION 6 SHIPPED (09-04, main, deployed):** LATER 09-04 — 1ST EDITION IS ITS OWN CATALOG CARD (Chris: "totally different card, totally different price, its own stock image"): scripts/sync-first-edition.mjs [--prod] wrote 939 "-1st" twins (set "<set> (1st Edition)", Base Set twins use TCGplayer Shadowless photos + products mapped so 1st Ed Holofoil prices land on them; existing 1stEdition* series moved to twins; ran local AND prod, prod refresh run too — base1-4-1st = $10,000 TCGplayer). Search ?first=1|0 (vision firstEdition) ranks twin vs unlimited; splitFirstEditionPrices keeps 1st Ed variants ONLY on twins; pokemonPriceRefresh routes 1stEdition* to twins. Editor checkbox → swap link between printings; ledger row follows the catalog card (PATCH cardName/setName/cardNumber/imageUrl/catalogCardId). isFirstEditionCard/itemFirstEdition in lib/listing are the truth. If Chris rescans the stamped Charizard it should land on Base Set (1st Edition) with the shadowless image. Inventory price is TAP-TO-EDIT on every unsold row; cards with an eBay offer go through POST /api/ebay/reprice so the LIVE LISTING changes in place (Chris: change the price here, never on eBay). 1ST EDITION IS ITS OWN PRODUCT: vision read gains `firstEdition` (stamp below-left of art, WotC sets only via canBeFirstEdition); the scan flips the editor toggle itself; cards.first_edition column persisted (PATCH accepts firstEdition), resumed, and shown as a "1st Edition" pill in Inventory; eBay comps carry the flag (query adds "1st edition", isComparable REQUIRES the stamp in titles when true and REJECTS stamped titles when false for sets that had a run); effectiveVariant falls to EBAY_VARIANT (the 1st-Ed-only asking comps) when TCGplayer has no 1st Ed line (Base Set) — the only value change, 1st Edition items only. Watchlist: tile tap opens the modal INSTANTLY (stub card from the tile + `loading` prop, resolved cards cached from the reprice pass). Chris still owes the STRIPE PUBLIC-DETAILS errand.**
 
