@@ -34,6 +34,8 @@ function formatDate(ts: number): string {
 }
 
 type Mode = "search" | "browse";
+type SearchView = "grid" | "list";
+const VIEW_KEY = "cardflip.searchView";
 
 type SortKey = "set" | "price-desc" | "price-asc" | "name" | "rarity";
 const SORTS: { value: SortKey; label: string }[] = [
@@ -109,6 +111,23 @@ export default function PriceCheckPage() {
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
+  // Image | Text for the lookups (Chris, 09-04: "need a card to list view"),
+  // same switch as Inventory, remembered per browser.
+  const [view, setView] = useState<SearchView>(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid";
+    } catch {
+      return "grid";
+    }
+  });
+  function chooseView(next: SearchView) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Private mode: the choice just doesn't stick.
+    }
+  }
   // History row whose card is being re-fetched after a click.
   const [openingId, setOpeningId] = useState<string | null>(null);
   // Search sequence: a slow older response must not overwrite a newer one
@@ -432,6 +451,45 @@ export default function PriceCheckPage() {
           </h2>
           {history.length > 0 && (
             <div className="flex items-center gap-2">
+              <div
+                role="tablist"
+                aria-label="Switch view"
+                className="relative grid h-9 w-[84px] shrink-0 grid-cols-2 rounded-full border border-edge bg-black/25 p-1 sm:w-[132px]"
+              >
+                <span
+                  aria-hidden
+                  className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-brand-500 shadow-md shadow-brand-500/30 transition-transform duration-200 ease-out ${
+                    view === "list" ? "translate-x-full" : ""
+                  }`}
+                />
+                {(["grid", "list"] as SearchView[]).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === v}
+                    aria-label={v === "grid" ? "Image view" : "Text view"}
+                    onClick={() => chooseView(v)}
+                    className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                      view === v ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {v === "grid" ? (
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                        <rect x="3" y="3" width="6" height="6" rx="1.2" />
+                        <rect x="11" y="3" width="6" height="6" rx="1.2" />
+                        <rect x="3" y="11" width="6" height="6" rx="1.2" />
+                        <rect x="11" y="11" width="6" height="6" rx="1.2" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+                        <path d="M4 5.5h12M4 10h12M4 14.5h12" />
+                      </svg>
+                    )}
+                    <span className="hidden sm:inline">{v === "grid" ? "Image" : "Text"}</span>
+                  </button>
+                ))}
+              </div>
               <input
                 value={historyQuery}
                 onChange={(e) => setHistoryQuery(e.target.value)}
@@ -447,6 +505,42 @@ export default function PriceCheckPage() {
             </div>
           )}
         </div>
+        {view === "grid" ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+            {visibleHistory.map((entry) => (
+              <CardTile
+                key={entry.id}
+                imageUrl={entry.imageUrl ?? ""}
+                name={entry.cardName}
+                subtitle={`${entry.setName} · ${entry.cardNumber}${entry.language !== "en" ? ` · ${entry.language === "ja" ? "Japanese" : "Chinese"}` : ""}`}
+                price={entry.representativePrice}
+                priceNote={formatDate(entry.checkedAt)}
+                opening={openingId === entry.id}
+                onOpen={() => void openHistoryEntry(entry)}
+                corner={
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void removeEntry(entry);
+                    }}
+                    aria-label={`Remove ${entry.cardName} from history`}
+                    title="Remove from history"
+                    className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                }
+              />
+            ))}
+            {visibleHistory.length === 0 && (
+              <p className="col-span-full rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center text-sm text-zinc-500">
+                {history.length === 0 ? "Cards you look up land here." : "Nothing matches that filter."}
+              </p>
+            )}
+          </div>
+        ) : (
         <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
           <ul className="divide-y divide-white/5">
             {visibleHistory.map((entry) => (
@@ -511,6 +605,7 @@ export default function PriceCheckPage() {
             )}
           </ul>
         </div>
+        )}
       </section>
     </main>
   );
