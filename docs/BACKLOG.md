@@ -4,6 +4,75 @@ Written 2026-08-16 from a full project audit; ticks = done that evening. Exclude
 billing (Chris: not yet). Sizes S/M/L. "(deferred)" = Chris chose to park it.
 Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
+## 0.0 FULL SWEEP (09-04 night, Chris: "any tasks, even ship not tested, everything and anything") — the one list until it's re-swept
+
+### A. Only Chris can do these (gates)
+- [ ] **Paid signup end-to-end on the LIVE site** — fresh email, burn 10 trial scans, wall, Stripe $9.99 real card, wall lifts, account shows 500/mo. Gates v1.0.0. TOP PRIORITY.
+- [ ] **Stripe public details** — business address (PO boxes rejected: UPS Store / iPostal1 / MD LLC agent) + non-personal phone. Before the first real subscriber.
+- [ ] **Open the admin console on cardflip.io once** — if Switches / Users error, the new `settings` / `help_messages` tables didn't init on prod (schema runs at process start).
+- [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
+- [ ] Anthropic console → Billing → auto-reload (1 min, optional).
+- [ ] MTG stress test — say when; ~1h pre-flight on my side first.
+- [ ] Flip the Magic switch when Magic is ready (admin → Switches).
+- [ ] MD LLC decision (also solves the Stripe address).
+- [ ] eBay app-level rate-limit increase application (takes time; before launch).
+
+### B. Shipped today, live, needs your yea/nay
+- [ ] Tutorial: 9 steps page-by-page, the robot as pointer, snarky one-liners (family-friendly version was reverted on request).
+- [ ] Robot in the header ("Help"), moods every 20–40s, poses.
+- [ ] Help chat panel (Haiku, grounded on help articles + account facts) — ask it something it should know and something it shouldn't.
+- [ ] Scanner empty state: "Scan. Price. List." + stage rotating ten real cards with the Found chip.
+- [ ] Landing hero centered on phones; hero glow no longer cut off above How it works.
+- [ ] Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
+- [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
+- [ ] Trial accounts see "Subscribe to publish on eBay" instead of the Publish button.
+- [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
+
+### C. Shipped, NOT proven on production (needs a real action to confirm)
+- [ ] Help chat's Haiku call on prod (verified only by a one-off script with the Vercel key; dev has no key).
+- [ ] Trial selling gate on prod (402 on draft/publish) — verified locally only.
+- [ ] Admin plan overrides on prod (comp/unlimited/legacy/trial) — verified locally only.
+- [ ] Admin Add account on prod — verified locally only.
+- [ ] Magic switch on prod — verified locally only.
+- [ ] Tour stamping (tour_seen_at) on prod — replay works, the once-only stamp not confirmed.
+- [ ] Verify-match gate on a live scan (needs a logged-in scan on a phone).
+- [ ] Vision printing/finish accuracy on real phone photos.
+- [ ] Welcome email on a real subscribe; wishlist dip email (SMTP prod-only); Finances call after a real sale; ended-listing sync on an API-published listing; live-offer PUT; multi-qty order.
+- [ ] Camera controls / torch positions on a real device after the HUD rezoning.
+
+### D. Code work I can do next (ranked, easiest first)
+- [ ] Delete PriceTicker (unused; Chris hates it) + dead S3/Fly backup path in lib/server/backup.ts + stale "Fly secrets" copy on the admin page.
+- [ ] Dead "demo" copy in account / EbayConnectCard / admin table.
+- [ ] .env.example drift: add TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, STRIPE_PRO_PRICE_ID, EBAY_DRAFT_SCOPE, NEXT_PUBLIC_BUILD_SHA, NEXT_PUBLIC_DEV_LOGIN*; drop ADMIN_EMAIL; note CARDFLIP_DB_PATH is scripts-only.
+- [ ] QA leftovers: signup "Already have an account" link; error focus; 32px nav targets; 134px mobile header; "Move your cursor" hidden on touch; one word for verified-unlisted; condition-change price feedback; category prompt on photo uploads; tappable Text-view rows; Inventory search by card number; set picker type-ahead.
+- [ ] Remove "Mark sold" from Live rows (keep bulk) — Chris said leave for now.
+- [ ] TOTP backup codes (lost phone = manual column clear today).
+- [ ] MTG Art Series USD prices (needs a TCGplayer product map for MTG).
+- [ ] Own eBay price series (backburner); PriceCharting (backburner); CGC cert (blocked); photo-first sealed re-add (later).
+- [ ] Queue/CSV pricing-snapshot drift vs chart rebase — only if noticed.
+
+### E. Tests that don't exist
+- [ ] Access tiers + overrides: scanTier/planOf/isComped/PAID_SWITCH_AT, appAccess, 402 paths incl. sellingGate.
+- [ ] Help chat: helpChat.ts, /api/help/chat, daily cap, rate limit (mock Anthropic).
+- [ ] Admin routes: users create/delete, access, role, reset-link, settings.
+- [ ] Billing: checkout, portal, webhook (plan from price id), welcome email.
+- [ ] Tour: /api/account/tour stamp.
+- [ ] eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
+- [ ] Component/E2E (Playwright): tour, robot, CardTile, SetBrowser, scanner stage.
+
+### F. Ops
+- [ ] MTG mirror + Pokémon set sync are manual from Chris's PC (Scryfall 429s cloud IPs).
+- [ ] Off-site backup copy (S3/Drive) on top of the nightly Turso dump.
+- [ ] Move support@ out of personal Fastmail triage.
+- [ ] Infra tiers: Vercel (now Pro) / Turso plan at 10k+ users.
+- [ ] Vercel Hobby cap note is obsolete (Pro since 09-04).
+
+### G. Pre-scale / business (unchanged from §0 PRE-SCALE)
+- [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).
+- [ ] Soft-launch cohort first, measure conversion/churn/scans before ad spend.
+- [ ] Revenue shape: dealer tier, free-tier funnel, GMV fee — after retention.
+- [ ] TCGplayer selling road (parked); eBay Marketplace Insights re-apply post-POC; eBay Listing API drafts (never filed, dropped).
+
 ## 0. CURRENT TRACK (consolidated 09-02 — full sweep of BACKLOG + STATE's WAITING-ON-CHRIS/NEXT-WORK/parked items; THIS section is the one list, sections below are detail/archive)
 
 ### Pre-launch blockers (Chris decisions)
