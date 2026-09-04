@@ -186,7 +186,7 @@ export default async function Home() {
           {/* Soft landing into the page: the tinted hero used to stop on a
               hard edge with ~9rem of dead space under it (Chris, 09-04). */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" aria-hidden />
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-10 pt-16 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-14">
+          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 pb-8 pt-12 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-10">
             <div className="flex flex-col items-start gap-6 text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 Pokémon TCG · Magic: The Gathering
@@ -298,7 +298,7 @@ export default async function Home() {
         </section>
 
         {/* =========================== How it works ========================= */}
-        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-20 pt-10 sm:pb-24 sm:pt-12">
+        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-14 pt-8 sm:pb-16 sm:pt-10">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">How it works</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
@@ -308,7 +308,7 @@ export default async function Home() {
             </h2>
           </div>
 
-          <div className="mt-12 grid gap-4 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {steps.map((step, i) => (
               <div key={step.title} className="reveal flex flex-col overflow-hidden rounded-3xl border border-edge bg-surface-1">
                 <div className="p-6 pb-0">
@@ -385,7 +385,7 @@ export default async function Home() {
         </section>
 
         {/* ============================ Bento ============================== */}
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 sm:pb-24">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Built for the pile</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
@@ -393,7 +393,7 @@ export default async function Home() {
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-6">
+          <div className="mt-8 grid gap-4 md:grid-cols-6">
             {/* Inventory */}
             <div className="reveal rounded-3xl border border-edge bg-surface-1 p-7 md:col-span-4">
               <h3 className="font-display text-xl font-semibold text-white">Inventory that looks like a binder</h3>
@@ -494,14 +494,14 @@ export default async function Home() {
         </section>
 
         {/* ============================ Pricing ============================= */}
-        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 py-20 sm:py-24">
+        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-14 pt-4 sm:pb-16 sm:pt-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">One plan. Everything in it.</h2>
           </div>
 
-          <PlanCard className="reveal mx-auto mt-10 max-w-lg" cta="Start scanning" />
-          <p className="mt-6 text-center text-sm text-zinc-500">
+          <PlanCard className="reveal mx-auto mt-8 max-w-lg" cta="Start scanning" />
+          <p className="mt-5 text-center text-sm text-zinc-500">
             <Link href="/pricing" className="text-brand-300 hover:text-brand-200">
               What a scan is, and every billing question →
             </Link>
@@ -509,11 +509,11 @@ export default async function Home() {
         </section>
 
         {/* ============================== FAQ =============================== */}
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 sm:pb-24">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-14 sm:pb-16">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Questions</p>
           </div>
-          <div className="reveal mx-auto mt-8 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
+          <div className="reveal mx-auto mt-6 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
             {faqs.map((faq) => (
               <details key={faq.q} className="group px-5 py-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white marker:content-none">
@@ -529,8 +529,8 @@ export default async function Home() {
         </section>
 
         {/* =========================== Final CTA ============================ */}
-        <section className="hero-mesh aurora grain relative overflow-hidden py-24">
-          <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-6 px-6 text-center">
+        <section className="hero-mesh aurora grain relative overflow-hidden py-16 sm:py-20">
+          <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-5 px-6 text-center">
             <h2 className="reveal font-display text-4xl font-bold text-white sm:text-6xl">
               The binder isn&apos;t going
               <br />
