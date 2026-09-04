@@ -584,6 +584,7 @@ export default function CollectionPage() {
   // Offers to watchers: the panel lists eBay-eligible listings; every send is
   // one explicit click + confirm — offers email real buyers, nothing auto-fires.
   const [offerPanel, setOfferPanel] = useState(false);
+  const [moreMenu, setMoreMenu] = useState(false);
   const [offerLoading, setOfferLoading] = useState(false);
   const [offerEligible, setOfferEligible] = useState<string[]>([]);
   const [offerNote, setOfferNote] = useState<string | null>(null);
@@ -1148,108 +1149,72 @@ export default function CollectionPage() {
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-full border border-edge bg-surface-1 p-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-                filter === f.value
-                  ? "bg-brand-500 text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        {/* Category chips (Chris, 09-04): only once a category exists. */}
-        {categories.length > 0 && (
-          <div className="flex w-full flex-wrap items-center gap-1.5 sm:order-last">
-            <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">Category</span>
-            {[
-              { value: "all", label: "All" },
-              ...categories.map((c) => ({ value: c, label: c })),
-              { value: "none", label: "Uncategorized" },
-            ].map((c) => {
-              const n =
-                c.value === "all"
-                  ? gameCards.length
-                  : c.value === "none"
-                    ? gameCards.filter((x) => x.category === null).length
-                    : gameCards.filter((x) => x.category === c.value).length;
-              return (
-                <button
-                  key={c.value}
-                  onClick={() => {
-                    setCategory(c.value);
-                    setSelected(new Set());
-                  }}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    category === c.value
-                      ? "border-brand-400 bg-brand-500/15 text-white"
-                      : "border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
-                  }`}
-                >
-                  {c.label}
-                  <span className={category === c.value ? "text-brand-200" : "text-zinc-600"}>{n}</span>
-                </button>
-              );
-            })}
+      {/* Toolbar (Chris, 09-04: the stacked rows were "an amazing mess"):
+          ONE panel, three tight rows — search + view + sort + ⋯ menu; status
+          filter; category chips. Rows scroll sideways on a phone instead of
+          wrapping into a stack. Export CSV / Offer to watchers live in ⋯. */}
+      <div className="rounded-2xl border border-edge bg-surface-1 p-2 sm:p-3">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <svg viewBox="0 0 20 20" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <circle cx="9" cy="9" r="5.5" />
+              <path d="M13.5 13.5 17 17" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              aria-label="Filter cards by name or set"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or set"
+              className="h-10 w-full rounded-full border border-edge bg-black/25 pl-9 pr-3 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:h-9 sm:text-sm"
+            />
           </div>
-        )}
-        {/* Wraps on a phone: without it the filter box was squeezed to two
-            letters between the sort select and Export CSV (Chris, 09-02). */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Slide tab (Chris, 09-04: "Switch View — Image or Text"): the
-              thumb slides under the chosen side so the state reads at a glance. */}
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">View</span>
-            <div
-              role="tablist"
-              aria-label="Switch view"
-              className="relative grid h-9 w-[152px] grid-cols-2 rounded-full border border-edge bg-surface-1 p-1"
-            >
-              <span
-                aria-hidden
-                className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-brand-500 shadow-md shadow-brand-500/30 transition-transform duration-200 ease-out ${
-                  view === "list" ? "translate-x-full" : ""
+          {/* Slide tab (Chris, 09-04: "Switch View — Image or Text"): icons
+              only on a phone, labels from sm up. */}
+          <div
+            role="tablist"
+            aria-label="Switch view"
+            className="relative grid h-10 w-[84px] shrink-0 grid-cols-2 rounded-full border border-edge bg-black/25 p-1 sm:h-9 sm:w-[152px]"
+          >
+            <span
+              aria-hidden
+              className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-brand-500 shadow-md shadow-brand-500/30 transition-transform duration-200 ease-out ${
+                view === "list" ? "translate-x-full" : ""
+              }`}
+            />
+            {(["grid", "list"] as InventoryView[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                aria-label={v === "grid" ? "Image view" : "Text view"}
+                onClick={() => chooseView(v)}
+                className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  view === v ? "text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
-              />
-              {(["grid", "list"] as InventoryView[]).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === v}
-                  onClick={() => chooseView(v)}
-                  className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    view === v ? "text-white" : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {v === "grid" ? (
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-                      <rect x="3" y="3" width="6" height="6" rx="1.2" />
-                      <rect x="11" y="3" width="6" height="6" rx="1.2" />
-                      <rect x="3" y="11" width="6" height="6" rx="1.2" />
-                      <rect x="11" y="11" width="6" height="6" rx="1.2" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
-                      <path d="M4 5.5h12M4 10h12M4 14.5h12" />
-                    </svg>
-                  )}
-                  {v === "grid" ? "Image" : "Text"}
-                </button>
-              ))}
-            </div>
+              >
+                {v === "grid" ? (
+                  <svg viewBox="0 0 20 20" className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                    <rect x="3" y="3" width="6" height="6" rx="1.2" />
+                    <rect x="11" y="3" width="6" height="6" rx="1.2" />
+                    <rect x="3" y="11" width="6" height="6" rx="1.2" />
+                    <rect x="11" y="11" width="6" height="6" rx="1.2" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 20 20" className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+                    <path d="M4 5.5h12M4 10h12M4 14.5h12" />
+                  </svg>
+                )}
+                <span className="hidden sm:inline">{v === "grid" ? "Image" : "Text"}</span>
+              </button>
+            ))}
           </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             aria-label="Sort cards"
-            className="shrink-0 rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none"
+            className="h-10 shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9"
           >
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -1257,30 +1222,111 @@ export default function CollectionPage() {
               </option>
             ))}
           </select>
-          <input
-            type="search"
-            aria-label="Filter cards by name or set"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name or set"
-            className="min-w-[10rem] flex-1 rounded-full border border-edge bg-surface-1 px-4 py-2 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:max-w-xs sm:text-sm"
-          />
-          <button
-            onClick={exportCsv}
-            disabled={cards.length === 0}
-            className="shrink-0 rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Export CSV
-          </button>
-          {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
+          <div className="relative shrink-0">
             <button
-              onClick={() => (offerPanel ? setOfferPanel(false) : void openOfferPanel())}
-              className="shrink-0 rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+              type="button"
+              aria-label="More actions"
+              aria-expanded={moreMenu}
+              onClick={() => setMoreMenu((v) => !v)}
+              className={`flex h-10 w-10 items-center justify-center rounded-full border transition sm:h-9 sm:w-9 ${
+                moreMenu ? "border-edge-strong bg-white/10 text-white" : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"
+              }`}
             >
-              Offer to watchers
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden>
+                <circle cx="4.5" cy="10" r="1.6" />
+                <circle cx="10" cy="10" r="1.6" />
+                <circle cx="15.5" cy="10" r="1.6" />
+              </svg>
             </button>
-          )}
+            {moreMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMoreMenu(false)} />
+                <div role="menu" className="absolute right-0 z-40 mt-2 w-52 overflow-hidden rounded-xl border border-edge bg-surface-2 py-1 shadow-2xl shadow-black/60">
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMoreMenu(false);
+                      exportCsv();
+                    }}
+                    disabled={cards.length === 0}
+                    className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Export CSV
+                  </button>
+                  {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setMoreMenu(false);
+                        if (offerPanel) setOfferPanel(false);
+                        else void openOfferPanel();
+                      }}
+                      className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5 hover:text-white"
+                    >
+                      {offerPanel ? "Close offers" : "Offer to watchers"}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max items-center gap-1 rounded-full bg-black/25 p-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                  filter === f.value ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Category chips (Chris, 09-04): only once a category exists. */}
+        {categories.length > 0 && (
+          <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex w-max items-center gap-1.5">
+              <svg viewBox="0 0 20 20" className="mr-0.5 h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+                <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h3.4l1.6 1.6h6A1.5 1.5 0 0 1 17 8.1v6.4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-8Z" />
+              </svg>
+              {[
+                { value: "all", label: "All" },
+                ...categories.map((c) => ({ value: c, label: c })),
+                { value: "none", label: "Uncategorized" },
+              ].map((c) => {
+                const n =
+                  c.value === "all"
+                    ? gameCards.length
+                    : c.value === "none"
+                      ? gameCards.filter((x) => x.category === null).length
+                      : gameCards.filter((x) => x.category === c.value).length;
+                return (
+                  <button
+                    key={c.value}
+                    onClick={() => {
+                      setCategory(c.value);
+                      setSelected(new Set());
+                    }}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      category === c.value
+                        ? "border-brand-400 bg-brand-500/15 text-white"
+                        : "border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
+                    }`}
+                  >
+                    {c.label}
+                    <span className={category === c.value ? "text-brand-200" : "text-zinc-600"}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {offerPanel && (
@@ -1442,6 +1488,7 @@ export default function CollectionPage() {
               aria-label="Select all shown cards"
             />
             Select all
+            <span className="text-xs text-zinc-600">· {visible.length} shown</span>
           </label>
           {selected.size > 0 && (() => {
             const selCards = cards.filter((c) => selected.has(c.id));
