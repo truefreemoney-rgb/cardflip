@@ -374,21 +374,29 @@ export default function CollectionPage() {
     setDetail((d) => (d?.id === card.id ? { id: card.id, catalog: found ?? d.catalog, loading: false } : d));
   }
 
-  /** The Inventory half of the detail view: this copy's status, dates and actions. */
+  /** The Inventory half of the detail view: this copy's status, price, facts
+   *  and actions. Makeover 09-04 (Chris: "kinda sloppy"): status header →
+   *  price hero → facts strip → one primary action, quiet secondaries. */
   function renderDetailAside(card: ServerCard) {
     const live = isLive(card);
     const ended = isEnded(card);
     const sold = card.status === "sold";
     const draft = card.status === "ready";
     const href = resumeHrefFor(card);
-    const primary = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white transition";
-    const quiet = "inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
-    // The eBay price leads the facts (Chris, 09-04: it was buried in the
-    // status sentence). Label follows the copy's state.
+    const primary = "inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white transition";
+    const quiet = "inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
     const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : "Suggested price";
     const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
+    const note = sold
+      ? null
+      : live
+        ? "Awaiting sale — flips to Sold on its own when eBay reports the order."
+        : ended
+          ? `Ended ${card.ebayEndedAt ? formatDate(card.ebayEndedAt) : ""} without a sale. Relist it, or delete the card.`
+          : card.verifiedAt
+            ? "Verified, not listed yet."
+            : "Check the match against your photo before listing.";
     const facts: [string, string][] = [
-      [priceLabel, `${priceValue.toFixed(2)}`],
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
@@ -396,67 +404,82 @@ export default function CollectionPage() {
       ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
       ...(sold && card.soldAt ? ([["Sold", formatDate(card.soldAt)]] as [string, string][]) : []),
     ];
+    const status = live ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        </span>
+        Live on eBay
+      </span>
+    ) : ended ? (
+      <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
+    ) : sold ? (
+      <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
+    ) : card.verifiedAt ? (
+      <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active draft</span>
+    ) : (
+      <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
+    );
+    const canDelete = card.status !== "listed" || ended;
     return (
-      <div className="mt-4 rounded-xl border border-edge bg-surface-1 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {live ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live on eBay
-            </span>
-          ) : ended ? (
-            <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
-          ) : sold ? (
-            <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
-          ) : card.verifiedAt ? (
-            <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active draft</span>
-          ) : (
-            <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
-          )}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-edge bg-surface-1">
+        {/* Status header */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-edge px-4 py-3">
+          {status}
           {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
             <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
           )}
           {card.matchDoubt && (
-            <span className="rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">⚠ {card.matchDoubt}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">
+              <span aria-hidden>⚠</span> {card.matchDoubt}
+            </span>
           )}
         </div>
 
-        <p className="mt-3 text-sm text-zinc-300">
-          {sold && card.soldPrice != null ? (
-            <>
-              Sold for <span className="font-semibold text-white">${card.soldPrice.toFixed(2)}</span>
-              {" · "}net <span className="font-semibold text-emerald-400">${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}</span>
-              <span className="text-zinc-500"> after {card.soldFees != null ? "eBay fees" : "estimated fees"}</span>
-            </>
-          ) : live ? (
-            <>
-              Listed at <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
-              <span className="text-zinc-500"> · awaiting sale — flips to Sold on its own when eBay reports the order</span>
-            </>
-          ) : ended ? (
-            <>
-              Ended {card.ebayEndedAt ? formatDate(card.ebayEndedAt) : ""} without a sale at{" "}
-              <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
-            </>
-          ) : (
-            <>
-              Suggested price <span className="font-semibold text-white">${card.price.toFixed(2)}</span>
-              <span className="text-zinc-500">
-                {card.verifiedAt ? " · verified, not listed yet" : " · check the match against your photo before listing"}
+        {/* Price hero */}
+        <div className="px-4 pb-4 pt-4">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className={`font-display text-3xl font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
+              ${priceValue.toFixed(2)}
+            </span>
+            {sold && card.soldPrice != null && (
+              <span className="text-sm text-zinc-400">
+                net <span className="font-semibold text-emerald-400">${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}</span>
+                {card.soldFees != null ? " after eBay fees" : " after estimated fees"}
               </span>
-            </>
-          )}
-        </p>
+            )}
+            {live && card.ebayOfferId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDetail(null);
+                  setPriceSheet(card.id);
+                }}
+                className="text-sm font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
+              >
+                Change price
+              </button>
+            )}
+          </div>
+          {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
+        </div>
 
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        {/* Facts strip */}
+        <dl className="grid grid-cols-3 gap-px border-y border-edge bg-edge">
           {facts.map(([label, value]) => (
-            <div key={label} className="min-w-0">
+            <div key={label} className="min-w-0 bg-surface-1 px-4 py-2.5">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</dt>
-              <dd className={`truncate text-sm ${label === priceLabel ? "font-semibold text-white" : "text-zinc-200"}`}>{value}</dd>
+              <dd className="truncate text-sm text-zinc-100">{value}</dd>
             </div>
           ))}
+          {facts.length % 3 !== 0 &&
+            Array.from({ length: 3 - (facts.length % 3) }).map((_, i) => <div key={`pad-${i}`} className="bg-surface-1" />)}
         </dl>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* Actions: one primary, then the quiet row */}
+        <div className="flex flex-col gap-2 p-4">
           {draft && card.kind !== "sealed" && (
             <Link href={href} className={`${primary} ${card.verifiedAt ? "bg-brand-500 hover:bg-brand-400" : "bg-amber-400 !text-black hover:bg-amber-300"}`}>
               {card.verifiedAt ? "Build the listing →" : "Verify match on the listing page →"}
@@ -466,30 +489,6 @@ export default function CollectionPage() {
             <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={`${primary} bg-ebay hover:bg-ebay-hover`}>
               View on eBay ↗
             </a>
-          )}
-          {live && card.ebayOfferId && (
-            <button
-              type="button"
-              onClick={() => {
-                setDetail(null);
-                setPriceSheet(card.id);
-              }}
-              className={quiet}
-            >
-              Change price
-            </button>
-          )}
-          {live && (
-            <button
-              type="button"
-              onClick={() => {
-                setDetail(null);
-                void endListing(card);
-              }}
-              className={quiet}
-            >
-              End auction
-            </button>
           )}
           {ended && (
             <button
@@ -503,22 +502,38 @@ export default function CollectionPage() {
               Relist →
             </button>
           )}
-          {sold && card.ebayListingUrl && (
-            <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
-              View the sale on eBay ↗
-            </a>
-          )}
-          {(card.status !== "listed" || ended) && (
-            <button
-              type="button"
-              onClick={() => {
-                setDetail(null);
-                void remove(card);
-              }}
-              className="inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
-            >
-              Delete
-            </button>
+          {(live || (sold && card.ebayListingUrl) || canDelete) && (
+            <div className="flex gap-2">
+              {live && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetail(null);
+                    void endListing(card);
+                  }}
+                  className={quiet}
+                >
+                  End auction
+                </button>
+              )}
+              {sold && card.ebayListingUrl && (
+                <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
+                  View the sale on eBay ↗
+                </a>
+              )}
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetail(null);
+                    void remove(card);
+                  }}
+                  className="inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
