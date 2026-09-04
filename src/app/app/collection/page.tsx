@@ -890,32 +890,48 @@ export default function CollectionPage() {
         {/* Wraps on a phone: without it the filter box was squeezed to two
             letters between the sort select and Export CSV (Chris, 09-02). */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex shrink-0 overflow-hidden rounded-full border border-edge bg-surface-1" role="group" aria-label="View">
-            {(["grid", "list"] as InventoryView[]).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => chooseView(v)}
-                aria-pressed={view === v}
-                title={v === "grid" ? "Binder view" : "List view"}
-                className={`flex h-9 w-9 items-center justify-center transition ${
-                  view === v ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"
+          {/* Slide tab (Chris, 09-04: "Switch View — Image or Text"): the
+              thumb slides under the chosen side so the state reads at a glance. */}
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">View</span>
+            <div
+              role="tablist"
+              aria-label="Switch view"
+              className="relative grid h-9 w-[152px] grid-cols-2 rounded-full border border-edge bg-surface-1 p-1"
+            >
+              <span
+                aria-hidden
+                className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-brand-500 shadow-md shadow-brand-500/30 transition-transform duration-200 ease-out ${
+                  view === "list" ? "translate-x-full" : ""
                 }`}
-              >
-                {v === "grid" ? (
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-                    <rect x="3" y="3" width="6" height="6" rx="1.2" />
-                    <rect x="11" y="3" width="6" height="6" rx="1.2" />
-                    <rect x="3" y="11" width="6" height="6" rx="1.2" />
-                    <rect x="11" y="11" width="6" height="6" rx="1.2" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
-                    <path d="M4 5.5h12M4 10h12M4 14.5h12" />
-                  </svg>
-                )}
-              </button>
-            ))}
+              />
+              {(["grid", "list"] as InventoryView[]).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === v}
+                  onClick={() => chooseView(v)}
+                  className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    view === v ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {v === "grid" ? (
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                      <rect x="3" y="3" width="6" height="6" rx="1.2" />
+                      <rect x="11" y="3" width="6" height="6" rx="1.2" />
+                      <rect x="3" y="11" width="6" height="6" rx="1.2" />
+                      <rect x="11" y="11" width="6" height="6" rx="1.2" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+                      <path d="M4 5.5h12M4 10h12M4 14.5h12" />
+                    </svg>
+                  )}
+                  {v === "grid" ? "Image" : "Text"}
+                </button>
+              ))}
+            </div>
           </div>
           <select
             value={sort}
