@@ -426,18 +426,22 @@ export default function WishlistPage() {
           </p>
         </div>
         {items.length > 0 && (
-          <div className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1">
+          // Two numbers people can read (Chris, 09-03: "what does when
+          // saved mean"): how many, and what they're worth now — with the
+          // move since they were saved as a chip, only when there is one.
+          <div className="flex items-center divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1">
             <div className="px-4 py-2">
               <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</p>
               <p className="font-display text-lg font-semibold text-white">{items.length}</p>
             </div>
             <div className="px-4 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Now</p>
-              <p className="font-display text-lg font-semibold text-emerald-400">${nowTotal.toFixed(2)}</p>
-            </div>
-            <div className="px-4 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">When saved</p>
-              <p className="font-display text-lg font-semibold text-zinc-300">${total.toFixed(2)}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</p>
+              <p className="flex items-baseline gap-2">
+                <span className="font-display text-lg font-semibold text-emerald-400">${nowTotal.toFixed(2)}</span>
+                {Math.abs(nowTotal - total) >= 1 && (
+                  <PriceDelta saved={total} now={nowTotal} />
+                )}
+              </p>
             </div>
           </div>
         )}
