@@ -3,6 +3,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
+import PlanCard from "@/components/PlanCard";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
@@ -134,14 +135,6 @@ function Brackets() {
       <span className={`${c} bottom-2 left-2 rounded-bl-md border-b-2 border-l-2`} aria-hidden />
       <span className={`${c} bottom-2 right-2 rounded-br-md border-b-2 border-r-2`} aria-hidden />
     </>
-  );
-}
-
-function Check() {
-  return (
-    <svg viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 10.5l4 4 8-9" />
-    </svg>
   );
 }
 
@@ -504,45 +497,12 @@ export default async function Home() {
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">One plan. Everything in it.</h2>
           </div>
 
-          <div className="reveal foil-edge relative mx-auto mt-10 max-w-lg overflow-hidden rounded-3xl p-8 [--foil-fill:#0b0d13] sm:p-10">
-            <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 translate-x-1/3 -translate-y-1/3 rounded-full bg-brand-500/25 blur-3xl" aria-hidden />
-            <div className="relative">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="font-display text-lg font-semibold text-white">CardFlip</p>
-                  <p className="mt-1 text-sm text-zinc-500">500 scans a month</p>
-                </div>
-                <p className="text-right">
-                  <span className="font-display text-5xl font-bold tracking-tight text-white">$9.99</span>
-                  <span className="text-sm text-zinc-500">/month</span>
-                </p>
-              </div>
-
-              <ul className="mt-8 space-y-3 text-sm text-zinc-300">
-                {[
-                  "500 card scans a month, camera or photos",
-                  "Card reading with condition and 1st Edition detection",
-                  "Live TCGplayer market price for the exact printing and variant",
-                  "eBay listings written, published and repriced from CardFlip",
-                  "Inventory with categories, sort by value or rarity, sales tracking",
-                  "Watchlist with price alerts and 90-day history",
-                ].map((line) => (
-                  <li key={line} className="flex items-start gap-2.5">
-                    <Check />
-                    {line}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/signup"
-                className="sheen mt-8 block w-full rounded-full bg-brand-500 px-7 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
-              >
-                Start scanning
-              </Link>
-              <p className="mt-3 text-center text-xs text-zinc-500">Cancel any time. You keep 100% of every eBay payout.</p>
-            </div>
-          </div>
+          <PlanCard className="reveal mx-auto mt-10 max-w-lg" cta="Start scanning" />
+          <p className="mt-6 text-center text-sm text-zinc-500">
+            <Link href="/pricing" className="text-brand-300 hover:text-brand-200">
+              What a scan is, and every billing question →
+            </Link>
+          </p>
         </section>
 
         {/* ============================== FAQ =============================== */}
