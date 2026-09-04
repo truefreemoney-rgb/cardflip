@@ -1529,8 +1529,8 @@ export default function CollectionPage() {
                   </span>
                   <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
                     {sold && card.soldPrice != null
-                      ? `${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}`
-                      : `${card.price.toFixed(2)}`}
+                      ? `$${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}`
+                      : `$${card.price.toFixed(2)}`}
                   </span>
                 </span>
               </>
@@ -1552,9 +1552,8 @@ export default function CollectionPage() {
                 >
                   {art}
                   {/* Always-visible affordance (Chris, 09-04: nothing said the
-                      art was tappable). Bottom-right so it clears the status
-                      pills; brightens on hover, and the button is the hit area. */}
-                  <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-100 shadow backdrop-blur transition group-hover:bg-brand-500/90 group-hover:text-white">
+                      art was tappable). Right edge, above the name/price sticker; brightens on hover, and the button is the hit area. */}
+                  <span className="pointer-events-none absolute bottom-16 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-100 shadow backdrop-blur transition group-hover:bg-brand-500/90 group-hover:text-white">
                     {live ? "View listing" : draft ? "View draft" : "View card"}
                     <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 7 9" /></svg>
                   </span>
