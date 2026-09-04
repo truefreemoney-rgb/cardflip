@@ -293,7 +293,12 @@ export async function getFeaturedCard(): Promise<PokemonCard | null> {
         c.prices.some((p) => p.source === "tcgplayer" && (p.market ?? 0) > 20),
     );
 
-    return priced[0] ?? cards.find((c) => c.imageLarge) ?? null;
+    // The dearest real one leads the homepage (09-04 makeover: "worth
+    // money" wants a card that is) — every candidate is a live-priced
+    // catalog row, so this is a choice, not a fabrication.
+    const value = (c: PokemonCard) =>
+      Math.max(0, ...c.prices.filter((p) => p.source === "tcgplayer").map((p) => p.market ?? 0));
+    return priced.sort((x, y) => value(y) - value(x))[0] ?? cards.find((c) => c.imageLarge) ?? null;
   } catch {
     return null;
   }
