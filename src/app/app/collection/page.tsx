@@ -383,7 +383,12 @@ export default function CollectionPage() {
     const href = resumeHrefFor(card);
     const primary = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white transition";
     const quiet = "inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
+    // The eBay price leads the facts (Chris, 09-04: it was buried in the
+    // status sentence). Label follows the copy's state.
+    const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : "Suggested price";
+    const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
     const facts: [string, string][] = [
+      [priceLabel, `${priceValue.toFixed(2)}`],
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
@@ -446,7 +451,7 @@ export default function CollectionPage() {
           {facts.map(([label, value]) => (
             <div key={label} className="min-w-0">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</dt>
-              <dd className="truncate text-sm text-zinc-200">{value}</dd>
+              <dd className={`truncate text-sm ${label === priceLabel ? "font-semibold text-white" : "text-zinc-200"}`}>{value}</dd>
             </div>
           ))}
         </dl>
