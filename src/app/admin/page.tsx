@@ -127,7 +127,7 @@ export default async function AdminPage() {
         {o.system.adminDefaults && (
           <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-xs text-amber-200">
             The console is using the built-in operator credentials. Set <code className="rounded bg-black/30 px-1">ADMIN_PANEL_USER</code> and{" "}
-            <code className="rounded bg-black/30 px-1">ADMIN_PANEL_PASSWORD</code> as Fly secrets before real users are on the site.
+            <code className="rounded bg-black/30 px-1">ADMIN_PANEL_PASSWORD</code> in the Vercel project&apos;s environment variables before real users are on the site.
           </p>
         )}
 

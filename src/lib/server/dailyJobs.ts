@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { backupConfigured, runNightlyBackup } from "@/lib/server/backup";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
@@ -15,7 +14,7 @@ import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/po
  *   2. Pokémon points for every mapped card from TCGCSV (TCGplayer daily)
  *   3. Pokémon sweep of held / recently looked-up cards via pokemontcg.io
  *      (adds Cardmarket EUR and covers cards TCGCSV doesn't map)
- *   4. SQLite backup to the Tigris bucket (lib/server/backup.ts)
+ *   4. (Backups moved off the app: scripts/backup-turso.mjs dumps Turso nightly from Chris's PC.)
  *   5. eBay sales sweep for every seller with live listings, so sold cards
  *      flip even when the seller doesn't open the app (lib/server/ebayOrders.ts)
  *
@@ -68,7 +67,6 @@ export interface DailyResult {
   mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
   pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
-  backup?: { key: string; bytes: number } | { error: string } | { skipped: string };
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
   ebayFees?: { sellers: number; filled: number } | { error: string };
   wishlistAlerts?: { checked: number; sent: number } | { error: string };
@@ -197,17 +195,6 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
   try {
     result.mtg = await runMtgStep();
     Object.assign(result, await runPokemonSteps(now));
-    try {
-      if (backupConfigured()) {
-        const r = await runNightlyBackup();
-        result.backup = { key: r.key, bytes: r.bytes };
-      } else {
-        result.backup = { skipped: "AWS_*/BUCKET_NAME not set — flyctl storage create" };
-      }
-    } catch (err) {
-      result.backup = { error: err instanceof Error ? err.message : String(err) };
-      console.error("daily: backup failed:", err);
-    }
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
     // failed download leaves it due again on the next trigger.
