@@ -183,7 +183,10 @@ export default async function Home() {
         <section className="hero-mesh aurora grain relative overflow-hidden">
           <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden />
 
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-16 pt-16 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-24">
+          {/* Soft landing into the page: the tinted hero used to stop on a
+              hard edge with ~9rem of dead space under it (Chris, 09-04). */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" aria-hidden />
+          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-10 pt-16 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-14">
             <div className="flex flex-col items-start gap-6 text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 Pokémon TCG · Magic: The Gathering
@@ -295,7 +298,7 @@ export default async function Home() {
         </section>
 
         {/* =========================== How it works ========================= */}
-        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 py-20 sm:py-24">
+        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-20 pt-10 sm:pb-24 sm:pt-12">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">How it works</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
