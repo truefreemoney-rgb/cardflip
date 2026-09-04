@@ -36,6 +36,8 @@ export interface User {
   tourSeenAt: number | null;
   /** Admin plan override; NULL = automatic (Stripe / legacy / trial). */
   accessOverride: AccessOverride | null;
+  /** sha256 of each unused two-step backup code. */
+  totpBackupCodes: string[];
 }
 
 interface UserRow {
@@ -60,6 +62,17 @@ interface UserRow {
   auto_offer_message: string | null;
   tour_seen_at: number | null;
   access_override: string | null;
+  totp_backup_codes: string | null;
+}
+
+function parseBackupCodes(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 function fromRow(row: UserRow): User {
@@ -87,6 +100,7 @@ function fromRow(row: UserRow): User {
     accessOverride: (ACCESS_OVERRIDES as readonly string[]).includes(row.access_override ?? "")
       ? (row.access_override as AccessOverride)
       : null,
+    totpBackupCodes: parseBackupCodes(row.totp_backup_codes),
   };
 }
 
@@ -220,7 +234,12 @@ export async function markTourSeen(userId: string): Promise<void> {
 }
 
 export async function disableTotp(userId: string): Promise<void> {
-  await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL WHERE id = ?").run(userId);
+  await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_backup_codes = NULL WHERE id = ?").run(userId);
+}
+
+/** Replace the unused backup-code hashes (fresh set, or one fewer after a use). */
+export async function setTotpBackupCodes(userId: string, hashes: string[]): Promise<void> {
+  await db.prepare("UPDATE users SET totp_backup_codes = ? WHERE id = ?").run(JSON.stringify(hashes), userId);
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
@@ -277,6 +296,7 @@ export async function createUser(
     autoOfferMessage: null,
     tourSeenAt: null,
     accessOverride: null,
+    totpBackupCodes: [],
   };
 }
 
@@ -409,6 +429,8 @@ export interface PublicUser {
   appAccess: boolean;
   /** First-login tutorial done; null = the scanner shows it next visit. */
   tourSeenAt: number | null;
+  /** Unused two-step backup codes left (0 when two-step is off). */
+  totpBackupCodesLeft: number;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -422,5 +444,6 @@ export function toPublicUser(user: User): PublicUser {
     tier: scanTier(user),
     appAccess: canUseApp(user),
     tourSeenAt: user.tourSeenAt ?? null,
+    totpBackupCodesLeft: totpEnabled(user) ? user.totpBackupCodes.length : 0,
   };
 }

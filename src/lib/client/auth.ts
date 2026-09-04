@@ -27,6 +27,8 @@ export interface SessionUser {
   tourSeenAt?: number | null;
   /** Site switches as they apply to this viewer (admins see everything). */
   features?: { magic: boolean };
+  /** Unused two-step backup codes left. */
+  totpBackupCodesLeft?: number;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

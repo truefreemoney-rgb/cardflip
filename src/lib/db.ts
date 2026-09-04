@@ -518,6 +518,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // Admin plan override (09-04): NULL = automatic; else one of
     // users.ts ACCESS_OVERRIDES (unlimited / comp_standard / comp_pro / legacy / trial).
     "access_override TEXT",
+    // Two-step backup codes (09-04): JSON array of sha256 hex of unused codes.
+    "totp_backup_codes TEXT",
   ]],
 ];
 

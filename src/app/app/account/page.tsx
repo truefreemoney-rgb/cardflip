@@ -15,6 +15,7 @@ import {
   openBillingPortal,
   startCheckout,
   signOutOtherDevices,
+  totpBackupCodes,
   totpConfirm,
   totpDisable,
   totpSetup,
@@ -269,6 +270,41 @@ function AccountSettings({
   const [totpOffPw, setTotpOffPw] = useState("");
   const [totpBusy, setTotpBusy] = useState(false);
   const [totpMsg, setTotpMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // Backup codes (09-04): shown once after setup or a regenerate; the
+  // server only keeps hashes, so closing the panel loses them on purpose.
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [backupPw, setBackupPw] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [codesCopied, setCodesCopied] = useState(false);
+  function copyCodes() {
+    if (!backupCodes) return;
+    navigator.clipboard
+      .writeText(backupCodes.join("\n"))
+      .then(() => {
+        setCodesCopied(true);
+        setTimeout(() => setCodesCopied(false), 2000);
+      })
+      .catch(() => window.prompt("Copy your backup codes:", backupCodes.join(" ")));
+  }
+  async function regenerateBackupCodes(e: FormEvent) {
+    e.preventDefault();
+    setBackupBusy(true);
+    setBackupMsg(null);
+    try {
+      const r = await totpBackupCodes(backupPw);
+      setBackupCodes(r.backupCodes);
+      setBackupOpen(false);
+      setBackupPw("");
+      setUser({ ...user, totpBackupCodesLeft: r.backupCodes.length });
+      setBackupMsg({ kind: "ok", text: "New codes. The old ones no longer work." });
+    } catch (err) {
+      setBackupMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't make new codes" });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
 
   async function startTotp() {
     setTotpBusy(true);
@@ -288,10 +324,11 @@ function AccountSettings({
     setTotpBusy(true);
     setTotpMsg(null);
     try {
-      await totpConfirm(totpCode.trim());
+      const r = await totpConfirm(totpCode.trim());
       setTotpEnroll(null);
       setTotpCode("");
-      setUser({ ...user, totpEnabled: true });
+      setBackupCodes(r.backupCodes);
+      setUser({ ...user, totpEnabled: true, totpBackupCodesLeft: r.backupCodes.length });
       setTotpMsg({ kind: "ok", text: "Two-step verification is on. You'll be asked for a code at every sign-in." });
     } catch (err) {
       setTotpMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't confirm the code" });
@@ -308,7 +345,8 @@ function AccountSettings({
       await totpDisable(totpOffPw);
       setTotpOffOpen(false);
       setTotpOffPw("");
-      setUser({ ...user, totpEnabled: false });
+      setBackupCodes(null);
+      setUser({ ...user, totpEnabled: false, totpBackupCodesLeft: 0 });
       setTotpMsg({ kind: "ok", text: "Two-step verification is off." });
     } catch (err) {
       setTotpMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't turn it off" });
@@ -629,6 +667,59 @@ function AccountSettings({
           ) : null}
           {totpMsg && <Notice kind={totpMsg.kind}>{totpMsg.text}</Notice>}
         </Row>
+
+        {user.totpEnabled && user.role !== "admin" && (
+          <Row
+            title="Backup codes"
+            status={
+              backupCodes
+                ? "Save these now — they show once. Each works one time in place of an authenticator code."
+                : `${user.totpBackupCodesLeft ?? 0} of 8 left. Use one at sign-in if your phone isn't around.`
+            }
+            action={
+              !backupOpen && !backupCodes ? (
+                <button type="button" className={rowBtn} onClick={() => { setBackupOpen(true); setBackupMsg(null); }} disabled={backupBusy}>
+                  New codes
+                </button>
+              ) : undefined
+            }
+            open={backupOpen || !!backupCodes || !!backupMsg}
+          >
+            {backupCodes ? (
+              <div className="flex flex-col gap-3">
+                <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono text-sm text-white sm:grid-cols-4">
+                  {backupCodes.map((code) => (
+                    <li key={code}>{code}</li>
+                  ))}
+                </ul>
+                <div className="flex items-center gap-3">
+                  <button type="button" className={rowBtn} onClick={copyCodes}>
+                    {codesCopied ? "Copied ✓" : "Copy all"}
+                  </button>
+                  <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => setBackupCodes(null)}>
+                    I saved them
+                  </button>
+                </div>
+              </div>
+            ) : backupOpen ? (
+              <form onSubmit={regenerateBackupCodes} className="flex flex-col gap-3">
+                <label className={labelCls}>
+                  Your password <span className="text-zinc-600">(new codes replace the old ones)</span>
+                  <input type="password" className={`${inputCls} mt-1`} value={backupPw} onChange={(e) => setBackupPw(e.target.value)} required autoComplete="current-password" disabled={backupBusy} />
+                </label>
+                <div className="flex items-center gap-3">
+                  <button type="submit" className={primaryBtn} disabled={backupBusy || !backupPw}>
+                    {backupBusy ? "Making codes…" : "Make new codes"}
+                  </button>
+                  <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setBackupOpen(false); setBackupPw(""); }} disabled={backupBusy}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+            {backupMsg && <p className={`mt-2 text-xs ${backupMsg.kind === "ok" ? "text-emerald-400" : "text-red-400"}`}>{backupMsg.text}</p>}
+          </Row>
+        )}
 
         <Row
           title="Devices"

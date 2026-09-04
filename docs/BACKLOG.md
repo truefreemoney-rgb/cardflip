@@ -46,17 +46,17 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] .env.example drift (DONE 09-04 night): add TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, STRIPE_PRO_PRICE_ID, EBAY_DRAFT_SCOPE, NEXT_PUBLIC_BUILD_SHA, NEXT_PUBLIC_DEV_LOGIN*; drop ADMIN_EMAIL; note CARDFLIP_DB_PATH is scripts-only.
 - [x] QA leftovers — DONE 09-04 night: signup Log in link; error focus; 36px nav targets; shorter phone header; hover hint hidden on touch; condition-change price note; category prompt on photo uploads; tappable Text-view rows; Inventory search by number; set picker type-ahead. (verified-unlisted chip already reads "Active".)
 - [ ] Remove "Mark sold" from Live rows (keep bulk) — Chris said leave for now.
-- [ ] TOTP backup codes (lost phone = manual column clear today).
+- [x] TOTP backup codes — DONE 09-04 night: eight one-time codes on setup (shown once, stored hashed), a code signs in in place of the authenticator, Backup codes row on Account regenerates with the password.
 - [ ] MTG Art Series USD prices (needs a TCGplayer product map for MTG).
 - [ ] Own eBay price series (backburner); PriceCharting (backburner); CGC cert (blocked); photo-first sealed re-add (later).
 - [ ] Queue/CSV pricing-snapshot drift vs chart rebase — only if noticed.
 
 ### E. Tests that don't exist
-- [ ] Access tiers + overrides: scanTier/planOf/isComped/PAID_SWITCH_AT, appAccess, 402 paths incl. sellingGate.
+- [x] Access tiers + overrides + sellingGate — test:quota extended 09-04 night; test:settings (switches, tour stamp, override column) added.
 - [ ] Help chat: helpChat.ts, /api/help/chat, daily cap, rate limit (mock Anthropic).
 - [ ] Admin routes: users create/delete, access, role, reset-link, settings.
 - [ ] Billing: checkout, portal, webhook (plan from price id), welcome email.
-- [ ] Tour: /api/account/tour stamp.
+- [x] Tour stamp — covered by test:settings (markTourSeen).
 - [ ] eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
 - [ ] Component/E2E (Playwright): tour, robot, CardTile, SetBrowser, scanner stage.
 

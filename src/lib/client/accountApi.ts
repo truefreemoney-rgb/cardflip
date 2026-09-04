@@ -121,7 +121,8 @@ async function totpAction<T>(body: Record<string, string>): Promise<T> {
 export const totpSetup = () => totpAction<TotpSetup>({ action: "setup" });
 
 /** Confirm the first code; two-step is on from the next sign-in. */
-export const totpConfirm = (code: string) => totpAction<{ ok: true }>({ action: "confirm", code });
+export const totpConfirm = (code: string) => totpAction<{ ok: true; backupCodes: string[] }>({ action: "confirm", code });
+export const totpBackupCodes = (password: string) => totpAction<{ ok: true; backupCodes: string[] }>({ action: "backup-codes", password });
 
 /** Turn two-step off (needs the account password, not a code). */
 export const totpDisable = (password: string) => totpAction<{ ok: true }>({ action: "disable", password });

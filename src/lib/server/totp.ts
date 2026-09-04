@@ -80,3 +80,28 @@ export function otpauthUrl(email: string, secret: string): string {
   const label = encodeURIComponent(`CardFlip:${email}`);
   return `otpauth://totp/${label}?secret=${secret}&issuer=CardFlip&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
 }
+
+/**
+ * Backup codes (09-04): eight one-time codes handed over when two-step is
+ * turned on, for the day the phone is gone. Stored hashed; a used code is
+ * removed. Format "xxxxx-xxxxx" from the same base32 alphabet as the
+ * secret, so there are no look-alike characters to mistype.
+ */
+export const BACKUP_CODE_COUNT = 8;
+
+export function normalizeBackupCode(input: string): string {
+  return input.replace(/[^a-z2-7]/gi, "").toUpperCase();
+}
+
+export function hashBackupCode(code: string): string {
+  return crypto.createHash("sha256").update(normalizeBackupCode(code)).digest("hex");
+}
+
+export function generateBackupCodes(): { codes: string[]; hashes: string[] } {
+  const codes: string[] = [];
+  for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
+    const raw = base32Encode(crypto.randomBytes(7)).replace(/=+$/, "").slice(0, 10);
+    codes.push(`${raw.slice(0, 5)}-${raw.slice(5, 10)}`);
+  }
+  return { codes, hashes: codes.map(hashBackupCode) };
+}

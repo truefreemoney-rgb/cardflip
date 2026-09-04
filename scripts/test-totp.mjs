@@ -7,13 +7,7 @@
  * hygiene (spaces ok, non-6-digit refused), base32 round-trip, secret
  * shape, and the otpauth URL an authenticator app enrolls from.
  */
-import {
-  base32Encode,
-  generateTotpSecret,
-  otpauthUrl,
-  totpCode,
-  verifyTotp,
-} from "../src/lib/server/totp.ts";
+import { base32Encode, generateTotpSecret, otpauthUrl, totpCode, verifyTotp, generateBackupCodes, hashBackupCode, normalizeBackupCode, BACKUP_CODE_COUNT } from "../src/lib/server/totp.ts";
 
 let failures = 0;
 function check(name, cond) {
@@ -64,6 +58,16 @@ const url = otpauthUrl("chris@example.com", s1);
 check("otpauth scheme+issuer", url.startsWith("otpauth://totp/CardFlip%3Achris%40example.com?") && url.includes("issuer=CardFlip"));
 check("otpauth carries secret", url.includes(`secret=${s1}`));
 check("otpauth standard params", url.includes("digits=6") && url.includes("period=30") && url.includes("algorithm=SHA1"));
+
+// --- backup codes (09-04) ---------------------------------------------------
+const bk = generateBackupCodes();
+check("eight codes, eight hashes", bk.codes.length === BACKUP_CODE_COUNT && bk.hashes.length === BACKUP_CODE_COUNT);
+check("codes look like xxxxx-xxxxx from the base32 alphabet", bk.codes.every((c) => /^[A-Z2-7]{5}-[A-Z2-7]{5}$/.test(c)));
+check("codes are distinct", new Set(bk.codes).size === BACKUP_CODE_COUNT);
+check("hash matches the code", bk.hashes[0] === hashBackupCode(bk.codes[0]));
+check("hash ignores case, dashes and spaces", hashBackupCode(bk.codes[0].toLowerCase().replace("-", " ")) === bk.hashes[0]);
+check("normalize strips everything but the alphabet", normalizeBackupCode(" ab-cd 23 ") === "ABCD23");
+check("two runs differ", generateBackupCodes().codes[0] !== bk.codes[0]);
 
 if (failures > 0) {
   console.error(`\n${failures} TOTP check(s) failed`);
