@@ -98,7 +98,16 @@ export async function POST(req: Request) {
     // a scan the seller already paid for.
     const [usage] = await Promise.all([
       recordScan(user),
-      recordScanUsage(user.id, VISION_MODEL, tokens).catch((err) =>
+      recordScanUsage(user.id, VISION_MODEL, tokens, {
+        game: parseGame(body?.game),
+        name: card.name,
+        number: card.cardNumber,
+        total: card.setTotal,
+        code: card.setCode,
+        art: card.artStyle,
+        kind: card.kind ?? null,
+        conf: card.confidence,
+      }).catch((err) =>
         console.error("scan_usage write failed:", err instanceof Error ? err.message : err),
       ),
     ]);

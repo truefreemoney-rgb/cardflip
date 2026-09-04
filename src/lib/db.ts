@@ -457,6 +457,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
   // Catalog id + game so a history row can reopen its card.
   ["price_checks", ["card_id TEXT", "game TEXT", "image_url TEXT"]],
+  // What vision read (name/number/code/kind/confidence, JSON) — the only
+  // trace of a scan that matched nothing, since those leave no card row or
+  // photo (09-03: an art card kept missing and there was nothing to replay).
+  ["scan_usage", ["read TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

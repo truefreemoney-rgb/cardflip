@@ -31,11 +31,17 @@ export function scanCostMicros(model: string, u: VisionUsage): number {
   return Math.round(usd * 1_000_000);
 }
 
-export async function recordScanUsage(userId: string, model: string, u: VisionUsage): Promise<void> {
+export async function recordScanUsage(
+  userId: string,
+  model: string,
+  u: VisionUsage,
+  /** The read itself (compact), so a no-match scan can still be replayed. */
+  read?: Record<string, unknown> | null,
+): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO scan_usage (id, user_id, at, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_micros)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO scan_usage (id, user_id, at, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_micros, read)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       randomUUID(),
@@ -47,7 +53,15 @@ export async function recordScanUsage(userId: string, model: string, u: VisionUs
       u.cacheReadTokens,
       u.cacheWriteTokens,
       scanCostMicros(model, u),
+      read ? JSON.stringify(read).slice(0, 2000) : null,
     );
+}
+
+/** Recent reads for one user, newest first — replay material for misses. */
+export async function recentScanReads(userId: string, limit = 20): Promise<{ at: number; read: string | null }[]> {
+  return (await db
+    .prepare("SELECT at, read FROM scan_usage WHERE user_id = ? ORDER BY at DESC LIMIT ?")
+    .all(userId, limit)) as unknown as { at: number; read: string | null }[];
 }
 
 export interface ScanSpend {
