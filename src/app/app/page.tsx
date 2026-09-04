@@ -169,6 +169,10 @@ export default function AppPage() {
     scanCategoryRef.current = scanCategory;
   }, [scanCategory]);
   const [categoryPrompt, setCategoryPrompt] = useState<{ existing: string[] } | null>(null);
+  // Asked once per camera session, AFTER the first capture (Chris, 09-04:
+  // "move it to after the picture is taken") — no gate before shooting.
+  const categoryAskedRef = useRef(false);
+  const sessionItemIdsRef = useRef<string[]>([]);
   // The item created by the camera's most recent capture, so the viewfinder
   // can show that scan's outcome live while the next card is lined up.
   const [cameraItemId, setCameraItemId] = useState<string | null>(null);
@@ -830,23 +834,33 @@ export default function AppPage() {
   }, [commit, loadEbayComps, patchItem]);
 
 
-  const openCameraNow = useCallback(() => {
+  const openCamera = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.
     setCameraItemId(null);
     // Inside the tap, so the scan sounds are allowed to play later.
     void primeScanFx();
+    categoryAskedRef.current = false;
+    sessionItemIdsRef.current = [];
     setCameraOpen(true);
   }, []);
 
-  /** Ask "which category?" first, then open the camera (Chris, 09-04). The
-   *  sound priming has to happen inside this tap too, or iOS mutes it. */
-  const openCamera = useCallback(() => {
-    void primeScanFx();
-    setCategoryPrompt({ existing: [] });
-    void fetchServerCards().then((rows) => {
-      setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
-    });
-  }, []);
+  /** First capture of a camera session: ask "which category?" over the
+   *  viewfinder while the scan runs. Later captures file silently. */
+  const onCameraCapture = useCallback(
+    (file: File) => {
+      const id = addFiles([file])[0] ?? null;
+      setCameraItemId(id);
+      if (id) sessionItemIdsRef.current.push(id);
+      if (!categoryAskedRef.current) {
+        categoryAskedRef.current = true;
+        setCategoryPrompt({ existing: [] });
+        void fetchServerCards().then((rows) => {
+          setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+        });
+      }
+    },
+    [addFiles],
+  );
 
   // Removal is undoable (Chris, 09-01 QoL pass): the ✕ used to hard-delete
   // the server card instantly — a misclick on a priced, photographed card was
@@ -1056,7 +1070,7 @@ export default function AppPage() {
         count: items.filter((item) => item.card).length,
         value: items.reduce((sum, item) => sum + (item.card ? currentPrice(item) : 0), 0),
       }}
-      onCapture={(file) => setCameraItemId(addFiles([file])[0] ?? null)}
+      onCapture={onCameraCapture}
       onClose={() => setCameraOpen(false)}
     />
   );
@@ -1379,16 +1393,21 @@ export default function AppPage() {
       {categoryPrompt && (
         <CategorySheet
           title="Which category?"
-          hint="New scans are filed here in Inventory. You can move cards later."
+          hint="This session's scans are filed here in Inventory. You can move cards later."
           categories={distinctCategories([...categoryPrompt.existing.map((c) => ({ category: c })), { category: scanCategory }])}
           current={scanCategory}
-          confirmLabel="Start scanning"
+          confirmLabel="Keep scanning"
           onClose={() => setCategoryPrompt(null)}
           onPick={(category) => {
             setScanCategory(category);
             saveCategory(category);
             setCategoryPrompt(null);
-            openCameraNow();
+            // Cards already saved this session (the scan beat the answer)
+            // follow the pick; unsaved ones read the ref at create time.
+            for (const itemId of sessionItemIdsRef.current) {
+              const it = itemsRef.current.find((i) => i.id === itemId);
+              if (it?.serverId) void updateServerCard(it.serverId, { category });
+            }
           }}
         />
       )}
