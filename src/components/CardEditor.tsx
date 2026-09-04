@@ -532,7 +532,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const alternatives: PokemonCard[] =
     allMatches?.forId === card.id ? allMatches.cards : item.candidates;
 
-  async function openAlternatives() {
+  // Arrow, not a declaration: hoisted functions do not inherit the `card`
+  // null guard above, an arrow created after it does.
+  const openAlternatives = async () => {
     setShowAlternatives(true);
     if (allMatches?.forId === card.id || allLoading) return;
     setAllLoading(true);
@@ -548,7 +550,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       merged.push(c);
     }
     setAllMatches({ forId: card.id, cards: merged });
-  }
+  };
 
   /** Switch this item to the other printing's catalog card (the "-1st" twin
    *  or the unlimited card) — a different product with its own price. */
