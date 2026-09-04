@@ -6,6 +6,13 @@ import { useSession } from "@/components/SessionProvider";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { markTourSeen, takeTourReplay } from "@/lib/client/tour";
 import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
+import type { GuideStep } from "@/lib/helpGuides";
+
+/** The help robot asks for a walkthrough: window event with the steps. */
+export const GUIDE_EVENT = "cardflip:guide";
+export function startGuide(steps: GuideStep[]): void {
+  window.dispatchEvent(new CustomEvent(GUIDE_EVENT, { detail: { steps } }));
+}
 
 /**
  * First-login tutorial: coach marks over the real app, page by page. Each
@@ -40,7 +47,7 @@ interface Step {
 
 const CARD_INPUT = 'input[placeholder^="Name or number"]';
 
-const STEPS: Step[] = [
+const TOUR: Step[] = [
   {
     path: "/app",
     sel: '[data-tour="help"]',
@@ -117,7 +124,7 @@ function readProgress(): number | null {
     const raw = sessionStorage.getItem(PROGRESS_KEY);
     if (raw == null) return null;
     const n = Number(raw);
-    return Number.isInteger(n) && n >= 0 && n < STEPS.length ? n : null;
+    return Number.isInteger(n) && n >= 0 && n < TOUR.length ? n : null;
   } catch {
     return null;
   }
@@ -142,6 +149,10 @@ export default function TourOverlay() {
   const pathname = usePathname();
   const router = useRouter();
   const [step, setStepState] = useState<number | null>(null);
+  // Guides (09-04): the help robot's walkthroughs run on this engine with
+  // their own steps; they never stamp tour_seen_at or touch the progress key.
+  const [steps, setSteps] = useState<Step[]>(TOUR);
+  const guide = steps !== TOUR;
   // Captured during the first render: the scanner page wipes its query
   // string in a mount effect, which runs before this one.
   const [urlStart] = useState(urlAsksForTour);
@@ -151,10 +162,27 @@ export default function TourOverlay() {
   const panelRef = useRef<HTMLDivElement>(null);
   const open = step !== null;
 
-  const setStep = useCallback((next: number | null) => {
-    writeProgress(next);
-    setStepState(next);
-  }, []);
+  const setStep = useCallback(
+    (next: number | null) => {
+      if (!guide) writeProgress(next);
+      setStepState(next);
+    },
+    [guide],
+  );
+
+  // A guide request from the chat: swap in its steps, start at the first,
+  // navigate if it lives on another page.
+  useEffect(() => {
+    const onGuide = (e: Event) => {
+      const detail = (e as CustomEvent<{ steps: GuideStep[] }>).detail;
+      if (!detail?.steps?.length) return;
+      setSteps(detail.steps);
+      setStepState(0);
+      if (detail.steps[0].path !== window.location.pathname) router.push(detail.steps[0].path);
+    };
+    window.addEventListener(GUIDE_EVENT, onGuide);
+    return () => window.removeEventListener(GUIDE_EVENT, onGuide);
+  }, [router]);
 
   const ready = status === "ready" && !!user && user.appAccess !== false;
 
@@ -162,7 +190,7 @@ export default function TourOverlay() {
   // account page or ?tour=1, or progress left over from a navigation/reload.
   useEffect(() => {
     if (!ready || open) return;
-    const here = STEPS.findIndex((s) => s.path === pathname);
+    const here = TOUR.findIndex((s) => s.path === pathname);
     const resume = readProgress();
     let start: number | null = null;
     if (takeTourReplay() || urlStart) {
@@ -170,7 +198,7 @@ export default function TourOverlay() {
     } else if (resume != null) {
       // Same page: pick up where it was. Another tour page: the seller
       // navigated on their own — restart from that page. Elsewhere: wait.
-      start = STEPS[resume].path === pathname ? resume : here >= 0 ? here : null;
+      start = TOUR[resume].path === pathname ? resume : here >= 0 ? here : null;
     } else if (pathname === "/app" && user?.tourSeenAt == null) {
       start = 0;
     }
@@ -181,7 +209,7 @@ export default function TourOverlay() {
   }, [ready, open, pathname, user?.tourSeenAt, urlStart, setStep]);
 
   // Between pages (Next just navigated) the card hides until the new page is up.
-  const current = open && pathname === STEPS[step].path ? STEPS[step] : null;
+  const current = open && steps[step] && pathname === steps[step].path ? steps[step] : null;
 
   // One measurement pass for the spotlight AND the card's tail, so they
   // never disagree. State only changes when the rounded numbers change
@@ -253,18 +281,22 @@ export default function TourOverlay() {
 
   const finish = useCallback(async () => {
     setStep(null);
+    if (guide) {
+      setSteps(TOUR);
+      return;
+    }
     if (user && user.tourSeenAt == null) {
       setUser({ ...user, tourSeenAt: Date.now() });
       await markTourSeen();
     }
-  }, [user, setUser, setStep]);
+  }, [guide, user, setUser, setStep]);
 
   const go = useCallback(
     (next: number) => {
       setStep(next);
-      if (STEPS[next].path !== pathname) router.push(STEPS[next].path);
+      if (steps[next].path !== pathname) router.push(steps[next].path);
     },
-    [pathname, router, setStep],
+    [steps, pathname, router, setStep],
   );
 
   useEffect(() => {
@@ -280,9 +312,9 @@ export default function TourOverlay() {
 
   if (!current || step === null) return null;
 
-  const last = step === STEPS.length - 1;
-  const nextLeavesPage = !last && STEPS[step + 1].path !== current.path;
-  const nextLabel = last ? "Bye, robot" : nextLeavesPage ? `On to ${STEPS[step + 1].title}` : "Next";
+  const last = step === steps.length - 1;
+  const nextLeavesPage = !last && steps[step + 1].path !== current.path;
+  const nextLabel = last ? (guide ? "Got it" : "Bye, robot") : nextLeavesPage ? `On to ${steps[step + 1].title}` : "Next";
   const radius = current.round ? 9999 : 14;
   const box = rect ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height, borderRadius: radius } : undefined;
 
@@ -321,7 +353,7 @@ export default function TourOverlay() {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Tutorial, step ${step + 1} of ${STEPS.length}: ${current.title}`}
+        aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${current.title}`}
         tabIndex={-1}
         className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
@@ -333,7 +365,7 @@ export default function TourOverlay() {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5" aria-hidden>
-            {STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <span
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${

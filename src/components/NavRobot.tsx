@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation";
 import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
 import Spinner from "@/components/Spinner";
+import Link from "next/link";
 import { apiPath } from "@/lib/client/basePath";
 import { requestTourReplay } from "@/lib/client/tour";
+import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
+import { startGuide } from "@/components/TourOverlay";
 
 /**
  * The robot's home: a Help button in the app header (Chris, 09-04: "your AI
@@ -26,6 +29,32 @@ interface Msg {
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
 
+/** Empty-chat starters (Chris, 09-04: solve 99% the easiest way — nobody should have to type). */
+const STARTERS = [
+  "How do I connect eBay?",
+  "Why can't I publish yet?",
+  "How do I change a listed price?",
+  "Where do the prices come from?",
+  "How do I get emailed when a card dips?",
+  "What does my plan include?",
+];
+
+/** Split a reply into its text and the actions the robot tagged. */
+function parseReply(content: string): { text: string; guide: string | null; link: string | null } {
+  let guide: string | null = null;
+  let link: string | null = null;
+  const text = content
+    .replace(TAG_RE, (_, kind: string, value: string) => {
+      const v = value.trim();
+      if (kind === "guide" && guideById(v)) guide = v;
+      if (kind === "link" && v in HELP_LINKS) link = v;
+      return "";
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { text, guide, link };
+}
+
 export default function NavRobot() {
   const router = useRouter();
   const [pose, setPose] = useState<RobotPose>("idle");
@@ -36,6 +65,7 @@ export default function NavRobot() {
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Wander through moods. Never the same one twice in a row.
   useEffect(() => {
@@ -124,6 +154,18 @@ export default function NavRobot() {
 
   const headerPose: RobotPose = open ? (busy ? "think" : "wave") : pose;
 
+  function ask(text: string) {
+    setDraft(text);
+    // Submit on the next tick so the draft is in state.
+    window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+  }
+  function runGuide(id: string) {
+    const g = guideById(id);
+    if (!g) return;
+    setOpen(false);
+    startGuide(g.steps);
+  }
+
   return (
     <div className="relative">
       <button
@@ -178,11 +220,56 @@ export default function NavRobot() {
                   <Spinner className="mr-1 inline h-3 w-3" /> remembering…
                 </p>
               )}
-              {messages?.map((m) => (
-                <Bubble key={m.id} role={m.role}>
-                  {m.content}
-                </Bubble>
-              ))}
+              {messages && messages.length === 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {STARTERS.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => ask(q)}
+                      className="rounded-full border border-edge bg-surface-2/60 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-edge-strong hover:text-white"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {messages?.map((m) => {
+                if (m.role === "user") {
+                  return (
+                    <Bubble key={m.id} role="user">
+                      {m.content}
+                    </Bubble>
+                  );
+                }
+                const { text, guide, link } = parseReply(m.content);
+                const g = guide ? guideById(guide) : null;
+                return (
+                  <div key={m.id} className="flex flex-col items-start gap-1.5">
+                    <Bubble role="assistant">{text}</Bubble>
+                    {(g || link) && (
+                      <div className="flex flex-wrap gap-1.5 pl-1">
+                        {g && (
+                          <button
+                            onClick={() => runGuide(g.id)}
+                            className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400"
+                          >
+                            Walk me through it
+                          </button>
+                        )}
+                        {link && (
+                          <Link
+                            href={link}
+                            onClick={() => setOpen(false)}
+                            className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                          >
+                            Open {HELP_LINKS[link]}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {busy && (
                 <Bubble role="assistant">
                   <span className="inline-flex items-center gap-1.5 text-zinc-400">
@@ -210,6 +297,7 @@ export default function NavRobot() {
             </div>
 
             <form
+              ref={formRef}
               onSubmit={send}
               className="flex items-center gap-2 border-t border-edge px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
             >

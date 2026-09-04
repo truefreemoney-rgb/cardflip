@@ -312,7 +312,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               🔒 Verify the match to publish
             </button>
           ) : canPost ? (
-            <button onClick={() => setModal("confirm")} disabled={busy !== null} className={ebayButton}>
+            <button data-tour="publish" onClick={() => setModal("confirm")} disabled={busy !== null} className={ebayButton}>
               <span className="inline-flex items-center justify-center gap-2">
                 {busy !== null && <Spinner className="h-3.5 w-3.5" />}
                 {pushed ? "Publish on eBay" : "Publish on eBay — photo included"}

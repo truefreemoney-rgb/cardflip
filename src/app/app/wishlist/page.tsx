@@ -105,6 +105,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
   }
   return (
     <button
+      data-tour="alert"
       onClick={() => {
         // Prefill with something real: the current alert, else today's price.
         // An empty box behind a grey placeholder read as a value that

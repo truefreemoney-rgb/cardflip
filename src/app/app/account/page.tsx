@@ -523,6 +523,7 @@ function AccountSettings({
             overview && !demo && overview.ebay.available ? (
               <Link
                 href="/connect-ebay"
+                data-tour="connect-ebay"
                 className={overview.ebay.connected ? rowBtn : "shrink-0 rounded-full bg-ebay px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"}
               >
                 {overview.ebay.connected ? "Manage" : "Connect eBay"}
@@ -604,7 +605,7 @@ function AccountSettings({
                 </button>
               ) : undefined
             ) : !totpEnroll ? (
-              <button type="button" className={rowPrimary} onClick={startTotp} disabled={demo || totpBusy}>
+              <button type="button" data-tour="two-step" className={rowPrimary} onClick={startTotp} disabled={demo || totpBusy}>
                 {totpBusy ? "Starting…" : "Set up"}
               </button>
             ) : undefined
@@ -939,11 +940,11 @@ function PlanSection({
       status={status}
       action={
         subscribed ? (
-          <button type="button" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
+          <button type="button" data-tour="subscribe" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
             {busy ? "Opening…" : "Manage billing"}
           </button>
         ) : (
-          <button type="button" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy || demo}>
+          <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy || demo}>
             {busy ? "Opening…" : "Subscribe · $9.99/mo"}
           </button>
         )
