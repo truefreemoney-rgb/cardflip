@@ -43,6 +43,13 @@ const CARD_INPUT = 'input[placeholder^="Name or number"]';
 const STEPS: Step[] = [
   {
     path: "/app",
+    sel: '[data-tour="help"]',
+    round: true,
+    title: "That's me",
+    body: "I live up here. Tap me for help, tours, moral support.",
+  },
+  {
+    path: "/app",
     sel: '[data-tour="capture"]',
     round: true,
     title: "Scan a card",
@@ -89,7 +96,7 @@ const STEPS: Step[] = [
   {
     path: "/app/wishlist",
     title: "That's the tour",
-    body: "Replay me from Account whenever. Now go scan something.",
+    body: "I'm in the header if you need me. Now go scan something.",
   },
 ];
 
@@ -297,9 +304,7 @@ export default function TourOverlay() {
       ? ((tail.side === "top" ? "point-up" : tail.side === "bottom" ? "point-down" : `point-${tail.side}`) as RobotPose)
       : last
         ? "celebrate"
-        : step === 0
-          ? "wave"
-          : "think";
+        : "think";
 
   return (
     <div className="tour-in fixed inset-0 z-[60]">

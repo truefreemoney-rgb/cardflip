@@ -58,6 +58,7 @@ export default function NavRobot() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Help"
+        data-tour="help"
         aria-expanded={open}
         title="Help"
         className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-xs font-medium text-zinc-400 transition hover:bg-surface-2 hover:text-zinc-200"
