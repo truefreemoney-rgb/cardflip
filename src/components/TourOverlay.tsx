@@ -167,65 +167,88 @@ export default function TourOverlay() {
   // Between pages (Next just navigated) the card hides until the new page is up.
   const current = open && pathname === STEPS[step].path ? STEPS[step] : null;
 
-  // Measure the anchor on every step, and follow it through resizes/scrolls.
+  // One measurement pass for the spotlight AND the arrow, so they never
+  // disagree. State only changes when the rounded numbers change — the old
+  // version re-rendered on every scroll event and the arrow chased a card
+  // that was still sliding in (Chris, 09-04: "the arrows are bouncing").
   useLayoutEffect(() => {
     if (!current) return;
     const el = current.sel ? document.querySelector<HTMLElement>(current.sel) : null;
     if (!el) {
-      const t = window.setTimeout(() => setRect(null), 0);
+      const t = window.setTimeout(() => {
+        setRect(null);
+        setArrow(null);
+      }, 0);
       return () => window.clearTimeout(t);
     }
-    el.scrollIntoView({ block: "center", inline: "nearest" });
+    el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" as ScrollBehavior });
+
     const measure = () => {
       const r = el.getBoundingClientRect();
-      setRect({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 });
+      const next: Rect = {
+        top: Math.round(r.top - PAD),
+        left: Math.round(r.left - PAD),
+        width: Math.round(r.width + PAD * 2),
+        height: Math.round(r.height + PAD * 2),
+      };
+      setRect((prev) =>
+        prev && prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.height === next.height
+          ? prev
+          : next,
+      );
+      const card = panelRef.current?.getBoundingClientRect();
+      if (!card) return;
+      const targetCx = next.left + next.width / 2;
+      const cardCx = card.left + card.width / 2;
+      const spotAbove = next.top + next.height <= card.top;
+      const spotBelow = next.top >= card.bottom;
+      let a: { x1: number; y1: number; x2: number; y2: number };
+      if (spotAbove) {
+        a = { x1: cardCx, y1: card.top - 2, x2: targetCx, y2: next.top + next.height + 4 };
+      } else if (spotBelow) {
+        a = { x1: cardCx, y1: card.bottom + 2, x2: targetCx, y2: next.top - 4 };
+      } else {
+        // Side by side (wide screens): leave from the nearer card edge.
+        const targetCy = next.top + next.height / 2;
+        const leftOf = next.left + next.width <= card.left;
+        a = {
+          x1: leftOf ? card.left - 2 : card.right + 2,
+          y1: Math.min(Math.max(targetCy, card.top + 16), card.bottom - 16),
+          x2: leftOf ? next.left + next.width + 4 : next.left - 4,
+          y2: targetCy,
+        };
+      }
+      a = { x1: Math.round(a.x1), y1: Math.round(a.y1), x2: Math.round(a.x2), y2: Math.round(a.y2) };
+      const tooShort = Math.hypot(a.x2 - a.x1, a.y2 - a.y1) < 28;
+      setArrow((prev) => {
+        if (tooShort) return prev === null ? prev : null;
+        return prev && prev.x1 === a.x1 && prev.y1 === a.y1 && prev.x2 === a.x2 && prev.y2 === a.y2 ? prev : a;
+      });
     };
-    // A timeout, not rAF: frames pause in background tabs. Re-measured a
-    // beat later too, for pages whose data lands after first paint.
-    const t = window.setTimeout(measure, 0);
-    const t2 = window.setTimeout(measure, 350);
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+
+    // Off the effect body (react-hooks rule) and as timeouts, not rAF —
+    // frames pause in background tabs. The second pass catches the card
+    // after it has taken its position from the first; the third catches
+    // pages whose data lands after first paint.
+    const timers = [0, 40, 400].map((ms) => window.setTimeout(measure, ms));
+    let pending: number | null = null;
+    const throttled = () => {
+      if (pending != null) return;
+      pending = window.setTimeout(() => {
+        pending = null;
+        measure();
+      }, 60);
+    };
+    window.addEventListener("resize", throttled);
+    window.addEventListener("scroll", throttled, true);
     return () => {
-      window.clearTimeout(t);
-      window.clearTimeout(t2);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+      timers.forEach((t) => window.clearTimeout(t));
+      if (pending != null) window.clearTimeout(pending);
+      window.removeEventListener("resize", throttled);
+      window.removeEventListener("scroll", throttled, true);
     };
   }, [current]);
 
-  // The arrow needs both boxes laid out: the spotlight (state) and the card
-  // (its own DOM box, which depends on the spotlight through panelStyle).
-  useLayoutEffect(() => {
-    if (!rect || !current) {
-      const t = window.setTimeout(() => setArrow(null), 0);
-      return () => window.clearTimeout(t);
-    }
-    const t = window.setTimeout(() => {
-      const card = panelRef.current?.getBoundingClientRect();
-      if (!card) return;
-      const targetCx = rect.left + rect.width / 2;
-      const cardCx = card.left + card.width / 2;
-      const spotAbove = rect.top + rect.height <= card.top;
-      const spotBelow = rect.top >= card.bottom;
-      let x1: number, y1: number, x2: number, y2: number;
-      if (spotAbove) {
-        x1 = cardCx; y1 = card.top - 2; x2 = targetCx; y2 = rect.top + rect.height + 4;
-      } else if (spotBelow) {
-        x1 = cardCx; y1 = card.bottom + 2; x2 = targetCx; y2 = rect.top - 4;
-      } else {
-        // Side by side (wide screens): leave from the nearer card edge.
-        const targetCy = rect.top + rect.height / 2;
-        const leftOf = rect.left + rect.width <= card.left;
-        x1 = leftOf ? card.left - 2 : card.right + 2;
-        y1 = Math.min(Math.max(targetCy, card.top + 16), card.bottom - 16);
-        x2 = leftOf ? rect.left + rect.width + 4 : rect.left - 4;
-        y2 = targetCy;
-      }
-      setArrow(Math.hypot(x2 - x1, y2 - y1) < 28 ? null : { x1, y1, x2, y2 });
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [rect, current]);
 
   const finish = useCallback(async () => {
     setStep(null);
@@ -313,7 +336,7 @@ export default function TourOverlay() {
         aria-modal="true"
         aria-label={`Tutorial, step ${step + 1} of ${STEPS.length}: ${current.title}`}
         tabIndex={-1}
-        className={`animate-fade-up absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
+        className={`absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
         }`}
         style={panelStyle}
