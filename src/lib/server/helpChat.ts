@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { helpArticlesFor } from "@/lib/helpArticles";
-import { GUIDES, HELP_LINKS } from "@/lib/helpGuides";
+import { GUIDES, HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { magicVisibleFor } from "@/lib/server/settings";
 import { monthlyScans, scanTier, type User } from "@/lib/server/users";
 
@@ -20,11 +20,38 @@ export const HELP_DAILY_CAP = 40;
 const HISTORY_TURNS = 16;
 const MAX_MESSAGE_CHARS = 600;
 
+export interface HelpAction {
+  type: "guide" | "link";
+  value: string;
+}
+
 export interface HelpMessage {
   id: string;
   role: "user" | "assistant";
+  /** Reply text with the action tags stripped — safe for any client. */
   content: string;
+  /** Guides / links the robot pointed at (only known ids and paths survive). */
+  actions: HelpAction[];
   createdAt: number;
+}
+
+/**
+ * The model writes {{guide:id}} / {{link:/path}} into its text; the raw
+ * form is what we store, but clients get clean text + structured actions
+ * (09-04: an older cached bundle showed the tag literally).
+ */
+export function splitReply(raw: string): { content: string; actions: HelpAction[] } {
+  const actions: HelpAction[] = [];
+  const content = raw
+    .replace(TAG_RE, (_, kind: string, value: string) => {
+      const v = value.trim();
+      if (kind === "guide" && guideById(v)) actions.push({ type: "guide", value: v });
+      else if (kind === "link" && v in HELP_LINKS) actions.push({ type: "link", value: v });
+      return "";
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { content, actions };
 }
 
 interface Row {
@@ -83,9 +110,11 @@ export async function helpHistory(userId: string, limit = 60): Promise<HelpMessa
   const rows = (await db
     .prepare("SELECT id, role, content, created_at FROM help_messages WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?")
     .all(userId, limit)) as unknown as Row[];
-  return rows
-    .reverse()
-    .map((r) => ({ id: r.id, role: r.role === "user" ? "user" : "assistant", content: r.content, createdAt: r.created_at }));
+  return rows.reverse().map((r) => {
+    const role = r.role === "user" ? "user" : "assistant";
+    const split = role === "assistant" ? splitReply(r.content) : { content: r.content, actions: [] };
+    return { id: r.id, role, content: split.content, actions: split.actions, createdAt: r.created_at };
+  });
 }
 
 export async function clearHelpHistory(userId: string): Promise<void> {
@@ -100,11 +129,11 @@ async function userMessagesToday(userId: string): Promise<number> {
 }
 
 async function save(userId: string, role: "user" | "assistant", content: string): Promise<HelpMessage> {
-  const msg = { id: randomUUID(), role, content, createdAt: Date.now() };
-  await db
-    .prepare("INSERT INTO help_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(msg.id, userId, role, content, msg.createdAt);
-  return msg;
+  const id = randomUUID();
+  const createdAt = Date.now();
+  await db.prepare("INSERT INTO help_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)").run(id, userId, role, content, createdAt);
+  const split = role === "assistant" ? splitReply(content) : { content, actions: [] };
+  return { id, role, content: split.content, actions: split.actions, createdAt };
 }
 
 export class HelpCapError extends Error {}
@@ -118,11 +147,14 @@ export async function askHelp(user: User, text: string): Promise<HelpMessage> {
   if ((await userMessagesToday(user.id)) >= HELP_DAILY_CAP) throw new HelpCapError();
 
   const magic = await magicVisibleFor(user);
-  const history = await helpHistory(user.id, HISTORY_TURNS);
   await save(user.id, "user", message);
 
+  // The model sees its own earlier tags (raw rows), so it keeps the habit.
+  const rawHistory = (await db
+    .prepare("SELECT role, content FROM help_messages WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?")
+    .all(user.id, HISTORY_TURNS)) as unknown as { role: string; content: string }[];
   const messages: Anthropic.MessageParam[] = [
-    ...history.map((m) => ({ role: m.role, content: m.content })),
+    ...rawHistory.reverse().map((m) => ({ role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant", content: m.content })),
     { role: "user" as const, content: message },
   ];
 

@@ -25,6 +25,7 @@ interface Msg {
   id: string;
   role: "user" | "assistant";
   content: string;
+  actions?: { type: "guide" | "link"; value: string }[];
 }
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
@@ -241,8 +242,13 @@ export default function NavRobot() {
                     </Bubble>
                   );
                 }
-                const { text, guide, link } = parseReply(m.content);
-                const g = guide ? guideById(guide) : null;
+                // Server sends clean text + actions; the parse is a fallback for
+                // a reply that still carries raw tags (older server, same client).
+                const parsed = parseReply(m.content);
+                const text = parsed.text;
+                const guideId = m.actions?.find((a) => a.type === "guide")?.value ?? parsed.guide;
+                const link = m.actions?.find((a) => a.type === "link")?.value ?? parsed.link;
+                const g = guideId ? guideById(guideId) : null;
                 return (
                   <div key={m.id} className="flex flex-col items-start gap-1.5">
                     <Bubble role="assistant">{text}</Bubble>
