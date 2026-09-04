@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
+import StagedProgress from "@/components/StagedProgress";
 import {
   publishEbayDraft,
   pushEbayDraft,
@@ -37,6 +38,11 @@ interface Props {
  * The manual "I posted this" checkpoint stays: a seller who listed on eBay
  * some other way still needs to tell the ledger.
  */
+/* Publish tracker: draft save, photo upload, publish — the three calls behind
+   "Publish it", in the order they run; the last holds until eBay answers. */
+const PUBLISH_STEPS = ["Saving the draft", "Attaching your photo", "Publishing on eBay"] as const;
+const PUBLISH_STAGE_MS = [1200, 2800] as const;
+
 export default function EbayPostActions({ item, listing, price, ebayConnected, onChange }: Props) {
   const [busy, setBusy] = useState<"push" | "publish" | null>(null);
   // The publish popup: confirm ("this goes live"), then a loading state. On
@@ -443,12 +449,14 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               </>
             )}
             {modal === "publishing" && (
-              <div className="flex flex-col items-center gap-3 py-4 text-center">
-                <Spinner className="h-6 w-6" />
-                <p className="text-sm font-medium text-white">Listing your card on eBay…</p>
-                <p className="text-xs text-zinc-500">
-                  Saving the draft, attaching your photo, and publishing — a few seconds.
-                </p>
+              <div className="py-2">
+                <StagedProgress
+                  compact
+                  title="Listing your card on eBay…"
+                  steps={PUBLISH_STEPS}
+                  stageMs={PUBLISH_STAGE_MS}
+                  image={item.previewUrl || item.card?.imageSmall || null}
+                />
               </div>
             )}
           </div>

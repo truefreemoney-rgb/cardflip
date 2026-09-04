@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
 import CameraCapture from "@/components/CameraCapture";
-import Spinner from "@/components/Spinner";
+import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
@@ -134,6 +134,11 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
 
 /** Concurrent scans per tab — see pumpingRef. */
 const SCAN_WORKERS = 2;
+
+/* Reopen tracker: the ledger fetch and catalog match run in parallel and
+   usually land inside two seconds; the last step holds until they do. */
+const RESUME_STEPS = ["Finding the match", "Pulling today's prices", "Loading your photo"] as const;
+const RESUME_STAGE_MS = [900, 2000] as const;
 
 export default function AppPage() {
   const router = useRouter();
@@ -701,6 +706,10 @@ export default function AppPage() {
   const [resuming, setResuming] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("resume"),
   );
+  // What the reopen screen shows while the rebuild runs: the name and the
+  // seller's photo (or the catalogue art) that My Cards passed along, so the
+  // wait looks like the card coming back rather than a spinner (09-04).
+  const [resumeHint, setResumeHint] = useState<{ name: string | null; image: string | null }>({ name: null, image: null });
   useEffect(() => {
     if (resumedRef.current) return;
     const params = new URLSearchParams(window.location.search);
@@ -716,6 +725,8 @@ export default function AppPage() {
     const hintName = params.get("rn");
     const hintNumber = params.get("rnum");
     const hintGame = params.get("rg") === "mtg" ? "mtg" : "pokemon";
+    const hintPhotoAt = params.get("rp");
+    const hintImage = params.get("ri");
     window.history.replaceState(null, "", window.location.pathname);
     void (async () => {
       // On a client-side navigation Next updates window.location AFTER the
@@ -726,6 +737,15 @@ export default function AppPage() {
       // microtask later and long before any network answer.
       await Promise.resolve();
       setResuming(true);
+      setResumeHint({
+        name: resumeIds.length === 1 ? hintName : null,
+        image:
+          resumeIds.length === 1 && hintPhotoAt
+            ? apiPath(`/api/card-image/${resumeIds[0]}?v=${hintPhotoAt}`)
+            : resumeIds.length === 1
+              ? hintImage
+              : null,
+      });
       const eagerSearch = hintName
         ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
         : null;
@@ -1119,10 +1139,13 @@ export default function AppPage() {
       {resuming && items.length === 0 ? (
         // Reopening from My cards: a quiet loader instead of flashing the
         // first-scan hero for the second the rebuild takes.
-        <main className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-16 text-zinc-400">
-          <Spinner className="h-6 w-6" />
-          <p className="text-sm font-medium text-white">Reopening your card…</p>
-          <p className="text-xs text-zinc-500">Pulling the match, prices, and your photo back up.</p>
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+          <StagedProgress
+            title={resumeHint.name ? `Reopening ${resumeHint.name}…` : "Reopening your cards…"}
+            steps={RESUME_STEPS}
+            stageMs={RESUME_STAGE_MS}
+            image={resumeHint.image}
+          />
         </main>
       ) : items.length === 0 ? (
         // Top-anchored, not vertically centered: centering pushed the hero

@@ -280,7 +280,7 @@ export default function CollectionPage() {
   async function relist(card: ServerCard) {
     await applyPatch(card, { status: "ready", listedAt: null, soldPrice: null, soldAt: null });
     router.push(
-      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}`,
+      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`,
     );
   }
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -1402,7 +1402,7 @@ export default function CollectionPage() {
                       // Card identity rides along so the scanner can start the
                       // catalog search in parallel with the ledger fetch —
                       // sequential round trips made this feel stuck (09-02).
-                      href={`/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}`}
+                      href={`/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`}
                       // Verifying only happens on the listing screen, where
                       // the seller's photo sits beside the match (Chris,
                       // 09-03) — so an unverified draft's link IS the ask.
