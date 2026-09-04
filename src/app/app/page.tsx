@@ -1194,22 +1194,25 @@ export default function AppPage() {
         // Top-anchored, not vertically centered: centering pushed the hero
         // halfway down a desktop viewport and left a wall of empty space
         // above it (Chris, 09-01).
-        <main className="flex flex-1 flex-col items-center gap-8 px-4 pb-16 pt-6 sm:pt-12">
+        <main className="flex flex-1 flex-col items-center gap-5 px-4 pb-12 pt-5 sm:pt-8">
+          {/* Empty scanner (Chris, 09-04 "aggressive makeover"): display-type
+              headline, one line of copy, the three beats as a strip, then
+              the stage. App-tight — no wall of intro text. */}
           <div className="text-center">
-            <h1 className="text-2xl font-semibold text-white">
-              Turn your binder into listings
+            <h1 className="font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">
+              Scan. Price. <span className="holo-text">List.</span>
             </h1>
-            <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
-              Scan cards one at a time or drop in a whole stack — everything
-              gets priced and written up automatically.
+            <p className="mx-auto mt-2 max-w-sm text-sm text-zinc-400">
+              Point your phone at a card. CardFlip names it, prices it and writes the eBay listing.
             </p>
-            {/* First-scan guidance: what happens after the photo, in three beats. */}
-            <ol className="mx-auto mt-4 flex max-w-lg flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-zinc-500">
-              {["Snap or drop a photo", "We match, grade & price it", "One tap drafts it on eBay"].map((step, i) => (
-                <li key={step} className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 font-mono text-[10px] font-semibold text-brand-300">{i + 1}</span>
-                  <span>{step}</span>
-                  {i < 2 && <span aria-hidden className="ml-1 hidden text-zinc-700 sm:inline">→</span>}
+            <ol className="mx-auto mt-3 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-400">
+              {["Scan", "Matched & priced", "Published on eBay"].map((step, i) => (
+                <li key={step} className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 rounded-full border border-edge bg-surface-1 py-1 pl-1.5 pr-2.5">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-500/20 font-mono text-[10px] font-semibold text-brand-300">{i + 1}</span>
+                    {step}
+                  </span>
+                  {i < 2 && <span aria-hidden className="text-zinc-700">→</span>}
                 </li>
               ))}
             </ol>
