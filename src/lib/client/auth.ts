@@ -10,7 +10,7 @@ export interface SessionUser {
   ebayConnected: boolean;
   createdAt: number;
   totpEnabled?: boolean;
-  /** Stripe subscription mirror — null/absent = never subscribed (early access). */
+  /** Stripe subscription mirror — null/absent = never subscribed. */
   subStatus?: string | null;
   subPeriodEnd?: number | null;
 }
@@ -82,13 +82,6 @@ export async function login(email: string, password: string, code?: string): Pro
   return data.user;
 }
 
-export async function startDemoSession(): Promise<SessionUser> {
-  const res = await fetch(apiPath("/api/auth/demo"), { method: "POST" });
-  const data = await readJson(res);
-  if (!res.ok) throw new Error(data.error ?? "Couldn't start the demo.");
-  return data.user;
-}
-
 export async function logout(): Promise<void> {
   await fetch(apiPath("/api/auth/logout"), { method: "POST" });
 }
@@ -98,3 +91,9 @@ export async function logout(): Promise<void> {
 // which is worse than having none. The real flow (redirect to eBay's
 // authorize URL, exchange the callback code server-side) lands with the
 // production keyset.
+
+/** Paid-only: the app is open to active, trialing and past-due subscribers. */
+export function isSubscribed(user: Pick<SessionUser, "subStatus"> | null | undefined): boolean {
+  const s = user?.subStatus ?? null;
+  return s === "active" || s === "trialing" || s === "past_due";
+}

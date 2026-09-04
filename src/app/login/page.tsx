@@ -8,7 +8,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DevLoginButton from "@/components/DevLoginButton";
-import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login, startDemoSession } from "@/lib/client/auth";
+import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login } from "@/lib/client/auth";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -176,23 +176,6 @@ export default function LoginPage() {
           <Link href="/signup" className="text-brand-300 hover:text-brand-200">
             Sign up
           </Link>
-          {" "}&middot;{" "}
-          {/* The demo backend (api/auth/demo: shared account, wiped and
-              reseeded on every entry, eBay-linking refused) had no UI door
-              left -- startDemoSession sat exported with zero callers, which
-              surfaced as "what's the demo password?" (Chris, 08-28). There
-              is no password by design; this button IS the login. */}
-          <button
-            type="button"
-            onClick={() => {
-              void startDemoSession()
-                .then(() => router.replace(afterLoginPath()))
-                .catch((err) => setError(err instanceof Error ? err.message : "Couldn't start the demo."));
-            }}
-            className="text-brand-300 underline-offset-4 hover:text-brand-200 hover:underline"
-          >
-            Try the demo
-          </button>
         </p>
       </div>
 

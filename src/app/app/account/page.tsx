@@ -129,6 +129,8 @@ function AccountSettings({
   setUser: (next: SessionUser) => void;
 }) {
   const router = useRouter();
+  // A confirmed checkout refreshes the session so SubscriptionGate opens.
+  const { refresh } = useSession();
   const [overview, setOverview] = useState<AccountOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -157,6 +159,7 @@ function AccountSettings({
         setOverview(o);
         if (o.user.subStatus === "active" || o.user.subStatus === "trialing") {
           setBillingPhase("confirmed");
+          void refresh();
           setUser(o.user);
           clearInterval(id);
           return;
@@ -173,7 +176,7 @@ function AccountSettings({
       cancelled = true;
       clearInterval(id);
     };
-  }, [billingReturn, setUser]);
+  }, [billingReturn, setUser, refresh]);
 
   // --- Profile -----------------------------------------------------------
   const [name, setName] = useState(user.name);

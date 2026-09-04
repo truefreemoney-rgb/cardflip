@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
+import { requireUser, subscriptionGate } from "@/lib/server/auth";
 import { publishDraft } from "@/lib/server/ebaySell";
 import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 
@@ -12,12 +11,8 @@ import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json(
-        { error: "demo", message: "The demo account can't post to eBay" },
-        { status: 403 },
-      );
-    }
+    const wall = subscriptionGate(user);
+    if (wall) return wall;
     const body = (await request.json().catch(() => null)) as {
       cardId?: unknown;
       shipFromPostalCode?: unknown;

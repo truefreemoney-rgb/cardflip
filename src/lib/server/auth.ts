@@ -1,7 +1,8 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
-import { findUserById, type User } from "@/lib/server/users";
+import { NextResponse } from "next/server";
+import { findUserById, isSubscribed, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = "cardflip_session";
 
@@ -40,3 +41,17 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 export class AuthError extends Error {}
+
+/**
+ * Paid-only (09-04, Chris: "demo is over"): the routes that cost money or
+ * publish on the seller's behalf answer 402 for anyone without an active
+ * subscription. Admins pass. The client's SubscriptionGate shows the wall
+ * before a seller ever reaches these; this is the backstop.
+ */
+export function subscriptionGate(user: User): NextResponse | null {
+  if (user.role === "admin" || isSubscribed(user)) return null;
+  return NextResponse.json(
+    { error: "Subscribe to keep going — CardFlip is $9.99 a month", paywall: true },
+    { status: 402 },
+  );
+}

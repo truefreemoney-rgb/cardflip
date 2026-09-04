@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SessionProvider from "@/components/SessionProvider";
 import AppHeader from "@/components/AppHeader";
+import SubscriptionGate from "@/components/SubscriptionGate";
 import Toaster from "@/components/Toaster";
 
 export const metadata: Metadata = { title: "Scanner" };
 
 /**
- * The signed-in app is what eBay's reviewer actually walks through via the
- * demo button, so it carries the same legal surface as the marketing pages.
+ * The signed-in app carries the same legal surface as the marketing pages.
+ * Paid-only since 09-04: SubscriptionGate walls every page but Account.
  *
  * The session is looked up once here (SessionProvider) and the header lives
  * here too, so switching tabs doesn't blank the page or re-ask /api/auth/me.
@@ -18,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
         <AppHeader />
-        {children}
+        <SubscriptionGate>{children}</SubscriptionGate>
       </div>
       <Toaster />
       <footer className="border-t border-white/5 px-6 py-4 text-center text-[11px] text-zinc-600">

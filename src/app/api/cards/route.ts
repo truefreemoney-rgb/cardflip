@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, listCardsForUser } from "@/lib/server/cards";
 
 export async function GET() {
@@ -17,6 +17,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    const wall = subscriptionGate(user);
+    if (wall) return wall;
     const body = await req.json().catch(() => null);
 
     const cardName = typeof body?.cardName === "string" ? body.cardName : "";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import {
   VISION_MODEL,
   VisionNotConfiguredError,
@@ -9,7 +9,6 @@ import {
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
-import { isDemoUser } from "@/lib/server/users";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
@@ -23,10 +22,8 @@ import {
  * Durable daily caps (db counters — the in-memory windows in rateLimit.ts
  * never bind on serverless, the PSA-leak lesson). Same numbers the in-memory
  * daily rules carried; those stay as warm-instance burst guards per minute.
- * Demo is one shared public account, so its cap is effectively global.
  */
 const SCAN_DAILY_BUDGET = 500;
-const SCAN_DEMO_DAILY_BUDGET = 60;
 
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -34,19 +31,16 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    // Every call here costs money at Anthropic — per-account burst + daily
-    // caps, tighter for the shared demo login anyone can use.
-    enforceRateLimit(
-      `vision:${user.id}`,
-      ...(isDemoUser(user) ? LIMITS.visionScanDemo : LIMITS.visionScan),
-    );
+    const wall = subscriptionGate(user);
+    if (wall) return wall;
+    // Every call here costs money at Anthropic — per-account burst + daily caps.
+    enforceRateLimit(`vision:${user.id}`, ...LIMITS.visionScan);
 
     if (!isVisionConfigured()) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // Subscribers get 500 scans a month plus any purchased packs; free early
-    // access stays ungated (the rate limits above still bound it).
+    // 500 scans a month per subscriber.
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {
@@ -74,11 +68,7 @@ export async function POST(req: Request) {
 
     // Last gate before spending money — a well-formed request that clears the
     // burst limiter still has to fit the durable daily budget.
-    const demo = isDemoUser(user);
-    const overBudget = await dayBudgetSpent(
-      demo ? "scan_demo" : `scan_${user.id}`,
-      demo ? SCAN_DEMO_DAILY_BUDGET : SCAN_DAILY_BUDGET,
-    );
+    const overBudget = await dayBudgetSpent(`scan_${user.id}`, SCAN_DAILY_BUDGET);
     if (overBudget) {
       return NextResponse.json(
         { error: "Today's scan budget is used up — try again tomorrow", retryAfterSeconds: 3600 },
