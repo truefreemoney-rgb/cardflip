@@ -386,6 +386,15 @@ const SCHEMA = `
 
   -- TCGplayer productId -> card map from scripts/backfill-tcgcsv.mjs
   -- (pokemonPriceRefresh.ts).
+  CREATE TABLE IF NOT EXISTS help_messages (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS help_messages_user ON help_messages(user_id, created_at);
+
   CREATE TABLE IF NOT EXISTS tcgplayer_products (
     product_id INTEGER PRIMARY KEY,
     group_id INTEGER NOT NULL,

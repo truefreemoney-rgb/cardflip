@@ -133,6 +133,8 @@ export const LIMITS = {
   searchCard: [{ limit: 120, windowMs: MINUTE }] as RateLimitRule[],
   /** Sign-in / signup / reset: brute-force backstop, per IP. */
   authAttempt: [{ limit: 20, windowMs: 10 * MINUTE }] as RateLimitRule[],
+  /** Help robot: per-IP burst guard; the per-account daily cap lives in helpChat.ts. */
+  helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
 };
 
 /** Reset all windows — for tests only. */
