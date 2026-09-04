@@ -89,6 +89,11 @@ export default function SessionProvider({ children }: { children: React.ReactNod
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/** Same as useSession, but null outside the provider (marketing pages). */
+export function useOptionalSession(): SessionContextValue | null {
+  return useContext(SessionContext);
+}
+
 export function useSession(): SessionContextValue {
   const ctx = useContext(SessionContext);
   if (!ctx) throw new Error("useSession must be used inside <SessionProvider>");

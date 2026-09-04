@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useOptionalSession } from "@/components/SessionProvider";
 import { GAMES, GAME_IDS } from "@/lib/games";
 import type { GameId } from "@/lib/types";
 
@@ -16,6 +18,14 @@ interface Props {
  * the game they were added under.
  */
 export default function GameToggle({ game, onChange, compact = false }: Props) {
+  // Magic admins-only (09-04): the toggle vanishes for sellers and a saved
+  // "mtg" preference snaps back to Pokémon, so nothing downstream sees it.
+  const session = useOptionalSession();
+  const magic = session?.user?.features?.magic ?? true;
+  useEffect(() => {
+    if (!magic && game === "mtg") onChange("pokemon");
+  }, [magic, game, onChange]);
+  if (!magic) return null;
   return (
     <div
       role="radiogroup"

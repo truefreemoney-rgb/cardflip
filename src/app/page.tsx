@@ -5,6 +5,7 @@ import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
 import PlanCard from "@/components/PlanCard";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
+import { magicPublic } from "@/lib/server/settings";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
@@ -29,7 +30,7 @@ import type { PokemonCard } from "@/lib/types";
 const faqs = [
   {
     q: "Which cards does it work on?",
-    a: "Any English card in the Pokémon TCG catalog, from Base Set to the current sets, and every paper Magic: The Gathering printing from Alpha onward. Switch the game in the scanner. Japanese and Chinese support is built and will be switched on later.",
+    a: "Any English card in the Pokémon TCG catalog, from Base Set to the current sets. Japanese and Chinese support is built and will be switched on later, and more games are on the way.",
   },
   {
     q: "What if the scan picks the wrong printing?",
@@ -143,6 +144,7 @@ function Brackets() {
 export const revalidate = 86400;
 
 export default async function Home() {
+  const magic = await magicPublic();
   const [featured, showcase, catalogLabel] = await Promise.all([
     getFeaturedCard(),
     getShowcaseCards(),
@@ -190,7 +192,7 @@ export default async function Home() {
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
-                Pokémon TCG · Magic: The Gathering
+                {magic ? "Pokémon TCG · Magic: The Gathering" : "Pokémon TCG"}
               </div>
 
               <h1

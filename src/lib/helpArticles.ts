@@ -10,6 +10,17 @@ export interface HelpArticle {
   paragraphs: string[];
 }
 
+/** The articles as a viewer should see them: Magic lines only while Magic is on for them. */
+export function helpArticlesFor(magic: boolean): HelpArticle[] {
+  return helpArticles.map((a) =>
+    a.id === "scanning" && !magic
+      ? { ...a, paragraphs: a.paragraphs.map((p) => p.replace(MAGIC_LINE, "Pokémon is supported today; more games are coming.")) }
+      : a,
+  );
+}
+
+const MAGIC_LINE = "Pokémon and Magic: The Gathering are both supported.";
+
 export const helpArticles: HelpArticle[] = [
   {
     id: "scanning",

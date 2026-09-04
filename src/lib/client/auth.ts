@@ -25,6 +25,8 @@ export interface SessionUser {
   appAccess?: boolean;
   /** First-login tutorial done; null/absent = show it on the scanner. */
   tourSeenAt?: number | null;
+  /** Site switches as they apply to this viewer (admins see everything). */
+  features?: { magic: boolean };
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

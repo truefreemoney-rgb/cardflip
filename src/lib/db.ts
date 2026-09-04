@@ -386,6 +386,13 @@ const SCHEMA = `
 
   -- TCGplayer productId -> card map from scripts/backfill-tcgcsv.mjs
   -- (pokemonPriceRefresh.ts).
+  -- Admin console switches (lib/server/settings.ts): magic_public etc.
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS help_messages (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

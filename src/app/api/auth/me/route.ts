@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
 import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
 import { toPublicUser } from "@/lib/server/users";
+import { magicVisibleFor } from "@/lib/server/settings";
 import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
 
 /**
@@ -13,7 +14,9 @@ import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
  */
 export async function GET() {
   const user = await getCurrentUser();
-  const res = NextResponse.json({ user: user ? toPublicUser(user) : null });
+  const res = NextResponse.json({
+    user: user ? { ...toPublicUser(user), features: { magic: await magicVisibleFor(user) } } : null,
+  });
   // Every app page load passes through here, which makes it a heartbeat for
   // the once-a-day price refresh — kicked off after the response is sent.
   // Not on Vercel: the refresh would blow the request function's time

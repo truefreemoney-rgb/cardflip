@@ -5,6 +5,8 @@ import ActivityBars from "@/components/admin/ActivityBars";
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import DailyJobControl from "@/components/admin/DailyJobControl";
 import AdminSignOut from "@/components/admin/AdminSignOut";
+import FeatureToggles from "@/components/admin/FeatureToggles";
+import { magicPublic } from "@/lib/server/settings";
 import { hasAdminSession } from "@/lib/server/adminGate";
 import { getAdminOverview } from "@/lib/server/adminStats";
 import { isDemoUser, listAllUsers, monthlyScans, scanTier } from "@/lib/server/users";
@@ -43,6 +45,7 @@ const STATUS_STYLE: Record<string, string> = {
 
 const NAV = [
   ["overview", "Overview"],
+  ["switches", "Switches"],
   ["users", "Users"],
   ["cards", "Cards"],
   ["data", "Prices & data"],
@@ -60,10 +63,11 @@ export default async function AdminPage() {
     accessOverride: u.accessOverride, subStatus: u.subStatus,
   }));
   const cards = await listAllCards(60);
-  const [recentErrors, errors24h, { last24h: spend24h, last30d: spend30d }] = await Promise.all([
+  const [recentErrors, errors24h, { last24h: spend24h, last30d: spend30d }, magicOn] = await Promise.all([
     listRecentErrors(50),
     errorCount24h(),
     scanSpendSummary(),
+    magicPublic(),
   ]);
   const userById = new Map(users.map((u) => [u.id, u]));
   const s = o.stats;
@@ -161,6 +165,14 @@ export default async function AdminPage() {
                 <ActivityBars days={c.series.days} values={c.series.values} color={c.color} />
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------- Switches */}
+        <section id="switches" className="scroll-mt-24">
+          <h2 className="mb-3 text-lg font-semibold text-white">Switches</h2>
+          <div className="rounded-2xl border border-edge bg-surface-1 p-4">
+            <FeatureToggles magicPublic={magicOn} />
           </div>
         </section>
 

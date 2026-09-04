@@ -25,11 +25,11 @@ export const metadata: Metadata = {
     template: "%s · CardFlip",
   },
   description:
-    "Scan your Pokémon and Magic: The Gathering cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+    "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
   openGraph: {
     title: "CardFlip — Scan. Price. List.",
     description:
-      "Scan your Pokémon and Magic: The Gathering cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+      "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
     type: "website",
   },
   // iOS ignores the manifest's display mode; these meta tags are what make

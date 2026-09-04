@@ -46,7 +46,7 @@ export default function OpengraphImage() {
             marginTop: 24,
           }}
         >
-          Scan. Price. List your Pokémon & Magic cards.
+          Scan. Price. List your Pokémon cards.
         </div>
       </div>
     ),

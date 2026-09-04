@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { helpArticles } from "@/lib/helpArticles";
+import { helpArticlesFor } from "@/lib/helpArticles";
+import { magicPublic } from "@/lib/server/settings";
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
@@ -18,9 +19,8 @@ export const metadata: Metadata = {
  * feature changes.
  */
 
-const articles = helpArticles;
-
-export default function HelpPage() {
+export default async function HelpPage() {
+  const articles = helpArticlesFor(await magicPublic());
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <MarketingNav />
