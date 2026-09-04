@@ -2059,7 +2059,7 @@ export default function CollectionPage() {
           hint="Pick a category, or type a new one. Choose No category to clear it."
           categories={categories}
           current={categoryTarget.category}
-          confirmLabel="Save"
+          confirmLabel="Move card"
           busy={moving}
           onClose={() => setCategoryTarget(null)}
           onPick={async (next) => {

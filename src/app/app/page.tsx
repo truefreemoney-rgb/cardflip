@@ -1452,7 +1452,7 @@ export default function AppPage() {
           hint="The cards you just scanned are filed here in Inventory. You can move them later."
           categories={distinctCategories([...categoryPrompt.existing.map((c) => ({ category: c })), { category: scanCategory }])}
           current={scanCategory}
-          confirmLabel="Save"
+          confirmLabel="File them here"
           onClose={() => setCategoryPrompt(null)}
           onPick={(category) => {
             setScanCategory(category);
