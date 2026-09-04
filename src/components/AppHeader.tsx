@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import AppTabs from "@/components/AppTabs";
+import NavRobot from "@/components/NavRobot";
 import { logout } from "@/lib/client/auth";
 import { useSession } from "@/components/SessionProvider";
 
@@ -78,7 +79,10 @@ export default function AppHeader() {
           line). The third cell is the personal strip from xl up, an empty
           balancer before that. */}
       <div className="flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
-        <Logo size="sm" />
+        <div className="flex items-center gap-2">
+          <Logo size="sm" />
+          <NavRobot />
+        </div>
         <AppTabs />
         <div aria-hidden className="hidden sm:block xl:hidden" />
         <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>
