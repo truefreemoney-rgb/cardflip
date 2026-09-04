@@ -40,6 +40,42 @@ function setLabel(set: SetInfo): string {
 
 type Mode = "search" | "browse";
 
+type SortKey = "set" | "price-desc" | "price-asc" | "name" | "rarity";
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: "set", label: "Set order" },
+  { value: "price-desc", label: "Price: high to low" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "rarity", label: "Rarity" },
+  { value: "name", label: "Name A–Z" },
+];
+
+/** Rarity rank, higher = rarer. MTG names are Scryfall's; the Pokémon
+ *  mirror carries no rarity, so a numerator past the set total (secret /
+ *  ultra tier) is the only signal there. */
+function rarityRank(card: PokemonCard): number {
+  const r = (card.rarity ?? "").toLowerCase();
+  if (r) {
+    if (r.includes("mythic")) return 5;
+    if (r.includes("special") || r.includes("bonus")) return 4;
+    if (r.includes("rare")) return 3;
+    if (r.includes("uncommon")) return 2;
+    if (r.includes("common")) return 1;
+  }
+  return card.isSecretRare ? 4 : 0;
+}
+const marketOf = (card: PokemonCard): number => pickPrice(card)?.market ?? -1;
+function sortCards(cards: PokemonCard[], sort: SortKey): PokemonCard[] {
+  if (sort === "set") return cards;
+  const out = [...cards];
+  switch (sort) {
+    case "price-desc": out.sort((a, b) => marketOf(b) - marketOf(a)); break;
+    case "price-asc": out.sort((a, b) => (marketOf(a) < 0 ? 1 : marketOf(b) < 0 ? -1 : marketOf(a) - marketOf(b))); break;
+    case "name": out.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case "rarity": out.sort((a, b) => rarityRank(b) - rarityRank(a) || marketOf(b) - marketOf(a)); break;
+  }
+  return out;
+}
+
 /**
  * Search cards (09-03 makeover, Chris): two ways in — type a name or
  * number, or pick a set from a dropdown and see every card in it. Both
@@ -71,6 +107,10 @@ export default function PriceCheckPage() {
   const [resultsTitle, setResultsTitle] = useState<string | null>(null);
   const [selected, setSelected] = useState<PokemonCard | null>(null);
   const [logging, setLogging] = useState(false);
+  // Sort + in-grid filter (Chris, 09-03: "some sort options here, like
+  // rarity, price high to low"). Client-side — the set is already loaded.
+  const [sort, setSort] = useState<SortKey>("set");
+  const [gridQuery, setGridQuery] = useState("");
 
   // Set browser: the catalogue per game, loaded once when the tab is opened.
   const [sets, setSets] = useState<Record<GameId, SetInfo[] | null>>({ pokemon: null, mtg: null });
@@ -188,6 +228,7 @@ export default function PriceCheckPage() {
   }
 
   function clearResults() {
+    setGridQuery("");
     setResults([]);
     setResultsTitle(null);
     setSelected(null);
@@ -266,6 +307,16 @@ export default function PriceCheckPage() {
     }
     toast("Lookup history cleared");
   }
+
+  const gridNeedle = gridQuery.trim().toLowerCase();
+  const shown = sortCards(
+    gridNeedle
+      ? results.filter((c) =>
+          `${c.name} ${c.englishName ?? ""} ${c.number} ${c.rarity ?? ""} ${c.setName}`.toLowerCase().includes(gridNeedle),
+        )
+      : results,
+    sort,
+  );
 
   const visibleHistory = historyQuery.trim()
     ? history.filter((entry) =>
@@ -367,20 +418,51 @@ export default function PriceCheckPage() {
 
       {results.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-zinc-400">
               <span className="font-medium text-zinc-200">{resultsTitle}</span>
-              <span className="text-zinc-600"> · tap a card for its prices</span>
+              {gridNeedle ? (
+                <span className="text-zinc-600"> · showing {shown.length}</span>
+              ) : (
+                <span className="text-zinc-600"> · tap a card for its prices</span>
+              )}
             </p>
-            <button
-              onClick={clearResults}
-              className="shrink-0 rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
-            >
-              ✕ Clear
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={gridQuery}
+                onChange={(e) => setGridQuery(e.target.value)}
+                placeholder="Filter these cards…"
+                aria-label="Filter the cards shown"
+                className="w-40 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+              />
+              <div className="relative">
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)}
+                  aria-label="Sort cards"
+                  className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
+                >
+                  {SORTS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">▾</span>
+              </div>
+              <button
+                onClick={clearResults}
+                className="shrink-0 rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+              >
+                ✕ Clear
+              </button>
+            </div>
           </div>
+          {shown.length === 0 && (
+            <p className="rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center text-sm text-zinc-500">
+              Nothing matches that filter.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {results.map((card) => {
+            {shown.map((card) => {
               const price = pickPrice(card);
               return (
                 <button
