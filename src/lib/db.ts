@@ -508,6 +508,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // First-login tutorial (09-04): when the coach-mark tour was finished or
     // skipped. NULL = show it on the next visit to the scanner.
     "tour_seen_at INTEGER",
+    // Admin plan override (09-04): NULL = automatic; else one of
+    // users.ts ACCESS_OVERRIDES (unlimited / comp_standard / comp_pro / legacy / trial).
+    "access_override TEXT",
   ]],
 ];
 

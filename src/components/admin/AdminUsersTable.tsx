@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 import RoleToggle from "@/components/admin/RoleToggle";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
-import type { Role, ScanTier } from "@/lib/server/users";
+import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 
 export interface AdminUserRow {
@@ -21,6 +21,8 @@ export interface AdminUserRow {
   scansUsed: number;
   monthlyScans: number;
   trialScansUsed: number;
+  accessOverride: AccessOverride | null;
+  subStatus: string | null;
 }
 
 function fmtDate(ts: number | null): string {
@@ -46,6 +48,65 @@ const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
   legacy: { label: "Legacy", cls: "bg-sky-400/10 text-sky-300" },
   trial: { label: "Trial", cls: "bg-white/5 text-zinc-400" },
 };
+
+const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
+  { value: "", label: "Automatic" },
+  { value: "unlimited", label: "Unlimited" },
+  { value: "comp_standard", label: "Comp · 500 / month" },
+  { value: "comp_pro", label: "Comp Pro · 2,000 / month" },
+  { value: "legacy", label: "Legacy · 100 / day" },
+  { value: "trial", label: "Trial · 10 scans" },
+];
+
+/** What "Automatic" resolves to for this account, so the admin knows what clearing does. */
+function automaticLabel(u: AdminUserRow): string {
+  if (u.role === "admin") return "owner (admin)";
+  if (u.subStatus === "active" || u.subStatus === "trialing" || u.subStatus === "past_due") return `Stripe ${u.plan === "pro" ? "Pro" : "standard"}`;
+  return "legacy or trial by signup date";
+}
+
+function PlanSelect({ user }: { user: AdminUserRow }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function change(value: string) {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(apiPath(`/api/admin/users/${user.id}/access`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ override: value === "" ? null : value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Couldn't change the plan");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't change the plan");
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        value={user.accessOverride ?? ""}
+        onChange={(e) => change(e.target.value)}
+        disabled={pending}
+        aria-label="Plan"
+        className="rounded-full border border-edge bg-black/40 px-3 py-1 text-xs text-white outline-none focus:border-brand-400 disabled:opacity-50"
+      >
+        {OVERRIDE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="text-[11px] text-zinc-600">{user.accessOverride ? "override" : `automatic → ${automaticLabel(user)}`}</span>
+      {error && <span className="text-[11px] text-red-400">{error}</span>}
+    </div>
+  );
+}
 
 function randomPassword(): string {
   const alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -201,7 +262,10 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.sold ?? 0}</span>
                   <span className={`hidden text-right tabular-nums md:block ${r?.revenue ? "text-emerald-400" : "text-zinc-600"}`}>${(r?.revenue ?? 0).toFixed(2)}</span>
                   <span className="hidden min-w-0 md:block">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tier.cls}`}>{u.plan === "pro" ? "Pro" : tier.label}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tier.cls}`}>
+                      {u.accessOverride === "comp_pro" || (u.tier === "subscribed" && u.plan === "pro") ? "Pro" : tier.label}
+                      {u.accessOverride && <span className="ml-1 opacity-70">· set by admin</span>}
+                    </span>
                     <span className="mt-0.5 block truncate text-[11px] text-zinc-600">{scansLabel}</span>
                   </span>
                   <span className="hidden text-xs text-zinc-500 md:block">{fmtDate(u.createdAt)}</span>
@@ -212,6 +276,10 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                 </button>
                 {open && (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-edge bg-black/20 px-4 py-3 md:pl-16">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-zinc-600">Plan</span>
+                      <PlanSelect user={u} />
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Password</span>
                       <ResetLinkButton userId={u.id} disabled={u.isDemo} />

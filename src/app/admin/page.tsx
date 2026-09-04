@@ -57,6 +57,7 @@ export default async function AdminPage() {
   const users = (await listAllUsers()).map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
     tier: scanTier(u), plan: u.plan, scansUsed: u.scansUsed, monthlyScans: monthlyScans(u), trialScansUsed: u.trialScansUsed,
+    accessOverride: u.accessOverride, subStatus: u.subStatus,
   }));
   const cards = await listAllCards(60);
   const [recentErrors, errors24h, { last24h: spend24h, last30d: spend30d }] = await Promise.all([
@@ -168,7 +169,7 @@ export default async function AdminPage() {
           <div className="mb-3 flex items-end justify-between">
             <div>
               <h2 className="text-lg font-semibold text-white">Users <span className="text-sm font-normal text-zinc-500">({users.length})</span></h2>
-              <p className="mt-0.5 text-xs text-zinc-500">Tap a row for reset link, role and delete. Add account creates a seller by hand.</p>
+              <p className="mt-0.5 text-xs text-zinc-500">Tap a row for plan, reset link, role and delete. Add account creates a seller by hand.</p>
             </div>
           </div>
           <AdminUsersTable users={users} rollups={o.userRollups} />

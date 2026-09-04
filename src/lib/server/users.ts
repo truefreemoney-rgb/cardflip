@@ -34,6 +34,8 @@ export interface User {
   autoOfferMessage: string | null;
   /** First-login tutorial finished/skipped; NULL = still owed. */
   tourSeenAt: number | null;
+  /** Admin plan override; NULL = automatic (Stripe / legacy / trial). */
+  accessOverride: AccessOverride | null;
 }
 
 interface UserRow {
@@ -57,6 +59,7 @@ interface UserRow {
   auto_offer_percent: number | null;
   auto_offer_message: string | null;
   tour_seen_at: number | null;
+  access_override: string | null;
 }
 
 function fromRow(row: UserRow): User {
@@ -81,6 +84,9 @@ function fromRow(row: UserRow): User {
     autoOfferPercent: row.auto_offer_percent ?? null,
     autoOfferMessage: row.auto_offer_message ?? null,
     tourSeenAt: row.tour_seen_at ?? null,
+    accessOverride: (ACCESS_OVERRIDES as readonly string[]).includes(row.access_override ?? "")
+      ? (row.access_override as AccessOverride)
+      : null,
   };
 }
 
@@ -89,14 +95,32 @@ export function isSubscribed(user: Pick<User, "subStatus">): boolean {
   return user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
 }
 
+/**
+ * Admin plan overrides (Chris, 09-04: "plans need to be editable"). Set from
+ * the admin console; NULL means the automatic rules below apply.
+ *  - unlimited: like the owner, no cap, no wall.
+ *  - comp_standard / comp_pro: a subscription's allowance without Stripe.
+ *  - legacy: 100 scans a day, no wall.
+ *  - trial: back to the 10-scan trial (and the wall after it).
+ */
+export const ACCESS_OVERRIDES = ["unlimited", "comp_standard", "comp_pro", "legacy", "trial"] as const;
+export type AccessOverride = (typeof ACCESS_OVERRIDES)[number];
+
+/** Comped by an admin — a paid allowance with no Stripe subscription behind it. */
+export function isComped(user: Pick<User, "accessOverride">): boolean {
+  return user.accessOverride === "comp_standard" || user.accessOverride === "comp_pro";
+}
+
 /** The two paid tiers (09-04). Scan caps per calendar month. */
 export type Plan = "standard" | "pro";
 export const PLAN_SCANS: Record<Plan, number> = { standard: 500, pro: 2000 };
 export const PLAN_PRICE_USD: Record<Plan, string> = { standard: "$9.99", pro: "$24.99" };
-export function planOf(user: Pick<User, "plan">): Plan {
+export function planOf(user: Pick<User, "plan" | "accessOverride">): Plan {
+  if (user.accessOverride === "comp_pro") return "pro";
+  if (user.accessOverride === "comp_standard") return "standard";
   return user.plan === "pro" ? "pro" : "standard";
 }
-export function monthlyScans(user: Pick<User, "plan">): number {
+export function monthlyScans(user: Pick<User, "plan" | "accessOverride">): number {
   return PLAN_SCANS[planOf(user)];
 }
 
@@ -123,16 +147,31 @@ export const OWNER_EMAIL = "truefreemoney@gmail.com";
 export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
 export const LEGACY_DAILY_SCANS = 100;
 
-export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt">): ScanTier {
+export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride">): ScanTier {
+  switch (user.accessOverride) {
+    case "unlimited":
+      return "owner";
+    case "comp_standard":
+    case "comp_pro":
+      return "subscribed";
+    case "legacy":
+      return "legacy";
+    case "trial":
+      return "trial";
+  }
   if (user.email.toLowerCase() === OWNER_EMAIL || user.role === "admin") return "owner";
   if (isSubscribed(user)) return "subscribed";
   if (user.createdAt < PAID_SWITCH_AT) return "legacy";
   return "trial";
 }
 
-export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt">): boolean {
+export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt" | "accessOverride">): boolean {
   const tier = scanTier(user);
   return tier !== "trial" || trialScansLeft(user) > 0;
+}
+
+export async function setAccessOverride(userId: string, override: AccessOverride | null): Promise<void> {
+  await db.prepare("UPDATE users SET access_override = ? WHERE id = ?").run(override, userId);
 }
 
 export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
@@ -237,6 +276,7 @@ export async function createUser(
     autoOfferPercent: null,
     autoOfferMessage: null,
     tourSeenAt: null,
+    accessOverride: null,
   };
 }
 
@@ -377,7 +417,7 @@ export function toPublicUser(user: User): PublicUser {
   return {
     id, name, email, role, ebayConnected, createdAt, totpEnabled: totpEnabled(user), subStatus, subPeriodEnd,
     trialScansLeft: trialScansLeft(user),
-    plan: isSubscribed(user) ? planOf(user) : null,
+    plan: isSubscribed(user) || isComped(user) ? planOf(user) : null,
     monthlyScans: monthlyScans(user),
     tier: scanTier(user),
     appAccess: canUseApp(user),
