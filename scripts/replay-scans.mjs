@@ -24,7 +24,13 @@ const VISION_MODEL = fs.readFileSync(new URL("../src/lib/server/vision.ts", impo
 const args = process.argv.slice(2);
 const cacheArg = args.indexOf("--cache");
 const cachePath = cacheArg > -1 ? args[cacheArg + 1] : null;
-const ids = args.filter((a, i) => !a.startsWith("--") && (cacheArg < 0 || i !== cacheArg + 1));
+// --file <image> [--game mtg]: replay a local photo instead of a prod row.
+const fileArg = args.indexOf("--file");
+const filePath = fileArg > -1 ? args[fileArg + 1] : null;
+const gameArg = args.indexOf("--game");
+const fileGame = gameArg > -1 ? args[gameArg + 1] : "pokemon";
+const skip = new Set([cacheArg + 1, fileArg + 1, gameArg + 1]);
+const ids = args.filter((a, i) => !a.startsWith("--") && !skip.has(i));
 const cache = cachePath && fs.existsSync(cachePath) ? JSON.parse(fs.readFileSync(cachePath, "utf8")) : {};
 
 const env = {};
@@ -53,8 +59,9 @@ const SCHEMA = {
     condition: { anyOf: [{ type: "string", enum: ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"] }, { type: "null" }], description: "Condition judged from this photo. Null when the photo is too blurry, dark, or angled to judge." },
     conditionNotes: nullableString("One short sentence on what drove the condition call — visible edge whitening, off-centering, surface scratches, creases. Null when condition is null."),
     confidence: { type: "number", description: "0 to 1, how confident you are in the name and number specifically." },
+    kind: { anyOf: [{ type: "string", enum: ["card", "token", "art"] }, { type: "null" }], description: "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'card': a normal playable card. Null if unsure." },
   },
-  required: ["name", "englishName", "setName", "cardNumber", "setTotal", "setCode", "artStyle", "language", "condition", "conditionNotes", "confidence"],
+  required: ["name", "englishName", "setName", "cardNumber", "setTotal", "setCode", "artStyle", "language", "condition", "conditionNotes", "confidence", "kind"],
   additionalProperties: false,
 };
 const visionSrc = fs.readFileSync(path.join(root, "src/lib/server/vision.ts"), "utf8");
@@ -81,6 +88,23 @@ async function readCard(b64, game) {
   return text ? JSON.parse(text.text) : null;
 }
 
+if (filePath) {
+  const b64 = fs.readFileSync(filePath).toString("base64");
+  const read = await readCard(b64, fileGame);
+  console.log(`\n## [${fileGame}] ${path.basename(filePath)}`);
+  console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind} conf=${read.confidence}`);
+  const names = [read.name, read.englishName].filter(Boolean);
+  for (const candidate of names) {
+    const code = read.kind === "art" && read.setCode && !read.setCode.toUpperCase().startsWith("A") ? `A${read.setCode}` : read.setCode;
+    const found =
+      fileGame === "mtg"
+        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, code || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art")
+        : (await searchEnglishCardsLocal(candidate, read.cardNumber ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: false } : null, 5, read.artStyle ?? null)).cards;
+    for (const [i, c] of found.slice(0, 4).entries()) console.log(`  ${i === 0 ? "→" : " "} ${c.name} · ${c.setName} ${c.number} [${c.setCode ?? ""}] ${c.id}`);
+    if (found.length) break;
+  }
+}
+
 for (const id of ids) {
   const row = (await prod.execute({
     sql: "SELECT c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.game, ph.bytes FROM cards c JOIN card_photos ph ON ph.card_id = c.id WHERE c.id = ?",
@@ -96,7 +120,7 @@ for (const id of ids) {
   }
   const game = row.game === "mtg" ? "mtg" : "pokemon";
   console.log(`\n## [${game}] ${row.card_name} — scanner chose ${row.set_name} ${row.card_number} (${row.catalog_card_id})`);
-  console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} conf=${read.confidence}`);
+  console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind ?? "-"} conf=${read.confidence}`);
 
   // Same walk as src/app/app/page.tsx: name candidates, printed fraction, art.
   const printed = read.cardNumber
@@ -107,7 +131,7 @@ for (const id of ids) {
   for (const candidate of names) {
     const found =
       game === "mtg"
-        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, read.setCode || null, 5, read.artStyle ?? null)
+        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, read.setCode || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art")
         : (await searchEnglishCardsLocal(candidate, printed, 5, read.artStyle ?? null)).cards;
     if (found.length === 0) continue;
     if (matches.length === 0) matches = found;

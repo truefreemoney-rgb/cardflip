@@ -171,7 +171,8 @@ export async function GET(req: NextRequest) {
     // that matches nothing (09-03: Verify match on a Final Fantasy DFC
     // bounced to "couldn't look those cards up again").
     const rawName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim();
-    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art);
+    const artOnly = req.nextUrl.searchParams.get("art_series") === "1";
+    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }

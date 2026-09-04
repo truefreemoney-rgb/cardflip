@@ -317,6 +317,8 @@ export default function AppPage() {
           // card off its promo/regular printing when the number is unread.
           let art: ArtStyle = null;
           let readError: string | null = null;
+          // MTG Art Series: vision flagged it, so only art sets may answer.
+          let artOnly = false;
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
@@ -350,14 +352,32 @@ export default function AppPage() {
             // word prefix-matched a real card, and Magic TOKENS (collector
             // number "T 0016") that aren't in the mirror and rode a
             // substring onto a priced card. Say what happened instead.
-            if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE) {
+            // Art cards carry no number, so the model rates its name+number
+            // confidence low even when the name is plain — the floor applies
+            // to real cards only.
+            if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
               readError = `Couldn't read this card (${Math.round(read.confidence * 100)}% sure) — retake with the whole card in the guide and no glare`;
               nameCandidates = [];
               printed = null;
-            } else if (next.game === "mtg" && read.cardNumber && /^T\s*\d+$/i.test(read.cardNumber.trim())) {
+            } else if (
+              next.game === "mtg" &&
+              (read.kind === "token" || (read.cardNumber && /^T\s*\d+$/i.test(read.cardNumber.trim())))
+            ) {
               readError = "That's a token — tokens aren't priced or listed";
               nameCandidates = [];
               printed = null;
+            } else if (next.game === "mtg" && read.kind === "art") {
+              // Art Series cards live in their own "A<set>" code (AFIN for
+              // Final Fantasy). Vision often reads the parent code off the
+              // card, or no code at all; either way only art sets may
+              // answer, so the art card wins over the playable card of the
+              // same name (09-03).
+              artOnly = true;
+              art = "full-art";
+              if (printed) {
+                const code = (printed.setCode ?? "").toUpperCase();
+                if (code && !code.startsWith("A")) printed = { ...printed, setCode: `A${code}` };
+              }
             }
           } else {
             patchItem(next.id, { visionStatus: vision.status });
@@ -379,7 +399,7 @@ export default function AppPage() {
           // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              const found = await searchCards(candidate, printed, language, undefined, next.game, art);
+              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly);
               if (found.length === 0) continue;
               if (matches.length === 0) matches = found;
               if (

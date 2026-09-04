@@ -100,6 +100,11 @@ const CARD_READ_SCHEMA = {
       description:
         "0 to 1, how confident you are in the name and number specifically.",
     },
+    kind: {
+      anyOf: [{ type: "string", enum: ["card", "token", "art"] }, { type: "null" }],
+      description:
+        "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'card': a normal playable card. Null if unsure.",
+    },
   },
   required: [
     "name",
@@ -113,6 +118,7 @@ const CARD_READ_SCHEMA = {
     "condition",
     "conditionNotes",
     "confidence",
+    "kind",
   ],
   additionalProperties: false,
 } as const;
@@ -158,6 +164,13 @@ code ("EN"), NOT the rarity letter (C/U/R/M) that sits between number and code,
 and NOT the artist credit. Put the full name in "name" exactly as printed; for a
 double-faced or adventure card use the front/main name. Leave englishName null.
 setName is optional — the set code is what identifies the printing.
+
+Two things that are not playable cards come out of the same packs and must
+be called out in "kind": tokens (type line "Token Creature — …", collector
+number starting with T) and Art Series cards (the illustration fills the
+card, just a name and artist credit along the bottom, no rules text — the
+set code printed on them starts with A, e.g. "AFIN"). Read the name and
+number off those exactly as printed too.
 
 artStyle: "standard" for the regular card frame (any era, old border included);
 "full-art" only for special treatments — borderless, showcase, extended-art,
@@ -278,6 +291,7 @@ export async function analyzeCardImageWithUsage(
     setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
+    kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
     name: parsed.name.trim(),
   };
   const u = response.usage;

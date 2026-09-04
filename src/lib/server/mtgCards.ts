@@ -139,6 +139,8 @@ export async function searchMtgCardsLocal(
   setCode: string | null,
   limit = 24,
   art: ArtStyle = null,
+  /** Vision saw an Art Series card: only art sets may answer (09-03). */
+  artOnly = false,
 ): Promise<PokemonCard[]> {
   // Commas are punctuation, not identity: "Ragavan Nimble Pilferer" must
   // find "Ragavan, Nimble Pilferer".
@@ -242,6 +244,7 @@ export async function searchMtgCardsLocal(
     return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty;
   };
 
+  if (artOnly) rows = rows.filter((row) => row.set_type === "memorabilia" && /art series/i.test(row.set_name));
   const ranked = rows
     .map((row) => ({ row, s: score(row) }))
     .filter((x) => Number.isFinite(x.s))

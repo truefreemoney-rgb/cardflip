@@ -57,10 +57,13 @@ export async function searchCards(
   game: GameId = "pokemon",
   /** Vision's frame read — tiebreak between a full-art and a standard printing when the number is unread. */
   art: ArtStyle = null,
+  /** MTG: vision saw an Art Series card — only art sets may answer. */
+  artOnly = false,
 ): Promise<PokemonCard[]> {
   const params = new URLSearchParams({ name, lang });
   if (game !== "pokemon") params.set("game", game);
   if (art) params.set("art", art);
+  if (artOnly) params.set("art_series", "1");
   if (limit) params.set("limit", String(limit));
 
   if (typeof printed === "string") {

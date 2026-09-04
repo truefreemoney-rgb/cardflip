@@ -104,6 +104,8 @@ export interface VisionCardRead {
   conditionNotes: string | null;
   /** 0-1. Below LOW_CONFIDENCE the scanner treats this as a guess. */
   confidence: number;
+  /** MTG: token / Art Series card / normal card, or null when unsure. */
+  kind?: "card" | "token" | "art" | null;
 }
 
 /**
