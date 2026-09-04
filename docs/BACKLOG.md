@@ -18,12 +18,12 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] eBay app-level rate-limit increase application (takes time; before launch).
 
 ### B. Shipped today, live, needs your yea/nay
-- [ ] Tutorial: 9 steps page-by-page, the robot as pointer, snarky one-liners (family-friendly version was reverted on request).
-- [ ] Robot in the header ("Help"), moods every 20–40s, poses.
-- [ ] Help chat panel (Haiku, grounded on help articles + account facts) — ask it something it should know and something it shouldn't.
-- [ ] Scanner empty state: "Scan. Price. List." + stage rotating ten real cards with the Found chip.
+- [x] (yea 09-04) Tutorial: 9 steps page-by-page, the robot as pointer, snarky one-liners (family-friendly version was reverted on request).
+- [x] (yea 09-04) Robot in the header ("Help"), moods every 20–40s, poses.
+- [x] (yea 09-04) Help chat panel (Haiku, grounded on help articles + account facts) — ask it something it should know and something it shouldn't.
+- [x] (yea 09-04) Scanner empty state: "Scan. Price. List." + stage rotating ten real cards with the Found chip.
 - [ ] Landing hero centered on phones; hero glow no longer cut off above How it works.
-- [ ] Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
+- [x] (yea 09-04) Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
 - [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
 - [ ] Trial accounts see "Subscribe to publish on eBay" instead of the Publish button.
 - [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
