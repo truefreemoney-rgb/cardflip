@@ -10,7 +10,7 @@ import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
-import { isSubscribed } from "@/lib/server/users";
+import { isSubscribed, scanTier } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
   LIMITS,
@@ -45,9 +45,12 @@ export async function POST(req: Request) {
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {
-          error: isSubscribed(user)
-            ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
-            : "Your 10 free scans are used — subscribe to keep scanning",
+          error:
+            scanTier(user) === "legacy"
+              ? "You've used today's 100 scans — the counter resets at midnight UTC, or subscribe for a monthly allowance"
+              : isSubscribed(user)
+                ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
+                : "Your 10 free scans are used — subscribe to keep scanning",
           quota: true,
           usage: scanQuota(user),
         },

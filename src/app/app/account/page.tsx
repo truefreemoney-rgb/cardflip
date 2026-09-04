@@ -807,6 +807,16 @@ function PlanSection({
             user.plan === "pro" ? "" : " Pro is 2,000 for $24.99 — switch in Manage billing."
           }`}
     </>
+  ) : user.tier === "owner" ? (
+    <>
+      <Dot on />
+      Owner account · unlimited scans.
+    </>
+  ) : user.tier === "legacy" ? (
+    <>
+      <Dot on />
+      {`Early account · ${Math.max(0, 100 - (quota?.used ?? 0))} of 100 scans left today. Subscribe for a monthly allowance: 500 at $9.99 or 2,000 at $24.99.`}
+    </>
   ) : user.subStatus === "canceled" ? (
     "Your subscription has ended. Resubscribe to keep scanning."
   ) : demo ? (

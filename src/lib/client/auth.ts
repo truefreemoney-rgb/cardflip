@@ -19,6 +19,10 @@ export interface SessionUser {
   plan?: "standard" | "pro" | null;
   /** Scans included per month on the current plan. */
   monthlyScans?: number;
+  /** owner | subscribed | legacy | trial. */
+  tier?: "owner" | "subscribed" | "legacy" | "trial";
+  /** Server truth: is the app open to this account right now. */
+  appAccess?: boolean;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */
@@ -105,6 +109,9 @@ export function isSubscribed(user: Pick<SessionUser, "subStatus"> | null | undef
 }
 
 /** Subscribed, or still inside the 10-scan free trial. */
-export function canUseApp(user: Pick<SessionUser, "subStatus" | "trialScansLeft"> | null | undefined): boolean {
+export function canUseApp(
+  user: Pick<SessionUser, "subStatus" | "trialScansLeft" | "appAccess"> | null | undefined,
+): boolean {
+  if (typeof user?.appAccess === "boolean") return user.appAccess;
   return isSubscribed(user) || (user?.trialScansLeft ?? 0) > 0;
 }

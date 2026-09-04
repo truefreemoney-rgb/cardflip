@@ -105,8 +105,30 @@ export function trialScansLeft(user: Pick<User, "subStatus" | "trialScansUsed">)
 }
 
 /** Subscribed, or still inside the free trial. Admins are handled by callers. */
-export function canUseApp(user: Pick<User, "subStatus" | "trialScansUsed">): boolean {
-  return isSubscribed(user) || trialScansLeft(user) > 0;
+/**
+ * Access tiers (Chris, 09-04, the paid switch):
+ *  - owner: Chris's own account, unlimited.
+ *  - subscribed: 500 (Pro 2,000) a month.
+ *  - legacy: accounts that existed before the switch get 100 scans a DAY,
+ *    no subscription, no wall.
+ *  - trial: new accounts, 10 scans lifetime, then the wall.
+ */
+export type ScanTier = "owner" | "subscribed" | "legacy" | "trial";
+export const OWNER_EMAIL = "truefreemoney@gmail.com";
+/** Accounts created before this instant are legacy (the paid switch, 09-04 ~13:25 UTC). */
+export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
+export const LEGACY_DAILY_SCANS = 100;
+
+export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt">): ScanTier {
+  if (user.email.toLowerCase() === OWNER_EMAIL || user.role === "admin") return "owner";
+  if (isSubscribed(user)) return "subscribed";
+  if (user.createdAt < PAID_SWITCH_AT) return "legacy";
+  return "trial";
+}
+
+export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt">): boolean {
+  const tier = scanTier(user);
+  return tier !== "trial" || trialScansLeft(user) > 0;
 }
 
 export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
@@ -331,6 +353,10 @@ export interface PublicUser {
   plan: Plan | null;
   /** Scans included per month on the current plan. */
   monthlyScans: number;
+  /** owner | subscribed | legacy | trial — drives the wall and the plan copy. */
+  tier: ScanTier;
+  /** Whether the app is open to this account right now (server truth). */
+  appAccess: boolean;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -341,5 +367,7 @@ export function toPublicUser(user: User): PublicUser {
     trialScansLeft: trialScansLeft(user),
     plan: isSubscribed(user) ? planOf(user) : null,
     monthlyScans: monthlyScans(user),
+    tier: scanTier(user),
+    appAccess: canUseApp(user),
   };
 }
