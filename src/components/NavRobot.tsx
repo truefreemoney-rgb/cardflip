@@ -57,17 +57,18 @@ export default function NavRobot() {
     <div ref={wrapRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label="The robot"
+        aria-label="Help"
         aria-expanded={open}
-        title="The robot"
-        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-surface-2"
+        title="Help"
+        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-xs font-medium text-zinc-400 transition hover:bg-surface-2 hover:text-zinc-200"
       >
         <RobotBuddy pose={open ? "wave" : pose} size={30} float={false} />
+        Help
       </button>
       {open && (
         <div
           role="dialog"
-          aria-label="The robot"
+          aria-label="Help"
           className="absolute left-0 top-11 z-50 w-64 rounded-2xl border border-edge bg-surface-1 p-4 shadow-2xl shadow-black/60"
         >
           <p className="text-sm text-zinc-200">Chat&apos;s coming. Until then I do tours.</p>
