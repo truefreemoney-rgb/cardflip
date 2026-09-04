@@ -125,6 +125,9 @@ export default function CollectionPage() {
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
   const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
+  // Tap-to-edit asking price (Chris, 09-04): change the listing price here
+  // and the live eBay listing follows, so a seller never has to go to eBay.
+  const [priceForm, setPriceForm] = useState<{ id: string; value: string } | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
   const router = useRouter();
 
@@ -213,9 +216,21 @@ export default function CollectionPage() {
   }, [userId]);
 
   async function applyReprice(card: ServerCard, nudge: RepriceNudge) {
+    await setAskingPrice(card, nudge.market);
+  }
+
+  /** Writes a new asking price to the ledger and, when the card has an eBay
+   *  offer (draft or live), onto that offer too — in place, no relist. */
+  async function setAskingPrice(card: ServerCard, price: number) {
+    if (Math.abs(price - card.price) < 0.005) return;
+    if (!card.ebayOfferId) {
+      await applyPatch(card, { price });
+      toast(`${card.cardName} is now ${price.toFixed(2)}`);
+      return;
+    }
     setRepricing(card.id);
     setSyncError(null);
-    const result = await repriceCard(card.id, nudge.market);
+    const result = await repriceCard(card.id, price);
     setRepricing(null);
     if (!result.ok) {
       setSyncError(`Couldn't reprice ${card.cardName} — try again.`);
@@ -225,8 +240,8 @@ export default function CollectionPage() {
       });
       return;
     }
-    patchCard(card.id, { price: nudge.market });
-    toast(`${card.cardName} repriced to $${nudge.market.toFixed(2)}`);
+    patchCard(card.id, { price });
+    toast(`${card.cardName} repriced to ${price.toFixed(2)}${result.ebayUpdated ? " — eBay listing updated" : ""}`);
     setNudges((prev) => {
       const next = { ...prev };
       delete next[card.id];
@@ -234,7 +249,7 @@ export default function CollectionPage() {
     });
     if (card.ebayListingUrl && !result.ebayUpdated) {
       setSyncError(
-        `${card.cardName} is $${nudge.market.toFixed(2)} here now, but eBay didn't take the change${result.ebayError ? ` (${result.ebayError})` : ""} — update the live listing on eBay.`,
+        `${card.cardName} is ${price.toFixed(2)} here now, but eBay didn't take the change${result.ebayError ? ` (${result.ebayError})` : ""} — update the live listing on eBay.`,
       );
     }
   }
@@ -1191,11 +1206,51 @@ export default function CollectionPage() {
                         <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
                       )}
                     </>
+                  ) : priceForm?.id === card.id ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const next = Math.round((parseFloat(priceForm.value) || 0) * 100) / 100;
+                        setPriceForm(null);
+                        if (next > 0) void setAskingPrice(card, next);
+                      }}
+                      className="flex items-center justify-end gap-1"
+                    >
+                      <span className="relative">
+                        <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          inputMode="decimal"
+                          autoFocus
+                          value={priceForm.value}
+                          onChange={(e) => setPriceForm({ id: card.id, value: e.target.value })}
+                          onKeyDown={(e) => e.key === "Escape" && setPriceForm(null)}
+                          aria-label="Listing price"
+                          className="w-20 rounded-md border border-edge bg-black/40 py-1 pl-4 pr-1 text-right text-sm text-white outline-none focus:border-brand-400"
+                        />
+                      </span>
+                      <button
+                        type="submit"
+                        className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+                      >
+                        ✓
+                      </button>
+                    </form>
                   ) : (
                     <>
-                      <p className="text-lg font-bold tracking-tight text-white">
-                        ${card.price.toFixed(2)}
-                      </p>
+                      {/* Tap the price to change it — live eBay listings
+                          reprice in place (Chris, 09-04). */}
+                      <button
+                        onClick={() => setPriceForm({ id: card.id, value: card.price > 0 ? card.price.toFixed(2) : "" })}
+                        disabled={repricing === card.id}
+                        title={card.ebayOfferId ? "Change the listing price — updates your eBay listing too" : "Change the listing price"}
+                        className="group inline-flex items-center gap-1 text-lg font-bold tracking-tight text-white transition hover:text-brand-300 disabled:opacity-50"
+                      >
+                        {repricing === card.id ? "Saving…" : `${card.price.toFixed(2)}`}
+                        <span aria-hidden className="text-xs text-zinc-500 transition group-hover:text-brand-300">✎</span>
+                      </button>
                       {card.status === "listed" && nudges[card.id] && (
                         <button
                           onClick={() => void applyReprice(card, nudges[card.id])}
