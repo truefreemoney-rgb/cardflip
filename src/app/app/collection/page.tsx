@@ -1142,6 +1142,14 @@ export default function CollectionPage() {
                     ⚠ {card.matchDoubt}
                   </span>
                 )}
+                {card.firstEdition && (
+                  <span
+                    className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 text-[11px] font-semibold text-brand-300"
+                    title="1st Edition stamp — priced and listed as its own printing"
+                  >
+                    1st Edition
+                  </span>
+                )}
 
                 {/* The price is what a seller scans the list FOR -- it reads
                     at a glance now (Chris, 08-31: "make the prices bigger").

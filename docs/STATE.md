@@ -39,6 +39,8 @@ so. Art Series cards (2,650, 40 sets) ARE in the mirror since tonight
 (scripts/sync-mtg-art.mjs, local + prod; EUR-only prices — BACKLOG). (3)
 Everything below is on main and deployed (last = 49fb3cb).**
 
+**SESSION 6 SHIPPED (09-04, main, deployed):** Inventory price is TAP-TO-EDIT on every unsold row; cards with an eBay offer go through POST /api/ebay/reprice so the LIVE LISTING changes in place (Chris: change the price here, never on eBay). 1ST EDITION IS ITS OWN PRODUCT: vision read gains `firstEdition` (stamp below-left of art, WotC sets only via canBeFirstEdition); the scan flips the editor toggle itself; cards.first_edition column persisted (PATCH accepts firstEdition), resumed, and shown as a "1st Edition" pill in Inventory; eBay comps carry the flag (query adds "1st edition", isComparable REQUIRES the stamp in titles when true and REJECTS stamped titles when false for sets that had a run); effectiveVariant falls to EBAY_VARIANT (the 1st-Ed-only asking comps) when TCGplayer has no 1st Ed line (Base Set) — the only value change, 1st Edition items only. Watchlist: tile tap opens the modal INSTANTLY (stub card from the tile + `loading` prop, resolved cards cached from the reprice pass). Chris still owes the STRIPE PUBLIC-DETAILS errand.**
+
 **SESSION 5 SHIPPED (09-03, all main, all deployed):** Inventory (was My
 cards): Live → "Awaiting sale" + "End auction" (POST /api/ebay/end
 withdraws the eBay offer → ebay_ended_at), ended → "Auction ended" pill +

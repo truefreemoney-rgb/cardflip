@@ -137,7 +137,13 @@ export function isFirstEditionVariant(variant: string): boolean {
 export function effectiveVariant(item: ScanItem): string | undefined {
   if (item.variant) return item.variant;
   if (item.firstEdition && item.card) {
-    return firstEditionPrice(item.card)?.variant;
+    const tracked = firstEditionPrice(item.card)?.variant;
+    if (tracked) return tracked;
+    // Base Set 1st Edition has no TCGplayer line. The eBay comps on the card
+    // were pulled for stamped copies only (see fetchEbayComps firstEdition),
+    // so they are the one real number for this printing — quoting the
+    // unlimited price for a stamped Charizard is the wrong card (09-04).
+    if (item.card.prices.some((p) => p.variant === EBAY_VARIANT && p.market != null && p.market > 0)) return EBAY_VARIANT;
   }
   return undefined;
 }

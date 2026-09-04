@@ -889,18 +889,18 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 )}
               </span>
               <span className="mt-0.5 block text-xs leading-snug text-zinc-500">
-                {card.setName} had a 1st Edition print run worth a premium —
-                check the box if your card has the stamp by the artwork.
+                {item.vision?.firstEdition === true
+                  ? "The scan saw the 1st Edition stamp by the artwork — untick this if it's wrong."
+                  : `${card.setName} had a 1st Edition print run worth a premium — check the box if your card has the stamp by the artwork.`}
               </span>
             </span>
           </label>
           {item.firstEdition && !firstEdPrice && (
             <p className="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-300">
               Our price source doesn&apos;t track 1st Edition {card.setName}{" "}
-              separately, so the suggested price below is for the unlimited
-              printing. 1st Edition copies sell for a large premium — check the
-              eBay links above (they now search 1st Edition) and set your own
-              price.
+              separately, so the price comes from what 1st Edition copies are
+              listed for on eBay right now (the comps above search 1st Edition
+              only). Check the eBay links and set your own price if it looks off.
             </p>
           )}
         </div>

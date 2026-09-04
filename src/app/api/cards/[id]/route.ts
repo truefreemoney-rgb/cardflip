@@ -41,6 +41,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             ? body.matchDoubt.slice(0, 80)
             : null
           : undefined,
+      firstEdition: typeof body?.firstEdition === "boolean" ? body.firstEdition : undefined,
     });
 
     if (!card) {

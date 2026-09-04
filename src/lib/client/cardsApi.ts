@@ -32,6 +32,8 @@ export interface ServerCard {
   verifiedAt: number | null;
   /** Why the scan was doubtful ("low-confidence read", ...), null if clean. */
   matchDoubt: string | null;
+  /** 1st Edition stamp — read by the scanner or ticked in the editor. */
+  firstEdition: boolean;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
@@ -70,6 +72,7 @@ export interface UpdateCardInput {
   soldAt?: number | null;
   verifiedAt?: number | null;
   matchDoubt?: string | null;
+  firstEdition?: boolean;
 }
 
 export async function fetchServerCards(): Promise<ServerCard[]> {

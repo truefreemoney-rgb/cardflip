@@ -105,6 +105,11 @@ const CARD_READ_SCHEMA = {
       description:
         "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'card': a normal playable card. Null if unsure.",
     },
+    firstEdition: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description:
+        "Pokémon only. true when the card carries the '1st Edition' stamp: a small black circle containing a '1' with the word EDITION beneath it, printed just below-left of the artwork frame (Wizards of the Coast era, 1999–2002). false when the card is from that era and that spot is visible and clearly blank. Null for Magic cards, modern cards, or when that corner can't be seen.",
+    },
   },
   required: [
     "name",
@@ -119,6 +124,7 @@ const CARD_READ_SCHEMA = {
     "conditionNotes",
     "confidence",
     "kind",
+    "firstEdition",
   ],
   additionalProperties: false,
 } as const;
@@ -138,6 +144,12 @@ and the same number — Charizard 4/102 is the 1999 Base Set card, Charizard
 (201/198) is a secret rare, which is normal and usually the valuable one. Read
 the two halves independently rather than assuming a card is numbered within
 its set.
+
+Early Wizards of the Coast cards (Base Set through Neo Destiny, 1999–2002) may
+carry a small black "1st Edition" stamp — a circled 1 with EDITION under it —
+just below-left of the artwork. Report it in firstEdition: a stamped copy is a
+separate product worth many times the unlimited print, so only say true when
+you can actually see the stamp, and false when that spot is visible and blank.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
@@ -292,6 +304,7 @@ export async function analyzeCardImageWithUsage(
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
+    firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
     name: parsed.name.trim(),
   };
   const u = response.usage;

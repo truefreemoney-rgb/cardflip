@@ -28,13 +28,14 @@ const CCG_SINGLES_CATEGORY = "183454";
  * (a name is reprinted across dozens of sets; the code pins the printing) and
  * the game word so a Pokémon "Charizard 4" and an MTG "Charizard" never mix.
  */
-function compsQuery(card: PokemonCard): string {
+function compsQuery(card: PokemonCard, firstEdition = false): string {
   const name = card.englishName || card.name;
   const game = GAMES[gameOf(card)];
   return [
     name,
     game.id === "mtg" && card.setCode ? card.setCode : "",
     card.number,
+    firstEdition ? "1st edition" : "",
     game.id === "mtg" ? game.searchToken : "",
   ]
     .filter(Boolean)
@@ -119,6 +120,8 @@ interface ItemSummary {
 export async function fetchEbayComps(
   card: PokemonCard,
   grading?: { company: string; grade: string } | null,
+  /** See isComparable: true = stamped copies only, false = unstamped only. */
+  firstEdition?: boolean | null,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
   const searchUrl = ebaySearchUrl(card);
@@ -126,9 +129,10 @@ export async function fetchEbayComps(
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
   // For a slab, the company+grade go into the query and isComparable flips
   // from rejecting graded titles to requiring exactly this grade.
+  const base = compsQuery(card, firstEdition === true);
   const query = grading
-    ? `${compsQuery(card)} ${grading.company} ${grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade}`
-    : compsQuery(card);
+    ? `${base} ${grading.company} ${grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade}`
+    : base;
   url.searchParams.set("q", query);
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
@@ -160,7 +164,7 @@ export async function fetchEbayComps(
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     // Mixed currencies would silently corrupt a USD average.
     if (item.price?.currency && item.price.currency !== "USD") continue;
-    if (!isComparable(title, card, grading)) continue;
+    if (!isComparable(title, card, grading, firstEdition)) continue;
 
     listings.push({
       id: item.itemId ?? `${title}-${value}`,

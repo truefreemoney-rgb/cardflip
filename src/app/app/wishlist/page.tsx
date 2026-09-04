@@ -144,6 +144,27 @@ interface Repriced {
   prices: Record<string, number>;
   /** item.id → catalog id, for rows saved before `cardId` was stored (sparklines). */
   cardIds: Record<string, string>;
+  /** item.id → the resolved catalog card, so a tile tap opens without a fetch. */
+  cards: Record<string, PokemonCard>;
+}
+
+/** What the tile already knows about its card, shaped for the detail modal —
+ * shown the instant a tile is tapped while the catalog row loads (09-04:
+ * "opening the larger view is delayed"). */
+function stubCard(item: WishlistItem): PokemonCard {
+  return {
+    id: item.cardId ?? "",
+    name: item.cardName,
+    englishName: item.englishName,
+    setName: item.setName,
+    setSeries: "",
+    number: item.cardNumber,
+    rarity: null,
+    imageSmall: item.imageUrl,
+    imageLarge: item.imageUrl,
+    prices: [],
+    ...(item.game ? { game: item.game } : {}),
+  };
 }
 
 /** Find the catalog card behind a saved row — the same match walk the
@@ -182,6 +203,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
 
   const prices: Record<string, number> = {};
   const cardIds: Record<string, string> = {};
+  const resolved: Record<string, PokemonCard> = {};
   await Promise.all(
     targets.map(async (item) => {
       try {
@@ -197,6 +219,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
                 normalizeNumber(c.number) === normalizeNumber(item.cardNumber)),
           ) ?? cards[0];
         if (!match) return;
+        resolved[item.id] = match;
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
         const usd = match.prices.find((p) => p.currency === "USD" && p.market != null);
         if (usd?.market != null) prices[item.id] = usd.market;
@@ -205,7 +228,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
       }
     }),
   );
-  return { prices, cardIds };
+  return { prices, cardIds, cards: resolved };
 }
 
 /** Since-saved move as a chip; quiet when under a dollar and 1%. */
@@ -238,7 +261,10 @@ export default function WishlistPage() {
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
   // handoff (Chris veto: a wishlisted card has no real photo, only stock art).
-  const [detail, setDetail] = useState<{ card: PokemonCard; language: ScanLanguage; itemId: string } | null>(null);
+  const [detail, setDetail] = useState<{ card: PokemonCard; language: ScanLanguage; itemId: string; loading?: boolean } | null>(null);
+  // Catalog cards already resolved for the tiles (by the repricing pass or an
+  // earlier open) — a tap on one of these opens with no network wait.
+  const resolvedCards = useRef<Record<string, PokemonCard>>({});
   const [detailOpeningId, setDetailOpeningId] = useState<string | null>(null);
   const [sort, setSort] = useState<"newest" | "name" | "price-high" | "price-low">("newest");
   const [listFilter, setListFilter] = useState("");
@@ -275,10 +301,11 @@ export default function WishlistPage() {
         if (cancelled) return;
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
-        void fetchCurrentPrices(list).then(({ prices, cardIds }) => {
+        void fetchCurrentPrices(list).then(({ prices, cardIds, cards }) => {
           if (cancelled) return;
           setNowPrices(prices);
           setResolvedIds(cardIds);
+          resolvedCards.current = { ...resolvedCards.current, ...cards };
         });
       })
       .finally(() => {
@@ -373,16 +400,27 @@ export default function WishlistPage() {
 
   async function openDetail(item: WishlistItem) {
     if (detailOpeningId) return;
-    setDetailOpeningId(item.id);
     setAddError(null);
+    const cached = resolvedCards.current[item.id];
+    if (cached) {
+      setDetail({ card: cached, language: item.language, itemId: item.id });
+      return;
+    }
+    // Open NOW on what the tile knows; the catalog row (prices, history)
+    // fills in when it lands. A closed modal is never reopened by the fetch.
+    setDetail({ card: stubCard(item), language: item.language, itemId: item.id, loading: true });
+    setDetailOpeningId(item.id);
     try {
       const card = await resolveWishlistCard(item);
       if (card) {
-        setDetail({ card, language: item.language, itemId: item.id });
+        resolvedCards.current[item.id] = card;
+        setDetail((d) => (d?.itemId === item.id ? { card, language: item.language, itemId: item.id } : d));
       } else {
+        setDetail((d) => (d?.itemId === item.id ? { ...d, loading: false } : d));
         setAddError(`Couldn't find ${item.cardName} in the catalog right now — try again in a moment.`);
       }
     } catch {
+      setDetail((d) => (d?.itemId === item.id ? { ...d, loading: false } : d));
       setAddError("Couldn't load that card — check your connection.");
     } finally {
       setDetailOpeningId(null);
@@ -735,6 +773,7 @@ export default function WishlistPage() {
             card={detail.card}
             language={detail.language}
             logging={false}
+            loading={detail.loading}
             onWatchlist
             watchlistControls={
               detailItem?.cardId ? (

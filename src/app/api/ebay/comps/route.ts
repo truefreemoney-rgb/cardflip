@@ -9,6 +9,7 @@ import {
   isEbayConfigured,
 } from "@/lib/server/ebay";
 import type { PokemonCard } from "@/lib/types";
+import { canBeFirstEdition } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
 import {
   LIMITS,
@@ -37,8 +38,13 @@ export async function POST(req: Request) {
 
     // Both links work without any API access, so the UI can always point the
     // seller at eBay even when we have no credentials to price against.
-    const searchUrl = ebaySearchUrl(card);
-    const soldSearchUrl = ebaySoldSearchUrl(card);
+    // 1st Edition is a separate market (Chris, 09-04): only meaningful for
+    // sets that had a 1st Edition run; elsewhere the flag is ignored.
+    const firstEdition =
+      typeof body?.firstEdition === "boolean" && canBeFirstEdition(card) ? (body.firstEdition as boolean) : null;
+
+    const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true });
+    const soldSearchUrl = ebaySoldSearchUrl(card, { firstEdition: firstEdition === true });
 
     if (!isEbayConfigured()) {
       return NextResponse.json({
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
     // eBay" link instead. Settled independently so a sold failure never
     // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
-      fetchEbayComps(card, grading),
+      fetchEbayComps(card, grading, firstEdition),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
         ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),

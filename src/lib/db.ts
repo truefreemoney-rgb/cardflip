@@ -450,6 +450,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // printings matched"), null when the read was clean. Shown as a tag in
       // My Cards so mismatches can be traced back (Chris, 09-03).
       "match_doubt TEXT",
+      // 1st Edition stamp (WotC-era Pokémon) — read by the scanner or ticked
+      // by the seller. Its own market; shown as a pill in Inventory (09-04).
+      "first_edition INTEGER",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

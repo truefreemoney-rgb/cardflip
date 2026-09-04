@@ -16,7 +16,7 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
-import { buildListing, buildSealedListing, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
+import { buildListing, buildSealedListing, canBeFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
 import { readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCondition, readSavedStrategy } from "@/lib/client/scanPrefs";
@@ -114,6 +114,7 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
   candidates: results,
   card,
   grading,
+  firstEdition: row.firstEdition,
   // Slabs price off raw market as a floor, never quick-sale discounts.
   strategy: grading ? "market" : "quick",
   condition: asCondition(row.condition) ?? "Near Mint",
@@ -480,6 +481,10 @@ export default function AppPage() {
               status: lowConfidence || ambiguous ? "review" : "ready",
               candidates: matches,
               card,
+              // The stamp the model saw flips the 1st Edition toggle itself
+              // (Chris, 09-04: a stamped Base Set Charizard was priced and
+              // filed as the unlimited one). Only where the set had a run.
+              firstEdition: vision.read?.firstEdition === true && canBeFirstEdition(card),
               error: null,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
@@ -510,10 +515,11 @@ export default function AppPage() {
               patchItem(next.id, { serverId: server.id });
               // Verified before the row existed (fast tap): sync it now.
               const cur = itemsRef.current.find((i) => i.id === next.id);
-              if (cur?.verifiedAt || cur?.matchDoubt) {
+              if (cur?.verifiedAt || cur?.matchDoubt || cur?.firstEdition) {
                 void updateServerCard(server.id, {
                   ...(cur.verifiedAt ? { verifiedAt: cur.verifiedAt } : {}),
                   ...(cur.matchDoubt ? { matchDoubt: cur.matchDoubt } : {}),
+                  ...(cur.firstEdition ? { firstEdition: true } : {}),
                 });
               }
               // Persist the seller's own photo now, not at eBay-push time.
@@ -582,7 +588,7 @@ export default function AppPage() {
   );
 
   const loadEbayComps = useCallback(
-    async (id: string, card: PokemonCard) => {
+    async (id: string, card: PokemonCard, firstEditionOverride?: boolean) => {
       compsInFlight.current.add(id);
       patchItem(id, { ebayStatus: "loading" });
       // The point rides alongside the comps; whichever lands second re-saves
@@ -590,7 +596,11 @@ export default function AppPage() {
       void loadCurrentPoint(id, card);
 
       try {
-        const result = await fetchEbayComps(card);
+        // 1st Edition copies are their own eBay market — the comps are pulled
+        // for the printing the item claims to be (stamped listings excluded
+        // for an unlimited copy of a set that had a run).
+        const stamped = firstEditionOverride ?? itemsRef.current.find((i) => i.id === id)?.firstEdition ?? false;
+        const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null);
         const item = itemsRef.current.find((i) => i.id === id);
         // Dropped from the queue, or the seller corrected the match while we
         // were waiting — either way these comps are for the wrong card now.
@@ -1257,7 +1267,15 @@ export default function AppPage() {
                     key={selected.id}
                     item={selected}
                     ebayConnected={user.ebayConnected}
-                    onChange={(patch) => patchItem(selected.id, patch)}
+                    onChange={(patch) => {
+                      patchItem(selected.id, patch);
+                      // The 1st Edition toggle changes what the card IS on
+                      // eBay: persist it and re-pull comps for that market.
+                      if (patch.firstEdition !== undefined) {
+                        if (selected.serverId) void updateServerCard(selected.serverId, { firstEdition: Boolean(patch.firstEdition) });
+                        if (selected.card) void loadEbayComps(selected.id, selected.card, Boolean(patch.firstEdition));
+                      }
+                    }}
                     onNext={selectNext}
                     onRemove={() => removeItem(selected.id)}
                     onApplyConditionToAll={

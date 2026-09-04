@@ -47,6 +47,8 @@ export interface CardRecord {
   verifiedAt: number | null;
   /** Why the scan was doubtful ("low-confidence read", ...), null if clean. */
   matchDoubt: string | null;
+  /** 1st Edition stamp (WotC-era Pokémon) — its own market and listing title. */
+  firstEdition: boolean;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -90,6 +92,7 @@ interface CardRow {
   watcher_offer_at: number | null;
   verified_at: number | null;
   match_doubt: string | null;
+  first_edition: number | null;
   ebay_sku: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
@@ -129,6 +132,7 @@ function fromRow(row: CardRow): CardRecord {
     watcherOfferAt: row.watcher_offer_at ?? null,
     verifiedAt: row.verified_at ?? null,
     matchDoubt: row.match_doubt ?? null,
+    firstEdition: row.first_edition === 1,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
@@ -205,6 +209,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     listedAt: null,
     verifiedAt: null,
     matchDoubt: null,
+    firstEdition: false,
     soldPrice: null,
     soldAt: null,
     soldFees: null,
@@ -409,6 +414,7 @@ export interface CardUpdate {
   soldAt?: number | null;
   verifiedAt?: number | null;
   matchDoubt?: string | null;
+  firstEdition?: boolean;
 }
 
 /** Ownership is enforced here, not just at the route layer: the WHERE clause
@@ -435,6 +441,7 @@ export async function updateCard(
     sold_at: patch.soldAt !== undefined ? patch.soldAt : existingRow.sold_at,
     verified_at: patch.verifiedAt !== undefined ? patch.verifiedAt : existingRow.verified_at,
     match_doubt: patch.matchDoubt !== undefined ? patch.matchDoubt : existingRow.match_doubt,
+    first_edition: patch.firstEdition !== undefined ? (patch.firstEdition ? 1 : 0) : existingRow.first_edition,
     // Any status move settles the ended flag — sold/unlisted cards don't
     // need the chip, and a later manual "Mark listed" starts clean.
     ebay_ended_at: patch.status !== undefined ? null : existingRow.ebay_ended_at,
@@ -449,7 +456,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -462,6 +469,7 @@ export async function updateCard(
       merged.sold_at,
       merged.verified_at ?? null,
       merged.match_doubt ?? null,
+      merged.first_edition ?? null,
       merged.sold_fees,
       merged.ebay_order_id,
       merged.ebay_line_item_id,

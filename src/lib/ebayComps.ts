@@ -59,6 +59,9 @@ function hasForeignVariantSuffix(lowerTitle: string, lowerName: string): boolean
   return false;
 }
 
+/** "1st Edition", "1st Ed", "First Edition" in a listing title. */
+const FIRST_EDITION_TITLE = /\b(1st|first)[\s-]*(edition|ed)\b/i;
+
 /** Grading companies whose slabs share the market shelf on eBay. */
 const GRADING_COMPANIES = ["psa", "bgs", "cgc", "sgc", "ace", "tag"];
 
@@ -76,6 +79,11 @@ export function isComparable(
   title: string,
   card: PokemonCard,
   grading?: { company: string; grade: string } | null,
+  /** true: price the stamped copy (title must say 1st Edition); false: the
+   *  unlimited copy of a set that HAD a 1st Edition run (stamped listings are
+   *  the noise — Base Set Charizard is a different market with the stamp).
+   *  Null/undefined: the set never had one, don't look. */
+  firstEdition?: boolean | null,
 ): boolean {
   for (const pattern of REJECT_PATTERNS) {
     // In graded mode the slab patterns are the point, not noise.
@@ -85,6 +93,9 @@ export function isComparable(
   }
 
   const lower = title.toLowerCase();
+
+  if (firstEdition === true && !FIRST_EDITION_TITLE.test(title)) return false;
+  if (firstEdition === false && FIRST_EDITION_TITLE.test(title)) return false;
 
   if (grading) {
     const company = grading.company.toLowerCase();
