@@ -28,7 +28,7 @@ import {
 import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
-import { estimatedEbayFees, netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -584,7 +584,6 @@ export default function CollectionPage() {
   // Offers to watchers: the panel lists eBay-eligible listings; every send is
   // one explicit click + confirm — offers email real buyers, nothing auto-fires.
   const [offerPanel, setOfferPanel] = useState(false);
-  const [moreMenu, setMoreMenu] = useState(false);
   const [offerLoading, setOfferLoading] = useState(false);
   const [offerEligible, setOfferEligible] = useState<string[]>([]);
   const [offerNote, setOfferNote] = useState<string | null>(null);
@@ -931,47 +930,6 @@ export default function CollectionPage() {
     setBulkDeleting(false);
   }
 
-  // The whole ledger as a spreadsheet — the seller's data is theirs to take.
-  // Distinct from the eBay drafts CSV (that one is eBay's upload format).
-  function exportCsv() {
-    const esc = (v: string | number | null | undefined) => {
-      const text = v == null ? "" : String(v);
-      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    };
-    const header = [
-      "Name", "Set", "Number", "Game", "Type", "Condition", "Status", "Price",
-      "Copies", "Scanned", "Listed", "Sold", "Sold price", "eBay fees", "Net", "eBay listing",
-    ];
-    const day = (ts: number | null) => (ts ? new Date(ts).toISOString().slice(0, 10) : "");
-    const lines = cards.map((c) =>
-      [
-        c.cardName, c.setName, c.cardNumber, c.game ?? "pokemon",
-        c.kind === "sealed" ? (c.productType ?? "sealed") : "card",
-        c.condition, c.status, c.price.toFixed(2), c.quantity || 1,
-        day(c.createdAt), day(c.listedAt), day(c.soldAt),
-        c.soldPrice != null ? c.soldPrice.toFixed(2) : "",
-        // Actual Finances-API fee when synced, marked estimate otherwise.
-        c.soldPrice != null
-          ? c.soldFees != null
-            ? c.soldFees.toFixed(2)
-            : `est ${estimatedEbayFees(c.soldPrice).toFixed(2)}`
-          : "",
-        c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees).toFixed(2) : "",
-        c.ebayListingUrl ?? "",
-      ].map(esc).join(","),
-    );
-    const blob = new Blob(["﻿" + [header.join(","), ...lines].join("\r\n") + "\r\n"], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `cardflip-collection-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast(`${cards.length} card${cards.length === 1 ? "" : "s"} exported to CSV`);
-  }
-
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const shown = gameCards.filter((card) => {
@@ -1150,9 +1108,9 @@ export default function CollectionPage() {
       </section>
 
       {/* Toolbar (Chris, 09-04: the stacked rows were "an amazing mess"):
-          ONE panel, three tight rows — search + view + sort + ⋯ menu; status
-          filter; category chips. Rows scroll sideways on a phone instead of
-          wrapping into a stack. Export CSV / Offer to watchers live in ⋯. */}
+          ONE panel, three tight rows — search + view + sort; status
+          filter (+ Offer to watchers); category chips. Rows scroll sideways on a
+          phone instead of wrapping into a stack. CSV export removed (Chris). */}
       <div className="rounded-2xl border border-edge bg-surface-1 p-2 sm:p-3">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -1222,58 +1180,11 @@ export default function CollectionPage() {
               </option>
             ))}
           </select>
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              aria-label="More actions"
-              aria-expanded={moreMenu}
-              onClick={() => setMoreMenu((v) => !v)}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border transition sm:h-9 sm:w-9 ${
-                moreMenu ? "border-edge-strong bg-white/10 text-white" : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"
-              }`}
-            >
-              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden>
-                <circle cx="4.5" cy="10" r="1.6" />
-                <circle cx="10" cy="10" r="1.6" />
-                <circle cx="15.5" cy="10" r="1.6" />
-              </svg>
-            </button>
-            {moreMenu && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setMoreMenu(false)} />
-                <div role="menu" className="absolute right-0 z-40 mt-2 w-52 overflow-hidden rounded-xl border border-edge bg-surface-2 py-1 shadow-2xl shadow-black/60">
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMoreMenu(false);
-                      exportCsv();
-                    }}
-                    disabled={cards.length === 0}
-                    className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Export CSV
-                  </button>
-                  {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setMoreMenu(false);
-                        if (offerPanel) setOfferPanel(false);
-                        else void openOfferPanel();
-                      }}
-                      className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5 hover:text-white"
-                    >
-                      {offerPanel ? "Close offers" : "Offer to watchers"}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
-        <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex w-max items-center gap-1 rounded-full bg-black/25 p-1">
+        <div className="mt-2 flex items-center gap-2">
+          <div className="-mx-2 min-w-0 flex-1 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex w-max items-center gap-1 rounded-full bg-black/25 p-1">
             {FILTERS.map((f) => (
               <button
                 key={f.value}
@@ -1285,7 +1196,19 @@ export default function CollectionPage() {
                 {f.label}
               </button>
             ))}
+            </div>
           </div>
+          {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
+            <button
+              type="button"
+              onClick={() => (offerPanel ? setOfferPanel(false) : void openOfferPanel())}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                offerPanel ? "border-brand-400 bg-brand-500/15 text-white" : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"
+              }`}
+            >
+              Offer to watchers
+            </button>
+          )}
         </div>
 
         {/* Category chips (Chris, 09-04): only once a category exists. */}
