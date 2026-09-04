@@ -511,6 +511,7 @@ export default function AppPage() {
               price: quote?.suggested ?? 0,
               game: next.game,
               catalogCardId: card.id || null,
+              rarity: card.rarity ?? null,
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.
@@ -1319,6 +1320,7 @@ export default function AppPage() {
                           cardNumber: patch.card.number,
                           imageUrl: patch.card.imageSmall,
                           catalogCardId: patch.card.id || null,
+                          rarity: patch.card.rarity ?? null,
                           firstEdition: isFirstEditionCard(patch.card),
                         });
                       }

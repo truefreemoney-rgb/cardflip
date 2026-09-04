@@ -34,6 +34,8 @@ export interface ServerCard {
   matchDoubt: string | null;
   /** 1st Edition stamp — read by the scanner or ticked in the editor. */
   firstEdition: boolean;
+  /** Catalog rarity; null on rows scanned before it was stored. */
+  rarity: string | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
@@ -60,6 +62,7 @@ export interface CreateCardInput {
   productType?: string | null;
   price: number;
   catalogCardId?: string | null;
+  rarity?: string | null;
 }
 
 export interface UpdateCardInput {
@@ -69,6 +72,7 @@ export interface UpdateCardInput {
   cardNumber?: string;
   imageUrl?: string;
   catalogCardId?: string | null;
+  rarity?: string | null;
   condition?: string;
   price?: number;
   quantity?: number;

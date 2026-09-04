@@ -49,6 +49,8 @@ export interface CardRecord {
   matchDoubt: string | null;
   /** 1st Edition stamp (WotC-era Pokémon) — its own market and listing title. */
   firstEdition: boolean;
+  /** Catalog rarity as the source spells it; null for rows scanned before it was stored. */
+  rarity: string | null;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -93,6 +95,7 @@ interface CardRow {
   verified_at: number | null;
   match_doubt: string | null;
   first_edition: number | null;
+  rarity: string | null;
   ebay_sku: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
@@ -133,6 +136,7 @@ function fromRow(row: CardRow): CardRecord {
     verifiedAt: row.verified_at ?? null,
     matchDoubt: row.match_doubt ?? null,
     firstEdition: row.first_edition === 1,
+    rarity: row.rarity ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
     ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
@@ -159,6 +163,7 @@ export interface NewCard {
   productType?: string | null;
   price: number;
   catalogCardId?: string | null;
+  rarity?: string | null;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
@@ -171,8 +176,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, catalog_card_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, catalog_card_id, rarity, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -187,6 +192,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       productType,
       card.price,
       card.catalogCardId ?? null,
+      card.rarity ?? null,
       now,
       now,
     );
@@ -210,6 +216,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     verifiedAt: null,
     matchDoubt: null,
     firstEdition: false,
+    rarity: card.rarity ?? null,
     soldPrice: null,
     soldAt: null,
     soldFees: null,
@@ -411,6 +418,7 @@ export interface CardUpdate {
   cardNumber?: string;
   imageUrl?: string;
   catalogCardId?: string | null;
+  rarity?: string | null;
   condition?: string;
   price?: number;
   quantity?: number;
@@ -443,6 +451,7 @@ export async function updateCard(
     card_number: patch.cardNumber ?? existingRow.card_number,
     image_url: patch.imageUrl ?? existingRow.image_url,
     catalog_card_id: patch.catalogCardId !== undefined ? patch.catalogCardId : existingRow.catalog_card_id,
+    rarity: patch.rarity !== undefined ? patch.rarity : existingRow.rarity,
     condition: patch.condition ?? existingRow.condition,
     price: patch.price ?? existingRow.price,
     quantity: patch.quantity ?? existingRow.quantity ?? 1,
@@ -467,7 +476,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -476,6 +485,7 @@ export async function updateCard(
       merged.card_number,
       merged.image_url,
       merged.catalog_card_id ?? null,
+      merged.rarity ?? null,
       merged.condition,
       merged.price,
       merged.quantity ?? 1,

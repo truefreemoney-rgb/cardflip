@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       productType,
       price,
       catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId : null,
+      rarity: typeof body?.rarity === "string" ? body.rarity.slice(0, 60) : null,
     });
     return NextResponse.json({ card }, { status: 201 });
   } catch (err) {

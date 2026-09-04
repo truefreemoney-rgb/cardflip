@@ -453,6 +453,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // 1st Edition stamp (WotC-era Pokémon) — read by the scanner or ticked
       // by the seller. Its own market; shown as a pill in Inventory (09-04).
       "first_edition INTEGER",
+      // Catalog rarity ("Common", "Illustration Rare", MTG "mythic") copied
+      // onto the row so Inventory can sort by it (Chris, 09-04).
+      "rarity TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

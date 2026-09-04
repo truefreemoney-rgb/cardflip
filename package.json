@@ -35,7 +35,8 @@
     "test:mirror": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-mirror.mjs",
     "replay:scans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/replay-scans.mjs",
     "fill:images": "node scripts/fill-images.mjs",
-    "test:sharpness": "node --experimental-strip-types --no-warnings scripts/test-sharpness.mjs"
+    "test:sharpness": "node --experimental-strip-types --no-warnings scripts/test-sharpness.mjs",
+    "backfill:rarity": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/backfill-rarity.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

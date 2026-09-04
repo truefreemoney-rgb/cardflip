@@ -93,10 +93,34 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
 // Sorts a seller actually reaches for: the money cards, what's been sitting
 // live the longest, and what just sold. Applied client-side over the loaded
 // ledger; "newest" matches the server's own order.
-type SortKey = "newest" | "price" | "listedAge" | "soldRecent";
+type SortKey = "newest" | "price" | "rarity" | "listedAge" | "soldRecent";
+
+/**
+ * Rarity rank for sorting, rarest first. Pokémon tiers as TCGplayer /
+ * pokemontcg.io spell them, then Magic's four. Anything unrecognised sorts
+ * after the known tiers, and rows scanned before rarity was stored go last.
+ */
+const RARITY_RANK: string[] = [
+  "special illustration rare", "hyper rare", "secret rare", "rare secret", "rare rainbow", "rare shiny gx",
+  "rare ultra", "ultra rare", "illustration rare", "shiny ultra rare", "shiny rare", "double rare", "ace spec rare",
+  "amazing rare", "radiant rare", "trainer gallery rare holo", "rare holo vmax", "rare holo vstar", "rare holo v",
+  "rare holo gx", "rare holo ex", "rare holo lv.x", "rare break", "rare prime", "legend", "rare holo", "rare",
+  "promo", "uncommon", "common",
+  // Magic
+  "mythic", "special", "rare", "uncommon", "common",
+];
+function rarityRank(rarity: string | null): number {
+  if (!rarity) return 1000;
+  const key = rarity.trim().toLowerCase();
+  const i = RARITY_RANK.indexOf(key);
+  if (i !== -1) return i;
+  // Unknown spellings: anything that says "rare" outranks the commons.
+  return key.includes("rare") ? 500 : 900;
+}
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "price", label: "Price high → low" },
+  { value: "rarity", label: "Rarity" },
   { value: "listedAge", label: "Longest listed" },
   { value: "soldRecent", label: "Recently sold" },
 ];
@@ -360,6 +384,7 @@ export default function CollectionPage() {
     const primary = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white transition";
     const quiet = "inline-flex items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
     const facts: [string, string][] = [
+      ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
       ["Scanned", formatDate(card.createdAt)],
@@ -918,6 +943,10 @@ export default function CollectionPage() {
     return [...shown].sort((a, b) => {
       if (sort === "price") {
         return (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
+      }
+      if (sort === "rarity") {
+        const byRarity = rarityRank(a.rarity) - rarityRank(b.rarity);
+        return byRarity !== 0 ? byRarity : (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
       }
       if (sort === "listedAge") {
         // Live listings first, oldest listing at the top — "what's been
