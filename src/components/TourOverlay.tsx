@@ -127,6 +127,8 @@ export default function TourOverlay() {
   const router = useRouter();
   const [step, setStepState] = useState<number | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
+  /** Arrow from the card to the spotlight, viewport coordinates. */
+  const [arrow, setArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const open = step !== null;
 
@@ -141,11 +143,21 @@ export default function TourOverlay() {
   // account page or ?tour=1, or progress left over from a navigation/reload.
   useEffect(() => {
     if (!ready || open) return;
+    const here = STEPS.findIndex((s) => s.path === pathname);
     const resume = readProgress();
-    const replay = resume == null && (takeTourReplay() || urlAsksForTour());
-    if (resume == null && !replay && !(pathname === "/app" && user?.tourSeenAt == null)) return;
+    let start: number | null = null;
+    if (takeTourReplay() || urlAsksForTour()) {
+      start = here >= 0 ? here : 0;
+    } else if (resume != null) {
+      // Same page: pick up where it was. Another tour page: the seller
+      // navigated on their own — restart from that page. Elsewhere: wait.
+      start = STEPS[resume].path === pathname ? resume : here >= 0 ? here : null;
+    } else if (pathname === "/app" && user?.tourSeenAt == null) {
+      start = 0;
+    }
+    if (start == null) return;
     // Let the page paint its anchors first.
-    const t = window.setTimeout(() => setStep(resume ?? 0), 400);
+    const t = window.setTimeout(() => setStep(start), 400);
     return () => window.clearTimeout(t);
   }, [ready, open, pathname, user?.tourSeenAt, setStep]);
 
@@ -178,6 +190,39 @@ export default function TourOverlay() {
       window.removeEventListener("scroll", measure, true);
     };
   }, [current]);
+
+  // The arrow needs both boxes laid out: the spotlight (state) and the card
+  // (its own DOM box, which depends on the spotlight through panelStyle).
+  useLayoutEffect(() => {
+    if (!rect || !current) {
+      const t = window.setTimeout(() => setArrow(null), 0);
+      return () => window.clearTimeout(t);
+    }
+    const t = window.setTimeout(() => {
+      const card = panelRef.current?.getBoundingClientRect();
+      if (!card) return;
+      const targetCx = rect.left + rect.width / 2;
+      const cardCx = card.left + card.width / 2;
+      const spotAbove = rect.top + rect.height <= card.top;
+      const spotBelow = rect.top >= card.bottom;
+      let x1: number, y1: number, x2: number, y2: number;
+      if (spotAbove) {
+        x1 = cardCx; y1 = card.top - 2; x2 = targetCx; y2 = rect.top + rect.height + 4;
+      } else if (spotBelow) {
+        x1 = cardCx; y1 = card.bottom + 2; x2 = targetCx; y2 = rect.top - 4;
+      } else {
+        // Side by side (wide screens): leave from the nearer card edge.
+        const targetCy = rect.top + rect.height / 2;
+        const leftOf = rect.left + rect.width <= card.left;
+        x1 = leftOf ? card.left - 2 : card.right + 2;
+        y1 = Math.min(Math.max(targetCy, card.top + 16), card.bottom - 16);
+        x2 = leftOf ? rect.left + rect.width + 4 : rect.left - 4;
+        y2 = targetCy;
+      }
+      setArrow(Math.hypot(x2 - x1, y2 - y1) < 28 ? null : { x1, y1, x2, y2 });
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [rect, current]);
 
   const finish = useCallback(async () => {
     setStep(null);
@@ -238,6 +283,24 @@ export default function TourOverlay() {
         />
       ) : (
         <div className="absolute inset-0 bg-[#05060c]/80" />
+      )}
+      {arrow && (
+        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+          <defs>
+            <marker id="tour-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa" />
+            </marker>
+          </defs>
+          <path
+            d={`M${arrow.x1},${arrow.y1} Q${(arrow.x1 + arrow.x2) / 2 + (arrow.y2 < arrow.y1 ? 28 : -28)},${(arrow.y1 + arrow.y2) / 2} ${arrow.x2},${arrow.y2}`}
+            fill="none"
+            stroke="#a78bfa"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            markerEnd="url(#tour-arrowhead)"
+            style={{ filter: "drop-shadow(0 0 6px rgba(167,139,250,0.6))" }}
+          />
+        </svg>
       )}
       {/* Click-away ends the tour, same as Skip. */}
       <button className="absolute inset-0 cursor-default" aria-label="Skip the tutorial" onClick={() => void finish()} />
