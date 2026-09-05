@@ -42,6 +42,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Camera controls / torch positions on a real device after the HUD rezoning.
 
 ### D. Code work I can do next (ranked, easiest first)
+- [x] Stewardship Phase 0 — DONE 09-05: docs/ARCHITECTURE.md (inventory, legacy, recovery, risks, baseline all green), fly.toml + Dockerfile deleted. Next phases only on evidence: (1) scanner queue loop → module, (2) numbered migrations run from CI, (3) jobs off Vercel functions when a refresh first times out.
 - [x] Delete PriceTicker + dead S3/Fly backup path + stale "Fly secrets" copy — DONE 09-04 night.
 - [ ] Dead "demo" copy in account / EbayConnectCard / admin table — NOT dead: the demo@cardflip.dev row still exists in prod, so the read-only guards still protect it; leave until that account is deleted.
 - [x] .env.example drift (DONE 09-04 night): add TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, STRIPE_PRO_PRICE_ID, EBAY_DRAFT_SCOPE, NEXT_PUBLIC_BUILD_SHA, NEXT_PUBLIC_DEV_LOGIN*; drop ADMIN_EMAIL; note CARDFLIP_DB_PATH is scripts-only.
