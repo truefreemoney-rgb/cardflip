@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { magicPublic } from "@/lib/server/settings";
 
 /**
  * Site footer for the marketing and legal pages. The legal links exist for
@@ -6,7 +7,8 @@ import Link from "next/link";
  * them) check that a site URL has real Terms/Privacy/Contact pages before
  * treating it as a legitimate business.
  */
-export default function Footer() {
+export default async function Footer() {
+  const magic = await magicPublic();
   return (
     <footer className="relative px-6 py-8 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-holo-violet/20 before:to-transparent">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 text-xs text-zinc-600 sm:flex-row">
@@ -32,7 +34,7 @@ export default function Footer() {
           </a>
         </nav>
         <span className="text-center">
-          Not affiliated with Nintendo, The Pokémon Company, Wizards of the Coast, or eBay Inc.
+          Not affiliated with Nintendo, The Pokémon Company, {magic ? "Wizards of the Coast, " : ""}or eBay Inc.
         </span>
       </div>
     </footer>
