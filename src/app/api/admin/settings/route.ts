@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
 import { MAGIC_PUBLIC_KEY, magicPublic, setSetting } from "@/lib/server/settings";
 
@@ -19,6 +20,11 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => null);
     if (typeof body?.magicPublic === "boolean") {
       await setSetting(MAGIC_PUBLIC_KEY, body.magicPublic ? "1" : "0");
+      // The public pages (landing, /help, /terms, /privacy, metadata, OG image)
+      // are statically cached — the landing for a day. Bust everything so the
+      // flip is visible at once (09-05: Chris flipped it and the site kept
+      // saying Magic).
+      revalidatePath("/", "layout");
     } else {
       return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
     }
