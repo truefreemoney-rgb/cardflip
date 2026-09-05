@@ -13,7 +13,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
 - [ ] Anthropic console → Billing → auto-reload (1 min, optional).
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
-- [ ] Flip the Magic switch when Magic is ready (admin → Switches).
+- [x] Magic switch OFF 09-05 (Chris). Flip on when Magic is ready.
 - [ ] MD LLC decision (also solves the Stripe address).
 - [ ] eBay app-level rate-limit increase application (takes time; before launch).
 
@@ -34,7 +34,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Trial selling gate on prod (402 on draft/publish) — verified locally only.
 - [ ] Admin plan overrides on prod (comp/unlimited/legacy/trial) — verified locally only.
 - [ ] Admin Add account on prod — verified locally only.
-- [ ] Magic switch on prod — verified locally only.
+- [x] Magic switch on prod — proven 09-05 (public pages lost Magic after the flip).
 - [ ] Tour stamping (tour_seen_at) on prod — replay works, the once-only stamp not confirmed.
 - [ ] Verify-match gate on a live scan (needs a logged-in scan on a phone).
 - [ ] Vision printing/finish accuracy on real phone photos.
