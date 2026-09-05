@@ -8,7 +8,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### A. Only Chris can do these (gates)
 - [ ] **Paid signup end-to-end on the LIVE site** — fresh email, burn 10 trial scans, wall, Stripe $9.99 real card, wall lifts, account shows 500/mo. Gates v1.0.0. TOP PRIORITY.
-- [ ] **Stripe public details** — ADDRESS SECURED 09-05 (Chevy Chase MD virtual mailbox; UPS Store wanted $400/6mo, walked). Still owed: non-personal phone (Google Voice), then enter both in Stripe → Business details → Public details; statement descriptor CARDFLIP. Optionally mirror the address in the site footer + /terms + /privacy.
+- [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
 - [ ] **Open the admin console on cardflip.io once** — if Switches / Users error, the new `settings` / `help_messages` tables didn't init on prod (schema runs at process start).
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
 - [ ] Anthropic console → Billing → auto-reload (1 min, optional).
