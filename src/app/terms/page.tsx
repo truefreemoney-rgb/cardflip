@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
+import { magicPublic } from "@/lib/server/settings";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -88,13 +89,28 @@ const sections: LegalSection[] = [
   },
 ];
 
-export default function TermsPage() {
+/** Magic is mentioned only while the site switch has it public (Chris, 09-05). */
+function forViewer(magic: boolean): LegalSection[] {
+  if (magic) return sections;
+  return sections.map((s) => ({
+    ...s,
+    paragraphs: s.paragraphs.map((p) =>
+      p
+        .replace("Pokémon and Magic: The Gathering trading cards", "Pokémon trading cards")
+        .replace("Pokémon, Magic: The Gathering, and all card names", "Pokémon and all card names")
+        .replace("Nintendo, Creatures Inc., Game Freak, and Wizards of the Coast LLC", "Nintendo, Creatures Inc., and Game Freak")
+        .replace("Nintendo, The Pokémon Company, Wizards of the Coast, Scryfall, TCGplayer, or eBay Inc.", "Nintendo, The Pokémon Company, TCGplayer, or eBay Inc."),
+    ),
+  }));
+}
+
+export default async function TermsPage() {
   return (
     <LegalArticle
       title="Terms of Service"
       effectiveDate="September 2, 2026"
       intro="These terms are an agreement between you and CardFlip covering your use of the CardFlip website and app. They are written to be read — if anything is unclear, ask us before relying on it."
-      sections={sections}
+      sections={forViewer(await magicPublic())}
     />
   );
 }

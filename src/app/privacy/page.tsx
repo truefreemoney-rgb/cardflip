@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
+import { magicPublic } from "@/lib/server/settings";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -72,13 +73,24 @@ const sections: LegalSection[] = [
   },
 ];
 
-export default function PrivacyPage() {
+/** Magic is mentioned only while the site switch has it public (Chris, 09-05). */
+function forViewer(magic: boolean): LegalSection[] {
+  if (magic) return sections;
+  return sections.map((s) => ({
+    ...s,
+    paragraphs: s.paragraphs.map((p) =>
+      p.replace("(TCGdex and pokemontcg.io for Pokémon, Scryfall for Magic: The Gathering)", "(TCGdex and pokemontcg.io)"),
+    ),
+  }));
+}
+
+export default async function PrivacyPage() {
   return (
     <LegalArticle
       title="Privacy Policy"
       effectiveDate="September 2, 2026"
       intro="CardFlip collects the minimum it needs to identify, price, and track the cards you sell. This page lists exactly what that is, where it goes, and how to get it deleted."
-      sections={sections}
+      sections={forViewer(await magicPublic())}
     />
   );
 }
