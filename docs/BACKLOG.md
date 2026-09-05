@@ -9,7 +9,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ### A. Only Chris can do these (gates)
 - [ ] **Paid signup end-to-end on the LIVE site** — fresh email, burn 10 trial scans, wall, Stripe $9.99 real card, wall lifts, account shows 500/mo. Gates v1.0.0. TOP PRIORITY.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
-- [ ] **Open the admin console on cardflip.io once** — if Switches / Users error, the new `settings` / `help_messages` tables didn't init on prod (schema runs at process start).
+- [x] **Open the admin console on cardflip.io once** — DONE 09-05: Switches + Users load on prod, 7 users, plan dropdowns render. NOTE: Magic switch was ON (public) at the time — Chris to flip off per 09-04 call, or confirm he wants it public.
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
 - [ ] Anthropic console → Billing → auto-reload (1 min, optional).
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
