@@ -11,7 +11,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
 - [x] **Open the admin console on cardflip.io once** — DONE 09-05: Switches + Users load on prod, 7 users, plan dropdowns render. NOTE: Magic switch was ON (public) at the time — Chris to flip off per 09-04 call, or confirm he wants it public.
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
-- [ ] Anthropic console → Billing → auto-reload (1 min, optional).
+- [x] Anthropic auto-reload ON — 09-05 (Chris).
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
 - [x] Magic switch OFF 09-05 (Chris). Flip on when Magic is ready.
 - [ ] MD LLC decision (also solves the Stripe address).
