@@ -7,7 +7,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 0.0 FULL SWEEP (09-04 night, Chris: "any tasks, even ship not tested, everything and anything") — the one list until it's re-swept
 
 ### A. Only Chris can do these (gates)
-- [ ] **Paid signup end-to-end on the LIVE site** — fresh email, burn 10 trial scans, wall, Stripe $9.99 real card, wall lifts, account shows 500/mo. Gates v1.0.0. TOP PRIORITY.
+- [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
 - [x] **Open the admin console on cardflip.io once** — DONE 09-05: Switches + Users load on prod, 7 users, plan dropdowns render. NOTE: Magic switch was ON (public) at the time — Chris to flip off per 09-04 call, or confirm he wants it public.
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
