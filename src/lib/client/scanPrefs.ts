@@ -43,25 +43,47 @@ export function readSavedStrategy(): PriceStrategy {
   }
 }
 
-/** Last category new scans were filed under; null = uncategorized. */
+/**
+ * Last category new scans were filed under; null = uncategorized. Stored WITH
+ * the owning user id: categories are per account, and a shared browser must
+ * not hand one seller's category to the next login (Chris, 09-06: switched
+ * accounts and saw the other account's category offered).
+ */
 const CATEGORY_KEY = "cardflip.category";
 
-export function readSavedCategory(): string | null {
-  if (typeof window === "undefined") return null;
+export function readSavedCategory(userId: string | null | undefined): string | null {
+  if (typeof window === "undefined" || !userId) return null;
   try {
     const raw = window.localStorage.getItem(CATEGORY_KEY);
-    return raw && raw.trim() ? raw : null;
+    if (!raw) return null;
+    // Legacy plain-string value (pre-09-06) belongs to nobody — drop it.
+    if (!raw.startsWith("{")) {
+      window.localStorage.removeItem(CATEGORY_KEY);
+      return null;
+    }
+    const parsed = JSON.parse(raw) as { userId?: string; category?: string };
+    if (parsed.userId !== userId) return null;
+    return parsed.category && parsed.category.trim() ? parsed.category : null;
   } catch {
     return null;
   }
 }
 
-export function saveCategory(category: string | null): void {
+export function saveCategory(userId: string | null | undefined, category: string | null): void {
   try {
-    if (category) window.localStorage.setItem(CATEGORY_KEY, category);
+    if (category && userId) window.localStorage.setItem(CATEGORY_KEY, JSON.stringify({ userId, category }));
     else window.localStorage.removeItem(CATEGORY_KEY);
   } catch {
     // Private mode / quota — the choice just doesn't persist.
+  }
+}
+
+/** Logout: forget every per-account preference so the next login starts clean. */
+export function clearAccountPrefs(): void {
+  try {
+    window.localStorage.removeItem(CATEGORY_KEY);
+  } catch {
+    // ignore
   }
 }
 

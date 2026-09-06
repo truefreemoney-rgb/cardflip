@@ -100,6 +100,9 @@ export async function login(email: string, password: string, code?: string): Pro
 
 export async function logout(): Promise<void> {
   await fetch(apiPath("/api/auth/logout"), { method: "POST" });
+  // Per-account browser prefs must not leak into the next login.
+  const { clearAccountPrefs } = await import("@/lib/client/scanPrefs");
+  clearAccountPrefs();
 }
 
 // The eBay OAuth connect flow was removed until real API credentials exist:

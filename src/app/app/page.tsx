@@ -179,7 +179,13 @@ export default function AppPage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   // Category new cards are filed under (Chris, 09-04): asked when the camera
   // opens, remembered per browser, rides on every createServerCard.
-  const [scanCategory, setScanCategory] = useState<string | null>(readSavedCategory);
+  // Per-account: the saved value is keyed by user id, so it reads null until
+  // the session is known and null again after an account switch. Tracked as
+  // { forUser, value } so the read happens during render, not in an effect.
+  const [scanCategoryState, setScanCategoryState] = useState<{ forUser: string | null; value: string | null }>({ forUser: null, value: null });
+  const scanCategory =
+    scanCategoryState.forUser === (user?.id ?? null) ? scanCategoryState.value : readSavedCategory(user?.id);
+  const setScanCategory = (value: string | null) => setScanCategoryState({ forUser: user?.id ?? null, value });
   const scanCategoryRef = useRef<string | null>(null);
   useEffect(() => {
     scanCategoryRef.current = scanCategory;
@@ -1456,7 +1462,7 @@ export default function AppPage() {
           onClose={() => setCategoryPrompt(null)}
           onPick={(category) => {
             setScanCategory(category);
-            saveCategory(category);
+            saveCategory(user?.id, category);
             setCategoryPrompt(null);
             // Cards already saved this session (the scan beat the answer)
             // follow the pick; unsaved ones read the ref at create time.
