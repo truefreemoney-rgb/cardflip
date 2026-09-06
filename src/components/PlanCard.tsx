@@ -1,4 +1,4 @@
-import Link from "next/link";
+import PlanCta from "@/components/PlanCta";
 
 /**
  * Free trial · CardFlip · Pro, as matching cards (Chris, 09-04). Shared by
@@ -60,7 +60,9 @@ function Card({
   cta,
   note,
   primary,
+  plan,
 }: {
+  plan: "trial" | "standard" | "pro";
   name: string;
   sub: string;
   price: string;
@@ -100,16 +102,7 @@ function Card({
           ))}
         </ul>
 
-        <Link
-          href="/signup"
-          className={`mt-7 block w-full rounded-full px-7 py-3.5 text-center text-sm font-semibold transition ${
-            primary
-              ? "sheen bg-brand-500 text-white shadow-lg shadow-brand-500/25 hover:bg-brand-400"
-              : "border border-edge-strong bg-white/5 text-white hover:bg-white/10"
-          }`}
-        >
-          {cta}
-        </Link>
+        <PlanCta plan={plan} cta={cta} primary={primary} />
         <p className="mt-3 text-center text-xs text-zinc-500">{note}</p>
       </div>
     </div>
@@ -120,6 +113,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
   return (
     <div className={`grid gap-3 md:grid-cols-3 ${className}`}>
       <Card
+        plan="trial"
         name="Free trial"
         sub={`${TRIAL.scans} scans to start`}
         price="$0"
@@ -130,6 +124,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         primary={false}
       />
       <Card
+        plan="standard"
         name="CardFlip"
         sub={`${PLAN.scans} scans a month`}
         price={PLAN.price}
@@ -140,6 +135,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         primary
       />
       <Card
+        plan="pro"
         name="Pro"
         sub={`${PRO.scans.toLocaleString("en-US")} scans a month`}
         price={PRO.price}

@@ -9,6 +9,7 @@ import {
   type EbayLinkStatus,
 } from "@/lib/client/ebayApi";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
+import { fetchCurrentUser } from "@/lib/client/auth";
 
 /**
  * Plain-English mirror of USER_SCOPES in lib/server/ebayAuth.ts — the consent
@@ -102,7 +103,19 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
   const who = firstName ? `, ${firstName}` : "";
   const loading = status === undefined;
   const connected = Boolean(status?.connected);
-  const canConnect = Boolean(status?.available) && !status?.demo && !connected;
+  // Selling is paid: a trial seller is offered the plans, not the eBay
+  // consent screen (Chris, 09-06). Admins and subscribers connect as before.
+  const [trialOnly, setTrialOnly] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCurrentUser().then((u) => {
+      if (!cancelled) setTrialOnly(!!u && u.role !== "admin" && u.tier === "trial");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const canConnect = Boolean(status?.available) && !status?.demo && !connected && !trialOnly;
 
   let title: string;
   let body: string;
@@ -167,7 +180,9 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
           <p className="mt-5 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
             {canConnect
               ? "On eBay you'll approve exactly:"
-              : "When the connection goes live, you'll approve exactly:"}
+              : trialOnly
+                ? "After you subscribe, you'll connect eBay and approve exactly:"
+                : "When the connection goes live, you'll approve exactly:"}
           </p>
           <ul className="mt-2 space-y-2 text-left">
             {PERMISSIONS.map((permission) => (
@@ -197,6 +212,15 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
         >
           Connect with eBay
         </a>
+      )}
+
+      {trialOnly && !connected && !status?.demo && (
+        <button
+          onClick={() => router.push("/pricing")}
+          className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
+        >
+          Subscribe now
+        </button>
       )}
 
       {status?.demo && (

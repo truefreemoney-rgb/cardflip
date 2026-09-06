@@ -300,8 +300,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             finished there. */}
         <div className="flex flex-col gap-2 sm:flex-row">
           {trialOnly ? (
-            <Link href="/app/account" className={ebayButton + " text-center"}>
-              Subscribe to publish on eBay — $9.99 a month
+            // Trial sellers see one thing here (Chris, 09-06): Subscribe now,
+            // leading to the three plans. Connect-eBay comes after.
+            <Link href="/pricing" className={ebayButton + " text-center"}>
+              Subscribe now
             </Link>
           ) : canPost && !verified ? (
             <button
