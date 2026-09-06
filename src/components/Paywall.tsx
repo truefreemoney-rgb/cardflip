@@ -22,7 +22,9 @@ export default function Paywall() {
   const { user, refresh } = useSession();
   const [busy, setBusy] = useState<"checkout" | "pro" | "portal" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const lapsed = Boolean(user?.subStatus);
+  // "Ended" only when Stripe says the plan is gone. A trial override on a
+  // subscribed account is still a trial, so it gets the trial copy.
+  const lapsed = Boolean(user?.subStatus) && user?.tier !== "trial";
 
   async function go(kind: "checkout" | "pro" | "portal", fn: () => Promise<string>) {
     setBusy(kind);

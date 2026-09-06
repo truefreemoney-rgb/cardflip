@@ -141,8 +141,13 @@ export function monthlyScans(user: Pick<User, "plan" | "accessOverride">): numbe
 /** Free trial (09-04): ten scans on a fresh account, no card. */
 export const TRIAL_SCANS = 10;
 
-export function trialScansLeft(user: Pick<User, "subStatus" | "trialScansUsed">): number {
-  if (isSubscribed(user)) return 0;
+export function trialScansLeft(
+  user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "trialScansUsed">,
+): number {
+  // The TIER decides, not the raw Stripe status: an admin "trial" override on
+  // a still-subscribed account must behave like a fresh trial (09-06: it
+  // walled Chris's test account instantly with "subscription ended").
+  if (scanTier(user) !== "trial") return 0;
   return Math.max(0, TRIAL_SCANS - (user.trialScansUsed ?? 0));
 }
 
