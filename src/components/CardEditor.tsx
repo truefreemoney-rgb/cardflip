@@ -228,8 +228,6 @@ function PsaCertVerify({
           {error}{" "}
           <a
             href="/help#graded"
-            target="_blank"
-            rel="noopener"
             className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
           >
             How Graded Cards Work

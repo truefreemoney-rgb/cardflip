@@ -934,3 +934,18 @@ p {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------
+   iOS Safari zooms the page when a focused field is under 16px.
+   Every app-page input/select was text-sm/text-xs (mobile QA 09-06), so
+   one rule instead of forty class edits. Unlayered, so it beats the
+   Tailwind utility layer regardless of specificity. Desktop keeps the
+   compact sizes.
+   --------------------------------------------------------------- */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: max(1rem, 1em);
+  }
+}

@@ -58,7 +58,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
           onClick={onClose}
           aria-label="Close"
           autoFocus
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
         >
           ✕
         </button>

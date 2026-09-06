@@ -377,7 +377,7 @@ export default function TourOverlay() {
           <button
             onClick={() => void finish()}
             aria-label="Close the tutorial"
-            className="-mr-1.5 -mt-1.5 flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
+            className="-mr-3 -mt-3 flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
           >
             ✕
           </button>

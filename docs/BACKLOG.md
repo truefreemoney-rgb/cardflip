@@ -6,6 +6,38 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## 0.0 FULL SWEEP (09-04 night, Chris: "any tasks, even ship not tested, everything and anything") — the one list until it's re-swept
 
+### Mobile QA 09-06 (two read-only audit agents + ~40 emulated page runs at 375x812 and 360x780, subscribed account; Chris judges on his iPhone)
+
+**Found and FIXED (one commit, main):**
+- [x] Header personal strip (Help · pill · eBay · name · Sign out) was 427px at 375 → every /app page scrolled sideways. Now: short pill label + icon-only Help + name hidden below sm, wraps as a safety net. Clean at 360 and 375.
+- [x] Every app-page input/select was 14px → iOS zooms the page on focus. One unlayered rule in globals.css: ≥16px below 640px.
+- [x] Session bootstrap: a failed /api/auth/me rejected unhandled → blank app forever. Now retries with backoff + on `online`; never redirects to /login on a network error.
+- [x] Vision scan fetch had no timeout → item stuck "scanning" on a stalled socket. 30s AbortSignal.timeout (guarded), falls to OCR.
+- [x] Camera: iOS kills the stream when the PWA is backgrounded/locked → frozen viewfinder. Re-acquires on visibilitychange/pageshow when the track is not live; "Try again" resets ready/torch.
+- [x] scanFx localStorage unguarded → camera sheet crashed under Safari "Block All Cookies".
+- [x] Internal /help links opened new tabs (toast Help action, offers, graded) → standalone PWA dumped the user into Safari. Same-tab now.
+- [x] Android keyboard: viewport `interactive-widget=resizes-content` so sticky/fixed bottom bars ride above it.
+- [x] Safe-area bottom padding: CategorySheet, price-change sheet, ConfirmDialog, eBay publish bar. CategorySheet also max-h-[85dvh] + scroll, and restores the previous body overflow (was unlocking the modal under it).
+- [x] eBay photo input dropped `capture="environment"` — sellers can pick an existing photo again.
+- [x] 28–32px close/remove buttons → 40px hit areas (help panel, tour, search history, price sheet, category sheet, peek modal).
+- [x] Price history chart `touch-none` → `touch-pan-y` (was blocking page scroll wherever a finger landed).
+- [x] Backup-codes copy: guards a missing navigator.clipboard, no prompt() fallback (a no-op in installed PWAs; codes are on screen anyway).
+
+**Found, LEFT (ranked):**
+- [ ] Body scroll lock is `overflow:hidden` only (5 modals) — iOS can still rubber-band the page behind a sheet. Fix = position:fixed body with saved scrollY, one shared hook.
+- [ ] No shared fetch timeout for the other lib/client calls (auth, account, cards, ebay, price checks, wishlist); busy flags depend on the promise settling. Fix = apiFetch() with a 15s AbortSignal.timeout.
+- [ ] OCR worker (tesseract CDN) has no timeout on first load.
+- [ ] Camera: no relaxed retry on OverconstrainedError (some Android WebViews); `<video>` lacks autoplay + tap-to-start when play() rejects (iOS Low Power); null toBlob gives no feedback.
+- [ ] createImageBitmap without `imageOrientation: "from-image"` — library photos may arrive rotated on Safari <17.
+- [ ] Help panel composer has no visualViewport handling on iOS (keyboard covers it; Android is fixed by the viewport flag).
+- [ ] `animate-fade-up` (transform) on fixed modal backdrops — a ConfirmDialog opened in the first 0.6s positions against the modal, not the viewport.
+- [ ] Admin: window.confirm/prompt still used (delete, reset link) — no-ops in an installed PWA. Admin-only.
+- [ ] Horizontal filter strips hide the scrollbar with no snap/edge fade; 20px select checkbox; chips py-1 (~26px) for Sold/Undo/Relist; AppTabs 34px tall; footer links 16px tall.
+- [ ] Stripe checkout busy flag stays true after Back from Stripe (bfcache) — reset on pageshow.
+- [ ] queuePersistence loadQueue() has no consumer — refresh-survival is dead code.
+- [ ] Manifest: maskable icon has no safe-zone padding; orientation locked portrait; no service worker (no offline shell).
+- [ ] Not exercised in emulation: anon/trial/admin personas, the editor, the paywall, the camera sheet (needs a device), the tour end-to-end. The header/inputs fixes apply to all of them.
+
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.

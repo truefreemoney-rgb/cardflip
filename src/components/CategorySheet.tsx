@@ -55,10 +55,13 @@ export default function CategorySheet({
       onClose();
     };
     document.addEventListener("keydown", onKey, true);
+    // Restore what was there, not "" — the sheet stacks over CardDetailModal,
+    // which still expects its own lock (mobile QA 09-06).
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey, true);
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
     };
   }, [onClose]);
   useEffect(() => {
@@ -102,7 +105,7 @@ export default function CategorySheet({
         aria-label={title}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
+        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -113,7 +116,7 @@ export default function CategorySheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
+            className="-mr-1 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
           >
             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />

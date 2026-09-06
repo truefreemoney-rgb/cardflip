@@ -282,13 +282,17 @@ function AccountSettings({
   const [codesCopied, setCodesCopied] = useState(false);
   function copyCodes() {
     if (!backupCodes) return;
-    navigator.clipboard
-      .writeText(backupCodes.join("\n"))
+    // The codes are on screen as selectable text, so a failed copy needs no
+    // prompt() — which is a no-op in an installed PWA anyway.
+    const text = backupCodes.join("\n");
+    const write = navigator.clipboard?.writeText?.(text);
+    if (!write) return;
+    write
       .then(() => {
         setCodesCopied(true);
         setTimeout(() => setCodesCopied(false), 2000);
       })
-      .catch(() => window.prompt("Copy your backup codes:", backupCodes.join(" ")));
+      .catch(() => {});
   }
   async function regenerateBackupCodes(e: FormEvent) {
     e.preventDefault();

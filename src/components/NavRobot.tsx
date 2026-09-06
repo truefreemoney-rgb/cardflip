@@ -194,10 +194,13 @@ export default function NavRobot() {
         data-tour="help"
         aria-expanded={open}
         title="Help"
-        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-xs font-medium text-zinc-400 transition hover:bg-surface-2 hover:text-zinc-200"
+        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-1 text-xs font-medium text-zinc-400 transition hover:bg-surface-2 hover:text-zinc-200 sm:pr-3"
       >
         <RobotBuddy pose={headerPose} size={30} float={false} />
-        Help
+        {/* Label from sm up — on phones the strip has ~330px for Help · pill ·
+            eBay · Sign out and the word wrapped Sign out onto a third header
+            line (mobile QA 09-06). The tour still points at the robot. */}
+        <span className="hidden sm:inline">Help</span>
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
@@ -228,7 +231,7 @@ export default function NavRobot() {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close help"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
+                className="-mr-1.5 flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition hover:bg-surface-2 hover:text-white"
               >
                 ✕
               </button>

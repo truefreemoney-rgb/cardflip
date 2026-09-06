@@ -225,6 +225,27 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
     };
   }, [retryKey]);
 
+  // iOS ends the MediaStream when the PWA is backgrounded or the phone locks;
+  // the <video> then sits frozen/black until the sheet is closed and reopened
+  // (mobile QA 09-06). Re-acquire when the page is visible again and the
+  // track is no longer live.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (track && track.readyState === "live") return;
+      setReady(false);
+      setTorch("unavailable");
+      setRetryKey((k) => k + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
+  }, []);
+
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return;
@@ -541,6 +562,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
                 <button
                   onClick={() => {
                     setError(null);
+                    setReady(false);
+                    setTorch("unavailable");
                     setRetryKey((k) => k + 1);
                   }}
                   className="rounded-full border border-edge bg-surface-2 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"

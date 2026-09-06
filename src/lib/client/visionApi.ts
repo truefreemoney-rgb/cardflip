@@ -65,6 +65,10 @@ export async function scanCardWithVision(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: base64, mediaType, language, game }),
+      // A stalled cellular socket left the item "scanning" indefinitely
+      // (mobile QA 09-06); the catch below turns the abort into an error
+      // outcome so the OCR fallback runs. Guarded: iOS < 16 lacks timeout().
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
     });
     const data = await res.json().catch(() => null);
 

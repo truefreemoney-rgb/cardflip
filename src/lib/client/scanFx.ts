@@ -19,11 +19,19 @@ let ctx: AudioContext | null = null;
 
 export function scanFxEnabled(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(PREF_KEY) !== "off";
+  try {
+    return window.localStorage.getItem(PREF_KEY) !== "off";
+  } catch {
+    return true; // storage blocked (Safari "Block All Cookies") — default on
+  }
 }
 
 export function setScanFxEnabled(on: boolean): void {
-  window.localStorage.setItem(PREF_KEY, on ? "on" : "off");
+  try {
+    window.localStorage.setItem(PREF_KEY, on ? "on" : "off");
+  } catch {
+    // storage blocked — the toggle still applies for this page
+  }
   if (on) void primeScanFx();
 }
 

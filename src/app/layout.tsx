@@ -50,6 +50,10 @@ export const viewport: Viewport = {
   // Lets the app paint under the iOS notch/home bar; headers pad with
   // env(safe-area-inset-*) so content stays clear of them.
   viewportFit: "cover",
+  // Android Chrome ≥108 keeps the layout viewport under the keyboard by
+  // default, so fixed/sticky bottom bars (publish bar, help composer, toasts)
+  // hid behind it (mobile QA 09-06). iOS ignores this.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

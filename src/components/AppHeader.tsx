@@ -36,10 +36,14 @@ export default function AppHeader() {
             <Link
               href="/app/rewards"
               title="Invite a friend — when they subscribe, you get 500 bonus scans"
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white"
             >
               <span aria-hidden className="text-[10px] text-brand-300">✦</span>
-              Unlock 500 Free Scans
+              {/* Short label on phones: the full strip (Help · pill · eBay ·
+                  name · Sign out) was 427px at 375 and scrolled every /app
+                  page sideways (mobile QA 09-06). */}
+              <span className="sm:hidden">500 Free Scans</span>
+              <span className="hidden sm:inline">Unlock 500 Free Scans</span>
             </Link>
           )}
           {user && showEbay && (
@@ -47,7 +51,7 @@ export default function AppHeader() {
               <Link
                 href="/connect-ebay"
                 title="Manage your eBay connection"
-                className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 eBay Connected
@@ -55,14 +59,14 @@ export default function AppHeader() {
             ) : user.role !== "admin" && user.tier === "trial" ? (
               <Link
                 href="/pricing"
-                className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-brand-400"
+                className="rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400"
               >
                 Subscribe
               </Link>
             ) : (
               <Link
                 href="/connect-ebay"
-                className="rounded-full bg-ebay px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-ebay-hover"
+                className="whitespace-nowrap rounded-full bg-ebay px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-ebay-hover"
               >
                 eBay Setup
               </Link>
@@ -71,7 +75,7 @@ export default function AppHeader() {
           {user ? (
             <Link
               href="/app/account"
-              className="text-xs text-zinc-400 transition hover:text-zinc-200"
+              className="hidden max-w-[10rem] truncate py-2 text-xs text-zinc-400 transition hover:text-zinc-200 sm:block"
             >
               {user.name}
             </Link>
@@ -88,7 +92,7 @@ export default function AppHeader() {
               await logout();
               router.push("/");
             }}
-            className="text-xs text-zinc-500 transition hover:text-zinc-300"
+            className="py-2 text-xs text-zinc-500 transition hover:text-zinc-300"
           >
             Sign out
           </button>
@@ -108,7 +112,7 @@ export default function AppHeader() {
         <div aria-hidden className="hidden sm:block xl:hidden" />
         <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>
       </div>
-      <div className="flex w-full items-center justify-center gap-4 xl:hidden">
+      <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-4 xl:hidden">
         {personalStrip}
       </div>
     </header>

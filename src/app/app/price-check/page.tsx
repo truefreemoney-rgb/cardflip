@@ -585,7 +585,7 @@ export default function PriceCheckPage() {
                     }}
                     aria-label={`Remove ${entry.cardName} from history`}
                     title="Remove from history"
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
+                    className="-my-1.5 flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
                   >
                     <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                       <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />

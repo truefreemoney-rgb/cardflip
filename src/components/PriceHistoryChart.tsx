@@ -419,7 +419,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
           <svg
             ref={svgRef}
             viewBox={`0 0 ${W} ${H}`}
-            className="mt-2 block w-full touch-none select-none"
+            className="mt-2 block w-full touch-pan-y select-none"
             style={{ height: H }}
             role="img"
             aria-label={

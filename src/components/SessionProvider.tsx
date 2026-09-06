@@ -66,9 +66,30 @@ export default function SessionProvider({ children }: { children: React.ReactNod
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchCurrentUser().then(apply);
+    // A network failure (offline PWA cold start, flaky cellular) used to
+    // reject unhandled and leave status "loading" — a blank app until a
+    // manual reload (mobile QA 09-06). Retry with backoff and again the
+    // moment the browser reports connectivity; never redirect to /login on a
+    // network error, the session cookie may be perfectly valid.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    const load = () => {
+      fetchCurrentUser().then(apply, () => {
+        if (!mountedRef.current) return;
+        attempt += 1;
+        timer = setTimeout(load, Math.min(15_000, 2_000 * attempt));
+      });
+    };
+    const onOnline = () => {
+      if (timer) clearTimeout(timer);
+      load();
+    };
+    window.addEventListener("online", onOnline);
+    load();
     return () => {
       mountedRef.current = false;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
     };
   }, [apply]);
 

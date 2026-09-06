@@ -225,7 +225,7 @@ function RepriceSheet({
         aria-label={`Change the listing price of ${card.cardName}`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
+        className="w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start gap-3">
           <CardImage src={card.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded-md" />
@@ -242,7 +242,7 @@ function RepriceSheet({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-white"
+            className="-mr-1 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-white"
           >
             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
@@ -666,7 +666,7 @@ export default function CollectionPage() {
       setSyncError(`Couldn't reprice ${card.cardName} — try again.`);
       toast(`Couldn't reprice ${card.cardName} — try again`, "err", {
         label: "Help",
-        onClick: () => window.open("/help#reprice", "_blank", "noopener"),
+        onClick: () => router.push("/help#reprice"),
       });
       return;
     }
@@ -1265,8 +1265,6 @@ export default function CollectionPage() {
                 buyer per listing — pick the card, pick the cut, send.{" "}
                 <a
                   href="/help#offers"
-                  target="_blank"
-                  rel="noopener"
                   className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
                 >
                   How Offers Work
