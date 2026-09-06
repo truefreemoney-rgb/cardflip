@@ -15,7 +15,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
 - [x] Magic switch OFF 09-05 (Chris). Flip on when Magic is ready.
 - [ ] MD LLC decision (also solves the Stripe address).
-- [ ] eBay app-level rate-limit increase application (takes time; before launch).
+- [x] eBay Application Growth Check FILED 09-06 (Browse API only → 50k/day; all other Sell defaults are huge: Inventory 2M, Orders 100k, Finances 15k). eBay may bounce it for low usage — refile when scans approach 5k/day. Cc support@. Follow-up on my side: cache Browse comps per card per day.
 
 ### B. Shipped today, live, needs your yea/nay
 - [x] (yea 09-04) Tutorial: 9 steps page-by-page, the robot as pointer, snarky one-liners (family-friendly version was reverted on request).
@@ -42,6 +42,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Camera controls / torch positions on a real device after the HUD rezoning.
 
 ### D. Code work I can do next (ranked, easiest first)
+- [ ] Cache eBay Browse comps per card for the day (5,000/day shared keyset ceiling; repeat scans of the same card should not spend a call).
 - [x] Stewardship Phase 0 — DONE 09-05: docs/ARCHITECTURE.md (inventory, legacy, recovery, risks, baseline all green), fly.toml + Dockerfile deleted. Next phases only on evidence: (1) scanner queue loop → module, (2) numbered migrations run from CI, (3) jobs off Vercel functions when a refresh first times out.
 - [x] Delete PriceTicker + dead S3/Fly backup path + stale "Fly secrets" copy — DONE 09-04 night.
 - [ ] Dead "demo" copy in account / EbayConnectCard / admin table — NOT dead: the demo@cardflip.dev row still exists in prod, so the read-only guards still protect it; leave until that account is deleted.
