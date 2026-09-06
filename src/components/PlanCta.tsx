@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
-import { fetchCurrentUser, isSubscribed, type SessionUser } from "@/lib/client/auth";
+import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
 import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
 
 /**
@@ -58,7 +58,9 @@ export default function PlanCta({
     );
   }
 
-  const subscribed = isSubscribed(user) || user.role === "admin";
+  // The TIER is the truth (server-resolved, honours admin overrides) — not
+  // the raw Stripe status, which stays "active" under a Trial override.
+  const subscribed = user.role === "admin" || user.tier === "subscribed" || user.tier === "owner";
   const current = subscribed && ((plan === "pro" && user.plan === "pro") || (plan === "standard" && user.plan !== "pro"));
 
   if (plan === "trial") {
