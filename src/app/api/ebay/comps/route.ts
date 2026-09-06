@@ -11,6 +11,7 @@ import {
 import type { PokemonCard } from "@/lib/types";
 import { canBeFirstEdition } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
+import { cachedEbayComps } from "@/lib/server/ebayCompsCache";
 import {
   LIMITS,
   RateLimitError,
@@ -64,21 +65,22 @@ export async function POST(req: Request) {
     // eBay" link instead. Settled independently so a sold failure never
     // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
-      fetchEbayComps(card, grading, firstEdition),
+      // One Browse call per card per day (lib/server/ebayCompsCache.ts).
+      cachedEbayComps(card, grading, firstEdition, () => fetchEbayComps(card, grading, firstEdition)),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
         ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),
     ]);
 
     if (activeResult.status === "rejected") throw activeResult.reason;
-    const comps = activeResult.value;
+    const { comps, cached } = activeResult.value;
 
     // Graded lookups are the only graded price signal anywhere — bank each
     // one as a history point (variant "graded-psa-10" style) so cards people
     // actually price grow a REAL graded curve over time, replacing the
     // chart's rescaled estimate. Fire-and-forget: recording must never sink
     // the lookup.
-    if (grading && comps && comps.count >= 2 && card.id) {
+    if (!cached && grading && comps && comps.count >= 2 && card.id) {
       const gradeNum = grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade;
       const variant = `graded-${grading.company.toLowerCase()}-${gradeNum}`;
       void recordPoint(card.id, card.game ?? "pokemon", variant, "ebay", "USD", comps.average).catch((err) =>
@@ -102,6 +104,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       status: comps ? "done" : "empty",
       comps,
+      cached,
       sold,
       soldStatus,
       searchUrl,
