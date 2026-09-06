@@ -55,7 +55,7 @@ red, then invite the next ten. Do not fix both at once.
 
 ## Before the first invite (Chris, 30 min)
 
-- Delete or reset your own test accounts so the Users table is only strangers.
+- Keep your test accounts (cdemon etc.). When reading the table, skip rows you recognise: the cohort numbers are strangers only.
 - Confirm the Stripe customer emails (receipt, welcome) arrived on a real
   subscribe. cdemon did this on 09-05; that counts.
 - Put the eBay Browse daily count somewhere you look. A 5,000/day ceiling
