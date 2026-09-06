@@ -260,7 +260,7 @@ export async function listMtgSets(): Promise<SetInfo[]> {
     .prepare(
       `SELECT s.code, s.name, s.released_at, s.icon_url
          FROM mtg_sets s
-        WHERE EXISTS (SELECT 1 FROM mtg_cards c WHERE c.set_code = s.code)
+        WHERE s.code IN (SELECT DISTINCT set_code FROM mtg_cards)
           AND (s.set_type NOT IN ('token', 'memorabilia', 'minigame', 'alchemy') OR s.name LIKE '%Art Series%')
         ORDER BY s.released_at DESC`,
     )

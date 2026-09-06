@@ -265,6 +265,7 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_en_cards_name ON en_cards(name);
   CREATE INDEX IF NOT EXISTS idx_en_cards_local_id ON en_cards(local_id);
+  CREATE INDEX IF NOT EXISTS idx_en_cards_set ON en_cards(set_name, set_release_date);
 
   -- Magic: The Gathering mirror (Scryfall, every paper printing; see
   -- scripts/sync-mtg.mjs). Same identification shape as en_cards — name +
@@ -304,6 +305,7 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_name ON mtg_cards(name);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_number ON mtg_cards(collector_number, set_code);
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_set ON mtg_cards(set_code);
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
@@ -332,6 +334,7 @@ const SCHEMA = `
     updated_day TEXT NOT NULL,
     PRIMARY KEY (card_id, variant, source)
   );
+  CREATE INDEX IF NOT EXISTS idx_price_series_family ON price_series(game, source);
   CREATE TABLE IF NOT EXISTS price_history_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -567,6 +570,11 @@ async function initSchema(): Promise<void> {
   // Created after the columns exist, so it can't live in the schema block.
   await client.execute(
     "CREATE INDEX IF NOT EXISTS idx_en_cards_printed ON en_cards(local_id, set_card_count_official)",
+  );
+  // Turso row-read outage 09-06: set-total lookups (bad-OCR path) scanned all
+  // of en_cards because the printed index leads with local_id.
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS idx_en_cards_set_total ON en_cards(set_card_count_official, local_id)",
   );
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

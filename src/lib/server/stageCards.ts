@@ -70,7 +70,7 @@ async function fromMirror(): Promise<PokemonCard[]> {
 async function fromMagic(): Promise<PokemonCard[]> {
   try {
     const { hasMtgMirror, mtgShowcase } = await import("@/lib/server/mtgCards");
-    if (!hasMtgMirror()) return [];
+    if (!(await hasMtgMirror())) return [];
     return await mtgShowcase(6);
   } catch {
     return [];

@@ -241,7 +241,7 @@ async function pokemonShowcase(): Promise<PokemonCard[]> {
 async function mtgShowcaseSafe(): Promise<PokemonCard[]> {
   try {
     const { hasMtgMirror, mtgShowcase } = await import("@/lib/server/mtgCards");
-    if (!hasMtgMirror()) return [];
+    if (!(await hasMtgMirror())) return [];
     return mtgShowcase(9);
   } catch {
     return [];

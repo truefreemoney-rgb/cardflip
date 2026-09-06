@@ -442,10 +442,10 @@ export async function englishCardsBySet(setName: string): Promise<PokemonCard[]>
 /** Whether the English mirror has been synced (npm run sync:en). */
 export async function hasEnglishMirror(): Promise<boolean> {
   try {
-    const row = (await db.prepare("SELECT COUNT(*) c FROM en_cards").get()) as unknown as {
-      c: number;
-    };
-    return row.c > 0;
+    // LIMIT 1, not COUNT(*): the count scanned all 20k rows twice per search
+    // (Turso row-read outage 09-06).
+    const row = (await db.prepare("SELECT 1 AS ok FROM en_cards LIMIT 1").get()) as { ok: number } | undefined;
+    return Boolean(row);
   } catch {
     return false;
   }
