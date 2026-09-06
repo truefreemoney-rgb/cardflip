@@ -4,6 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 import zlib from "node:zlib";
 import { pipeline } from "node:stream/promises";
+import { createHash } from "node:crypto";
 import { decodePrices, encodePrices, setDay, toPoints } from "@/lib/priceSeries";
 
 /**
@@ -532,8 +533,28 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   ]],
 ];
 
+/**
+ * Fingerprint of everything initSchema would apply. Stored in
+ * price_history_meta after a full run, so the next process skips the
+ * ~50 round trips (schema block + one ALTER per probed column + index)
+ * when nothing changed. On Vercel every cold function paid that against
+ * Turso before its first query — seconds per cold start (Chris, 09-06:
+ * "site locking up, slow loading"). Any edit to SCHEMA or COLUMN_PROBES
+ * changes the hash and the full pass runs once more.
+ */
+const SCHEMA_FINGERPRINT = createHash("sha1").update(SCHEMA).update(JSON.stringify(COLUMN_PROBES)).digest("hex").slice(0, 16);
+const SCHEMA_META_KEY = "schema_fingerprint";
+
 async function initSchema(): Promise<void> {
-  await client.executeMultiple((dbIsRemote ? "" : FILE_PRAGMAS) + SCHEMA);
+  // Per-connection pragmas for file DBs; nothing to do for Turso.
+  if (!dbIsRemote) await client.executeMultiple(FILE_PRAGMAS);
+  try {
+    const rs = await client.execute({ sql: "SELECT value FROM price_history_meta WHERE key = ?", args: [SCHEMA_META_KEY] });
+    if (rs.rows[0]?.value === SCHEMA_FINGERPRINT) return;
+  } catch {
+    // First run on an empty database — the table doesn't exist yet.
+  }
+  await client.executeMultiple(SCHEMA);
   for (const [table, columns] of COLUMN_PROBES) {
     for (const column of columns) {
       try {
@@ -547,6 +568,10 @@ async function initSchema(): Promise<void> {
   await client.execute(
     "CREATE INDEX IF NOT EXISTS idx_en_cards_printed ON en_cards(local_id, set_card_count_official)",
   );
+  await client.execute({
+    sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",
+    args: [SCHEMA_META_KEY, SCHEMA_FINGERPRINT],
+  });
 }
 
 /** Schema-ready gate — every query awaits this once per process. */
