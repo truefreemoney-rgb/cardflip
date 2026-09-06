@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordCronResult, runPokemonSteps } from "@/lib/server/dailyJobs";
 import { cronAuthError } from "@/lib/server/cronAuth";
+import { sendErrorDigestIfNeeded } from "@/lib/server/errorDigest";
 
 /**
  * Vercel Cron: the Pokémon half of the daily refresh — TCGCSV group scan,
@@ -17,5 +18,7 @@ export async function GET(req: NextRequest) {
   const t0 = Date.now();
   const result = await runPokemonSteps();
   await recordCronResult({ ...result, ms: Date.now() - t0 }, false);
-  return NextResponse.json({ ...result, ms: Date.now() - t0 });
+  // Last step of the day: tell the owner if prod has been throwing.
+  const errorDigest = await sendErrorDigestIfNeeded();
+  return NextResponse.json({ ...result, ms: Date.now() - t0, errorDigest });
 }

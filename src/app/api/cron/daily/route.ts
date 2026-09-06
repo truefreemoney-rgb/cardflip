@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dailyStatus, runDailyIfDue } from "@/lib/server/dailyJobs";
 import { cronAuthError } from "@/lib/server/cronAuth";
+import { sendErrorDigestIfNeeded } from "@/lib/server/errorDigest";
 
 /**
  * External trigger for the once-a-day price refresh — for the days nobody
@@ -21,5 +22,6 @@ export async function GET(req: NextRequest) {
   // Awaited on purpose: the pinger's timeout is the only thing keeping the
   // machine awake long enough to finish, and its log shows the result.
   const result = await runDailyIfDue(force);
-  return NextResponse.json({ ...result, status: await dailyStatus() });
+  const errorDigest = result.ran ? await sendErrorDigestIfNeeded() : undefined;
+  return NextResponse.json({ ...result, status: await dailyStatus(), errorDigest });
 }

@@ -145,3 +145,46 @@ export async function sendWelcomeEmail(to: string): Promise<void> {
     html,
   });
 }
+
+export interface ErrorDigestGroup {
+  source: string;
+  message: string;
+  count: number;
+}
+
+/**
+ * Owner-only alert: the daily cron found more than the threshold of server
+ * errors in the last 24h. The only alerting the site has (ARCHITECTURE.md
+ * names "nobody is told when prod breaks" as the risk).
+ */
+export async function sendErrorDigestEmail(to: string, total: number, groups: ErrorDigestGroup[]): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const adminUrl = `${site}/admin#errors`;
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  const text = [
+    `${total} server error${total === 1 ? "" : "s"} on cardflip.io in the last 24 hours.`,
+    "",
+    ...groups.map((g) => `${g.count}× [${g.source}] ${g.message}`),
+    "",
+    `Details: ${adminUrl}`,
+  ].join("\n");
+  const html = `
+    <p><strong>${total}</strong> server error${total === 1 ? "" : "s"} on cardflip.io in the last 24 hours.</p>
+    <table style="border-collapse:collapse;font-size:13px">
+      ${groups
+        .map(
+          (g) =>
+            `<tr><td style="padding:4px 10px 4px 0;text-align:right;color:#666">${g.count}×</td><td style="padding:4px 10px 4px 0;color:#999">${esc(g.source)}</td><td style="padding:4px 0">${esc(g.message)}</td></tr>`,
+        )
+        .join("")}
+    </table>
+    <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open the admin console</a></p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: `CardFlip: ${total} server error${total === 1 ? "" : "s"} in the last 24h`,
+    text,
+    html,
+  });
+}

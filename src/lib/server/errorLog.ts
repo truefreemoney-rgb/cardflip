@@ -56,3 +56,20 @@ export async function errorCount24h(): Promise<number> {
     .get(Date.now() - 24 * 60 * 60 * 1000)) as { n: number } | undefined;
   return row?.n ?? 0;
 }
+
+export interface ErrorGroup {
+  source: string;
+  message: string;
+  count: number;
+  lastAt: number;
+}
+
+/** Last-24h errors grouped by source + message, busiest first — the digest email body. */
+export async function errorGroups24h(limit = 10): Promise<ErrorGroup[]> {
+  const rows = (await db
+    .prepare(
+      "SELECT source, message, COUNT(*) AS count, MAX(at) AS lastAt FROM error_events WHERE at > ? GROUP BY source, message ORDER BY count DESC, lastAt DESC LIMIT ?",
+    )
+    .all(Date.now() - 24 * 60 * 60 * 1000, limit)) as unknown as ErrorGroup[];
+  return rows;
+}

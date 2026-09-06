@@ -42,8 +42,8 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Camera controls / torch positions on a real device after the HUD rezoning.
 
 ### D. Code work I can do next (ranked, easiest first)
-- [ ] Widen the admin Plan dropdown (labels truncate closed; Chris couldn't find Trial).
-- [ ] Daily error-count email from the Pokémon cron when error_events > N in 24h (uses mail.ts; the no-alerting risk in ARCHITECTURE.md).
+- [x] DONE 09-06 (626665b). Widen the admin Plan dropdown (labels truncate closed; Chris couldn't find Trial).
+- [x] DONE 09-06: lib/server/errorDigest.ts, runs at the end of /api/cron/pokemon-prices (and /daily); mails OWNER_EMAIL when error_events > ERROR_DIGEST_MIN (default 5) in 24h, grouped by source+message, link to /admin#errors; test:errordigest. Daily error-count email from the Pokémon cron when error_events > N in 24h (uses mail.ts; the no-alerting risk in ARCHITECTURE.md).
 - [ ] Cache eBay Browse comps per card for the day (5,000/day shared keyset ceiling; repeat scans of the same card should not spend a call).
 - [x] Stewardship Phase 0 — DONE 09-05: docs/ARCHITECTURE.md (inventory, legacy, recovery, risks, baseline all green), fly.toml + Dockerfile deleted. Next phases only on evidence: (1) scanner queue loop → module, (2) numbered migrations run from CI, (3) jobs off Vercel functions when a refresh first times out.
 - [x] Delete PriceTicker + dead S3/Fly backup path + stale "Fly secrets" copy — DONE 09-04 night.
