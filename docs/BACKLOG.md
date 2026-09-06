@@ -74,7 +74,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### G. Pre-scale / business (unchanged from §0 PRE-SCALE)
 - [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).
-- [ ] Soft-launch cohort first, measure conversion/churn/scans before ad spend.
+- [ ] Soft-launch cohort first, measure conversion/churn/scans before ad spend. PLAN WRITTEN 09-06: docs/SOFT-LAUNCH.md (20-30 hand-invited sellers over 3 weeks, green/red table, week-by-week). Chris to read + start inviting.
 - [ ] Revenue shape: dealer tier, free-tier funnel, GMV fee — after retention.
 - [ ] TCGplayer selling road (parked); eBay Marketplace Insights re-apply post-POC; eBay Listing API drafts (never filed, dropped).
 
