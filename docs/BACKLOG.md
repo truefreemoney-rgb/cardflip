@@ -26,7 +26,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Landing hero centered on phones; hero glow no longer cut off above How it works.
 - [x] (yea 09-04) Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
 - [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
-- [ ] Trial accounts see "Subscribe to publish on eBay" instead of the Publish button.
+- [ ] Trial accounts see "Subscribe now" (→ /pricing) everywhere eBay would be offered: publish row, connect card, queue summary, header pill (09-06). Plan cards live when signed in.
 - [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
 
 ### C. Shipped, NOT proven on production (needs a real action to confirm)
@@ -42,6 +42,8 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Camera controls / torch positions on a real device after the HUD rezoning.
 
 ### D. Code work I can do next (ranked, easiest first)
+- [ ] Widen the admin Plan dropdown (labels truncate closed; Chris couldn't find Trial).
+- [ ] Daily error-count email from the Pokémon cron when error_events > N in 24h (uses mail.ts; the no-alerting risk in ARCHITECTURE.md).
 - [ ] Cache eBay Browse comps per card for the day (5,000/day shared keyset ceiling; repeat scans of the same card should not spend a call).
 - [x] Stewardship Phase 0 — DONE 09-05: docs/ARCHITECTURE.md (inventory, legacy, recovery, risks, baseline all green), fly.toml + Dockerfile deleted. Next phases only on evidence: (1) scanner queue loop → module, (2) numbered migrations run from CI, (3) jobs off Vercel functions when a refresh first times out.
 - [x] Delete PriceTicker + dead S3/Fly backup path + stale "Fly secrets" copy — DONE 09-04 night.
