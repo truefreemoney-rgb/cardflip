@@ -27,6 +27,18 @@ export default function AppHeader() {
   // (the original single-row header's bug, Chris 09-01).
   const personalStrip = (
     <>
+          {/* Invite a friend (09-06): subscribers and the owner. A pill, not a
+              banner — enticing, not loud (Chris: "dont go crazy"). */}
+          {user && (user.tier === "subscribed" || user.tier === "owner") && (
+            <Link
+              href="/app/rewards"
+              title="Invite a friend — when they subscribe, you get 500 bonus scans"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white"
+            >
+              <span aria-hidden className="text-[10px] text-brand-300">✦</span>
+              Unlock 500 free scans
+            </Link>
+          )}
           {user && showEbay && (
             user.ebayConnected ? (
               <Link
@@ -52,15 +64,6 @@ export default function AppHeader() {
                 eBay setup
               </Link>
             )
-          )}
-          {user && user.tier === "subscribed" && (
-            <Link
-              href="/app/rewards"
-              title="Invite a friend — when they subscribe, you get 500 bonus scans"
-              className="whitespace-nowrap text-xs font-medium text-brand-300 transition hover:text-brand-200"
-            >
-              Unlock 500 free scans
-            </Link>
           )}
           {user ? (
             <Link
