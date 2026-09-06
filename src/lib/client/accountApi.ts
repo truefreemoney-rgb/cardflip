@@ -7,7 +7,7 @@ export interface AccountOverview {
   user: SessionUser;
   demo: boolean;
   /** Scan metering; remaining is null when the cap isn't enforced (no subscription). */
-  quota?: { used: number; included: number; remaining: number | null };
+  quota?: { used: number; included: number; remaining: number | null; bonus?: number };
   data: {
     cards: number;
     listed: number;
@@ -36,6 +36,28 @@ async function expectOk<T>(res: Response): Promise<T> {
 }
 
 /** Null on any failure — server or network — so callers show a retry, not a crash. */
+export interface InviteInfo {
+  eligible: boolean;
+  code: string;
+  url: string;
+  bonusPerFriend: number;
+  bonusScans: number;
+  friendsJoined: number;
+  friendsSubscribed: number;
+  scansEarned: number;
+}
+
+/** Invite a friend: the share link + tally (subscribers earn; everyone can see their code). */
+export async function fetchInvite(): Promise<InviteInfo | null> {
+  try {
+    const res = await fetch(apiPath("/api/account/invite"));
+    if (!res.ok) return null;
+    return (await readJson(res)) as InviteInfo;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchAccount(): Promise<AccountOverview | null> {
   try {
     const res = await fetch(apiPath("/api/account"));

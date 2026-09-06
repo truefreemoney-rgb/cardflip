@@ -520,6 +520,15 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "access_override TEXT",
     // Two-step backup codes (09-04): JSON array of sha256 hex of unused codes.
     "totp_backup_codes TEXT",
+    // Invite a friend (09-06, subscribers only): referral_code is the account's
+    // share code (lazily minted); referred_by = the referrer's user id, set at
+    // signup from ?ref=; referral_rewarded_at stamps the referred account once
+    // the referrer has been credited; bonus_scans is the referrer's earned pool,
+    // spent only after the month's allowance (lib/server/referrals.ts).
+    "referral_code TEXT",
+    "referred_by TEXT",
+    "referral_rewarded_at INTEGER",
+    "bonus_scans INTEGER NOT NULL DEFAULT 0",
   ]],
 ];
 

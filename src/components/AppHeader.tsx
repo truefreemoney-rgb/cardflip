@@ -53,6 +53,15 @@ export default function AppHeader() {
               </Link>
             )
           )}
+          {user && user.tier === "subscribed" && (
+            <Link
+              href="/app/rewards"
+              title="Invite a friend — when they subscribe, you get 500 bonus scans"
+              className="whitespace-nowrap text-xs font-medium text-brand-300 transition hover:text-brand-200"
+            >
+              Unlock 500 free scans
+            </Link>
+          )}
           {user ? (
             <Link
               href="/app/account"

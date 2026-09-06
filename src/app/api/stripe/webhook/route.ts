@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
+import { rewardReferrerIfDue } from "@/lib/server/referrals";
 import { fetchSubscription, verifyWebhook, planForPrice } from "@/lib/server/stripe";
 import {
   findUserById,
@@ -44,11 +45,21 @@ export async function POST(req: NextRequest) {
         // Welcome once, on the not-subscribed -> subscribed edge (`user` was
         // read before setSubscription, so a retried event sees "active" and
         // skips). Never let a mail hiccup 500 the webhook into a Stripe retry.
-        if (!isSubscribed(user) && isSubscribed({ subStatus: sub.status }) && isMailConfigured()) {
+        if (!isSubscribed(user) && isSubscribed({ subStatus: sub.status })) {
+          // Invite a friend: the person who sent them gets their bonus on the
+          // same edge (once; the referred row is stamped). Never 500s the hook.
           try {
-            await sendWelcomeEmail(user.email);
+            const rewarded = await rewardReferrerIfDue(user);
+            if (rewarded) console.info(`stripe: referral bonus credited for ${user.email}`);
           } catch (err) {
-            console.error(`stripe: welcome email to ${user.email} failed:`, err);
+            console.error(`stripe: referral reward for ${user.email} failed:`, err);
+          }
+          if (isMailConfigured()) {
+            try {
+              await sendWelcomeEmail(user.email);
+            } catch (err) {
+              console.error(`stripe: welcome email to ${user.email} failed:`, err);
+            }
           }
         }
       }

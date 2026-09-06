@@ -76,6 +76,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).
 - [ ] Soft-launch cohort first, measure conversion/churn/scans before ad spend. PLAN WRITTEN 09-06: docs/SOFT-LAUNCH.md (20-30 hand-invited sellers over 3 weeks, green/red table, week-by-week). Chris to read + start inviting.
 - [ ] Revenue shape: dealer tier, free-tier funnel, GMV fee — after retention.
+- [ ] YEA/NAY: Invite a friend / Rewards (09-06, main): header "Unlock 500 free scans" (subscribers) → /app/rewards (link + Copy/Share, tally, 3 steps, fine print); account row; ?ref=CODE captured site-wide, attached at signup; Stripe webhook credits the referrer 500 bonus scans on the friend's first payment (referrer must be a subscriber then; once per friend); bonus spent after the monthly allowance, never expires. test:referral. UNPROVEN ON PROD: the webhook credit on a real subscribe.
 - [ ] TCGplayer selling road (parked); eBay Marketplace Insights re-apply post-POC; eBay Listing API drafts (never filed, dropped).
 
 ## 0. ARCHIVED TRACK (09-05: every open item here was re-swept into §0.0 — read-only history, no checkboxes) (consolidated 09-02 — full sweep of BACKLOG + STATE's WAITING-ON-CHRIS/NEXT-WORK/parked items; THIS section is the one list, sections below are detail/archive)

@@ -73,11 +73,12 @@ export async function signup(
   name: string,
   email: string,
   password: string,
+  ref?: string | null,
 ): Promise<SessionUser> {
   const res = await fetch(apiPath("/api/auth/signup"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify(ref ? { name, email, password, ref } : { name, email, password }),
   });
   const data = await readJson(res);
   if (!res.ok) throw new Error(data.error ?? "Sign up failed.");

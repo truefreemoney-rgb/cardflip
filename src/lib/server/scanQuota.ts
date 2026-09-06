@@ -27,6 +27,8 @@ export interface ScanQuota {
   included: number;
   /** null = not enforced for this user (not a subscriber). */
   remaining: number | null;
+  /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
+  bonus?: number;
 }
 
 export function scanQuota(user: User): ScanQuota {
@@ -46,10 +48,12 @@ export function scanQuota(user: User): ScanQuota {
   }
   const used = user.scanMonth === month() ? user.scansUsed : 0;
   const cap = monthlyScans(user);
+  const bonus = user.bonusScans ?? 0;
   return {
     used,
     included: cap,
-    remaining: Math.max(0, cap - used),
+    remaining: Math.max(0, cap - used) + bonus,
+    bonus,
   };
 }
 
@@ -81,12 +85,22 @@ export async function recordScan(user: User): Promise<ScanQuota> {
     return { used, included: 0, remaining: null };
   }
   const m = month();
-  const used = (user.scanMonth === m ? user.scansUsed : 0) + 1;
-  await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
   const cap = monthlyScans(user);
+  const before = user.scanMonth === m ? user.scansUsed : 0;
+  let bonus = user.bonusScans ?? 0;
+  // The month's allowance goes first; invite-a-friend scans are spent only
+  // once it is gone, so they never evaporate at the month rollover.
+  if (before >= cap && bonus > 0) {
+    bonus -= 1;
+    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = ? WHERE id = ?").run(m, before, bonus, user.id);
+    return { used: before, included: cap, remaining: bonus, bonus };
+  }
+  const used = before + 1;
+  await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
   return {
     used,
     included: cap,
-    remaining: Math.max(0, cap - used),
+    remaining: Math.max(0, cap - used) + bonus,
+    bonus,
   };
 }

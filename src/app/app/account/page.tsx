@@ -12,6 +12,7 @@ import {
   changePassword,
   deleteAccount,
   fetchAccount,
+  fetchInvite,
   openBillingPortal,
   startCheckout,
   signOutOtherDevices,
@@ -21,6 +22,7 @@ import {
   totpSetup,
   updateProfile,
   type AccountOverview,
+  type InviteInfo,
   type TotpSetup,
 } from "@/lib/client/accountApi";
 
@@ -538,6 +540,9 @@ function AccountSettings({
           billingReturn={billingReturn}
           billingPhase={billingPhase}
         />
+        <div id="invite" className="scroll-mt-24">
+          <InviteRow subscribed={subscribed} />
+        </div>
       </Group>
 
       <Group label="Security">
@@ -886,7 +891,7 @@ function PlanSection({
   billingPhase,
 }: {
   user: SessionUser;
-  quota?: { used: number; included: number; remaining: number | null };
+  quota?: { used: number; included: number; remaining: number | null; bonus?: number };
   demo: boolean;
   billingReturn: "success" | "canceled" | null;
   billingPhase: "waiting" | "confirmed" | "stalled";
@@ -978,10 +983,88 @@ function PlanSection({
               style={{ width: `${Math.min(100, (quota.used / quota.included) * 100)}%` }}
             />
           </div>
-          <p className="mt-1.5 text-xs text-zinc-600">Your allowance resets at the start of each month.</p>
+          <p className="mt-1.5 text-xs text-zinc-600">
+            Your allowance resets at the start of each month.
+            {quota.bonus ? ` Plus ${quota.bonus.toLocaleString("en-US")} bonus scans from friends, used after it.` : ""}
+          </p>
         </div>
       )}
       {msg && <Notice kind="err">{msg}</Notice>}
+    </Row>
+  );
+}
+
+/**
+ * Invite a friend (Chris, 09-06): subscribers only. Share the link; when the
+ * friend subscribes, 500 bonus scans land here and are spent after the
+ * month's allowance. Trial accounts see the pitch, not a link.
+ */
+function InviteRow({ subscribed }: { subscribed: boolean }) {
+  const [info, setInfo] = useState<InviteInfo | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!subscribed) return;
+    let live = true;
+    void fetchInvite().then((i) => {
+      if (live) setInfo(i);
+    });
+    return () => {
+      live = false;
+    };
+  }, [subscribed]);
+
+  async function copy() {
+    if (!info) return;
+    try {
+      await navigator.clipboard.writeText(info.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Older iOS: the link is visible below to long-press.
+    }
+  }
+
+  if (!subscribed) {
+    return (
+      <Row
+        title="Invite a friend"
+        status="Subscribers earn 500 bonus scans for every friend who subscribes."
+        action={
+          <Link href="/app/rewards" className={rowBtn}>
+            How it works
+          </Link>
+        }
+      />
+    );
+  }
+  return (
+    <Row
+      title="Invite a friend"
+      status={
+        info
+          ? info.friendsSubscribed > 0
+            ? `${info.friendsSubscribed} friend${info.friendsSubscribed === 1 ? "" : "s"} subscribed · ${info.scansEarned.toLocaleString("en-US")} scans earned${info.bonusScans > 0 ? ` · ${info.bonusScans.toLocaleString("en-US")} left` : ""}`
+            : "Send your link. When a friend subscribes, you get 500 bonus scans."
+          : "Loading…"
+      }
+      action={
+        <button type="button" className={rowPrimary} onClick={copy} disabled={!info}>
+          {copied ? "Copied" : "Copy link"}
+        </button>
+      }
+      open={!!info}
+    >
+      {info && (
+        <div className="max-w-md">
+          <p className="select-all break-all rounded-lg border border-edge bg-surface-2 px-3 py-2 font-mono text-xs text-zinc-300">{info.url}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            {info.friendsJoined} joined so far. Bonus scans are used after your monthly allowance and never expire.{" "}
+            <Link href="/app/rewards" className="text-zinc-400 underline-offset-2 hover:underline">
+              How it works
+            </Link>
+          </p>
+        </div>
+      )}
     </Row>
   );
 }

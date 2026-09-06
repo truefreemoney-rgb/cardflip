@@ -38,6 +38,10 @@ export interface User {
   accessOverride: AccessOverride | null;
   /** sha256 of each unused two-step backup code. */
   totpBackupCodes: string[];
+  referralCode: string | null;
+  referredBy: string | null;
+  referralRewardedAt: number | null;
+  bonusScans: number;
 }
 
 interface UserRow {
@@ -63,6 +67,10 @@ interface UserRow {
   tour_seen_at: number | null;
   access_override: string | null;
   totp_backup_codes: string | null;
+  referral_code: string | null;
+  referred_by: string | null;
+  referral_rewarded_at: number | null;
+  bonus_scans: number | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -101,6 +109,10 @@ function fromRow(row: UserRow): User {
       ? (row.access_override as AccessOverride)
       : null,
     totpBackupCodes: parseBackupCodes(row.totp_backup_codes),
+    referralCode: row.referral_code ?? null,
+    referredBy: row.referred_by ?? null,
+    referralRewardedAt: row.referral_rewarded_at ?? null,
+    bonusScans: row.bonus_scans ?? 0,
   };
 }
 
@@ -302,6 +314,10 @@ export async function createUser(
     tourSeenAt: null,
     accessOverride: null,
     totpBackupCodes: [],
+    referralCode: null,
+    referredBy: null,
+    referralRewardedAt: null,
+    bonusScans: 0,
   };
 }
 
@@ -436,6 +452,8 @@ export interface PublicUser {
   tourSeenAt: number | null;
   /** Unused two-step backup codes left (0 when two-step is off). */
   totpBackupCodesLeft: number;
+  /** Invite-a-friend scans banked, spent after the monthly allowance. */
+  bonusScans: number;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -450,5 +468,6 @@ export function toPublicUser(user: User): PublicUser {
     appAccess: canUseApp(user),
     tourSeenAt: user.tourSeenAt ?? null,
     totpBackupCodesLeft: totpEnabled(user) ? user.totpBackupCodes.length : 0,
+    bonusScans: user.bonusScans ?? 0,
   };
 }

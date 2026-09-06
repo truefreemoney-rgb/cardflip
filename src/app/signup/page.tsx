@@ -11,6 +11,7 @@ import OnboardingSteps from "@/components/OnboardingSteps";
 import EbayConnectCard from "@/components/EbayConnectCard";
 import DevLoginButton from "@/components/DevLoginButton";
 import { fetchCurrentUser, signup } from "@/lib/client/auth";
+import { readReferralCode } from "@/components/RefCapture";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -65,7 +66,7 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      const user = await signup(name.trim(), email.trim(), password);
+      const user = await signup(name.trim(), email.trim(), password, readReferralCode());
       // Stay on this page and slide straight into the eBay step — no reload,
       // no separate route, so linking eBay reads as part of signing up.
       setFirstName(user.name.split(" ")[0]);

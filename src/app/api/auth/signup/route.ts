@@ -3,6 +3,7 @@ import { createUser, findUserByEmail, toPublicUser } from "@/lib/server/users";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { attachReferral } from "@/lib/server/referrals";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
   }
 
   const user = await createUser(name, email, password);
+  // Invite a friend: ?ref=CODE captured on the landing page rides along.
+  // Best effort — a bad or stale code never blocks the signup.
+  if (typeof body?.ref === "string" && body.ref) await attachReferral(user.id, body.ref).catch(() => {});
   const session = await createSession(user.id);
 
   const res = NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
