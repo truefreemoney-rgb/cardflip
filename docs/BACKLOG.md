@@ -59,7 +59,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ### E. Tests that don't exist
 - [x] Access tiers + overrides + sellingGate — test:quota extended 09-04 night; test:settings (switches, tour stamp, override column) added.
 - [x] Help chat — DONE 09-04 evening: test:helpchat (fake Anthropic server via ANTHROPIC_BASE_URL: tags, system blocks, history replay, 600-char cap, 40/day cap, clear). Route-level rate limit still untested.
-- [ ] Admin routes: users create/delete, access, role, reset-link, settings.
+- [x] DONE 09-06: test:adminroutes (45 checks; next/headers + next/cache stubbed via scripts/lib/register-next-stubs.mjs so cookie-gated routes run as functions). Admin routes: users create/delete, access, role, reset-link, settings.
 - [x] Billing webhook — DONE 09-04 evening: test:webhook (signature, checkout, plan from price id, portal switch, deleted, DB-throw 500); fix: an update event without a price no longer demotes Pro. Still untested: checkout/portal session creation, welcome email.
 - [x] Tour stamp — covered by test:settings (markTourSeen).
 - [ ] eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
