@@ -37,6 +37,13 @@ export default function AppHeader() {
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 eBay connected
               </Link>
+            ) : user.role !== "admin" && user.tier === "trial" ? (
+              <Link
+                href="/pricing"
+                className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-brand-400"
+              >
+                Subscribe
+              </Link>
             ) : (
               <Link
                 href="/connect-ebay"

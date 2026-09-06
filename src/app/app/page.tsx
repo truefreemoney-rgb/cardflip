@@ -1328,6 +1328,16 @@ export default function AppPage() {
                 onOpenCamera={openCamera}
                 variant="compact"
               />
+              {user.role !== "admin" && user.tier === "trial" && !user.ebayConnected ? (
+                // Trial: selling is paid, so the one action here is Subscribe
+                // (Chris, 09-06) — the plans page, not the eBay consent screen.
+                <Link
+                  href="/pricing"
+                  className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                >
+                  Subscribe now
+                </Link>
+              ) : (
               <button
                 onClick={() => void sendAllToEbay()}
                 disabled={bulkBusy || identified.length === 0}
@@ -1344,6 +1354,7 @@ export default function AppPage() {
                     ? "Send all to eBay"
                     : "Connect eBay to send"}
               </button>
+              )}
             </div>
           </div>
           {bulkNote && (
