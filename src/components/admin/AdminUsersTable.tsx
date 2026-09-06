@@ -50,11 +50,11 @@ const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
 
 const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
   { value: "", label: "Automatic" },
-  { value: "unlimited", label: "Owner · unlimited" },
-  { value: "comp_standard", label: "Subscribed · 500 / month (comped)" },
-  { value: "comp_pro", label: "Pro · 2,000 / month (comped)" },
-  { value: "legacy", label: "Legacy · 100 / day" },
-  { value: "trial", label: "Trial · 10 scans, no selling" },
+  { value: "unlimited", label: "Owner (unlimited)" },
+  { value: "comp_standard", label: "Subscribed, comped (500/mo)" },
+  { value: "comp_pro", label: "Pro, comped (2,000/mo)" },
+  { value: "legacy", label: "Legacy (100/day)" },
+  { value: "trial", label: "Trial (10 scans, no selling)" },
 ];
 
 /** What "Automatic" resolves to for this account, so the admin knows what clearing does. */
@@ -99,7 +99,7 @@ function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) 
         onChange={(e) => change(e.target.value)}
         disabled={pending}
         aria-label={`Plan for ${user.name}`}
-        className={`max-w-full cursor-pointer appearance-none rounded-full border border-transparent py-0.5 pl-2 pr-6 text-[11px] font-medium outline-none transition hover:border-edge-strong focus:border-brand-400 disabled:opacity-50 ${tierCls}`}
+        className={`w-full max-w-[16rem] cursor-pointer appearance-none truncate rounded-full border border-transparent py-0.5 pl-2 pr-6 text-[11px] font-medium outline-none transition hover:border-edge-strong focus:border-brand-400 disabled:opacity-50 ${tierCls}`}
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 3.5l3 3 3-3' fill='none' stroke='%23a1a1aa' stroke-width='1.5' stroke-linecap='round'/></svg>\")",
@@ -108,7 +108,7 @@ function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) 
         }}
       >
         <optgroup label="Plan">
-          <option value="">Automatic · {automaticLabel(user)}</option>
+          <option value="">Automatic → {automaticLabel(user)}</option>
           {OVERRIDE_OPTIONS.filter((o) => o.value !== "").map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -119,7 +119,7 @@ function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) 
           {user.role === "admin" ? (
             <option value="role:user">Remove admin (back to seller)</option>
           ) : (
-            <option value="role:admin">Make admin · unlimited, sees Magic</option>
+            <option value="role:admin">Make admin (unlimited, sees Magic)</option>
           )}
         </optgroup>
       </select>
@@ -136,7 +136,7 @@ function randomPassword(): string {
 }
 
 const GRID =
-  "md:grid-cols-[minmax(0,2.2fr)_repeat(3,minmax(0,0.55fr))_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_2.5rem]";
+  "md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,0.45fr))_minmax(0,0.7fr)_minmax(13rem,1.6fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_2.5rem]";
 
 /**
  * Users: search, sort, per-account rollups, an Add account form, and a row
