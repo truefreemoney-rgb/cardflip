@@ -40,7 +40,7 @@ function nullableString(description: string) {
   } as const;
 }
 
-const CARD_READ_SCHEMA = {
+export const CARD_READ_SCHEMA = {
   type: "object",
   properties: {
     name: {
@@ -129,7 +129,7 @@ const CARD_READ_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
+export const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The name and the full collector fraction are
 what the lookup keys on, so getting those exactly right matters more than
@@ -162,7 +162,7 @@ printed name band, never from the artwork — two blue whale Pokémon are
 different cards. When the name band is angled, blurry, or cut off, keep
 confidence under 0.5.`;
 
-const SYSTEM_MTG = `You identify Magic: The Gathering cards from photos for a seller who is about to list them.
+export const SYSTEM_MTG = `You identify Magic: The Gathering cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The lookup keys on three things printed on
 every modern card: the name (top-left of the frame), the collector number and

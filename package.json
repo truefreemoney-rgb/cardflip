@@ -45,7 +45,8 @@
     "test:adminroutes": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-admin-routes.mjs",
     "test:ebaysync": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sync.mjs",
     "test:ebaysweeps": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sweeps.mjs",
-    "test:ebaysell": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sell.mjs"
+    "test:ebaysell": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sell.mjs",
+    "ab:vision": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/ab-vision.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
