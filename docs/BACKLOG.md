@@ -38,6 +38,10 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Manifest: maskable icon has no safe-zone padding; orientation locked portrait; no service worker (no offline shell).
 - [ ] Not exercised in emulation: anon/trial/admin personas, the editor, the paywall, the camera sheet (needs a device), the tour end-to-end. The header/inputs fixes apply to all of them.
 
+### Turso outage 09-06 (fixed)
+- [x] Free tier 500M row reads/month burned in 6 days (524M) → Turso blocked the whole account ~11:43am ET; every DB read on prod 500d (login, reset, scans). Chris upgraded to Developer; back at ~12:20pm ET. Root cause = full-table scans: mtg_cards had no set_code index (Magic set list ran a correlated EXISTS over 94k rows per set), hasEnglishMirror COUNT(*) twice per search, en_cards set/printed-number scans, price_series pagination walking the table. Fixed in 136dacc (4 indexes, 2 rewrites, missing await on hasMtgMirror).
+- [ ] Still worth doing: folded-name columns + index on en_cards/mtg_cards to replace LIKE '%x%' scans (every search is a 20k/94k scan); admin overview polls every 4s and rescans ~450k rows per load; catalogSize four COUNT(*) per cold start. Watch Turso Analytics → rows read for a week.
+
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
