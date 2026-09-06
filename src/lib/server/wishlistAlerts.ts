@@ -37,8 +37,13 @@ export interface AlertSweepResult {
   sent: number;
 }
 
-export async function sweepWishlistAlerts(now = Date.now()): Promise<AlertSweepResult> {
-  if (!isMailConfigured()) return { checked: 0, sent: 0 };
+export async function sweepWishlistAlerts(
+  now = Date.now(),
+  /** Test seam: the mailer and its configured check (scripts/test-ebay-sweeps.mjs). */
+  deps: { send?: typeof sendWishlistAlertEmail; configured?: () => boolean } = {},
+): Promise<AlertSweepResult> {
+  if (!(deps.configured ?? isMailConfigured)()) return { checked: 0, sent: 0 };
+  const send = deps.send ?? sendWishlistAlertEmail;
   const rows = (await db
     .prepare(
       `SELECT w.id, w.user_id, w.card_name, w.english_name, w.set_name, w.card_number,
@@ -68,7 +73,7 @@ export async function sweepWishlistAlerts(now = Date.now()): Promise<AlertSweepR
   let sent = 0;
   for (const { email, hits } of hitsByUser.values()) {
     try {
-      await sendWishlistAlertEmail(email, hits);
+      await send(email, hits);
       sent += hits.length;
       for (const hit of hits) {
         await db.prepare("UPDATE wishlist_items SET alerted_at = ? WHERE id = ?").run(now, hit.rowId);

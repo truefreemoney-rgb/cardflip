@@ -62,7 +62,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] DONE 09-06: test:adminroutes (45 checks; next/headers + next/cache stubbed via scripts/lib/register-next-stubs.mjs so cookie-gated routes run as functions). Admin routes: users create/delete, access, role, reset-link, settings.
 - [x] Billing webhook — DONE 09-04 evening: test:webhook (signature, checkout, plan from price id, portal switch, deleted, DB-throw 500); fix: an update event without a price no longer demotes Pro. Still untested: checkout/portal session creation, welcome email.
 - [x] Tour stamp — covered by test:settings (markTourSeen).
-- [~] PARTLY 09-06: test:ebaysync covers orders→sold, ended listings, fees (29 checks, fetch stub, real connect+token path); still untested: ebaySell push/publish, negotiation sweep, daily jobs, wishlist alerts, reprice nudges, price refreshes. eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
+- [~] MOSTLY 09-06: test:ebaysync (orders→sold, ended listings, fees; 29) + test:ebaysweeps (watcher offers, auto-offer sweep, wishlist alerts, reprice nudges; 33), fetch stubs over the real connect/token path; still untested: ebaySell push/publish, daily-job orchestration, price refreshes. eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
 - [ ] Component/E2E (Playwright): tour, robot, CardTile, SetBrowser, scanner stage.
 
 ### F. Ops
