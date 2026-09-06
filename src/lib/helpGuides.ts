@@ -43,7 +43,7 @@ export const GUIDES: Guide[] = [
     when: "the seller asks how to list, sell or publish a card, or why the Publish button is locked",
     steps: [
       { path: "/app", sel: '[data-tour="capture"]', round: true, title: "Scan it", body: "Every listing starts from a real photo. Scan the card or upload a photo." },
-      { path: "/app", title: "Verify, then Publish", body: "In the editor, check the match and tap Verify match. That unlocks Publish on eBay, photo included." },
+      { path: "/app", title: "Verify, then Publish", body: "In the editor, check the match and tap Verify Match. That unlocks Publish on eBay, photo included." },
     ],
   },
   {
@@ -94,7 +94,7 @@ export const GUIDES: Guide[] = [
     title: "Price a card without scanning",
     when: "the seller asks what a card is worth without having it, or how to browse a whole set",
     steps: [
-      { path: "/app/price-check", sel: 'input[placeholder^="Name or number"]', title: "Search cards", body: "Name or number, or switch to By set for every card in a set. Same live pricing." },
+      { path: "/app/price-check", sel: 'input[placeholder^="Name or number"]', title: "Search Cards", body: "Name or number, or switch to By Set for every card in a set. Same live pricing." },
     ],
   },
 ];
@@ -108,7 +108,7 @@ export function guideById(id: string): Guide | undefined {
 export const HELP_LINKS: Record<string, string> = {
   "/app": "Scanner",
   "/app/collection": "Inventory",
-  "/app/price-check": "Search cards",
+  "/app/price-check": "Search Cards",
   "/app/wishlist": "Watchlist",
   "/app/account": "Account",
   "/help": "Help articles",

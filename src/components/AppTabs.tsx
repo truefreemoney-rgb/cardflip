@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/app", label: "Scanner", tour: "tab-scanner" },
   { href: "/app/collection", label: "Inventory", tour: "tab-inventory" },
-  { href: "/app/price-check", label: "Search cards", tour: "tab-search" },
+  { href: "/app/price-check", label: "Search Cards", tour: "tab-search" },
   // "Watchlist" to the user; the route and code stay `wishlist`.
   { href: "/app/wishlist", label: "Watchlist", tour: "tab-watchlist" },
 ];

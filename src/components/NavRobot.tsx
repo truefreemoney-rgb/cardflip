@@ -318,7 +318,7 @@ export default function NavRobot() {
                 Replay the tour
               </button>
               <a href="mailto:support@cardflip.io" className="transition hover:text-zinc-300">
-                Email a human
+                Email a Human
               </a>
             </div>
 

@@ -53,7 +53,7 @@ export default function DevLoginButton() {
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-edge bg-black/30 px-5 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-brand-400 hover:text-white disabled:opacity-60"
       >
         {busy && <Spinner className="h-4 w-4" />}
-        {busy ? "Signing in…" : "Log in as admin"}
+        {busy ? "Signing in…" : "Log In as Admin"}
       </button>
 
       {error && (

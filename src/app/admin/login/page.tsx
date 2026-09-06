@@ -96,7 +96,7 @@ export default function AdminLoginPage() {
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
           >
             {submitting && <Spinner className="h-4 w-4" />}
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting ? "Signing in…" : "Sign In"}
           </button>
         </form>
       </div>

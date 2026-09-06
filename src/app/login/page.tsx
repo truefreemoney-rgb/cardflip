@@ -113,7 +113,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-xs text-zinc-500 transition hover:text-zinc-300"
               >
-                Forgot password?
+                Forgot Password?
               </Link>
             </div>
             <PasswordField
@@ -170,7 +170,7 @@ export default function LoginPage() {
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
           >
             {submitting && <Spinner className="h-4 w-4" />}
-            {submitting ? "Logging in…" : "Log in"}
+            {submitting ? "Logging in…" : "Log In"}
           </button>
         </form>
 
@@ -179,7 +179,7 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-xs text-zinc-500">
           No account?{" "}
           <Link href="/signup" className="text-brand-300 hover:text-brand-200">
-            Sign up
+            Sign Up
           </Link>
         </p>
       </div>

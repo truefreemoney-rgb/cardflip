@@ -12,7 +12,7 @@ export default function AdminSignOut() {
   }
   return (
     <button onClick={signOut} className="text-xs text-zinc-500 transition hover:text-zinc-300">
-      Sign out
+      Sign Out
     </button>
   );
 }

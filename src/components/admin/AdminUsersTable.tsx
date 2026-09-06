@@ -312,7 +312,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       disabled={u.isDemo || busyId === u.id}
                       className="ml-auto rounded-full px-3 py-1 text-xs text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40 disabled:hover:bg-transparent"
                     >
-                      {busyId === u.id ? "Deleting…" : "Delete account"}
+                      {busyId === u.id ? "Deleting…" : "Delete Account"}
                     </button>
                   </div>
                 )}

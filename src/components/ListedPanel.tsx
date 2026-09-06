@@ -77,7 +77,7 @@ export default function ListedPanel({ item, onNext }: Props) {
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-ebay px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition hover:bg-ebay-hover"
           >
-            View your listing on eBay ↗
+            View Your Listing on eBay ↗
           </a>
         )}
         {/* Momentum after publish (Chris, 09-02: "list next card at the
@@ -87,7 +87,7 @@ export default function ListedPanel({ item, onNext }: Props) {
             onClick={onNext}
             className="rounded-full border border-edge bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
           >
-            List the next card →
+            List the Next Card →
           </button>
         )}
       </div>

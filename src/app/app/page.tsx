@@ -1189,13 +1189,13 @@ export default function AppPage() {
               href="/app/account"
               className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"
             >
-              See your plan
+              See Your Plan
             </Link>{" "}
             <Link
               href="/help#scan-limits"
               className="font-medium text-red-200/80 underline underline-offset-4 transition hover:text-red-100"
             >
-              How limits work
+              How Limits Work
             </Link>
           </span>
           <button
@@ -1257,7 +1257,7 @@ export default function AppPage() {
               Point your phone at a card. CardFlip names it, prices it and writes the eBay listing.
             </p>
             <ol className="mx-auto mt-3 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-400">
-              {["Scan", "Matched & priced", "Published on eBay"].map((step, i) => (
+              {["Scan", "Matched & Priced", "Published on eBay"].map((step, i) => (
                 <li key={step} className="flex items-center gap-1.5">
                   <span className="flex items-center gap-1.5 rounded-full border border-edge bg-surface-1 py-1 pl-1.5 pr-2.5">
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-500/20 font-mono text-[10px] font-semibold text-brand-300">{i + 1}</span>
@@ -1335,7 +1335,7 @@ export default function AppPage() {
                   href="/pricing"
                   className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
                 >
-                  Subscribe now
+                  Subscribe Now
                 </Link>
               ) : (
               <button
@@ -1375,7 +1375,7 @@ export default function AppPage() {
                   rel="noopener noreferrer"
                   className="font-medium text-zinc-200 underline underline-offset-4 transition hover:text-white"
                 >
-                  View my eBay drafts ↗
+                  View My eBay Drafts ↗
                 </a>
               )}
             </p>

@@ -201,14 +201,14 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
               data-tour="capture"
               className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
             >
-              Scan a card
+              Scan a Card
             </button>
           )}
           <button
             onClick={() => inputRef.current?.click()}
             className="rounded-full border border-edge bg-surface-2/80 px-6 py-3.5 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
           >
-            Upload photos
+            Upload Photos
           </button>
         </div>
 

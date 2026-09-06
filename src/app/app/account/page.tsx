@@ -449,7 +449,7 @@ function AccountSettings({
           </span>
           {user.role === "admin" && (
             <Link href="/admin" className="text-brand-300 hover:underline">
-              Admin console
+              Admin Console
             </Link>
           )}
         </div>
@@ -473,7 +473,7 @@ function AccountSettings({
       {demo && (
         <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
           You&apos;re on the shared demo account — settings are read-only here.{" "}
-          <Link href="/signup" className="font-semibold underline">Create your own account</Link> to keep your cards and connect eBay.
+          <Link href="/signup" className="font-semibold underline">Create Your Own Account</Link> to keep your cards and connect eBay.
         </p>
       )}
 
@@ -577,13 +577,13 @@ function AccountSettings({
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button type="submit" className={primaryBtn} disabled={demo || pwBusy || !curPw || !newPw || !newPw2}>
-                {pwBusy ? "Changing…" : "Change password"}
+                {pwBusy ? "Changing…" : "Change Password"}
               </button>
               <label className="flex items-center gap-2 text-xs text-zinc-500">
                 <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} className="accent-brand-500" />
                 Show passwords
               </label>
-              {!demo && <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot it?</Link>}
+              {!demo && <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot It?</Link>}
             </div>
             {pwMsg && <Notice kind={pwMsg.kind}>{pwMsg.text}</Notice>}
           </form>
@@ -611,7 +611,7 @@ function AccountSettings({
               ) : undefined
             ) : !totpEnroll ? (
               <button type="button" data-tour="two-step" className={rowPrimary} onClick={startTotp} disabled={demo || totpBusy}>
-                {totpBusy ? "Starting…" : "Set up"}
+                {totpBusy ? "Starting…" : "Set Up"}
               </button>
             ) : undefined
           }
@@ -625,7 +625,7 @@ function AccountSettings({
               </label>
               <div className="flex items-center gap-3">
                 <button type="submit" className={primaryBtn} disabled={totpBusy || !totpOffPw}>
-                  {totpBusy ? "Turning off…" : "Turn off two-step"}
+                  {totpBusy ? "Turning Off…" : "Turn Off Two-Step"}
                 </button>
                 <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpOffOpen(false); setTotpOffPw(""); }} disabled={totpBusy}>
                   Cancel
@@ -663,7 +663,7 @@ function AccountSettings({
               </label>
               <div className="flex items-center gap-3">
                 <button type="submit" className={primaryBtn} disabled={totpBusy || totpCode.length !== 6}>
-                  {totpBusy ? "Checking…" : "Turn on two-step"}
+                  {totpBusy ? "Checking…" : "Turn on Two-Step"}
                 </button>
                 <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setTotpEnroll(null); setTotpCode(""); setTotpMsg(null); }} disabled={totpBusy}>
                   Cancel
@@ -700,7 +700,7 @@ function AccountSettings({
                 </ul>
                 <div className="flex items-center gap-3">
                   <button type="button" className={rowBtn} onClick={copyCodes}>
-                    {codesCopied ? "Copied ✓" : "Copy all"}
+                    {codesCopied ? "Copied ✓" : "Copy All"}
                   </button>
                   <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => setBackupCodes(null)}>
                     I saved them
@@ -715,7 +715,7 @@ function AccountSettings({
                 </label>
                 <div className="flex items-center gap-3">
                   <button type="submit" className={primaryBtn} disabled={backupBusy || !backupPw}>
-                    {backupBusy ? "Making codes…" : "Make new codes"}
+                    {backupBusy ? "Making Codes…" : "Make New Codes"}
                   </button>
                   <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setBackupOpen(false); setBackupPw(""); }} disabled={backupBusy}>
                     Cancel
@@ -738,7 +738,7 @@ function AccountSettings({
           }
           action={
             <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={demo || devBusy}>
-              {devBusy ? "Signing out…" : "Sign out others"}
+              {devBusy ? "Signing Out…" : "Sign Out Others"}
             </button>
           }
           open={!!devMsg}
@@ -777,7 +777,7 @@ function AccountSettings({
             )}
             <div className="flex items-center gap-3">
               <button type="submit" className={primaryBtn} disabled={demo || profileBusy || (!nameChanged && !emailChanged)}>
-                {profileBusy ? "Saving…" : "Save changes"}
+                {profileBusy ? "Saving…" : "Save Changes"}
               </button>
             </div>
             {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
@@ -862,7 +862,7 @@ function AccountSettings({
               </div>
               <div className="flex items-center gap-3">
                 <button type="submit" className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60" disabled={delBusy || !delPw || delConfirm.trim().toUpperCase() !== "DELETE"}>
-                  {delBusy ? "Deleting…" : "Permanently delete"}
+                  {delBusy ? "Deleting…" : "Permanently Delete"}
                 </button>
                 <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setDelOpen(false); setDelPw(""); setDelConfirm(""); setDelMsg(null); }} disabled={delBusy}>
                   Cancel
@@ -946,7 +946,7 @@ function PlanSection({
       action={
         subscribed ? (
           <button type="button" data-tour="subscribe" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
-            {busy ? "Opening…" : "Manage billing"}
+            {busy ? "Opening…" : "Manage Billing"}
           </button>
         ) : (
           <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy || demo}>
@@ -1031,7 +1031,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
         status="Subscribers earn 500 bonus scans for every friend who subscribes."
         action={
           <Link href="/app/rewards" className={rowBtn}>
-            How it works
+            How It Works
           </Link>
         }
       />
@@ -1049,7 +1049,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
       }
       action={
         <button type="button" className={rowPrimary} onClick={copy} disabled={!info}>
-          {copied ? "Copied" : "Copy link"}
+          {copied ? "Copied" : "Copy Link"}
         </button>
       }
       open={!!info}
@@ -1060,7 +1060,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
           <p className="mt-2 text-xs text-zinc-500">
             {info.friendsJoined} joined so far. Bonus scans are used after your monthly allowance and never expire.{" "}
             <Link href="/app/rewards" className="text-zinc-400 underline-offset-2 hover:underline">
-              How it works
+              How It Works
             </Link>
           </p>
         </div>

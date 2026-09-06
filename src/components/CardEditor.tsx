@@ -232,7 +232,7 @@ function PsaCertVerify({
             rel="noopener"
             className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
           >
-            How graded cards work
+            How Graded Cards Work
           </a>
         </p>
       )}
@@ -815,7 +815,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     rel="noopener noreferrer"
                     className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 hover:text-white"
                   >
-                    See listings ↗
+                    See Listings ↗
                   </a>
                 ),
               });

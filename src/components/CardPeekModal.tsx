@@ -109,7 +109,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
             href="/signup"
             className="sheen rounded-full bg-brand-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
           >
-            Price your cards free
+            Price Your Cards Free
           </Link>
         </div>
       </div>

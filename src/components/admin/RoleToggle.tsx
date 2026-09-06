@@ -50,7 +50,7 @@ export default function RoleToggle({ userId, role, isSelf }: Props) {
             : "bg-white/5 text-zinc-400 hover:bg-white/10"
         }`}
       >
-        {pending ? "…" : role === "admin" ? "Admin" : "Make admin"}
+        {pending ? "…" : role === "admin" ? "Admin" : "Make Admin"}
       </button>
     </div>
   );

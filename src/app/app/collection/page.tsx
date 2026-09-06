@@ -304,7 +304,7 @@ function RepriceSheet({
             className="flex flex-[2] items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-default disabled:opacity-40"
           >
             {busy && <Spinner className="h-3.5 w-3.5" />}
-            {busy ? "Updating eBay…" : "Update eBay listing"}
+            {busy ? "Updating eBay…" : "Update eBay Listing"}
           </button>
         </div>
       </div>
@@ -501,7 +501,7 @@ export default function CollectionPage() {
         <div className="flex flex-col gap-2 p-4">
           {draft && card.kind !== "sealed" && (
             <Link href={href} className={`${primary} ${card.verifiedAt ? "bg-brand-500 hover:bg-brand-400" : "bg-amber-400 !text-black hover:bg-amber-300"}`}>
-              {card.verifiedAt ? "Build the listing →" : "Verify match on the listing page →"}
+              {card.verifiedAt ? "Build the Listing →" : "Verify match on the listing page →"}
             </Link>
           )}
           {live && card.ebayListingUrl && (
@@ -537,7 +537,7 @@ export default function CollectionPage() {
               )}
               {sold && card.ebayListingUrl && (
                 <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
-                  View the sale on eBay ↗
+                  View the Sale on eBay ↗
                 </a>
               )}
               {canDelete && (
@@ -1269,7 +1269,7 @@ export default function CollectionPage() {
                   rel="noopener"
                   className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
                 >
-                  How offers work
+                  How Offers Work
                 </a>
               </p>
             </div>
@@ -1528,7 +1528,7 @@ export default function CollectionPage() {
               href="/app"
               className="mt-2 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
             >
-              Scan your first card
+              Scan Your First Card
             </Link>
           )}
         </div>
@@ -1691,7 +1691,7 @@ export default function CollectionPage() {
                           : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
                       }`}
                     >
-                      {card.verifiedAt ? "Build listing" : "Verify"}
+                      {card.verifiedAt ? "Build Listing" : "Verify"}
                     </Link>
                   ) : live ? (
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -1978,7 +1978,7 @@ export default function CollectionPage() {
                           : "rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/25"
                       }
                     >
-                      {card.verifiedAt ? "Build listing" : "Verify match"}
+                      {card.verifiedAt ? "Build Listing" : "Verify Match"}
                     </Link>
                   )}
                   {card.status === "ready" && !card.verifiedAt && (
@@ -2003,7 +2003,7 @@ export default function CollectionPage() {
                         disabled={ending === card.id}
                         className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong disabled:opacity-50"
                       >
-                        {ending === card.id ? "Ending…" : "End auction"}
+                        {ending === card.id ? "Ending…" : "End Auction"}
                       </button>
                     </>
                   )}

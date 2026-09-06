@@ -73,7 +73,7 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
           rel="noopener noreferrer"
           className="rounded-full bg-ebay px-4 py-2 text-xs font-semibold text-white transition hover:bg-ebay-hover"
         >
-          View sold on eBay
+          View Sold on eBay
         </a>
         <a
           href={ebaySearchUrl(product, { sealed: true })}
@@ -81,7 +81,7 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
           rel="noopener noreferrer"
           className="rounded-full border border-edge px-4 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-surface-2"
         >
-          View current listings
+          View Current Listings
         </a>
       </div>
 

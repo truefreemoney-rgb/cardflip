@@ -593,7 +593,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
             disabled={!ready}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
-            Capture card
+            Capture Card
           </button>
           <button
             onClick={onClose}

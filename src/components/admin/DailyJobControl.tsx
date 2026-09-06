@@ -79,7 +79,7 @@ export default function DailyJobControl({ initial }: { initial: Status }) {
           disabled={status.running}
           className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
         >
-          Run daily refresh now
+          Run Daily Refresh Now
         </button>
         {error && <span className="text-xs text-red-400">{error}</span>}
       </div>

@@ -69,11 +69,11 @@ export default function Paywall() {
 
       <div className="mt-8 flex flex-col items-center gap-2">
         <button type="button" onClick={() => go("pro", () => startCheckout("pro"))} disabled={busy !== null} className={quiet}>
-          {busy === "pro" ? "Opening checkout…" : "Need more? Pro is 2,000 scans for $24.99 a month."}
+          {busy === "pro" ? "Opening Checkout…" : "Need more? Pro is 2,000 scans for $24.99 a month."}
         </button>
         {lapsed && (
           <button type="button" onClick={() => go("portal", openBillingPortal)} disabled={busy !== null} className={quiet}>
-            {busy === "portal" ? "Opening…" : "Fix a failed card"}
+            {busy === "portal" ? "Opening…" : "Fix a Failed Card"}
           </button>
         )}
       </div>

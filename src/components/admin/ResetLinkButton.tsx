@@ -93,7 +93,7 @@ export default function ResetLinkButton({ userId, disabled }: Props) {
         disabled={pending}
         className="rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-zinc-400 transition hover:bg-white/10 disabled:opacity-40"
       >
-        {pending ? "…" : "Reset password"}
+        {pending ? "…" : "Reset Password"}
       </button>
     </div>
   );

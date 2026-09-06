@@ -43,7 +43,7 @@ export default function MarketingNav() {
         <Logo />
         <div className="flex items-center gap-1 sm:gap-2">
           <Link href="/#how-it-works" className={`${link} hidden sm:inline-block`}>
-            How it works
+            How It Works
           </Link>
           <Link href="/pricing" className={link}>
             Pricing
@@ -66,19 +66,19 @@ export default function MarketingNav() {
                 href="/app"
                 className="ml-1 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
               >
-                Open the app
+                Open the App
               </Link>
             </>
           ) : (
             <>
               <Link href="/login" className={link}>
-                Log in
+                Log In
               </Link>
               <Link
                 href="/signup"
                 className="ml-1 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
               >
-                Get started
+                Get Started
               </Link>
             </>
           )}

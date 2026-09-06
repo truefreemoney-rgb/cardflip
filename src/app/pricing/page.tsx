@@ -136,7 +136,7 @@ export default function PricingPage() {
           <p className="mt-5 text-center text-sm text-zinc-500">
             Something else?{" "}
             <Link href="/help" className="text-brand-300 hover:text-brand-200">
-              Read the help center
+              Read the Help Center
             </Link>{" "}
             or email{" "}
             <a href="mailto:support@cardflip.io" className="text-brand-300 hover:text-brand-200">

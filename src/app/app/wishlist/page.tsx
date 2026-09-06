@@ -540,7 +540,7 @@ export default function WishlistPage() {
                   addMode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {m === "search" ? "By name" : "By set"}
+                {m === "search" ? "By Name" : "By Set"}
               </button>
             ))}
           </div>

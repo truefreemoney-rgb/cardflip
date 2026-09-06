@@ -66,7 +66,7 @@ export default function PlanCta({
   if (plan === "trial") {
     return (
       <Link href="/app" className={cls}>
-        {subscribed ? "Open the app" : "Back to scanning"}
+        {subscribed ? "Open the App" : "Back to Scanning"}
       </Link>
     );
   }
@@ -86,17 +86,17 @@ export default function PlanCta({
     <>
       {current ? (
         <button type="button" disabled className={cls}>
-          Your current plan
+          Your Current Plan
         </button>
       ) : subscribed ? (
         <button type="button" onClick={() => go(openBillingPortal)} disabled={busy} className={cls}>
           {busy ? <Spinner className="h-4 w-4" /> : null}
-          {busy ? "Opening…" : plan === "pro" ? "Switch to Pro in billing" : "Switch to CardFlip in billing"}
+          {busy ? "Opening…" : plan === "pro" ? "Switch to Pro in Billing" : "Switch to CardFlip in Billing"}
         </button>
       ) : (
         <button type="button" onClick={() => go(() => startCheckout(plan))} disabled={busy} className={cls}>
           {busy ? <Spinner className="h-4 w-4" /> : null}
-          {busy ? "Opening checkout…" : cta}
+          {busy ? "Opening Checkout…" : cta}
         </button>
       )}
       {error && (

@@ -59,7 +59,7 @@ const TOUR: Step[] = [
     path: "/app",
     sel: '[data-tour="capture"]',
     round: true,
-    title: "Scan a card",
+    title: "Scan a Card",
     body: "Point, tap Capture. I name it and price it. You get the credit.",
   },
   {
@@ -91,7 +91,7 @@ const TOUR: Step[] = [
   {
     path: "/app/price-check",
     sel: CARD_INPUT,
-    title: "Search cards",
+    title: "Search Cards",
     body: "Price any card, no scan. For cards you can't hold. I relate.",
   },
   {

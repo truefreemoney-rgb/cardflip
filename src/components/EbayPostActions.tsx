@@ -303,7 +303,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             // Trial sellers see one thing here (Chris, 09-06): Subscribe now,
             // leading to the three plans. Connect-eBay comes after.
             <Link href="/pricing" className={ebayButton + " text-center"}>
-              Subscribe now
+              Subscribe Now
             </Link>
           ) : canPost && !verified ? (
             <button
@@ -322,12 +322,12 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             </button>
           ) : (
             <Link href="/connect-ebay" className={ebayButton + " text-center"}>
-              Connect eBay to publish from here
+              Connect eBay to Publish from Here
             </Link>
           )}
           {item.ebayDraftUrl && (
             <a href={item.ebayDraftUrl} target="_blank" rel="noopener noreferrer" className={quietButton + " text-center"}>
-              Open draft on eBay ↗
+              Open Draft on eBay ↗
             </a>
           )}
         </div>
@@ -383,7 +383,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               rel="noopener noreferrer"
               className="mt-1 inline-block underline underline-offset-4"
             >
-              Open eBay business policies ↗
+              Open eBay Business Policies ↗
             </a>
           )}
         </div>
@@ -412,7 +412,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             disabled={busy !== null || !shipZip.trim()}
             className="rounded-full bg-ebay px-4 py-2 text-xs font-semibold text-white transition hover:bg-ebay-hover disabled:opacity-60"
           >
-            Save &amp; publish
+            Save &amp; Publish
           </button>
         </form>
       )}

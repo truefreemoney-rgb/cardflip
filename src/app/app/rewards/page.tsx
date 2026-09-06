@@ -70,7 +70,7 @@ export default function RewardsPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
       <section className="text-center">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Rewards</p>
-        <h1 className="holo-text mt-2 font-display text-4xl font-bold leading-tight sm:text-5xl">Unlock {BONUS} free scans</h1>
+        <h1 className="holo-text mt-2 font-display text-4xl font-bold leading-tight sm:text-5xl">Unlock {BONUS} Free Scans</h1>
         <p className="mx-auto mt-3 max-w-md text-sm text-zinc-400">
           Send a friend your link. When they subscribe, {BONUS} scans land in your account. That is a full month of CardFlip, for
           one text message.
@@ -92,7 +92,7 @@ export default function RewardsPage() {
                 disabled={!info}
                 className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
               >
-                {copied ? "Copied" : "Copy link"}
+                {copied ? "Copied" : "Copy Link"}
               </button>
               {canShare && (
                 <button

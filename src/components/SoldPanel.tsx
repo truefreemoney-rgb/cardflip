@@ -153,7 +153,7 @@ export default function SoldPanel({ item, onChange, onNext }: Props) {
           onClick={onNext}
           className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-200"
         >
-          Next card →
+          Next Card →
         </button>
       )}
 

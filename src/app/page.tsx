@@ -217,13 +217,13 @@ export default async function Home() {
                   href="/signup"
                   className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
                 >
-                  Try 10 scans free
+                  Try 10 Scans Free
                 </Link>
                 <a
                   href="#how-it-works"
                   className="rounded-full border border-edge px-8 py-3.5 text-center text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2"
                 >
-                  See how it works
+                  See How It Works
                 </a>
               </div>
 
@@ -546,7 +546,7 @@ export default async function Home() {
               href="/signup"
               className="reveal sheen rounded-full bg-brand-500 px-9 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:-translate-y-0.5 hover:bg-brand-400"
             >
-              Try 10 scans free
+              Try 10 Scans Free
             </Link>
           </div>
         </section>

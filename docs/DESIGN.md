@@ -142,3 +142,14 @@ paid", "I have nothing else to do at 3am"). Still no exclamation marks,
 still no hype. Nowhere else in the product talks like this. Its pointer is
 two breathing halo rings on the target plus a tooltip tail on the card —
 a drawn arrow line was tried and read as robotic.
+
+## Casing (Chris, 09-06)
+
+Buttons, links that act as buttons, nav tabs, header pills and chips, and
+step chips are **Title Case**: "Unlock 500 Free Scans", "Scan a Card",
+"Search Cards", "Copy Link". Articles, short prepositions and conjunctions
+stay lower ("a", "the", "to", "on", "in", "of", "and") except in "Log In" /
+"Sign Up" / "Sign Out". Brand spellings win ("eBay", "CardFlip", "PSA").
+Body copy, status lines, hints and headings stay sentence case. The sweep
+that applied this lives in the session scratch (a regex over <button>/<Link>
+labels); new labels just follow the rule by hand.
