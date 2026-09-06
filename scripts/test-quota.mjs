@@ -72,7 +72,7 @@ check("pro subscriber: 2,000 cap",
   scanQuota(sub({ plan: "pro", scansUsed: 10 })).remaining, 2000 - 10);
 check("stale month reads as zero used",
   scanQuota(sub({ scanMonth: "2020-01", scansUsed: 499 })),
-  { used: 0, included: MONTHLY_SCANS, remaining: MONTHLY_SCANS });
+  { used: 0, included: MONTHLY_SCANS, remaining: MONTHLY_SCANS, bonus: 0 });
 check("null month (never scanned) reads as zero",
   scanQuota(sub({ scanMonth: null, scansUsed: 7 })).used, 0);
 check("remaining clamps at zero past the cap",
