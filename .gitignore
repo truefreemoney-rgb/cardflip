@@ -54,3 +54,6 @@ backups/
 
 # local secret scratch files
 stripe2.txt
+
+# Claude Code local permissions
+.claude/settings.local.json
