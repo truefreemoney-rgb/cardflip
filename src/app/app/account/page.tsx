@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import type { SessionUser } from "@/lib/client/auth";
+import { logout, type SessionUser } from "@/lib/client/auth";
 import { requestTourReplay } from "@/lib/client/tour";
 import {
   changePassword,
@@ -827,6 +827,22 @@ function AccountSettings({
             <span className="shrink-0 font-mono text-[11px] text-zinc-600">
               build {process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) || "dev"}
             </span>
+          }
+        />
+        {/* Phones have no Sign out in the header (two-row header, 09-07). */}
+        <Row
+          title="Sign out"
+          status="Signs this device out of CardFlip."
+          action={
+            <button
+              onClick={async () => {
+                await logout();
+                router.push("/");
+              }}
+              className={rowBtn}
+            >
+              Sign out
+            </button>
           }
         />
       </Group>

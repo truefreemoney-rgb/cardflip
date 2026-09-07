@@ -39,11 +39,10 @@ export default function AppHeader() {
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white"
             >
               <span aria-hidden className="text-[10px] text-brand-300">✦</span>
-              {/* Short label on phones: the full strip (Help · pill · eBay ·
-                  name · Sign out) was 427px at 375 and scrolled every /app
-                  page sideways (mobile QA 09-06). */}
-              <span className="sm:hidden">500 Free Scans</span>
-              <span className="hidden sm:inline">Unlock 500 Free Scans</span>
+              {/* Phones: just the spark — the header is two rows there
+                  (Chris, 09-07: three stacked rows was "a mess"); the
+                  title/label carry the meaning. */}
+              <span className="sr-only sm:not-sr-only">Unlock 500 Free Scans</span>
             </Link>
           )}
           {user && showEbay && (
@@ -92,7 +91,8 @@ export default function AppHeader() {
               await logout();
               router.push("/");
             }}
-            className="py-2 text-xs text-zinc-500 transition hover:text-zinc-300"
+            // Phones sign out from Account (the row has no room); sm+ keeps it here.
+            className="hidden py-2 text-xs text-zinc-500 transition hover:text-zinc-300 sm:block"
           >
             Sign out
           </button>
@@ -100,19 +100,21 @@ export default function AppHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex flex-col gap-1.5 bg-background/85 px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-2 sm:py-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
-      {/* Grid from sm keeps the tabs centered (below sm they wrap to a full
-          line). The third cell is the personal strip from xl up, an empty
-          balancer before that. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
+    <header className="sticky top-0 z-40 flex flex-col gap-1.5 bg-background/85 px-3 py-1.5 pt-[max(0.375rem,env(safe-area-inset-top))] sm:gap-2 sm:py-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+      {/* Phones: TWO rows — logo + the personal strip share the first line,
+          the tab pill takes the second (it is w-full there, so it wraps).
+          From sm the grid keeps the tabs centered; the third cell is the
+          personal strip from xl up, an empty balancer before that. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 sm:grid sm:grid-cols-[1fr_auto_1fr]">
         <div className="flex items-center gap-2">
           <Logo size="sm" />
         </div>
+        <div className="flex items-center gap-1.5 sm:hidden">{personalStrip}</div>
         <AppTabs />
         <div aria-hidden className="hidden sm:block xl:hidden" />
         <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>
       </div>
-      <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-4 xl:hidden">
+      <div className="hidden w-full flex-wrap items-center justify-center gap-4 sm:flex xl:hidden">
         {personalStrip}
       </div>
     </header>
