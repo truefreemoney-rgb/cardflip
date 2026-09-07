@@ -106,7 +106,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Billing webhook — DONE 09-04 evening: test:webhook (signature, checkout, plan from price id, portal switch, deleted, DB-throw 500); fix: an update event without a price no longer demotes Pro. Still untested: checkout/portal session creation, welcome email.
 - [x] Tour stamp — covered by test:settings (markTourSeen).
 - [x] DONE 09-06: test:ebaysync (orders→sold, ended listings, fees; 29) + test:ebaysweeps (watcher offers, auto-offer sweep, wishlist alerts, reprice nudges; 29) + test:ebaysell (push/publish/reprice/withdraw incl. policy creation, ship-from location, 500-bisect, stale-offer recovery; 29) — fetch stubs over the real connect/token path. Left: daily-job orchestration, price refreshes (need network fixtures). eBay server libs (auth/sell/orders/finances/negotiation), daily jobs, wishlist alerts, reprice nudges, price refreshes.
-- [ ] Component/E2E (Playwright): tour, robot, CardTile, SetBrowser, scanner stage.
+- [x] Playwright mobile E2E (e2e/mobile.spec.ts, `npm run test:e2e`, CI job `e2e`): anon pages + /app redirect, trial signup → tour across 4 pages → stamped once, header height, every /app page clean (no sideways scroll, no <16px inputs), camera sheet blocked-permission overlay in viewport, editor via ?resume. 10 tests, ~17s. Not covered: robot chat, CardTile/SetBrowser internals, scanner stage (needs a mirror in CI).
 
 ### F. Ops
 - [ ] MTG mirror + Pokémon set sync are manual from Chris's PC (Scryfall 429s cloud IPs).

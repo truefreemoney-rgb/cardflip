@@ -57,3 +57,7 @@ stripe2.txt
 
 # Claude Code local permissions
 .claude/settings.local.json
+
+# Playwright
+/playwright-report
+/test-results
