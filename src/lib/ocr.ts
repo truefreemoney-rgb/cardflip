@@ -39,10 +39,31 @@ const TESSERACT_LANG: Record<ScanLanguage, string> = {
 
 const workers = new Map<ScanLanguage, Promise<Worker>>();
 
+/** Worker/core/language files come from a CDN; on cellular that download had
+ * no ceiling and a stalled one hung the first scan forever (mobile QA 09-06).
+ * A failed or timed-out load is evicted so the next scan tries again. */
+const WORKER_LOAD_TIMEOUT_MS = 45_000;
+
 function getWorker(lang: ScanLanguage): Promise<Worker> {
   let promise = workers.get(lang);
   if (!promise) {
-    promise = createWorker(TESSERACT_LANG[lang]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    promise = Promise.race([
+      createWorker(TESSERACT_LANG[lang]),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("OCR model download timed out")), WORKER_LOAD_TIMEOUT_MS);
+      }),
+    ]).then(
+      (worker) => {
+        clearTimeout(timer);
+        return worker;
+      },
+      (err) => {
+        clearTimeout(timer);
+        workers.delete(lang);
+        throw err;
+      },
+    );
     workers.set(lang, promise);
   }
   return promise;
@@ -118,7 +139,7 @@ export async function scanCard(
   lang: ScanLanguage = "en",
 ): Promise<ScanResult> {
   const worker = await getWorker(lang);
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
 
   try {
     const [nameResult, numberResult] = await Promise.all([

@@ -25,6 +25,15 @@ export default function RewardsPage() {
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Back from Stripe restores this page from the back-forward cache with
+  // `busy` still true — the button stayed a spinner (mobile QA 09-06).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
   const subscribed = user?.tier === "subscribed";
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 

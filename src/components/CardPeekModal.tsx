@@ -40,7 +40,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
   // overlay rendered in place.
   return createPortal(
     <div
-      className="animate-fade-up fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -50,7 +50,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
         aria-label={`${card.name} details`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="foil-edge relative my-auto w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 outline-none [--foil-fill:#0b0d13] sm:p-8"
+        className="animate-fade-up foil-edge relative my-auto w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-black/60 outline-none [--foil-fill:#0b0d13] sm:p-8"
       >
         <button
           onClick={onClose}

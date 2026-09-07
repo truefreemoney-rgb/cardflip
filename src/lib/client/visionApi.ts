@@ -28,7 +28,7 @@ export interface VisionScanOutcome {
 const MAX_EDGE = 1024;
 
 async function downscale(file: File): Promise<{ base64: string; mediaType: string }> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   try {
     const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
     const width = Math.round(bitmap.width * scale);

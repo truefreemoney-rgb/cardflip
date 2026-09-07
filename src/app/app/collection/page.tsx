@@ -213,7 +213,7 @@ function RepriceSheet({
 
   return (
     <div
-      className="animate-fade-up fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -223,7 +223,7 @@ function RepriceSheet({
         aria-label={`Change the listing price of ${card.cardName}`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
+        className="animate-fade-up w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start gap-3">
           <CardImage src={card.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded-md" />

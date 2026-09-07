@@ -69,7 +69,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
 
   return (
     <div
-      className="animate-fade-up fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -79,7 +79,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
         aria-label={`${card.name} details`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="panel-solid relative my-auto w-full max-w-2xl rounded-2xl border p-6 shadow-2xl shadow-black/70 outline-none sm:p-8"
+        className="animate-fade-up panel-solid relative my-auto w-full max-w-2xl rounded-2xl border p-6 shadow-2xl shadow-black/70 outline-none sm:p-8"
       >
         <button
           onClick={onClose}

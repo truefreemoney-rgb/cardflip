@@ -17,7 +17,7 @@ const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.88;
 
 async function toListingJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   try {
     const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale));
