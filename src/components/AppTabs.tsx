@@ -25,7 +25,7 @@ export default function AppTabs() {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             data-tour={tab.tour}
-            className={`flex-1 whitespace-nowrap rounded-full px-1 py-2 text-center text-[13px] font-medium transition sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-sm ${
+            className={`flex-1 whitespace-nowrap rounded-full px-1 py-2.5 text-center text-[13px] font-medium transition sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-sm ${
               active
                 ? "bg-brand-500 text-white"
                 : "text-zinc-400 hover:text-zinc-200"

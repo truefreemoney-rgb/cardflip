@@ -14,21 +14,21 @@ export default async function Footer() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 text-xs text-zinc-600 sm:flex-row">
         <span>© {new Date().getFullYear()} CardFlip</span>
         <nav className="flex items-center gap-4">
-          <Link href="/pricing" className="transition hover:text-zinc-300">
+          <Link href="/pricing" className="py-1.5 transition hover:text-zinc-300">
             Pricing
           </Link>
-          <Link href="/help" className="transition hover:text-zinc-300">
+          <Link href="/help" className="py-1.5 transition hover:text-zinc-300">
             Help
           </Link>
-          <Link href="/terms" className="transition hover:text-zinc-300">
+          <Link href="/terms" className="py-1.5 transition hover:text-zinc-300">
             Terms of Service
           </Link>
-          <Link href="/privacy" className="transition hover:text-zinc-300">
+          <Link href="/privacy" className="py-1.5 transition hover:text-zinc-300">
             Privacy Policy
           </Link>
           <a
             href="mailto:support@cardflip.io"
-            className="transition hover:text-zinc-300"
+            className="py-1.5 transition hover:text-zinc-300"
           >
             Contact
           </a>

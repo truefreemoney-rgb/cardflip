@@ -31,7 +31,6 @@ import {
 } from "@/lib/client/cardsApi";
 import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
-import { saveQueue } from "@/lib/client/queuePersistence";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, type ScanUsage } from "@/lib/client/visionApi";
@@ -239,7 +238,6 @@ export default function AppPage() {
     setItems(next);
     // Every queue write lands in sessionStorage too, so a refresh can rebuild
     // the stack; an empty write naturally clears it.
-    saveQueue(next);
   }, []);
 
   const patchItem = useCallback(
@@ -305,7 +303,6 @@ export default function AppPage() {
   // server, so nothing is lost by starting empty -- the snapshot is cleared
   // on arrival so there is never anything to restore.
   useEffect(() => {
-    saveQueue([]);
   }, []);
 
   // Release the object URLs held by previews when the page goes away.

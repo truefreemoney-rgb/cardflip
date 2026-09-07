@@ -105,7 +105,7 @@ export default function SoldPanel({ item, onChange, onNext }: Props) {
               </span>
               <button
                 onClick={savePrice}
-                className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+                className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
               >
                 Save
               </button>

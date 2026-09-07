@@ -74,6 +74,24 @@ export default function NavRobot() {
   // pinned to the header instead of the screen (Chris, 09-04, iPhone). On
   // desktop the panel anchors under the button by measuring it.
   const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
+  // iOS doesn't shrink the layout viewport for the keyboard, so a bottom-0
+  // sheet sits under it with its composer hidden (mobile QA 09-06). Same
+  // visualViewport trick as CategorySheet: lift the sheet by the overlap.
+  const [kbd, setKbd] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbd(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setKbd(0);
+    };
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const place = () => {
@@ -214,7 +232,7 @@ export default function NavRobot() {
           <div
             role="dialog"
             aria-label="Help"
-            style={anchor ?? undefined}
+            style={anchor ?? (kbd > 0 ? { bottom: kbd } : undefined)}
             className="fixed inset-x-0 bottom-0 z-50 panel-solid flex max-h-[80dvh] flex-col rounded-t-2xl border shadow-2xl shadow-black/70 sm:inset-x-auto sm:bottom-auto sm:h-[520px] sm:max-h-[70vh] sm:w-[360px] sm:rounded-2xl"
           >
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">

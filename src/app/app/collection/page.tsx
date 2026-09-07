@@ -1182,7 +1182,7 @@ export default function CollectionPage() {
         </div>
 
         <div className="mt-2 flex items-center gap-2">
-          <div className="-mx-2 min-w-0 flex-1 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-2 min-w-0 flex-1 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]">
             <div className="flex w-max items-center gap-1 rounded-full bg-black/25 p-1">
             {FILTERS.map((f) => (
               <button
@@ -1212,7 +1212,7 @@ export default function CollectionPage() {
 
         {/* Category chips (Chris, 09-04): only once a category exists. */}
         {categories.length > 0 && (
-          <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]">
             <div className="flex w-max items-center gap-1.5">
               <svg viewBox="0 0 20 20" className="mr-0.5 h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
                 <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h3.4l1.6 1.6h6A1.5 1.5 0 0 1 17 8.1v6.4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-8Z" />
@@ -1654,7 +1654,7 @@ export default function CollectionPage() {
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-zinc-300 backdrop-blur transition hover:bg-black/90 hover:text-white"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-zinc-300 backdrop-blur transition hover:bg-black/90 hover:text-white"
                     >
                       <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
@@ -1702,7 +1702,7 @@ export default function CollectionPage() {
                       <button
                         onClick={() => void endListing(card)}
                         disabled={ending === card.id}
-                        className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                        className="rounded-full bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
                       >
                         {ending === card.id ? "Ending…" : "End"}
                       </button>
