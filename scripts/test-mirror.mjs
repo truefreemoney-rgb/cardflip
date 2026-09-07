@@ -171,6 +171,12 @@ check("a whole first word still prefix-matches",
   await mtgTop("Heroic", null, null), "msc-17");
 check("a whole inner word still matches",
   await mtgTop("Paradise", null, null), "msc-170");
+// 09-06 (The Soul Stone): a misread name with a correct number + set code
+// used to score Infinity on every by-number row — the fallback was dead.
+check("a misread name still resolves when number + set code agree",
+  await mtgTop("Pyrettc Ritval", "46", "soa"), "soa-46");
+check("a misread name with the wrong set code stays a no-match",
+  await mtgTop("Pyrettc Ritval", "46", "m11"), null);
 
 check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);

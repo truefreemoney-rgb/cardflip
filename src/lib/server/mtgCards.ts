@@ -190,7 +190,13 @@ export async function searchMtgCardsLocal(
     return [];
   }
 
+  // The name read matched nothing, but number + set code is a printing on
+  // its own. Those rows must survive the name gate below (09-06: a misread
+  // name with a perfect "0066 SPM" came back "no match" because every
+  // by-number row scored Infinity — the fallback was dead code).
+  let nameMisread = false;
   if (rows.length === 0 && wantedNumber && wantedCode) {
+    nameMisread = true;
     rows = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS_JOINED}
@@ -233,6 +239,7 @@ export async function searchMtgCardsLocal(
     else if (exactName) tier = 1;
     else if (prefixName) tier = 2;
     else if (insideName) tier = 3;
+    else if (nameMisread && exactNumber && codeAgrees === true) tier = 3; // number + set carry a misread name
     else if (needle !== "") return Infinity; // name read, and this row's name isn't it
     else if (exactNumber) tier = 3;
     else tier = 4;
