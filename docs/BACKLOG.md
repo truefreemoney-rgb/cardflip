@@ -45,6 +45,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Admin catalog-health block (8 whole-table counts, ~450k rows/load) and landing catalogSize (4 counts/cold start) memoed 6h on card_cache.
 - [x] Name searches: expression indexes on the folded name (idx_en_cards_folded / idx_mtg_cards_folded); exact+prefix are one indexed range, the '%x%' walk runs only when that finds nothing (or, Pokémon, when a read number matches none of the hits). test:queryplans pins it.
 - [ ] Watch Turso Analytics → rows read for a week; expect a steep drop from 09-06 evening on.
+- [x] PRODUCTION HEARTBEAT (.github/workflows/prod-smoke.yml → scripts/prod-smoke.mjs): 14 no-secret probes of cardflip.io every 15 min + after every prod deploy; a failure emails Chris via GitHub. Would have flagged the Turso block within 15 min. Run by hand: `node scripts/prod-smoke.mjs`.
 
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.

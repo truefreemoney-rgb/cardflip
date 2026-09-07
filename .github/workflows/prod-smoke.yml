@@ -1,0 +1,37 @@
+# Production heartbeat. Runs scripts/prod-smoke.mjs against cardflip.io
+# every 15 minutes, on every successful Vercel deployment, and by hand.
+# A failing run emails the repository owner (GitHub's default for failed
+# workflows) with the failing check in the log — the 2026-09-06 Turso quota
+# block took every DB route down for ~35 minutes before anyone noticed;
+# this would have said so within 15.
+#
+# No secrets: every probe is a request a stranger could make. Nothing is
+# written, no account is used, eBay/Stripe are never touched.
+name: Production smoke
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  deployment_status:
+  workflow_dispatch:
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # deployment_status fires for every state; only a finished production
+    # deploy is worth probing. Scheduled and manual runs always go.
+    if: github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Vercel aliases the new deployment a few seconds after "success".
+      - if: github.event_name == 'deployment_status'
+        run: sleep 45
+      - run: node scripts/prod-smoke.mjs https://cardflip.io
