@@ -1,7 +1,7 @@
 "use client";
 
 import HoloCard from "@/components/HoloCard";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 interface Props {
   onFiles: (files: File[]) => void;
@@ -24,19 +24,11 @@ export interface ShowcaseCard {
   price: number | null;
 }
 
-const ROTATE_MS = 4500;
-
 export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
-  // The stage rotates through its cards (Chris, 09-04: "pick like 10"),
-  // one every few seconds, fading between them. Rotation is content, not
-  // decoration, so it runs under reduced motion too — minus the fade.
-  const [slot, setSlot] = useState(0);
-  useEffect(() => {
-    if (showcase.length < 2) return;
-    const t = window.setInterval(() => setSlot((n) => n + 1), ROTATE_MS);
-    return () => window.clearInterval(t);
-  }, [showcase.length]);
-  const card = showcase.length ? showcase[slot % showcase.length] : null;
+  // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
+  // to rotate images"). The reel from 09-04 cycled ten cards every 4.5s; the
+  // first card of the stage set leads (Charizard on the Pokémon reel).
+  const card = showcase.length ? showcase[0] : null;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
