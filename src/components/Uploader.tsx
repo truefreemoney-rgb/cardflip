@@ -26,9 +26,15 @@ export interface ShowcaseCard {
 
 export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
-  // to rotate images"). The reel from 09-04 cycled ten cards every 4.5s; the
-  // first card of the stage set leads (Charizard on the Pokémon reel).
-  const card = showcase.length ? showcase[0] : null;
+  // to rotate images"), and not the Charizard — "something worth like $50":
+  // the stage card whose market price sits closest to $50, so it reads as a
+  // card a seller actually has, not a grail.
+  const STAGE_TARGET_USD = 50;
+  const card = showcase.length
+    ? [...showcase].sort(
+        (a, b) => Math.abs((a.price ?? Infinity) - STAGE_TARGET_USD) - Math.abs((b.price ?? Infinity) - STAGE_TARGET_USD),
+      )[0]
+    : null;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

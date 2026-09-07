@@ -27,7 +27,10 @@ const STAGE_CARDS = 10;
 const STAGE_TTL_MS = 6 * 60 * 60 * 1000;
 const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise", "Gyarados", "Dragonite", "Rayquaza", "Eevee"];
 
-const cacheKey = (magic: boolean) => `stage:v1:${magic ? "magic" : "pokemon"}`;
+// v2 (09-07): printings nearest $50, not the dearest — Chris: "make it something worth like $50".
+const STAGE_TARGET_USD = 50;
+const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
+const cacheKey = (magic: boolean) => `stage:v2:${magic ? "magic" : "pokemon"}`;
 
 function marketOf(card: PokemonCard): number | null {
   return plausiblePrices(card.prices).find((p) => p.market)?.market ?? null;
@@ -55,13 +58,15 @@ async function fromMirror(): Promise<PokemonCard[]> {
     }
     const out: PokemonCard[] = [];
     for (const r of results) {
+      // The printing of each icon priced nearest $50 — a card a seller
+      // actually has in a binder, not the grail (was: the dearest printing).
       const best = r.cards
         .filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5)
-        .sort((a, b) => (marketOf(b) ?? 0) - (marketOf(a) ?? 0))[0];
+        .sort((a, b) => nearTarget(a) - nearTarget(b))[0];
       if (best) out.push(best);
     }
-    // Charizard leads (it's the landing card too); the rest by value.
-    return out.sort((a, b) => (a.name === "Charizard" ? -1 : b.name === "Charizard" ? 1 : (marketOf(b) ?? 0) - (marketOf(a) ?? 0)));
+    // Nearest $50 leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
+    return out.sort((a, b) => nearTarget(a) - nearTarget(b));
   } catch {
     return [];
   }
