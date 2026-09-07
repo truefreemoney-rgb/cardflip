@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { setLogoFromCardImage, type SetInfo } from "@/lib/grading";
 import { parseGame } from "@/lib/games";
 import { listMtgSets } from "@/lib/server/mtgCards";
+import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 
 /**
  * Every English set in the mirror, newest first — the catalogue behind the
@@ -32,23 +33,25 @@ async function listSets(req: NextRequest) {
     return NextResponse.json({ sets: await listMtgSets() });
   }
 
-  const rows = (await db
-    .prepare(
-      `SELECT set_name,
-              MIN(set_release_date) AS release_date,
-              MAX(image_url) AS sample_image
-         FROM en_cards
-        WHERE set_name != ''
-        GROUP BY set_name
-        ORDER BY release_date DESC`,
-    )
-    .all()) as unknown as SetRow[];
-
-  const sets: SetInfo[] = rows.map((row) => ({
-    name: row.set_name,
-    releaseDate: row.release_date,
-    logoUrl: setLogoFromCardImage(row.sample_image ?? ""),
-  }));
+  // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06).
+  const sets = await cachedList<SetInfo[]>("sets:v1:pokemon", SET_LIST_TTL_MS, async () => {
+    const rows = (await db
+      .prepare(
+        `SELECT set_name,
+                MIN(set_release_date) AS release_date,
+                MAX(image_url) AS sample_image
+           FROM en_cards
+          WHERE set_name != ''
+          GROUP BY set_name
+          ORDER BY release_date DESC`,
+      )
+      .all()) as unknown as SetRow[];
+    return rows.map((row) => ({
+      name: row.set_name,
+      releaseDate: row.release_date,
+      logoUrl: setLogoFromCardImage(row.sample_image ?? ""),
+    }));
+  });
 
   return NextResponse.json({ sets });
 }

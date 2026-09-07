@@ -15,6 +15,7 @@
  * picker.
  */
 
+import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { db } from "@/lib/db";
 import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
@@ -256,16 +257,20 @@ export async function searchMtgCardsLocal(
 
 /** One row per set with a card in the mirror, newest first — for the sealed picker. */
 export async function listMtgSets(): Promise<SetInfo[]> {
-  const rows = (await db
-    .prepare(
-      `SELECT s.code, s.name, s.released_at, s.icon_url
-         FROM mtg_sets s
-        WHERE s.code IN (SELECT DISTINCT set_code FROM mtg_cards)
-          AND (s.set_type NOT IN ('token', 'memorabilia', 'minigame', 'alchemy') OR s.name LIKE '%Art Series%')
-        ORDER BY s.released_at DESC`,
-    )
-    .all()) as unknown as { code: string; name: string; released_at: string; icon_url: string }[];
-  return rows.map((r) => ({ name: r.name, releaseDate: r.released_at, logoUrl: r.icon_url, code: r.code }));
+  // Memoed: the DISTINCT walks the whole set_code index (~94k rows) and Turso
+  // bills every one (outage 09-06). One walk per six hours, not per picker.
+  return cachedList("sets:v1:mtg", SET_LIST_TTL_MS, async () => {
+    const rows = (await db
+      .prepare(
+        `SELECT s.code, s.name, s.released_at, s.icon_url
+           FROM mtg_sets s
+          WHERE s.code IN (SELECT DISTINCT set_code FROM mtg_cards)
+            AND (s.set_type NOT IN ('token', 'memorabilia', 'minigame', 'alchemy') OR s.name LIKE '%Art Series%')
+          ORDER BY s.released_at DESC`,
+      )
+      .all()) as unknown as { code: string; name: string; released_at: string; icon_url: string }[];
+    return rows.map((r) => ({ name: r.name, releaseDate: r.released_at, logoUrl: r.icon_url, code: r.code }));
+  });
 }
 
 /** Every printing in one set, in collector-number order — the set browser. */

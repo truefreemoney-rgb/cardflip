@@ -134,6 +134,12 @@ await run("api/sets (pokemon)", ["en_cards"], () =>
 await run("searchMtgCardsLocal", ["mtg_cards"], () => mtg.searchMtgCardsLocal("Cloud, Midgar Mercenary", "564", "fin"));
 await run("searchEnglishCardsLocal", ["en_cards"], () => en.searchEnglishCardsLocal("Charizard", { number: "4", setTotal: 102, setCode: null }));
 
+// --- set lists are memoed: the second call must not touch the catalog at all ---
+const before = violations.length;
+await run("listMtgSets (cached)", [], () => mtg.listMtgSets());
+const cachedHit = violations.length === before && (seen.get("listMtgSets (cached)") ?? 0) === 1;
+if (!cachedHit) violations.push({ fn: "listMtgSets (cached)", sql: "(second call)", detail: "expected one card_cache read and no catalog walk" });
+
 // --- self-check: the detector must flag a known full scan ------------------------
 await run("self-check", [], () => db.prepare("SELECT COUNT(*) AS c FROM en_cards").get());
 const selfIdx = violations.findIndex((v) => v.fn === "self-check");
