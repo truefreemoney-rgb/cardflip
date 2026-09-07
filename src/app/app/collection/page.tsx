@@ -1013,13 +1013,11 @@ export default function CollectionPage() {
             to sold.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <GameToggle game={gameView} onChange={switchGame} compact />
-          <p className="text-[11px] text-zinc-600">
-            {gameCounts.pokemon} Pokémon · {gameCounts.mtg} Magic
-          </p>
-        </div>
       </div>
+      {/* Its own full-width row, counts inside the pills: the compact corner
+          switch was invisible on a phone (Chris, 09-06: "inventory needs a
+          button to switch between pokemon and magic" — it had one). */}
+      <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
 
       {syncError && (
         <p
