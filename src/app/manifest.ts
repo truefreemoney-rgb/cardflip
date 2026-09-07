@@ -21,7 +21,9 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["shopping", "utilities"],
     icons: [
       { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // Padded variant: launchers mask to the middle ~80%, and the edge-to-edge
+      // /icon lost its corners on Android (mobile QA 09-06).
+      { src: "/icon-maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },
       { src: "/apple-icon", sizes: "180x180", type: "image/png" },
     ],
   };

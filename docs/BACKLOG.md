@@ -24,19 +24,19 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Backup-codes copy: guards a missing navigator.clipboard, no prompt() fallback (a no-op in installed PWAs; codes are on screen anyway).
 
 **Found, LEFT (ranked):**
-- [ ] Body scroll lock is `overflow:hidden` only (5 modals) — iOS can still rubber-band the page behind a sheet. Fix = position:fixed body with saved scrollY, one shared hook.
-- [ ] No shared fetch timeout for the other lib/client calls (auth, account, cards, ebay, price checks, wishlist); busy flags depend on the promise settling. Fix = apiFetch() with a 15s AbortSignal.timeout.
-- [ ] OCR worker (tesseract CDN) has no timeout on first load.
-- [ ] Camera: no relaxed retry on OverconstrainedError (some Android WebViews); `<video>` lacks autoplay + tap-to-start when play() rejects (iOS Low Power); null toBlob gives no feedback.
-- [ ] createImageBitmap without `imageOrientation: "from-image"` — library photos may arrive rotated on Safari <17.
-- [ ] Help panel composer has no visualViewport handling on iOS (keyboard covers it; Android is fixed by the viewport flag).
-- [ ] `animate-fade-up` (transform) on fixed modal backdrops — a ConfirmDialog opened in the first 0.6s positions against the modal, not the viewport.
-- [ ] Admin: window.confirm/prompt still used (delete, reset link) — no-ops in an installed PWA. Admin-only.
-- [ ] Horizontal filter strips hide the scrollbar with no snap/edge fade; 20px select checkbox; chips py-1 (~26px) for Sold/Undo/Relist; AppTabs 34px tall; footer links 16px tall.
-- [ ] Stripe checkout busy flag stays true after Back from Stripe (bfcache) — reset on pageshow.
-- [ ] queuePersistence loadQueue() has no consumer — refresh-survival is dead code.
-- [ ] Manifest: maskable icon has no safe-zone padding; orientation locked portrait; no service worker (no offline shell).
-- [ ] Not exercised in emulation: anon/trial/admin personas, the editor, the paywall, the camera sheet (needs a device), the tour end-to-end. The header/inputs fixes apply to all of them.
+- [x] Body scroll lock: lib/client/useBodyScrollLock.ts (position:fixed body at saved scrollY, ref-counted for stacked sheets) on all five modals (5b35887).
+- [x] apiFetch() in lib/client/basePath.ts: 15s AbortSignal.timeout on all 37 client calls (photo 60s, comps 30s) (c45d06c).
+- [x] OCR worker load capped at 45s, evicted on failure so the next scan retries (9048e13).
+- [x] Camera: getUserMedia relaxes ideal → facingMode → any on OverconstrainedError; <video autoPlay>; null toBlob says "tap again" (bbde64d).
+- [x] createImageBitmap(file, { imageOrientation: "from-image" }) in vision, photo upload, OCR (9048e13).
+- [x] Help sheet lifts by the visualViewport overlap while open (92239d8).
+- [x] animate-fade-up moved from the four fixed backdrops to their panels (9048e13).
+- [x] Admin delete → ConfirmDialog (ConfirmHost mounted in the users table); copy buttons guard navigator.clipboard, no prompt() (bbde64d).
+- [x] Filter strips get a right-edge fade; End/Relist/Save chips py-1.5; tile delete 36px; app tabs py-2.5; footer links py-1.5 (92239d8). Left as is: the 20px select checkbox (row-select is a desktop shift-click feature).
+- [x] pageshow(persisted) resets the checkout busy flag on account / pricing / rewards (9048e13).
+- [x] queuePersistence deleted with its two dead saveQueue writes (92239d8).
+- [x] Manifest: /icon-maskable (mark at 66% on a solid ground) for Android launchers. Kept on purpose: portrait lock (it's a phone scanner); no service worker (an offline shell is a separate feature — the app is useless without the server anyway).
+- [ ] Not exercised in emulation: anon/trial/admin personas, the editor, the paywall, the camera sheet (needs a device), the tour end-to-end. The header/inputs fixes apply to all of them. Chris's phone is the real test — the 09-06 mobile list is otherwise closed (batches 1–5).
 
 ### Turso outage 09-06 (fixed)
 - [x] Free tier 500M row reads/month burned in 6 days (524M) → Turso blocked the whole account ~11:43am ET; every DB read on prod 500d (login, reset, scans). Chris upgraded to Developer; back at ~12:20pm ET. Root cause = full-table scans: mtg_cards had no set_code index (Magic set list ran a correlated EXISTS over 94k rows per set), hasEnglishMirror COUNT(*) twice per search, en_cards set/printed-number scans, price_series pagination walking the table. Fixed in 136dacc (4 indexes, 2 rewrites, missing await on hasMtgMirror).
