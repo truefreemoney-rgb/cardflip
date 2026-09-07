@@ -46,6 +46,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Name searches: expression indexes on the folded name (idx_en_cards_folded / idx_mtg_cards_folded); exact+prefix are one indexed range, the '%x%' walk runs only when that finds nothing (or, Pokémon, when a read number matches none of the hits). test:queryplans pins it.
 - [ ] Watch Turso Analytics → rows read for a week; expect a steep drop from 09-06 evening on.
 - [x] PRODUCTION HEARTBEAT (.github/workflows/prod-smoke.yml → scripts/prod-smoke.mjs): 14 no-secret probes of cardflip.io every 15 min + after every prod deploy; a failure emails Chris via GitHub. Would have flagged the Turso block within 15 min. Run by hand: `node scripts/prod-smoke.mjs`.
+- [ ] Heartbeat cadence: GitHub free-tier cron is best-effort (overnight 09-07 it fired at 01:59, 06:37, 13:00 — not every 15 min). Deploy-triggered runs are reliable. For true 15-min coverage add an external pinger (cron-job.org or a Claude scheduled task) that runs the smoke script or hits the endpoints. Chris: backlog for now (09-07).
 
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.
