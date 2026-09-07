@@ -36,13 +36,13 @@ export default function AppHeader() {
             <Link
               href="/app/rewards"
               title="Invite a friend — when they subscribe, you get 500 bonus scans"
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white"
+              // sm+ only: on a phone the header is two rows (09-07) and an
+              // icon-only spark read as "what is this" (Chris) — Account →
+              // Rewards carries the invite there.
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white sm:flex"
             >
               <span aria-hidden className="text-[10px] text-brand-300">✦</span>
-              {/* Phones: just the spark — the header is two rows there
-                  (Chris, 09-07: three stacked rows was "a mess"); the
-                  title/label carry the meaning. */}
-              <span className="sr-only sm:not-sr-only">Unlock 500 Free Scans</span>
+              Unlock 500 Free Scans
             </Link>
           )}
           {user && showEbay && (
