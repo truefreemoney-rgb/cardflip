@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import AppTabs from "@/components/AppTabs";
 import NavRobot from "@/components/NavRobot";
+import ScanCounter from "@/components/ScanCounter";
 import { logout } from "@/lib/client/auth";
 import { useSession } from "@/components/SessionProvider";
 
@@ -30,6 +31,8 @@ export default function AppHeader() {
   const personalStrip = (
     <>
           {user && <NavRobot />}
+          {/* Scans left, always in view; tap = more scans (Chris, 09-07). */}
+          {user && <ScanCounter user={user} />}
           {/* Invite a friend (09-06): subscribers and the owner. A pill, not a
               banner — enticing, not loud (Chris: "dont go crazy"). */}
           {user && (user.tier === "subscribed" || user.tier === "owner") && (
@@ -53,7 +56,8 @@ export default function AppHeader() {
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                eBay Connected
+                <span className="sm:hidden">eBay</span>
+                <span className="hidden sm:inline">eBay Connected</span>
               </Link>
             ) : user.role !== "admin" && user.tier === "trial" ? (
               <Link

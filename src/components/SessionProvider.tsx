@@ -27,6 +27,8 @@ interface SessionContextValue {
   status: SessionStatus;
   /** Replace the cached user (after a profile save, an eBay connect, …). */
   setUser: (user: SessionUser | null) => void;
+  /** Merge a few fields into the signed-in user (e.g. scan usage after a scan). */
+  patchUser: (patch: Partial<SessionUser>) => void;
   /** Re-ask the server; bounces to /login if the session is gone. */
   refresh: () => Promise<void>;
 }
@@ -101,10 +103,13 @@ export default function SessionProvider({ children }: { children: React.ReactNod
     setUserState(next);
     if (next) setStatus("ready");
   }, []);
+  const patchUser = useCallback((patch: Partial<SessionUser>) => {
+    setUserState((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ user, status, setUser, refresh }),
-    [user, status, setUser, refresh],
+    () => ({ user, status, setUser, patchUser, refresh }),
+    [user, status, setUser, patchUser, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

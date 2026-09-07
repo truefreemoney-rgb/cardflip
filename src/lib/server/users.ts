@@ -178,6 +178,45 @@ export const OWNER_EMAIL = "truefreemoney@gmail.com";
 export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
 export const LEGACY_DAILY_SCANS = 100;
 
+/**
+ * Scan metering snapshot. Trial = lifetime allowance; legacy = per UTC day
+ * (the day key shares scan_month); owner = metered, never enforced
+ * (remaining null); subscribers = MONTHLY plan cap + banked invite scans.
+ * Lives here (not scanQuota.ts) so toPublicUser can ship it to the header
+ * pill without an import cycle; scanQuota.ts re-exports it.
+ */
+export interface ScanQuota {
+  used: number;
+  included: number;
+  /** null = not enforced for this user (owner). */
+  remaining: number | null;
+  /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
+  bonus?: number;
+}
+
+const quotaMonth = () => new Date().toISOString().slice(0, 7);
+const quotaDay = () => new Date().toISOString().slice(0, 10);
+
+export function scanQuota(user: User): ScanQuota {
+  const tier = scanTier(user);
+  if (tier === "trial") {
+    const t = user.trialScansUsed ?? 0;
+    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+  }
+  if (tier === "legacy") {
+    const used = user.scanMonth === quotaDay() ? user.scansUsed : 0;
+    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
+  }
+  if (tier === "owner") {
+    const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
+    return { used, included: 0, remaining: null };
+  }
+  const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
+  const cap = monthlyScans(user);
+  const bonus = user.bonusScans ?? 0;
+  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus, bonus };
+}
+
 export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride">): ScanTier {
   switch (user.accessOverride) {
     case "unlimited":
@@ -454,6 +493,8 @@ export interface PublicUser {
   totpBackupCodesLeft: number;
   /** Invite-a-friend scans banked, spent after the monthly allowance. */
   bonusScans: number;
+  /** Scans used / included / left right now — the header counter (09-07). */
+  scans: ScanQuota;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -469,5 +510,6 @@ export function toPublicUser(user: User): PublicUser {
     tourSeenAt: user.tourSeenAt ?? null,
     totpBackupCodesLeft: totpEnabled(user) ? user.totpBackupCodes.length : 0,
     bonusScans: user.bonusScans ?? 0,
+    scans: scanQuota(user),
   };
 }

@@ -1,7 +1,11 @@
 import "server-only";
-import { monthlyScans } from "@/lib/server/users";
+import { monthlyScans, scanQuota, type ScanQuota } from "@/lib/server/users";
 import { db } from "@/lib/db";
 import { LEGACY_DAILY_SCANS, TRIAL_SCANS, scanTier, type User } from "@/lib/server/users";
+
+// scanQuota itself lives in users.ts now (toPublicUser ships it to the
+// header counter); this module keeps the writes and the exhaustion check.
+export { scanQuota, type ScanQuota };
 
 /**
  * Scan metering. The subscription includes MONTHLY_SCANS per calendar month
@@ -21,41 +25,6 @@ const month = () => new Date().toISOString().slice(0, 7);
 // Legacy accounts are metered per DAY; the day key shares the scan_month
 // column (it's just the counter's period label).
 const day = () => new Date().toISOString().slice(0, 10);
-
-export interface ScanQuota {
-  used: number;
-  included: number;
-  /** null = not enforced for this user (not a subscriber). */
-  remaining: number | null;
-  /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
-  bonus?: number;
-}
-
-export function scanQuota(user: User): ScanQuota {
-  const tier = scanTier(user);
-  if (tier === "trial") {
-    // Free trial: a lifetime allowance, not a monthly one.
-    const t = user.trialScansUsed ?? 0;
-    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
-  }
-  if (tier === "legacy") {
-    const used = user.scanMonth === day() ? user.scansUsed : 0;
-    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
-  }
-  if (tier === "owner") {
-    const used = user.scanMonth === month() ? user.scansUsed : 0;
-    return { used, included: 0, remaining: null }; // null = not enforced
-  }
-  const used = user.scanMonth === month() ? user.scansUsed : 0;
-  const cap = monthlyScans(user);
-  const bonus = user.bonusScans ?? 0;
-  return {
-    used,
-    included: cap,
-    remaining: Math.max(0, cap - used) + bonus,
-    bonus,
-  };
-}
 
 /** True when a subscriber has exhausted the month's allowance. */
 export function scanQuotaExhausted(user: User): boolean {

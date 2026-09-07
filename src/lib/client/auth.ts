@@ -29,6 +29,8 @@ export interface SessionUser {
   features?: { magic: boolean };
   /** Unused two-step backup codes left. */
   totpBackupCodesLeft?: number;
+  /** Scans used / included / left right now (header counter); remaining null = unlimited. */
+  scans?: { used: number; included: number; remaining: number | null; bonus?: number };
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

@@ -143,7 +143,7 @@ const RESUME_STAGE_MS = [900, 2000] as const;
 
 export default function AppPage() {
   const router = useRouter();
-  const { user, refresh } = useSession();
+  const { user, refresh, patchUser } = useSession();
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -340,7 +340,11 @@ export default function AppPage() {
           // is available it reads the card directly and that guesswork goes away.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
 
-          if (vision.usage) setScanUsage(vision.usage);
+          if (vision.usage) {
+            setScanUsage(vision.usage);
+            // The header counter follows every scan (Chris, 09-07).
+            patchUser({ scans: vision.usage });
+          }
           // A trial that just ran out: re-read the session so the
           // SubscriptionGate swaps the scanner for the paywall.
           if (vision.status === "quota") void refresh();
@@ -607,7 +611,7 @@ export default function AppPage() {
     } finally {
       pumpingRef.current--;
     }
-  }, [patchItem, refresh]);
+  }, [patchItem, patchUser, refresh]);
 
   /**
    * Price the card against what it's actually going for on eBay. Deliberately

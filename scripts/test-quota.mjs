@@ -27,7 +27,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { MONTHLY_SCANS, recordScan, scanQuota, scanQuotaExhausted } = await import(at("lib/server/scanQuota.ts"));
 const { cronAuthError } = await import(at("lib/server/cronAuth.ts"));
-const { createUser, findUserById, LEGACY_DAILY_SCANS, OWNER_EMAIL, PAID_SWITCH_AT, TRIAL_SCANS } = await import(at("lib/server/users.ts"));
+const { createUser, findUserById, LEGACY_DAILY_SCANS, OWNER_EMAIL, PAID_SWITCH_AT, TRIAL_SCANS, toPublicUser } = await import(at("lib/server/users.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { NextRequest } = await import("next/server");
 
@@ -151,6 +151,13 @@ check("legacy: new day restarts at 1 with a day stamp", await row(), { month: to
 await db.prepare("UPDATE users SET created_at = ?, trial_scans_used = 2 WHERE id = ?").run(PAID_SWITCH_AT + 1, base.id);
 const t = await recordScan(await findUserById(base.id));
 check("trial: lifetime counter increments", t, { used: 3, included: TRIAL_SCANS, remaining: TRIAL_SCANS - 3 });
+
+// --- header counter: toPublicUser ships the same snapshot scanQuota computes ---
+{
+  const u = await findUserById(base.id);
+  check("toPublicUser.scans = scanQuota(user)", toPublicUser(u).scans, scanQuota(u));
+  check("trial snapshot after 3 scans", toPublicUser(u).scans, { used: 3, included: TRIAL_SCANS, remaining: TRIAL_SCANS - 3 });
+}
 
 // --- cronAuthError ----------------------------------------------------------
 const cronReq = (url, headers) => new NextRequest(`http://test${url}`, { headers });
