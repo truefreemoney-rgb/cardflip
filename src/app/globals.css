@@ -892,7 +892,11 @@ p {
     animation-duration: 2s !important;
     animation-iteration-count: infinite !important;
   }
-  .scanner-hud .scan-sweep {
+  .scanner-hud .scan-sweep,
+  /* Sixth exemption (owner's call, 09-07): the empty scanner's stage runs
+     the same laser over the sample card — with the kill it parked at the
+     card's top edge and read as "the animation stopped" (Chris). */
+  .scan-stage .scan-sweep {
     animation-duration: 2.2s !important;
     animation-iteration-count: infinite !important;
   }

@@ -131,7 +131,8 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
         setDragOver(false);
         handle(e.dataTransfer.files);
       }}
-      className={`foil-edge relative w-full max-w-2xl overflow-hidden rounded-3xl [--foil-fill:#0a0b12] transition-transform duration-300 ${
+      // scan-stage: keeps the laser sweep looping under reduced motion (globals.css).
+      className={`scan-stage foil-edge relative w-full max-w-2xl overflow-hidden rounded-3xl [--foil-fill:#0a0b12] transition-transform duration-300 ${
         dragOver ? "scale-[1.01]" : ""
       }`}
     >
