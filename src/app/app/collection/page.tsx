@@ -47,12 +47,6 @@ type StatusFilter = "all" | "ready" | "listed" | "ended" | "sold";
 const isEnded = (c: ServerCard) => c.status === "listed" && !!c.ebayEndedAt;
 const isLive = (c: ServerCard) => c.status === "listed" && !c.ebayEndedAt;
 
-const STATUS_LABEL: Record<ServerCard["status"], string> = {
-  ready: "Draft",
-  listed: "Live",
-  sold: "Sold",
-};
-
 /** The listing page for a ledger row, with the hints that make reopening instant. */
 function resumeHrefFor(card: ServerCard): string {
   return `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
@@ -79,12 +73,6 @@ function catalogStub(card: ServerCard): PokemonCard {
 /** Grid or rows — remembered per browser (Chris, 09-04: "way more visual"). */
 const VIEW_KEY = "cardflip.inventoryView";
 type InventoryView = "grid" | "list";
-
-const STATUS_CHIP: Record<ServerCard["status"], string> = {
-  ready: "bg-zinc-400/10 text-zinc-300",
-  listed: "bg-emerald-500/20 text-emerald-300",
-  sold: "bg-sky-400/10 text-sky-300",
-};
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -1747,310 +1735,282 @@ export default function CollectionPage() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
           <ul className="divide-y divide-white/5">
-            {visible.map((card) => (
-              <li
-                key={card.id}
-                // On a phone the status/price/actions cluster wraps to its
-                // own right-aligned line; before it wrapped item by item and
-                // the name column was squeezed to 24px — one word per line
-                // ("Li… B… Edi…", Chris, 09-02).
-                className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(card.id)}
-                  // onClick, not onChange: the change event has no shiftKey.
-                  onClick={(e) => toggleSelected(card.id, e.shiftKey)}
-                  onChange={() => {}}
-                  aria-label={`Select ${card.cardName}`}
-                  className="h-4 w-4 shrink-0 accent-brand-500"
-                />
-                <CardImage
-                  // The seller's own scan photo when one is stored; catalog art otherwise.
-                  src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
-                  alt={card.cardName}
-                  className="h-16 w-12 shrink-0 rounded-md"
-                />
+            {visible.map((card) => {
+              // Text row makeover (Chris, 09-07: "the inventory page on mobile
+              // is an absolute mess"). One shape everywhere: art + name block
+              // with the price pinned top-right, then ONE action row — the
+              // primary button stretches on a phone, quiet secondaries sit
+              // beside it. From sm up the same pieces sit on one line.
+              const liveRow = isLive(card);
+              const ended = card.status === "listed" && Boolean(card.ebayEndedAt);
+              const sold = card.status === "sold";
+              const draft = card.status === "ready";
+              const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:flex-none sm:px-3 sm:text-xs";
+              const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:px-3 sm:text-xs";
+              const moved = draft && live[card.id]?.applied && Math.abs(live[card.id].previous - card.price) >= 0.01;
+              return (
+              <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
+                <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(card.id)}
+                    // onClick, not onChange: the change event has no shiftKey.
+                    onClick={(e) => toggleSelected(card.id, e.shiftKey)}
+                    onChange={() => {}}
+                    aria-label={`Select ${card.cardName}`}
+                    className="mt-1 h-5 w-5 shrink-0 accent-brand-500 sm:mt-0 sm:h-4 sm:w-4"
+                  />
+                  <CardImage
+                    // The seller's own scan photo when one is stored; catalog art otherwise.
+                    src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
+                    alt={card.cardName}
+                    className="h-[4.5rem] w-[3.25rem] shrink-0 rounded-md sm:h-16 sm:w-12"
+                  />
 
-                <div
-                  // Tappable (QA leftover): the row's name block opens the card,
-                  // same as the binder art. Buttons inside the row stay their own.
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => void openDetail(card)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      void openDetail(card);
-                    }
-                  }}
-                  className="min-w-[9rem] flex-1 cursor-pointer rounded-lg outline-none transition hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-brand-400"
-                >
-                  <p className="truncate text-sm font-semibold text-white">
-                    {card.cardName}
-                    {(card.quantity || 1) > 1 && (
-                      <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-zinc-300">
-                        ×{card.quantity}
-                      </span>
-                    )}
-                  </p>
-                  <p className="truncate text-xs text-zinc-500">
-                    {card.setName}
-                    {card.cardNumber && ` · ${card.cardNumber}`} ·{" "}
-                    {card.condition}
-                  </p>
-                  <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-zinc-600">
-                  {/* Status pill leads the meta line (Chris, 09-03): next to
-                      the card, rows stay one height, nothing shifts. */}
-                  {/* The sync stamps ebayEndedAt when the listing ended on eBay
-                      without a sale; the card stays "listed" until the seller
-                      decides, but the chip stops claiming it's live. */}
-                  {card.status === "listed" && card.ebayEndedAt ? (
-                    <span
-                      className="whitespace-nowrap rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
-                      title={`This listing ended on eBay without a sale (${formatDate(card.ebayEndedAt)}). Relist it, or delete the card.`}
-                    >
-                      Auction ended
-                    </span>
-                  ) : card.status === "ready" && !card.verifiedAt ? null : (
-                    // An unverified draft has no chip — the amber "Verify match"
-                    // button IS its state (Chris, 09-03: chip + button was
-                    // redundant). It turns into this green "Active" chip.
-                    <span
-                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        card.status === "ready" ? "bg-emerald-400/10 text-emerald-400" : STATUS_CHIP[card.status]
-                      }`}
-                      title={card.status === "ready" ? "Match verified — ready to publish" : undefined}
-                    >
-                      {card.status === "ready" ? "Active" : STATUS_LABEL[card.status]}
-                    </span>
-                  )}
-                  <span>
-                    Scanned {formatDate(card.createdAt)}
-                    {card.status === "listed" &&
-                      card.listedAt &&
-                      ` · listed ${formatDate(card.listedAt)}`}
-                    {card.status === "sold" &&
-                      card.soldAt &&
-                      ` · sold ${formatDate(card.soldAt)}`}
-                    {card.ebayListingUrl ? (
-                      <>
-                        {" · "}
-                        <a
-                          href={card.ebayListingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
+                  <div
+                    // Tappable (QA leftover): the row's name block opens the card,
+                    // same as the binder art. Buttons inside the row stay their own.
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => void openDetail(card)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        void openDetail(card);
+                      }
+                    }}
+                    className="min-w-0 flex-1 cursor-pointer rounded-lg outline-none transition hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-brand-400"
+                  >
+                    <p className="truncate text-[15px] font-semibold leading-tight text-white sm:text-sm">
+                      {card.cardName}
+                      {(card.quantity || 1) > 1 && (
+                        <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-zinc-300">
+                          ×{card.quantity}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-snug text-zinc-500 sm:truncate">
+                      {card.setName}
+                      {card.cardNumber && ` · ${card.cardNumber}`} · {card.condition}
+                    </p>
+                    {/* Meta line: the state chip leads, then the dates. An
+                        unverified draft has no chip — the amber Verify Match
+                        button IS its state (Chris, 09-03). */}
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-600">
+                      {ended ? (
+                        <span
+                          className="whitespace-nowrap rounded-full bg-amber-400/10 px-2 py-0.5 font-medium text-amber-300"
+                          title={`This listing ended on eBay without a sale (${formatDate(card.ebayEndedAt!)}). Relist it, or delete the card.`}
                         >
-                          View on eBay
-                        </a>
+                          Auction ended
+                        </span>
+                      ) : liveRow ? (
+                        <span
+                          className="whitespace-nowrap rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300"
+                          title="Flips to Sold on its own once eBay reports the order"
+                        >
+                          Awaiting sale
+                        </span>
+                      ) : sold ? (
+                        <span className="whitespace-nowrap rounded-full bg-emerald-400/10 px-2 py-0.5 font-medium text-emerald-300">Sold</span>
+                      ) : card.verifiedAt ? (
+                        <span
+                          className="whitespace-nowrap rounded-full bg-emerald-400/10 px-2 py-0.5 font-medium text-emerald-400"
+                          title="Match verified — ready to publish"
+                        >
+                          Active
+                        </span>
+                      ) : null}
+                      {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
+                        <span
+                          className="whitespace-nowrap rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 font-semibold text-brand-300"
+                          title="1st Edition stamp — priced and listed as its own printing"
+                        >
+                          1st Edition
+                        </span>
+                      )}
+                      <span className="whitespace-nowrap">
+                        Scanned {formatDate(card.createdAt)}
+                        {card.status === "listed" && card.listedAt && ` · listed ${formatDate(card.listedAt)}`}
+                        {sold && card.soldAt && ` · sold ${formatDate(card.soldAt)}`}
+                        {!card.ebayListingUrl && card.ebayOfferId && " · draft on eBay"}
+                      </span>
+                    </p>
+                    {card.matchDoubt && (
+                      <p
+                        className="mt-1 truncate text-[11px] text-amber-300/90"
+                        title="The scan wasn't sure about this one — worth a close look before verifying"
+                      >
+                        ⚠ {card.matchDoubt}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* The price is what a seller scans the list FOR (Chris,
+                      08-31: "make the prices bigger"). Pinned top-right so
+                      it lines up with the name on every row. A sold row
+                      leads with NET; gross is its caption. */}
+                  <div className="w-24 shrink-0 text-right sm:w-28">
+                    {soldForm?.id === card.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          confirmSold(card, soldForm.value);
+                        }}
+                        className="flex items-center justify-end gap-1"
+                      >
+                        <span className="relative">
+                          <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            autoFocus
+                            value={soldForm.value}
+                            onChange={(e) => setSoldForm({ id: card.id, value: e.target.value })}
+                            onKeyDown={(e) => e.key === "Escape" && setSoldForm(null)}
+                            aria-label="Final sale price"
+                            className="w-20 rounded-md border border-edge bg-black/40 py-1 pl-4 pr-1 text-right text-base text-white outline-none focus:border-brand-400 sm:text-sm"
+                          />
+                        </span>
+                        <button
+                          type="submit"
+                          className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+                        >
+                          ✓
+                        </button>
+                      </form>
+                    ) : sold && card.soldPrice != null ? (
+                      <>
+                        <p
+                          className="font-display text-lg font-bold tracking-tight text-emerald-400"
+                          title={card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"}
+                        >
+                          ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
+                        </p>
+                        {/* The recorded sale price is editable in place — it
+                            drives the Earned tiles, so a wrong one must be one
+                            tap from fixed. */}
+                        <button
+                          onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
+                          title="Correct the sale price"
+                          className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
+                        >
+                          net · sold ${card.soldPrice.toFixed(2)}
+                        </button>
+                        {card.price > 0 && Math.abs(card.price - card.soldPrice) >= 0.01 && (
+                          <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
+                        )}
                       </>
                     ) : (
-                      card.ebayOfferId && " · draft on eBay"
-                    )}
-                  </span>
-                  </p>
-                </div>
-
-                <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-                {card.matchDoubt && (
-                  <span
-                    className="rounded-full border border-amber-400/30 px-2 py-0.5 text-[11px] text-amber-300/90"
-                    title="The scan wasn't sure about this one — worth a close look before verifying"
-                  >
-                    ⚠ {card.matchDoubt}
-                  </span>
-                )}
-                {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
-                  <span
-                    className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 text-[11px] font-semibold text-brand-300"
-                    title="1st Edition stamp — priced and listed as its own printing"
-                  >
-                    1st Edition
-                  </span>
-                )}
-
-                {/* The price is what a seller scans the list FOR -- it reads
-                    at a glance now (Chris, 08-31: "make the prices bigger").
-                    Sold rows go green like the Earned tile; the net line
-                    steps up from 10px squint-size too. */}
-                {/* One number per row, and it is the one the seller acts on:
-                    a sold row leads with NET (the money that arrived), with
-                    gross as its caption; other rows lead with the price.
-                    Two same-size figures compete; a figure and its caption
-                    read instantly (Chris, 08-31). */}
-                <div className="w-28 text-right">
-                  {soldForm?.id === card.id ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        confirmSold(card, soldForm.value);
-                      }}
-                      className="flex items-center justify-end gap-1"
-                    >
-                      <span className="relative">
-                        <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          autoFocus
-                          value={soldForm.value}
-                          onChange={(e) => setSoldForm({ id: card.id, value: e.target.value })}
-                          onKeyDown={(e) => e.key === "Escape" && setSoldForm(null)}
-                          aria-label="Final sale price"
-                          className="w-20 rounded-md border border-edge bg-black/40 py-1 pl-4 pr-1 text-right text-sm text-white outline-none focus:border-brand-400"
-                        />
-                      </span>
-                      <button
-                        type="submit"
-                        className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
-                      >
-                        ✓
-                      </button>
-                    </form>
-                  ) : card.status === "sold" && card.soldPrice != null ? (
-                    <>
-                      <p
-                        className="text-lg font-bold tracking-tight text-emerald-400"
-                        title={card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"}
-                      >
-                        ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
-                      </p>
-                      {/* The recorded sale price is editable in place — it
-                          drives the Earned tiles, so a wrong one must be one
-                          click from fixed. */}
-                      <button
-                        onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
-                        title="Correct the sale price"
-                        className="text-xs font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
-                      >
-                        net · sold ${card.soldPrice.toFixed(2)}
-                      </button>
-                      {/* The ask it was listed at — sold vs listed is the
-                          seller's own pricing feedback loop at a glance. */}
-                      {card.price > 0 && Math.abs(card.price - card.soldPrice) >= 0.01 && (
-                        <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-lg font-bold tracking-tight text-white">
-                        {repricing === card.id ? "Saving…" : `${card.price.toFixed(2)}`}
-                      </p>
-                      {/* Today's market moved this draft's price since it was scanned. */}
-                      {card.status === "ready" && live[card.id]?.applied && Math.abs(live[card.id].previous - card.price) >= 0.01 && (
-                        <p
-                          title="Updated from today's market price"
-                          className={`text-[11px] font-medium ${card.price > live[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
-                        >
-                          <span aria-hidden>{card.price > live[card.id].previous ? "↑" : "↓"}</span> was ${live[card.id].previous.toFixed(2)}
+                      <>
+                        <p className="font-display text-lg font-bold tracking-tight text-white">
+                          {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
                         </p>
-                      )}
-                      {/* Live listings only: the price changes here AND on
-                          eBay (Chris, 09-04). Drafts are priced in the editor. */}
-                      {isLive(card) && card.ebayOfferId && repricing !== card.id && (
-                        <button
-                          onClick={() => setPriceSheet(card.id)}
-                          className="text-[11px] font-medium text-brand-300 underline decoration-brand-300/40 underline-offset-2 transition hover:text-brand-200"
-                        >
-                          Change price
-                        </button>
-                      )}
-                      {card.status === "listed" && nudges[card.id] && (
-                        <button
-                          onClick={() => void applyReprice(card, nudges[card.id])}
-                          disabled={repricing === card.id}
-                          title={`The market moved ${nudges[card.id].drift > 0 ? "up" : "down"} ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% since this listed — one click updates the price here and on the live eBay listing.`}
-                          className="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-400/20 disabled:opacity-50"
-                        >
-                          {repricing === card.id ? (
-                            "Repricing…"
-                          ) : (
-                            <>
-                              <span aria-hidden>{nudges[card.id].drift > 0 ? "↑" : "↓"}</span>
-                              Reprice to ${nudges[card.id].market.toFixed(2)}
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </>
-                  )}
+                        {/* Today's market moved this draft's price since it was scanned. */}
+                        {moved && (
+                          <p
+                            title="Updated from today's market price"
+                            className={`text-[11px] font-medium ${card.price > live[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
+                          >
+                            <span aria-hidden>{card.price > live[card.id].previous ? "↑" : "↓"}</span> was ${live[card.id].previous.toFixed(2)}
+                          </p>
+                        )}
+                        {/* Live listings only: the price changes here AND on
+                            eBay (Chris, 09-04). Drafts are priced in the editor. */}
+                        {liveRow && card.ebayOfferId && repricing !== card.id && (
+                          <button
+                            onClick={() => setPriceSheet(card.id)}
+                            className="text-[11px] font-medium text-brand-300 underline decoration-brand-300/40 underline-offset-2 transition hover:text-brand-200"
+                          >
+                            Change price
+                          </button>
+                        )}
+                        {card.status === "listed" && nudges[card.id] && (
+                          <button
+                            onClick={() => void applyReprice(card, nudges[card.id])}
+                            disabled={repricing === card.id}
+                            title={`The market moved ${nudges[card.id].drift > 0 ? "up" : "down"} ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% since this listed — one tap updates the price here and on the live eBay listing.`}
+                            className="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-400/20 disabled:opacity-50"
+                          >
+                            {repricing === card.id ? (
+                              "Repricing…"
+                            ) : (
+                              <>
+                                <span aria-hidden>{nudges[card.id].drift > 0 ? "↑" : "↓"}</span>
+                                Reprice to ${nudges[card.id].market.toFixed(2)}
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* Back into the editor without rescanning (Chris, 09-01):
-                      the scanner rebuilds this one card from the ledger row. */}
-                  {card.status === "ready" && card.kind !== "sealed" && (
+                {/* ONE action row. Phone: primary stretches, quiet buttons
+                    beside it, indented under the name block. sm+: tucked
+                    right on the same visual line as the price. */}
+                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:shrink-0 sm:pl-0">
+                  {draft && card.kind !== "sealed" && (
                     <Link
                       // Card identity rides along so the scanner can start the
                       // catalog search in parallel with the ledger fetch —
                       // sequential round trips made this feel stuck (09-02).
-                      href={`/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`}
-                      // Verifying only happens on the listing screen, where
-                      // the seller's photo sits beside the match (Chris,
-                      // 09-03) — so an unverified draft's link IS the ask.
-                      className={
+                      // Verifying only happens on the listing screen, where the
+                      // seller's photo sits beside the match (Chris, 09-03) — so
+                      // an unverified draft's link IS the ask.
+                      href={resumeHrefFor(card)}
+                      className={`${primaryBtn} ${
                         card.verifiedAt
-                          ? "rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
-                          : "rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/25"
-                      }
+                          ? "bg-brand-500/15 text-brand-300 hover:bg-brand-500/25"
+                          : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
+                      }`}
                     >
                       {card.verifiedAt ? "Build Listing" : "Verify Match"}
                     </Link>
                   )}
-                  {card.status === "ready" && !card.verifiedAt && (
-                    <span className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500">
-                      Draft
-                    </span>
-                  )}
-                  {/* Row states (Chris, 09-03): Live → "Awaiting sale" (flips
-                      to Sold on its own from eBay orders) + "Auction ended";
-                      ended → Relist + Delete; sold → Sold + Delete. No
-                      per-row Mark sold — eBay is the source of truth. */}
-                  {card.status === "listed" && !card.ebayEndedAt && (
-                    <>
-                      <span
-                        title="Flips to Sold on its own once eBay reports the order"
-                        className="rounded-full border border-emerald-500/25 px-3 py-1.5 text-xs font-medium text-emerald-300/80"
-                      >
-                        Awaiting sale
-                      </span>
-                      <button
-                        onClick={() => void endListing(card)}
-                        disabled={ending === card.id}
-                        className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-edge-strong disabled:opacity-50"
-                      >
-                        {ending === card.id ? "Ending…" : "End Auction"}
-                      </button>
-                    </>
-                  )}
-                  {card.status === "listed" && card.ebayEndedAt && (
+                  {/* Row states (Chris, 09-03): live → End Auction (flips to
+                      Sold on its own from eBay orders); ended → Relist +
+                      Delete; sold → Delete. No per-row Mark sold — eBay is
+                      the source of truth. */}
+                  {liveRow && (
                     <button
-                      onClick={() => void relist(card)}
-                      className="rounded-full bg-brand-500/15 px-3 py-1.5 text-xs font-medium text-brand-300 transition hover:bg-brand-500/25"
+                      onClick={() => void endListing(card)}
+                      disabled={ending === card.id}
+                      className={quietBtn}
                     >
+                      {ending === card.id ? "Ending…" : "End Auction"}
+                    </button>
+                  )}
+                  {ended && (
+                    <button onClick={() => void relist(card)} className={`${primaryBtn} bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}>
                       Relist
                     </button>
                   )}
-                  {card.status === "sold" && (
-                    <span className="rounded-full bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-300">
-                      Sold
-                    </span>
+                  {card.ebayListingUrl && (
+                    <a
+                      href={card.ebayListingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${quietBtn} ${liveRow ? "flex-1 sm:flex-none" : ""}`}
+                    >
+                      View on eBay
+                    </a>
                   )}
-                  {(card.status !== "listed" || card.ebayEndedAt) && (
+                  {(card.status !== "listed" || ended) && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
+                      className={`${quietBtn} ${sold ? "flex-1 sm:flex-none" : ""} text-zinc-500 hover:border-red-400/40 hover:text-red-300`}
                     >
                       Delete
                     </button>
                   )}
                 </div>
-                </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}
