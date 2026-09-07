@@ -197,15 +197,41 @@ export async function searchEnglishCardsLocal(
       : { cards: [], releaseDates: new Map() };
   }
 
-  const rows = (await db
+  // Exact + prefix first — both ride idx_en_cards_folded (an expression index
+  // on FOLDED_NAME), so this is a SEARCH, not a 20k-row walk. The old single
+  // query did `= ? OR LIKE '%needle%'` and scanned the whole mirror on every
+  // search; that walk is what emptied the Turso read quota on 09-06.
+  const wanted = printed ? normalizeNumber(stripCodePrefix(printed.number, printed.setCode)) : null;
+  let rows = (await db
     .prepare(
       `SELECT ${CARD_COLUMNS}
          FROM en_cards
-        WHERE ${FOLDED_NAME} = ? OR ${FOLDED_NAME} LIKE ?
+        WHERE ${FOLDED_NAME} >= ? AND ${FOLDED_NAME} < ?
         ORDER BY set_release_date DESC
         LIMIT 400`,
     )
-    .all(needle, `%${needle}%`)) as unknown as EnCardRow[];
+    .all(needle, `${needle}\uffff`)) as unknown as EnCardRow[];
+
+  // Substring fallback (the full walk) only when the cheap tiers can't settle
+  // it: nothing matched, or a number was read and none of the matches carry
+  // it — "Pikachu" read off a Surfing Pikachu, or a name with the front
+  // clipped. Same candidates as before in those cases, none of the cost otherwise.
+  const numberSatisfied = !wanted || rows.some((r) => normalizeNumber(r.local_id) === wanted);
+  if (rows.length === 0 || !numberSatisfied) {
+    const wide = (await db
+      .prepare(
+        `SELECT ${CARD_COLUMNS}
+           FROM en_cards
+          WHERE ${FOLDED_NAME} LIKE ?
+          ORDER BY set_release_date DESC
+          LIMIT 400`,
+      )
+      .all(`%${needle}%`)) as unknown as EnCardRow[];
+    const have = new Set(rows.map((r) => r.id));
+    rows = [...rows, ...wide.filter((r) => !have.has(r.id))]
+      .sort((a, b) => (a.set_release_date < b.set_release_date ? 1 : a.set_release_date > b.set_release_date ? -1 : 0))
+      .slice(0, 400);
+  }
 
   // The name was misread badly enough to match nothing. The fraction doesn't
   // depend on having read the name, so it can still identify the card.
@@ -214,8 +240,6 @@ export async function searchEnglishCardsLocal(
       ? lookupByPrintedNumber(printed, limit, firstEdition)
       : { cards: [], releaseDates: new Map() };
   }
-
-  const wanted = printed ? normalizeNumber(stripCodePrefix(printed.number, printed.setCode)) : null;
 
   const score = (row: EnCardRow): number => {
     const exactName = normalizeName(row.name) === needle;

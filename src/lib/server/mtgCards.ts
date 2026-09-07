@@ -152,17 +152,30 @@ export async function searchMtgCardsLocal(
   let rows: MtgCardRow[];
   if (needle) {
     // Double-faced cards are stored as "Front // Back"; match either face.
+    // Exact + prefix as one range on idx_mtg_cards_folded (expression index on
+    // the comma-less lowercase name) — a SEARCH, not a 94k-row walk. The
+    // substring tier is the full walk, so it runs only when the range finds
+    // nothing (outage 09-06: this query scanned the mirror on every search).
     rows = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS_JOINED}
            FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
-          WHERE REPLACE(LOWER(c.name), ',', '') = ?
-             OR REPLACE(LOWER(c.name), ',', '') LIKE ?
-             OR REPLACE(LOWER(c.name), ',', '') LIKE ?
+          WHERE REPLACE(LOWER(c.name), ',', '') >= ? AND REPLACE(LOWER(c.name), ',', '') < ?
           ORDER BY c.set_release_date DESC
           LIMIT 600`,
       )
-      .all(needle, `${needle}%`, `%${needle}%`)) as unknown as MtgCardRow[];
+      .all(needle, `${needle}\uffff`)) as unknown as MtgCardRow[];
+    if (rows.length === 0 && needle.length >= 5) {
+      rows = (await db
+        .prepare(
+          `SELECT ${CARD_COLUMNS_JOINED}
+             FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+            WHERE REPLACE(LOWER(c.name), ',', '') LIKE ?
+            ORDER BY c.set_release_date DESC
+            LIMIT 600`,
+        )
+        .all(`%${needle}%`)) as unknown as MtgCardRow[];
+    }
   } else if (wantedNumber && wantedCode) {
     // No name but number + set code is itself an identification.
     rows = (await db

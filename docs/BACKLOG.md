@@ -43,7 +43,8 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] test:queryplans (023fd2c): EXPLAIN QUERY PLAN on every hot catalog query, fails CI on any full scan of a big table; self-check proves it.
 - [x] Set lists memoed on card_cache 6h (7adf19d): listMtgSets + /api/sets — was a 94k/20k walk per picker mount.
 - [x] Admin catalog-health block (8 whole-table counts, ~450k rows/load) and landing catalogSize (4 counts/cold start) memoed 6h on card_cache.
-- [ ] Still worth doing: folded-name columns + index on en_cards/mtg_cards to replace LIKE '%x%' scans (every search is still a 20k/94k scan — the biggest remaining read). Watch Turso Analytics → rows read for a week.
+- [x] Name searches: expression indexes on the folded name (idx_en_cards_folded / idx_mtg_cards_folded); exact+prefix are one indexed range, the '%x%' walk runs only when that finds nothing (or, Pokémon, when a read number matches none of the hits). test:queryplans pins it.
+- [ ] Watch Turso Analytics → rows read for a week; expect a steep drop from 09-06 evening on.
 
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.

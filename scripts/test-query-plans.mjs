@@ -9,8 +9,9 @@
  *
  * How: intercept every SELECT the hot server functions issue, ask SQLite for
  * EXPLAIN QUERY PLAN, and FAIL if any big table is walked with a bare
- * `SCAN <table>` (no index). Known LIKE '%x%' name searches are allow-listed
- * by function until the folded-name columns land (BACKLOG → Turso outage).
+ * `SCAN <table>`, bare or via an index — both walk every row. Name searches
+ * ride expression indexes on the folded name; their '%x%' fallback runs only
+ * when the indexed tiers find nothing, so the happy path here must be SEARCH.
  *
  * Same throwaway-db trick as test-settings.mjs: chdir to a temp dir before
  * any import so `data/cardflip.db` lands there with the real schema.
@@ -129,10 +130,11 @@ await run("api/sets (pokemon)", ["en_cards"], () =>
        FROM en_cards WHERE set_name != '' GROUP BY set_name ORDER BY release_date DESC`,
   ).all(),
 );
-// Name searches still LIKE '%x%' over the whole mirror — allow-listed until
-// folded-name columns exist. Everything ELSE they touch must still use indexes.
-await run("searchMtgCardsLocal", ["mtg_cards"], () => mtg.searchMtgCardsLocal("Cloud, Midgar Mercenary", "564", "fin"));
-await run("searchEnglishCardsLocal", ["en_cards"], () => en.searchEnglishCardsLocal("Charizard", { number: "4", setTotal: 102, setCode: null }));
+// Name searches: exact/prefix ride the expression indexes. The '%x%' walk is a
+// fallback that must NOT fire when the name and number both match.
+await run("searchMtgCardsLocal", [], () => mtg.searchMtgCardsLocal("Cloud, Midgar Mercenary", "564", "fin"));
+await run("searchEnglishCardsLocal", [], () => en.searchEnglishCardsLocal("Charizard", { number: "4", setTotal: 102, setCode: null }));
+await run("searchEnglishCardsLocal (prefix)", [], () => en.searchEnglishCardsLocal("Chari", null));
 
 // --- set lists are memoed: the second call must not touch the catalog at all ---
 const before = violations.length;

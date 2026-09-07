@@ -266,6 +266,9 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_en_cards_name ON en_cards(name);
   CREATE INDEX IF NOT EXISTS idx_en_cards_local_id ON en_cards(local_id);
   CREATE INDEX IF NOT EXISTS idx_en_cards_set ON en_cards(set_name, set_release_date);
+  -- Expression index = the FOLDED_NAME twin in lib/server/enCards.ts, byte for
+  -- byte, so name lookups SEARCH instead of scanning 20k rows (outage 09-06).
+  CREATE INDEX IF NOT EXISTS idx_en_cards_folded ON en_cards(REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', ''''));
 
   -- Magic: The Gathering mirror (Scryfall, every paper printing; see
   -- scripts/sync-mtg.mjs). Same identification shape as en_cards — name +
@@ -306,6 +309,8 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_name ON mtg_cards(name);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_number ON mtg_cards(collector_number, set_code);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_set ON mtg_cards(set_code);
+  -- Twin of the comma-less lowercase name in lib/server/mtgCards.ts.
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_folded ON mtg_cards(REPLACE(LOWER(name), ',', ''));
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
