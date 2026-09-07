@@ -73,8 +73,15 @@ test.describe("trial account", () => {
       // Page-to-page steps navigate, and on a fresh clone the dev server
       // compiles each page on first visit — wait for the step to actually
       // change (or the tour to end) rather than a fixed pause.
+      // The card unmounts during the page change and remounts on the next
+      // page, so "not visible" is not "finished" — finished is the server
+      // stamp (tour_seen_at), written only by the last step.
+      const finished = async () => Boolean((await (await page.request.get("/api/auth/me")).json()).user?.tourSeenAt);
       await expect
-        .poll(async () => (await card.isVisible().catch(() => false)) ? await stepKey() : "done", { timeout: 45_000 })
+        .poll(
+          async () => ((await card.isVisible().catch(() => false)) ? await stepKey() : (await finished()) ? "done" : before),
+          { timeout: 45_000 },
+        )
         .not.toBe(before);
     }
     await expect(card).toHaveCount(0);
