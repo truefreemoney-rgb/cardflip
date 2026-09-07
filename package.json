@@ -21,7 +21,7 @@
     "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
     "test:mtg": "node --experimental-strip-types --no-warnings scripts/test-mtg.mjs",
     "test:ratelimit": "node --experimental-strip-types --no-warnings scripts/test-rate-limit.mjs",
-    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:sharpness && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota && npm run test:settings && npm run test:helpchat && npm run test:webhook && npm run test:cards && npm run test:mirror && npm run test:errordigest && npm run test:compscache && npm run test:adminroutes && npm run test:ebaysync && npm run test:ebaysweeps && npm run test:ebaysell && npm run test:referral",
+    "test": "npm run test:ocr && npm run test:cardnumber && npm run test:ebay && npm run test:pricing && npm run test:sharpness && npm run test:inventory && npm run test:mtg && npm run test:ratelimit && npm run test:pricehistory && npm run test:admin && npm run test:totp && npm run test:auth && npm run test:authroutes && npm run test:quota && npm run test:settings && npm run test:helpchat && npm run test:webhook && npm run test:cards && npm run test:mirror && npm run test:errordigest && npm run test:compscache && npm run test:adminroutes && npm run test:ebaysync && npm run test:ebaysweeps && npm run test:ebaysell && npm run test:referral && npm run test:queryplans",
     "test:webhook": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-stripe-webhook.mjs",
     "test:helpchat": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-help-chat.mjs",
     "test:settings": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-settings.mjs",
@@ -47,6 +47,7 @@
     "test:ebaysweeps": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sweeps.mjs",
     "test:ebaysell": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sell.mjs",
     "ab:vision": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/ab-vision.mjs",
+    "test:queryplans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-query-plans.mjs",
     "test:referral": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-referral.mjs"
   },
   "dependencies": {
