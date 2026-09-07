@@ -648,6 +648,35 @@ export async function withdrawOffer(userId: string, cardId: string): Promise<voi
   }
 }
 
+/**
+ * eBay 25604 "Seller Inventory Service can not publish the data. Availability
+ * not found. Please try again" — their inventory service has not caught up
+ * with an inventory item PUT seconds earlier (09-06: The Soul Stone, item PUT
+ * at :47, offer update at :59, rejected). The item and offer are correct;
+ * eBay itself says try again. So: retry with a short pause, then explain.
+ */
+const isAvailabilityLag = (err: unknown) =>
+  err instanceof EbaySellError && err.errors.some((e) => e.errorId === 25604);
+
+async function retryingAvailabilityLag<T>(step: string, fn: () => Promise<T>): Promise<T> {
+  const waitsMs = [2000, 4000, 6000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isAvailabilityLag(err)) throw err;
+      if (attempt >= waitsMs.length) {
+        throw new EbaySellError(
+          "eBay's inventory service hasn't caught up with this item yet (their error 25604). Nothing is wrong with the listing — wait a minute and tap Publish again.",
+          503,
+        );
+      }
+      console.warn(`eBay 25604 on ${step}; retrying in ${waitsMs[attempt]}ms (attempt ${attempt + 1})`);
+      await new Promise((r) => setTimeout(r, waitsMs[attempt]));
+    }
+  }
+}
+
 export async function publishDraft(
   userId: string,
   cardId: string,
@@ -721,22 +750,22 @@ export async function publishDraft(
     // filled in, minus the fields eBay forbids re-sending.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { offerId, sku, marketplaceId, format, status, listing, ...rest } = current;
-    await ebayFetch(token, "PUT", offerPath, {
-      ...rest,
-      listingPolicies: {
-        ...((rest.listingPolicies as Record<string, unknown>) ?? {}),
-        fulfillmentPolicyId,
-        paymentPolicyId,
-        returnPolicyId,
-      },
-      merchantLocationKey,
-    });
+    await retryingAvailabilityLag("offer update", () =>
+      ebayFetch(token, "PUT", offerPath, {
+        ...rest,
+        listingPolicies: {
+          ...((rest.listingPolicies as Record<string, unknown>) ?? {}),
+          fulfillmentPolicyId,
+          paymentPolicyId,
+          returnPolicyId,
+        },
+        merchantLocationKey,
+      }),
+    );
   }
 
-  const json = (await ebayFetch(
-    token,
-    "POST",
-    `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`,
+  const json = (await retryingAvailabilityLag("publish", () =>
+    ebayFetch(token, "POST", `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`),
   )) as { listingId?: string; warnings?: EbayApiError[] } | null;
   if (!json?.listingId) throw new EbaySellError("eBay published no listing id", 502);
 
