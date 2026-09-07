@@ -40,6 +40,7 @@ function uptime(sec: number): string {
 const STATUS_STYLE: Record<string, string> = {
   ready: "bg-zinc-400/10 text-zinc-300",
   listed: "bg-sky-400/10 text-sky-300",
+  ended: "bg-amber-400/10 text-amber-300",
   sold: "bg-emerald-400/10 text-emerald-300",
 };
 
@@ -207,6 +208,11 @@ export default async function AdminPage() {
                 {cards.map((c) => {
                   const owner = userById.get(c.userId);
                   const displayPrice = c.status === "sold" ? c.soldPrice : c.price;
+                  // A listing that ended without selling keeps status "listed"
+                  // with ebay_ended_at stamped (Inventory shows "Auction
+                  // ended"); this table read it as listed / live (09-06).
+                  const ended = c.status === "listed" && c.ebayEndedAt != null;
+                  const shownStatus = ended ? "ended" : c.status;
                   return (
                     <tr key={c.id} className="border-b border-white/5 last:border-0">
                       <td className="px-4 py-3">
@@ -215,9 +221,17 @@ export default async function AdminPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-zinc-400">{c.game === "mtg" ? "Magic" : "Pokémon"}</td>
                       <td className="px-4 py-3 text-zinc-400">{owner?.name ?? "Unknown"}</td>
-                      <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}>{c.status}</span></td>
+                      <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[shownStatus]}`}>{shownStatus}</span></td>
                       <td className="px-4 py-3 text-xs">
-                        {c.ebayListingId ? <span className="text-emerald-400">live</span> : c.ebayOfferId ? <span className="text-sky-300">draft</span> : <span className="text-zinc-600">—</span>}
+                        {ended
+                          ? <span className="text-amber-300">ended</span>
+                          : c.status === "sold"
+                            ? <span className="text-emerald-300">sold</span>
+                            : c.ebayListingId
+                              ? <span className="text-emerald-400">live</span>
+                              : c.ebayOfferId
+                                ? <span className="text-sky-300">draft</span>
+                                : <span className="text-zinc-600">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums text-white">{money(displayPrice ?? 0)}</td>
                       <td className="px-4 py-3 text-zinc-500">{fmtDate(c.updatedAt)}</td>
