@@ -178,6 +178,12 @@ export async function GET(req: NextRequest) {
     const artOnly = req.nextUrl.searchParams.get("art_series") === "1";
     const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
+    if (cards.length === 0) {
+      // Vercel keeps console output per request; the request log itself
+      // drops the query string, so a phone scan that matched nothing was
+      // invisible (09-06, The Soul Stone). Catalog data only, no user id.
+      console.warn("search-card no match", JSON.stringify({ game: "mtg", name: rawName, number, setCode, art, artOnly }));
+    }
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }
 
@@ -283,6 +289,7 @@ export async function GET(req: NextRequest) {
     // lookup has nowhere left to go — the mirror is the only source that can
     // answer one, and it already came up empty.
     if (!name) {
+      console.warn("search-card no match", JSON.stringify({ game: "pokemon", name, number, setTotal, setCode, lang }));
       return NextResponse.json({ cards: [], matchedOn });
     }
 
