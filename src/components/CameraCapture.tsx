@@ -1,5 +1,6 @@
 "use client";
 
+import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
@@ -381,14 +382,12 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
       if (e.key === "Escape") onCloseRef.current();
     }
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
       opener?.focus?.();
     };
   }, []);
+  useBodyScrollLock();
 
   const statusDot = error
     ? "bg-amber-400"

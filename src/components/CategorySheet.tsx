@@ -1,5 +1,6 @@
 "use client";
 
+import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 
@@ -55,15 +56,11 @@ export default function CategorySheet({
       onClose();
     };
     document.addEventListener("keydown", onKey, true);
-    // Restore what was there, not "" — the sheet stacks over CardDetailModal,
-    // which still expects its own lock (mobile QA 09-06).
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey, true);
-      document.body.style.overflow = previousOverflow;
-    };
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose]);
+  // Ref-counted: this sheet stacks over CardDetailModal, and the body stays
+  // pinned until the last one closes.
+  useBodyScrollLock();
   useEffect(() => {
     if (creating && touched) inputRef.current?.focus();
   }, [creating, touched]);

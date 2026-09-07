@@ -1,5 +1,6 @@
 "use client";
 
+import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -193,14 +194,11 @@ function RepriceSheet({
   const [price, setPrice] = useState(card.price);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
+  useBodyScrollLock();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const changed = Math.abs(price - card.price) >= 0.005;
