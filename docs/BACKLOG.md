@@ -40,7 +40,10 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### Turso outage 09-06 (fixed)
 - [x] Free tier 500M row reads/month burned in 6 days (524M) → Turso blocked the whole account ~11:43am ET; every DB read on prod 500d (login, reset, scans). Chris upgraded to Developer; back at ~12:20pm ET. Root cause = full-table scans: mtg_cards had no set_code index (Magic set list ran a correlated EXISTS over 94k rows per set), hasEnglishMirror COUNT(*) twice per search, en_cards set/printed-number scans, price_series pagination walking the table. Fixed in 136dacc (4 indexes, 2 rewrites, missing await on hasMtgMirror).
-- [ ] Still worth doing: folded-name columns + index on en_cards/mtg_cards to replace LIKE '%x%' scans (every search is a 20k/94k scan); admin overview polls every 4s and rescans ~450k rows per load; catalogSize four COUNT(*) per cold start. Watch Turso Analytics → rows read for a week.
+- [x] test:queryplans (023fd2c): EXPLAIN QUERY PLAN on every hot catalog query, fails CI on any full scan of a big table; self-check proves it.
+- [x] Set lists memoed on card_cache 6h (7adf19d): listMtgSets + /api/sets — was a 94k/20k walk per picker mount.
+- [x] Admin catalog-health block (8 whole-table counts, ~450k rows/load) and landing catalogSize (4 counts/cold start) memoed 6h on card_cache.
+- [ ] Still worth doing: folded-name columns + index on en_cards/mtg_cards to replace LIKE '%x%' scans (every search is still a 20k/94k scan — the biggest remaining read). Watch Turso Analytics → rows read for a week.
 
 ### A. Only Chris can do these (gates)
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.

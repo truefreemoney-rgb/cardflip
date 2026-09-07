@@ -1,4 +1,5 @@
 import "server-only";
+import { cachedList } from "@/lib/server/listCache";
 import { db } from "@/lib/db";
 
 /**
@@ -22,7 +23,11 @@ async function count(table: string): Promise<number> {
 export async function catalogSize(): Promise<number> {
   const now = Date.now();
   if (cached && now - cached.at < TTL_MS) return cached.total;
-  const total = (await count("en_cards")) + (await count("jp_cards")) + (await count("zh_cards")) + (await count("mtg_cards"));
+  // Module memo is per lambda; the card_cache row is shared across them, so a
+  // cold start no longer walks four catalog tables (~115k rows, outage 09-06).
+  const { total } = await cachedList("catalog:size:v1", TTL_MS, async () => ({
+    total: (await count("en_cards")) + (await count("jp_cards")) + (await count("zh_cards")) + (await count("mtg_cards")),
+  }));
   cached = { total, at: now };
   return total;
 }

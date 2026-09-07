@@ -1,4 +1,5 @@
 import "server-only";
+import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "@/lib/db";
@@ -125,14 +126,34 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
   const userRollups: Record<string, UserRollup> = {};
   for (const r of rollupRows) userRollups[r.id] = { ...r, lastActive: r.lastActive ?? null };
 
-  const seriesRow = (await db
-    .prepare(
-      `SELECT SUM(game = 'pokemon') AS pokemon, SUM(game = 'mtg') AS mtg, COUNT(*) AS total, MAX(updated_day) AS latest
-         FROM price_series`,
-    )
-    .get()) as { pokemon: number | null; mtg: number | null; total: number; latest: string | null } | undefined;
-
-  const mtgSynced = (await db.prepare("SELECT MAX(synced_at) AS at FROM mtg_cards").get()) as { at: number | null } | undefined;
+  // Catalog health = eight whole-table walks (~450k rows: en/jp/zh/mtg cards,
+  // sets, tcgplayer map, price_series sums). It only changes on a sync or the
+  // daily cron, and the admin console loads it on every visit — memoed for six
+  // hours (Turso row-read outage 09-06).
+  const catalog = await cachedList("admin:catalog:v1", SET_LIST_TTL_MS, async () => {
+    const seriesRow = (await db
+      .prepare(
+        `SELECT SUM(game = 'pokemon') AS pokemon, SUM(game = 'mtg') AS mtg, COUNT(*) AS total, MAX(updated_day) AS latest
+           FROM price_series`,
+      )
+      .get()) as { pokemon: number | null; mtg: number | null; total: number; latest: string | null } | undefined;
+    const mtgSynced = (await db.prepare("SELECT MAX(synced_at) AS at FROM mtg_cards").get()) as { at: number | null } | undefined;
+    return {
+      enCards: await count("SELECT COUNT(*) AS n FROM en_cards"),
+      jpCards: await count("SELECT COUNT(*) AS n FROM jp_cards"),
+      zhCards: await count("SELECT COUNT(*) AS n FROM zh_cards"),
+      mtgCards: await count("SELECT COUNT(*) AS n FROM mtg_cards"),
+      mtgSets: await count("SELECT COUNT(*) AS n FROM mtg_sets"),
+      mtgSyncedAt: mtgSynced?.at ?? null,
+      priceSeries: {
+        pokemon: Number(seriesRow?.pokemon ?? 0),
+        mtg: Number(seriesRow?.mtg ?? 0),
+        total: Number(seriesRow?.total ?? 0),
+        latestDay: seriesRow?.latest ?? null,
+      },
+      tcgplayerMap: await count("SELECT COUNT(*) AS n FROM tcgplayer_products"),
+    };
+  });
 
   const dataDir = path.join(process.cwd(), "data");
   let dbBytes = 0;
@@ -171,19 +192,7 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
     },
     userRollups,
     data: {
-      enCards: await count("SELECT COUNT(*) AS n FROM en_cards"),
-      jpCards: await count("SELECT COUNT(*) AS n FROM jp_cards"),
-      zhCards: await count("SELECT COUNT(*) AS n FROM zh_cards"),
-      mtgCards: await count("SELECT COUNT(*) AS n FROM mtg_cards"),
-      mtgSets: await count("SELECT COUNT(*) AS n FROM mtg_sets"),
-      mtgSyncedAt: mtgSynced?.at ?? null,
-      priceSeries: {
-        pokemon: Number(seriesRow?.pokemon ?? 0),
-        mtg: Number(seriesRow?.mtg ?? 0),
-        total: Number(seriesRow?.total ?? 0),
-        latestDay: seriesRow?.latest ?? null,
-      },
-      tcgplayerMap: await count("SELECT COUNT(*) AS n FROM tcgplayer_products"),
+      ...catalog,
       dbBytes,
       seedMarker,
       daily: await dailyStatus(),
