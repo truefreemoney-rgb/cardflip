@@ -1,5 +1,6 @@
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
+import TrialCta from "@/components/TrialCta";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
@@ -213,12 +214,7 @@ export default async function Home() {
               </p>
 
               <div className="animate-fade-up flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row" style={{ animationDelay: "180ms" }}>
-                <Link
-                  href="/signup"
-                  className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
-                >
-                  Try 10 Scans Free
-                </Link>
+                <TrialCta className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400" />
                 <a
                   href="#how-it-works"
                   className="rounded-full border border-edge px-8 py-3.5 text-center text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2"
@@ -542,12 +538,7 @@ export default async function Home() {
             <p className="reveal max-w-md text-lg text-zinc-400">
               Scan the first card tonight and see what&apos;s actually in there.
             </p>
-            <Link
-              href="/signup"
-              className="reveal sheen rounded-full bg-brand-500 px-9 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:-translate-y-0.5 hover:bg-brand-400"
-            >
-              Try 10 Scans Free
-            </Link>
+            <TrialCta className="reveal sheen rounded-full bg-brand-500 px-9 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:-translate-y-0.5 hover:bg-brand-400" />
           </div>
         </section>
       </main>
