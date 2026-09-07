@@ -68,8 +68,10 @@ export default function PlanCta({
   }
 
   // The TIER is the truth (server-resolved, honours admin overrides) — not
-  // the raw Stripe status, which stays "active" under a Trial override.
-  const subscribed = user.role === "admin" || user.tier === "subscribed" || user.tier === "owner";
+  // the raw Stripe status, which stays "active" under a Trial override, and
+  // not the role: an admin under a Trial override IS on the trial (Chris,
+  // 09-07: "I set the account to trial and it says I have the $9.99 plan").
+  const subscribed = user.tier === "subscribed" || user.tier === "owner";
   const current = subscribed && ((plan === "pro" && user.plan === "pro") || (plan === "standard" && user.plan !== "pro"));
 
   if (plan === "trial") {

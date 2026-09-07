@@ -59,7 +59,7 @@ export default function AppHeader() {
                 <span className="sm:hidden">eBay</span>
                 <span className="hidden sm:inline">eBay Connected</span>
               </Link>
-            ) : user.role !== "admin" && user.tier === "trial" ? (
+            ) : user.tier === "trial" ? (
               <Link
                 href="/pricing"
                 className="rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400"
