@@ -73,6 +73,17 @@ await check("featured stage cards load", async () => {
   expect(r.status === 200 && Array.isArray(r.json?.cards) && r.json.cards.length > 0, `status ${r.status}: ${r.text.slice(0, 200)}`);
 });
 
+// --- stock card art (assets.tcgdex.net, third party) ---------------------------------
+// 09-07: every card image on the site went blank for a few minutes — tcgdex,
+// not us — and it read as "stock images broke completely". A red here says
+// "image host down" so the next blip is not chased through our own code.
+await check("stock card art host serves an image (tcgdex)", async () => {
+  const url = "https://assets.tcgdex.net/en/base/base1/4/low.webp";
+  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke" } });
+  expect(res.status === 200, `status ${res.status}`);
+  expect((res.headers.get("content-type") ?? "").startsWith("image/"), `content-type ${res.headers.get("content-type")}`);
+});
+
 // --- pages render --------------------------------------------------------------------
 for (const path of ["/", "/pricing", "/help", "/login", "/signup", "/forgot-password"]) {
   await check(`page ${path} renders`, async () => {
