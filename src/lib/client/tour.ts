@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 
 /**
  * First-login tutorial plumbing. The server flag (users.tour_seen_at) is the
@@ -33,7 +33,7 @@ export function takeTourReplay(): boolean {
 /** Finished or skipped — stamp the account so it never auto-shows again. */
 export async function markTourSeen(): Promise<void> {
   try {
-    await fetch(apiPath("/api/account/tour"), { method: "POST" });
+    await apiFetch("/api/account/tour", { method: "POST" });
   } catch {
     // Offline: the flag stays unset and the tour shows once more next time.
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 import type { SessionUser } from "@/lib/client/auth";
 
 export interface AccountOverview {
@@ -50,7 +50,7 @@ export interface InviteInfo {
 /** Invite a friend: the share link + tally (subscribers earn; everyone can see their code). */
 export async function fetchInvite(): Promise<InviteInfo | null> {
   try {
-    const res = await fetch(apiPath("/api/account/invite"));
+    const res = await apiFetch("/api/account/invite");
     if (!res.ok) return null;
     return (await readJson(res)) as InviteInfo;
   } catch {
@@ -60,7 +60,7 @@ export async function fetchInvite(): Promise<InviteInfo | null> {
 
 export async function fetchAccount(): Promise<AccountOverview | null> {
   try {
-    const res = await fetch(apiPath("/api/account"));
+    const res = await apiFetch("/api/account");
     if (!res.ok) return null;
     return (await readJson(res)) as AccountOverview;
   } catch {
@@ -73,7 +73,7 @@ export async function updateProfile(patch: {
   email?: string;
   currentPassword?: string;
 }): Promise<SessionUser> {
-  const res = await fetch(apiPath("/api/account"), {
+  const res = await apiFetch("/api/account", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -82,7 +82,7 @@ export async function updateProfile(patch: {
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<number> {
-  const res = await fetch(apiPath("/api/account/password"), {
+  const res = await apiFetch("/api/account/password", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ currentPassword, newPassword }),
@@ -91,12 +91,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function signOutOtherDevices(): Promise<number> {
-  const res = await fetch(apiPath("/api/account/sessions"), { method: "DELETE" });
+  const res = await apiFetch("/api/account/sessions", { method: "DELETE" });
   return (await expectOk<{ signedOut: number }>(res)).signedOut;
 }
 
 export async function deleteAccount(password: string): Promise<void> {
-  const res = await fetch(apiPath("/api/account"), {
+  const res = await apiFetch("/api/account", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password }),
@@ -108,7 +108,7 @@ export async function deleteAccount(password: string): Promise<void> {
 
 /** Answers the Stripe Checkout URL to redirect to. */
 export async function startCheckout(plan: "standard" | "pro" = "standard"): Promise<string> {
-  const res = await fetch(apiPath("/api/billing/checkout"), {
+  const res = await apiFetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plan }),
@@ -118,7 +118,7 @@ export async function startCheckout(plan: "standard" | "pro" = "standard"): Prom
 
 /** Answers the Stripe billing-portal URL (cancel, change card, invoices). */
 export async function openBillingPortal(): Promise<string> {
-  const res = await fetch(apiPath("/api/billing/portal"), { method: "POST" });
+  const res = await apiFetch("/api/billing/portal", { method: "POST" });
   return (await expectOk<{ url: string }>(res)).url;
 }
 
@@ -131,7 +131,7 @@ export interface TotpSetup {
 }
 
 async function totpAction<T>(body: Record<string, string>): Promise<T> {
-  const res = await fetch(apiPath("/api/account/totp"), {
+  const res = await apiFetch("/api/account/totp", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

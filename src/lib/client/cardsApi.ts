@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 
 export interface ServerCard {
   id: string;
@@ -91,7 +91,7 @@ export interface UpdateCardInput {
 
 export async function fetchServerCards(): Promise<ServerCard[]> {
   try {
-    const res = await fetch(apiPath("/api/cards"));
+    const res = await apiFetch("/api/cards");
     if (!res.ok) return [];
     const data = await res.json();
     return data.cards ?? [];
@@ -111,7 +111,7 @@ export interface RepriceNudge {
 /** Listed cards whose asking price the market has left behind (±15%, 7d+). */
 export async function fetchRepriceNudges(): Promise<RepriceNudge[]> {
   try {
-    const res = await fetch(apiPath("/api/cards/reprice-nudges"));
+    const res = await apiFetch("/api/cards/reprice-nudges");
     if (!res.ok) return [];
     const data = await res.json();
     return data.nudges ?? [];
@@ -131,7 +131,7 @@ export interface RepriceResult {
 /** Apply a nudge: new ledger price + the live eBay offer where one exists. */
 export async function repriceCard(cardId: string, price: number): Promise<RepriceResult> {
   try {
-    const res = await fetch(apiPath("/api/ebay/reprice"), {
+    const res = await apiFetch("/api/ebay/reprice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId, price }),
@@ -148,7 +148,7 @@ export async function createServerCard(
   input: CreateCardInput,
 ): Promise<ServerCard | null> {
   try {
-    const res = await fetch(apiPath("/api/cards"), {
+    const res = await apiFetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -168,7 +168,7 @@ export async function updateServerCard(
   // Resolves false (never throws) so callers can keep the optimistic update
   // and only roll back / warn when the write actually didn't land.
   try {
-    const res = await fetch(apiPath(`/api/cards/${id}`), {
+    const res = await apiFetch(`/api/cards/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
@@ -181,7 +181,7 @@ export async function updateServerCard(
 
 export async function deleteServerCard(id: string): Promise<boolean> {
   try {
-    const res = await fetch(apiPath(`/api/cards/${id}`), { method: "DELETE" });
+    const res = await apiFetch(`/api/cards/${id}`, { method: "DELETE" });
     return res.ok || res.status === 404;
   } catch {
     return false;

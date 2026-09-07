@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch, apiPath } from "@/lib/client/basePath";
 import type {
   EbayComps,
   EbayCompsStatus,
@@ -31,7 +31,7 @@ export async function fetchEbayComps(
   firstEdition?: boolean | null,
 ): Promise<EbayCompsResult> {
   try {
-    const res = await fetch(apiPath("/api/ebay/comps"), {
+    const res = await apiFetch("/api/ebay/comps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -39,7 +39,7 @@ export async function fetchEbayComps(
         ...(grading ? { grading } : {}),
         ...(typeof firstEdition === "boolean" ? { firstEdition } : {}),
       }),
-    });
+    }, 30_000); // comps wait on eBay itself
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
@@ -87,7 +87,7 @@ export interface EbayLinkStatus {
 
 export async function fetchEbayStatus(): Promise<EbayLinkStatus | null> {
   try {
-    const res = await fetch(apiPath("/api/ebay/status"));
+    const res = await apiFetch("/api/ebay/status");
     if (!res.ok) return null;
     return (await res.json()) as EbayLinkStatus;
   } catch {
@@ -97,7 +97,7 @@ export async function fetchEbayStatus(): Promise<EbayLinkStatus | null> {
 
 export async function disconnectEbay(): Promise<boolean> {
   try {
-    const res = await fetch(apiPath("/api/ebay/disconnect"), { method: "POST" });
+    const res = await apiFetch("/api/ebay/disconnect", { method: "POST" });
     return res.ok;
   } catch {
     return false;
@@ -117,7 +117,7 @@ export interface SalesSyncResponse {
  */
 export async function syncEbaySales(): Promise<SalesSyncResponse | null> {
   try {
-    const res = await fetch(apiPath("/api/ebay/sync-sales"), { method: "POST" });
+    const res = await apiFetch("/api/ebay/sync-sales", { method: "POST" });
     if (!res.ok) return null;
     return (await res.json()) as SalesSyncResponse;
   } catch {
@@ -139,7 +139,7 @@ export interface WatcherEligibleResponse {
 
 export async function fetchWatcherEligible(): Promise<WatcherEligibleResponse | null> {
   try {
-    const res = await fetch(apiPath("/api/ebay/offers"));
+    const res = await apiFetch("/api/ebay/offers");
     if (!res.ok) return null;
     return (await res.json()) as WatcherEligibleResponse;
   } catch {
@@ -154,7 +154,7 @@ export async function sendWatcherOffer(
   message?: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
-    const res = await fetch(apiPath("/api/ebay/offers"), {
+    const res = await apiFetch("/api/ebay/offers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId, discountPercent, ...(message?.trim() ? { message: message.trim() } : {}) }),
@@ -173,7 +173,7 @@ export async function saveAutoOffer(
   message: string | null,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
-    const res = await fetch(apiPath("/api/ebay/offers"), {
+    const res = await apiFetch("/api/ebay/offers", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ autoOfferPercent: percent, autoOfferMessage: message }),
@@ -251,7 +251,7 @@ async function postJson<T>(
   body: unknown,
 ): Promise<{ ok: true; data: T } | EbayPostFailure> {
   try {
-    const res = await fetch(apiPath(path), {
+    const res = await apiFetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

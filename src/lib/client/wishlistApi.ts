@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
@@ -24,7 +24,7 @@ export interface WishlistItem {
 }
 
 export async function fetchWishlist(): Promise<WishlistItem[]> {
-  const res = await fetch(apiPath("/api/wishlist"));
+  const res = await apiFetch("/api/wishlist");
   if (!res.ok) return [];
   const data = await res.json();
   return data.items ?? [];
@@ -36,7 +36,7 @@ export async function addToWishlist(
   price: number | null,
 ): Promise<WishlistItem | null> {
   try {
-    const res = await fetch(apiPath("/api/wishlist"), {
+    const res = await apiFetch("/api/wishlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ card, language, price }),
@@ -52,7 +52,7 @@ export async function addToWishlist(
 /** Set (positive number) or clear (null) the price-dip alert. */
 export async function setWishlistAlert(id: string, alertPrice: number | null): Promise<WishlistItem | null> {
   try {
-    const res = await fetch(apiPath(`/api/wishlist/${id}`), {
+    const res = await apiFetch(`/api/wishlist/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ alertPrice }),
@@ -68,7 +68,7 @@ export async function setWishlistAlert(id: string, alertPrice: number | null): P
 export async function removeFromWishlist(id: string): Promise<boolean> {
   // Resolves false (never throws) so the caller can put the item back.
   try {
-    const res = await fetch(apiPath(`/api/wishlist/${id}`), { method: "DELETE" });
+    const res = await apiFetch(`/api/wishlist/${id}`, { method: "DELETE" });
     return res.ok || res.status === 404;
   } catch {
     return false;

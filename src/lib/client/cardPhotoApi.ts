@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 
 /**
  * The seller's own photo of a card, sent to the server as the listing image.
@@ -50,11 +50,11 @@ export async function uploadCardPhoto(cardId: string, file: File): Promise<Uploa
     return { ok: false, message: "Couldn't read that photo — try a JPG or PNG" };
   }
   try {
-    const res = await fetch(apiPath(`/api/cards/${encodeURIComponent(cardId)}/photo`), {
+    const res = await apiFetch(`/api/cards/${encodeURIComponent(cardId)}/photo`, {
       method: "PUT",
       headers: { "Content-Type": "image/jpeg" },
       body: jpeg,
-    });
+    }, 60_000);
     const json = (await res.json().catch(() => null)) as { photoAt?: number; error?: string } | null;
     if (!res.ok || !json?.photoAt) {
       return { ok: false, message: json?.error ?? `Photo upload failed (${res.status})` };

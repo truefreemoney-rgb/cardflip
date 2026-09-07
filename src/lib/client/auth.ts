@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPath } from "@/lib/client/basePath";
+import { apiFetch } from "@/lib/client/basePath";
 
 export interface SessionUser {
   id: string;
@@ -63,7 +63,7 @@ export function loginPathFor(pathname: string): string {
 }
 
 export async function fetchCurrentUser(): Promise<SessionUser | null> {
-  const res = await fetch(apiPath("/api/auth/me"));
+  const res = await apiFetch("/api/auth/me");
   if (!res.ok) return null;
   const data = await readJson(res);
   return data.user ?? null;
@@ -75,7 +75,7 @@ export async function signup(
   password: string,
   ref?: string | null,
 ): Promise<SessionUser> {
-  const res = await fetch(apiPath("/api/auth/signup"), {
+  const res = await apiFetch("/api/auth/signup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ref ? { name, email, password, ref } : { name, email, password }),
@@ -86,7 +86,7 @@ export async function signup(
 }
 
 export async function login(email: string, password: string, code?: string): Promise<SessionUser> {
-  const res = await fetch(apiPath("/api/auth/login"), {
+  const res = await apiFetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(code ? { email, password, code } : { email, password }),
@@ -100,7 +100,7 @@ export async function login(email: string, password: string, code?: string): Pro
 }
 
 export async function logout(): Promise<void> {
-  await fetch(apiPath("/api/auth/logout"), { method: "POST" });
+  await apiFetch("/api/auth/logout", { method: "POST" });
   // Per-account browser prefs must not leak into the next login.
   const { clearAccountPrefs } = await import("@/lib/client/scanPrefs");
   clearAccountPrefs();
