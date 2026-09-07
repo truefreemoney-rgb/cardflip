@@ -60,15 +60,22 @@ test.describe("trial account", () => {
     // The tour opens for a new account. Walk it: every step advances with the
     // last non-Skip/Back button ("Next", "On to Inventory", …, "Bye, robot").
     const card = page.locator(".tour-card");
-    await expect(card).toBeVisible();
+    await expect(card).toBeVisible({ timeout: 60_000 }); // first /app compile on a fresh clone is slow
     const visited = new Set<string>();
+    const stepKey = async () => `${new URL(page.url()).pathname}|${(await card.innerText().catch(() => "")).slice(0, 80)}`;
     for (let i = 0; i < 16 && (await card.isVisible().catch(() => false)); i++) {
       visited.add(new URL(page.url()).pathname);
+      const before = await stepKey();
       const buttons = card.getByRole("button").filter({ hasNotText: /^(✕|Skip|Back)$/ });
       const n = await buttons.count();
       expect(n, `tour step ${i} has an advance button`).toBeGreaterThan(0);
       await buttons.nth(n - 1).click();
-      await page.waitForTimeout(400);
+      // Page-to-page steps navigate, and on a fresh clone the dev server
+      // compiles each page on first visit — wait for the step to actually
+      // change (or the tour to end) rather than a fixed pause.
+      await expect
+        .poll(async () => (await card.isVisible().catch(() => false)) ? await stepKey() : "done", { timeout: 45_000 })
+        .not.toBe(before);
     }
     await expect(card).toHaveCount(0);
     expect([...visited]).toEqual(expect.arrayContaining(["/app", "/app/collection", "/app/price-check", "/app/wishlist"]));
