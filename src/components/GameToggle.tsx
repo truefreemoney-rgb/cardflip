@@ -43,7 +43,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
           role="radio"
           aria-checked={game === id}
           onClick={() => onChange(id)}
-          className={`rounded-full font-medium transition ${block ? "flex-1 py-2 text-center" : compact ? "px-3 py-1" : "px-3.5 py-1.5"} ${
+          className={`rounded-full font-medium transition ${block ? "flex-1 py-2 text-center" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
             game === id
               ? "bg-brand-500 text-white"
               : "text-zinc-400 hover:text-zinc-200"

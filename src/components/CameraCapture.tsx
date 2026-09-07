@@ -568,7 +568,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
             </p>
           )}
           {error && (
-            <div className="flex min-h-40 flex-col items-center justify-center gap-4 p-6 text-center">
+            // Over the viewfinder, not under it: as a flow sibling this block
+            // landed below the video, behind the sticky capture bar — a phone
+            // with the camera blocked showed a black screen and no way out
+            // (mobile QA 09-07).
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-surface-1/95 p-6 text-center">
               <p className="max-w-sm text-sm text-zinc-300">{error}</p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
