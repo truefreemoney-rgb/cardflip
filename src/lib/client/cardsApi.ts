@@ -28,6 +28,8 @@ export interface ServerCard {
   soldFees: number | null;
   /** Last time a discount offer went to this listing's watchers. */
   watcherOfferAt: number | null;
+  /** Seller set the price by hand; the Inventory live refresh leaves it alone. */
+  priceLocked: boolean;
   /** Seller confirmed the match ("Verify match"); null locks eBay publishing. */
   verifiedAt: number | null;
   /** Why the scan was doubtful ("low-confidence read", ...), null if clean. */
@@ -87,6 +89,33 @@ export interface UpdateCardInput {
   verifiedAt?: number | null;
   matchDoubt?: string | null;
   firstEdition?: boolean;
+  /** Send true with a price the seller typed/chose — it stops the live refresh touching it. */
+  priceLocked?: boolean;
+}
+
+export interface LivePrice {
+  cardId: string;
+  /** Today's market for the catalog card (our own daily series). */
+  market: number;
+  /** That market through the row's condition + rounding — the asking price it implies. */
+  suggested: number;
+  /** What the row held before this refresh. */
+  previous: number;
+  /** True when the row's stored price was rewritten to `suggested`. */
+  applied: boolean;
+}
+
+/** Today's market for every priced Inventory row; unlocked drafts are
+ *  repriced server-side and come back with applied = true. */
+export async function fetchLivePrices(): Promise<LivePrice[]> {
+  try {
+    const res = await apiFetch("/api/cards/live-prices", { method: "POST" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.prices ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchServerCards(): Promise<ServerCard[]> {

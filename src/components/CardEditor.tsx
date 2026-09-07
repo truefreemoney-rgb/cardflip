@@ -340,7 +340,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     if (current === target) return;
     autoGradedPrice.current = target;
     onChange({ priceOverride: target });
-    if (item.serverId) void updateServerCard(item.serverId, { price: target });
+    if (item.serverId) void updateServerCard(item.serverId, { price: target, priceLocked: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gradedMarket, gradedQuick, item.strategy, item.grading]);
 
@@ -1156,7 +1156,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     // for slabs) — apply it as the override directly.
                     autoGradedPrice.current = amount;
                     onChange({ strategy: value, priceOverride: amount });
-                    if (item.serverId) void updateServerCard(item.serverId, { price: amount });
+                    if (item.serverId) void updateServerCard(item.serverId, { price: amount, priceLocked: true });
                   } else {
                     onChange({ strategy: value, priceOverride: null });
                   }
@@ -1214,7 +1214,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               value={price}
               onValue={(n) => onChange({ priceOverride: n })}
               onCommit={(n) => {
-                if (item.serverId) void updateServerCard(item.serverId, { price: n });
+                if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
               }}
               className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
             />

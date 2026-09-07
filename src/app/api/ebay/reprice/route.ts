@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "cardId and a positive price are required" }, { status: 400 });
     }
 
-    const card = await updateCard(cardId, user.id, { price });
+    const card = await updateCard(cardId, user.id, { price, priceLocked: true });
     if (!card) return NextResponse.json({ error: "Card not found" }, { status: 404 });
 
     let ebayUpdated = false;

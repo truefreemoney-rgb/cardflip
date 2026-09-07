@@ -335,6 +335,20 @@ function roundPrice(value: number, strategy: PriceStrategy): number {
 }
 
 /**
+ * The asking price a market figure implies for a copy in `condition` at the
+ * plain market strategy — the same math quotePrice applies at scan time, so
+ * the Inventory live refresh (lib/server/livePrices.ts) lands on the number
+ * the scanner would have shown today. Unknown conditions count as Near Mint.
+ */
+export function askingPriceFor(market: number, condition: string): number {
+  if (!(market > 0)) return 0;
+  const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
+  const rounded = roundPrice(market * mult, "market");
+  const floor = listingFloor();
+  return rounded > 0 && rounded < floor ? floor : rounded;
+}
+
+/**
  * The latest daily point from the card's price-history series (the number the
  * chart's right edge shows) — see useLastRecordedPrice in PriceHistoryChart.
  */

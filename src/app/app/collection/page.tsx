@@ -19,10 +19,12 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
+  fetchLivePrices,
   fetchRepriceNudges,
   fetchServerCards,
   repriceCard,
   updateServerCard,
+  type LivePrice,
   type RepriceNudge,
   type ServerCard,
 } from "@/lib/client/cardsApi";
@@ -570,6 +572,9 @@ export default function CollectionPage() {
   const [syncError, setSyncError] = useState<string | null>(null);
   // Listed cards the market has moved away from (keyed by card id).
   const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
+  /** Today's market per row (lib/server/livePrices.ts) — drafts the seller
+   *  never priced by hand were repriced server-side and carry applied. */
+  const [live, setLive] = useState<Record<string, LivePrice>>({});
   const [repricing, setRepricing] = useState<string | null>(null);
   // Mass delete: ticked row ids. Listed rows can't be ticked — they're live
   // on eBay and deleting the ledger row wouldn't end the listing.
@@ -633,6 +638,16 @@ export default function CollectionPage() {
     });
     // Stale-price nudges, from our own price history — cheap enough to ask
     // on every load.
+    // Live prices: today's market from our own series, drafts repriced in
+    // place (Chris, 09-07: the scan-time price never updated).
+    void fetchLivePrices().then((list) => {
+      if (cancelled || list.length === 0) return;
+      setLive(Object.fromEntries(list.map((p) => [p.cardId, p])));
+      const applied = new Map(list.filter((p) => p.applied).map((p) => [p.cardId, p.suggested]));
+      if (applied.size > 0) {
+        setCards((prev) => prev.map((c) => (applied.has(c.id) ? { ...c, price: applied.get(c.id)!, priceLocked: false } : c)));
+      }
+    });
     void fetchRepriceNudges().then((list) => {
       if (!cancelled && list.length > 0) {
         setNudges(Object.fromEntries(list.map((n) => [n.cardId, n])));
@@ -652,7 +667,7 @@ export default function CollectionPage() {
   async function setAskingPrice(card: ServerCard, price: number) {
     if (Math.abs(price - card.price) < 0.005) return;
     if (!card.ebayOfferId) {
-      await applyPatch(card, { price });
+      await applyPatch(card, { price, priceLocked: true });
       toast(`${card.cardName} is now ${price.toFixed(2)}`);
       return;
     }
@@ -1921,8 +1936,17 @@ export default function CollectionPage() {
                   ) : (
                     <>
                       <p className="text-lg font-bold tracking-tight text-white">
-                        {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
+                        {repricing === card.id ? "Saving…" : `${card.price.toFixed(2)}`}
                       </p>
+                      {/* Today's market moved this draft's price since it was scanned. */}
+                      {card.status === "ready" && live[card.id]?.applied && Math.abs(live[card.id].previous - card.price) >= 0.01 && (
+                        <p
+                          title="Updated from today's market price"
+                          className={`text-[11px] font-medium ${card.price > live[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
+                        >
+                          <span aria-hidden>{card.price > live[card.id].previous ? "↑" : "↓"}</span> was ${live[card.id].previous.toFixed(2)}
+                        </p>
+                      )}
                       {/* Live listings only: the price changes here AND on
                           eBay (Chris, 09-04). Drafts are priced in the editor. */}
                       {isLive(card) && card.ebayOfferId && repricing !== card.id && (

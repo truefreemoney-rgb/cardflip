@@ -52,6 +52,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             : null
           : undefined,
       firstEdition: typeof body?.firstEdition === "boolean" ? body.firstEdition : undefined,
+      priceLocked: typeof body?.priceLocked === "boolean" ? body.priceLocked : undefined,
     });
 
     if (!card) {

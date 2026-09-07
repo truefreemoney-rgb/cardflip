@@ -468,6 +468,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Last time a discount offer was sent to this listing's watchers
       // (Negotiation API) — shown as a chip and a soft "already offered" guard.
       "watcher_offer_at INTEGER",
+      // 1 once the seller typed/chose a price themselves — the Inventory live
+      // refresh (lib/server/livePrices.ts) never overwrites a locked price.
+      "price_locked INTEGER NOT NULL DEFAULT 0",
       // Seller pressed "Verify match" on this card (09-03, Chris): eBay
       // publishing is locked until it's set. Null = "Verify match" in the UI.
       "verified_at INTEGER",

@@ -98,7 +98,7 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
             // comps land; sealed product has neither, so without this a
             // priced draft would sit at $0 in My Cards until listed.
             onCommit={(n) => {
-              if (item.serverId) void updateServerCard(item.serverId, { price: n });
+              if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
             }}
             className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
           />
