@@ -764,9 +764,8 @@ export async function publishDraft(
     );
   }
 
-  const json = (await retryingAvailabilityLag("publish", () =>
-    ebayFetch(token, "POST", `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`),
-  )) as { listingId?: string; warnings?: EbayApiError[] } | null;
+  const publishPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`;
+  const json = (await retryingAvailabilityLag("publish", () => ebayFetch(token, "POST", publishPath))) as { listingId?: string; warnings?: EbayApiError[] } | null;
   if (!json?.listingId) throw new EbaySellError("eBay published no listing id", 502);
 
   const now = Date.now();
