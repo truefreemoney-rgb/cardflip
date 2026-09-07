@@ -43,13 +43,14 @@ export default function ResetLinkButton({ userId, disabled }: Props) {
 
   function copy() {
     if (!link) return;
-    navigator.clipboard
-      .writeText(link)
+    // The link is in the readOnly input beside this button (select-on-focus);
+    // prompt() is a no-op in an installed PWA.
+    navigator.clipboard?.writeText?.(link)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(() => window.prompt("Copy the reset link:", link));
+      .catch(() => {});
   }
 
   if (disabled) return <span className="text-zinc-600">—</span>;

@@ -172,17 +172,29 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
 
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          // "environment" is the phone's back camera; desktops have no facing
-          // and fall back to whatever webcam exists. The high ideal size is
-          // for the collector number — it's the smallest print on the card,
-          // and the vision client downscales to its own budget regardless.
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1920 },
-          },
-        });
+        // "environment" is the phone's back camera; desktops have no facing
+        // and fall back to whatever webcam exists. The high ideal size is
+        // for the collector number — it's the smallest print on the card,
+        // and the vision client downscales to its own budget regardless.
+        // Some Android WebViews reject the ideal size + facing combination
+        // outright (OverconstrainedError) instead of approximating, so the
+        // ask relaxes twice before giving up (mobile QA 09-06).
+        const attempts: MediaStreamConstraints[] = [
+          { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1920 } } },
+          { video: { facingMode: "environment" } },
+          { video: true },
+        ];
+        let stream: MediaStream | null = null;
+        for (let i = 0; i < attempts.length; i++) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(attempts[i]);
+            break;
+          } catch (err) {
+            const relaxable = err instanceof DOMException && (err.name === "OverconstrainedError" || err.name === "ConstraintNotSatisfiedError");
+            if (!relaxable || i === attempts.length - 1) throw err;
+          }
+        }
+        if (!stream) throw new DOMException("no stream", "NotReadableError");
 
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
@@ -328,7 +340,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
 
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          // Safari under memory pressure hands back null; the tap did nothing
+          // and said nothing (mobile QA 09-06).
+          setBlurNote("Couldn't capture that frame — tap again");
+          setTimeout(() => setBlurNote(null), 2500);
+          return;
+        }
         onCapture(
           new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }),
         );
@@ -450,6 +468,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
               fullscreen player, which would hide the capture button. */}
           <video
             ref={videoRef}
+            autoPlay
             playsInline
             muted
             className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64"

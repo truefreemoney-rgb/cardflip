@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
+import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 
@@ -166,7 +167,13 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
 
   async function remove(u: AdminUserRow) {
     const rl = rollups[u.id];
-    if (!window.confirm(`Delete ${u.name} (${u.email})?\n\nThis removes their ${rl?.cards ?? 0} cards, ${rl?.wishlist ?? 0} watchlist items and sessions. It can't be undone.`)) return;
+    // window.confirm() returns false silently in an installed PWA, so delete
+    // was impossible from the home-screen app (mobile QA 09-06).
+    const ok = await confirmAction({
+      message: `Delete ${u.name} (${u.email})? This removes their ${rl?.cards ?? 0} cards, ${rl?.wishlist ?? 0} watchlist items and sessions. It can't be undone.`,
+      confirmLabel: "Delete account",
+    });
+    if (!ok) return;
     setBusyId(u.id);
     setError(null);
     try {
@@ -193,6 +200,8 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The admin console has no Toaster, so the confirm dialog host rides here. */}
+      <ConfirmHost />
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -360,13 +369,14 @@ function AddAccountForm({ onDone }: { onDone: () => void }) {
   }
 
   function copy(text: string) {
-    navigator.clipboard
-      .writeText(text)
+    // The password is on screen in <code>; prompt() is a no-op in an installed
+    // PWA and navigator.clipboard is undefined in some WebViews.
+    navigator.clipboard?.writeText?.(text)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(() => window.prompt("Copy:", text));
+      .catch(() => {});
   }
 
   const input =
