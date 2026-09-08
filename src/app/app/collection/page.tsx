@@ -2056,6 +2056,20 @@ export default function CollectionPage() {
                       Not Listed
                     </span>
                   )}
+                  {/* Live rows have no Delete; slot three is a green Live badge
+                      instead (Chris, 09-08: "a green Live button somewhere obvious"). */}
+                  {liveRow && (
+                    <span
+                      title="Live on eBay — flips to Sold on its own once eBay reports the order"
+                      className={`${slotBase} sm:col-start-3 border-emerald-400/40 bg-emerald-400/15 font-semibold text-emerald-300`}
+                    >
+                      <span className="relative mr-1.5 flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      </span>
+                      Live
+                    </span>
+                  )}
                   {(card.status !== "listed" || ended) && (
                     <button
                       onClick={() => remove(card)}
