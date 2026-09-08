@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { latestUsdPrice, latestUsdPrices } from "@/lib/server/priceHistory";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
@@ -69,6 +70,10 @@ export async function addToWishlist(
 ): Promise<WishlistItem> {
   const id = randomUUID();
   const addedAt = Date.now();
+  // No price from the client (09-08: Inventory's detail opens on a stub with
+  // no prices, and Watch while it loads saved null — the tile then showed
+  // nothing): our own series knows today's market for the catalog id.
+  if (price == null && card.id) price = await latestUsdPrice(card.id);
 
   await db.prepare(
     `INSERT INTO wishlist_items
@@ -128,5 +133,18 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
   const rows = (await db
     .prepare("SELECT * FROM wishlist_items WHERE user_id = ? ORDER BY added_at DESC")
     .all(userId)) as unknown as WishlistRow[];
-  return rows.map(fromRow);
+  const items = rows.map(fromRow);
+  // Rows saved without a price (see addToWishlist) get one from the series,
+  // stored so the since-saved delta has a baseline from here on.
+  const missing = items.filter((i) => i.price == null && i.cardId);
+  if (missing.length > 0) {
+    const latest = await latestUsdPrices(missing.map((i) => i.cardId!));
+    for (const item of missing) {
+      const hit = latest.get(item.cardId!);
+      if (!hit || !(hit.price > 0)) continue;
+      item.price = hit.price;
+      await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, item.id, userId);
+    }
+  }
+  return items;
 }

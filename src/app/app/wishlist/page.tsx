@@ -200,7 +200,8 @@ async function resolveWishlistCard(item: WishlistItem): Promise<PokemonCard | nu
 
 async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const targets = items
-    .filter((item) => item.language === "en" && item.price != null)
+    // Rows saved without a price still get today's number (09-08).
+    .filter((item) => item.language === "en")
     .slice(0, REPRICE_LIMIT);
 
   const prices: Record<string, number> = {};

@@ -145,7 +145,9 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
             ) : (
               <button
                 onClick={handleSave}
-                disabled={saving || saved}
+                // Not while the catalog row is still loading: the stub has no
+                // prices and a save then landed with none (09-08).
+                disabled={saving || saved || loading}
                 className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-default ${
                   saved
                     ? "bg-emerald-500/15 text-emerald-400"
