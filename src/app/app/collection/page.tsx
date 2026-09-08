@@ -1792,7 +1792,6 @@ export default function CollectionPage() {
               // row lines up whatever it shows (Chris, 09-08: "I really hate these columns").
               const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:w-full sm:flex-none sm:px-2 sm:text-xs";
               const slotBase = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs";
-              const quietBtn = `${slotBase} border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200`;
               // Real actions carry a tint so they read as buttons next to the
               // "Not Listed" ghost that fills slot two on desktop (Chris, 09-08).
               const viewBtn = `${slotBase} border-sky-400/30 text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10`;
@@ -2032,7 +2031,9 @@ export default function CollectionPage() {
                     <button
                       onClick={() => void endListing(card)}
                       disabled={ending === card.id}
-                      className={`${quietBtn} sm:col-start-1`}
+                      // Amber, in the last slot (Chris, 09-08): the stop action sits where
+                      // Delete sits on other rows, and reads as a warning, not a grey nothing.
+                      className={`${slotBase} order-last sm:col-start-3 border-amber-400/35 text-amber-300 hover:border-amber-400/70 hover:bg-amber-400/10`}
                     >
                       {ending === card.id ? "Ending…" : "End Auction"}
                     </button>
@@ -2061,7 +2062,7 @@ export default function CollectionPage() {
                   {liveRow && (
                     <span
                       title="Live on eBay — flips to Sold on its own once eBay reports the order"
-                      className={`${slotBase} sm:col-start-3 border-emerald-400/40 bg-emerald-400/15 font-semibold text-emerald-300`}
+                      className={`${slotBase} sm:col-start-1 border-emerald-400/40 bg-emerald-400/15 font-semibold text-emerald-300`}
                     >
                       <span className="relative mr-1.5 flex h-1.5 w-1.5">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
