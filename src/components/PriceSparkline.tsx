@@ -21,12 +21,14 @@ interface Props {
   /** Days of history to draw (default 30). */
   days?: number;
   className?: string;
+  /** Fill the row's width instead of the fixed 96px (watchlist tile). */
+  stretch?: boolean;
 }
 
 const dayMs = 86_400_000;
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 
-export default function PriceSparkline({ cardId, preferVariant, days = 30, className = "" }: Props) {
+export default function PriceSparkline({ cardId, preferVariant, days = 30, className = "", stretch = false }: Props) {
   const [loaded, setLoaded] = useState<{ id: string; series: Series | null }>({ id: "", series: null });
   useEffect(() => {
     let alive = true;
@@ -69,7 +71,10 @@ export default function PriceSparkline({ cardId, preferVariant, days = 30, class
     >
       <svg
         viewBox={`0 0 ${geo.W} ${geo.H}`}
-        className="h-7 w-24 shrink-0"
+        // stretch: fill the row (watchlist tile, 09-08) — the line is a
+        // shape, not a measurement, so non-uniform scaling is fine.
+        className={stretch ? "h-7 min-w-0 flex-1" : "h-7 w-24 shrink-0"}
+        preserveAspectRatio={stretch ? "none" : undefined}
         role="img"
         aria-label={`Price ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days`}
       >

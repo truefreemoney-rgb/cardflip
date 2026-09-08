@@ -34,12 +34,11 @@ const LANGUAGE_LABEL: Record<string, string> = {
   zh: "Chinese",
 };
 
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+/** "Sep 8" this year, "Sep 8, 2025" otherwise — the tile has no room for more. */
+function formatShortDate(ts: number): string {
+  const d = new Date(ts);
+  const thisYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(thisYear ? {} : { year: "numeric" }) });
 }
 
 /**
@@ -120,7 +119,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         setEditing(true);
       }}
       title="Get an email when this card's market price dips to your target"
-      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+      className={`w-full rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition ${
         item.alertPrice != null
           ? "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
           : "border-edge text-zinc-500 hover:border-edge-strong hover:text-zinc-300"
@@ -242,15 +241,16 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
     return <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-500">steady</span>;
   }
   const up = delta > 0;
+  // Compact: direction + percent; the dollar move lives in the tooltip
+  // (09-08 makeover — "▼ −$0.01 · 6%" wrapped inside the tile).
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
         up ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
       }`}
-      title={`${up ? "Up" : "Down"} since you saved it at $${saved.toFixed(2)}`}
+      title={`${up ? "Up" : "Down"} $${Math.abs(delta).toFixed(2)} since you saved it at $${saved.toFixed(2)}`}
     >
-      {up ? "▲" : "▼"} {up ? "+" : "−"}$
-      {Math.abs(delta).toFixed(2)} · {Math.abs(pct).toFixed(0)}%
+      {up ? "▲" : "▼"} {Math.abs(pct) >= 10 ? Math.abs(pct).toFixed(0) : Math.abs(pct).toFixed(1)}%
     </span>
   );
 }
@@ -791,25 +791,28 @@ export default function WishlistPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-end justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className={`font-display text-lg font-semibold leading-tight ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                    {/* Tile foot (09-08 makeover): price with the since-saved
+                        move beside it, ONE muted line for the save, the
+                        sparkline across the full width, then the alert. */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
                           {shownPrice != null ? `$${shownPrice.toFixed(2)}` : "—"}
                         </p>
-                        <p className="text-[11px] text-zinc-600">
-                          {now != null && item.price != null
-                            ? `saved at $${item.price.toFixed(2)} · ${formatDate(item.addedAt)}`
-                            : `saved ${formatDate(item.addedAt)}`}
-                        </p>
+                        {item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
                       </div>
-                      {item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
+                      <p className="mt-1 truncate text-[11px] text-zinc-500">
+                        {now != null && item.price != null
+                          ? `Saved $${item.price.toFixed(2)} · ${formatShortDate(item.addedAt)}`
+                          : `Saved ${formatShortDate(item.addedAt)}`}
+                      </p>
                     </div>
 
                     {(item.cardId ?? resolvedIds[item.id]) && (
-                      <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} />
+                      <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} stretch />
                     )}
                     {item.cardId && (
-                      <div className="flex justify-start">
+                      <div className="mt-auto">
                         <AlertControl
                           item={item}
                           onSaved={(saved) =>
