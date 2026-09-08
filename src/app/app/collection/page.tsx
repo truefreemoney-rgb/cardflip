@@ -1790,8 +1790,8 @@ export default function CollectionPage() {
               const draft = card.status === "ready";
               // sm+: a fixed three-slot grid (primary · View on eBay · Delete) so every
               // row lines up whatever it shows (Chris, 09-08: "I really hate these columns").
-              const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:w-full sm:flex-none sm:px-2 sm:text-xs";
-              const slotBase = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs";
+              const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:w-full sm:flex-none sm:px-2 sm:text-xs sm:row-start-1";
+              const slotBase = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs sm:row-start-1";
               // Real actions carry a tint so they read as buttons next to the
               // "Not Listed" ghost that fills slot two on desktop (Chris, 09-08).
               const viewBtn = `${slotBase} border-sky-400/30 text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10`;
