@@ -30,10 +30,20 @@ async function dismissTour(page: Page) {
   if (await close.isVisible().catch(() => false)) await close.click();
 }
 
-async function signup(page: Page) {
+/**
+ * A fresh account. Unless a test is ABOUT the tour, it is stamped as seen
+ * here: the overlay mounts after the session loads, so a one-shot "is the
+ * close button visible?" could miss it and the next click landed on the
+ * overlay instead (CI 09-08: "Scan a Card" click timed out, twice).
+ */
+async function signup(page: Page, opts: { tour?: boolean } = {}) {
   const email = `e2e-${uniq()}@example.com`;
   const res = await page.request.post("/api/auth/signup", { data: { name: "E2E Phone", email, password: PASSWORD } });
   expect(res.status(), "signup").toBe(201);
+  if (!opts.tour) {
+    const seen = await page.request.post("/api/account/tour");
+    expect(seen.status(), "stamp the tour as seen").toBe(200);
+  }
   return email;
 }
 
@@ -54,7 +64,7 @@ test.describe("anonymous", () => {
 
 test.describe("trial account", () => {
   test("header fits, every app page is clean, tour runs page to page and stamps once", async ({ page }) => {
-    await signup(page);
+    await signup(page, { tour: true });
     await page.goto("/app");
 
     // The tour opens for a new account. Walk it: every step advances with the
