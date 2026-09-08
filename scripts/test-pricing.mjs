@@ -424,6 +424,16 @@ console.log("\nThe chart's current-day point rebases the quote:");
   );
 }
 
+{
+  const { belowFloor, listingFloor, floorRefusal } = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
+  console.log("floor rule (Chris, 09-08: never under the floor)");
+  check("floor is $1.79 at 13.25% + $0.30 + $0.75 postage, $0.50 net", listingFloor(), 1.79);
+  check("$1.70 is under the floor", belowFloor(1.7), true);
+  check("$1.79 is not", belowFloor(1.79), false);
+  check("$0 (unpriced) passes", belowFloor(0), false);
+  check("refusal names the floor", floorRefusal().includes("$1.79"), true);
+}
+
 console.log(
   failures === 0
     ? "\nAll pricing checks passed.\n"

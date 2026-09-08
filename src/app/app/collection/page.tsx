@@ -31,7 +31,7 @@ import {
 import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
-import { netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -193,7 +193,11 @@ function RepriceSheet({
 
   const changed = Math.abs(price - card.price) >= 0.005;
   const net = price > 0 ? Math.max(0, netAfterFees(price) - POSTAGE_USD) : 0;
-  const nudgeBy = (pct: number) => setPrice(Math.max(0.99, Math.round(card.price * (1 + pct / 100) * 100) / 100));
+  // Never under the fee floor (Chris, 09-08): the quick steps clamp to it and
+  // a typed price under it can't be sent — the server refuses it anyway.
+  const floor = listingFloor();
+  const underFloor = belowFloor(price);
+  const nudgeBy = (pct: number) => setPrice(Math.max(floor, Math.round(card.price * (1 + pct / 100) * 100) / 100));
   const quick: { label: string; pct: number }[] = [
     { label: "−10%", pct: -10 },
     { label: "−5%", pct: -5 },
@@ -273,9 +277,13 @@ function RepriceSheet({
           )}
         </div>
 
-        <p className="mt-4 text-xs text-zinc-500">
-          You&apos;d net about <span className="font-semibold text-emerald-400">${net.toFixed(2)}</span> after eBay fees and postage.
-        </p>
+        {underFloor ? (
+          <p className="mt-4 text-xs font-medium text-red-300">{floorRefusal()}</p>
+        ) : (
+          <p className="mt-4 text-xs text-zinc-500">
+            You&apos;d net about <span className="font-semibold text-emerald-400">${net.toFixed(2)}</span> after eBay fees and postage.
+          </p>
+        )}
 
         <div className="mt-5 flex gap-2">
           <button
@@ -287,7 +295,7 @@ function RepriceSheet({
           </button>
           <button
             type="button"
-            disabled={busy || !changed || price <= 0}
+            disabled={busy || !changed || price <= 0 || underFloor}
             onClick={() => onSubmit(price)}
             className="flex flex-[2] items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-default disabled:opacity-40"
           >

@@ -32,6 +32,7 @@ import type {
   ScanLanguage,
 } from "@/lib/types";
 import { SITE_URL } from "./siteUrl.ts";
+import { belowFloor, floorRefusal } from "./fees.ts";
 import { GAMES } from "./games.ts";
 
 export const EBAY_MARKETPLACE_ID = "EBAY_US";
@@ -409,6 +410,8 @@ export function validateDraftInput(input: DraftInput): string | null {
   if (!Number.isFinite(input.listing.price) || input.listing.price <= 0) {
     return "Set a price above $0 first";
   }
+  // Never under the fee floor (Chris, 09-08) — drafts and publishes included.
+  if (belowFloor(input.listing.price)) return floorRefusal();
   if (!ALLOWED_CATEGORY_IDS.has(input.listing.categoryId)) return "Unknown eBay category";
   if (imageUrls(input).length === 0) {
     return "Add a photo of the actual item first — eBay requires your own photo, not catalogue art";

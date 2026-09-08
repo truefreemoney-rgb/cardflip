@@ -33,6 +33,20 @@ export function listingFloor(): number {
   return Math.ceil(((MIN_NET_USD + EBAY_FLAT_FEE + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
 }
 
+/**
+ * HARD RULE (Chris, 09-08: "we can never go under the floor price, the user
+ * has to at least break even or make a profit, never lose money"): no
+ * listing price below the floor can be saved, repriced, drafted or
+ * published. Servers refuse with this sentence; the UI clamps before it
+ * gets there. $0 means "unpriced" and is not a listing price, so it passes.
+ */
+export function belowFloor(price: number): boolean {
+  return price > 0 && price < listingFloor() - 0.005;
+}
+export function floorRefusal(): string {
+  return `The lowest price is $${listingFloor().toFixed(2)} — anything under it loses money after eBay fees and postage.`;
+}
+
 /** What the seller pockets — actual fees when recorded, the estimate otherwise. */
 export function netAfterFees(gross: number, actualFees?: number | null): number {
   return gross - (actualFees ?? estimatedEbayFees(gross));

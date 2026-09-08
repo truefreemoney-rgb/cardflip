@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
+import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
@@ -1214,6 +1216,13 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               value={price}
               onValue={(n) => onChange({ priceOverride: n })}
               onCommit={(n) => {
+                // Never under the fee floor (Chris, 09-08): lift it and say so.
+                const floor = listingFloor();
+                if (belowFloor(n)) {
+                  onChange({ priceOverride: floor });
+                  toast(floorRefusal(), "err");
+                  n = floor;
+                }
                 if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
               }}
               className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"

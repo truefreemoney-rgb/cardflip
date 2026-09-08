@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { belowFloor, floorRefusal } from "@/lib/fees";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { isDemoUser } from "@/lib/server/users";
 import { updateCard } from "@/lib/server/cards";
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
         : null;
     if (!cardId || price == null) {
       return NextResponse.json({ error: "cardId and a positive price are required" }, { status: 400 });
+    }
+    if (belowFloor(price)) {
+      return NextResponse.json({ error: floorRefusal() }, { status: 400 });
     }
 
     const card = await updateCard(cardId, user.id, { price, priceLocked: true });

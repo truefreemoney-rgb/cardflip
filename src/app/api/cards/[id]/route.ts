@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
+import { belowFloor, floorRefusal } from "@/lib/fees";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,6 +19,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ? body.status
         : undefined;
 
+    // Never under the fee floor (lib/fees.ts) — the server is the truth here.
+    if (typeof body?.price === "number" && belowFloor(body.price)) {
+      return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+    }
     const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
     const card = await updateCard(id, user.id, {
       cardName: str(body?.cardName, 200),

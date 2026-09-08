@@ -1,6 +1,8 @@
 "use client";
 
 import CardImage from "@/components/CardImage";
+import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
+import { toast } from "@/components/Toaster";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import EbayPostActions from "@/components/EbayPostActions";
@@ -98,6 +100,13 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
             // comps land; sealed product has neither, so without this a
             // priced draft would sit at $0 in My Cards until listed.
             onCommit={(n) => {
+              // Never under the fee floor (Chris, 09-08): lift it and say so.
+              const floor = listingFloor();
+              if (belowFloor(n)) {
+                onChange({ priceOverride: floor });
+                toast(floorRefusal(), "err");
+                n = floor;
+              }
               if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
             }}
             className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
