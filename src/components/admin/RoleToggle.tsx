@@ -43,14 +43,14 @@ export default function RoleToggle({ userId, role, isSelf }: Props) {
       <button
         onClick={toggle}
         disabled={pending || (isSelf && role === "admin")}
-        title={isSelf && role === "admin" ? "You can't remove your own admin access" : undefined}
+        title={isSelf && role === "admin" ? "You can't remove your own admin access" : role === "admin" ? "Tap to take admin away (back to a normal seller)" : "Tap to make this account an admin (unlimited scans, sees Magic)"}
         className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
           role === "admin"
             ? "bg-brand-500/15 text-brand-300 hover:bg-brand-500/25"
             : "bg-white/5 text-zinc-400 hover:bg-white/10"
         }`}
       >
-        {pending ? "…" : role === "admin" ? "Admin" : "Make Admin"}
+        {pending ? "…" : role === "admin" ? "Admin ✓ · Remove" : "Make Admin"}
       </button>
     </div>
   );

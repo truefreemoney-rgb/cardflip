@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
+import RoleToggle from "@/components/admin/RoleToggle";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
@@ -314,6 +315,13 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Password</span>
                       <ResetLinkButton userId={u.id} disabled={u.isDemo} />
+                    </div>
+                    {/* Admin status, in the open (Chris, 09-08: "a way to edit
+                        users admin status") — the Plan dropdown's Role group
+                        was too buried. Same PATCH /role route. */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-zinc-600">Admin</span>
+                      <RoleToggle userId={u.id} role={u.role} isSelf={false} />
                     </div>
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     <button
