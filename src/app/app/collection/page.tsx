@@ -111,7 +111,7 @@ function rarityRank(rarity: string | null): number {
 }
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
-  { value: "price", label: "Price" },
+  { value: "price", label: "Price high → low" },
   { value: "rarity", label: "Rarity" },
   { value: "listedAge", label: "Longest listed" },
   { value: "soldRecent", label: "Recently sold" },
@@ -322,9 +322,6 @@ export default function CollectionPage() {
   }
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
-  // Direction toggle beside the sort (Chris, 09-08): "desc" is each sort's
-  // natural order (newest first, price high → low, ...); "asc" flips it.
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   // "Mark sold" asks what it actually went for (prefilled with the asking
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
@@ -993,7 +990,8 @@ export default function CollectionPage() {
         card.cardNumber.toLowerCase().includes(needle)
       );
     });
-    const ordered = sort === "newest" ? shown : [...shown].sort((a, b) => {
+    if (sort === "newest") return shown; // the server's own order
+    return [...shown].sort((a, b) => {
       if (sort === "price") {
         return (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
       }
@@ -1017,8 +1015,7 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-    return sortDir === "desc" ? ordered : [...ordered].reverse();
-  }, [gameCards, filter, query, sort, sortDir, category]);
+  }, [gameCards, filter, query, sort, category]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -1228,27 +1225,6 @@ export default function CollectionPage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            aria-label={sortDir === "desc" ? "Sorted descending — switch to ascending" : "Sorted ascending — switch to descending"}
-            title={sortDir === "desc" ? "Descending" : "Ascending"}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-black/25 text-zinc-300 transition hover:border-edge-strong hover:text-white sm:h-9 sm:w-9"
-          >
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              {sortDir === "desc" ? (
-                <>
-                  <path d="M4 5h12M4 10h8M4 15h4" />
-                  <path d="M16 9v7M13.5 13.5 16 16l2.5-2.5" />
-                </>
-              ) : (
-                <>
-                  <path d="M4 5h4M4 10h8M4 15h12" />
-                  <path d="M16 16V9M13.5 11.5 16 9l2.5 2.5" />
-                </>
-              )}
-            </svg>
-          </button>
         </div>
 
         <div className="mt-2 flex items-center gap-2">
