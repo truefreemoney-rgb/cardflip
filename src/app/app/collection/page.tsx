@@ -1791,7 +1791,13 @@ export default function CollectionPage() {
               // sm+: a fixed three-slot grid (primary · View on eBay · Delete) so every
               // row lines up whatever it shows (Chris, 09-08: "I really hate these columns").
               const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:w-full sm:flex-none sm:px-2 sm:text-xs";
-              const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs";
+              const slotBase = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs";
+              const quietBtn = `${slotBase} border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200`;
+              // Real actions carry a tint so they read as buttons next to the
+              // "Not Listed" ghost that fills slot two on desktop (Chris, 09-08).
+              const viewBtn = `${slotBase} border-sky-400/30 text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10`;
+              const deleteBtn = `${slotBase} border-red-400/25 text-red-300/80 hover:border-red-400/60 hover:bg-red-400/10 hover:text-red-200`;
+              const ghostSlot = `${slotBase} hidden border-dashed border-edge/60 text-zinc-600 sm:inline-flex`;
               // The row chip compares against the SCANNED price, so it persists
               // across loads (Chris, 09-08: it vanished once the price settled).
               const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
@@ -2036,21 +2042,25 @@ export default function CollectionPage() {
                       Relist
                     </button>
                   )}
-                  {card.ebayListingUrl && (
+                  {card.ebayListingUrl ? (
                     <a
                       href={card.ebayListingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`${quietBtn} sm:col-start-2 ${liveRow ? "flex-1 sm:flex-none" : ""}`}
+                      className={`${viewBtn} sm:col-start-2 ${liveRow ? "flex-1 sm:flex-none" : ""}`}
                     >
                       View on eBay
                     </a>
+                  ) : (
+                    <span aria-hidden className={`${ghostSlot} sm:col-start-2`}>
+                      Not Listed
+                    </span>
                   )}
                   {(card.status !== "listed" || ended) && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className={`${quietBtn} sm:col-start-3 ${sold ? "flex-1 sm:flex-none" : ""} text-zinc-500 hover:border-red-400/40 hover:text-red-300`}
+                      className={`${deleteBtn} sm:col-start-3 ${sold ? "flex-1 sm:flex-none" : ""}`}
                     >
                       Delete
                     </button>
