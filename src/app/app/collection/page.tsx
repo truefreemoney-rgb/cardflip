@@ -1788,8 +1788,10 @@ export default function CollectionPage() {
               const ended = card.status === "listed" && Boolean(card.ebayEndedAt);
               const sold = card.status === "sold";
               const draft = card.status === "ready";
-              const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:flex-none sm:px-3 sm:text-xs";
-              const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:px-3 sm:text-xs";
+              // sm+: a fixed three-slot grid (primary · View on eBay · Delete) so every
+              // row lines up whatever it shows (Chris, 09-08: "I really hate these columns").
+              const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:w-full sm:flex-none sm:px-2 sm:text-xs";
+              const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:w-full sm:px-2 sm:text-xs";
               // The row chip compares against the SCANNED price, so it persists
               // across loads (Chris, 09-08: it vanished once the price settled).
               const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
@@ -1997,7 +1999,7 @@ export default function CollectionPage() {
                 {/* ONE action row. Phone: primary stretches, quiet buttons
                     beside it, indented under the name block. sm+: tucked
                     right on the same visual line as the price. */}
-                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:shrink-0 sm:pl-0">
+                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_4.25rem] sm:gap-1.5 sm:pl-0">
                   {draft && card.kind !== "sealed" && (
                     <Link
                       // Card identity rides along so the scanner can start the
@@ -2007,7 +2009,7 @@ export default function CollectionPage() {
                       // seller's photo sits beside the match (Chris, 09-03) — so
                       // an unverified draft's link IS the ask.
                       href={resumeHrefFor(card)}
-                      className={`${primaryBtn} ${
+                      className={`${primaryBtn} sm:col-start-1 ${
                         card.verifiedAt
                           ? "bg-brand-500/15 text-brand-300 hover:bg-brand-500/25"
                           : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
@@ -2024,13 +2026,13 @@ export default function CollectionPage() {
                     <button
                       onClick={() => void endListing(card)}
                       disabled={ending === card.id}
-                      className={quietBtn}
+                      className={`${quietBtn} sm:col-start-1`}
                     >
                       {ending === card.id ? "Ending…" : "End Auction"}
                     </button>
                   )}
                   {ended && (
-                    <button onClick={() => void relist(card)} className={`${primaryBtn} bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}>
+                    <button onClick={() => void relist(card)} className={`${primaryBtn} sm:col-start-1 bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}>
                       Relist
                     </button>
                   )}
@@ -2039,7 +2041,7 @@ export default function CollectionPage() {
                       href={card.ebayListingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`${quietBtn} ${liveRow ? "flex-1 sm:flex-none" : ""}`}
+                      className={`${quietBtn} sm:col-start-2 ${liveRow ? "flex-1 sm:flex-none" : ""}`}
                     >
                       View on eBay
                     </a>
@@ -2048,7 +2050,7 @@ export default function CollectionPage() {
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className={`${quietBtn} ${sold ? "flex-1 sm:flex-none" : ""} text-zinc-500 hover:border-red-400/40 hover:text-red-300`}
+                      className={`${quietBtn} sm:col-start-3 ${sold ? "flex-1 sm:flex-none" : ""} text-zinc-500 hover:border-red-400/40 hover:text-red-300`}
                     >
                       Delete
                     </button>
