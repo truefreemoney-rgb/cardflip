@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardImage from "@/components/CardImage";
+import { fallbackArtUrl } from "@/lib/cardArt";
 
 interface Props {
   src: string;
@@ -82,8 +83,14 @@ export default function HoloCard({ src, alt, className = "" }: Props) {
     kick();
   }
 
-  if (!src) {
-    return <CardImage src={src} alt={alt} className={className} />;
+  // Second source (09-08, lib/cardArt.ts): a dead TCGdex image swaps to its
+  // pokemontcg.io twin; a dead twin hands over to CardImage's placeholder.
+  const [artState, setArtState] = useState<{ src: string; stage: "fallback" | "dead" } | null>(null);
+  const stage = artState?.src === src ? artState.stage : null;
+  const shown = stage === "fallback" ? (fallbackArtUrl(src) ?? src) : src;
+
+  if (!src || stage === "dead") {
+    return <CardImage src={stage === "dead" ? "" : src} alt={alt} className={className} />;
   }
 
   return (
@@ -98,7 +105,15 @@ export default function HoloCard({ src, alt, className = "" }: Props) {
         className={`relative overflow-hidden rounded-xl shadow-2xl shadow-black/60 will-change-transform ${className}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="block h-full w-full object-cover" />
+        <img
+          src={shown}
+          alt={alt}
+          className="block h-full w-full object-cover"
+          onError={() => {
+            if (stage === null && fallbackArtUrl(src)) setArtState({ src, stage: "fallback" });
+            else setArtState({ src, stage: "dead" });
+          }}
+        />
 
         <div
           className="pointer-events-none absolute inset-0"

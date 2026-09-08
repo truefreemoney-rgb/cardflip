@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ArtImg from "@/components/ArtImg";
 import CardPeekModal from "@/components/CardPeekModal";
 import type { PokemonCard } from "@/lib/types";
 
@@ -26,13 +27,7 @@ export default function CardWall({ cards }: { cards: PokemonCard[] }) {
               i % 2 ? "rotate-2" : "-rotate-2"
             }`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={card.imageSmall}
-              alt=""
-              loading="lazy"
-              className="w-full rounded-md shadow-lg shadow-black/40"
-            />
+            <ArtImg src={card.imageSmall} loading="lazy" className="w-full rounded-md shadow-lg shadow-black/40" />
           </button>
         ))}
       </div>

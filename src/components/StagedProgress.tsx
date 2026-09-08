@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ArtImg from "@/components/ArtImg";
 
 /**
  * A wait that shows its work: the card in the scanner frame (laser sweep +
@@ -41,8 +42,7 @@ export default function StagedProgress({
       <div className={`relative aspect-[63/88] ${compact ? "h-36" : "h-56"}`} aria-hidden>
         <div className="absolute inset-0 overflow-hidden rounded-xl bg-black/50 shadow-2xl shadow-black/50">
           {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" className="h-full w-full object-contain" />
+            <ArtImg src={image} className="h-full w-full object-contain" />
           ) : (
             <div className="h-full w-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_70%)]" />
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fallbackArtUrl } from "@/lib/cardArt";
 
 interface Props {
   src: string;
@@ -28,6 +29,11 @@ export default function CardImage({ src, alt, className = "" }: Props) {
     n: 0,
     pending: false,
   });
+  // Second source (09-08: assets.tcgdex.net 404'd everything for hours):
+  // the first failure swaps to the pokemontcg.io twin when there is one;
+  // the retries below only apply to images with no twin.
+  const [fallbackFor, setFallbackFor] = useState<string | null>(null);
+  const fallback = fallbackFor === src ? fallbackArtUrl(src) : null;
   const retry = retryState.src === src ? retryState.n : 0;
   const pendingRetry = retryState.src === src && retryState.pending;
   useEffect(() => {
@@ -37,7 +43,7 @@ export default function CardImage({ src, alt, className = "" }: Props) {
     }, 1500 * (retry + 1));
     return () => window.clearTimeout(t);
   }, [pendingRetry, retry, src]);
-  const effectiveSrc = retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src;
+  const effectiveSrc = fallback ?? (retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src);
 
   if (!src || failedSrc === src) {
     return (
@@ -71,7 +77,9 @@ export default function CardImage({ src, alt, className = "" }: Props) {
       decoding="async"
       className={className}
       onError={() => {
-        if (retry < 2) setRetryState({ src, n: retry, pending: true });
+        if (fallback) setFailedSrc(src);
+        else if (fallbackArtUrl(src)) setFallbackFor(src);
+        else if (retry < 2) setRetryState({ src, n: retry, pending: true });
         else setFailedSrc(src);
       }}
     />

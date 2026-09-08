@@ -1,3 +1,4 @@
+import ArtImg from "@/components/ArtImg";
 import { buildListing, formatMoney, quotePrice } from "@/lib/listing";
 import type { PokemonCard } from "@/lib/types";
 
@@ -20,12 +21,7 @@ export default function HeroShowcase({ card }: { card: PokemonCard | null }) {
           aria-hidden
         />
         <div className="sheen relative rounded-xl transition duration-300 hover:-translate-y-1 hover:rotate-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={card.imageLarge || card.imageSmall}
-            alt={`${card.name} — ${card.setName}`}
-            className="w-full rounded-xl shadow-2xl shadow-black/60"
-          />
+          <ArtImg src={card.imageLarge || card.imageSmall} alt={`${card.name} — ${card.setName}`} className="w-full rounded-xl shadow-2xl shadow-black/60" />
         </div>
       </div>
 
