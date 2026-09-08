@@ -420,7 +420,9 @@ export default function CollectionPage() {
     ) : (
       <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
     );
-    const canDelete = card.status !== "listed" || ended;
+    // Sold rows are the record: never deleted, never relisted, always
+    // viewable (Chris, 09-08). Live rows end first; ended/drafts delete.
+    const canDelete = (card.status !== "listed" || ended) && !sold;
     return (
       <div className="mt-4 overflow-hidden rounded-2xl border border-edge bg-surface-1">
         {/* Status header */}
@@ -1468,8 +1470,9 @@ export default function CollectionPage() {
             const selCards = cards.filter((c) => selected.has(c.id));
             const ready = selCards.filter((c) => c.status === "ready");
             const listed = selCards.filter(isLive);
-            const revertable = selCards.filter((c) => c.status !== "ready");
-            const deletable = selCards.filter((c) => !isLive(c));
+            // Sold rows are the record: neither reverted nor deleted (Chris, 09-08).
+            const revertable = selCards.filter((c) => c.status === "listed");
+            const deletable = selCards.filter((c) => !isLive(c) && c.status !== "sold");
             const bulkBtn =
               "rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50";
             async function applyToAll(targets: ServerCard[], patch: (c: ServerCard) => Partial<ServerCard>, note: string) {
@@ -1694,7 +1697,7 @@ export default function CollectionPage() {
                     isSelected || selected.size > 0 ? "" : "[@media(hover:hover)]:opacity-0"
                   }`}
                 >
-                  {!live && (
+                  {!live && !sold && (
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -1704,7 +1707,8 @@ export default function CollectionPage() {
                       className="h-5 w-5 cursor-pointer rounded border-zinc-500 bg-black/60 accent-brand-500"
                     />
                   )}
-                  {(card.status !== "listed" || ended) && (
+                  {/* Sold rows are the record — no delete (Chris, 09-08). */}
+                  {(card.status !== "listed" || ended) && !sold && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
@@ -1943,25 +1947,23 @@ export default function CollectionPage() {
                       </form>
                     ) : sold && card.soldPrice != null ? (
                       <>
-                        <p
-                          className="font-display text-lg font-bold tracking-tight text-emerald-400"
-                          title={card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"}
-                        >
-                          ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
+                        {/* Sold (Chris, 09-08): the SOLD price leads with a
+                            sold marker; what the seller keeps is the caption.
+                            The recorded sale price stays correctable in place —
+                            it drives the Earned tiles. */}
+                        <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-300">
+                          Sold
+                        </span>
+                        <p className="font-display text-lg font-bold tabular-nums tracking-tight text-emerald-400">
+                          ${card.soldPrice.toFixed(2)}
                         </p>
-                        {/* The recorded sale price is editable in place — it
-                            drives the Earned tiles, so a wrong one must be one
-                            tap from fixed. */}
                         <button
                           onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
-                          title="Correct the sale price"
+                          title={`${card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
                           className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
                         >
-                          net · sold ${card.soldPrice.toFixed(2)}
+                          you keep ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
                         </button>
-                        {card.price > 0 && Math.abs(card.price - card.soldPrice) >= 0.01 && (
-                          <p className="text-[11px] text-zinc-500">listed ${card.price.toFixed(2)}</p>
-                        )}
                       </>
                     ) : (
                       <>
@@ -2095,11 +2097,23 @@ export default function CollectionPage() {
                       Live
                     </span>
                   )}
-                  {(card.status !== "listed" || ended) && (
+                  {/* Sold rows are the record: a Sold badge leads, no Delete,
+                      no Relist — viewable for good (Chris, 09-08). */}
+                  {sold && (
+                    <>
+                      <span className={`${slotBase} sm:col-start-1 border-sky-400/40 bg-sky-400/15 font-semibold text-sky-300`}>
+                        Sold{card.soldAt ? ` ${formatDate(card.soldAt)}` : ""}
+                      </span>
+                      <span aria-hidden className={`${ghostSlot} sm:col-start-3`}>
+                        Kept on record
+                      </span>
+                    </>
+                  )}
+                  {(card.status !== "listed" || ended) && !sold && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className={`${deleteBtn} sm:col-start-3 ${sold ? "flex-1 sm:flex-none" : ""}`}
+                      className={`${deleteBtn} sm:col-start-3`}
                     >
                       Delete
                     </button>

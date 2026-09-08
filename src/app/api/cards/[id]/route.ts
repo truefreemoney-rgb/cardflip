@@ -19,6 +19,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ? body.status
         : undefined;
 
+    // Sold rows are the record (Chris, 09-08): the sale price can be corrected,
+    // but a sold card never goes back to a draft or a listing.
+    if (status !== undefined && status !== "sold") {
+      const existing = await getCardForUser(id, user.id);
+      if (existing?.status === "sold") {
+        return NextResponse.json({ error: "Sold cards stay on the record — they can't be relisted or turned back into drafts." }, { status: 409 });
+      }
+    }
     // Never under the fee floor (lib/fees.ts) — the server is the truth here.
     if (typeof body?.price === "number" && belowFloor(body.price)) {
       return NextResponse.json({ error: floorRefusal() }, { status: 400 });
@@ -76,7 +84,12 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
     const user = await requireUser();
     const { id } = await params;
-    if (await getCardForUser(id, user.id)) await deleteCardPhoto(id);
+    const existing = await getCardForUser(id, user.id);
+    // Sold rows are the record (Chris, 09-08): never deleted.
+    if (existing?.status === "sold") {
+      return NextResponse.json({ error: "Sold cards stay on the record and can't be deleted." }, { status: 409 });
+    }
+    if (existing) await deleteCardPhoto(id);
     await deleteCard(id, user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
