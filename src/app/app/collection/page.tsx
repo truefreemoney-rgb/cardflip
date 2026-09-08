@@ -1790,7 +1790,10 @@ export default function CollectionPage() {
               const draft = card.status === "ready";
               const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:flex-none sm:px-3 sm:text-xs";
               const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:px-3 sm:text-xs";
-              const moved = draft && livePrices[card.id]?.applied && Math.abs(livePrices[card.id].previous - card.price) >= 0.01;
+              // The row chip compares against the SCANNED price, so it persists
+              // across loads (Chris, 09-08: it vanished once the price settled).
+              const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
+              const moved = !sold && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - card.price) >= 0.01;
               return (
               <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
                 <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
@@ -1950,13 +1953,13 @@ export default function CollectionPage() {
                         <p className="font-display text-lg font-bold tracking-tight text-white">
                           {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
                         </p>
-                        {/* Today's market moved this draft's price since it was scanned. */}
+                        {/* The price has moved since this card was scanned. */}
                         {moved && (
                           <p
-                            title="Updated from today's market price"
-                            className={`text-[11px] font-medium ${card.price > livePrices[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
+                            title={`Scanned at ${scannedAt!.toFixed(2)} — today's market moved it`}
+                            className={`text-[11px] font-medium ${card.price > scannedAt! ? "text-emerald-400" : "text-rose-400"}`}
                           >
-                            <span aria-hidden>{card.price > livePrices[card.id].previous ? "↑" : "↓"}</span> was ${livePrices[card.id].previous.toFixed(2)}
+                            <span aria-hidden>{card.price > scannedAt! ? "↑" : "↓"}</span> was ${scannedAt!.toFixed(2)}
                           </p>
                         )}
                         {/* Live listings only: the price changes here AND on
