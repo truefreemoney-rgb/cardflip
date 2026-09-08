@@ -153,6 +153,36 @@ export async function latestUsdPrices(
   return out;
 }
 
+/**
+ * The preferred USD series (same variant order) for each card, whole — for
+ * callers that need a price on a given day as well as the latest
+ * (lib/server/livePrices.ts: scanned → now).
+ */
+export async function usdSeries(
+  cardIds: string[],
+): Promise<Map<string, { variant: string; startDay: string; prices: (number | null)[] }>> {
+  const out = new Map<string, { variant: string; startDay: string; prices: (number | null)[] }>();
+  for (let i = 0; i < cardIds.length; i += 400) {
+    const chunk = cardIds.slice(i, i + 400);
+    const rows = (await db
+      .prepare(
+        `SELECT card_id, variant, start_day, prices FROM price_series
+          WHERE currency = 'USD' AND card_id IN (${chunk.map(() => "?").join(",")})`,
+      )
+      .all(...chunk)) as unknown as { card_id: string; variant: string; start_day: string; prices: string }[];
+    for (const r of rows) {
+      const prices = decodePrices(r.prices);
+      if (!prices.some((p) => p != null)) continue;
+      const rank = VARIANT_ORDER.indexOf(r.variant) + 1 || 99;
+      const have = out.get(r.card_id);
+      if (!have || rank < ((VARIANT_ORDER.indexOf(have.variant) + 1) || 99)) {
+        out.set(r.card_id, { variant: r.variant, startDay: r.start_day, prices });
+      }
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Lazy daily sweep of the cards people actually hold.
 

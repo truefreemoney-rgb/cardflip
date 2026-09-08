@@ -17,6 +17,8 @@ export interface ServerCard {
   productType: string | null;
   status: "ready" | "listed" | "sold";
   price: number;
+  /** Suggested price at scan time; null on older rows until the live refresh backfills it. */
+  scanPrice: number | null;
   /** Identical copies this row sells (listing quantity, default 1). */
   quantity: number;
   /** Catalog id (pokemontcg.io / Scryfall); null on rows scanned before it was stored. */
@@ -103,6 +105,8 @@ export interface LivePrice {
   previous: number;
   /** True when the row's stored price was rewritten to `suggested`. */
   applied: boolean;
+  /** The row's scan-time price (stored, or backfilled from history on the scan day). */
+  scanned: number | null;
 }
 
 /** Today's market for every priced Inventory row; unlocked drafts are

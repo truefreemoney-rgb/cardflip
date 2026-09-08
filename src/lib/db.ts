@@ -471,6 +471,11 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // 1 once the seller typed/chose a price themselves — the Inventory live
       // refresh (lib/server/livePrices.ts) never overwrites a locked price.
       "price_locked INTEGER NOT NULL DEFAULT 0",
+      // The price the row was scanned at (09-08: the card detail shows
+      // scanned → now with the $ and % change). Set on create; rows from
+      // before are backfilled from price_series on the scan day by the
+      // Inventory live refresh.
+      "scan_price REAL",
       // Seller pressed "Verify match" on this card (09-03, Chris): eBay
       // publishing is locked until it's set. Null = "Verify match" in the UI.
       "verified_at INTEGER",

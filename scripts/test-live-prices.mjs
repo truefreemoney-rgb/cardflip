@@ -25,6 +25,7 @@ const { createCard, updateCard, getCardForUser } = await import(at("lib/server/c
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { refreshLivePrices } = await import(at("lib/server/livePrices.ts"));
 const { askingPriceFor, CONDITION_MULTIPLIER } = await import(at("lib/listing.ts"));
+const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -60,6 +61,9 @@ const sold = await mk({ price: 30, catalogCardId: "base1-4" });
 await updateCard(sold.id, user.id, { status: "sold", soldPrice: 30, soldAt: Date.now() });
 const orphan = await mk({ price: 3 });
 const current = await mk({ price: 20, catalogCardId: "base1-58" });
+// A row from before scan_price existed: nulled, to be backfilled from the series on its scan day.
+const old = await mk({ price: 12.5, catalogCardId: "base1-58", condition: "Lightly Played" });
+await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(old.id);
 
 console.log("askingPriceFor");
 check("NM = market rounded", askingPriceFor(20, "Near Mint"), 20);
@@ -83,6 +87,10 @@ check("row without a catalog id skipped", orphan.id in by, false);
 check("already-current row: applied = false", by[current.id]?.applied, false);
 check("lock flag round-trips", (await getCardForUser(locked.id, user.id)).priceLocked, true);
 check("fresh rows are unlocked", (await getCardForUser(draft.id, user.id)).priceLocked, false);
+check("scan price stored on create", (await getCardForUser(draft.id, user.id)).scanPrice, 12.5);
+check("scanned reported from the stored value", by[draft.id]?.scanned, 12.5);
+check("older row: scanned backfilled from the series on its scan day (LP)", by[old.id]?.scanned, 17);
+check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, 17);
 
 console.log(failures === 0 ? "\nAll live-price checks passed." : `\n${failures} live-price check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

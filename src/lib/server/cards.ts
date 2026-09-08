@@ -24,6 +24,8 @@ export interface CardRecord {
   productType: string | null;
   status: CardStatus;
   price: number;
+  /** Suggested price at scan time; null on rows from before it was stored (backfilled from history). */
+  scanPrice: number | null;
   /** How many identical copies this row sells (listing quantity). */
   quantity: number;
   /** Catalog id (pokemontcg.io / Scryfall) — keys into price_series. */
@@ -97,6 +99,7 @@ interface CardRow {
   ebay_line_item_id: string | null;
   watcher_offer_at: number | null;
   price_locked: number | null;
+  scan_price: number | null;
   verified_at: number | null;
   match_doubt: string | null;
   first_edition: number | null;
@@ -130,6 +133,7 @@ function fromRow(row: CardRow): CardRecord {
     productType: row.product_type ?? null,
     status: row.status,
     price: row.price,
+    scanPrice: row.scan_price ?? null,
     quantity: row.quantity ?? 1,
     catalogCardId: row.catalog_card_id ?? null,
     listedAt: row.listed_at,
@@ -185,8 +189,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, catalog_card_id, rarity, category, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -199,6 +203,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.imageUrl,
       card.condition,
       productType,
+      card.price,
       card.price,
       card.catalogCardId ?? null,
       card.rarity ?? null,
@@ -220,6 +225,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     productType,
     status: "ready",
     price: card.price,
+    scanPrice: card.price,
     quantity: 1,
     catalogCardId: card.catalogCardId ?? null,
     listedAt: null,

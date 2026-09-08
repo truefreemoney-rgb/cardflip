@@ -455,6 +455,38 @@ export default function CollectionPage() {
             )}
           </div>
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
+          {/* Scanned → now (Chris, 09-08): the original scanned price, the
+              price today, and the move in $ and %. Sold rows tell the
+              sale story instead. */}
+          {(() => {
+            const scanned = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
+            if (sold || scanned == null || !(scanned > 0)) return null;
+            const delta = priceValue - scanned;
+            if (Math.abs(delta) < 0.01) {
+              return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was scanned at ${scanned.toFixed(2)}.</p>;
+            }
+            const up = delta > 0;
+            const pct = (Math.abs(delta) / scanned) * 100;
+            return (
+              <dl className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-edge bg-edge text-sm">
+                <div className="bg-black/25 px-3 py-2">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Scanned at</dt>
+                  <dd className="font-display font-semibold text-zinc-300">${scanned.toFixed(2)}</dd>
+                </div>
+                <div className="bg-black/25 px-3 py-2">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Now</dt>
+                  <dd className="font-display font-semibold text-white">${priceValue.toFixed(2)}</dd>
+                </div>
+                <div className="bg-black/25 px-3 py-2">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Change</dt>
+                  <dd className={`font-display font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                    <span aria-hidden>{up ? "↑" : "↓"}</span> ${Math.abs(delta).toFixed(2)}
+                    <span className="ml-1 text-xs font-medium opacity-80">({pct.toFixed(1)}%)</span>
+                  </dd>
+                </div>
+              </dl>
+            );
+          })()}
         </div>
 
         {/* Facts strip */}
@@ -562,7 +594,7 @@ export default function CollectionPage() {
   const [nudges, setNudges] = useState<Record<string, RepriceNudge>>({});
   /** Today's market per row (lib/server/livePrices.ts) — drafts the seller
    *  never priced by hand were repriced server-side and carry applied. */
-  const [live, setLive] = useState<Record<string, LivePrice>>({});
+  const [livePrices, setLive] = useState<Record<string, LivePrice>>({});
   const [repricing, setRepricing] = useState<string | null>(null);
   // Mass delete: ticked row ids. Listed rows can't be ticked — they're live
   // on eBay and deleting the ledger row wouldn't end the listing.
@@ -631,10 +663,21 @@ export default function CollectionPage() {
     void fetchLivePrices().then((list) => {
       if (cancelled || list.length === 0) return;
       setLive(Object.fromEntries(list.map((p) => [p.cardId, p])));
-      const applied = new Map(list.filter((p) => p.applied).map((p) => [p.cardId, p.suggested]));
-      if (applied.size > 0) {
-        setCards((prev) => prev.map((c) => (applied.has(c.id) ? { ...c, price: applied.get(c.id)!, priceLocked: false } : c)));
-      }
+      const byId = new Map(list.map((p) => [p.cardId, p]));
+      setCards((prev) =>
+        prev.map((c) => {
+          const p = byId.get(c.id);
+          if (!p) return c;
+          const next = { ...c };
+          if (p.applied) {
+            next.price = p.suggested;
+            next.priceLocked = false;
+          }
+          // Older rows get their scan-time price backfilled server-side.
+          if (c.scanPrice == null && p.scanned != null) next.scanPrice = p.scanned;
+          return next;
+        }),
+      );
     });
     void fetchRepriceNudges().then((list) => {
       if (!cancelled && list.length > 0) {
@@ -1747,7 +1790,7 @@ export default function CollectionPage() {
               const draft = card.status === "ready";
               const primaryBtn = "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition sm:h-8 sm:flex-none sm:px-3 sm:text-xs";
               const quietBtn = "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-edge px-3.5 text-sm font-medium text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 disabled:opacity-50 sm:h-8 sm:px-3 sm:text-xs";
-              const moved = draft && live[card.id]?.applied && Math.abs(live[card.id].previous - card.price) >= 0.01;
+              const moved = draft && livePrices[card.id]?.applied && Math.abs(livePrices[card.id].previous - card.price) >= 0.01;
               return (
               <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
                 <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
@@ -1911,9 +1954,9 @@ export default function CollectionPage() {
                         {moved && (
                           <p
                             title="Updated from today's market price"
-                            className={`text-[11px] font-medium ${card.price > live[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
+                            className={`text-[11px] font-medium ${card.price > livePrices[card.id].previous ? "text-emerald-400" : "text-rose-400"}`}
                           >
-                            <span aria-hidden>{card.price > live[card.id].previous ? "↑" : "↓"}</span> was ${live[card.id].previous.toFixed(2)}
+                            <span aria-hidden>{card.price > livePrices[card.id].previous ? "↑" : "↓"}</span> was ${livePrices[card.id].previous.toFixed(2)}
                           </p>
                         )}
                         {/* Live listings only: the price changes here AND on

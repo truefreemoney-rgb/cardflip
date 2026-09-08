@@ -173,7 +173,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
             </p>
           ) : card.prices.length === 0 ? (
             <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
-              No current price table from TCGplayer or Cardmarket for this printing.
+              No current price table from TCGplayer for this printing.
             </p>
           ) : (
             <table className="w-full text-left text-sm">
@@ -186,7 +186,8 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
                 </tr>
               </thead>
               <tbody>
-                {plausiblePrices(card.prices).map((p, i) => (
+                {/* USD only (Chris, 09-08: "we aren't going to be using euros yet"). */}
+                {plausiblePrices(card.prices).filter((p) => p.currency === "USD").map((p, i) => (
                   <tr key={i} className="border-b border-white/5 last:border-0">
                     <td className="py-2 pr-4 capitalize text-zinc-300">{p.source}</td>
                     <td className="py-2 pr-4 text-zinc-400">{p.label}</td>
