@@ -402,6 +402,16 @@ const SCHEMA = `
     updated_at INTEGER NOT NULL
   );
 
+  -- Categories a seller created on purpose (09-08: "add category"). Cards
+  -- still carry the name in cards.category; this table only keeps EMPTY
+  -- categories alive. The list a user sees is the union of both.
+  CREATE TABLE IF NOT EXISTS categories (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, name)
+  );
+
   CREATE TABLE IF NOT EXISTS help_messages (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

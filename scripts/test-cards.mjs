@@ -30,7 +30,7 @@ const { estimatedEbayFees, netAfterFees, EBAY_FEE_RATE, EBAY_FLAT_FEE } = await 
 const {
   createCard, getCardForUser, updateCard, deleteCard, listCardsForUser,
   recordCopiesSold, setCardSoldFees, setCardListingEnded, getPlatformStats,
-  renameCategory, clearCategory,
+  renameCategory, clearCategory, addCategory, listCategories,
 } = await import(at("lib/server/cards.ts"));
 const { addToWishlist, setWishlistAlert, removeFromWishlist, listWishlist } = await import(at("lib/server/wishlist.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
@@ -197,6 +197,14 @@ check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).leng
   check("delete uncategorizes, keeps the cards", await clearCategory(alice.id, "Binder One"), 3);
   check("… card still there, no folder", (await getCardForUser(a1.id, alice.id))?.category, null);
   check("unknown folder → 0 changed", await clearCategory(alice.id, "Nope"), 0);
+  // Empty categories live in their own table; the list is the union.
+  await addCategory(alice.id, "Empty Binder");
+  await addCategory(alice.id, "Empty Binder");
+  await updateCard(a1.id, alice.id, { category: "From A Card" });
+  check("list = created + carried, A→Z", await listCategories(alice.id), ["Empty Binder", "From A Card"]);
+  check("rename carries the empty one", (await renameCategory(alice.id, "Empty Binder", "Binder Z"), await listCategories(alice.id)), ["Binder Z", "From A Card"]);
+  check("delete drops it", (await clearCategory(alice.id, "Binder Z"), await listCategories(alice.id)), ["From A Card"]);
+  check("other user sees none of it", await listCategories(mallory.id), ["Binder A"]);
 }
 
 console.log(failures === 0 ? "\nAll ledger/fee checks passed" : `\n${failures} ledger/fee check(s) failed`);

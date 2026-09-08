@@ -123,8 +123,20 @@ export async function fetchLivePrices(): Promise<LivePrice[]> {
 }
 
 /** Folder management: rename (or merge into an existing name) / delete (cards go uncategorized). */
+/** Every category the seller has (created on purpose, or carried by a card). */
+export async function fetchCategories(): Promise<string[]> {
+  try {
+    const res = await apiFetch("/api/cards/categories");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.categories) ? data.categories : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function manageCategory(
-  action: "rename" | "delete",
+  action: "rename" | "delete" | "add",
   from: string,
   to?: string,
 ): Promise<{ ok: boolean; changed: number; error: string | null }> {

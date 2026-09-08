@@ -544,7 +544,29 @@ export async function renameCategory(userId: string, from: string, to: string): 
   const r = await db
     .prepare("UPDATE cards SET category = ?, updated_at = ? WHERE user_id = ? AND category = ?")
     .run(to, Date.now(), userId, from);
+  await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ?").run(userId, from);
+  await addCategory(userId, to);
   return Number(r.changes ?? 0);
+}
+
+/** A category with no cards yet (09-08). Idempotent. */
+export async function addCategory(userId: string, name: string): Promise<void> {
+  await db
+    .prepare("INSERT OR IGNORE INTO categories (user_id, name, created_at) VALUES (?, ?, ?)")
+    .run(userId, name, Date.now());
+}
+
+/** Every category the seller has: created on purpose, or carried by a card. A→Z. */
+export async function listCategories(userId: string): Promise<string[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT name FROM categories WHERE user_id = ?
+       UNION SELECT DISTINCT category AS name FROM cards WHERE user_id = ? AND category IS NOT NULL`,
+    )
+    .all(userId, userId)) as unknown as { name: string }[];
+  const seen = new Map<string, string>();
+  for (const r of rows) if (r.name && !seen.has(r.name.toLowerCase())) seen.set(r.name.toLowerCase(), r.name);
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
 /** Delete a folder: its cards become uncategorized. Returns how many. */
@@ -552,6 +574,7 @@ export async function clearCategory(userId: string, from: string): Promise<numbe
   const r = await db
     .prepare("UPDATE cards SET category = NULL, updated_at = ? WHERE user_id = ? AND category = ?")
     .run(Date.now(), userId, from);
+  await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ?").run(userId, from);
   return Number(r.changes ?? 0);
 }
 

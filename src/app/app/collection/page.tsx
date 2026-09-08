@@ -20,6 +20,7 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
+  fetchCategories,
   fetchLivePrices,
   fetchRepriceNudges,
   manageCategory,
@@ -911,19 +912,47 @@ export default function CollectionPage() {
     }),
     [cards],
   );
-  const categories = useMemo(() => distinctCategories(cards), [cards]);
-  // Folder management sheet (Chris, 09-08): rename / merge / delete.
+  // Categories = the ones cards carry + the empty ones the seller created
+  // (server table, 09-08 "add category"); both lists merge here.
+  const [createdCategories, setCreatedCategories] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCategories().then((list) => {
+      if (!cancelled) setCreatedCategories(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+  const categories = useMemo(
+    () => distinctCategories([...cards, ...createdCategories.map((category) => ({ category }))]),
+    [cards, createdCategories],
+  );
+  // Category management sheet (Chris, 09-08): add / rename / merge / delete.
   const [manageFolders, setManageFolders] = useState(false);
   const [folderBusy, setFolderBusy] = useState<string | null>(null);
+  async function addFolder(name: string): Promise<boolean> {
+    setFolderBusy("");
+    const r = await manageCategory("add", name);
+    setFolderBusy(null);
+    if (!r.ok) {
+      toast(r.error ?? "Couldn't add the category", "err");
+      return false;
+    }
+    setCreatedCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    toast(`Category ${name} added`);
+    return true;
+  }
   async function renameFolder(from: string, to: string): Promise<boolean> {
     setFolderBusy(from);
     const r = await manageCategory("rename", from, to);
     setFolderBusy(null);
     if (!r.ok) {
-      toast(r.error ?? "Couldn't rename the folder", "err");
+      toast(r.error ?? "Couldn't rename the category", "err");
       return false;
     }
     setCards((prev) => prev.map((c) => (c.category === from ? { ...c, category: to } : c)));
+    setCreatedCategories((prev) => [...prev.filter((c) => c !== from), to]);
     if (categoryRaw === from) setCategory(to);
     toast(`${from} → ${to} (${r.changed} card${r.changed === 1 ? "" : "s"})`);
     return true;
@@ -932,8 +961,11 @@ export default function CollectionPage() {
     const n = cards.filter((c) => c.category === name).length;
     if (
       !(await confirmAction({
-        message: `Delete the folder "${name}"? Its ${n} card${n === 1 ? "" : "s"} stay in your Inventory as Uncategorized.`,
-        confirmLabel: "Delete folder",
+        message:
+          n > 0
+            ? `Delete the category "${name}"? Its ${n} card${n === 1 ? "" : "s"} stay in your Inventory as Uncategorized.`
+            : `Delete the category "${name}"?`,
+        confirmLabel: "Delete category",
         danger: true,
       }))
     )
@@ -942,12 +974,13 @@ export default function CollectionPage() {
     const r = await manageCategory("delete", name);
     setFolderBusy(null);
     if (!r.ok) {
-      toast(r.error ?? "Couldn't delete the folder", "err");
+      toast(r.error ?? "Couldn't delete the category", "err");
       return false;
     }
     setCards((prev) => prev.map((c) => (c.category === name ? { ...c, category: null } : c)));
+    setCreatedCategories((prev) => prev.filter((c) => c !== name));
     if (categoryRaw === name) setCategory("all");
-    toast(`Folder ${name} deleted — ${r.changed} card${r.changed === 1 ? "" : "s"} uncategorized`);
+    toast(n > 0 ? `Category ${name} deleted — ${r.changed} card${r.changed === 1 ? "" : "s"} uncategorized` : `Category ${name} deleted`);
     return true;
   }
   // Filtering on a category, then emptying it, left "Nothing matches" with
@@ -1306,18 +1339,22 @@ export default function CollectionPage() {
           )}
         </div>
 
-        {/* Category chips (Chris, 09-04): only once a category exists. */}
-        {categories.length > 0 && (
+        {/* Category chips (Chris, 09-04); with none yet, just the way to add
+            one (09-08). */}
+        {(
           <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]">
             <div className="flex w-max items-center gap-1.5">
               <svg viewBox="0 0 20 20" className="mr-0.5 h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
                 <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h3.4l1.6 1.6h6A1.5 1.5 0 0 1 17 8.1v6.4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-8Z" />
               </svg>
-              {[
-                { value: "all", label: "All" },
-                ...categories.map((c) => ({ value: c, label: c })),
-                { value: "none", label: "Uncategorized" },
-              ].map((c) => {
+              {(categories.length > 0
+                ? [
+                    { value: "all", label: "All" },
+                    ...categories.map((c) => ({ value: c, label: c })),
+                    { value: "none", label: "Uncategorized" },
+                  ]
+                : []
+              ).map((c) => {
                 const n =
                   c.value === "all"
                     ? gameCards.length
@@ -1342,17 +1379,23 @@ export default function CollectionPage() {
                   </button>
                 );
               })}
-              {/* Folder management (Chris, 09-08): rename / merge / delete. */}
+              {/* Category management (Chris, 09-08): add / rename / merge / delete. */}
               <button
                 type="button"
                 onClick={() => setManageFolders(true)}
-                title="Manage folders — rename, merge or delete"
-                aria-label="Manage folders"
-                className="ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-edge text-zinc-500 transition hover:border-edge-strong hover:text-zinc-200"
+                title="Manage categories — add, rename, merge or delete"
+                aria-label="Manage categories"
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-edge text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200 ${
+                  categories.length > 0 ? "ml-1 h-8 w-8 justify-center" : "px-3 py-1 text-xs font-medium"
+                }`}
               >
-                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
-                </svg>
+                {categories.length > 0 ? (
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+                  </svg>
+                ) : (
+                  "+ New category"
+                )}
               </button>
             </div>
           </div>
@@ -2196,9 +2239,10 @@ export default function CollectionPage() {
 
       {manageFolders && (
         <CategoryManager
-          folders={categories.map((name) => ({ name, count: cards.filter((c) => c.category === name).length }))}
+          categories={categories.map((name) => ({ name, count: cards.filter((c) => c.category === name).length }))}
           busy={folderBusy}
           onClose={() => setManageFolders(false)}
+          onAdd={addFolder}
           onRename={renameFolder}
           onDelete={deleteFolder}
         />

@@ -27,6 +27,7 @@ import {
   type ServerCard,
   deleteServerCard,
   fetchServerCards,
+  fetchCategories,
   updateServerCard,
 } from "@/lib/client/cardsApi";
 import { toast } from "@/components/Toaster";
@@ -885,8 +886,8 @@ export default function AppPage() {
       if (ids.length > 0 && !categoryAskedRef.current) {
         categoryAskedRef.current = true;
         setCategoryPrompt({ existing: [] });
-        void fetchServerCards().then((rows) => {
-          setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+        void fetchCategories().then((list) => {
+          setCategoryPrompt((p) => (p ? { existing: list } : p));
         });
       }
       return ids;
@@ -912,8 +913,8 @@ export default function AppPage() {
     if (sessionItemIdsRef.current.length > 0 && !categoryAskedRef.current) {
       categoryAskedRef.current = true;
       setCategoryPrompt({ existing: [] });
-      void fetchServerCards().then((rows) => {
-        setCategoryPrompt((p) => (p ? { existing: distinctCategories(rows) } : p));
+      void fetchCategories().then((list) => {
+        setCategoryPrompt((p) => (p ? { existing: list } : p));
       });
     }
   }, []);
