@@ -2004,7 +2004,7 @@ export default function CollectionPage() {
                 {/* ONE action row. Phone: primary stretches, quiet buttons
                     beside it, indented under the name block. sm+: tucked
                     right on the same visual line as the price. */}
-                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_4.25rem] sm:gap-1.5 sm:pl-0">
+                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.25rem] sm:gap-1.5 sm:pl-0">
                   {draft && card.kind !== "sealed" && (
                     <Link
                       // Card identity rides along so the scanner can start the
