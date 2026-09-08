@@ -30,6 +30,7 @@ const { estimatedEbayFees, netAfterFees, EBAY_FEE_RATE, EBAY_FLAT_FEE } = await 
 const {
   createCard, getCardForUser, updateCard, deleteCard, listCardsForUser,
   recordCopiesSold, setCardSoldFees, setCardListingEnded, getPlatformStats,
+  renameCategory, clearCategory,
 } = await import(at("lib/server/cards.ts"));
 const { addToWishlist, setWishlistAlert, removeFromWishlist, listWishlist } = await import(at("lib/server/wishlist.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
@@ -180,6 +181,23 @@ check("a different card is a new row", await (async () => {
 })(), 2);
 await deletePriceCheck(pc1.id, mallory.id);
 check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).length, 2);
+
+// --- folders (09-08): rename / merge / delete are one UPDATE, owner-scoped ---
+{
+  const base = { cardName: "Folder Test", setName: "Base Set", cardNumber: "1", imageUrl: "", condition: "Near Mint", price: 5 };
+  const a1 = await createCard(alice.id, { ...base, category: "Binder A" });
+  const a2 = await createCard(alice.id, { ...base, cardNumber: "2", category: "Binder A" });
+  const a3 = await createCard(alice.id, { ...base, cardNumber: "3", category: "Binder B" });
+  const m1 = await createCard(mallory.id, { ...base, category: "Binder A" });
+  check("rename moves every card in the folder", await renameCategory(alice.id, "Binder A", "Binder One"), 2);
+  check("… rows carry the new name", (await getCardForUser(a2.id, alice.id)).category, "Binder One");
+  check("… another user's same-named folder is untouched", (await getCardForUser(m1.id, mallory.id)).category, "Binder A");
+  check("rename into an existing name merges", await renameCategory(alice.id, "Binder B", "Binder One"), 1);
+  check("… merged row", (await getCardForUser(a3.id, alice.id)).category, "Binder One");
+  check("delete uncategorizes, keeps the cards", await clearCategory(alice.id, "Binder One"), 3);
+  check("… card still there, no folder", (await getCardForUser(a1.id, alice.id))?.category, null);
+  check("unknown folder → 0 changed", await clearCategory(alice.id, "Nope"), 0);
+}
 
 console.log(failures === 0 ? "\nAll ledger/fee checks passed" : `\n${failures} ledger/fee check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;

@@ -122,6 +122,26 @@ export async function fetchLivePrices(): Promise<LivePrice[]> {
   }
 }
 
+/** Folder management: rename (or merge into an existing name) / delete (cards go uncategorized). */
+export async function manageCategory(
+  action: "rename" | "delete",
+  from: string,
+  to?: string,
+): Promise<{ ok: boolean; changed: number; error: string | null }> {
+  try {
+    const res = await apiFetch("/api/cards/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, from, to }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, changed: 0, error: data?.error ?? "Couldn't update the folder" };
+    return { ok: true, changed: Number(data?.changed ?? 0), error: null };
+  } catch {
+    return { ok: false, changed: 0, error: "Couldn't update the folder — check your connection" };
+  }
+}
+
 export async function fetchServerCards(): Promise<ServerCard[]> {
   try {
     const res = await apiFetch("/api/cards");

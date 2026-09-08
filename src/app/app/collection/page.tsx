@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
+import CategoryManager from "@/components/CategoryManager";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
@@ -21,6 +22,7 @@ import {
   deleteServerCard,
   fetchLivePrices,
   fetchRepriceNudges,
+  manageCategory,
   fetchServerCards,
   repriceCard,
   updateServerCard,
@@ -910,6 +912,44 @@ export default function CollectionPage() {
     [cards],
   );
   const categories = useMemo(() => distinctCategories(cards), [cards]);
+  // Folder management sheet (Chris, 09-08): rename / merge / delete.
+  const [manageFolders, setManageFolders] = useState(false);
+  const [folderBusy, setFolderBusy] = useState<string | null>(null);
+  async function renameFolder(from: string, to: string): Promise<boolean> {
+    setFolderBusy(from);
+    const r = await manageCategory("rename", from, to);
+    setFolderBusy(null);
+    if (!r.ok) {
+      toast(r.error ?? "Couldn't rename the folder", "err");
+      return false;
+    }
+    setCards((prev) => prev.map((c) => (c.category === from ? { ...c, category: to } : c)));
+    if (categoryRaw === from) setCategory(to);
+    toast(`${from} → ${to} (${r.changed} card${r.changed === 1 ? "" : "s"})`);
+    return true;
+  }
+  async function deleteFolder(name: string): Promise<boolean> {
+    const n = cards.filter((c) => c.category === name).length;
+    if (
+      !(await confirmAction({
+        message: `Delete the folder "${name}"? Its ${n} card${n === 1 ? "" : "s"} stay in your Inventory as Uncategorized.`,
+        confirmLabel: "Delete folder",
+        danger: true,
+      }))
+    )
+      return false;
+    setFolderBusy(name);
+    const r = await manageCategory("delete", name);
+    setFolderBusy(null);
+    if (!r.ok) {
+      toast(r.error ?? "Couldn't delete the folder", "err");
+      return false;
+    }
+    setCards((prev) => prev.map((c) => (c.category === name ? { ...c, category: null } : c)));
+    if (categoryRaw === name) setCategory("all");
+    toast(`Folder ${name} deleted — ${r.changed} card${r.changed === 1 ? "" : "s"} uncategorized`);
+    return true;
+  }
   // Filtering on a category, then emptying it, left "Nothing matches" with
   // no chip to clear it (QA, 09-04) — a vanished category reads as All.
   const category =
@@ -1302,6 +1342,18 @@ export default function CollectionPage() {
                   </button>
                 );
               })}
+              {/* Folder management (Chris, 09-08): rename / merge / delete. */}
+              <button
+                type="button"
+                onClick={() => setManageFolders(true)}
+                title="Manage folders — rename, merge or delete"
+                aria-label="Manage folders"
+                className="ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-edge text-zinc-500 transition hover:border-edge-strong hover:text-zinc-200"
+              >
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+                </svg>
+              </button>
             </div>
           </div>
         )}
@@ -2142,6 +2194,15 @@ export default function CollectionPage() {
         );
       })()}
 
+      {manageFolders && (
+        <CategoryManager
+          folders={categories.map((name) => ({ name, count: cards.filter((c) => c.category === name).length }))}
+          busy={folderBusy}
+          onClose={() => setManageFolders(false)}
+          onRename={renameFolder}
+          onDelete={deleteFolder}
+        />
+      )}
       {categoryTarget && (
         <CategorySheet
           title={`Category for ${categoryTarget.cardName}`}

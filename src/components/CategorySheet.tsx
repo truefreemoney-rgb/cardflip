@@ -4,7 +4,8 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 
-export const CATEGORY_MAX = 40;
+import { CATEGORY_MAX } from "@/lib/categories";
+export { CATEGORY_MAX };
 
 /**
  * "Which category?" bottom sheet (Chris, 09-04: organise Inventory into

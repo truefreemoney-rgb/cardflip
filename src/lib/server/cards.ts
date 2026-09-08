@@ -537,6 +537,24 @@ export async function deleteCard(id: string, userId: string): Promise<void> {
   await db.prepare("DELETE FROM cards WHERE id = ? AND user_id = ?").run(id, userId);
 }
 
+/** Folder management (09-08): categories are a text column, so a rename
+ *  (or a merge into an existing name) is one UPDATE over the seller's rows.
+ *  Returns how many cards moved. */
+export async function renameCategory(userId: string, from: string, to: string): Promise<number> {
+  const r = await db
+    .prepare("UPDATE cards SET category = ?, updated_at = ? WHERE user_id = ? AND category = ?")
+    .run(to, Date.now(), userId, from);
+  return Number(r.changes ?? 0);
+}
+
+/** Delete a folder: its cards become uncategorized. Returns how many. */
+export async function clearCategory(userId: string, from: string): Promise<number> {
+  const r = await db
+    .prepare("UPDATE cards SET category = NULL, updated_at = ? WHERE user_id = ? AND category = ?")
+    .run(Date.now(), userId, from);
+  return Number(r.changes ?? 0);
+}
+
 export async function listCardsForUser(userId: string): Promise<CardRecord[]> {
   const rows = (await db
     .prepare("SELECT * FROM cards WHERE user_id = ? ORDER BY created_at DESC")
