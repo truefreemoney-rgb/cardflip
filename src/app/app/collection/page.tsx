@@ -111,7 +111,7 @@ function rarityRank(rarity: string | null): number {
 }
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
-  { value: "price", label: "Price high → low" },
+  { value: "price", label: "Price" },
   { value: "rarity", label: "Rarity" },
   { value: "listedAge", label: "Longest listed" },
   { value: "soldRecent", label: "Recently sold" },
@@ -322,6 +322,9 @@ export default function CollectionPage() {
   }
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
+  // Direction toggle beside the sort (Chris, 09-08): "desc" is each sort's
+  // natural order (newest first, price high → low, ...); "asc" flips it.
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   // "Mark sold" asks what it actually went for (prefilled with the asking
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
@@ -990,8 +993,7 @@ export default function CollectionPage() {
         card.cardNumber.toLowerCase().includes(needle)
       );
     });
-    if (sort === "newest") return shown; // the server's own order
-    return [...shown].sort((a, b) => {
+    const ordered = sort === "newest" ? shown : [...shown].sort((a, b) => {
       if (sort === "price") {
         return (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
       }
@@ -1015,7 +1017,8 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [gameCards, filter, query, sort, category]);
+    return sortDir === "desc" ? ordered : [...ordered].reverse();
+  }, [gameCards, filter, query, sort, sortDir, category]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -1225,6 +1228,27 @@ export default function CollectionPage() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            aria-label={sortDir === "desc" ? "Sorted descending — switch to ascending" : "Sorted ascending — switch to descending"}
+            title={sortDir === "desc" ? "Descending" : "Ascending"}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-black/25 text-zinc-300 transition hover:border-edge-strong hover:text-white sm:h-9 sm:w-9"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              {sortDir === "desc" ? (
+                <>
+                  <path d="M4 5h12M4 10h8M4 15h4" />
+                  <path d="M16 9v7M13.5 13.5 16 16l2.5-2.5" />
+                </>
+              ) : (
+                <>
+                  <path d="M4 5h4M4 10h8M4 15h12" />
+                  <path d="M16 16V9M13.5 11.5 16 9l2.5 2.5" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
 
         <div className="mt-2 flex items-center gap-2">
@@ -1903,7 +1927,7 @@ export default function CollectionPage() {
                       08-31: "make the prices bigger"). Pinned top-right so
                       it lines up with the name on every row. A sold row
                       leads with NET; gross is its caption. */}
-                  <div className="w-24 shrink-0 text-right sm:w-28">
+                  <div className="flex w-24 shrink-0 flex-col items-end text-right sm:w-32">
                     {soldForm?.id === card.id ? (
                       <form
                         onSubmit={(e) => {
@@ -1957,28 +1981,44 @@ export default function CollectionPage() {
                       </>
                     ) : (
                       <>
-                        <p className="font-display text-lg font-bold tracking-tight text-white">
-                          {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
-                        </p>
-                        {/* The price has moved since this card was scanned. */}
-                        {moved && (
-                          <p
-                            title={`Scanned at ${scannedAt!.toFixed(2)} — today's market moved it`}
-                            className={`text-[11px] font-medium ${card.price > scannedAt! ? "text-emerald-400" : "text-rose-400"}`}
-                          >
-                            <span aria-hidden>{card.price > scannedAt! ? "↑" : "↓"}</span> was ${scannedAt!.toFixed(2)}
-                          </p>
-                        )}
-                        {/* Live listings only: the price changes here AND on
-                            eBay (Chris, 09-04). Drafts are priced in the editor. */}
-                        {liveRow && card.ebayOfferId && repricing !== card.id && (
+                        {/* Price column makeover (Chris, 09-08). Live listings:
+                            the price IS the Change price control — tap it (the
+                            pencil says so) and the sheet changes it here AND on
+                            eBay (09-04). Drafts are priced in the editor. */}
+                        {liveRow && card.ebayOfferId && repricing !== card.id ? (
                           <button
                             onClick={() => setPriceSheet(card.id)}
-                            className="text-[11px] font-medium text-brand-300 underline decoration-brand-300/40 underline-offset-2 transition hover:text-brand-200"
+                            title="Change price — here and on the live eBay listing"
+                            aria-label={`Change price, currently $${card.price.toFixed(2)}`}
+                            className="group inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -mr-1.5 font-display text-lg font-bold tabular-nums tracking-tight text-white transition hover:bg-white/5"
                           >
-                            Change price
+                            ${card.price.toFixed(2)}
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-zinc-500 transition group-hover:text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                              <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+                            </svg>
                           </button>
+                        ) : (
+                          <p className="font-display text-lg font-bold tabular-nums tracking-tight text-white">
+                            {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
+                          </p>
                         )}
+                        {/* The move since this card was scanned, as a pill: direction, %, and the scan price. */}
+                        {moved && (() => {
+                          const up = card.price > scannedAt!;
+                          const pct = (Math.abs(card.price - scannedAt!) / scannedAt!) * 100;
+                          return (
+                            <span
+                              title={`Scanned at $${scannedAt!.toFixed(2)} — today's market moved it ${up ? "up" : "down"} $${Math.abs(card.price - scannedAt!).toFixed(2)}`}
+                              className={`mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                                up ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
+                              }`}
+                            >
+                              <span aria-hidden>{up ? "▲" : "▼"}</span>
+                              {pct >= 100 ? Math.round(pct) : pct.toFixed(pct >= 10 ? 0 : 1)}%
+                              <span className="font-normal opacity-70">was ${scannedAt!.toFixed(2)}</span>
+                            </span>
+                          );
+                        })()}
                         {card.status === "listed" && nudges[card.id] && (
                           <button
                             onClick={() => void applyReprice(card, nudges[card.id])}
