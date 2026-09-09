@@ -30,7 +30,15 @@ const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise
 // v2 (09-07): printings nearest $50, not the dearest — Chris: "make it something worth like $50".
 const STAGE_TARGET_USD = 50;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
-const cacheKey = (magic: boolean) => `stage:v2:${magic ? "magic" : "pokemon"}`;
+const cacheKey = (magic: boolean) => `stage:v3:${magic ? "magic" : "pokemon"}`;
+
+// v3 (09-09): the Gyarados slot shows a full-art printing instead of the
+// $50-nearest one — Chris asked for "something else, a full art card at a
+// similar price, can range a lot" — so this icon skips STAGE_TARGET_USD and
+// just takes the priciest full-art printing the mirror has. The mirror has
+// no rarity column; isSecretRare (numbered above the set total) is the same
+// full-art signal enCards.ts already uses for identification.
+const FULL_ART_ICONS = new Set(["Gyarados"]);
 
 function marketOf(card: PokemonCard): number | null {
   return plausiblePrices(card.prices).find((p) => p.market)?.market ?? null;
@@ -57,12 +65,15 @@ async function fromMirror(): Promise<PokemonCard[]> {
       card.prices = [entry];
     }
     const out: PokemonCard[] = [];
-    for (const r of results) {
+    for (let i = 0; i < results.length; i++) {
+      const candidates = results[i].cards.filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5);
       // The printing of each icon priced nearest $50 — a card a seller
       // actually has in a binder, not the grail (was: the dearest printing).
-      const best = r.cards
-        .filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5)
-        .sort((a, b) => nearTarget(a) - nearTarget(b))[0];
+      // The Gyarados slot instead takes its priciest full-art printing.
+      const best = FULL_ART_ICONS.has(ICONS[i])
+        ? candidates.filter((c) => c.isSecretRare).sort((a, b) => (marketOf(b) ?? 0) - (marketOf(a) ?? 0))[0] ??
+          candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0]
+        : candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
       if (best) out.push(best);
     }
     // Nearest $50 leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
