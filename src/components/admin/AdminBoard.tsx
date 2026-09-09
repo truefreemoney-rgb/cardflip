@@ -207,7 +207,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
           </p>
           {reload ? (
             <span className="flex items-center gap-1 text-zinc-400">
-              Replaces everything here with docs/BOARD.md (your Chris's thoughts stay).
+              Replaces everything here with docs/BOARD.md (your Chris&apos;s thoughts stay).
               <button onClick={() => void reseed()} className="rounded bg-red-500/20 px-2 py-1 text-red-200">Reload</button>
               <button onClick={() => setReload(false)} className="rounded px-2 py-1 hover:bg-white/5">Keep mine</button>
             </span>
@@ -527,7 +527,16 @@ function ItemRow(props: {
                   {ownerLabel(it.owner)}
                 </span>
               )}
-              <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>
+              {(() => {
+                const m = /^▶ RUNNING #(\d+) — ([\s\S]*)$/.exec(it.text);
+                if (!m) return <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>;
+                return (
+                  <>
+                    <a href={`https://github.com/truefreemoney-rgb/cardflip/issues/${m[1]}`} target="_blank" rel="noreferrer" title="Open the GitHub issue — the runner posts its PR or questions there" className="mr-1 rounded bg-emerald-500/15 px-1.5 py-px text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/25">▶ RUNNING #{m[1]} ↗</a>
+                    <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{m[2]}</button>
+                  </>
+                );
+              })()}
             </span>
           )}
         </div>
@@ -548,7 +557,7 @@ function ItemRow(props: {
           </label>
           <button onClick={() => { props.onReorder(-1); setMore(false); }} disabled={idx <= 0} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move up</button>
           <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
-          <button onClick={() => { props.onRun(); setMore(false); }} disabled={it.done || /^▶ RUNNING #d+/.test(it.text)} title="Opens a GitHub issue; the cloud board runner does the task and opens a PR" className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">▶ Run</button>
+          <button onClick={() => { props.onRun(); setMore(false); }} disabled={it.done || /^▶ RUNNING #\d+/.test(it.text)} title="Opens a GitHub issue; the cloud board runner does the task and opens a PR" className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">▶ Run</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
       )}
