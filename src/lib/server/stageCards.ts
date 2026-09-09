@@ -25,26 +25,34 @@ export interface StageCard {
 
 const STAGE_CARDS = 10;
 const STAGE_TTL_MS = 6 * 60 * 60 * 1000;
-const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise", "Gyarados", "Dragonite", "Rayquaza", "Eevee"];
+// v5 (09-09): Gyarados is gone from the list, not just from the full-art
+// slot. It held that slot through v3 and v4 and Chris asked twice for
+// "something else"; while the name stayed here any other slot could still
+// serve a Gyarados and read as no change at all.
+const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise", "Lucario", "Dragonite", "Rayquaza", "Eevee"];
 
 // v2 (09-07): printings nearest $50, not the dearest — Chris: "make it something worth like $50".
-const STAGE_TARGET_USD = 50;
+// v5 (09-09): $35 — "make the price around $35ish". The target lives in two
+// places: here it decides each icon's printing, and Uploader picks the one
+// stage card nearest the same number to show. Both have to move together or
+// the retarget never reaches the card on screen.
+const STAGE_TARGET_USD = 35;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
-const cacheKey = (magic: boolean) => `stage:v4:${magic ? "magic" : "pokemon"}`;
+const cacheKey = (magic: boolean) => `stage:v5:${magic ? "magic" : "pokemon"}`;
 
-// v3 (09-09): the Gyarados slot shows a full-art printing instead of the
-// $50-nearest one — Chris asked for "something else, a full art card at a
-// similar price, can range a lot" — so this icon skips STAGE_TARGET_USD.
-// The mirror has no rarity column; isSecretRare (numbered above the set
-// total) is the same full-art signal enCards.ts already uses for
+// v3 (09-09): one slot shows a full-art printing instead of the
+// target-nearest one — Chris asked for "a full art card at a similar
+// price". The mirror has no rarity column; isSecretRare (numbered above the
+// set total) is the same full-art signal enCards.ts already uses for
 // identification.
-// v4 (09-09): "can range a lot" surfaced a full-art Gyarados priced well
-// past $50 — Chris asked to bring it back down, "between $35 - $50ish".
-// Picks the full-art printing nearest that band (inside it scores 0), still
-// falling back to the plain nearest-$50 pick if the mirror has no full art.
-const FULL_ART_ICONS = new Set(["Gyarados"]);
-const FULL_ART_BAND_MIN_USD = 35;
-const FULL_ART_BAND_MAX_USD = 50;
+// v4 (09-09): unbounded "can range a lot" surfaced a full art priced well
+// past $50, so the pick is bounded to a band instead (inside it scores 0),
+// still falling back to the plain target-nearest pick when the mirror has
+// no full art for that icon.
+// v5 (09-09): the band follows the $35 target.
+const FULL_ART_ICONS = new Set(["Lucario"]);
+const FULL_ART_BAND_MIN_USD = 30;
+const FULL_ART_BAND_MAX_USD = 40;
 const distanceFromFullArtBand = (card: PokemonCard) => {
   const price = marketOf(card);
   if (price == null) return Infinity;
@@ -80,17 +88,17 @@ async function fromMirror(): Promise<PokemonCard[]> {
     const out: PokemonCard[] = [];
     for (let i = 0; i < results.length; i++) {
       const candidates = results[i].cards.filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5);
-      // The printing of each icon priced nearest $50 — a card a seller
-      // actually has in a binder, not the grail (was: the dearest printing).
-      // The Gyarados slot instead takes its full-art printing nearest the
-      // $35-$50 band.
+      // The printing of each icon priced nearest the target — a card a
+      // seller actually has in a binder, not the grail (was: the dearest
+      // printing). The full-art icon instead takes its full-art printing
+      // nearest the band.
       const best = FULL_ART_ICONS.has(ICONS[i])
         ? candidates.filter((c) => c.isSecretRare).sort((a, b) => distanceFromFullArtBand(a) - distanceFromFullArtBand(b))[0] ??
           candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0]
         : candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
       if (best) out.push(best);
     }
-    // Nearest $50 leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
+    // Nearest the target leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
     return out.sort((a, b) => nearTarget(a) - nearTarget(b));
   } catch {
     return [];
