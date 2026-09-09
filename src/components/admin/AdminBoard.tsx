@@ -22,7 +22,7 @@ const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: s
  * task, its question if it has one, the PR in plain words, a Merge button,
  * and whether the merge has reached cardflip.io yet. GitHub stays a ↗ link.
  */
-function RunPanel({ st, onError }: { st: RunStatus; onError: (m: string) => void }) {
+function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string) => void; onReply: () => void }) {
   const { reload } = useContext(RunsContext);
   const [merging, setMerging] = useState(false);
   const pr = st.pr;
@@ -84,6 +84,7 @@ function RunPanel({ st, onError }: { st: RunStatus; onError: (m: string) => void
           </button>
         )}
         {deploy && <span className={deploy.cls}>{deploy.text}</span>}
+        <button type="button" onClick={onReply} title="Reply to this — text or a photo. Then ▶ Run again sends the whole thread to the runner." className="text-zinc-400 hover:text-white">↳ Reply</button>
         {(st.state === "done" || st.state === "pr-ready") && (
           <button type="button" onClick={reload} className="text-zinc-500 hover:text-zinc-300">Refresh</button>
         )}
@@ -125,7 +126,7 @@ function deleteImage(url: string) {
 }
 
 /** Paperclip: picks photos (camera roll on the phone), uploads, hands back the URLs. */
-function PhotoButton({ count, onAdd, onError, className = "" }: { count: number; onAdd: (urls: string[]) => void; onError: (m: string) => void; className?: string }) {
+function PhotoButton({ count, onAdd, onError, className = "", compact = false }: { count: number; onAdd: (urls: string[]) => void; onError: (m: string) => void; className?: string; compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const full = count >= MAX_IMAGES;
@@ -157,9 +158,9 @@ function PhotoButton({ count, onAdd, onError, className = "" }: { count: number;
         disabled={busy || full}
         title={full ? `Up to ${MAX_IMAGES} photos per note` : "Attach a photo"}
         aria-label={full ? `Up to ${MAX_IMAGES} photos per note` : "Attach a photo"}
-        className={`rounded px-2 py-1 text-zinc-400 hover:bg-white/5 hover:text-white disabled:opacity-30 ${className}`}
+        className={compact ? `flex h-7 w-7 items-center justify-center rounded text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100 disabled:opacity-25 ${className}` : `rounded px-2 py-1 text-zinc-400 hover:bg-white/5 hover:text-white disabled:opacity-30 ${className}`}
       >
-        {busy ? "Uploading…" : "📎 Photo"}
+        {busy ? (compact ? "…" : "Uploading…") : compact ? "📎" : "📎 Photo"}
       </button>
     </>
   );
@@ -845,10 +846,13 @@ function ItemRow(props: {
   const [more, setMore] = useState(false);
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState("");
+  const [replyImages, setReplyImages] = useState<string[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const { head, replies } = noteLines(it.text);
-  // Run again after a reply, or after a closed run — the route supersedes the old issue.
-  const canRun = !it.done && (!runNo || runStatus?.state === "needs-you" || runStatus?.state === "closed");
+  // Run again once the runner has stopped (question, closed, PR open, merged):
+  // the route closes the old issue and the new one carries the whole thread,
+  // so Chris can reply to any output and send it back (Chris, 09-09).
+  const canRun = !it.done && (!runNo || (runStatus != null && runStatus.state !== "running"));
 
   useEffect(() => {
     if (editing && ref.current) {
@@ -918,25 +922,31 @@ function ItemRow(props: {
               {replies.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
           )}
+          <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
+          {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} onReply={() => setReplying(true)} />}
           {replying && (
             <form
-              className="mt-1.5 flex items-center gap-2"
+              className="mt-1.5 flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 const t = reply.trim();
-                if (!t) return;
-                props.onText(`${it.text}\n↳ Chris: ${t}`);
+                if (!t && replyImages.length === 0) return;
+                // A photo-only reply still leaves a line so the thread reads in order.
+                props.onText(`${it.text}\n↳ Chris: ${t || "(photo)"}${replyImages.length && t ? ` (+${replyImages.length} photo${replyImages.length === 1 ? "" : "s"})` : ""}`);
+                if (replyImages.length) props.onImages([...(it.images ?? []), ...replyImages].slice(0, MAX_IMAGES));
                 setReply("");
+                setReplyImages([]);
                 setReplying(false);
               }}
             >
-              <input autoFocus value={reply} onChange={(e) => setReply(e.target.value)} maxLength={400} placeholder="Your reply…" aria-label="Reply" className={`${INPUT} h-8 min-w-0 flex-1 text-[13px]`} onKeyDown={(e) => { if (e.key === "Escape") setReplying(false); }} />
-              <button type="submit" disabled={!reply.trim()} className={`${PRIMARY} h-8 px-3 text-xs disabled:opacity-40`}>Reply</button>
+              <input autoFocus value={reply} onChange={(e) => setReply(e.target.value)} maxLength={400} placeholder="Your reply…" aria-label="Reply" className={`${INPUT} h-8 min-w-0 flex-1 text-[13px]`} onKeyDown={(e) => { if (e.key === "Escape") { setReplying(false); setReplyImages([]); } }} />
+              <PhotoButton count={(it.images?.length ?? 0) + replyImages.length} onAdd={(urls) => setReplyImages((v) => [...v, ...urls])} onError={props.onError} className="h-8 text-xs" />
+              <button type="submit" disabled={!reply.trim() && replyImages.length === 0} className={`${PRIMARY} h-8 px-3 text-xs disabled:opacity-40`}>Reply</button>
+              {replyImages.length > 0 && <Thumbs urls={replyImages} onRemove={(u) => { deleteImage(u); setReplyImages((v) => v.filter((x) => x !== u)); }} />}
             </form>
           )}
-          <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
-          {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} />}
         </div>
+        <PhotoButton compact count={it.images?.length ?? 0} onAdd={(urls) => props.onImages([...(it.images ?? []), ...urls].slice(0, MAX_IMAGES))} onError={props.onError} className="opacity-40 group-hover:opacity-100 focus:opacity-100" />
         <IconBtn label="More" onClick={() => setMore((v) => !v)} className="opacity-40 group-hover:opacity-100 focus:opacity-100">⋯</IconBtn>
       </div>
       {more && (
@@ -956,7 +966,7 @@ function ItemRow(props: {
           <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
           <PhotoButton count={it.images?.length ?? 0} onAdd={(urls) => { props.onImages([...(it.images ?? []), ...urls].slice(0, MAX_IMAGES)); setMore(false); }} onError={props.onError} />
           <button onClick={() => { setReplying(true); setMore(false); }} title="Add a reply under this note — for Claude, or for the runner before you press Run again" className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5">↳ Reply</button>
-          <button onClick={() => { props.onRun(); setMore(false); }} disabled={!canRun} title={runNo && canRun ? "Runs again with your reply; the old issue is closed" : "Opens a GitHub issue; the cloud board runner does the task and opens a PR"} className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">{runNo && canRun ? "▶ Run again" : "▶ Run"}</button>
+          <button onClick={() => { props.onRun(); setMore(false); }} disabled={!canRun} title={runNo && canRun ? "Runs again with the whole thread (your replies + photos); the old issue is closed" : "Opens a GitHub issue; the cloud board runner does the task and opens a PR"} className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">{runNo && canRun ? "▶ Run again" : "▶ Run"}</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
       )}
