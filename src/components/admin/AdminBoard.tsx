@@ -402,7 +402,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
             prev.map((sec) => ({
               ...sec,
               items: sec.items.map((i) => {
-                const n = /^▶ RUNNING #(d+)/.exec(i.text)?.[1];
+                const n = /^▶ RUNNING #(\d+)/.exec(i.text)?.[1];
                 return n && !i.done && finished.has(Number(n)) ? { ...i, done: true } : i;
               }),
             })),
@@ -417,6 +417,26 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadRuns();
   }, [loadRuns]);
+  // Live chips (Chris, 09-09: "I keep having to refresh the page"). While a
+  // run is still moving — working, PR open, merged but not yet deployed —
+  // re-read every 20s; otherwise every 2 minutes; and always when the tab
+  // comes back into view. ~4 GitHub calls per read, well inside the token's
+  // hourly budget for one open board.
+  const moving = Object.values(runs).some(
+    (r) => r.state === "running" || r.state === "pr-ready" || (r.state === "done" && r.deploy !== "ready" && r.deploy !== "failed"),
+  );
+  useEffect(() => {
+    const visible = () => typeof document === "undefined" || document.visibilityState === "visible";
+    const tick = () => { if (visible()) void loadRuns(); };
+    const id = setInterval(tick, moving ? 20_000 : 120_000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
+  }, [moving, loadRuns]);
   const run = useCallback(async (id: string) => {
     if (timer.current) clearTimeout(timer.current);
     setStatus("saving");
