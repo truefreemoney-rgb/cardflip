@@ -23,6 +23,8 @@ export interface BoardItem {
   done: boolean;
   owner: BoardOwner;
   text: string;
+  /** Photos attached to the note (Vercel Blob URLs, 09-09: "for my thoughts, i need a image update option"). */
+  images?: string[];
 }
 export interface BoardSection {
   id: string;
@@ -34,6 +36,9 @@ export interface BoardSection {
 
 const OWNERS = new Set(["Chris", "Claude", "both"]);
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+/** Only our own Blob store — an arbitrary URL would let a stale client save an off-site image. */
+export const BLOB_URL_RE = /^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/board\/[A-Za-z0-9._-]+$/;
+export const MAX_IMAGES = 6;
 
 export function parseBoard(md: string): BoardSection[] {
   const sections: BoardSection[] = [];
@@ -73,7 +78,7 @@ export function serializeBoard(sections: BoardSection[]): string {
   const out = ["# CardFlip Board", "", "Exported from the admin console (the live copy is in the settings table).", ""];
   for (const s of sections) {
     out.push(`## ${s.title}${s.hint ? ` — ${s.hint}` : ""}`, "");
-    for (const it of s.items) out.push(`- [${it.done ? "x" : " "}] ${it.owner ? `[${it.owner}] ` : ""}${it.text}`);
+    for (const it of s.items) out.push(`- [${it.done ? "x" : " "}] ${it.owner ? `[${it.owner}] ` : ""}${it.text}${(it.images ?? []).map((u) => ` [image](${u})`).join("")}`);
     out.push("");
   }
   return out.join("\n");
@@ -99,12 +104,18 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
     const clean: BoardItem[] = [];
     for (const it of items) {
       if (!it || typeof it !== "object") return { ok: false, error: "Bad item" };
-      const { id: iid, done, owner, text } = it as Record<string, unknown>;
+      const { id: iid, done, owner, text, images } = it as Record<string, unknown>;
       if (typeof iid !== "string" || !ID_RE.test(iid) || seen.has(iid)) return { ok: false, error: "Bad item id" };
       seen.add(iid);
       if (typeof text !== "string" || text.length > 1000) return { ok: false, error: "Item text too long (max 1000)" };
       if (owner != null && (typeof owner !== "string" || !OWNERS.has(owner))) return { ok: false, error: "Bad owner tag" };
-      clean.push({ id: iid, done: Boolean(done), owner: (owner as BoardOwner) ?? null, text: text.trim() });
+      let imgs: string[] | undefined;
+      if (images != null) {
+        if (!Array.isArray(images) || images.length > MAX_IMAGES) return { ok: false, error: `Too many images (max ${MAX_IMAGES})` };
+        if (!images.every((u) => typeof u === "string" && BLOB_URL_RE.test(u))) return { ok: false, error: "Bad image URL" };
+        imgs = images.length ? (images as string[]) : undefined;
+      }
+      clean.push({ id: iid, done: Boolean(done), owner: (owner as BoardOwner) ?? null, text: text.trim(), ...(imgs ? { images: imgs } : {}) });
     }
     sections.push({ id, title: title.trim(), hint: typeof hint === "string" && hint.trim() ? hint.trim() : null, items: clean });
   }

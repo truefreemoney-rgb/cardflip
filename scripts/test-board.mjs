@@ -38,6 +38,14 @@ check("rejects duplicate ids", validateBoard([{ id: "a", title: "T", hint: null,
 check("rejects bad id chars", validateBoard([{ id: "a b", title: "T", hint: null, items: [] }]).ok, false);
 check("empty hint becomes null", validateBoard([{ id: "a", title: "T", hint: "  ", items: [] }]).sections?.[0].hint, null);
 
+// Photos on notes (09-09): only our Blob store, at most 6, empty list dropped.
+const BLOB = "https://abc123.public.blob.vercel-storage.com/board/x-1.jpg";
+check("keeps blob image urls", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: [BLOB] }] }]).sections?.[0].items[0].images?.[0], BLOB);
+check("rejects off-site image urls", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: ["https://evil.example/x.jpg"] }] }]).ok, false);
+check("rejects 7 images", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: Array(7).fill(BLOB) }] }]).ok, false);
+check("empty images list is dropped", "images" in validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: [] }] }]).sections[0].items[0], false);
+check("serialize appends image links", serializeBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: [BLOB] }] }]).includes(`x [image](${BLOB})`), true);
+
 const real = parseBoard(readFileSync(new URL("../docs/BOARD.md", import.meta.url), "utf8"));
 check("real board has the core categories", ["Now", "Chris", "Claude", "Future ideas"].every((t) => real.some((x) => x.title === t)), true);
 check("every OPEN real item carries an owner tag", real.flatMap((x) => x.items).filter((i) => !i.done).every((i) => i.owner !== null), true);

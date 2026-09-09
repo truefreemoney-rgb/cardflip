@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const gh = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json", "User-Agent": "cardflip-board" },
-      body: JSON.stringify({ title, labels: [LABEL], body: `Board task from the admin console.\n\n${item.text}\n\n_Opened by the Run button; the board runner routine picks this up._` }),
+      body: JSON.stringify({ title, labels: [LABEL], body: `Board task from the admin console.\n\n${item.text}${(item.images ?? []).map((u) => `\n\n![photo](${u})`).join("")}\n\n_Opened by the Run button; the board runner routine picks this up._` }),
       signal: AbortSignal.timeout(10_000),
     });
     const data = (await gh.json().catch(() => ({}))) as { number?: number; html_url?: string; message?: string };

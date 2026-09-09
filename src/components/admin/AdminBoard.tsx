@@ -15,6 +15,106 @@ const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: s
   done: { label: "✓ Done", cls: "bg-emerald-400/25 text-emerald-100 hover:bg-emerald-400/35", hint: "Merged — tick the task when you have seen it live" },
   closed: { label: "✕ Closed", cls: "bg-zinc-700/60 text-zinc-300 hover:bg-zinc-700", hint: "The issue was closed without a merge" },
 };
+/**
+ * Photos on a note (Chris, 09-09: "for my thoughts, i need a image update
+ * option for easy reference"). Phone photos are 4–6 MB; the upload route caps
+ * at 4 MB, so shrink to ≤1600px JPEG on the client first (a screenshot or a
+ * card photo stays perfectly readable at that size).
+ */
+const MAX_IMAGES = 6;
+async function shrinkImage(file: File): Promise<Blob> {
+  if (file.type === "image/gif") return file;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file;
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1 && file.size < 1_500_000) { bitmap.close(); return file; }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? file), "image/jpeg", 0.85));
+}
+async function uploadImage(file: File): Promise<string> {
+  const blob = await shrinkImage(file);
+  const form = new FormData();
+  form.append("file", new File([blob], blob === file ? file.name : "photo.jpg", { type: blob.type || file.type }));
+  const res = await fetch(apiPath("/api/admin/board/image"), { method: "POST", body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Couldn't upload the photo");
+  return data.url as string;
+}
+function deleteImage(url: string) {
+  void fetch(apiPath("/api/admin/board/image"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+}
+
+/** Paperclip: picks photos (camera roll on the phone), uploads, hands back the URLs. */
+function PhotoButton({ count, onAdd, onError, className = "" }: { count: number; onAdd: (urls: string[]) => void; onError: (m: string) => void; className?: string }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const full = count >= MAX_IMAGES;
+  return (
+    <>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={async (e) => {
+          const files = Array.from(e.target.files ?? []).slice(0, MAX_IMAGES - count);
+          e.target.value = "";
+          if (!files.length) return;
+          setBusy(true);
+          try {
+            onAdd(await Promise.all(files.map(uploadImage)));
+          } catch (err) {
+            onError(err instanceof Error ? err.message : "Couldn't upload the photo");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        disabled={busy || full}
+        title={full ? `Up to ${MAX_IMAGES} photos per note` : "Attach a photo"}
+        aria-label={full ? `Up to ${MAX_IMAGES} photos per note` : "Attach a photo"}
+        className={`rounded px-2 py-1 text-zinc-400 hover:bg-white/5 hover:text-white disabled:opacity-30 ${className}`}
+      >
+        {busy ? "Uploading…" : "📎 Photo"}
+      </button>
+    </>
+  );
+}
+
+/** Thumbnails under a note; tap opens the full image, × removes it (and the blob). */
+function Thumbs({ urls, onRemove }: { urls: string[]; onRemove: (url: string) => void }) {
+  if (!urls.length) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {urls.map((u) => (
+        <span key={u} className="group/thumb relative">
+          <a href={u} target="_blank" rel="noreferrer" title="Open full size" className="block overflow-hidden rounded-md border border-edge bg-black/40">
+            {/* eslint-disable-next-line @next/next/no-img-element -- blob host, no next/image config */}
+            <img src={u} alt="Attached photo" loading="lazy" className="h-20 w-20 object-cover" />
+          </a>
+          <button
+            type="button"
+            onClick={() => onRemove(u)}
+            aria-label="Remove photo"
+            title="Remove photo"
+            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-edge bg-surface-1 text-[11px] text-zinc-300 opacity-70 hover:bg-red-500/30 hover:text-white group-hover/thumb:opacity-100"
+          >
+            ×
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /** "3m" / "2h" / "1d" since the Run press — Chris, 09-09: "there was no task time indicator". */
 function since(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
@@ -193,8 +293,14 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   const patchItem = (sid: string, iid: string, fn: (i: BoardItem) => BoardItem) =>
     patchSection(sid, (s) => ({ ...s, items: s.items.map((i) => (i.id === iid ? fn(i) : i)) }));
   const removeItem = (sid: string, iid: string) => patchSection(sid, (s) => ({ ...s, items: s.items.filter((i) => i.id !== iid) }));
-  const addItem = (sid: string, text: string, owner: BoardOwner) =>
-    patchSection(sid, (s) => ({ ...s, items: [...s.items, { id: uid(), done: false, owner, text }] }));
+  const addItem = (sid: string, text: string, owner: BoardOwner, images: string[] = []) =>
+    patchSection(sid, (s) => ({ ...s, items: [...s.items, { id: uid(), done: false, owner, text, ...(images.length ? { images } : {}) }] }));
+  const setImages = (sid: string, iid: string, images: string[]) =>
+    patchItem(sid, iid, (i) => {
+      const { images: _drop, ...rest } = i;
+      void _drop;
+      return images.length ? { ...rest, images } : rest;
+    });
   const reorderItem = (sid: string, iid: string, dir: -1 | 1) =>
     patchSection(sid, (s) => {
       const i = s.items.findIndex((it) => it.id === iid);
@@ -283,6 +389,8 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
                   onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
                   onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
                   onRemove={() => removeItem(section.id, item.id)}
+                  onImages={(imgs) => setImages(section.id, item.id, imgs)}
+                  onError={setError}
                   onRun={() => void run(item.id)}
                   onMove={(to) => moveItem(section.id, item.id, to)}
                   onReorder={(dir) => reorderItem(section.id, item.id, dir)}
@@ -307,10 +415,12 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
             onToggle={(iid) => patchItem(s.id, iid, (i) => ({ ...i, done: !i.done }))}
             onText={(iid, text) => (text.trim() ? patchItem(s.id, iid, (i) => ({ ...i, text: text.trim() })) : removeItem(s.id, iid))}
             onRemoveItem={(iid) => removeItem(s.id, iid)}
+            onImages={(iid, imgs) => setImages(s.id, iid, imgs)}
+            onError={setError}
             onRunItem={(iid) => void run(iid)}
             onMoveItem={(iid, to) => moveItem(s.id, iid, to)}
             onReorderItem={(iid, dir) => reorderItem(s.id, iid, dir)}
-            onAdd={(text, owner) => addItem(s.id, text, owner)}
+            onAdd={(text, owner, images) => addItem(s.id, text, owner, images)}
           />
         ))}
         {newCat ? (
@@ -375,10 +485,12 @@ function SectionCard(props: {
   onToggle: (iid: string) => void;
   onText: (iid: string, text: string) => void;
   onRemoveItem: (iid: string) => void;
+  onImages: (iid: string, images: string[]) => void;
+  onError: (message: string) => void;
   onRunItem: (iid: string) => void;
   onMoveItem: (iid: string, to: string) => void;
   onReorderItem: (iid: string, dir: -1 | 1) => void;
-  onAdd: (text: string, owner: BoardOwner) => void;
+  onAdd: (text: string, owner: BoardOwner, images: string[]) => void;
 }) {
   const { section: s } = props;
   const [editing, setEditing] = useState(false);
@@ -387,6 +499,7 @@ function SectionCard(props: {
   const [confirm, setConfirm] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftOwner, setDraftOwner] = useState<BoardOwner>(defaultOwner(s.title));
+  const [draftImages, setDraftImages] = useState<string[]>([]);
   const [hideDone, setHideDone] = useState(false);
   const open = s.items.filter((i) => !i.done).length;
   const done = s.items.length - open;
@@ -400,8 +513,9 @@ function SectionCard(props: {
   function submitDraft() {
     const t = draft.trim();
     if (!t) return;
-    props.onAdd(t, draftOwner);
+    props.onAdd(t, draftOwner, draftImages);
     setDraft("");
+    setDraftImages([]);
   }
 
   return (
@@ -455,6 +569,8 @@ function SectionCard(props: {
             onToggle={() => props.onToggle(it.id)}
             onText={(t) => props.onText(it.id, t)}
             onRemove={() => props.onRemoveItem(it.id)}
+            onImages={(imgs) => props.onImages(it.id, imgs)}
+            onError={props.onError}
             onRun={() => props.onRunItem(it.id)}
             onReorder={(dir) => props.onReorderItem(it.id, dir)}
             onMove={(to) => props.onMoveItem(it.id, to)}
@@ -489,8 +605,10 @@ function SectionCard(props: {
           maxLength={1000}
           className={`${INPUT} h-9 min-w-0 flex-1 text-[13px]`}
         />
+        <PhotoButton count={draftImages.length} onAdd={(urls) => setDraftImages((v) => [...v, ...urls].slice(0, MAX_IMAGES))} onError={props.onError} className="h-9 shrink-0 text-xs" />
         <button type="submit" disabled={!draft.trim()} className={`${PRIMARY} h-9 shrink-0 px-3 text-xs disabled:opacity-40`}>Add</button>
       </form>
+      <Thumbs urls={draftImages} onRemove={(u) => { deleteImage(u); setDraftImages((v) => v.filter((x) => x !== u)); }} />
     </section>
   );
 }
@@ -503,6 +621,8 @@ function ItemRow(props: {
   onToggle: () => void;
   onText: (t: string) => void;
   onRemove: () => void;
+  onImages: (images: string[]) => void;
+  onError: (message: string) => void;
   onRun: () => void;
   onMove: (to: string) => void;
   onReorder: (dir: -1 | 1) => void;
@@ -578,6 +698,7 @@ function ItemRow(props: {
               })()}
             </span>
           )}
+          <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
         </div>
         <IconBtn label="More" onClick={() => setMore((v) => !v)} className="opacity-40 group-hover:opacity-100 focus:opacity-100">⋯</IconBtn>
       </div>
@@ -596,6 +717,7 @@ function ItemRow(props: {
           </label>
           <button onClick={() => { props.onReorder(-1); setMore(false); }} disabled={idx <= 0} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move up</button>
           <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
+          <PhotoButton count={it.images?.length ?? 0} onAdd={(urls) => { props.onImages([...(it.images ?? []), ...urls].slice(0, MAX_IMAGES)); setMore(false); }} onError={props.onError} />
           <button onClick={() => { props.onRun(); setMore(false); }} disabled={it.done || /^▶ RUNNING #\d+/.test(it.text)} title="Opens a GitHub issue; the cloud board runner does the task and opens a PR" className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">▶ Run</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
