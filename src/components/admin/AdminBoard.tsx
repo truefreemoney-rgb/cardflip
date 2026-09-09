@@ -6,15 +6,91 @@ import { apiPath } from "@/lib/client/basePath";
 import { ownerLabel } from "@/components/admin/format";
 import type { RunStatus } from "@/lib/server/boardRuns";
 
-/** Run outcomes by issue number, read once per visit (GET /api/admin/board/runs). */
-const RunsContext = createContext<Record<number, RunStatus>>({});
+/** Run outcomes by issue number, read once per visit (GET /api/admin/board/runs), plus a way to re-read them. */
+const RunsContext = createContext<{ runs: Record<number, RunStatus>; reload: () => void }>({ runs: {}, reload: () => {} });
 const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: string }> = {
   running: { label: "▶ Running", cls: "bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25", hint: "The cloud runner has it — opens the GitHub issue" },
-  "needs-you": { label: "? Needs you", cls: "bg-amber-400/20 text-amber-200 hover:bg-amber-400/30", hint: "The runner asked questions on the issue — answer there" },
-  "pr-ready": { label: "✓ PR ready", cls: "bg-sky-400/20 text-sky-200 hover:bg-sky-400/30", hint: "Review and merge the pull request" },
-  done: { label: "✓ Done", cls: "bg-emerald-400/25 text-emerald-100 hover:bg-emerald-400/35", hint: "Merged — tick the task when you have seen it live" },
+  "needs-you": { label: "? Needs you", cls: "bg-amber-400/20 text-amber-200 hover:bg-amber-400/30", hint: "The runner asked a question — it is shown below" },
+  "pr-ready": { label: "✓ PR ready", cls: "bg-sky-400/20 text-sky-200 hover:bg-sky-400/30", hint: "Read the summary below and press Merge" },
+  done: { label: "✓ Merged", cls: "bg-emerald-400/25 text-emerald-100 hover:bg-emerald-400/35", hint: "Merged — tick the task when you have seen it live" },
   closed: { label: "✕ Closed", cls: "bg-zinc-700/60 text-zinc-300 hover:bg-zinc-700", hint: "The issue was closed without a merge" },
 };
+
+/**
+ * The whole run loop on this page (Chris, 09-09: "I don't want things
+ * interconnected — everything on cardflip"): the runner's reading of the
+ * task, its question if it has one, the PR in plain words, a Merge button,
+ * and whether the merge has reached cardflip.io yet. GitHub stays a ↗ link.
+ */
+function RunPanel({ st, onError }: { st: RunStatus; onError: (m: string) => void }) {
+  const { reload } = useContext(RunsContext);
+  const [merging, setMerging] = useState(false);
+  const pr = st.pr;
+  async function merge() {
+    if (!pr) return;
+    setMerging(true);
+    try {
+      const res = await fetch(apiPath("/api/admin/board/merge"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: pr.number }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Couldn't merge");
+      reload();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't merge");
+    } finally {
+      setMerging(false);
+    }
+  }
+  const deploy =
+    st.state === "done"
+      ? st.deploy === "ready"
+        ? { text: "Live on cardflip.io — reload the app to see it", cls: "text-emerald-300" }
+        : st.deploy === "failed"
+          ? { text: "Merged, but the build failed — tell Claude", cls: "text-red-300" }
+          : { text: "Merged · deploying, about 3 minutes", cls: "text-zinc-400" }
+      : null;
+  if (!st.reading && !st.question && !pr && !deploy) return null;
+  return (
+    <div className="mt-1.5 space-y-1.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2 text-[12px] leading-snug">
+      {st.reading && (
+        <p className="text-zinc-300">
+          <span className="text-zinc-500">Reading this as: </span>
+          {st.reading}
+        </p>
+      )}
+      {st.question && (
+        <p className="text-amber-200">
+          <span className="text-amber-400/80">Needs you: </span>
+          {st.question}{" "}
+          <a href={st.url} target="_blank" rel="noreferrer" className="underline decoration-amber-400/40 hover:text-white">answer ↗</a>
+        </p>
+      )}
+      {pr && (
+        <div>
+          <p className="text-zinc-200">
+            <span className="text-zinc-500">Change: </span>
+            {pr.title}
+          </p>
+          {pr.summary.length > 0 && (
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-zinc-400">
+              {pr.summary.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+        {st.state === "pr-ready" && pr && (
+          <button type="button" onClick={merge} disabled={merging} className={`${PRIMARY} h-8 px-3 text-xs disabled:opacity-50`}>
+            {merging ? "Merging…" : "Merge → goes live"}
+          </button>
+        )}
+        {deploy && <span className={deploy.cls}>{deploy.text}</span>}
+        {(st.state === "done" || st.state === "pr-ready") && (
+          <button type="button" onClick={reload} className="text-zinc-500 hover:text-zinc-300">Refresh</button>
+        )}
+      </div>
+    </div>
+  );
+}
 /**
  * Photos on a note (Chris, 09-09: "for my thoughts, i need a image update
  * option for easy reference"). Phone photos are 4–6 MB; the upload route caps
@@ -334,7 +410,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   };
 
   return (
-    <RunsContext.Provider value={runs}>
+    <RunsContext.Provider value={{ runs, reload: () => void loadRuns() }}>
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Pick the owner when you add a task; after that Claude re-tags it as it moves.</p>
@@ -628,7 +704,9 @@ function ItemRow(props: {
   onReorder: (dir: -1 | 1) => void;
 }) {
   const { item: it } = props;
-  const runs = useContext(RunsContext);
+  const { runs } = useContext(RunsContext);
+  const runNo = /^▶ RUNNING #(\d+)/.exec(it.text)?.[1];
+  const runStatus = runNo ? runs[Number(runNo)] : undefined;
   const idx = props.items.findIndex((i) => i.id === it.id);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(it.text);
@@ -699,6 +777,7 @@ function ItemRow(props: {
             </span>
           )}
           <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
+          {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} />}
         </div>
         <IconBtn label="More" onClick={() => setMore((v) => !v)} className="opacity-40 group-hover:opacity-100 focus:opacity-100">⋯</IconBtn>
       </div>
