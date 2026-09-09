@@ -20,6 +20,9 @@ export default function AppHeader() {
   const { user, status } = useSession();
   // The account page has its own eBay section, so the chip is noise there.
   const showEbay = !pathname.startsWith("/app/account");
+  // Once there's something to review, the logo should land on Inventory
+  // instead of re-opening the scanner (Chris, 09-09).
+  const logoHref = user ? (user.hasCards ? "/app/collection" : "/app") : "/";
 
   // "eBay connected · name · Sign out". Rendered twice below: inline at the
   // header's right edge from xl up, its own centered row underneath before
@@ -111,7 +114,7 @@ export default function AppHeader() {
           personal strip from xl up, an empty balancer before that. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 sm:grid sm:grid-cols-[1fr_auto_1fr]">
         <div className="flex items-center gap-2">
-          <Logo size="sm" />
+          <Logo size="sm" href={logoHref} />
         </div>
         <div className="flex items-center gap-1.5 sm:hidden">{personalStrip}</div>
         <AppTabs />

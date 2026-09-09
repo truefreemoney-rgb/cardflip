@@ -593,6 +593,12 @@ export async function listCardsForUser(userId: string): Promise<CardRecord[]> {
   return rows.map(fromRow);
 }
 
+/** Has this user scanned at least one card? Cheap existence check (idx_cards_user) for the header's logo link. */
+export async function userHasCards(userId: string): Promise<boolean> {
+  const row = await db.prepare("SELECT 1 FROM cards WHERE user_id = ? LIMIT 1").get(userId);
+  return Boolean(row);
+}
+
 export async function listAllCards(limit = 200): Promise<CardRecord[]> {
   const rows = (await db
     .prepare("SELECT * FROM cards ORDER BY created_at DESC LIMIT ?")

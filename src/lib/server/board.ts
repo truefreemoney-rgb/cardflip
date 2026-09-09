@@ -51,9 +51,13 @@ export function parseBoard(md: string): BoardSection[] {
     if (it && current) {
       let text = it[2].trim();
       let owner: BoardOwner = null;
-      const tag = /^\[(Chris|Claude|both)\]\s*/.exec(text);
+      // "[Admin]" / "[Admin / Claude]" are the console's display labels for
+      // "Chris" / "both" (Chris doesn't want his name shown) — accept either
+      // spelling in the file so a hand-edited BOARD.md still parses.
+      const tag = /^\[(Chris|Claude|both|Admin \/ Claude|Admin)\]\s*/.exec(text);
       if (tag) {
-        owner = tag[1] as BoardOwner;
+        const raw = tag[1];
+        owner = raw === "Admin" ? "Chris" : raw === "Admin / Claude" ? "both" : (raw as BoardOwner);
         text = text.slice(tag[0].length);
       }
       // Strip markdown bold markers; the console renders plain text.

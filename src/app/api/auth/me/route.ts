@@ -5,6 +5,7 @@ import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
 import { toPublicUser } from "@/lib/server/users";
 import { magicVisibleFor } from "@/lib/server/settings";
 import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
+import { userHasCards } from "@/lib/server/cards";
 
 /**
  * Who's signed in — every app page asks on load. That makes it the natural
@@ -15,7 +16,9 @@ import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
 export async function GET() {
   const user = await getCurrentUser();
   const res = NextResponse.json({
-    user: user ? { ...toPublicUser(user), features: { magic: await magicVisibleFor(user) } } : null,
+    user: user
+      ? { ...toPublicUser(user), features: { magic: await magicVisibleFor(user) }, hasCards: await userHasCards(user.id) }
+      : null,
   });
   // Every app page load passes through here, which makes it a heartbeat for
   // the once-a-day price refresh — kicked off after the response is sent.

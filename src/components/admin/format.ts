@@ -1,4 +1,17 @@
+import type { BoardOwner } from "@/lib/server/board";
+
 /** Formatting shared by the admin console pages (app/admin/(console)/*). */
+
+/**
+ * Display-only rename: Chris doesn't want his name shown in the console.
+ * The stored value (and docs/BOARD.md's [Chris]/[both] tags) stay as-is —
+ * this only decides what the chip says.
+ */
+export function ownerLabel(owner: BoardOwner): string {
+  if (owner === "Chris") return "Admin";
+  if (owner === "both") return "Admin / Claude";
+  return owner ?? "—";
+}
 
 export function money(v: number): string {
   return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

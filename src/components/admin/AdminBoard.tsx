@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BoardItem, BoardOwner, BoardSection } from "@/lib/server/board";
 import { apiPath } from "@/lib/client/basePath";
+import { ownerLabel } from "@/components/admin/format";
 
 /**
  * The board, live in the admin console (Chris, 09-09: add/delete
@@ -144,6 +145,15 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   const removeItem = (sid: string, iid: string) => patchSection(sid, (s) => ({ ...s, items: s.items.filter((i) => i.id !== iid) }));
   const addItem = (sid: string, text: string, owner: BoardOwner) =>
     patchSection(sid, (s) => ({ ...s, items: [...s.items, { id: uid(), done: false, owner, text }] }));
+  const reorderItem = (sid: string, iid: string, dir: -1 | 1) =>
+    patchSection(sid, (s) => {
+      const i = s.items.findIndex((it) => it.id === iid);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= s.items.length) return s;
+      const items = s.items.slice();
+      [items[i], items[j]] = [items[j], items[i]];
+      return { ...s, items };
+    });
   const moveItem = (from: string, iid: string, to: string) =>
     update((prev) => {
       const item = prev.find((s) => s.id === from)?.items.find((i) => i.id === iid);
@@ -216,12 +226,14 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
               <ul className="min-w-0 flex-1">
                 <ItemRow
                   item={item}
+                  items={section.items}
                   all={sections}
                   sectionId={section.id}
                   onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
                   onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
                   onRemove={() => removeItem(section.id, item.id)}
                   onMove={(to) => moveItem(section.id, item.id, to)}
+                  onReorder={(dir) => reorderItem(section.id, item.id, dir)}
                 />
               </ul>
             </li>
@@ -244,6 +256,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
             onText={(iid, text) => (text.trim() ? patchItem(s.id, iid, (i) => ({ ...i, text: text.trim() })) : removeItem(s.id, iid))}
             onRemoveItem={(iid) => removeItem(s.id, iid)}
             onMoveItem={(iid, to) => moveItem(s.id, iid, to)}
+            onReorderItem={(iid, dir) => reorderItem(s.id, iid, dir)}
             onAdd={(text, owner) => addItem(s.id, text, owner)}
           />
         ))}
@@ -309,6 +322,7 @@ function SectionCard(props: {
   onText: (iid: string, text: string) => void;
   onRemoveItem: (iid: string) => void;
   onMoveItem: (iid: string, to: string) => void;
+  onReorderItem: (iid: string, dir: -1 | 1) => void;
   onAdd: (text: string, owner: BoardOwner) => void;
 }) {
   const { section: s } = props;
@@ -380,11 +394,13 @@ function SectionCard(props: {
           <ItemRow
             key={it.id}
             item={it}
+            items={s.items}
             all={props.all}
             sectionId={s.id}
             onToggle={() => props.onToggle(it.id)}
             onText={(t) => props.onText(it.id, t)}
             onRemove={() => props.onRemoveItem(it.id)}
+            onReorder={(dir) => props.onReorderItem(it.id, dir)}
             onMove={(to) => props.onMoveItem(it.id, to)}
           />
         ))}
@@ -405,9 +421,9 @@ function SectionCard(props: {
           onClick={() => setDraftOwner(OWNER_CYCLE[(OWNER_CYCLE.indexOf(draftOwner) + 1) % OWNER_CYCLE.length])}
           className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${chipClass(draftOwner)}`}
           title="Who the new task is for — tap to change"
-          aria-label={`New task owner: ${draftOwner ?? "nobody"}. Tap to change`}
+          aria-label={`New task owner: ${draftOwner ? ownerLabel(draftOwner) : "nobody"}. Tap to change`}
         >
-          {draftOwner ?? "—"}
+          {ownerLabel(draftOwner)}
         </button>
         <input
           value={draft}
@@ -425,14 +441,17 @@ function SectionCard(props: {
 
 function ItemRow(props: {
   item: BoardItem;
+  items: BoardItem[];
   all: BoardSection[];
   sectionId: string;
   onToggle: () => void;
   onText: (t: string) => void;
   onRemove: () => void;
   onMove: (to: string) => void;
+  onReorder: (dir: -1 | 1) => void;
 }) {
   const { item: it } = props;
+  const idx = props.items.findIndex((i) => i.id === it.id);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(it.text);
   const [more, setMore] = useState(false);
@@ -483,7 +502,7 @@ function ItemRow(props: {
             <span className={it.done ? "text-zinc-500 line-through decoration-zinc-700" : "text-zinc-200"}>
               {it.owner && (
                 <span title="Owner — set by Claude from the task status" className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-semibold ${chipClass(it.owner)}`}>
-                  {it.owner}
+                  {ownerLabel(it.owner)}
                 </span>
               )}
               <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>
@@ -505,6 +524,8 @@ function ItemRow(props: {
               {props.all.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
           </label>
+          <button onClick={() => { props.onReorder(-1); setMore(false); }} disabled={idx <= 0} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move up</button>
+          <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
       )}

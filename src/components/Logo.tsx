@@ -36,12 +36,12 @@ function SpinCycleMark({ className }: { className?: string }) {
   );
 }
 
-export default function Logo({ size = "md" }: { size?: "sm" | "md" }) {
+export default function Logo({ size = "md", href = "/" }: { size?: "sm" | "md"; href?: string }) {
   const box = size === "sm" ? "h-7 w-7" : "h-8 w-8";
   const text = size === "sm" ? "text-sm" : "text-lg";
 
   return (
-    <Link href="/" className="flex items-center gap-2">
+    <Link href={href} className="flex items-center gap-2">
       <SpinCycleMark className={box} />
       <span className={`${text} font-semibold tracking-tight text-white`}>
         CardFlip

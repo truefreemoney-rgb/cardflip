@@ -31,6 +31,8 @@ export interface SessionUser {
   totpBackupCodesLeft?: number;
   /** Scans used / included / left right now (header counter); remaining null = unlimited. */
   scans?: { used: number; included: number; remaining: number | null; bonus?: number };
+  /** Has this user scanned at least one card yet? Only set by /api/auth/me; drives the logo link. */
+  hasCards?: boolean;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */
