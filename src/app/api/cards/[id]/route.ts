@@ -28,10 +28,17 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
     }
     // Never under the fee floor (lib/fees.ts) — the server is the truth here.
-    if (typeof body?.price === "number" && belowFloor(body.price)) {
-      return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+    if (body?.price !== undefined) {
+      if (typeof body.price !== "number" || !Number.isFinite(body.price) || body.price < 0) {
+        return NextResponse.json({ error: "price must be a non-negative number" }, { status: 400 });
+      }
+      if (belowFloor(body.price)) {
+        return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+      }
     }
     const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
+    // Nullable numeric columns: a finite number lands, anything else clears.
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
     const card = await updateCard(id, user.id, {
       cardName: str(body?.cardName, 200),
       setName: str(body?.setName, 200),
@@ -49,9 +56,9 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           ? Math.min(99, Math.max(1, Math.floor(body.quantity)))
           : undefined,
       status,
-      listedAt: "listedAt" in (body ?? {}) ? body.listedAt : undefined,
-      soldPrice: "soldPrice" in (body ?? {}) ? body.soldPrice : undefined,
-      soldAt: "soldAt" in (body ?? {}) ? body.soldAt : undefined,
+      listedAt: "listedAt" in (body ?? {}) ? num(body.listedAt) : undefined,
+      soldPrice: "soldPrice" in (body ?? {}) ? num(body.soldPrice) : undefined,
+      soldAt: "soldAt" in (body ?? {}) ? num(body.soldAt) : undefined,
       verifiedAt:
         "verifiedAt" in (body ?? {})
           ? typeof body.verifiedAt === "number"

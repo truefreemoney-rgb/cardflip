@@ -9,6 +9,11 @@
  * subscription.deleted marks canceled and keeps the plan column; unknown
  * customers and unregistered events are 200-and-ignored; a DB throw is a
  * 500 so Stripe retries. Stripe's API is a fetch stub — no network.
+ *
+ * Re-subscribe (09-09): checkout pins users.stripe_subscription_id; a
+ * .deleted / non-live .updated for a DIFFERENT subscription is ignored, so
+ * the old subscription ending after a new one is active never cancels a
+ * paying user. A live .created/.updated for a new subscription adopts it.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import crypto from "node:crypto";
@@ -75,6 +80,9 @@ async function state(id) {
   const u = await findUserById(id);
   return { status: u.subStatus, end: u.subPeriodEnd, plan: u.plan, customer: u.stripeCustomerId };
 }
+async function subId(id) {
+  return (await findUserById(id)).stripeSubscriptionId;
+}
 
 // --- planForPrice -------------------------------------------------------------
 check("pro price → pro", planForPrice("price_pro"), "pro");
@@ -129,6 +137,27 @@ check("updated without items: top-level period end, plan column untouched", awai
 
 await send({ type: "customer.subscription.deleted", data: { object: { customer: "cus_pro", status: "active" } } });
 check("deleted: canceled, period end cleared, plan column kept", await state(pro.id), { status: "canceled", end: null, plan: "pro", customer: "cus_pro" });
+
+// --- re-subscribe: a second subscription under the same customer ------------
+const resub = await createUser("R", "resub@example.com", "hunter22");
+subscriptions.set("sub_old", { status: "active", items: { data: [{ current_period_end: 1_800_000_000, price: { id: "price_std" } }] } });
+subscriptions.set("sub_new", { status: "active", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_pro" } }] } });
+await send({ type: "checkout.session.completed", data: { object: { client_reference_id: resub.id, customer: "cus_re", subscription: "sub_old" } } });
+check("checkout pins the subscription id", await subId(resub.id), "sub_old");
+await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_old", customer: "cus_re", status: "canceled" } } });
+check("old subscription deleted → canceled", (await state(resub.id)).status, "canceled");
+await send({ type: "checkout.session.completed", data: { object: { client_reference_id: resub.id, customer: "cus_re", subscription: "sub_new" } } });
+check("re-subscribe: new subscription pinned, active, pro", [await subId(resub.id), (await state(resub.id)).status, (await state(resub.id)).plan], ["sub_new", "active", "pro"]);
+const staleDelete = await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_old", customer: "cus_re", status: "canceled" } } });
+check("old subscription deleted AFTER the new one is active → ignored, still active", [staleDelete.status, staleDelete.json.ignored, (await state(resub.id)).status], [200, true, "active"]);
+await send({ type: "customer.subscription.updated", data: { object: { id: "sub_old", customer: "cus_re", status: "past_due", items: { data: [{ current_period_end: 1_700_000_000, price: { id: "price_std" } }] } } } });
+check("stale past_due for the old subscription → ignored (status, plan, end untouched)", await state(resub.id), { status: "active", end: 1_900_000_000_000, plan: "pro", customer: "cus_re" });
+await send({ type: "customer.subscription.updated", data: { object: { id: "sub_new", customer: "cus_re", status: "past_due", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_pro" } }] } } } });
+check("updated for the pinned subscription still applies", (await state(resub.id)).status, "past_due");
+await send({ type: "customer.subscription.created", data: { object: { id: "sub_third", customer: "cus_re", status: "trialing", items: { data: [{ current_period_end: 2_000_000_000, price: { id: "price_std" } }] } } } });
+check("a live subscription.created for another subscription adopts it", [await subId(resub.id), (await state(resub.id)).status, (await state(resub.id)).plan], ["sub_third", "trialing", "standard"]);
+await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_third", customer: "cus_re", status: "canceled" } } });
+check("deleting the pinned subscription cancels", (await state(resub.id)).status, "canceled");
 
 check("updated for an unknown customer → 200", (await send({ type: "customer.subscription.updated", data: { object: { customer: "cus_ghost", status: "active" } } })).status, 200);
 check("unregistered event → 200 received", (await send({ type: "invoice.paid", data: { object: {} } })).json, { received: true });

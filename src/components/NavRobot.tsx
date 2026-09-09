@@ -10,6 +10,7 @@ import { apiPath } from "@/lib/client/basePath";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { startGuide } from "@/components/TourOverlay";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 
 /**
  * The robot's home: a Help button in the app header (Chris, 09-04: "your AI
@@ -67,7 +68,6 @@ export default function NavRobot() {
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   // The panel is portalled to <body>: the header's backdrop-blur makes it a
   // containing block for position:fixed, so a sheet rendered inside it was
@@ -151,11 +151,16 @@ export default function NavRobot() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
+  // Android Back closes the help panel, not the app.
+  const closePanel = useCallback(() => setOpen(false), []);
+  useBackToClose("help", closePanel, open);
 
-  const send = useCallback(
-    async (e: FormEvent) => {
-      e.preventDefault();
-      const text = draft.trim();
+  // One send path for the typed draft and the starter chips. The chips used
+  // to set the draft and `requestSubmit()` on a timer — older iOS Safari has
+  // no requestSubmit and threw.
+  const sendText = useCallback(
+    async (raw: string) => {
+      const text = raw.trim();
       if (!text || busy) return;
       setDraft("");
       setError(null);
@@ -180,7 +185,14 @@ export default function NavRobot() {
         setBusy(false);
       }
     },
-    [draft, busy],
+    [busy],
+  );
+  const send = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      void sendText(draft);
+    },
+    [sendText, draft],
   );
 
   const clear = useCallback(async () => {
@@ -192,9 +204,7 @@ export default function NavRobot() {
   const headerPose: RobotPose = open ? (busy ? "think" : "wave") : pose;
 
   function ask(text: string) {
-    setDraft(text);
-    // Submit on the next tick so the draft is in state.
-    window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+    void sendText(text);
   }
   function runGuide(id: string) {
     const g = guideById(id);
@@ -344,7 +354,6 @@ export default function NavRobot() {
             </div>
 
             <form
-              ref={formRef}
               onSubmit={send}
               className="flex items-center gap-2 border-t border-edge px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
             >

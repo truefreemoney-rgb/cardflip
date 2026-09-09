@@ -85,6 +85,37 @@ export class EbayOAuthNotConfiguredError extends Error {
   }
 }
 
+/** The seller has no (live) eBay link — the UI should send them to Connect. */
+export class EbayNotConnectedError extends Error {
+  constructor() {
+    super("Connect your eBay account first");
+    this.name = "EbayNotConnectedError";
+  }
+}
+
+/**
+ * eBay's token endpoint didn't answer usefully (network failure, the 10s
+ * timeout, or a 5xx). Not the seller's fault and not ours — routes answer
+ * 502 with a "try again" rather than a 500 with a stack.
+ */
+export class EbayUnreachableError extends Error {
+  constructor(detail?: string) {
+    super("eBay isn't answering right now — try again in a minute");
+    this.name = "EbayUnreachableError";
+    if (detail) this.cause = detail;
+  }
+}
+
+/** Non-2xx from the token endpoint, with the status so the caller can tell a dead grant from an outage. */
+class EbayTokenRequestError extends Error {
+  status: number;
+  constructor(status: number, detail: string) {
+    super(`eBay token request failed (${status}): ${detail.slice(0, 300)}`);
+    this.name = "EbayTokenRequestError";
+    this.status = status;
+  }
+}
+
 interface OAuthConfig {
   clientId: string;
   clientSecret: string;
@@ -258,20 +289,27 @@ interface TokenResponse {
 async function tokenRequest(body: URLSearchParams): Promise<TokenResponse> {
   const { clientId, clientSecret } = config();
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-  const res = await fetch(EBAY_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-    signal: AbortSignal.timeout(10000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(EBAY_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basic}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    // DNS/socket failures and the timeout both land here.
+    throw new EbayUnreachableError(err instanceof Error ? err.message : String(err));
+  }
   if (!res.ok) {
     // eBay's error body says *why* (invalid_grant, invalid_scope…) — surface it
     // in the log; the caller shows the seller a plain-language message.
     const detail = await res.text().catch(() => "");
-    throw new Error(`eBay token request failed (${res.status}): ${detail.slice(0, 300)}`);
+    if (res.status >= 500) throw new EbayUnreachableError(`token endpoint ${res.status}: ${detail.slice(0, 300)}`);
+    throw new EbayTokenRequestError(res.status, detail);
   }
   return (await res.json()) as TokenResponse;
 }
@@ -349,6 +387,8 @@ async function fetchIdentity(
  * A live access token for this user, refreshed if it's about to expire.
  * Returns null when the user has no link (or the refresh token itself has
  * expired, in which case the link is removed so the UI asks to reconnect).
+ * Throws EbayNotConnectedError when eBay refuses the refresh grant (the link
+ * is dropped first) and EbayUnreachableError when eBay can't be reached.
  */
 export async function getUserAccessToken(userId: string): Promise<string | null> {
   const row = (await db
@@ -381,17 +421,44 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
     return null;
   }
 
-  const tokens = await tokenRequest(
-    new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      scope: row.scopes,
-    }),
-  );
+  let tokens: TokenResponse;
+  try {
+    tokens = await tokenRequest(
+      new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        scope: row.scopes,
+      }),
+    );
+  } catch (err) {
+    // invalid_grant (revoked on eBay's side, or the app's consent was pulled)
+    // means the link is dead: drop it and say "reconnect", exactly as a
+    // missing token does. Outages propagate as EbayUnreachableError.
+    if (err instanceof EbayTokenRequestError && (err.status === 400 || err.status === 401)) {
+      console.error(`eBay refresh rejected for ${userId}:`, err.message);
+      await disconnectEbay(userId);
+      throw new EbayNotConnectedError();
+    }
+    throw err;
+  }
   await db.prepare(
     "UPDATE ebay_tokens SET access_token = ?, access_expires_at = ?, updated_at = ? WHERE user_id = ?",
   ).run(seal(tokens.access_token), now + tokens.expires_in * 1000, now, userId);
   return tokens.access_token;
+}
+
+/**
+ * getUserAccessToken for the background syncs, which report a skip reason
+ * instead of throwing: a token, or why there isn't one.
+ */
+export async function tokenOrSkip(userId: string): Promise<string | "not_connected" | "error"> {
+  try {
+    return (await getUserAccessToken(userId)) ?? "not_connected";
+  } catch (err) {
+    if (err instanceof EbayNotConnectedError) return "not_connected";
+    console.error("eBay token refresh failed:", err instanceof Error ? err.message : err);
+    return "error";
+  }
 }
 
 /** Forget the link. eBay has no revoke endpoint for user tokens; deleting ours is the whole story. */

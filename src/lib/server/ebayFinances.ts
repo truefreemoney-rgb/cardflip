@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getUserAccessToken } from "@/lib/server/ebayAuth";
+import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { setCardSoldFees } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
 
@@ -81,8 +81,8 @@ export async function syncEbayFees(userId: string, force = false): Promise<FeeSy
     return { updated: [], skipped: "throttled" };
   }
 
-  const token = await getUserAccessToken(userId);
-  if (!token) return { updated: [], skipped: "not_connected" };
+  const token = await tokenOrSkip(userId);
+  if (token === "not_connected" || token === "error") return { updated: [], skipped: token };
 
   // One Finances call per order; several cards can share an order (multi-line
   // checkout), so group first.

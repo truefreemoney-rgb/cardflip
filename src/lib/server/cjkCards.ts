@@ -148,19 +148,22 @@ export async function searchCjkCardsLocal(
   number?: string | null,
 ): Promise<CjkCardRef[]> {
   const table = CONFIG[lang].table;
-  const needle = `%${name}%`;
+  const cols = "id, name, set_id, set_name, local_id";
+  const numberClause = number ? " AND local_id = ?" : "";
+  const numberArgs = number ? [number.padStart(3, "0")] : [];
 
-  const exact = number
-    ? ((await db
-        .prepare(
-          `SELECT id, name, set_id, set_name, local_id FROM ${table} WHERE name LIKE ? AND local_id = ? LIMIT 12`,
-        )
-        .all(needle, number.padStart(3, "0"))) as unknown as CjkCardRow[])
-    : ((await db
-        .prepare(
-          `SELECT id, name, set_id, set_name, local_id FROM ${table} WHERE name LIKE ? LIMIT 12`,
-        )
-        .all(needle)) as unknown as CjkCardRow[]);
+  // Prefix tier first — it rides idx_<table>_name (a SEARCH), where the old
+  // single `name LIKE '%x%'` walked every row of the mirror on each call,
+  // reachable unauthenticated from GET /api/search-card?lang=ja. Mirrors the
+  // en_cards tiers in enCards.ts: substring only when the cheap tier is empty.
+  let exact = (await db
+    .prepare(`SELECT ${cols} FROM ${table} WHERE name >= ? AND name < ?${numberClause} LIMIT 12`)
+    .all(name, `${name}￿`, ...numberArgs)) as unknown as CjkCardRow[];
+  if (exact.length === 0) {
+    exact = (await db
+      .prepare(`SELECT ${cols} FROM ${table} WHERE name LIKE ?${numberClause} LIMIT 12`)
+      .all(`%${name}%`, ...numberArgs)) as unknown as CjkCardRow[];
+  }
 
   // A number filter that matches nothing (misread by OCR) shouldn't hide an
   // otherwise-good name match — fall back to name-only rather than empty.

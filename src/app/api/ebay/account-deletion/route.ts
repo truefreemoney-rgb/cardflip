@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/siteUrl";
 import { purgeEbayAccount } from "@/lib/server/ebayAuth";
+import { fetchEbayPublicKey, parseSignatureHeader, verifyEbaySignature } from "@/lib/server/ebayNotification";
 
 /**
  * eBay marketplace account deletion notifications — eBay requires a live
@@ -14,6 +15,12 @@ import { purgeEbayAccount } from "@/lib/server/ebayAuth";
  * developer portal together with this endpoint's URL. The URL registered
  * there must match EBAY_DELETION_ENDPOINT_URL exactly, or the challenge hash
  * won't agree and eBay will mark the endpoint failed.
+ *
+ * POSTs are signed (x-ebay-signature, ebayNotification.ts). An unsigned or
+ * badly signed notice is acknowledged with 200 and does nothing — eBay's
+ * username is public, so acting on an unverified body would let anyone
+ * unlink a seller. 200 rather than 4xx so a probe learns nothing and eBay
+ * never marks the endpoint failed over our own key-fetch hiccup.
  */
 
 const ENDPOINT_URL =
@@ -41,7 +48,31 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
+  // Raw text first: the signature covers the exact bytes eBay sent.
+  const raw = await req.text().catch(() => "");
+  const sig = parseSignatureHeader(req.headers.get("x-ebay-signature"));
+  if (!sig) {
+    console.warn("[ebay] account deletion notice without a valid signature header — ignored");
+    return new NextResponse(null, { status: 200 });
+  }
+  let key;
+  try {
+    key = await fetchEbayPublicKey(sig.kid);
+  } catch (err) {
+    console.error("[ebay] account deletion: public key unavailable — notice ignored:", err);
+    return new NextResponse(null, { status: 200 });
+  }
+  if (!verifyEbaySignature(raw, sig, key)) {
+    console.warn("[ebay] account deletion notice failed signature check — ignored", { kid: sig.kid });
+    return new NextResponse(null, { status: 200 });
+  }
+
+  let body: { notification?: { data?: { username?: unknown; userId?: unknown } } } | null = null;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    body = null;
+  }
   const data = body?.notification?.data;
 
   // The only eBay-account data we hold is the OAuth link (tokens + username).

@@ -83,8 +83,11 @@ export default function Paywall() {
           type="button"
           onClick={async () => {
             setBusy("refresh");
-            await refresh();
-            setBusy(null);
+            try {
+              await refresh();
+            } finally {
+              setBusy(null);
+            }
           }}
           disabled={busy !== null}
           className="transition hover:text-zinc-300 disabled:opacity-60"

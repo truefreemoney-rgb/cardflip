@@ -7,7 +7,8 @@ import {
 } from "@/lib/server/passwordReset";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 
 /** Is this link still good? Lets the page say so before the seller types a password. */
 export async function GET(req: Request) {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 /** Set the new password from a link, and log the seller straight in. */
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
-  const limited = limitOrRespond(`auth:reset:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`auth:reset:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   const token = typeof body?.token === "string" ? body.token : "";

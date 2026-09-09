@@ -41,14 +41,23 @@ async function stripeRequest<T = Record<string, unknown>>(
 ): Promise<T> {
   const { secretKey } = env();
   if (!secretKey) throw new Error("stripe: STRIPE_SECRET_KEY not set");
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: form ? "POST" : "GET",
-    headers: {
-      authorization: `Bearer ${secretKey}`,
-      ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}),
-    },
-    body: form ? new URLSearchParams(form) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://api.stripe.com/v1/${path}`, {
+      method: form ? "POST" : "GET",
+      headers: {
+        authorization: `Bearer ${secretKey}`,
+        ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}),
+      },
+      body: form ? new URLSearchParams(form) : undefined,
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    // The timeout (TimeoutError/AbortError) and socket failures both land
+    // here; callers already map a thrown Error to a clean 502 / retry.
+    const why = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError") ? "timed out" : "unreachable";
+    throw new Error(`stripe: ${path} ${why}`);
+  }
   const json = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) throw new Error(`stripe: ${path} failed: ${json.error?.message ?? res.status}`);
   return json;

@@ -51,6 +51,8 @@ export default function SignupPage() {
         // signup form on a live session). Straight to the app instead.
         router.replace("/app");
       }
+    }).catch(() => {
+      // Offline / 5xx: the form still works — the signup POST reports its own error.
     });
     return () => { alive = false; };
   }, [router]);
@@ -92,7 +94,7 @@ export default function SignupPage() {
         <div className="foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
           <h1 className="text-xl font-semibold text-white">Create your account</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Free while we&apos;re in early access — start scanning right away.
+            10 free scans, no card needed.
           </p>
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">

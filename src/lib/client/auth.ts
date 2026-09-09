@@ -64,8 +64,15 @@ export function loginPathFor(pathname: string): string {
     : "/login";
 }
 
+/**
+ * null = genuinely signed out. A 5xx (DB outage, cold deploy) THROWS so the
+ * caller's retry path runs — a 500 used to read as "no session" and bounce a
+ * perfectly valid cookie to /login.
+ */
 export async function fetchCurrentUser(): Promise<SessionUser | null> {
   const res = await apiFetch("/api/auth/me");
+  if (res.status === 401 || res.status === 403) return null;
+  if (res.status >= 500) throw new Error(`auth/me ${res.status}`);
   if (!res.ok) return null;
   const data = await readJson(res);
   return data.user ?? null;

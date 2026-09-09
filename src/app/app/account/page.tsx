@@ -436,7 +436,7 @@ function AccountSettings({
               subscribed ? "bg-emerald-400/15 text-emerald-300" : "bg-holo-violet/15 text-holo-violet"
             }`}
           >
-            {subscribed ? "CardFlip · $9.99/mo" : "Early access"}
+            {subscribed ? "CardFlip · $9.99/mo" : "Free trial"}
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">

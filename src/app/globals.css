@@ -944,9 +944,11 @@ p {
    Every app-page input/select was text-sm/text-xs (mobile QA 09-06), so
    one rule instead of forty class edits. Unlayered, so it beats the
    Tailwind utility layer regardless of specificity. Desktop keeps the
-   compact sizes.
+   compact sizes. Scoped by pointer, not width: an iPhone in landscape is
+   844px wide and still zooms (the old max-width rule missed it); a narrow
+   desktop window keeps the rule too so a resized laptop never regresses.
    --------------------------------------------------------------- */
-@media (max-width: 639px) {
+@media (pointer: coarse), (max-width: 639px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   select,
   textarea {

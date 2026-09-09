@@ -15,6 +15,7 @@ import { updateServerCard } from "@/lib/client/cardsApi";
 import { fetchEbayComps } from "@/lib/client/ebayApi";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { parseCardQuery } from "@/lib/cardNumber";
+import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
@@ -524,20 +525,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
   const facts = { firstEdition: itemFirstEdition(item), grading: item.grading };
 
-  // The species behind the printed name: "Charizard ex" / "Charizard VMAX" /
-  // "Mega Charizard Y ex" all search as "Charizard", and the mirror's
-  // substring match then returns every card carrying it. Magic names are
-  // exact — no suffix stripping there.
-  const speciesName = (name: string): string => {
-    if (item.game === "mtg") return name;
-    let base = name.trim().replace(/^(mega|m|dark|light|shining|radiant|shadow|team rocket's|giovanni's|blaine's|brock's|erika's|koga's|lt. surge's|misty's|sabrina's|rocket's)s+/i, "");
-    for (let guard = 0; guard < 3; guard++) {
-      const next = base.replace(/s+(vmax|vstar|v-union|v|gx|ex|lv.?s?x|break|prime|legend|star|δ|delta species|[XY])$/i, "").trim();
-      if (next === base) break;
-      base = next;
-    }
-    return base || name;
-  };
+  // Magic names are exact — no suffix stripping there (lib/speciesName.ts).
+  const speciesName = (name: string): string => (item.game === "mtg" ? name : speciesOf(name));
   const alternatives: PokemonCard[] =
     allMatches?.forId === card.id ? allMatches.cards : item.candidates;
 

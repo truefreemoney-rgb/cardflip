@@ -110,6 +110,8 @@ export default function PriceCheckPage() {
 
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  // History couldn't load (offline, 5xx) — not the same as "no lookups yet".
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyQuery, setHistoryQuery] = useState("");
   // Image | Text for the lookups (Chris, 09-04: "need a card to list view"),
   // same switch as Inventory, remembered per browser.
@@ -136,7 +138,12 @@ export default function PriceCheckPage() {
 
   const loadHistory = useCallback(() => {
     fetchPriceCheckHistory()
-      .then(setHistory)
+      .then((entries) => {
+        setHistory(entries);
+      })
+      .catch(() => {
+        setHistoryError("Couldn't load your lookups — check your connection.");
+      })
       .finally(() => setHistoryLoading(false));
   }, []);
 
@@ -505,7 +512,25 @@ export default function PriceCheckPage() {
             </div>
           )}
         </div>
-        {view === "grid" ? (
+        {historyError && history.length === 0 ? (
+          <p
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
+          >
+            <span>{historyError}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryError(null);
+                setHistoryLoading(true);
+                loadHistory();
+              }}
+              className="rounded-full border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/10"
+            >
+              Retry
+            </button>
+          </p>
+        ) : view === "grid" ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {visibleHistory.map((entry) => (
               <CardTile

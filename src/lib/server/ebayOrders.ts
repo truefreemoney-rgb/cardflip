@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getUserAccessToken } from "@/lib/server/ebayAuth";
+import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { recordCopiesSold, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
 
@@ -75,8 +75,8 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
   const now = Date.now();
   if (!force && now - (await lastSyncAt(userId)) < THROTTLE_MS) return { sold: [], skipped: "throttled" };
 
-  const token = await getUserAccessToken(userId);
-  if (!token) return { sold: [], skipped: "not_connected" };
+  const token = await tokenOrSkip(userId);
+  if (token === "not_connected" || token === "error") return { sold: [], skipped: token };
 
   const byListingId = new Map(listed.filter((c) => c.ebay_listing_id).map((c) => [c.ebay_listing_id!, c.id]));
   const bySku = new Map(listed.filter((c) => c.ebay_sku).map((c) => [c.ebay_sku!, c.id]));

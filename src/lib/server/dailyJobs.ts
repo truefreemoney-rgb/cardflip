@@ -24,8 +24,16 @@ import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/po
  *   - the /api/auth/me heartbeat (any app page load, via after())
  *   - GET /api/cron/daily?key=CRON_SECRET for an external pinger, which is
  *     what covers a zero-traffic day on a scale-to-zero machine.
- * "Due" = last successful finish > 20h ago, or a run that started > 45 min
- * ago and never finished (the machine was suspended mid-way — resume).
+ * "Due" = last successful finish > 20h ago, or a run that started > 10 min
+ * ago and never finished (killed mid-way — resume).
+ *
+ * `running` is per-process; on Vercel each invocation is its own process, so
+ * the meta row is the only cross-process signal. A run killed by the
+ * platform (the admin "Run now" after() before maxDuration was set, 09-09)
+ * left daily_started_at newer than daily_finished_at, and the console showed
+ * "running" for the old 45-min window. No invocation outlives maxDuration
+ * (300s), so a start older than 10 min with no later finish is a dead run:
+ * status reports it as not running and dailyDue stops deferring to it.
  */
 
 const META = {
@@ -34,7 +42,8 @@ const META = {
   lastResult: "daily_last_result",
 };
 const DUE_AFTER_MS = 20 * 60 * 60 * 1000;
-const STALE_START_MS = 45 * 60 * 1000;
+/** A start with no finish older than this is a killed run, not a live one. */
+const STALE_START_MS = 10 * 60 * 1000;
 let running = false;
 
 async function metaGet(key: string): Promise<string | null> {
@@ -45,19 +54,27 @@ async function metaSet(key: string, value: string): Promise<void> {
   await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
 }
 
+/** True while another process's run is plausibly still going. */
+export function inFlight(started: number, finished: number, now: number): boolean {
+  return started > finished && now - started < STALE_START_MS;
+}
+
 export async function dailyDue(now = Date.now()): Promise<boolean> {
   if (running) return false;
   const finished = Number((await metaGet(META.finished)) ?? 0);
   const started = Number((await metaGet(META.started)) ?? 0);
+  if (inFlight(started, finished, now)) return false;
   if (now - finished > DUE_AFTER_MS && now - started > STALE_START_MS) return true;
   return false;
 }
 
-export async function dailyStatus() {
+export async function dailyStatus(now = Date.now()) {
+  const startedAt = Number((await metaGet(META.started)) ?? 0) || null;
+  const finishedAt = Number((await metaGet(META.finished)) ?? 0) || null;
   return {
-    running,
-    startedAt: Number((await metaGet(META.started)) ?? 0) || null,
-    finishedAt: Number((await metaGet(META.finished)) ?? 0) || null,
+    running: running || inFlight(startedAt ?? 0, finishedAt ?? 0, now),
+    startedAt,
+    finishedAt,
     lastResult: await metaGet(META.lastResult),
   };
 }

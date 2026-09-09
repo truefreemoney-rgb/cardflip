@@ -373,36 +373,44 @@ export async function recordCopiesSold(
   }
   const soldId = randomUUID();
   const now = Date.now();
-  await db
-    .prepare(
-      `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
-          status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, ebay_order_id, ebay_line_item_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      soldId,
-      userId,
-      card.kind,
-      card.game,
-      card.cardName,
-      card.setName,
-      card.cardNumber,
-      card.imageUrl,
-      card.condition,
-      card.productType,
-      card.price,
-      bought,
-      card.catalogCardId,
-      card.listedAt,
-      soldPrice,
-      soldAt,
-      ebayRef?.orderId ?? null,
-      ebayRef?.lineItemId ?? null,
-      now,
-      now,
-    );
-  const remaining = await updateCard(id, userId, { quantity: card.quantity - bought });
+  // The split row and the decrement land together: a crash between them
+  // would either double-count the copies (row inserted, listing untouched)
+  // or lose the sale (listing decremented, no sold row).
+  await db.transaction(async (tx) => {
+    await tx
+      .prepare(
+        `INSERT INTO cards
+           (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
+            status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, ebay_order_id, ebay_line_item_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        soldId,
+        userId,
+        card.kind,
+        card.game,
+        card.cardName,
+        card.setName,
+        card.cardNumber,
+        card.imageUrl,
+        card.condition,
+        card.productType,
+        card.price,
+        bought,
+        card.catalogCardId,
+        card.listedAt,
+        soldPrice,
+        soldAt,
+        ebayRef?.orderId ?? null,
+        ebayRef?.lineItemId ?? null,
+        now,
+        now,
+      );
+    await tx
+      .prepare("UPDATE cards SET quantity = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+      .run(card.quantity - bought, now, id, userId);
+  });
+  const remaining = await getCardForUser(id, userId);
   const sold = await getCardForUser(soldId, userId);
   return sold ? { sold, remaining } : null;
 }

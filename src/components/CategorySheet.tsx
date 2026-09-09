@@ -1,6 +1,7 @@
 "use client";
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 
@@ -62,6 +63,7 @@ export default function CategorySheet({
   // Ref-counted: this sheet stacks over CardDetailModal, and the body stays
   // pinned until the last one closes.
   useBodyScrollLock();
+  useBackToClose("category", onClose);
   useEffect(() => {
     if (creating && touched) inputRef.current?.focus();
   }, [creating, touched]);

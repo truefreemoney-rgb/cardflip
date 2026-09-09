@@ -23,9 +23,9 @@ export async function POST(req: Request) {
     const card = body?.card as PokemonCard | undefined;
     const language: ScanLanguage =
       body?.language === "ja" || body?.language === "zh" ? body.language : "en";
-    const price = typeof body?.price === "number" ? body.price : null;
+    const price = typeof body?.price === "number" && Number.isFinite(body.price) ? body.price : null;
 
-    if (!card?.name) {
+    if (typeof card?.name !== "string" || !card.name) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
     }
 

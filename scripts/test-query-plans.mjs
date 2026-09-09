@@ -30,6 +30,7 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { db } = await import(at("lib/db.ts"));
 const mtg = await import(at("lib/server/mtgCards.ts"));
 const en = await import(at("lib/server/enCards.ts"));
+const cjk = await import(at("lib/server/cjkCards.ts"));
 const bulk = await import(at("lib/server/priceBulkWrite.ts"));
 
 // Tables where a bare scan is an outage waiting to happen.
@@ -48,6 +49,16 @@ await db.prepare(
 await db.prepare(
   `INSERT INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date, image_url, rarity, type_line, finishes, lang, synced_at)
    VALUES ('fin-564', 'o1', 'Cloud, Midgar Mercenary', 'fin', 'Final Fantasy', '564', '2025-06-13', '', 'rare', 'Creature', 'nonfoil', 'en', ?)`,
+).run(now);
+await db.prepare(
+  `INSERT INTO mtg_cards (id, oracle_id, name, set_code, set_name, collector_number, set_release_date, image_url, rarity, type_line, finishes, lang, price_usd, synced_at)
+   VALUES ('mh2-138', 'o2', 'Ragavan, Nimble Pilferer', 'mh2', 'Modern Horizons 2', '138', '2021-06-18', 'https://x/r.jpg', 'mythic', 'Creature', 'nonfoil', 'en', 60, ?)`,
+).run(now);
+await db.prepare(
+  `INSERT INTO jp_cards (id, name, set_id, set_name, local_id, synced_at) VALUES ('sv1-025', 'ピカチュウ', 'sv1', 'スカーレット', '025', ?)`,
+).run(now);
+await db.prepare(
+  `INSERT INTO zh_cards (id, name, set_id, set_name, local_id, synced_at) VALUES ('sv1-025', '皮卡丘', 'sv1', '朱', '025', ?)`,
 ).run(now);
 await db.prepare(
   `INSERT INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
@@ -135,6 +146,15 @@ await run("api/sets (pokemon)", ["en_cards"], () =>
 await run("searchMtgCardsLocal", [], () => mtg.searchMtgCardsLocal("Cloud, Midgar Mercenary", "564", "fin"));
 await run("searchEnglishCardsLocal", [], () => en.searchEnglishCardsLocal("Charizard", { number: "4", setTotal: 102, setCode: null }));
 await run("searchEnglishCardsLocal (prefix)", [], () => en.searchEnglishCardsLocal("Chari", null));
+// Landing showcase: twelve exact-name lookups that must ride idx_mtg_cards_folded
+// (LOWER(name) = ? alone walked all 94k rows per name).
+await run("mtgShowcase", [], () => mtg.mtgShowcase(2));
+// CJK mirrors (public GET /api/search-card?lang=ja|zh): prefix tier on
+// idx_jp/zh_cards_name; the '%x%' walk and the whole-table fuzzy load are
+// fallbacks that must NOT fire when the name matches.
+await run("searchCjkCardsLocal (ja)", [], () => cjk.searchCjkCardsLocal("ja", "ピカチュウ", "25"));
+await run("searchCjkCardsLocal (ja prefix)", [], () => cjk.searchCjkCardsLocal("ja", "ピカ", null));
+await run("searchCjkCardsLocal (zh)", [], () => cjk.searchCjkCardsLocal("zh", "皮卡丘", null));
 
 // --- set lists are memoed: the second call must not touch the catalog at all ---
 const before = violations.length;

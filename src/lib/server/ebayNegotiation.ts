@@ -1,5 +1,5 @@
 import "server-only";
-import { getUserAccessToken } from "@/lib/server/ebayAuth";
+import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { db } from "@/lib/db";
 import { getCardForUser, setWatcherOfferSent, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
@@ -33,8 +33,8 @@ interface EligibleItem {
 
 /** eBay's listing-id universe for this seller's offer-eligible items. */
 export async function findEligibleListingIds(userId: string): Promise<EligibleResult> {
-  const token = await getUserAccessToken(userId);
-  if (!token) return { listingIds: [], skipped: "not_connected" };
+  const token = await tokenOrSkip(userId);
+  if (token === "not_connected" || token === "error") return { listingIds: [], skipped: token };
 
   const listingIds: string[] = [];
   try {
@@ -85,8 +85,9 @@ export async function sendWatcherOffer(
     return { ok: false, message: "Discount must be between 5% and 50%." };
   }
 
-  const token = await getUserAccessToken(userId);
-  if (!token) return { ok: false, message: "Connect your eBay account first." };
+  const token = await tokenOrSkip(userId);
+  if (token === "not_connected") return { ok: false, message: "Connect your eBay account first." };
+  if (token === "error") return { ok: false, message: "eBay isn't answering right now — try again in a minute." };
 
   try {
     await ebayFetch(token, "POST", "/sell/negotiation/v1/send_offer_to_interested_buyers", {

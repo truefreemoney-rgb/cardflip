@@ -45,7 +45,6 @@ export default async function AdminOverviewPage() {
           <h1 className="text-2xl font-semibold text-white">Overview</h1>
           <p className="mt-1 text-sm text-zinc-500">Every account, card and dollar on CardFlip, right now.</p>
         </div>
-        <span className="text-xs text-zinc-600">{new Date().toLocaleString()}</span>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         {kpis.map((k) => (

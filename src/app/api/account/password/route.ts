@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { isDemoUser, updateUserPassword } from "@/lib/server/users";
 import { destroyOtherSessions } from "@/lib/server/sessions";
 
@@ -13,7 +14,7 @@ import { destroyOtherSessions } from "@/lib/server/sessions";
  * change keeps working.
  */
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`account:password:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`account:password:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();

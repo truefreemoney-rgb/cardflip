@@ -1,6 +1,7 @@
 "use client";
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
@@ -406,6 +407,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
     };
   }, []);
   useBodyScrollLock();
+  // Android Back closes the scanner, not the app.
+  useBackToClose("camera", onClose);
 
   const statusDot = error
     ? "bg-amber-400"
@@ -520,7 +523,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
             type="button"
             onClick={onClose}
             aria-label="Close scanner"
-            className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg leading-none text-white backdrop-blur transition hover:border-white/40 hover:bg-black/80"
+            className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg leading-none text-white backdrop-blur transition hover:border-white/40 hover:bg-black/80"
           >
             ✕
           </button>

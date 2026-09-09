@@ -18,6 +18,8 @@ export default function ConnectEbayPage() {
         return;
       }
       setUserName(user.name.split(" ")[0]);
+    }).catch(() => {
+      // Offline / 5xx: the page reads fine without the first name.
     });
   }, [router]);
 

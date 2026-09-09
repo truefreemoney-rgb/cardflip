@@ -259,6 +259,8 @@ export default function WishlistPage() {
   const { user } = useSession();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // The list couldn't load (offline, 5xx) — not the same as "empty".
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
@@ -299,6 +301,7 @@ export default function WishlistPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = user?.id;
+  const [loadSeq, setLoadSeq] = useState(0);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -307,12 +310,19 @@ export default function WishlistPage() {
         if (cancelled) return;
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
-        void fetchCurrentPrices(list).then(({ prices, cardIds, cards }) => {
-          if (cancelled) return;
-          setNowPrices(prices);
-          setResolvedIds(cardIds);
-          resolvedCards.current = { ...resolvedCards.current, ...cards };
-        });
+        fetchCurrentPrices(list)
+          .then(({ prices, cardIds, cards }) => {
+            if (cancelled) return;
+            setNowPrices(prices);
+            setResolvedIds(cardIds);
+            resolvedCards.current = { ...resolvedCards.current, ...cards };
+          })
+          .catch(() => {
+            // Prices are decoration here; the list stands without them.
+          });
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Couldn't load your watchlist — check your connection.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -320,7 +330,7 @@ export default function WishlistPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, loadSeq]);
 
   // Remove is undoable (QA, 09-04: the DELETE used to fire on the tap). The
   // tile leaves at once; the server delete waits out the toast's Undo window
@@ -385,8 +395,8 @@ export default function WishlistPage() {
         const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
         found = await searchCards(name, printed, addLanguage, 200, "mtg");
         if (number) {
-          const wanted = number.replace(/^0+(?=d)/, "");
-          const exact = found.filter((c) => c.number.replace(/^0+(?=d)/, "").toLowerCase() === wanted);
+          const wanted = number.replace(/^0+(?=\d)/, "");
+          const exact = found.filter((c) => c.number.replace(/^0+(?=\d)/, "").toLowerCase() === wanted);
           if (exact.length > 0) found = exact;
         }
       } else {
@@ -691,6 +701,24 @@ export default function WishlistPage() {
             </div>
           ))}
         </div>
+      ) : loadError && items.length === 0 ? (
+        <p
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              setLoading(true);
+              setLoadSeq((n) => n + 1);
+            }}
+            className="rounded-full border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/10"
+          >
+            Retry
+          </button>
+        </p>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
           <div className="text-3xl">☆</div>

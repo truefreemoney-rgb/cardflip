@@ -19,6 +19,8 @@ export interface User {
   totpEnabledAt: number | null;
   /** Stripe: set on first checkout; status mirrors the subscription via webhook. */
   stripeCustomerId: string | null;
+  /** The Stripe subscription sub_status mirrors; webhook events for any other subscription are ignored. */
+  stripeSubscriptionId: string | null;
   subStatus: string | null;
   subPeriodEnd: number | null;
   /** 'standard' | 'pro' — from the Stripe price on the subscription. */
@@ -55,6 +57,7 @@ interface UserRow {
   totp_secret: string | null;
   totp_enabled_at: number | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   sub_status: string | null;
   sub_period_end: number | null;
   plan: string | null;
@@ -95,6 +98,7 @@ function fromRow(row: UserRow): User {
     totpSecret: row.totp_secret ?? null,
     totpEnabledAt: row.totp_enabled_at ?? null,
     stripeCustomerId: row.stripe_customer_id ?? null,
+    stripeSubscriptionId: row.stripe_subscription_id ?? null,
     subStatus: row.sub_status ?? null,
     subPeriodEnd: row.sub_period_end ?? null,
     plan: row.plan === "pro" ? "pro" : row.plan === "standard" ? "standard" : null,
@@ -248,6 +252,11 @@ export async function setStripeCustomer(userId: string, customerId: string): Pro
   await db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customerId, userId);
 }
 
+/** Pin which Stripe subscription owns this account's status (see the webhook). */
+export async function setStripeSubscription(userId: string, subscriptionId: string | null): Promise<void> {
+  await db.prepare("UPDATE users SET stripe_subscription_id = ? WHERE id = ?").run(subscriptionId, userId);
+}
+
 export async function setSubscription(
   userId: string,
   status: string | null,
@@ -341,6 +350,7 @@ export async function createUser(
     totpSecret: null,
     totpEnabledAt: null,
     stripeCustomerId: null,
+    stripeSubscriptionId: null,
     subStatus: null,
     subPeriodEnd: null,
     plan: null,
@@ -440,8 +450,13 @@ export async function userDataSummary(userId: string): Promise<{
 }
 
 /**
- * Remove an account. Foreign keys cascade cards / sessions / wishlist /
- * price checks; card photos live on disk, so those go first.
+ * Remove an account. Child rows are deleted explicitly, in one transaction,
+ * rather than trusting ON DELETE CASCADE: PRAGMA foreign_keys is per
+ * connection and not guaranteed over Turso's HTTP client (db.ts), and a
+ * user row that vanishes while its sessions / tokens stay is exactly the
+ * kind of orphan that keeps a deleted account signed in. Idempotent — every
+ * statement is a no-op on a second run. Card photos live on disk/blob, so
+ * those go first (best effort).
  */
 export async function deleteUser(userId: string): Promise<void> {
   const photoRows = (await db
@@ -450,7 +465,30 @@ export async function deleteUser(userId: string): Promise<void> {
   for (const r of photoRows) {
     try { await deleteCardPhoto(r.id); } catch { /* best effort */ }
   }
-  await db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  await db.transaction(async (tx) => {
+    // Every table in db.ts with a user_id (plus card_photos, keyed by card).
+    for (const sql of [
+      "DELETE FROM card_photos WHERE card_id IN (SELECT id FROM cards WHERE user_id = ?)",
+      "DELETE FROM cards WHERE user_id = ?",
+      "DELETE FROM sessions WHERE user_id = ?",
+      "DELETE FROM ebay_tokens WHERE user_id = ?",
+      "DELETE FROM wishlist_items WHERE user_id = ?",
+      "DELETE FROM price_checks WHERE user_id = ?",
+      "DELETE FROM help_messages WHERE user_id = ?",
+      "DELETE FROM password_resets WHERE user_id = ?",
+      "DELETE FROM categories WHERE user_id = ?",
+      // scan_usage is kept on purpose: it is the cost ledger behind scan
+      // margin (db.ts) and deliberately has no FK to users. It holds token
+      // counts and dollars against an id that no longer resolves, nothing
+      // personal.
+      // Referrals live on users.referred_by (no referrals table): unpin
+      // anyone this account invited so the column never points at nothing.
+      "UPDATE users SET referred_by = NULL WHERE referred_by = ?",
+      "DELETE FROM users WHERE id = ?",
+    ]) {
+      await tx.prepare(sql).run(userId);
+    }
+  });
 }
 
 export async function listAllUsers(): Promise<User[]> {

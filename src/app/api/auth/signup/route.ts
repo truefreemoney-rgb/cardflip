@@ -17,6 +17,10 @@ export async function POST(req: Request) {
   if (!name) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
   }
+  // Same cap as admin create and account PATCH.
+  if (name.length > 80) {
+    return NextResponse.json({ error: "Name must be 80 characters or fewer." }, { status: 400 });
+  }
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
   }

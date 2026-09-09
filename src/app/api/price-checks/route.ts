@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const language: ScanLanguage =
       body?.language === "ja" || body?.language === "zh" ? body.language : "en";
 
-    if (!card?.name || !Array.isArray(card.prices)) {
+    if (typeof card?.name !== "string" || !card.name || !Array.isArray(card.prices)) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
     }
 

@@ -37,7 +37,7 @@ process.once("exit", () => {
 
 // --- fetch stub ---------------------------------------------------------------
 // Each eBay path is answered from a script the test sets per scenario.
-const routes = { orders: [], offers: new Map(), finances: new Map() };
+const routes = { orders: [], offers: new Map(), finances: new Map(), token: null };
 const calls = [];
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const realFetch = globalThis.fetch;
@@ -45,6 +45,8 @@ globalThis.fetch = async (input, init) => {
   const url = String(input);
   calls.push(url);
   if (url.includes("/identity/v1/oauth2/token")) {
+    if (routes.token instanceof Response) return routes.token;
+    if (routes.token === "down") throw new TypeError("fetch failed");
     return json({ access_token: "tok-1", expires_in: 7200, refresh_token: "ref-1", refresh_token_expires_in: 47304000, token_type: "User" });
   }
   if (url.includes("/commerce/identity/")) return json({ userId: "ebay-u1", username: "seller1" });
@@ -75,7 +77,7 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { syncEbaySales } = await import(at("lib/server/ebayOrders.ts"));
 const { syncEndedEbayListings } = await import(at("lib/server/ebayListings.ts"));
 const { syncEbayFees } = await import(at("lib/server/ebayFinances.ts"));
-const { completeEbayConnect, getUserAccessToken } = await import(at("lib/server/ebayAuth.ts"));
+const { completeEbayConnect, getUserAccessToken, getEbayLink, EbayUnreachableError } = await import(at("lib/server/ebayAuth.ts"));
 const { createCard, getCardForUser, listCardsForUser } = await import(at("lib/server/cards.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
 const { db } = await import(at("lib/db.ts"));
@@ -224,6 +226,22 @@ check("fees: multi-line order with no line match → left NULL", await fee(c6), 
 routes.finances = new Map([["O-8", json({}, 403)]]);
 check("fees: 403 → no_scope", (await syncEbayFees(uid, true)).skipped, "no_scope");
 check("fees: throttled on the next pass", (await syncEbayFees(uid)).skipped, "throttled");
+
+// --- token refresh failures never 500 ---------------------------------------
+// Expire the access token so the next call must refresh; eBay's answer decides.
+const expireAccess = () => db.prepare("UPDATE ebay_tokens SET access_expires_at = 0 WHERE user_id = ?").run(uid);
+await resetThrottle();
+await expireAccess();
+routes.token = "down";
+check("refresh: network failure → skipped 'error', link kept", [(await syncEbaySales(uid, true)).skipped, Boolean(await getEbayLink(uid))], ["error", true]);
+routes.token = json({ error: "server_error" }, 503);
+check("refresh: eBay 5xx → skipped 'error', link kept", [(await syncEbayFees(uid, true)).skipped, Boolean(await getEbayLink(uid))], ["error", true]);
+let refreshErr = null;
+try { await getUserAccessToken(uid); } catch (e) { refreshErr = e; }
+check("refresh: 5xx surfaces as EbayUnreachableError to sell callers", refreshErr instanceof EbayUnreachableError, true);
+routes.token = json({ error: "invalid_grant" }, 400);
+check("refresh: invalid_grant → not_connected and the link is dropped", [(await syncEbaySales(uid, true)).skipped, await getEbayLink(uid)], ["not_connected", null]);
+routes.token = null;
 
 // Sanity: the ledger is what the sweeps say it is.
 const all = await listCardsForUser(uid);

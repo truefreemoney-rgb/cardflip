@@ -62,6 +62,7 @@ const sessionCookie = (res) => res.cookies.get(SESSION_COOKIE)?.value ?? null;
 check("signup: name required", (await signup.POST(post({ email: "a@b.co", password: "123456" }))).status, 400);
 check("signup: real email required", (await signup.POST(post({ name: "A", email: "not-an-email", password: "123456" }))).status, 400);
 check("signup: password floor", (await signup.POST(post({ name: "A", email: "a@b.co", password: "12345" }))).status, 400);
+check("signup: name capped at 80", (await signup.POST(post({ name: "N".repeat(81), email: "a@b.co", password: "123456" }))).status, 400);
 
 const created = await signup.POST(post({ name: "  Sam  ", email: "  Sam@Example.COM ", password: "hunter22" }));
 check("signup: created", created.status, 201);

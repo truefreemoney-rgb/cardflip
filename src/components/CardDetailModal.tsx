@@ -1,6 +1,7 @@
 "use client";
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { toast } from "@/components/Toaster";
@@ -62,6 +63,7 @@ export default function CardDetailModal({ card, language, logging, onWatchlist =
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   useBodyScrollLock();
+  useBackToClose("card-detail", onClose);
 
   const hasImage = Boolean(card.imageLarge || card.imageSmall);
   const panelRef = useRef<HTMLDivElement>(null);

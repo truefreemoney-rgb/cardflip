@@ -1,6 +1,7 @@
 "use client";
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -188,6 +189,7 @@ function RepriceSheet({
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
   useBodyScrollLock();
+  useBackToClose("reprice", onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -634,7 +636,12 @@ export default function CollectionPage() {
     let cancelled = false;
     fetchServerCards()
       .then((list) => {
-        if (!cancelled) setCards(list);
+        if (cancelled) return;
+        // null = the request failed (timeout, 5xx). Keep whatever rows are
+        // showing and say so — an empty ledger here used to read as
+        // "No cards yet" on a bad connection.
+        if (list) setCards(list);
+        else setSyncError("Couldn't load your cards — check your connection and pull to refresh.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

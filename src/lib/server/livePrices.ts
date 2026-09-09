@@ -72,6 +72,11 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))]);
   const out: LivePrice[] = [];
+  // Writes are collected and flushed as multi-row UPDATE ... FROM (VALUES)
+  // statements below: per-row UPDATEs were up to 2 x ROW_CAP round trips on
+  // every Inventory load, which on Turso is both slow and billed.
+  const backfills: { id: string; scanned: number }[] = [];
+  const moves: { id: string; price: number }[] = [];
   for (const row of rows) {
     const s = series.get(row.catalog_card_id);
     const market = s ? lastOf(s.prices) : null;
@@ -85,7 +90,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       const asking = then != null ? askingPriceFor(then, row.condition) : 0;
       if (asking > 0) {
         scanned = asking;
-        await db.prepare("UPDATE cards SET scan_price = ? WHERE id = ? AND user_id = ?").run(scanned, row.id, userId);
+        backfills.push({ id: row.id, scanned });
       }
     }
     if (!(suggested > 0)) continue;
@@ -93,9 +98,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     const canApply = row.status === "ready" && row.price_locked !== 1;
     let applied = false;
     if (moved && canApply) {
-      await db
-        .prepare("UPDATE cards SET price = ?, updated_at = ? WHERE id = ? AND user_id = ?")
-        .run(suggested, now, row.id, userId);
+      moves.push({ id: row.id, price: suggested });
       applied = true;
     }
     out.push({
@@ -107,5 +110,36 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       scanned,
     });
   }
+  await batchUpdate(
+    userId,
+    "scan_price = v.column2",
+    backfills.map((b) => [b.id, b.scanned]),
+  );
+  await batchUpdate(
+    userId,
+    "price = v.column2, updated_at = v.column3",
+    moves.map((m) => [m.id, m.price, now]),
+  );
   return out;
+}
+
+/**
+ * Multi-row UPDATE ... FROM (VALUES ...) — same shape as
+ * priceBulkWrite.updateMtgPriceColumns. SQLite names VALUES columns
+ * column1..N (3.33+, true of node's SQLite and Turso); column1 is the card id.
+ */
+async function batchUpdate(userId: string, setClause: string, rows: (string | number)[][]): Promise<void> {
+  if (rows.length === 0) return;
+  const PER_STMT = 400;
+  for (let i = 0; i < rows.length; i += PER_STMT) {
+    const slice = rows.slice(i, i + PER_STMT);
+    const values = slice.map((r) => `(${r.map(() => "?").join(", ")})`).join(", ");
+    await db
+      .prepare(
+        `UPDATE cards SET ${setClause}
+         FROM (VALUES ${values}) AS v
+         WHERE cards.id = v.column1 AND cards.user_id = ?`,
+      )
+      .run(...slice.flat(), userId);
+  }
 }

@@ -797,7 +797,7 @@ export default function AppPage() {
       const eagerSearch = hintName
         ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
         : null;
-      const rows = await fetchServerCards();
+      const rows = (await fetchServerCards()) ?? [];
       const wanted = resumeIds
         .map((id) => rows.find((r) => r.id === id))
         .filter((r): r is ServerCard => Boolean(r) && r!.kind !== "sealed" && r!.status !== "sold");

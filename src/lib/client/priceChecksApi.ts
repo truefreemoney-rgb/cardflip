@@ -20,9 +20,10 @@ export interface PriceCheckEntry {
   imageUrl: string | null;
 }
 
+/** Throws on a failed load (offline, 5xx) so the page can say so instead of "no lookups". */
 export async function fetchPriceCheckHistory(): Promise<PriceCheckEntry[]> {
   const res = await apiFetch("/api/price-checks");
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`price-checks ${res.status}`);
   const data = await res.json();
   return data.entries ?? [];
 }

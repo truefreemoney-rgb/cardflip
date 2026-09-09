@@ -3,6 +3,7 @@ import { belowFloor, floorRefusal } from "@/lib/fees";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { isDemoUser } from "@/lib/server/users";
 import { updateCard } from "@/lib/server/cards";
+import { EbayUnreachableError } from "@/lib/server/ebayAuth";
 import { EbayNotConnectedError, EbaySellError, updateOfferPrice } from "@/lib/server/ebaySell";
 
 /**
@@ -45,7 +46,9 @@ export async function POST(req: NextRequest) {
             ? err.sellerMessage
             : err instanceof EbayNotConnectedError
               ? "Connect your eBay account first"
-              : "eBay didn't take the new price";
+              : err instanceof EbayUnreachableError
+                ? err.message
+                : "eBay didn't take the new price";
         console.error("reprice: eBay offer update failed:", err);
       }
     }

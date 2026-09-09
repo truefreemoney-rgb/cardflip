@@ -35,6 +35,19 @@ export function startGuide(steps: GuideStep[]): void {
  * and `/app?tour=1` re-run it.
  */
 
+/**
+ * First VISIBLE match, not the first match. The header mounts the personal
+ * strip three times behind breakpoint classes, so `querySelector` on a
+ * ≥640px screen used to return the `sm:hidden` copy and the spotlight lit a
+ * 12×12 box at (-6,-6). A display:none element has no client rects.
+ */
+function visibleAnchor(sel: string): HTMLElement | null {
+  for (const el of document.querySelectorAll<HTMLElement>(sel)) {
+    if (el.getClientRects().length > 0) return el;
+  }
+  return null;
+}
+
 interface Step {
   /** Page the step lives on; Next on a page boundary navigates there. */
   path: string;
@@ -216,7 +229,7 @@ export default function TourOverlay() {
   // (09-04: a per-scroll re-render made the old arrow chase a sliding card).
   useLayoutEffect(() => {
     if (!current) return;
-    const el = current.sel ? document.querySelector<HTMLElement>(current.sel) : null;
+    const el = current.sel ? visibleAnchor(current.sel) : null;
     if (!el) {
       const t = window.setTimeout(() => {
         setRect(null);

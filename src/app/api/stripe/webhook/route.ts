@@ -7,6 +7,7 @@ import {
   findUserByStripeCustomer,
   isSubscribed,
   setStripeCustomer,
+  setStripeSubscription,
   setSubscription,
 } from "@/lib/server/users";
 
@@ -16,7 +17,17 @@ import {
  * customer.subscription.updated (renewal, payment failure, cancel-at-end),
  * customer.subscription.deleted (fully ended). Everything else is 200-and-
  * ignored so Stripe doesn't retry. Signature checked before touching JSON.
+ *
+ * users.stripe_subscription_id pins WHICH subscription the status mirrors
+ * (09-09). A re-subscribe creates a second subscription under the same
+ * customer; before the pin, the old one's .deleted event matched by
+ * customer id and cancelled a paying user. Rules: checkout and an
+ * active/trialing created/updated adopt the event's subscription; any other
+ * updated/deleted for a different subscription than the stored one is
+ * 200-and-ignored. Events without an id (never from Stripe; test fixtures)
+ * are applied as before.
  */
+const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 export async function POST(req: NextRequest) {
   const body = await req.text();
   if (!verifyWebhook(body, req.headers.get("stripe-signature"))) {
@@ -41,6 +52,7 @@ export async function POST(req: NextRequest) {
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const sub = await fetchSubscription(subscriptionId);
         await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan);
+        await setStripeSubscription(user.id, subscriptionId);
         console.info(`stripe: ${user.email} subscribed (${sub.status}, ${sub.plan})`);
         // Welcome once, on the not-subscribed -> subscribed edge (`user` was
         // read before setSubscription, so a retried event sees "active" and
@@ -63,12 +75,30 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-    } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+    } else if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
       const customerId = typeof obj.customer === "string" ? obj.customer : null;
       const user = customerId ? await findUserByStripeCustomer(customerId) : null;
       if (user) {
         const deleted = event.type === "customer.subscription.deleted";
         const status = deleted ? "canceled" : typeof obj.status === "string" ? obj.status : null;
+        const subscriptionId = typeof obj.id === "string" ? obj.id : null;
+        const stored = user.stripeSubscriptionId;
+        if (subscriptionId && stored && subscriptionId !== stored) {
+          // A different subscription than the one we mirror. Only a live one
+          // may take over (the re-subscribe case); a stale one ending must
+          // not touch a paying account.
+          if (deleted || !status || !ACTIVE_STATUSES.has(status)) {
+            console.info(`stripe: ${user.email} ignored ${event.type} for ${subscriptionId} (mirroring ${stored})`);
+            return NextResponse.json({ received: true, ignored: true });
+          }
+        }
+        if (subscriptionId && !deleted && status && ACTIVE_STATUSES.has(status) && subscriptionId !== stored) {
+          await setStripeSubscription(user.id, subscriptionId);
+        }
         const items = obj.items as { data?: { current_period_end?: number; price?: { id?: string } }[] } | undefined;
         const item = items?.data?.[0];
         const end = item?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;

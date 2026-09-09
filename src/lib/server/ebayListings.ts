@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getUserAccessToken } from "@/lib/server/ebayAuth";
+import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { setCardListingEnded, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
 
@@ -74,8 +74,8 @@ export async function syncEndedEbayListings(userId: string, force = false): Prom
   const now = Date.now();
   if (!force && now - (await lastSyncAt(userId)) < THROTTLE_MS) return { ended: [], skipped: "throttled" };
 
-  const token = await getUserAccessToken(userId);
-  if (!token) return { ended: [], skipped: "not_connected" };
+  const token = await tokenOrSkip(userId);
+  if (token === "not_connected" || token === "error") return { ended: [], skipped: token };
 
   const ended: CardRecord[] = [];
   try {

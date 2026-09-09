@@ -58,11 +58,58 @@ function fromRow(row: PriceCheckRow): PriceCheckEntry {
  * is recent. (The demo account used to show 40+ identical rows.) */
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
 
+const TEXT_MAX = 200;
+const MAX_PRICES = 50;
+const str = (v: unknown, max = TEXT_MAX): string => (typeof v === "string" ? v.slice(0, max) : "");
+
+/**
+ * The card comes straight from the client. Anything but a string in a text
+ * column makes libsql throw, and prices_json is stored verbatim — so the
+ * text fields are coerced and the price list is capped (count and shape)
+ * before anything is written.
+ */
+function cleanCard(card: PokemonCard): PokemonCard {
+  const prices = (Array.isArray(card.prices) ? card.prices : [])
+    .filter((p): p is PokemonCard["prices"][number] => Boolean(p) && typeof p === "object")
+    .slice(0, MAX_PRICES)
+    .map((p) => ({
+      source: str(p.source, 40) as PokemonCard["prices"][number]["source"],
+      variant: str(p.variant, 60),
+      label: str(p.label, 60),
+      currency: str(p.currency, 8) as PokemonCard["prices"][number]["currency"],
+      market: typeof p.market === "number" && Number.isFinite(p.market) ? p.market : null,
+      low: typeof p.low === "number" && Number.isFinite(p.low) ? p.low : null,
+      high: typeof p.high === "number" && Number.isFinite(p.high) ? p.high : null,
+      ...(p.trend && typeof p.trend === "object"
+        ? {
+            trend: {
+              avg1: typeof p.trend.avg1 === "number" && Number.isFinite(p.trend.avg1) ? p.trend.avg1 : null,
+              avg7: typeof p.trend.avg7 === "number" && Number.isFinite(p.trend.avg7) ? p.trend.avg7 : null,
+              avg30: typeof p.trend.avg30 === "number" && Number.isFinite(p.trend.avg30) ? p.trend.avg30 : null,
+            },
+          }
+        : {}),
+    }));
+  return {
+    ...card,
+    id: str(card.id, 80),
+    name: str(card.name),
+    setName: str(card.setName),
+    number: str(card.number, 40),
+    imageSmall: str(card.imageSmall, 500) || str(card.imageLarge, 500),
+    imageLarge: str(card.imageLarge, 500),
+    game: card.game === "mtg" ? "mtg" : "pokemon",
+    prices,
+  };
+}
+
 export async function logPriceCheck(
   userId: string,
-  card: PokemonCard,
+  rawCard: PokemonCard,
   language: ScanLanguage,
 ): Promise<PriceCheckEntry> {
+  const card = cleanCard(rawCard);
+  if (!card.name) throw new Error("price check: card name is required");
   const id = randomUUID();
   const checkedAt = Date.now();
   const representativePrice = pickPrice(card)?.market ?? null;

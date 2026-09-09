@@ -14,6 +14,7 @@ import {
   extractNameCandidates,
   stripNoiseWords,
 } from "../src/lib/ocrText.ts";
+import { speciesName } from "../src/lib/speciesName.ts";
 
 // Collector numbers moved to src/lib/cardNumber.ts, along with their tests —
 // see npm run test:cardnumber.
@@ -94,6 +95,18 @@ check(
   extractCjkNameCandidates(["ポケモン"], JP_NOISE),
   [],
 );
+
+// "Not your card?" searches by species. Pins the literal-`s+` regression
+// (09-09): the suffix regex never matched, so "Charizard ex" went verbatim.
+console.log("\nSpecies behind the printed name:");
+check("ex suffix", speciesName("Charizard ex"), "Charizard");
+check("VMAX suffix", speciesName("Charizard VMAX"), "Charizard");
+check("Mega prefix + form + ex", speciesName("Mega Charizard Y ex"), "Charizard");
+check("owner prefix", speciesName("Team Rocket's Meowth"), "Meowth");
+check("LV.X", speciesName("Garchomp LV.X"), "Garchomp");
+check("Xatu is not an X form", speciesName("Xatu"), "Xatu");
+check("plain name untouched", speciesName("Pikachu"), "Pikachu");
+check("multi-word survives", speciesName("Mr. Mime ex"), "Mr. Mime");
 
 console.log(
   failures === 0

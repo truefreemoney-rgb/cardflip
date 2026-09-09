@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, listCardsForUser } from "@/lib/server/cards";
+import { belowFloor, floorRefusal } from "@/lib/fees";
 
 export async function GET() {
   try {
@@ -26,7 +27,15 @@ export async function POST(req: Request) {
     const cardNumber = typeof body?.cardNumber === "string" ? body.cardNumber : "";
     const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : "";
     const condition = typeof body?.condition === "string" ? body.condition : "Near Mint";
-    const price = typeof body?.price === "number" ? body.price : 0;
+    // A missing price means "unpriced" ($0); a present one must be a real
+    // non-negative number, and never under the fee floor (lib/fees.ts).
+    const price = body?.price === undefined || body?.price === null ? 0 : body.price;
+    if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+      return NextResponse.json({ error: "price must be a non-negative number" }, { status: 400 });
+    }
+    if (belowFloor(price)) {
+      return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+    }
     // Anything unrecognized stays a plain card — the safe reading of a stale
     // or hand-rolled client.
     const kind = body?.kind === "sealed" ? ("sealed" as const) : ("card" as const);

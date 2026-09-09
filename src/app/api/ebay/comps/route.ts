@@ -11,6 +11,8 @@ import {
 import type { PokemonCard } from "@/lib/types";
 import { canBeFirstEdition } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
+import { englishCardById } from "@/lib/server/enCards";
+import { mtgCardById } from "@/lib/server/mtgCards";
 import { cachedEbayComps } from "@/lib/server/ebayCompsCache";
 import {
   LIMITS,
@@ -80,12 +82,19 @@ export async function POST(req: Request) {
     // actually price grow a REAL graded curve over time, replacing the
     // chart's rescaled estimate. Fire-and-forget: recording must never sink
     // the lookup.
-    if (!cached && grading && comps && comps.count >= 2 && card.id) {
+    // The id and game are client-supplied — only a card the catalog knows
+    // gets a series, so a hand-rolled body can't seed junk history rows.
+    if (!cached && grading && comps && comps.count >= 2 && typeof card.id === "string" && card.id) {
       const gradeNum = grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade;
       const variant = `graded-${grading.company.toLowerCase()}-${gradeNum}`;
-      void recordPoint(card.id, card.game ?? "pokemon", variant, "ebay", "USD", comps.average).catch((err) =>
-        console.error("graded history point failed:", err),
-      );
+      const game = card.game === "mtg" ? "mtg" : "pokemon";
+      const cardId = card.id;
+      const average = comps.average;
+      void (async () => {
+        const known =
+          game === "mtg" ? (await mtgCardById(cardId)).length > 0 : (await englishCardById(cardId)).cards.length > 0;
+        if (known) await recordPoint(cardId, game, variant, "ebay", "USD", average);
+      })().catch((err) => console.error("graded history point failed:", err));
     }
 
     let sold = null;

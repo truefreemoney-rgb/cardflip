@@ -345,6 +345,15 @@ const SCHEMA = `
     value TEXT NOT NULL
   );
 
+  -- Durable fixed-window counters for the auth brute-force guard
+  -- (rateLimitDb.ts). The in-memory limiter is per serverless instance, so
+  -- login / reset attempts were effectively unbounded across instances.
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY,
+    count INTEGER NOT NULL,
+    window_start INTEGER NOT NULL
+  );
+
   -- Order lines the sales sync has already applied to the ledger
   -- (ebayOrders.ts). The sync re-reads a 90-day order window every pass; a
   -- fully-sold card leaves 'listed' and self-dedupes, but a partial sale on
@@ -522,6 +531,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "stripe_customer_id TEXT",
     "sub_status TEXT",
     "sub_period_end INTEGER",
+    // The subscription the status above mirrors (09-09). A re-subscribe
+    // creates a second Stripe subscription; without this the old one's
+    // .deleted event (matched by customer id alone) cancelled a paying user.
+    "stripe_subscription_id TEXT",
     // Scan metering (lib/server/scanQuota.ts): scan_month is the yyyy-mm the
     // counter belongs to (reset lazily on rollover); extra_scans is the bank
     // of purchased pack scans, consumed after the monthly allowance.

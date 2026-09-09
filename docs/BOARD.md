@@ -28,6 +28,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Prove on prod — built, not yet seen live
 
+- [ ] [both] 09-09 hard pass on prod: eBay account-deletion webhook now verifies eBay's signature (needs the real key fetch to succeed once — check Vercel logs after the next eBay test notification); Stripe webhook now pins the subscription id (first real subscribe/cancel proves it); DB-backed login rate limit (rate_limits table created on first request).
 - [ ] [both] Sold-row treatment (SOLD marker, no delete/relist) — needs a real sale.
 - [ ] [both] Help chat's Haiku call on prod (dev has no key; verified by a one-off script).
 - [ ] [both] Trial selling gate (402 on draft/publish) on prod.
@@ -76,6 +77,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Done this week — so nothing looks lost
 
+- [x] 09-09 HARD PASS (3 audit agents + 4 fix agents + browser sweep on desktop/Android Chrome/iPhone WebKit): 36 code findings fixed — API validation (cards POST floor, PATCH coercion, wishlist/price-check bodies), eBay refresh failures → reconnect/502 not 500, trial gate on push, partial-sale transaction, comps id trust, signup name cap, Stripe timeout; N+1s batched (nudges, alerts, live prices), showcase + CJK searches use indexes, daily job survives Vercel limits; eBay deletion signature, Stripe sub-id pin, DB rate limiter, explicit child deletes on account delete, admin refuses default creds in prod; client: 5xx no longer bounces to login, tour anchors pick the visible copy, species regex fixed ("Not your card?" works), Android Back closes sheets, network failures show a banner not an empty state, paywall refresh unsticks, rewards no flash, landscape iPhone inputs 16px, help chips on old iOS, trial copy; scanner ✕ above the blocked-camera overlay.
 - [x] 09-09 Board is live in the admin console (DB-backed, editable) · e2e runs on Android Chrome (Pixel 7) AND WebKit/iPhone 13 every push.
 - [x] 09-08 Category management (add / rename / merge / delete) · admin toggle in the user drawer · sold cards are the record · fee floor is a hard rule · scanned → now in the card detail · Inventory Text row + price column makeover · Live / End Auction / Not Listed slots · watchlist tile makeover · watchlist rows from Inventory get a price · second art source (pokemontcg.io) · e2e tour flake fixed · scan counter in the header · tier decides plan cards (not admin role) · landing CTA becomes Open the App when signed in.
 - [x] 09-07 Live Inventory prices · Inventory row makeover for phones · two-row phone header · stage sweep loops under reduced motion · tcgdex heartbeat probe.

@@ -4,11 +4,12 @@ import { hashBackupCode, verifyTotp } from "@/lib/server/totp";
 import { verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
-  const limited = limitOrRespond(`auth:login:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`auth:login:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   let email = typeof body?.email === "string" ? body.email.trim() : "";

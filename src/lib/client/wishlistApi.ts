@@ -23,9 +23,10 @@ export interface WishlistItem {
   alertedAt: number | null;
 }
 
+/** Throws on a failed load (offline, 5xx) so the page can say so instead of "empty". */
 export async function fetchWishlist(): Promise<WishlistItem[]> {
   const res = await apiFetch("/api/wishlist");
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`wishlist ${res.status}`);
   const data = await res.json();
   return data.items ?? [];
 }

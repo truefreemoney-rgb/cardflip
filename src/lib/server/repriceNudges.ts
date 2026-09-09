@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { latestUsdPrice } from "@/lib/server/priceHistory";
+import { latestUsdPrices } from "@/lib/server/priceHistory";
 
 /**
  * The stale-listing half of BACKLOG's "auto-offers + reprice nudge": a card
@@ -38,9 +38,12 @@ export async function getRepriceNudges(userId: string, now = Date.now()): Promis
     )
     .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string }[];
 
+  // One batched series read for every listed row — the per-row lookup was
+  // up to 50 round trips on each collection load (Turso bills each one).
+  const markets = await latestUsdPrices([...new Set(rows.map((r) => r.catalog_card_id))]);
   const nudges: RepriceNudge[] = [];
   for (const row of rows) {
-    const market = await latestUsdPrice(row.catalog_card_id);
+    const market = markets.get(row.catalog_card_id)?.price ?? null;
     if (market == null || market <= 0) continue;
     const drift = (market - row.price) / row.price;
     if (Math.abs(drift) < MIN_DRIFT) continue;

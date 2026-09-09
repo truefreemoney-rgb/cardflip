@@ -86,7 +86,18 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     },
     [save],
   );
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // Leaving the page inside the debounce window must not lose the edit:
+  // flush the pending save on unmount.
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+        void save();
+      }
+    },
+    [save],
+  );
 
   const [view, setViewState] = useState<"cards" | "list">("cards");
   useEffect(() => {

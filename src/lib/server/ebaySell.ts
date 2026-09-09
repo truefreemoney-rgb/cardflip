@@ -1,5 +1,5 @@
 import "server-only";
-import { draftScopeEnabled, getUserAccessToken } from "@/lib/server/ebayAuth";
+import { draftScopeEnabled, EbayNotConnectedError, getUserAccessToken } from "@/lib/server/ebayAuth";
 import {
   getCardForUser,
   setCardEbayDraft,
@@ -70,13 +70,9 @@ export class EbaySellError extends Error {
   }
 }
 
-/** The seller has no (live) eBay link — the UI should send them to Connect. */
-export class EbayNotConnectedError extends Error {
-  constructor() {
-    super("Connect your eBay account first");
-    this.name = "EbayNotConnectedError";
-  }
-}
+// EbayNotConnectedError lives in ebayAuth.ts (getUserAccessToken throws it when
+// eBay rejects a refresh); re-exported so the routes keep one import.
+export { EbayNotConnectedError } from "@/lib/server/ebayAuth";
 
 export async function ebayFetch(
   token: string,

@@ -60,14 +60,38 @@ function fromRow(row: WishlistRow): WishlistItem {
   };
 }
 
+const TEXT_MAX = 200;
+const str = (v: unknown, max = TEXT_MAX): string => (typeof v === "string" ? v.slice(0, max) : "");
+
+/**
+ * The card comes straight from the client. Anything but a string in a text
+ * column (undefined, a number, an object) makes libsql throw — so every
+ * field the row needs is coerced here, once.
+ */
+function cleanCard(card: PokemonCard): PokemonCard {
+  return {
+    ...card,
+    id: str(card.id, 80),
+    name: str(card.name),
+    englishName: typeof card.englishName === "string" ? card.englishName.slice(0, TEXT_MAX) : null,
+    setName: str(card.setName),
+    number: str(card.number, 40),
+    imageSmall: str(card.imageSmall, 500) || str(card.imageLarge, 500),
+    imageLarge: str(card.imageLarge, 500),
+    game: card.game === "mtg" ? "mtg" : "pokemon",
+  };
+}
+
 /** Silently no-ops on a duplicate (same user + card) rather than erroring —
  * clicking "add" on something already saved should just feel like it worked. */
 export async function addToWishlist(
   userId: string,
-  card: PokemonCard,
+  rawCard: PokemonCard,
   language: ScanLanguage,
   price: number | null,
 ): Promise<WishlistItem> {
+  const card = cleanCard(rawCard);
+  if (!card.name) throw new Error("wishlist: card name is required");
   const id = randomUUID();
   const addedAt = Date.now();
   // No price from the client (09-08: Inventory's detail opens on a stub with
@@ -88,7 +112,7 @@ export async function addToWishlist(
     card.setName,
     card.number,
     language,
-    card.imageSmall || card.imageLarge,
+    card.imageSmall,
     price,
     addedAt,
     card.id || null,

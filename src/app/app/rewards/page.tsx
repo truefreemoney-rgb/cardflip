@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
+import PageSkeleton from "@/components/PageSkeleton";
 import { fetchInvite, startCheckout, type InviteInfo } from "@/lib/client/accountApi";
 
 /**
@@ -74,6 +75,11 @@ export default function RewardsPage() {
       setBusy(false);
     }
   }
+
+  // Like every other app page: nothing subscriber-specific paints before the
+  // session answers (a trial account flashed "Subscribers get a link" at a
+  // subscriber for a beat).
+  if (status !== "ready" || !user) return <PageSkeleton />;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">

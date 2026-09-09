@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
-import { latestUsdPrice } from "@/lib/server/priceHistory";
+import { latestUsdPrices } from "@/lib/server/priceHistory";
 
 /**
  * The daily check behind "email me when it dips to $X" on wishlist rows.
@@ -54,9 +54,12 @@ export async function sweepWishlistAlerts(
     )
     .all()) as unknown as AlertRow[];
 
+  // One batched series read for the whole sweep instead of one per row (up
+  // to 200 round trips on Turso).
+  const prices = await latestUsdPrices([...new Set(rows.map((r) => r.card_id))]);
   const hitsByUser = new Map<string, { email: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
-    const price = await latestUsdPrice(row.card_id);
+    const price = prices.get(row.card_id)?.price ?? null;
     if (price == null || price > row.alert_price) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, hits: [] };
     entry.hits.push({

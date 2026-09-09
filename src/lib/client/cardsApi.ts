@@ -154,14 +154,15 @@ export async function manageCategory(
   }
 }
 
-export async function fetchServerCards(): Promise<ServerCard[]> {
+/** null = couldn't load (timeout, 5xx) — distinct from an empty ledger. */
+export async function fetchServerCards(): Promise<ServerCard[] | null> {
   try {
     const res = await apiFetch("/api/cards");
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.cards ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 

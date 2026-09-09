@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { AuthError } from "@/lib/server/auth";
-import { EbayOAuthNotConfiguredError } from "@/lib/server/ebayAuth";
+import { EbayOAuthNotConfiguredError, EbayUnreachableError } from "@/lib/server/ebayAuth";
 import {
   EbayDraftUnavailableError,
   EbayNotConnectedError,
@@ -30,6 +30,9 @@ export function sellErrorResponse(err: unknown): NextResponse {
       { error: "unconfigured", message: "eBay posting isn't live on this server yet" },
       { status: 503 },
     );
+  }
+  if (err instanceof EbayUnreachableError) {
+    return NextResponse.json({ error: "ebay_unreachable", message: err.message }, { status: 502 });
   }
   if (err instanceof EbayNotConnectedError) {
     return NextResponse.json({ error: "not_connected", message: err.message }, { status: 409 });

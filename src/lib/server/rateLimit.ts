@@ -4,9 +4,10 @@
 /**
  * Process-local fixed-window rate limiter.
  *
- * CardFlip runs as a single Fly machine, so an in-memory map is the whole
- * truth; if the app ever scales past one machine this needs to move to the
- * DB (a `rate_limits` table) or the limits become per-machine. Windows are
+ * On Vercel this map is per function instance, so it is only a burst guard
+ * on a warm instance. Anything that must bind across instances — the auth
+ * brute-force limit — goes through rateLimitDb.ts (`rate_limits` table),
+ * which runs this first and then the shared counter. Windows are
  * keyed by an arbitrary string — the caller decides whether that's a user
  * id, an IP, or a route+user combo — so the same helper protects a paid
  * upstream (Anthropic vision) per account and a public route per IP.

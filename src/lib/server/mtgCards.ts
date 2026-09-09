@@ -333,12 +333,14 @@ export async function mtgShowcase(limit = 12): Promise<PokemonCard[]> {
   ];
   const stmt = db.prepare(
     `SELECT ${CARD_COLUMNS} FROM mtg_cards
-      WHERE LOWER(name) = ? AND image_url <> '' AND price_usd IS NOT NULL
+      WHERE REPLACE(LOWER(name), ',', '') = ? AND image_url <> '' AND price_usd IS NOT NULL
       ORDER BY price_usd DESC LIMIT 1`,
   );
+  // The comma-stripped expression is what idx_mtg_cards_folded indexes; a
+  // plain LOWER(name) = ? walked all 94k rows twelve times per showcase.
   const out: PokemonCard[] = [];
   for (const n of names) {
-    const row = (await stmt.get(n.toLowerCase())) as unknown as MtgCardRow | undefined;
+    const row = (await stmt.get(n.toLowerCase().replace(/,/g, ""))) as unknown as MtgCardRow | undefined;
     if (row) out.push(toCard(row));
     if (out.length >= limit) break;
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { displayCardNumber } from "@/lib/games";
 import { useEffect, useRef } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
@@ -30,6 +31,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   useBodyScrollLock();
+  useBackToClose("card-peek", onClose);
 
   const price = pickPrice(card);
   const panelRef = useRef<HTMLDivElement>(null);
