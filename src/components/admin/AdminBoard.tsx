@@ -88,6 +88,26 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   );
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
+  const [view, setViewState] = useState<"cards" | "list">("cards");
+  useEffect(() => {
+    // Read after mount on purpose: the server can't see localStorage and a
+    // lazy initializer would mismatch the SSR markup.
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem("cardflip.boardView") === "list") setViewState("list");
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const setView = (v: "cards" | "list") => {
+    setViewState(v);
+    try {
+      localStorage.setItem("cardflip.boardView", v);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const [reload, setReload] = useState(false);
   const reseed = useCallback(async () => {
     setReload(false);
@@ -160,6 +180,44 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
           )}
         </div>
       </div>
+      <div className="mb-3 flex items-center gap-2 text-xs">
+        <div role="tablist" aria-label="Board view" className="flex rounded-full border border-edge bg-surface-1 p-0.5">
+          {(["cards", "list"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded-full px-3 py-1 transition ${view === v ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white"}`}
+            >
+              {v === "cards" ? "Cards" : "List"}
+            </button>
+          ))}
+        </div>
+        {view === "list" && <span className="text-zinc-500">Every open task, ranked by Claude&apos;s priority — Now first, then launch gates, your list, Claude&apos;s queue, prove-on-prod, technical, future, backburner, thoughts.</span>}
+      </div>
+      {view === "list" ? (
+        <ol className="rounded-2xl border border-edge bg-surface-1 p-3">
+          {rankedItems(sections).map(({ item, section, rank }) => (
+            <li key={item.id} className="flex items-start gap-2 border-b border-white/5 py-1 last:border-0">
+              <span className="w-7 shrink-0 pt-1 text-right text-[11px] tabular-nums text-zinc-600">{rank}</span>
+              <span className={`mt-1 shrink-0 rounded px-1.5 py-px text-[10px] font-medium ${catChip(section.title)}`} title={section.hint ?? undefined}>{section.title}</span>
+              <ul className="min-w-0 flex-1">
+                <ItemRow
+                  item={item}
+                  all={sections}
+                  sectionId={section.id}
+                  onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
+                  onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
+                  onRemove={() => removeItem(section.id, item.id)}
+                  onMove={(to) => moveItem(section.id, item.id, to)}
+                />
+              </ul>
+            </li>
+          ))}
+          {rankedItems(sections).length === 0 && <li className="py-4 text-center text-xs text-zinc-500">Nothing open.</li>}
+        </ol>
+      ) : (
       <div className="grid gap-4 md:grid-cols-2">
         {sections.map((s, idx) => (
           <SectionCard
@@ -189,8 +247,43 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
           </button>
         )}
       </div>
+      )}
     </div>
   );
+}
+
+/**
+ * Claude's priority order for the flat list: the category decides the
+ * band (Now beats everything; Chris's thoughts are notes, so last), and
+ * the order inside a card — which Claude keeps meaningful — breaks ties.
+ */
+function categoryRank(title: string): number {
+  if (/^now/i.test(title)) return 0;
+  if (/launch/i.test(title)) return 1;
+  if (/^chris\b(?!.*(thought|note))/i.test(title)) return 2;
+  if (/^claude/i.test(title)) return 3;
+  if (/prove/i.test(title)) return 4;
+  if (/technical/i.test(title)) return 5;
+  if (/future/i.test(title)) return 6;
+  if (/backburner/i.test(title)) return 7;
+  if (/thought|note/i.test(title)) return 8;
+  if (/^done/i.test(title)) return 9;
+  return 5.5;
+}
+function rankedItems(sections: BoardSection[]): { item: BoardItem; section: BoardSection; rank: number }[] {
+  const rows = sections.flatMap((section, si) =>
+    section.items.filter((i) => !i.done).map((item, ii) => ({ item, section, key: [categoryRank(section.title), si, ii] })),
+  );
+  rows.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2]);
+  return rows.map((r, i) => ({ item: r.item, section: r.section, rank: i + 1 }));
+}
+function catChip(title: string): string {
+  if (/^now/i.test(title)) return "bg-brand-500/15 text-brand-300";
+  if (/thought|note/i.test(title)) return "bg-rose-400/15 text-rose-300";
+  if (/^chris/i.test(title)) return "bg-amber-400/15 text-amber-300";
+  if (/^claude/i.test(title)) return "bg-sky-400/15 text-sky-300";
+  if (/launch/i.test(title)) return "bg-emerald-400/15 text-emerald-300";
+  return "bg-white/5 text-zinc-400";
 }
 
 function SectionCard(props: {
