@@ -17,6 +17,8 @@ function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const OWNER_CYCLE: BoardOwner[] = ["Chris", "Claude", "both", null];
+
 function tone(title: string): string {
   if (/^now/i.test(title)) return "border-brand-400/40";
   if (/thought|note/i.test(title)) return "border-rose-400/35";
@@ -137,7 +139,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Owner tags are set by Claude from the task status, not here.</p>
+        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Pick the owner when you add a task; after that Claude re-tags it as it moves.</p>
         <div className="flex items-center gap-3 text-xs">
           <p className={status === "error" ? "text-red-300" : status === "saved" ? "text-emerald-300/80" : "text-zinc-500"} aria-live="polite">
             {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : status === "dirty" ? "Unsaved" : error}
@@ -211,7 +213,7 @@ function SectionCard(props: {
   const [hint, setHint] = useState(s.hint ?? "");
   const [confirm, setConfirm] = useState(false);
   const [draft, setDraft] = useState("");
-  const draftOwner = defaultOwner(s.title);
+  const [draftOwner, setDraftOwner] = useState<BoardOwner>(defaultOwner(s.title));
   const [hideDone, setHideDone] = useState(false);
   const open = s.items.filter((i) => !i.done).length;
   const done = s.items.length - open;
@@ -294,9 +296,15 @@ function SectionCard(props: {
         className="mt-3 flex items-center gap-1.5 border-t border-edge pt-3"
         onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
       >
-        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${chipClass(draftOwner)}`} title="New items here are tagged for this person; Claude re-tags as the task moves">
+        <button
+          type="button"
+          onClick={() => setDraftOwner(OWNER_CYCLE[(OWNER_CYCLE.indexOf(draftOwner) + 1) % OWNER_CYCLE.length])}
+          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${chipClass(draftOwner)}`}
+          title="Who the new task is for — tap to change"
+          aria-label={`New task owner: ${draftOwner ?? "nobody"}. Tap to change`}
+        >
           {draftOwner ?? "—"}
-        </span>
+        </button>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
