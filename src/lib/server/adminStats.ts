@@ -6,6 +6,8 @@ import { db, dbIsRemote } from "@/lib/db";
 import { getPlatformStats, type PlatformStats } from "@/lib/server/cards";
 import { dailyStatus } from "@/lib/server/dailyJobs";
 import { adminUsingDefaults } from "@/lib/adminAuth";
+import { nextCronRun } from "@/lib/cronSchedule";
+import vercelConfig from "../../../vercel.json";
 
 /**
  * Everything the admin console shows, gathered server-side in one place:
@@ -59,6 +61,8 @@ export interface UserRollup {
 }
 
 export interface AdminOverview {
+  /** The instant everything below was read — pages use it instead of Date.now() in render. */
+  now: number;
   stats: PlatformStats & {
     newUsers7d: number;
     scans7d: number;
@@ -106,6 +110,10 @@ export interface AdminOverview {
       builtAt: string | null;
     };
     dbRemote: boolean;
+    /** True when this process is a Vercel function (no long-lived server). */
+    vercel: boolean;
+    /** vercel.json's schedules with each one's next UTC fire time. */
+    crons: { path: string; schedule: string; nextAt: number | null }[];
     env: { name: string; ok: boolean; note?: string }[];
     adminDefaults: boolean;
   };
@@ -184,17 +192,23 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
       }
     } catch { /* unreadable */ }
   }
+  // The seed marker is a file next to the local SQLite database; the Vercel
+  // filesystem is ephemeral and Turso is seeded by script, so on prod there
+  // is nothing to read and the row is hidden rather than shown as "—".
   let seedMarker: string | null = null;
-  try {
-    const m = path.join(dataDir, "mtg-seed.imported");
-    if (fs.existsSync(m)) seedMarker = fs.readFileSync(m, "utf8").trim();
-  } catch { /* none */ }
+  if (!dbIsRemote) {
+    try {
+      const m = path.join(dataDir, "mtg-seed.imported");
+      if (fs.existsSync(m)) seedMarker = fs.readFileSync(m, "utf8").trim();
+    } catch { /* none */ }
+  }
 
   const env = process.env;
   const has = (k: string) => Boolean(env[k] && env[k]!.trim());
   const mem = process.memoryUsage();
 
   return {
+    now,
     stats: {
       ...base,
       newUsers7d: await count("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", week),
@@ -244,16 +258,26 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
         builtAt: process.env.NEXT_PUBLIC_BUILD_TIME || null,
       },
       dbRemote: dbIsRemote,
+      vercel: Boolean(env.VERCEL),
+      crons: vercelConfig.crons.map((c) => ({ path: c.path, schedule: c.schedule, nextAt: nextCronRun(c.schedule, now) })),
+      // Presence only — never the values. One row per thing that can be
+      // off, in the order .env.example lists them, so a missing secret is
+      // findable from this page without opening Vercel.
       env: [
-        { name: "Anthropic vision", ok: has("ANTHROPIC_API_KEY") },
+        { name: "Anthropic (vision scan + help chat)", ok: has("ANTHROPIC_API_KEY") },
         { name: "pokemontcg.io key", ok: has("POKEMONTCG_API_KEY"), note: "optional — higher rate limit" },
         { name: "eBay app keyset", ok: has("EBAY_CLIENT_ID") && has("EBAY_CLIENT_SECRET") },
         { name: "eBay user OAuth (RuName)", ok: has("EBAY_RU_NAME") },
         { name: "eBay token key", ok: has("EBAY_TOKEN_KEY"), note: "falls back to client secret" },
         { name: "eBay deletion endpoint", ok: has("EBAY_VERIFICATION_TOKEN") },
-        { name: "SMTP (password reset mail)", ok: has("SMTP_HOST") && has("SMTP_USER") && has("SMTP_PASS") },
-        { name: "CRON_SECRET (daily pinger)", ok: has("CRON_SECRET") },
+        { name: "eBay draft scope", ok: has("EBAY_DRAFT_SCOPE"), note: "opt-in once eBay grants it" },
         { name: "Marketplace Insights", ok: env.EBAY_INSIGHTS_ENABLED === "1", note: "denied by eBay 2026-08-16" },
+        { name: "Stripe (checkout + webhook)", ok: has("STRIPE_SECRET_KEY") && has("STRIPE_WEBHOOK_SECRET") },
+        { name: "Stripe price ids", ok: has("STRIPE_PRICE_ID") && has("STRIPE_PRO_PRICE_ID") },
+        { name: "SMTP (all outbound mail)", ok: has("SMTP_HOST") && has("SMTP_USER") && has("SMTP_PASS") },
+        { name: "CRON_SECRET (Vercel Cron auth)", ok: has("CRON_SECRET"), note: "cron routes 503 without it" },
+        { name: "PSA cert lookups", ok: has("PSA_API_TOKEN"), note: "PSA blocks Vercel IPs today" },
+        { name: "GitHub token (board Run)", ok: has("GITHUB_TOKEN") },
       ],
       adminDefaults: adminUsingDefaults(),
     },

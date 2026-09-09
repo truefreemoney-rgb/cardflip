@@ -24,9 +24,30 @@ export function bytes(b: number): string {
   if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`;
   return `${Math.round(b / 1e3)} KB`;
 }
+/**
+ * Server-rendered, so the zone is the server's — UTC on Vercel, local in dev.
+ * The zone is printed because "Sep 4, 3:06 AM" on prod was read as local
+ * time (issue #17); an ops page must say which clock it is on.
+ */
 export function fmtDate(ts: number | null): string {
   if (!ts) return "—";
-  return new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(ts).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+/** "3 h ago" / "2 d ago" — relative, so no zone question at all. */
+export function ago(ts: number | null, now = Date.now()): string {
+  if (!ts) return "never";
+  const m = Math.round((now - ts) / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h} h ago`;
+  return `${Math.round(h / 24)} d ago`;
 }
 export function uptime(sec: number): string {
   if (sec < 3600) return `${Math.round(sec / 60)} min`;
