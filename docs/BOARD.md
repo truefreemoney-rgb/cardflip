@@ -62,7 +62,8 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Chris] Mobile device strategy: iPhone = your phone (no iOS simulator on Windows); Android = the emulator above; more iPhone models = BrowserStack by the minute. CI already runs the phone e2e on Android Chrome + WebKit every push.
 - [ ] [Chris] MTG stress test — say when; ~1h pre-flight on Claude's side first.
 - [ ] [Chris] Watch Turso Analytics rows-read for a week after the 09-06 index fix.
-- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort. WAITING on Chris — needs a cron-job.org account you create; say when.
+- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort.
+ WAITING on Chris — needs a cron-job.org account you create; say when.
 - [ ] [Claude] Card art durable fallback: store image_url_alt per catalog row (pokemontcg.io twin) so server-rendered art (OG image) survives a tcgdex outage. Only if outages keep coming.
 - [ ] [Claude] MTG Art Series USD prices (multi-hour TCGCSV→Scryfall product map from Chris's PC) — only if asked.
 - [ ] [Claude] Own eBay price series; PriceCharting; CGC cert (blocked); photo-first sealed re-add.
