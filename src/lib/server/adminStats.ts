@@ -2,7 +2,7 @@ import "server-only";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import fs from "node:fs";
 import path from "node:path";
-import { db } from "@/lib/db";
+import { db, dbIsRemote } from "@/lib/db";
 import { getPlatformStats, type PlatformStats } from "@/lib/server/cards";
 import { dailyStatus } from "@/lib/server/dailyJobs";
 import { adminUsingDefaults } from "@/lib/adminAuth";
@@ -36,7 +36,7 @@ function daySeries(rows: { day: string; n: number }[], days: number, now = Date.
   return out;
 }
 
-async function perDay(table: string, tsColumn: string, days: number, where = "", now = Date.now()): Promise<DaySeries> {
+export async function perDay(table: string, tsColumn: string, days: number, where = "", now = Date.now()): Promise<DaySeries> {
   const since = now - days * DAY_MS;
   const rows = (await db
     .prepare(
@@ -90,8 +90,22 @@ export interface AdminOverview {
   };
   system: {
     node: string;
+    runtime: string;
+    platform: string;
     uptimeSec: number;
     rssBytes: number;
+    heapUsedBytes: number;
+    heapTotalBytes: number;
+    deploy: {
+      sha: string | null;
+      branch: string | null;
+      message: string | null;
+      target: string | null;
+      region: string | null;
+      repo: string | null;
+      builtAt: string | null;
+    };
+    dbRemote: boolean;
     env: { name: string; ok: boolean; note?: string }[];
     adminDefaults: boolean;
   };
@@ -157,12 +171,19 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
 
   const dataDir = path.join(process.cwd(), "data");
   let dbBytes = 0;
-  try {
-    for (const f of ["cardflip.db", "cardflip.db-wal"]) {
-      const p = path.join(dataDir, f);
-      if (fs.existsSync(p)) dbBytes += fs.statSync(p).size;
-    }
-  } catch { /* unreadable */ }
+  if (dbIsRemote) {
+    // Nothing to stat on Turso. page_count * page_size is the only size
+    // signal, and pragma functions scan no table rows — so it costs nothing
+    // on a provider that bills every row read.
+    dbBytes = await count("SELECT (SELECT * FROM pragma_page_count()) * (SELECT * FROM pragma_page_size()) AS n");
+  } else {
+    try {
+      for (const f of ["cardflip.db", "cardflip.db-wal"]) {
+        const p = path.join(dataDir, f);
+        if (fs.existsSync(p)) dbBytes += fs.statSync(p).size;
+      }
+    } catch { /* unreadable */ }
+  }
   let seedMarker: string | null = null;
   try {
     const m = path.join(dataDir, "mtg-seed.imported");
@@ -199,8 +220,30 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
     },
     system: {
       node: process.version,
+      runtime: env.NEXT_RUNTIME || "nodejs",
+      platform: `${process.platform}/${process.arch}`,
       uptimeSec: Math.round(process.uptime()),
       rssBytes: mem.rss,
+      heapUsedBytes: mem.heapUsed,
+      heapTotalBytes: mem.heapTotal,
+      // Vercel injects the git/deploy facts at build time; locally they are
+      // all absent and the card says "local dev" rather than inventing one.
+      deploy: {
+        // NEXT_PUBLIC_* are inlined by the bundler at their literal
+        // `process.env.X` spelling only — the `env` alias above would read
+        // undefined at runtime.
+        sha: env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_BUILD_SHA || null,
+        branch: env.VERCEL_GIT_COMMIT_REF || null,
+        message: env.VERCEL_GIT_COMMIT_MESSAGE?.split("\n")[0]?.slice(0, 140) || null,
+        target: env.VERCEL_ENV || null,
+        region: env.VERCEL_REGION || null,
+        repo:
+          env.VERCEL_GIT_REPO_OWNER && env.VERCEL_GIT_REPO_SLUG
+            ? `${env.VERCEL_GIT_REPO_OWNER}/${env.VERCEL_GIT_REPO_SLUG}`
+            : null,
+        builtAt: process.env.NEXT_PUBLIC_BUILD_TIME || null,
+      },
+      dbRemote: dbIsRemote,
       env: [
         { name: "Anthropic vision", ok: has("ANTHROPIC_API_KEY") },
         { name: "pokemontcg.io key", ok: has("POKEMONTCG_API_KEY"), note: "optional — higher rate limit" },
