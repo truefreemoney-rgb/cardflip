@@ -21,6 +21,8 @@ export interface StageCard {
   number: string;
   imageUrl: string;
   price: number | null;
+  /** The one card the Uploader stage shows. See STAGE_LEAD_ICON. */
+  lead?: boolean;
 }
 
 const STAGE_CARDS = 10;
@@ -38,7 +40,7 @@ const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise
 // the retarget never reaches the card on screen.
 const STAGE_TARGET_USD = 35;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
-const cacheKey = (magic: boolean) => `stage:v5:${magic ? "magic" : "pokemon"}`;
+const cacheKey = (magic: boolean) => `stage:v6:${magic ? "magic" : "pokemon"}`;
 
 // v3 (09-09): one slot shows a full-art printing instead of the
 // target-nearest one — Chris asked for "a full art card at a similar
@@ -50,7 +52,11 @@ const cacheKey = (magic: boolean) => `stage:v5:${magic ? "magic" : "pokemon"}`;
 // still falling back to the plain target-nearest pick when the mirror has
 // no full art for that icon.
 // v5 (09-09): the band follows the $35 target.
-const FULL_ART_ICONS = new Set(["Lucario"]);
+// v6 (09-09): Chris named the card — "pikachu, similar value" — so the slot
+// is Pikachu at the same money (band unchanged), and the icon that owns it
+// is now the same constant the stage leads with, below.
+const STAGE_LEAD_ICON = "Pikachu";
+const FULL_ART_ICONS = new Set([STAGE_LEAD_ICON]);
 const FULL_ART_BAND_MIN_USD = 30;
 const FULL_ART_BAND_MAX_USD = 40;
 const distanceFromFullArtBand = (card: PokemonCard) => {
@@ -65,15 +71,17 @@ function marketOf(card: PokemonCard): number | null {
   return plausiblePrices(card.prices).find((p) => p.market)?.market ?? null;
 }
 
-function pick(card: PokemonCard): StageCard {
-  return { name: card.name, setName: card.setName, number: card.number, imageUrl: card.imageLarge, price: marketOf(card) };
+function pick(card: PokemonCard, lead: boolean): StageCard {
+  const out: StageCard = { name: card.name, setName: card.setName, number: card.number, imageUrl: card.imageLarge, price: marketOf(card) };
+  if (lead) out.lead = true;
+  return out;
 }
 
 /** Real, priced cards from the local mirror — the dearest printing of each icon. */
-async function fromMirror(): Promise<PokemonCard[]> {
+async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> {
   try {
     const { hasEnglishMirror, searchEnglishCardsLocal } = await import("@/lib/server/enCards");
-    if (!(await hasEnglishMirror())) return [];
+    if (!(await hasEnglishMirror())) return { cards: [] };
     const results = await Promise.all(ICONS.map((name) => searchEnglishCardsLocal(name, null, 40)));
     // Mirror rows carry no prices; our own price_series does (one batch query,
     // the same join the set browser uses).
@@ -86,6 +94,7 @@ async function fromMirror(): Promise<PokemonCard[]> {
       card.prices = [entry];
     }
     const out: PokemonCard[] = [];
+    let leadId: string | undefined;
     for (let i = 0; i < results.length; i++) {
       const candidates = results[i].cards.filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5);
       // The printing of each icon priced nearest the target — a card a
@@ -96,12 +105,22 @@ async function fromMirror(): Promise<PokemonCard[]> {
         ? candidates.filter((c) => c.isSecretRare).sort((a, b) => distanceFromFullArtBand(a) - distanceFromFullArtBand(b))[0] ??
           candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0]
         : candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
-      if (best) out.push(best);
+      if (best) {
+        out.push(best);
+        if (ICONS[i] === STAGE_LEAD_ICON) leadId = best.id;
+      }
     }
-    // Nearest the target leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
-    return out.sort((a, b) => nearTarget(a) - nearTarget(b));
+    // Nearest the target orders the reel; which card the stage SHOWS is the
+    // lead flag, not this sort. Every icon's pick is chosen for being near
+    // $35, so "nearest $35" was a coin toss between ten near-identical
+    // distances — v3–v5 each renamed the full-art slot without any guarantee
+    // that slot was the card on screen. The lead also goes first so the
+    // ten-card cap (and the Magic interleave, which doubles the list) can
+    // never slice it off.
+    const sorted = out.sort((a, b) => nearTarget(a) - nearTarget(b));
+    return { cards: sorted.sort((a, b) => Number(b.id === leadId) - Number(a.id === leadId)), leadId };
   } catch {
-    return [];
+    return { cards: [] };
   }
 }
 
@@ -115,7 +134,7 @@ async function fromMagic(): Promise<PokemonCard[]> {
   }
 }
 
-function finish(cards: PokemonCard[], magic: boolean): StageCard[] {
+function finish(cards: PokemonCard[], magic: boolean, leadId?: string): StageCard[] {
   const seen = new Set<string>();
   return cards
     .filter((c) => !!c && !!c.imageLarge)
@@ -126,22 +145,22 @@ function finish(cards: PokemonCard[], magic: boolean): StageCard[] {
       seen.add(key);
       return true;
     })
-    .map(pick)
+    .map((c) => pick(c, c.id === leadId))
     .filter((c) => c.price != null)
     .slice(0, STAGE_CARDS);
 }
 
 async function build(magic: boolean): Promise<StageCard[]> {
-  const pokemon = await fromMirror();
+  const { cards: pokemon, leadId } = await fromMirror();
   if (pokemon.length >= 6) {
-    if (!magic) return finish(pokemon, false);
+    if (!magic) return finish(pokemon, false, leadId);
     const mtg = await fromMagic();
     const mixed: PokemonCard[] = [];
     for (let i = 0; i < Math.max(pokemon.length, mtg.length); i++) {
       if (pokemon[i]) mixed.push(pokemon[i]);
       if (mtg[i]) mixed.push(mtg[i]);
     }
-    return finish(mixed, true);
+    return finish(mixed, true, leadId);
   }
   // No mirror here (fresh dev DB): the old upstream path.
   const [featured, showcase] = await Promise.all([getFeaturedCard(), getShowcaseCards()]);
