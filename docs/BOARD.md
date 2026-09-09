@@ -13,7 +13,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 - [ ] [Chris] Lock down Pokémon + the website: clear the inventory, scan a fresh batch on the phone, report what looks off.
 - [ ] [Chris] First soft-launch invite — docs/SOFT-LAUNCH.md (20–30 hand-picked sellers over 3 weeks, green/red table).
-- [ ] [Chris] Yea/nay still open on the live site: Watchlist summary strip makeover (from your photo, PR #12), Pikachu stage card + "Your turn to scan", the board's run panel / Merge button / Live–Completed tabs / ↳ Reply; plus sold-row look (needs a real sale), category manager, admin toggle.
+- [ ] [Chris] Yea/nay still open on the live site: Pikachu stage card + "Your turn to scan", the board's run panel / Merge button / Live–Completed tabs / ↳ Reply; plus sold-row look (needs a real sale), category manager, admin toggle. (Watchlist summary strip: yea 09-09. /admin/system: fine for now, 09-09.)
 
 ## Chris — needs you
 
