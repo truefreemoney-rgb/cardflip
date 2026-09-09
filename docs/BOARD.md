@@ -17,6 +17,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Chris — needs you
 
+- [ ] [both] Device lab on the desktop: Android Studio emulator (real Android Chrome, free) + Responsively App for side-by-side passes; iPhone stays the real device. Claude installs when Chris says go.
 - [ ] [Chris] eBay live-test batch next time you post: non-NM push, graded push, reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual, watchlist dip email.
 - [ ] [Chris] MTG stress test — say when; ~1h pre-flight on Claude's side first.
 - [ ] [Chris] MD LLC decision (also solves the Stripe address).
@@ -71,5 +72,6 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Done this week — so nothing looks lost
 
+- [x] 09-09 Board is live in the admin console (DB-backed, editable) · e2e runs on Android Chrome (Pixel 7) AND WebKit/iPhone 13 every push.
 - [x] 09-08 Category management (add / rename / merge / delete) · admin toggle in the user drawer · sold cards are the record · fee floor is a hard rule · scanned → now in the card detail · Inventory Text row + price column makeover · Live / End Auction / Not Listed slots · watchlist tile makeover · watchlist rows from Inventory get a price · second art source (pokemontcg.io) · e2e tour flake fixed · scan counter in the header · tier decides plan cards (not admin role) · landing CTA becomes Open the App when signed in.
 - [x] 09-07 Live Inventory prices · Inventory row makeover for phones · two-row phone header · stage sweep loops under reduced motion · tcgdex heartbeat probe.

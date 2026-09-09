@@ -48,6 +48,8 @@
     "test:ebaysell": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sell.mjs",
     "ab:vision": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/ab-vision.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:android": "playwright test --project=android",
+    "test:e2e:iphone": "playwright test --project=iphone",
     "test:queryplans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-query-plans.mjs",
     "test:board": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-board.mjs",
     "test:cardart": "node --experimental-strip-types --no-warnings scripts/test-card-art.mjs",
