@@ -1,13 +1,13 @@
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import { getAdminOverview } from "@/lib/server/adminStats";
-import { isDemoUser, listAllUsers, monthlyScans, scanTier } from "@/lib/server/users";
+import { listAllUsers, monthlyScans, scanTier } from "@/lib/server/users";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
   const [o, all] = await Promise.all([getAdminOverview(), listAllUsers()]);
   const users = all.map((u) => ({
-    id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
+    id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt,
     tier: scanTier(u), plan: u.plan, scansUsed: u.scansUsed, monthlyScans: monthlyScans(u), trialScansUsed: u.trialScansUsed,
     accessOverride: u.accessOverride, subStatus: u.subStatus,
   }));

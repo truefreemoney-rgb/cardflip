@@ -7,10 +7,9 @@
  * create validates name/email/password, 201s, 409s a duplicate, honours
  * role; access override 400s garbage, 404s unknown, round-trips every
  * value and clears with null; role 400/404 and flips admin↔user; reset-link
- * 404s unknown, 400s the demo account, returns a working one-time URL with
- * emailed=false when mail is off; delete 404s unknown, refuses the demo
- * account, and really removes the user; settings 400s an empty patch, flips
- * magic_public and busts the static cache.
+ * 404s unknown, returns a working one-time URL with emailed=false when mail
+ * is off; delete 404s unknown and really removes the user; settings 400s an
+ * empty patch, flips magic_public and busts the static cache.
  *
  * next/headers and next/cache are stubbed (scripts/lib/next-stubs-loader.mjs)
  * so cookies() reads a jar this test fills. Throwaway db as in test-auth.
@@ -43,7 +42,7 @@ const settings = await import(at("app/api/admin/settings/route.ts"));
 const { ADMIN_COOKIE } = await import(at("lib/adminAuth.ts"));
 const { SESSION_COOKIE } = await import(at("lib/server/auth.ts"));
 const { createSession } = await import(at("lib/server/sessions.ts"));
-const { ACCESS_OVERRIDES, DEMO_EMAIL, createUser, findUserById } = await import(at("lib/server/users.ts"));
+const { ACCESS_OVERRIDES, createUser, findUserById } = await import(at("lib/server/users.ts"));
 const { consumeResetToken, peekResetToken } = await import(at("lib/server/passwordReset.ts"));
 
 let failures = 0;
@@ -124,8 +123,6 @@ check("role: back to user", (await (await role.PATCH(req("PATCH", { role: "user"
 
 // --- reset link --------------------------------------------------------------
 check("reset-link: unknown → 404", await status(resetLink.POST(req("POST", {}), ctx("nope"))), 404);
-const demo = await createUser("Demo", DEMO_EMAIL, "demo-pw", "user");
-check("reset-link: demo → 400", await status(resetLink.POST(req("POST", {}), ctx(demo.id))), 400);
 const issued = await (await resetLink.POST(req("POST", { send: true }), ctx(pat.id))).json();
 const token = new URL(issued.url).searchParams.get("token");
 check("reset-link: url carries a token, mail off → not emailed", [Boolean(token), issued.emailed, issued.mailConfigured, issued.expiresAt > Date.now()], [true, false, false, true]);
@@ -135,7 +132,6 @@ check("reset-link: one-time", await peekResetToken(token), null);
 
 // --- delete ------------------------------------------------------------------
 check("delete: unknown → 404", await status(userById.DELETE(req("DELETE"), ctx("nope"))), 404);
-check("delete: demo refused → 400", await status(userById.DELETE(req("DELETE"), ctx(demo.id))), 400);
 check("delete: 200", await status(userById.DELETE(req("DELETE"), ctx(pat.id))), 200);
 check("delete: user gone", await findUserById(pat.id), null);
 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 
 /**
@@ -14,7 +13,6 @@ export async function GET() {
     const link = await getEbayLink(user.id);
     return NextResponse.json({
       available: isEbayOAuthConfigured(),
-      demo: isDemoUser(user),
       connected: Boolean(link),
       ebayUsername: link?.ebayUsername ?? null,
       connectedAt: link?.connectedAt ?? null,

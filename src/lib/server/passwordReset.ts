@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/server/password";
-import { findUserById, isDemoUser, type User } from "@/lib/server/users";
+import { findUserById, type User } from "@/lib/server/users";
 import { SITE_URL } from "@/lib/siteUrl";
 
 /**
@@ -40,10 +40,8 @@ export interface IssuedReset {
 /**
  * Mint a fresh link for this user. Earlier unused links are revoked — one
  * live link per user keeps "I clicked the old email" failures explainable.
- * The demo account is never resettable: it's shared and wiped on entry.
  */
 export async function issueResetToken(user: Pick<User, "id" | "email">): Promise<IssuedReset> {
-  if (isDemoUser(user)) throw new Error("The demo account has no password to reset");
   const token = randomBytes(32).toString("base64url");
   const now = Date.now();
   const expiresAt = now + RESET_TTL_MS;

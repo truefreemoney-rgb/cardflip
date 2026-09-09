@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
-import { isDemoUser, isSubscribed, setStripeCustomer } from "@/lib/server/users";
+import { isSubscribed, setStripeCustomer } from "@/lib/server/users";
 import { createCheckoutSession, createCustomer, proConfigured, stripeConfigured } from "@/lib/server/stripe";
 
 /** POST — start a $9.99/mo subscription: answers { url } to Stripe Checkout. */
@@ -10,9 +10,6 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't subscribe" }, { status: 403 });
-    }
     if (!stripeConfigured()) {
       return NextResponse.json({ error: "Billing isn't available yet" }, { status: 503 });
     }

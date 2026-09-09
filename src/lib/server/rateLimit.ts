@@ -120,11 +120,6 @@ export const LIMITS = {
     { limit: 30, windowMs: MINUTE },
     { limit: 500, windowMs: DAY },
   ] as RateLimitRule[],
-  /** The shared demo login is public — keep it from draining the credit. */
-  visionScanDemo: [
-    { limit: 10, windowMs: MINUTE },
-    { limit: 60, windowMs: DAY },
-  ] as RateLimitRule[],
   ebayComps: [{ limit: 60, windowMs: MINUTE }] as RateLimitRule[],
   /** Per-user burst guard on PSA cert lookups. */
   psaCert: [{ limit: 10, windowMs: MINUTE }] as RateLimitRule[],

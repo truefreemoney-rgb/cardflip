@@ -31,9 +31,6 @@ import {
  * link, devices, your data, and the exit. One page, sections stacked, each
  * form self-contained with its own busy/error/success state so a failed
  * password change doesn't blank the profile form.
- *
- * The demo account sees everything but can change nothing — it's shared and
- * wiped on entry, so every mutation is disabled with a note saying why.
  */
 
 const inputCls =
@@ -209,8 +206,6 @@ function AccountSettings({
       cancelled = true;
     };
   }, [reloadKey]);
-
-  const demo = overview?.demo ?? false;
 
   const emailChanged = email.trim().toLowerCase() !== user.email;
   const nameChanged = name.trim() !== user.name;
@@ -474,13 +469,6 @@ function AccountSettings({
         )}
       </section>
 
-      {demo && (
-        <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-          You&apos;re on the shared demo account — settings are read-only here.{" "}
-          <Link href="/signup" className="font-semibold underline">Create Your Own Account</Link> to keep your cards and connect eBay.
-        </p>
-      )}
-
       {loading && !overview && (
         <div className="flex items-center gap-2 text-sm text-zinc-500"><Spinner /> Loading…</div>
       )}
@@ -512,8 +500,6 @@ function AccountSettings({
                   <Dot on />Connected{overview.ebay.ebayUsername ? ` as ${overview.ebay.ebayUsername}` : ""}
                   {overview.ebay.connectedAt && <> · since {formatDate(overview.ebay.connectedAt)}</>}
                 </>
-              ) : demo ? (
-                "The demo account can't link an eBay account."
               ) : overview.ebay.available ? (
                 "Not connected — drafts you push from the editor land in the eBay account linked here."
               ) : (
@@ -526,7 +512,7 @@ function AccountSettings({
             )
           }
           action={
-            overview && !demo && overview.ebay.available ? (
+            overview && overview.ebay.available ? (
               <Link
                 href="/connect-ebay"
                 data-tour="connect-ebay"
@@ -540,7 +526,6 @@ function AccountSettings({
         <PlanSection
           user={overview?.user ?? user}
           quota={overview?.quota}
-          demo={demo}
           billingReturn={billingReturn}
           billingPhase={billingPhase}
         />
@@ -552,9 +537,9 @@ function AccountSettings({
       <Group label="Security">
         <Row
           title="Password"
-          status={demo ? "The demo account can't change its password." : pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
+          status={pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
           action={
-            <button type="button" className={rowBtn} onClick={() => (pwOpen ? closePw() : setPwOpen(true))} disabled={demo || pwBusy}>
+            <button type="button" className={rowBtn} onClick={() => (pwOpen ? closePw() : setPwOpen(true))} disabled={pwBusy}>
               {pwOpen ? "Cancel" : "Change"}
             </button>
           }
@@ -563,31 +548,31 @@ function AccountSettings({
           <form onSubmit={savePassword} className="flex flex-col gap-3">
             <label className={labelCls}>
               Current password
-              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={demo || pwBusy} required autoComplete="current-password" />
+              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={pwBusy} required autoComplete="current-password" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className={labelCls}>
                 New password
-                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={pwBusy} required minLength={6} autoComplete="new-password" />
                 <span className={`mt-1 block text-[11px] ${newPw.length === 0 ? "text-zinc-600" : newPw.length >= 6 ? "text-emerald-400" : "text-amber-300"}`}>
                   {newPw.length === 0 ? "At least 6 characters" : newPw.length >= 6 ? "Long enough" : `${6 - newPw.length} more character${6 - newPw.length === 1 ? "" : "s"}`}
                 </span>
               </label>
               <label className={labelCls}>
                 Repeat new password
-                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={demo || pwBusy} required minLength={6} autoComplete="new-password" />
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={pwBusy} required minLength={6} autoComplete="new-password" />
                 {newPw2.length > 0 && newPw2 !== newPw && <span className="mt-1 block text-[11px] text-amber-300">Doesn&apos;t match yet</span>}
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" className={primaryBtn} disabled={demo || pwBusy || !curPw || !newPw || !newPw2}>
+              <button type="submit" className={primaryBtn} disabled={pwBusy || !curPw || !newPw || !newPw2}>
                 {pwBusy ? "Changing…" : "Change Password"}
               </button>
               <label className="flex items-center gap-2 text-xs text-zinc-500">
                 <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} className="accent-brand-500" />
                 Show passwords
               </label>
-              {!demo && <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot It?</Link>}
+              <Link href="/forgot-password" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Forgot It?</Link>
             </div>
             {pwMsg && <Notice kind={pwMsg.kind}>{pwMsg.text}</Notice>}
           </form>
@@ -600,8 +585,6 @@ function AccountSettings({
               "Admin accounts sign in with password only."
             ) : user.totpEnabled ? (
               <><Dot on />On — a code from your authenticator app is asked for at every sign-in.</>
-            ) : demo ? (
-              "The demo account can't use two-step verification."
             ) : (
               <><Dot on={false} />Off — only your password protects this account.</>
             )
@@ -614,7 +597,7 @@ function AccountSettings({
                 </button>
               ) : undefined
             ) : !totpEnroll ? (
-              <button type="button" data-tour="two-step" className={rowPrimary} onClick={startTotp} disabled={demo || totpBusy}>
+              <button type="button" data-tour="two-step" className={rowPrimary} onClick={startTotp} disabled={totpBusy}>
                 {totpBusy ? "Starting…" : "Set Up"}
               </button>
             ) : undefined
@@ -734,14 +717,12 @@ function AccountSettings({
         <Row
           title="Devices"
           status={
-            demo
-              ? "The shared demo account stays signed in everywhere."
-              : d
-                ? `Signed in on ${d.sessions} device${d.sessions === 1 ? "" : "s"}, including this one.`
-                : "Signed in on a shared or lost phone? Sign it out from here."
+            d
+              ? `Signed in on ${d.sessions} device${d.sessions === 1 ? "" : "s"}, including this one.`
+              : "Signed in on a shared or lost phone? Sign it out from here."
           }
           action={
-            <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={demo || devBusy}>
+            <button type="button" className={rowBtn} onClick={signOutElsewhere} disabled={devBusy}>
               {devBusy ? "Signing Out…" : "Sign Out Others"}
             </button>
           }
@@ -754,9 +735,9 @@ function AccountSettings({
       <Group label="Profile">
         <Row
           title="Name & email"
-          status={demo ? "The demo account's name and email are fixed." : profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
+          status={profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
           action={
-            <button type="button" className={rowBtn} onClick={() => (profileOpen ? closeProfile() : setProfileOpen(true))} disabled={demo || profileBusy}>
+            <button type="button" className={rowBtn} onClick={() => (profileOpen ? closeProfile() : setProfileOpen(true))} disabled={profileBusy}>
               {profileOpen ? "Cancel" : "Edit"}
             </button>
           }
@@ -766,21 +747,21 @@ function AccountSettings({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className={labelCls}>
                 Name
-                <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={demo || profileBusy} maxLength={80} required autoComplete="name" />
+                <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={profileBusy} maxLength={80} required autoComplete="name" />
               </label>
               <label className={labelCls}>
                 Email
-                <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={demo || profileBusy} required autoComplete="email" inputMode="email" />
+                <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={profileBusy} required autoComplete="email" inputMode="email" />
               </label>
             </div>
             {emailChanged && (
               <label className={labelCls}>
                 Current password <span className="text-zinc-600">(required to change email)</span>
-                <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={demo || profileBusy} required autoComplete="current-password" />
+                <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={profileBusy} required autoComplete="current-password" />
               </label>
             )}
             <div className="flex items-center gap-3">
-              <button type="submit" className={primaryBtn} disabled={demo || profileBusy || (!nameChanged && !emailChanged)}>
+              <button type="submit" className={primaryBtn} disabled={profileBusy || (!nameChanged && !emailChanged)}>
                 {profileBusy ? "Saving…" : "Save Changes"}
               </button>
             </div>
@@ -862,7 +843,6 @@ function AccountSettings({
                 type="button"
                 className="shrink-0 rounded-full border border-red-500/30 px-3.5 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => setDelOpen(true)}
-                disabled={demo}
               >
                 Delete…
               </button>
@@ -906,13 +886,11 @@ function AccountSettings({
 function PlanSection({
   user,
   quota,
-  demo,
   billingReturn,
   billingPhase,
 }: {
   user: SessionUser;
   quota?: { used: number; included: number; remaining: number | null; bonus?: number };
-  demo: boolean;
   billingReturn: "success" | "canceled" | null;
   billingPhase: "waiting" | "confirmed" | "stalled";
 }) {
@@ -961,8 +939,6 @@ function PlanSection({
     </>
   ) : user.subStatus === "canceled" ? (
     "Your subscription has ended. Resubscribe to keep scanning."
-  ) : demo ? (
-    "The demo account can't subscribe."
   ) : (
     `Free trial: ${user.trialScansLeft ?? 0} of 10 scans left. Subscribe for 500 a month at $9.99, or Pro at 2,000 for $24.99.`
   );
@@ -978,7 +954,7 @@ function PlanSection({
             {busy ? "Opening…" : "Manage Billing"}
           </button>
         ) : (
-          <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy || demo}>
+          <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy}>
             {busy ? "Opening…" : "Subscribe · $9.99/mo"}
           </button>
         )

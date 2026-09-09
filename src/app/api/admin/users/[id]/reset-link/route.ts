@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { findUserById, isDemoUser } from "@/lib/server/users";
+import { findUserById } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
 
@@ -20,12 +20,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     const { id } = await params;
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-    if (isDemoUser(user)) {
-      return NextResponse.json(
-        { error: "The demo account has no password to reset." },
-        { status: 400 },
-      );
-    }
     const body = await req.json().catch(() => ({}));
     const wantEmail = Boolean(body?.send) && isMailConfigured();
 

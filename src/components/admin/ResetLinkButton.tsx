@@ -5,8 +5,6 @@ import { apiPath } from "@/lib/client/basePath";
 
 interface Props {
   userId: string;
-  /** The demo account has no password — no button. */
-  disabled?: boolean;
 }
 
 /**
@@ -14,7 +12,7 @@ interface Props {
  * hand to the user. When SMTP is configured the server also emails it. The
  * link never persists in clear — closing this loses it, which is the point.
  */
-export default function ResetLinkButton({ userId, disabled }: Props) {
+export default function ResetLinkButton({ userId }: Props) {
   const [pending, setPending] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [emailed, setEmailed] = useState(false);
@@ -52,8 +50,6 @@ export default function ResetLinkButton({ userId, disabled }: Props) {
       })
       .catch(() => {});
   }
-
-  if (disabled) return <span className="text-zinc-600">—</span>;
 
   if (link) {
     return (

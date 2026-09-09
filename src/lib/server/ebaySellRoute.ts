@@ -13,7 +13,7 @@ import {
  * One error → HTTP mapping for both listing routes, so the client can rely on
  * the same `{ error, message }` shape whichever step failed:
  *
- *   401 auth        403 demo (set by the route)   404 card
+ *   401 auth                                       404 card
  *   409 not_connected / not_pushed                503 unconfigured
  *   400 invalid draft                              502 ebay (with details)
  *   503 draft_unavailable (Listing API not enabled → client falls back)

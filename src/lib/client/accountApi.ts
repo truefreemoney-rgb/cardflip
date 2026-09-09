@@ -5,7 +5,6 @@ import type { SessionUser } from "@/lib/client/auth";
 
 export interface AccountOverview {
   user: SessionUser;
-  demo: boolean;
   /** Scan metering; remaining is null when the cap isn't enforced (no subscription). */
   quota?: { used: number; included: number; remaining: number | null; bonus?: number };
   data: {

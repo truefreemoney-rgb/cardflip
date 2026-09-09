@@ -6,9 +6,9 @@
  * Pins: scrypt hash shape + verify (wrong/malformed/tampered), per-hash
  * salts; session create/lookup, expiry (lazy delete), the 1-day renewal
  * throttle on touchSession, destroy / destroy-others; reset links working
- * once, one live link per user, expiry, the consume-kills-sessions rule,
- * and the demo-account refusal; email normalisation and the public-user
- * projection never leaking password hash or TOTP secret.
+ * once, one live link per user, expiry, and the consume-kills-sessions rule;
+ * email normalisation and the public-user projection never leaking password
+ * hash or TOTP secret.
  *
  * Runs against a throwaway SQLite file: the db module puts its file under
  * `<cwd>/data`, so we chdir into a temp dir BEFORE importing anything.
@@ -41,10 +41,8 @@ const {
   peekResetToken,
 } = await import(lib("server/passwordReset.ts"));
 const {
-  DEMO_EMAIL,
   createUser,
   findUserByEmail,
-  isDemoUser,
   isSubscribed,
   toPublicUser,
   totpEnabled,
@@ -90,7 +88,6 @@ check("public user has no hash/secret", ["passwordHash", "totpSecret"].map((k) =
 check("public user reports totp on", pub.totpEnabled, true);
 check("abandoned totp setup counts as off", totpEnabled({ totpSecret: "SECRET", totpEnabledAt: null }), false);
 check("subscribed statuses", ["active", "trialing", "past_due", "canceled", null].map((s) => isSubscribed({ subStatus: s })), [true, true, true, false, false]);
-check("demo detection", [isDemoUser({ email: DEMO_EMAIL }), isDemoUser(user)], [true, false]);
 
 // --- sessions ----------------------------------------------------------------
 const s1 = await createSession(user.id);
@@ -146,9 +143,6 @@ check("link works once", await consumeResetToken(r2.token, "again0"), null);
 const r3 = await issueResetToken(user);
 advance(HOUR + 1);
 check("expired link → null", await peekResetToken(r3.token), null);
-
-const demo = await createUser("Demo", DEMO_EMAIL, "demo-pass");
-check("demo account is never resettable", await issueResetToken(demo).then(() => "issued", (e) => e.message), "The demo account has no password to reset");
 
 check("password floor", [passwordProblem("12345"), passwordProblem("123456"), passwordProblem("x".repeat(201))],
   ["Password must be at least 6 characters.", null, "That password is too long."]);

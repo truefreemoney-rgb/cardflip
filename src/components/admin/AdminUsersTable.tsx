@@ -16,7 +16,6 @@ export interface AdminUserRow {
   role: Role;
   ebayConnected: boolean;
   createdAt: number;
-  isDemo: boolean;
   tier: ScanTier;
   plan: "standard" | "pro" | null;
   scansUsed: number;
@@ -274,7 +273,6 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-white">{u.name}</span>
                         {u.role === "admin" && <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-medium text-brand-300">admin</span>}
-                        {u.isDemo && <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">demo</span>}
                         {u.ebayConnected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" title="eBay connected" />}
                       </span>
                       <span className="block truncate text-xs text-zinc-500">{u.email}</span>
@@ -314,7 +312,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-edge bg-black/20 px-4 py-3 md:pl-16">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Password</span>
-                      <ResetLinkButton userId={u.id} disabled={u.isDemo} />
+                      <ResetLinkButton userId={u.id} />
                     </div>
                     {/* Admin status, in the open (Chris, 09-08: "a way to edit
                         users admin status") — the Plan dropdown's Role group
@@ -326,7 +324,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     <button
                       onClick={() => remove(u)}
-                      disabled={u.isDemo || busyId === u.id}
+                      disabled={busyId === u.id}
                       className="ml-auto rounded-full px-3 py-1 text-xs text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40 disabled:hover:bg-transparent"
                     >
                       {busyId === u.id ? "Deleting…" : "Delete Account"}

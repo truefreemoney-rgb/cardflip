@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail, isDemoUser } from "@/lib/server/users";
+import { findUserByEmail } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   }
 
   const user = await findUserByEmail(email);
-  if (user && !isDemoUser(user)) {
+  if (user) {
     try {
       const { url } = await issueResetToken(user);
       await sendPasswordResetEmail(user.email, url);

@@ -4,7 +4,7 @@ import { AuthError, SESSION_COOKIE, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
-import { isDemoUser, updateUserPassword } from "@/lib/server/users";
+import { updateUserPassword } from "@/lib/server/users";
 import { destroyOtherSessions } from "@/lib/server/sessions";
 
 /**
@@ -18,9 +18,6 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account has no password to change" }, { status: 403 });
-    }
     const body = await req.json().catch(() => ({}));
     const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
     const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";

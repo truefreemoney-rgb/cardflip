@@ -30,10 +30,6 @@ const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {
     tone: "warn",
     text: "You cancelled on eBay's side — nothing was linked.",
   },
-  demo: {
-    tone: "warn",
-    text: "The demo account can't link a real eBay account. Create a free account to connect yours.",
-  },
   state: {
     tone: "warn",
     text: "That sign-in attempt expired or didn't match this session. Try again.",
@@ -64,8 +60,8 @@ interface Props {
 /**
  * The "Connect with eBay" step, shared by /connect-ebay and the second phase
  * of signup. Renders one of: connected-as (with disconnect), a real connect
- * button, the demo refusal, or the honest "not live yet" copy — decided by
- * /api/ebay/status, because whether OAuth is configured is a server secret.
+ * button, or the honest "not live yet" copy — decided by /api/ebay/status,
+ * because whether OAuth is configured is a server secret.
  */
 export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props) {
   const router = useRouter();
@@ -115,7 +111,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
       cancelled = true;
     };
   }, []);
-  const canConnect = Boolean(status?.available) && !status?.demo && !connected && !trialOnly;
+  const canConnect = Boolean(status?.available) && !connected && !trialOnly;
 
   let title: string;
   let body: string;
@@ -128,10 +124,6 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
       : "eBay account connected";
     body =
       "CardFlip can now create draft listings under your eBay account. You review and publish every listing yourself on eBay — nothing goes live without you.";
-  } else if (status?.demo) {
-    title = "The demo can't link eBay";
-    body =
-      "This shared demo account is wiped between visitors, so it never holds a real eBay connection. Create a free account and connect your own eBay in one click.";
   } else if (canConnect) {
     title = `Connect your eBay account${who}`;
     body =
@@ -175,7 +167,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">{body}</p>
       )}
 
-      {!connected && !status?.demo && (
+      {!connected && (
         <>
           <p className="mt-5 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
             {canConnect
@@ -214,21 +206,12 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
         </a>
       )}
 
-      {trialOnly && !connected && !status?.demo && (
+      {trialOnly && !connected && (
         <button
           onClick={() => router.push("/pricing")}
           className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
           Subscribe now
-        </button>
-      )}
-
-      {status?.demo && (
-        <button
-          onClick={() => router.push("/signup")}
-          className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
-        >
-          Create a free account
         </button>
       )}
 
@@ -250,7 +233,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
       <button
         onClick={onDone}
         className={`w-full rounded-full px-5 py-3 text-sm font-semibold transition ${
-          canConnect || connected || status?.demo
+          canConnect || connected
             ? "mt-3 text-zinc-400 hover:text-white"
             : "mt-7 bg-brand-500 text-white shadow-lg shadow-brand-500/25 hover:bg-brand-400"
         }`}

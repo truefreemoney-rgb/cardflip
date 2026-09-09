@@ -77,8 +77,6 @@ export async function fetchEbayComps(
 export interface EbayLinkStatus {
   /** Server has a keyset + RuName, so "Connect with eBay" can actually start. */
   available: boolean;
-  /** The shared demo account — never allowed to link a real eBay account. */
-  demo: boolean;
   connected: boolean;
   ebayUsername: string | null;
   connectedAt: number | null;
@@ -197,7 +195,6 @@ export const EBAY_CONNECT_PATH = apiPath("/api/ebay/connect");
 
 export type EbayPostErrorCode =
   | "auth"
-  | "demo"
   | "not_connected"
   | "needs_push"
   | "needs_location"

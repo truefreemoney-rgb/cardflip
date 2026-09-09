@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
-import { disableTotp, enableTotp, isDemoUser, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
+import { disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
 import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "@/lib/server/totp";
 
 /**
@@ -14,16 +14,12 @@ import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from 
  *   POST {action:"disable", password}        → off (password, not a code — a
  *     lost phone must not be able to keep the owner locked into 2FA, and a
  *     stolen session must not be able to quietly switch it off)
- * The demo account is shared, so it can never carry 2FA.
  */
 export async function POST(req: NextRequest) {
   const limited = limitOrRespond(`account:totp:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't use two-step verification" }, { status: 403 });
-    }
     const body = await req.json().catch(() => ({}));
     const action = typeof body?.action === "string" ? body.action : "";
 

@@ -1,5 +1,4 @@
 import { getCurrentUser } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import {
   completeEbayConnect,
   isEbayOAuthConfigured,
@@ -30,7 +29,6 @@ export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return localRedirect(`/login`);
   if (!isEbayOAuthConfigured()) return back("error=unavailable");
-  if (isDemoUser(user)) return back("error=demo");
 
   // eBay signals a decline by redirecting without a code (an `error` param
   // may or may not accompany it).

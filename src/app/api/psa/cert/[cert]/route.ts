@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { LIMITS, limitOrRespond } from "@/lib/server/rateLimit";
 import { lookupPsaCert, psaConfigured, PsaApiError, PsaCertNotFound } from "@/lib/server/psa";
@@ -12,9 +11,7 @@ import { lookupPsaCert, psaConfigured, PsaApiError, PsaCertNotFound } from "@/li
  * born here): on serverless the in-memory count resets with every cold start
  * and doesn't span instances, so it never actually bound — which is how the
  * 100/day PSA quota kept burning mysteriously (09-01, 09-02) while we made a
- * handful of calls. The other leak was the shared demo account: a public
- * one-click login that bots can walk through, now refused here (the demo has
- * no slabs to verify).
+ * handful of calls.
  */
 const PSA_DAILY_BUDGET = 80;
 
@@ -24,9 +21,6 @@ export async function GET(
 ) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't verify certs — sign up to use PSA lookup." }, { status: 403 });
-    }
     if (!psaConfigured()) {
       return NextResponse.json({ error: "PSA lookup isn't configured" }, { status: 503 });
     }

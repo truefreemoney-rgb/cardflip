@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
@@ -16,9 +15,6 @@ import { syncEbayFees } from "@/lib/server/ebayFinances";
 export async function POST() {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ sold: [], ended: [], skipped: "not_connected" });
-    }
     const result = await syncEbaySales(user.id);
     const endedResult = await syncEndedEbayListings(user.id);
     // Fees last: fresh sold rows from this same pass get their actual fee

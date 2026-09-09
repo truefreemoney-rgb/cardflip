@@ -30,11 +30,6 @@ if (!user) {
   console.error(`No account with email ${email} in ${dbPath}`);
   process.exit(1);
 }
-if (user.email === "demo@cardflip.dev") {
-  console.error("The demo account has no password to reset.");
-  process.exit(1);
-}
-
 db.exec(`
   CREATE TABLE IF NOT EXISTS password_resets (
     token_hash TEXT PRIMARY KEY,

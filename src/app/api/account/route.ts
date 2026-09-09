@@ -6,7 +6,6 @@ import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import {
   deleteUser,
   findUserByEmail,
-  isDemoUser,
   toPublicUser,
   updateUserProfile,
   userDataSummary,
@@ -21,10 +20,6 @@ import { scanQuota } from "@/lib/server/scanQuota";
  *   GET    — profile + "your data" counts + eBay link + session count
  *   PATCH  — rename / change sign-in email (email change re-checks the password)
  *   DELETE — remove the account and everything under it (password required)
- *
- * The shared demo account is read-only here: it's public and wiped on
- * every entry, so letting a visitor rename it, change its password or
- * delete it would break the next visitor's "Try it now".
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,7 +37,6 @@ export async function GET() {
     const link = await getEbayLink(user.id);
     return NextResponse.json({
       user: toPublicUser(user),
-      demo: isDemoUser(user),
       quota: scanQuota(user),
       data: await userDataSummary(user.id),
       ebay: {
@@ -62,9 +56,6 @@ export async function PATCH(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't be changed" }, { status: 403 });
-    }
     const body = await req.json().catch(() => ({}));
     const patch: { name?: string; email?: string } = {};
 
@@ -114,9 +105,6 @@ export async function DELETE(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't be deleted" }, { status: 403 });
-    }
     const body = await req.json().catch(() => ({}));
     const password = typeof body?.password === "string" ? body.password : "";
     if (!verifyPassword(password, user.passwordHash)) {

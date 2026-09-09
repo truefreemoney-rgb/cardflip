@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import {
   buildAuthorizeUrl,
   createOAuthState,
@@ -24,12 +23,6 @@ export async function GET() {
       { error: "eBay sign-in isn't live on this server yet." },
       { status: 503 },
     );
-  }
-
-  // The demo account is shared and wiped on every visit — linking a real
-  // eBay account to it would hand that seller's tokens to the next visitor.
-  if (isDemoUser(user)) {
-    return localRedirect(`/connect-ebay?error=demo`);
   }
 
   const state = createOAuthState(user.id);

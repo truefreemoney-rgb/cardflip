@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { getCardForUser, setCardListingEnded } from "@/lib/server/cards";
 import { withdrawOffer } from "@/lib/server/ebaySell";
 import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (card.status !== "listed") {
       return NextResponse.json({ error: "invalid", message: "Only a live listing can be ended" }, { status: 409 });
     }
-    if (card.ebayListingId && !card.ebayEndedAt && !isDemoUser(user)) {
+    if (card.ebayListingId && !card.ebayEndedAt) {
       await withdrawOffer(user.id, cardId);
     }
     const updated = await setCardListingEnded(cardId, user.id, card.ebayEndedAt ?? Date.now());

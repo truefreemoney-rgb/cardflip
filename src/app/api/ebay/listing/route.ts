@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUser, sellingGate } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { pushDraft } from "@/lib/server/ebaySell";
 import { sellErrorResponse } from "@/lib/server/ebaySellRoute";
 import { draftInputFromBody } from "@/lib/server/ebayDraftBody";
@@ -13,12 +12,6 @@ import { draftInputFromBody } from "@/lib/server/ebayDraftBody";
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json(
-        { error: "demo", message: "The demo account can't post to eBay — sign up to connect your own" },
-        { status: 403 },
-      );
-    }
     const wall = sellingGate(user);
     if (wall) return wall;
     const input = draftInputFromBody(await request.json().catch(() => null));

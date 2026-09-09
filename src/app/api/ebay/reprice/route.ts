@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { belowFloor, floorRefusal } from "@/lib/fees";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { isDemoUser } from "@/lib/server/users";
 import { updateCard } from "@/lib/server/cards";
 import { EbayUnreachableError } from "@/lib/server/ebayAuth";
 import { EbayNotConnectedError, EbaySellError, updateOfferPrice } from "@/lib/server/ebaySell";
@@ -15,9 +14,6 @@ import { EbayNotConnectedError, EbaySellError, updateOfferPrice } from "@/lib/se
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't touch eBay" }, { status: 403 });
-    }
     const body = (await req.json().catch(() => null)) as { cardId?: unknown; price?: unknown } | null;
     const cardId = typeof body?.cardId === "string" ? body.cardId : null;
     const price =

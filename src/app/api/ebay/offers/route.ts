@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { isDemoUser, setAutoOffer } from "@/lib/server/users";
+import { setAutoOffer } from "@/lib/server/users";
 import { db } from "@/lib/db";
 import { getCardForUser } from "@/lib/server/cards";
 import { findEligibleListingIds, sendWatcherOffer } from "@/lib/server/ebayNegotiation";
@@ -26,9 +26,6 @@ function cleanMessage(value: unknown): string | null {
 export async function GET() {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ eligibleCardIds: [], autoOfferPercent: null, autoOfferMessage: null });
-    }
     const auto = {
       autoOfferPercent: user.autoOfferPercent,
       autoOfferMessage: user.autoOfferMessage,
@@ -60,9 +57,6 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't send offers." }, { status: 403 });
-    }
     const body = await req.json().catch(() => null);
     const cardId = typeof body?.cardId === "string" ? body.cardId : null;
     const discountPercent = Number(body?.discountPercent);
@@ -92,9 +86,6 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const user = await requireUser();
-    if (isDemoUser(user)) {
-      return NextResponse.json({ error: "The demo account can't change offer settings." }, { status: 403 });
-    }
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Missing settings" }, { status: 400 });
