@@ -196,7 +196,7 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
         )}
 
         <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${card ? "mt-5" : "mt-1"}`}>
-          {dragOver ? "Drop to scan" : card ? "Your turn" : "Ready when you are"}
+          {dragOver ? "Drop to scan" : card ? "Your turn to scan" : "Ready when you are"}
         </p>
 
         <div className="mt-3 flex w-full max-w-xs flex-col items-stretch gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
