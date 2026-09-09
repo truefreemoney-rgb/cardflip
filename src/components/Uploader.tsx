@@ -26,10 +26,12 @@ export interface ShowcaseCard {
 
 export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
-  // to rotate images"), and not the Charizard — "something worth like $50":
-  // the stage card whose market price sits closest to $50, so it reads as a
-  // card a seller actually has, not a grail.
-  const STAGE_TARGET_USD = 50;
+  // to rotate images"), and not the Charizard: the stage card whose market
+  // price sits closest to the target, so it reads as a card a seller
+  // actually has, not a grail. 09-09: $35, down from $50 — must stay equal
+  // to STAGE_TARGET_USD in lib/server/stageCards.ts, which builds the list
+  // this picks from.
+  const STAGE_TARGET_USD = 35;
   const card = showcase.length
     ? [...showcase].sort(
         (a, b) => Math.abs((a.price ?? Infinity) - STAGE_TARGET_USD) - Math.abs((b.price ?? Infinity) - STAGE_TARGET_USD),

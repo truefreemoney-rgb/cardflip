@@ -209,7 +209,7 @@ export async function getShowcaseCards(): Promise<PokemonCard[]> {
 async function pokemonShowcase(): Promise<PokemonCard[]> {
   try {
     const raw = await queryCards(
-      "(name:charizard OR name:pikachu OR name:mewtwo OR name:gengar OR name:umbreon OR name:blastoise OR name:gyarados OR name:dragonite OR name:rayquaza OR name:eevee)",
+      "(name:charizard OR name:pikachu OR name:mewtwo OR name:gengar OR name:umbreon OR name:blastoise OR name:lucario OR name:dragonite OR name:rayquaza OR name:eevee)",
       60,
       86400,
     );
@@ -268,7 +268,7 @@ async function showcaseFromMirror(): Promise<PokemonCard[]> {
       "Gengar",
       "Umbreon",
       "Blastoise",
-      "Gyarados",
+      "Lucario",
       "Dragonite",
       "Rayquaza",
     ];
