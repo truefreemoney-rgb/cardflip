@@ -22,21 +22,27 @@ export interface ShowcaseCard {
   number: string;
   imageUrl: string;
   price: number | null;
+  /** The card the stage is meant to show — set by lib/server/stageCards.ts. */
+  lead?: boolean;
 }
 
 export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
-  // to rotate images"), and not the Charizard: the stage card whose market
-  // price sits closest to the target, so it reads as a card a seller
-  // actually has, not a grail. 09-09: $35, down from $50 — must stay equal
-  // to STAGE_TARGET_USD in lib/server/stageCards.ts, which builds the list
-  // this picks from.
+  // to rotate images"), and not the Charizard: the card the server marked as
+  // the stage lead (lib/server/stageCards.ts picks it — currently a full-art
+  // Pikachu around $35). Repeated "change the card" tasks kept editing that
+  // slot server-side while this component re-derived its own choice by price,
+  // so the rename didn't always reach the screen.
+  // Fallback for a payload with no lead (the mirror-less dev path): nearest
+  // the same target, so it still reads as a card a seller actually has.
   const STAGE_TARGET_USD = 35;
-  const card = showcase.length
-    ? [...showcase].sort(
-        (a, b) => Math.abs((a.price ?? Infinity) - STAGE_TARGET_USD) - Math.abs((b.price ?? Infinity) - STAGE_TARGET_USD),
-      )[0]
-    : null;
+  const card =
+    showcase.find((c) => c.lead) ??
+    (showcase.length
+      ? [...showcase].sort(
+          (a, b) => Math.abs((a.price ?? Infinity) - STAGE_TARGET_USD) - Math.abs((b.price ?? Infinity) - STAGE_TARGET_USD),
+        )[0]
+      : null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
