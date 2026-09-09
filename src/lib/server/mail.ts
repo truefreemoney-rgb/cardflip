@@ -160,7 +160,7 @@ export interface ErrorDigestGroup {
 export async function sendErrorDigestEmail(to: string, total: number, groups: ErrorDigestGroup[]): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
-  const adminUrl = `${site}/admin#errors`;
+  const adminUrl = `${site}/admin/errors`;
   const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   const text = [
     `${total} server error${total === 1 ? "" : "s"} on cardflip.io in the last 24 hours.`,
