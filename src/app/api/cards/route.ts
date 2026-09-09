@@ -1,12 +1,31 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
-import { createCard, listCardsForUser } from "@/lib/server/cards";
+import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
 import { belowFloor, floorRefusal } from "@/lib/fees";
 
 export async function GET() {
   try {
     const user = await requireUser();
     return NextResponse.json({ cards: await listCardsForUser(user.id) });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
+    throw err;
+  }
+}
+
+/** Bulk delete: { ids } → { removed }. Sold rows never go (they are the record). */
+export async function DELETE(req: Request) {
+  try {
+    const user = await requireUser();
+    const body = await req.json().catch(() => null);
+    const ids = Array.isArray(body?.ids) ? body.ids.filter((x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length <= 64) : [];
+    if (ids.length === 0 || ids.length > 500) {
+      return NextResponse.json({ error: "ids must be 1–500 card ids" }, { status: 400 });
+    }
+    const removed = await deleteCards(ids, user.id);
+    return NextResponse.json({ ok: true, removed });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

@@ -21,6 +21,7 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { useSession } from "@/components/SessionProvider";
 import {
   deleteServerCard,
+  deleteServerCards,
   fetchCategories,
   fetchLivePrices,
   fetchRepriceNudges,
@@ -1043,24 +1044,28 @@ export default function CollectionPage() {
 
 
   async function removeSelected() {
+    // Same rule as the row's Delete button: live listings end first, sold
+    // rows are the record, ended auctions and drafts go.
     const ids = [...selected].filter((id) => {
       const card = cards.find((c) => c.id === id);
-      return card && card.status !== "listed";
+      return card && (card.status !== "listed" || isEnded(card)) && card.status !== "sold";
     });
     if (ids.length === 0) return;
     if (!(await confirmAction({ message: `Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.`, confirmLabel: `Delete ${ids.length}` }))) return;
     setBulkDeleting(true);
     setSyncError(null);
-    const removed = cards.filter((c) => ids.includes(c.id));
     setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
-    const results = await Promise.all(ids.map((id) => deleteServerCard(id)));
-    const failed = removed.filter((_, i) => !results[i]);
-    if (failed.length > 0) {
-      setCards((prev) => [...failed, ...prev]);
-      setSyncError(`${failed.length} of ${ids.length} couldn't be removed — check your connection and try again.`);
-      toast(`${failed.length} of ${ids.length} couldn't be removed`, "err");
+    // One request for the lot (09-09): 88 parallel deletes once lost every
+    // reply while the server had removed the rows. If this one fails, ask the
+    // server what is really there instead of guessing from memory.
+    const result = await deleteServerCards(ids);
+    if (!result) {
+      const list = await fetchServerCards();
+      if (list) setCards(list);
+      setSyncError("Couldn't confirm the delete — check your connection. The list shows what is really there.");
+      toast("Couldn't confirm the delete", "err");
     } else {
-      toast(`${ids.length} card${ids.length === 1 ? "" : "s"} removed`);
+      toast(`${result.removed} card${result.removed === 1 ? "" : "s"} removed`);
     }
     setSelected(new Set());
     setBulkDeleting(false);

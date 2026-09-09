@@ -545,6 +545,32 @@ export async function deleteCard(id: string, userId: string): Promise<void> {
   await db.prepare("DELETE FROM cards WHERE id = ? AND user_id = ?").run(id, userId);
 }
 
+/**
+ * Bulk delete (09-09): the Inventory used to fire one DELETE per selected
+ * card — 88 at once from one browser left every response lost on the way
+ * back while the server had already removed the rows. One statement per
+ * chunk instead. Sold rows are the record and are skipped, as is anything
+ * that is not the seller's. Returns how many rows went.
+ */
+export async function deleteCards(ids: string[], userId: string): Promise<number> {
+  const unique = [...new Set(ids)];
+  let removed = 0;
+  for (let i = 0; i < unique.length; i += 100) {
+    const chunk = unique.slice(i, i + 100);
+    const marks = chunk.map(() => "?").join(", ");
+    try {
+      await db.prepare(`DELETE FROM card_photos WHERE card_id IN (${marks})`).run(...chunk);
+    } catch {
+      // Nothing stored.
+    }
+    const r = await db
+      .prepare(`DELETE FROM cards WHERE user_id = ? AND status != 'sold' AND id IN (${marks})`)
+      .run(userId, ...chunk);
+    removed += Number(r.changes ?? 0);
+  }
+  return removed;
+}
+
 /** Folder management (09-08): categories are a text column, so a rename
  *  (or a merge into an existing name) is one UPDATE over the seller's rows.
  *  Returns how many cards moved. */

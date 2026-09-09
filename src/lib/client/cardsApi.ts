@@ -245,6 +245,23 @@ export async function updateServerCard(
   }
 }
 
+/** One request for the whole selection. Null = the request failed (nothing
+ *  can be assumed about the rows — refetch). */
+export async function deleteServerCards(ids: string[]): Promise<{ removed: number } | null> {
+  try {
+    const res = await apiFetch("/api/cards", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }, 30_000);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { removed: Number(data.removed ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteServerCard(id: string): Promise<boolean> {
   try {
     const res = await apiFetch(`/api/cards/${id}`, { method: "DELETE" });

@@ -28,7 +28,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { estimatedEbayFees, netAfterFees, EBAY_FEE_RATE, EBAY_FLAT_FEE } = await import(at("lib/fees.ts"));
 const {
-  createCard, getCardForUser, updateCard, deleteCard, listCardsForUser,
+  createCard, getCardForUser, updateCard, deleteCard, deleteCards, listCardsForUser,
   recordCopiesSold, setCardSoldFees, setCardListingEnded, getPlatformStats,
   renameCategory, clearCategory, addCategory, listCategories,
 } = await import(at("lib/server/cards.ts"));
@@ -205,6 +205,24 @@ check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).leng
   check("rename carries the empty one", (await renameCategory(alice.id, "Empty Binder", "Binder Z"), await listCategories(alice.id)), ["Binder Z", "From A Card"]);
   check("delete drops it", (await clearCategory(alice.id, "Binder Z"), await listCategories(alice.id)), ["From A Card"]);
   check("other user sees none of it", await listCategories(mallory.id), ["Binder A"]);
+}
+
+// --- bulk delete (09-09) --------------------------------------------------
+{
+  const before = (await listCardsForUser(alice.id)).length;
+  const d1 = await createCard(alice.id, { ...CHARIZARD, cardName: "Bulk 1" });
+  const d2 = await createCard(alice.id, { ...CHARIZARD, cardName: "Bulk 2" });
+  const ended = await createCard(alice.id, { ...CHARIZARD, cardName: "Bulk ended", status: "listed" });
+  await setCardListingEnded(ended.id, alice.id, Date.now());
+  const soldOne = await createCard(alice.id, { ...CHARIZARD, cardName: "Bulk sold" });
+  await updateCard(soldOne.id, alice.id, { status: "sold", soldPrice: 5, soldAt: Date.now() });
+  const theirs = await createCard(mallory.id, { ...CHARIZARD, cardName: "Not Alice's" });
+  const ids = [d1.id, d2.id, d2.id, ended.id, soldOne.id, theirs.id, "nope"];
+  check("bulk delete removes drafts + ended, skips sold + other user + unknown", await deleteCards(ids, alice.id), 3);
+  check("sold row survives the bulk delete", (await getCardForUser(soldOne.id, alice.id))?.status, "sold");
+  check("other user's card untouched", !!(await getCardForUser(theirs.id, mallory.id)));
+  check("ledger back to where it was + the sold record", (await listCardsForUser(alice.id)).length, before + 1);
+  check("empty list is a no-op", await deleteCards([], alice.id), 0);
 }
 
 console.log(failures === 0 ? "\nAll ledger/fee checks passed" : `\n${failures} ledger/fee check(s) failed`);
