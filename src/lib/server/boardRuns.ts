@@ -15,12 +15,15 @@ export interface RunStatus {
   state: RunState;
   /** Where to go: the PR when there is one, else the issue. */
   url: string;
+  /** When the Run press opened the issue (ISO). */
+  startedAt: string;
 }
 
 interface GhIssue {
   number: number;
   state: "open" | "closed";
   html_url: string;
+  created_at: string;
   labels?: { name: string }[];
 }
 interface GhPull {
@@ -69,7 +72,7 @@ export async function runStatuses(numbers: number[]): Promise<Record<number, Run
     else if (issue.state === "closed") state = "closed";
     else if (labels.has("needs-chris")) state = "needs-you";
     else if (pr && pr.state === "open") state = "pr-ready";
-    out[n] = { state, url: pr && state !== "needs-you" ? pr.html_url : issue.html_url };
+    out[n] = { state, url: pr && state !== "needs-you" ? pr.html_url : issue.html_url, startedAt: issue.created_at };
   });
   return out;
 }

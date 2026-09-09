@@ -15,6 +15,13 @@ const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: s
   done: { label: "✓ Done", cls: "bg-emerald-400/25 text-emerald-100 hover:bg-emerald-400/35", hint: "Merged — tick the task when you have seen it live" },
   closed: { label: "✕ Closed", cls: "bg-zinc-700/60 text-zinc-300 hover:bg-zinc-700", hint: "The issue was closed without a merge" },
 };
+/** "3m" / "2h" / "1d" since the Run press — Chris, 09-09: "there was no task time indicator". */
+function since(iso: string): string {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (m < 60) return `${m}m`;
+  if (m < 60 * 24) return `${Math.round(m / 60)}h`;
+  return `${Math.round(m / (60 * 24))}d`;
+}
 
 /**
  * The board, live in the admin console (Chris, 09-09: add/delete
@@ -564,7 +571,7 @@ function ItemRow(props: {
                 const href = st?.url ?? `https://github.com/truefreemoney-rgb/cardflip/issues/${m[1]}`;
                 return (
                   <>
-                    <a href={href} target="_blank" rel="noreferrer" title={chip.hint} className={`mr-1 rounded px-1.5 py-px text-[11px] font-semibold ${chip.cls}`}>{chip.label} #{m[1]} ↗</a>
+                    <a href={href} target="_blank" rel="noreferrer" title={chip.hint} className={`mr-1 rounded px-1.5 py-px text-[11px] font-semibold ${chip.cls}`}>{chip.label} #{m[1]}{st ? ` · ${since(st.startedAt)}` : ""} ↗</a>
                     <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{m[2]}</button>
                   </>
                 );
