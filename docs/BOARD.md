@@ -3,7 +3,9 @@
 The one organised list. Ask "list categories" and this is what gets read.
 Every task is one line; detail and history live in BACKLOG.md. Rules:
 a task lives in exactly one category; moving is fine, losing is not.
-The admin console renders this file (Board section), read-only.
+The LIVE board is edited in the admin console (settings table, key "board").
+This file is the SEED — parsed once when nothing is stored yet — and a reference
+copy; GET /api/admin/board?format=md exports the live one in this dialect.
 
 Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **[both]** needs a decision then code.
 

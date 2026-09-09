@@ -187,7 +187,7 @@ export default async function AdminPage() {
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold text-white">Board</h2>
             <p className="text-xs text-zinc-500">
-              docs/BOARD.md, read-only here — edited in the repo{board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}
+              Live — edit it here{board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
             </p>
           </div>
           <AdminBoard sections={board.sections} />

@@ -4,7 +4,7 @@
  * into non-empty sections with owner tags.
  */
 import { readFileSync } from "node:fs";
-const { parseBoard } = await import(new URL("../src/lib/server/board.ts", import.meta.url).href);
+const { parseBoard, serializeBoard, validateBoard } = await import(new URL("../src/lib/server/board.ts", import.meta.url).href);
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -17,9 +17,26 @@ const sample = `# Board\nintro\n\n## Now — current main tasks\n- [ ] [Chris] D
 const s = parseBoard(sample);
 check("two sections", s.map((x) => x.title), ["Now", "Future ideas"]);
 check("hint after the dash", s[0].hint, "current main tasks");
-check("owner tag + text", s[0].items[0], { done: false, owner: "Chris", text: "Do the thing" });
-check("done + bold stripped", s[0].items[1], { done: true, owner: "Claude", text: "Done bold thing" });
-check("untagged item", s[1].items[0], { done: false, owner: null, text: "Untagged idea" });
+const strip = ({ id, ...rest }) => rest;
+check("owner tag + text", strip(s[0].items[0]), { done: false, owner: "Chris", text: "Do the thing" });
+check("done + bold stripped", strip(s[0].items[1]), { done: true, owner: "Claude", text: "Done bold thing" });
+check("untagged item", strip(s[1].items[0]), { done: false, owner: null, text: "Untagged idea" });
+check("ids are unique", new Set(s.flatMap((x) => [x.id, ...x.items.map((i) => i.id)])).size, 5);
+
+// Round trip: serialize → parse gives the same content back.
+const again = parseBoard(serializeBoard(s));
+check("round trip keeps sections + items", again.map((x) => [x.title, x.hint, x.items.map(strip)]), s.map((x) => [x.title, x.hint, x.items.map(strip)]));
+
+// Validation: what the admin console PUTs.
+const v = validateBoard(s);
+check("valid board passes", v.ok, true);
+check("trims + keeps content", v.ok && v.sections[0].items[0].text, "Do the thing");
+check("rejects non-array", validateBoard({}).ok, false);
+check("rejects empty title", validateBoard([{ id: "a", title: " ", hint: null, items: [] }]).ok, false);
+check("rejects bad owner", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: "Bob", text: "x" }] }]).ok, false);
+check("rejects duplicate ids", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "a", done: false, owner: null, text: "x" }] }]).ok, false);
+check("rejects bad id chars", validateBoard([{ id: "a b", title: "T", hint: null, items: [] }]).ok, false);
+check("empty hint becomes null", validateBoard([{ id: "a", title: "T", hint: "  ", items: [] }]).sections?.[0].hint, null);
 
 const real = parseBoard(readFileSync(new URL("../docs/BOARD.md", import.meta.url), "utf8"));
 check("real board has the core categories", ["Now", "Chris", "Claude", "Future ideas"].every((t) => real.some((x) => x.title === t)), true);
