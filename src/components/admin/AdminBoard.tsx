@@ -1,9 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { BoardItem, BoardOwner, BoardSection } from "@/lib/server/board";
 import { apiPath } from "@/lib/client/basePath";
 import { ownerLabel } from "@/components/admin/format";
+import type { RunStatus } from "@/lib/server/boardRuns";
+
+/** Run outcomes by issue number, read once per visit (GET /api/admin/board/runs). */
+const RunsContext = createContext<Record<number, RunStatus>>({});
+const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: string }> = {
+  running: { label: "▶ Running", cls: "bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25", hint: "The cloud runner has it — opens the GitHub issue" },
+  "needs-you": { label: "? Needs you", cls: "bg-amber-400/20 text-amber-200 hover:bg-amber-400/30", hint: "The runner asked questions on the issue — answer there" },
+  "pr-ready": { label: "✓ PR ready", cls: "bg-sky-400/20 text-sky-200 hover:bg-sky-400/30", hint: "Review and merge the pull request" },
+  done: { label: "✓ Done", cls: "bg-emerald-400/25 text-emerald-100 hover:bg-emerald-400/35", hint: "Merged — tick the task when you have seen it live" },
+  closed: { label: "✕ Closed", cls: "bg-zinc-700/60 text-zinc-300 hover:bg-zinc-700", hint: "The issue was closed without a merge" },
+};
 
 /**
  * The board, live in the admin console (Chris, 09-09: add/delete
@@ -121,6 +132,20 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   };
 
   const [reload, setReload] = useState(false);
+  const [runs, setRuns] = useState<Record<number, RunStatus>>({});
+  const loadRuns = useCallback(async () => {
+    try {
+      const res = await fetch(apiPath("/api/admin/board/runs"), { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.runs) setRuns(data.runs);
+    } catch {
+      /* the chips fall back to Running */
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadRuns();
+  }, [loadRuns]);
   const run = useCallback(async (id: string) => {
     if (timer.current) clearTimeout(timer.current);
     setStatus("saving");
@@ -132,11 +157,12 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       setSections(data.sections);
       setStatus("saved");
       setError(null);
+      void loadRuns();
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Couldn't start the task");
     }
-  }, []);
+  }, [loadRuns]);
 
   const reseed = useCallback(async () => {
     setReload(false);
@@ -195,6 +221,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   };
 
   return (
+    <RunsContext.Provider value={runs}>
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Pick the owner when you add a task; after that Claude re-tags it as it moves.</p>
@@ -292,6 +319,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       </div>
       )}
     </div>
+    </RunsContext.Provider>
   );
 }
 
@@ -473,6 +501,7 @@ function ItemRow(props: {
   onReorder: (dir: -1 | 1) => void;
 }) {
   const { item: it } = props;
+  const runs = useContext(RunsContext);
   const idx = props.items.findIndex((i) => i.id === it.id);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(it.text);
@@ -530,9 +559,12 @@ function ItemRow(props: {
               {(() => {
                 const m = /^▶ RUNNING #(\d+) — ([\s\S]*)$/.exec(it.text);
                 if (!m) return <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>;
+                const st = runs[Number(m[1])];
+                const chip = RUN_CHIP[st?.state ?? "running"];
+                const href = st?.url ?? `https://github.com/truefreemoney-rgb/cardflip/issues/${m[1]}`;
                 return (
                   <>
-                    <a href={`https://github.com/truefreemoney-rgb/cardflip/issues/${m[1]}`} target="_blank" rel="noreferrer" title="Open the GitHub issue — the runner posts its PR or questions there" className="mr-1 rounded bg-emerald-500/15 px-1.5 py-px text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/25">▶ RUNNING #{m[1]} ↗</a>
+                    <a href={href} target="_blank" rel="noreferrer" title={chip.hint} className={`mr-1 rounded px-1.5 py-px text-[11px] font-semibold ${chip.cls}`}>{chip.label} #{m[1]} ↗</a>
                     <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{m[2]}</button>
                   </>
                 );
