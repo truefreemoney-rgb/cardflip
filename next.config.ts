@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
   // Surfaced on the Account page so a phone can tell which deploy it runs.
   env: { NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "" },
   poweredByHeader: false,
+  // The admin console reads docs/BOARD.md at request time (lib/server/board.ts);
+  // make sure the file ships with the serverless function.
+  outputFileTracingIncludes: { "/admin": ["./docs/BOARD.md"] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

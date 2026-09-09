@@ -5,6 +5,8 @@ import ActivityBars from "@/components/admin/ActivityBars";
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import DailyJobControl from "@/components/admin/DailyJobControl";
 import AdminSignOut from "@/components/admin/AdminSignOut";
+import AdminBoard from "@/components/admin/AdminBoard";
+import { loadBoard } from "@/lib/server/board";
 import FeatureToggles from "@/components/admin/FeatureToggles";
 import { magicPublic } from "@/lib/server/settings";
 import { hasAdminSession } from "@/lib/server/adminGate";
@@ -47,6 +49,7 @@ const STATUS_STYLE: Record<string, string> = {
 const NAV = [
   ["overview", "Overview"],
   ["switches", "Switches"],
+  ["board", "Board"],
   ["users", "Users"],
   ["cards", "Cards"],
   ["data", "Prices & data"],
@@ -58,6 +61,7 @@ export default async function AdminPage() {
   if (!(await hasAdminSession())) redirect("/admin/login");
 
   const o = await getAdminOverview();
+  const board = await loadBoard();
   const users = (await listAllUsers()).map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt, isDemo: isDemoUser(u),
     tier: scanTier(u), plan: u.plan, scansUsed: u.scansUsed, monthlyScans: monthlyScans(u), trialScansUsed: u.trialScansUsed,
@@ -178,6 +182,17 @@ export default async function AdminPage() {
         </section>
 
         {/* ------------------------------------------------------------- Users */}
+        {/* ------------------------------------------------------------- Board */}
+        <section id="board" className="scroll-mt-24">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold text-white">Board</h2>
+            <p className="text-xs text-zinc-500">
+              docs/BOARD.md, read-only here — edited in the repo{board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}
+            </p>
+          </div>
+          <AdminBoard sections={board.sections} />
+        </section>
+
         <section id="users" className="scroll-mt-24">
           <div className="mb-3 flex items-end justify-between">
             <div>
