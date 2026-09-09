@@ -12,8 +12,6 @@ import { apiPath } from "@/lib/client/basePath";
  * owner chip to cycle it, ⋯ for move/delete; each card has an add box.
  */
 
-const OWNER_CYCLE: BoardOwner[] = ["Chris", "Claude", "both", null];
-
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -139,7 +137,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, the tag to change who owns it, ⋯ to move or delete. Saves itself.</p>
+        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Owner tags are set by Claude from the task status, not here.</p>
         <div className="flex items-center gap-3 text-xs">
           <p className={status === "error" ? "text-red-300" : status === "saved" ? "text-emerald-300/80" : "text-zinc-500"} aria-live="polite">
             {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : status === "dirty" ? "Unsaved" : error}
@@ -173,7 +171,6 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
             onDelete={() => removeSection(s.id)}
             onToggle={(iid) => patchItem(s.id, iid, (i) => ({ ...i, done: !i.done }))}
             onText={(iid, text) => (text.trim() ? patchItem(s.id, iid, (i) => ({ ...i, text: text.trim() })) : removeItem(s.id, iid))}
-            onOwner={(iid) => patchItem(s.id, iid, (i) => ({ ...i, owner: OWNER_CYCLE[(OWNER_CYCLE.indexOf(i.owner) + 1) % OWNER_CYCLE.length] }))}
             onRemoveItem={(iid) => removeItem(s.id, iid)}
             onMoveItem={(iid, to) => moveItem(s.id, iid, to)}
             onAdd={(text, owner) => addItem(s.id, text, owner)}
@@ -204,7 +201,6 @@ function SectionCard(props: {
   onDelete: () => void;
   onToggle: (iid: string) => void;
   onText: (iid: string, text: string) => void;
-  onOwner: (iid: string) => void;
   onRemoveItem: (iid: string) => void;
   onMoveItem: (iid: string, to: string) => void;
   onAdd: (text: string, owner: BoardOwner) => void;
@@ -215,7 +211,7 @@ function SectionCard(props: {
   const [hint, setHint] = useState(s.hint ?? "");
   const [confirm, setConfirm] = useState(false);
   const [draft, setDraft] = useState("");
-  const [draftOwner, setDraftOwner] = useState<BoardOwner>(defaultOwner(s.title));
+  const draftOwner = defaultOwner(s.title);
   const [hideDone, setHideDone] = useState(false);
   const open = s.items.filter((i) => !i.done).length;
   const done = s.items.length - open;
@@ -282,7 +278,6 @@ function SectionCard(props: {
             sectionId={s.id}
             onToggle={() => props.onToggle(it.id)}
             onText={(t) => props.onText(it.id, t)}
-            onOwner={() => props.onOwner(it.id)}
             onRemove={() => props.onRemoveItem(it.id)}
             onMove={(to) => props.onMoveItem(it.id, to)}
           />
@@ -299,14 +294,9 @@ function SectionCard(props: {
         className="mt-3 flex items-center gap-1.5 border-t border-edge pt-3"
         onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
       >
-        <button
-          type="button"
-          onClick={() => setDraftOwner(OWNER_CYCLE[(OWNER_CYCLE.indexOf(draftOwner) + 1) % OWNER_CYCLE.length])}
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${chipClass(draftOwner)}`}
-          title="Who owns the new item — tap to change"
-        >
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${chipClass(draftOwner)}`} title="New items here are tagged for this person; Claude re-tags as the task moves">
           {draftOwner ?? "—"}
-        </button>
+        </span>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -327,7 +317,6 @@ function ItemRow(props: {
   sectionId: string;
   onToggle: () => void;
   onText: (t: string) => void;
-  onOwner: () => void;
   onRemove: () => void;
   onMove: (to: string) => void;
 }) {
@@ -380,13 +369,11 @@ function ItemRow(props: {
             />
           ) : (
             <span className={it.done ? "text-zinc-500 line-through decoration-zinc-700" : "text-zinc-200"}>
-              <button
-                onClick={props.onOwner}
-                title="Tap to change who owns it"
-                className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-semibold ${chipClass(it.owner)} ${it.owner ? "" : "opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
-              >
-                {it.owner ?? "—"}
-              </button>
+              {it.owner && (
+                <span title="Owner — set by Claude from the task status" className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-semibold ${chipClass(it.owner)}`}>
+                  {it.owner}
+                </span>
+              )}
               <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>
             </span>
           )}
