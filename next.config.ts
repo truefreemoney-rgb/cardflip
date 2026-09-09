@@ -18,8 +18,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   basePath,
-  // Surfaced on the Account page so a phone can tell which deploy it runs.
-  env: { NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "" },
+  // Surfaced on the Account page so a phone can tell which deploy it runs,
+  // and on /admin/system alongside the build time (nothing on Vercel records
+  // when a deploy was built, so it has to be stamped here).
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "",
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+  },
   poweredByHeader: false,
   // The admin console reads docs/BOARD.md at request time (lib/server/board.ts);
   // make sure the file ships with the serverless function.
