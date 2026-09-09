@@ -957,7 +957,7 @@ function CompletedView(props: {
   if (!items.length) return <div className="rounded-2xl border border-edge bg-surface-1 p-6 text-center text-xs text-zinc-500">Nothing completed yet.</div>;
   const groups: { day: string; items: BoardItem[] }[] = [];
   for (const it of items) {
-    const day = dayLabel(it.completedAt ?? 0);
+    const day = it.completedAt ? dayLabel(it.completedAt) : "Earlier";
     const g = groups[groups.length - 1];
     if (g && g.day === day) g.items.push(it);
     else groups.push({ day, items: [it] });
