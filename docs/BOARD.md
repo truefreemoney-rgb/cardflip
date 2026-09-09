@@ -17,20 +17,14 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Chris — needs you
 
-- [ ] [both] Device lab on the desktop: Android Studio emulator (real Android Chrome, free) + Responsively App for side-by-side passes; iPhone stays the real device. Claude installs when Chris says go.
 - [ ] [Chris] eBay live-test batch next time you post: non-NM push, graded push, reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual, watchlist dip email.
-- [ ] [Chris] MTG stress test — say when; ~1h pre-flight on Claude's side first.
 - [ ] [Chris] MD LLC decision (also solves the Stripe address).
 - [ ] [Chris] iPostal1 business name: Mailbox Settings → Change Plan → Virtual Business Address (from $14.99/mo); do it with the LLC (ticket #3081502).
 - [ ] [Chris] Stripe public details errand (v1.0.0 tag waits on this + your own paid signup working).
-- [ ] [Chris] Watch Turso Analytics rows-read for a week after the 09-06 index fix.
 
 ## Claude — my queue (in order)
 
 - [ ] [Claude] Homepage demo frame: static 2x image of the Inventory with one card per stage, EXAMPLE ribbon on the art, one-line caption + Try 10 scans free. Mockup approved 09-08; build after lockdown.
-- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort.
-- [ ] [Claude] Card art durable fallback: store image_url_alt per catalog row (pokemontcg.io twin) so server-rendered art (OG image) survives a tcgdex outage. Only if outages keep coming.
-- [ ] [Claude] MTG Art Series USD prices (multi-hour TCGCSV→Scryfall product map from Chris's PC) — only if asked.
 
 ## Prove on prod — built, not yet seen live
 
@@ -60,14 +54,24 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [both] PSA at scale (paid tier email pending; or flag graded verify off at launch).
 - [ ] [both] TCGplayer selling road; eBay Marketplace Insights re-apply post-POC.
 
-## Backburner — low priority / technical
+## Technical — the complicated stuff; ask a friend before touching
 
+- [ ] [Chris] ANDROID EMULATOR (paused 09-09, asking a friend): Android Studio is installed; the SDK + Pixel 7 Play image (3.5 GB) downloaded into a sandboxed AppData copy (AppData\Local\Packages\Claude_…\LocalCache\Local\Android\Sdk) and needs moving to AppData\Local\Android\Sdk; the emulator will NOT run until SVM Mode (CPU virtualization) is enabled in the BIOS (Ryzen: Advanced → CPU Configuration → SVM Mode). Then: avdmanager create Pixel7, boot, open cardflip.io in Chrome. Purpose: see real Android Chrome (address bar, keyboard, camera, PWA) from the desktop.
+- [ ] [Chris] Mobile device strategy: iPhone = your phone (no iOS simulator on Windows); Android = the emulator above; more iPhone models = BrowserStack by the minute. CI already runs the phone e2e on Android Chrome + WebKit every push.
+- [ ] [Chris] MTG stress test — say when; ~1h pre-flight on Claude's side first.
+- [ ] [Chris] Watch Turso Analytics rows-read for a week after the 09-06 index fix.
+- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort.
+- [ ] [Claude] Card art durable fallback: store image_url_alt per catalog row (pokemontcg.io twin) so server-rendered art (OG image) survives a tcgdex outage. Only if outages keep coming.
+- [ ] [Claude] MTG Art Series USD prices (multi-hour TCGCSV→Scryfall product map from Chris's PC) — only if asked.
 - [ ] [Claude] Own eBay price series; PriceCharting; CGC cert (blocked); photo-first sealed re-add.
 - [ ] [Claude] Queue/CSV pricing-snapshot drift vs chart rebase — only if noticed.
 - [ ] [Claude] Off-site backup copy (S3/Drive) on top of the nightly Turso dump.
 - [ ] [Claude] Infra tiers: Vercel (Pro) / Turso plan at 10k+ users.
 - [ ] [Chris] MTG mirror + Pokémon set sync stay manual from Chris's PC (Scryfall 429s cloud IPs).
 - [ ] [Claude] Dead "demo" copy stays until the demo@cardflip.dev row is deleted from prod.
+
+## Backburner — low priority
+
 - [ ] [Claude] Old yea/nay leftovers from 09-04/06 (landing hero on phones, Watchlist By-set, trial Subscribe-now placements) — all shipped; close when Chris confirms.
 
 ## Done this week — so nothing looks lost

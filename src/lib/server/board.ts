@@ -142,6 +142,18 @@ export async function loadBoard(): Promise<{ sections: BoardSection[]; updatedAt
   return { sections, updatedAt: Date.now() };
 }
 
+/**
+ * Replace the live board with the file. Claude edits docs/BOARD.md in the
+ * repo (a Technical category, moved items…); Chris presses "Reload from
+ * file" in the console. Live edits since the last reload are lost — the
+ * button says so. Ids are fresh; the console re-renders from the response.
+ */
+export async function reseedBoard(): Promise<{ sections: BoardSection[]; updatedAt: number }> {
+  const sections = await seedFromFile();
+  await saveBoard(sections);
+  return { sections, updatedAt: Date.now() };
+}
+
 export async function saveBoard(sections: BoardSection[]): Promise<void> {
   const json = JSON.stringify(sections);
   if (json.length > BOARD_MAX_BYTES) throw new Error("Board too large");

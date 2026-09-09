@@ -88,6 +88,25 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   );
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
+  const [reload, setReload] = useState(false);
+  const reseed = useCallback(async () => {
+    setReload(false);
+    if (timer.current) clearTimeout(timer.current);
+    setStatus("saving");
+    try {
+      const res = await fetch(apiPath("/api/admin/board"), { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Couldn't reload");
+      latest.current = data.sections;
+      setSections(data.sections);
+      setStatus("saved");
+      setError(null);
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Couldn't reload");
+    }
+  }, []);
+
   const patchSection = (id: string, fn: (s: BoardSection) => BoardSection) => update((prev) => prev.map((s) => (s.id === id ? fn(s) : s)));
   const patchItem = (sid: string, iid: string, fn: (i: BoardItem) => BoardItem) =>
     patchSection(sid, (s) => ({ ...s, items: s.items.map((i) => (i.id === iid ? fn(i) : i)) }));
@@ -121,12 +140,25 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, the tag to change who owns it, ⋯ to move or delete. Saves itself.</p>
-        <p className={`text-xs ${status === "error" ? "text-red-300" : status === "saved" ? "text-emerald-300/80" : "text-zinc-500"}`} aria-live="polite">
-          {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : status === "dirty" ? "Unsaved" : error}
-          {status === "error" && (
-            <button onClick={() => void save()} className="ml-2 underline">Retry</button>
+        <div className="flex items-center gap-3 text-xs">
+          <p className={status === "error" ? "text-red-300" : status === "saved" ? "text-emerald-300/80" : "text-zinc-500"} aria-live="polite">
+            {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : status === "dirty" ? "Unsaved" : error}
+            {status === "error" && (
+              <button onClick={() => void save()} className="ml-2 underline">Retry</button>
+            )}
+          </p>
+          {reload ? (
+            <span className="flex items-center gap-1 text-zinc-400">
+              Replaces everything here with docs/BOARD.md.
+              <button onClick={() => void reseed()} className="rounded bg-red-500/20 px-2 py-1 text-red-200">Reload</button>
+              <button onClick={() => setReload(false)} className="rounded px-2 py-1 hover:bg-white/5">Keep mine</button>
+            </span>
+          ) : (
+            <button onClick={() => setReload(true)} className="text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline" title="Claude updated the file in the repo? Pull it in.">
+              Reload from file
+            </button>
           )}
-        </p>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {sections.map((s, idx) => (

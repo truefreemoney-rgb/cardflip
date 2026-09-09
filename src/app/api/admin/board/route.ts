@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { loadBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
+import { loadBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
 
 /**
  * The admin board. GET returns it (?format=md for markdown, the same
@@ -18,6 +18,19 @@ export async function GET(req: Request) {
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;
+  }
+}
+
+/** Replace the live board with docs/BOARD.md (the seed) — Claude updates the file; Chris reloads. */
+export async function POST() {
+  try {
+    await requireAdmin();
+    const board = await reseedBoard();
+    return NextResponse.json(board);
+  } catch (err) {
+    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    console.error("board reseed failed:", err);
+    return NextResponse.json({ error: "Couldn't reload the board" }, { status: 500 });
   }
 }
 
