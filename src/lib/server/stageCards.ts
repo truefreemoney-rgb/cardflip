@@ -40,6 +40,25 @@ function pick(card: PokemonCard): StageCard {
   return { name: card.name, setName: card.setName, number: card.number, imageUrl: card.imageLarge, price: marketOf(card) };
 }
 
+/**
+ * Icons where a full-art printing should be preferred over the strict
+ * nearest-$50 pick, priced with much more slack than STAGE_TARGET_USD asks
+ * of the rest (Chris, 09-09: "change the gyarados image ... [to] a full art
+ * card at the similar price, can range a lot"). isSecretRare is a
+ * numerator-over-set-total read, not a rarity column the mirror doesn't
+ * have — see the ART_PENALTY comment above.
+ */
+const PREFER_FULL_ART = new Set(["Gyarados"]);
+
+function bestPrinting(name: string, cards: PokemonCard[]): PokemonCard | undefined {
+  const priced = cards.filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5);
+  if (PREFER_FULL_ART.has(name)) {
+    const fullArt = priced.filter((c) => c.isSecretRare);
+    if (fullArt.length > 0) return fullArt.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
+  }
+  return priced.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
+}
+
 /** Real, priced cards from the local mirror — the dearest printing of each icon. */
 async function fromMirror(): Promise<PokemonCard[]> {
   try {
@@ -57,12 +76,8 @@ async function fromMirror(): Promise<PokemonCard[]> {
       card.prices = [entry];
     }
     const out: PokemonCard[] = [];
-    for (const r of results) {
-      // The printing of each icon priced nearest $50 — a card a seller
-      // actually has in a binder, not the grail (was: the dearest printing).
-      const best = r.cards
-        .filter((c) => c.imageLarge && (marketOf(c) ?? 0) > 5)
-        .sort((a, b) => nearTarget(a) - nearTarget(b))[0];
+    for (let i = 0; i < results.length; i++) {
+      const best = bestPrinting(ICONS[i], results[i].cards);
       if (best) out.push(best);
     }
     // Nearest $50 leads; the stage shows one still card (Uploader picks [0]-ish by the same rule).
