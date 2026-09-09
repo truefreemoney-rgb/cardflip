@@ -21,6 +21,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Chris] MD LLC decision (also solves the Stripe address).
 - [ ] [Chris] iPostal1 business name: Mailbox Settings → Change Plan → Virtual Business Address (from $14.99/mo); do it with the LLC (ticket #3081502).
 - [ ] [Chris] Stripe public details errand (v1.0.0 tag waits on this + your own paid signup working).
+- [ ] [Chris] Board Run button needs two things from you: (1) claude.ai → Settings → connect GitHub (the cloud routine cannot save until then), (2) Vercel → Environment Variables → GITHUB_TOKEN (fine-grained PAT, Issues read/write on the cardflip repo, Production) then redeploy.
 - [ ] [Chris] Log in to /admin once in the Browser pane each session (panel password is yours to type; I never enter passwords, no override exists) — then I can drive and verify every admin page from that tab.
 
 ## Claude — my queue (in order)

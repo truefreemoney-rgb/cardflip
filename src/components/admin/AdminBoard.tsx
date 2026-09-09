@@ -121,6 +121,23 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
   };
 
   const [reload, setReload] = useState(false);
+  const run = useCallback(async (id: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    setStatus("saving");
+    try {
+      const res = await fetch(apiPath("/api/admin/board/run"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Couldn't start the task");
+      latest.current = data.sections;
+      setSections(data.sections);
+      setStatus("saved");
+      setError(null);
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Couldn't start the task");
+    }
+  }, []);
+
   const reseed = useCallback(async () => {
     setReload(false);
     if (timer.current) clearTimeout(timer.current);
@@ -232,6 +249,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
                   onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
                   onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
                   onRemove={() => removeItem(section.id, item.id)}
+                  onRun={() => void run(item.id)}
                   onMove={(to) => moveItem(section.id, item.id, to)}
                   onReorder={(dir) => reorderItem(section.id, item.id, dir)}
                 />
@@ -255,6 +273,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
             onToggle={(iid) => patchItem(s.id, iid, (i) => ({ ...i, done: !i.done }))}
             onText={(iid, text) => (text.trim() ? patchItem(s.id, iid, (i) => ({ ...i, text: text.trim() })) : removeItem(s.id, iid))}
             onRemoveItem={(iid) => removeItem(s.id, iid)}
+            onRunItem={(iid) => void run(iid)}
             onMoveItem={(iid, to) => moveItem(s.id, iid, to)}
             onReorderItem={(iid, dir) => reorderItem(s.id, iid, dir)}
             onAdd={(text, owner) => addItem(s.id, text, owner)}
@@ -321,6 +340,7 @@ function SectionCard(props: {
   onToggle: (iid: string) => void;
   onText: (iid: string, text: string) => void;
   onRemoveItem: (iid: string) => void;
+  onRunItem: (iid: string) => void;
   onMoveItem: (iid: string, to: string) => void;
   onReorderItem: (iid: string, dir: -1 | 1) => void;
   onAdd: (text: string, owner: BoardOwner) => void;
@@ -400,6 +420,7 @@ function SectionCard(props: {
             onToggle={() => props.onToggle(it.id)}
             onText={(t) => props.onText(it.id, t)}
             onRemove={() => props.onRemoveItem(it.id)}
+            onRun={() => props.onRunItem(it.id)}
             onReorder={(dir) => props.onReorderItem(it.id, dir)}
             onMove={(to) => props.onMoveItem(it.id, to)}
           />
@@ -447,6 +468,7 @@ function ItemRow(props: {
   onToggle: () => void;
   onText: (t: string) => void;
   onRemove: () => void;
+  onRun: () => void;
   onMove: (to: string) => void;
   onReorder: (dir: -1 | 1) => void;
 }) {
@@ -526,6 +548,7 @@ function ItemRow(props: {
           </label>
           <button onClick={() => { props.onReorder(-1); setMore(false); }} disabled={idx <= 0} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move up</button>
           <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
+          <button onClick={() => { props.onRun(); setMore(false); }} disabled={it.done || /^▶ RUNNING #d+/.test(it.text)} title="Opens a GitHub issue; the cloud board runner does the task and opens a PR" className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">▶ Run</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
       )}
