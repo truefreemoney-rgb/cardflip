@@ -498,6 +498,9 @@ export default function WishlistPage() {
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
   // Current market where the repricing pass has answered, saved price elsewhere.
   const nowTotal = items.reduce((sum, i) => sum + (nowPrices[i.id] ?? i.price ?? 0), 0);
+  // Dip alerts already armed — the one thing about the list the summary strip
+  // could answer without scrolling it.
+  const alertCount = items.filter((i) => i.alertPrice != null).length;
   // How many rows the repricing pass actually covers, for the cap disclosure.
   const repriceEligible = items.filter((i) => i.language === "en" && i.price != null).length;
 
@@ -517,21 +520,44 @@ export default function WishlistPage() {
           // Two numbers people can read (Chris, 09-03: "what does when
           // saved mean"): how many, and what they're worth now — with the
           // move since they were saved as a chip, only when there is one.
-          <div className="flex items-center divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1">
-            <div className="px-4 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</p>
-              <p className="font-display text-lg font-semibold text-white">{items.length}</p>
-            </div>
-            <div className="px-4 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</p>
-              <p className="flex items-baseline gap-2">
-                <span className="font-display text-lg font-semibold text-emerald-400">${nowTotal.toFixed(2)}</span>
+          // 09-09 makeover: the money leads in display type on the page's one
+          // foil panel, armed alerts join it, and figures are tabular so the
+          // total doesn't jitter as live prices land. On a phone the value
+          // takes a full row instead of a squeezed third. Auto columns, not
+          // three equal tracks — equal ones size every cell to the price and
+          // push the whole strip off the header row.
+          <dl className="foil-edge grid w-full grid-cols-2 rounded-2xl [--foil-fill:#0b0d13] sm:w-auto sm:grid-cols-[auto_auto_auto]">
+            <div className="col-span-2 border-b border-white/10 px-4 py-3 sm:col-span-1 sm:border-b-0 sm:border-r sm:px-5">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</dt>
+              <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
+                <span className="font-display text-2xl font-semibold tabular-nums tracking-tight text-emerald-400">
+                  ${nowTotal.toFixed(2)}
+                </span>
                 {Math.abs(nowTotal - total) >= 1 && (
                   <PriceDelta saved={total} now={nowTotal} />
                 )}
-              </p>
+              </dd>
             </div>
-          </div>
+            <div className="border-r border-white/10 px-4 py-3 sm:px-5">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</dt>
+              <dd className="mt-0.5 font-display text-2xl font-semibold tabular-nums tracking-tight text-white">
+                {items.length}
+              </dd>
+            </div>
+            <div
+              className="px-4 py-3 sm:px-5"
+              title="Cards with a dip alert set — we email you when the market reaches your price"
+            >
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Alerts</dt>
+              <dd
+                className={`mt-0.5 font-display text-2xl font-semibold tabular-nums tracking-tight ${
+                  alertCount > 0 ? "text-white" : "text-zinc-600"
+                }`}
+              >
+                {alertCount}
+              </dd>
+            </div>
+          </dl>
         )}
       </div>
 
