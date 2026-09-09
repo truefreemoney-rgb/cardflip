@@ -59,7 +59,10 @@ export async function runStatuses(numbers: number[]): Promise<Record<number, Run
   wanted.forEach((n, i) => {
     const issue = issues[i];
     if (!issue) return;
-    const pr = (pulls ?? []).find((p) => new RegExp(`^\\s*Closes #${n}\\b`, "i").test(p.body ?? ""));
+    // Several PRs can name the same issue (a duplicate run, a retry): the
+    // merged one is the answer, else the open one, else the newest.
+    const matches = (pulls ?? []).filter((p) => new RegExp(`^\\s*Closes #${n}\\b`, "i").test(p.body ?? ""));
+    const pr = matches.find((p) => p.merged_at) ?? matches.find((p) => p.state === "open") ?? matches[0];
     const labels = new Set((issue.labels ?? []).map((l) => l.name));
     let state: RunState = "running";
     if (pr?.merged_at) state = "done";
