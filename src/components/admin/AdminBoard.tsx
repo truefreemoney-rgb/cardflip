@@ -180,7 +180,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
           </p>
           {reload ? (
             <span className="flex items-center gap-1 text-zinc-400">
-              Replaces everything here with docs/BOARD.md.
+              Replaces everything here with docs/BOARD.md (your Chris's thoughts stay).
               <button onClick={() => void reseed()} className="rounded bg-red-500/20 px-2 py-1 text-red-200">Reload</button>
               <button onClick={() => setReload(false)} className="rounded px-2 py-1 hover:bg-white/5">Keep mine</button>
             </span>

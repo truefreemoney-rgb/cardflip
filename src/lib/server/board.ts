@@ -145,11 +145,20 @@ export async function loadBoard(): Promise<{ sections: BoardSection[]; updatedAt
 /**
  * Replace the live board with the file. Claude edits docs/BOARD.md in the
  * repo (a Technical category, moved items…); Chris presses "Reload from
- * file" in the console. Live edits since the last reload are lost — the
+ * file" in the console. Live edits since the last reload are lost (except Chris's thoughts) — the
  * button says so. Ids are fresh; the console re-renders from the response.
  */
 export async function reseedBoard(): Promise<{ sections: BoardSection[]; updatedAt: number }> {
   const sections = await seedFromFile();
+  // Keep Chris's own notes: the file never holds them, so a reload would
+  // otherwise empty the category (found 09-09).
+  const { sections: live } = await loadBoard();
+  const notes = live.find((s) => /thoughts/i.test(s.title));
+  if (notes?.items.length) {
+    const target = sections.find((s) => /thoughts/i.test(s.title));
+    if (target) target.items = notes.items;
+    else sections.splice(1, 0, { ...notes, id: randomUUID() });
+  }
   await saveBoard(sections);
   return { sections, updatedAt: Date.now() };
 }
