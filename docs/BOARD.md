@@ -13,7 +13,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 - [ ] [Chris] Lock down Pokémon + the website: clear the inventory, scan a fresh batch on the phone, report what looks off.
 - [ ] [Chris] First soft-launch invite — docs/SOFT-LAUNCH.md (20–30 hand-picked sellers over 3 weeks, green/red table).
-- [ ] [Chris] Yea/nay still open on the live site: sold-row look (needs a real sale), category manager, admin toggle.
+- [ ] [Chris] Yea/nay still open on the live site: Watchlist summary strip makeover (from your photo, PR #12), Pikachu stage card + "Your turn to scan", the board's run panel / Merge button / Live–Completed tabs / ↳ Reply; plus sold-row look (needs a real sale), category manager, admin toggle.
 
 ## Chris — needs you
 
@@ -62,7 +62,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Chris] Mobile device strategy: iPhone = your phone (no iOS simulator on Windows); Android = the emulator above; more iPhone models = BrowserStack by the minute. CI already runs the phone e2e on Android Chrome + WebKit every push.
 - [ ] [Chris] MTG stress test — say when; ~1h pre-flight on Claude's side first.
 - [ ] [Chris] Watch Turso Analytics rows-read for a week after the 09-06 index fix.
-- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort.
+- [ ] [Claude] External heartbeat pinger (cron-job.org or a scheduled task) so the prod smoke runs every 15 min, not best-effort. WAITING on Chris — needs a cron-job.org account you create; say when.
 - [ ] [Claude] Card art durable fallback: store image_url_alt per catalog row (pokemontcg.io twin) so server-rendered art (OG image) survives a tcgdex outage. Only if outages keep coming.
 - [ ] [Claude] MTG Art Series USD prices (multi-hour TCGCSV→Scryfall product map from Chris's PC) — only if asked.
 - [ ] [Claude] Own eBay price series; PriceCharting; CGC cert (blocked); photo-first sealed re-add.
