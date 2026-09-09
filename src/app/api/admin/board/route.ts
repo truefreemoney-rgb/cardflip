@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { loadBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
+import { loadBoard, normalizeBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
 
 /**
  * The admin board. GET returns it (?format=md for markdown, the same
@@ -40,8 +40,10 @@ export async function PUT(req: Request) {
     const body = await req.json().catch(() => null);
     const v = validateBoard(body?.sections);
     if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
-    await saveBoard(v.sections);
-    return NextResponse.json({ ok: true, updatedAt: Date.now() });
+    const n = normalizeBoard(v.sections);
+    await saveBoard(n.sections);
+    // The normalised board comes back so a tick shows up in Completed at once.
+    return NextResponse.json({ ok: true, updatedAt: Date.now(), sections: n.changed ? n.sections : undefined });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
     console.error("board save failed:", err);

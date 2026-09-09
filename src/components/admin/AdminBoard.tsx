@@ -214,6 +214,66 @@ function uid(): string {
 
 const OWNER_CYCLE: BoardOwner[] = ["Chris", "Claude", "both", null];
 
+/**
+ * Completed (Chris, 09-09: "once tasks are 100% complete, they move to a
+ * complete section … you should be the only one completing these tasks").
+ * Mirrors normalizeBoard on the server so a tick, a merged-and-live run, or
+ * a reopen shows in the right place before the save round-trips.
+ */
+const isCompleted = (s: BoardSection) => /^completed$|^done/i.test(s.title.trim());
+function sweepCompleted(sections: BoardSection[]): BoardSection[] {
+  const now = Date.now();
+  const next = sections.map((s) => ({ ...s, items: s.items.slice() }));
+  let completed = next.find(isCompleted);
+  if (!completed) {
+    completed = { id: uid(), title: "Completed", hint: "what got finished, newest first", items: [] };
+    next.push(completed);
+  }
+  const arrivals: BoardItem[] = [];
+  for (const s of next) {
+    if (s === completed) continue;
+    const keep: BoardItem[] = [];
+    for (const it of s.items) {
+      if (it.done) arrivals.push({ ...it, completedAt: it.completedAt ?? now, from: it.from ?? s.title });
+      else keep.push(it);
+    }
+    s.items = keep;
+  }
+  const reopened = completed.items.filter((it) => !it.done);
+  if (reopened.length) {
+    completed.items = completed.items.filter((it) => it.done);
+    for (const it of reopened) {
+      const home = next.find((s) => s !== completed && s.title === it.from) ?? next.find((s) => s !== completed);
+      const { completedAt: _a, from: _b, ...clean } = it;
+      void _a; void _b;
+      home?.items.push(clean);
+    }
+  }
+  if (arrivals.length) completed.items = [...arrivals.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)), ...completed.items];
+  if (next[next.length - 1] !== completed) {
+    next.splice(next.indexOf(completed), 1);
+    next.push(completed);
+  }
+  return next;
+}
+
+/** A note with replies: the first line is the task, "↳ Chris: …" lines are replies. */
+function noteLines(text: string): { head: string; replies: string[] } {
+  const [head, ...rest] = text.split(/\r?\n/);
+  return { head, replies: rest.filter((l) => l.trim()) };
+}
+
+function dayLabel(ms: number): string {
+  const d = new Date(ms);
+  const today = new Date();
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (same(d, today)) return "Today";
+  const y = new Date(today);
+  y.setDate(today.getDate() - 1);
+  if (same(d, y)) return "Yesterday";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function tone(title: string): string {
   if (/^now/i.test(title)) return "border-brand-400/40";
   if (/thought|note/i.test(title)) return "border-rose-400/35";
@@ -251,14 +311,21 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
 
   const save = useCallback(async () => {
     setStatus("saving");
+    const sent = latest.current;
     try {
       const res = await fetch(apiPath("/api/admin/board"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections: latest.current }),
+        body: JSON.stringify({ sections: sent }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Couldn't save");
+      // The server sweeps done items into Completed; take its word for it
+      // unless another edit landed meanwhile.
+      if (data.sections && latest.current === sent) {
+        latest.current = data.sections;
+        setSections(data.sections);
+      }
       setStatus("saved");
       setError(null);
     } catch (err) {
@@ -267,11 +334,11 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     }
   }, []);
 
-  /** Apply a change and schedule a save. */
+  /** Apply a change, sweep done items into Completed, and schedule a save. */
   const update = useCallback(
     (fn: (prev: BoardSection[]) => BoardSection[]) => {
       setSections((prev) => {
-        const next = fn(prev);
+        const next = sweepCompleted(fn(prev));
         latest.current = next;
         return next;
       });
@@ -294,6 +361,10 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     [save],
   );
 
+  const [tab, setTab] = useState<"live" | "completed">("live");
+  const completedSection = sections.find(isCompleted);
+  const completedCount = completedSection?.items.length ?? 0;
+  const live = sections.filter((s) => !isCompleted(s));
   const [view, setViewState] = useState<"cards" | "list">("cards");
   useEffect(() => {
     // Read after mount on purpose: the server can't see localStorage and a
@@ -320,11 +391,28 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
     try {
       const res = await fetch(apiPath("/api/admin/board/runs"), { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.runs) setRuns(data.runs);
+      if (res.ok && data.runs) {
+        const runs = data.runs as Record<number, RunStatus>;
+        setRuns(runs);
+        // A run that is merged AND live is 100% done — it completes itself
+        // (Chris, 09-09: "you should be the only one completing these tasks").
+        const finished = new Set(Object.entries(runs).filter(([, r]) => r.state === "done" && r.deploy === "ready").map(([n]) => Number(n)));
+        if (finished.size) {
+          update((prev) =>
+            prev.map((sec) => ({
+              ...sec,
+              items: sec.items.map((i) => {
+                const n = /^▶ RUNNING #(d+)/.exec(i.text)?.[1];
+                return n && !i.done && finished.has(Number(n)) ? { ...i, done: true } : i;
+              }),
+            })),
+          );
+        }
+      }
     } catch {
       /* the chips fall back to Running */
     }
-  }, []);
+  }, [update]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadRuns();
@@ -434,25 +522,49 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
           )}
         </div>
       </div>
-      <div className="mb-3 flex items-center gap-2 text-xs">
-        <div role="tablist" aria-label="Board view" className="flex rounded-full border border-edge bg-surface-1 p-0.5">
-          {(["cards", "list"] as const).map((v) => (
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+        <div role="tablist" aria-label="Live or completed" className="flex rounded-full border border-brand-400/40 bg-surface-1 p-0.5">
+          {(["live", "completed"] as const).map((t) => (
             <button
-              key={v}
+              key={t}
               role="tab"
-              aria-selected={view === v}
-              onClick={() => setView(v)}
-              className={`rounded-full px-3 py-1 transition ${view === v ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white"}`}
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={`rounded-full px-3 py-1 font-medium transition ${tab === t ? "bg-brand-500/30 text-white" : "text-zinc-400 hover:text-white"}`}
             >
-              {v === "cards" ? "Cards" : "List"}
+              {t === "live" ? "Live" : `Completed${completedCount ? ` · ${completedCount}` : ""}`}
             </button>
           ))}
         </div>
-        {view === "list" && <span className="text-zinc-500">Every open task, ranked by Claude&apos;s priority — Now first, then launch gates, your list, Claude&apos;s queue, prove-on-prod, technical, future, backburner, thoughts.</span>}
+        {tab === "live" && (
+          <div role="tablist" aria-label="Board view" className="flex rounded-full border border-edge bg-surface-1 p-0.5">
+            {(["cards", "list"] as const).map((v) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => setView(v)}
+                className={`rounded-full px-3 py-1 transition ${view === v ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white"}`}
+              >
+                {v === "cards" ? "Cards" : "List"}
+              </button>
+            ))}
+          </div>
+        )}
+        {tab === "live" && view === "list" && <span className="text-zinc-500">Every open task, ranked by Claude&apos;s priority — Now first, then launch gates, your list, Claude&apos;s queue, prove-on-prod, technical, future, backburner, thoughts.</span>}
+        {tab === "completed" && <span className="text-zinc-500">Finished work, newest first. Claude moves tasks here; a merged run lands here on its own once it is live. Un-tick to reopen.</span>}
       </div>
-      {view === "list" ? (
+      {tab === "completed" ? (
+        <CompletedView
+          section={completedSection}
+          all={sections}
+          onToggle={(iid) => completedSection && patchItem(completedSection.id, iid, (i) => ({ ...i, done: !i.done }))}
+          onRemove={(iid) => completedSection && removeItem(completedSection.id, iid)}
+          onError={setError}
+        />
+      ) : view === "list" ? (
         <ol className="rounded-2xl border border-edge bg-surface-1 p-3">
-          {rankedItems(sections).map(({ item, section, rank }) => (
+          {rankedItems(live).map(({ item, section, rank }) => (
             <li key={item.id} className="flex items-start gap-2 border-b border-white/5 py-1 last:border-0">
               <span className="w-7 shrink-0 pt-1 text-right text-[11px] tabular-nums text-zinc-600">{rank}</span>
               <span className={`mt-1 shrink-0 rounded px-1.5 py-px text-[10px] font-medium ${catChip(section.title)}`} title={section.hint ?? undefined}>{section.title}</span>
@@ -460,7 +572,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
                 <ItemRow
                   item={item}
                   items={section.items}
-                  all={sections}
+                  all={live}
                   sectionId={section.id}
                   onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
                   onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
@@ -474,17 +586,17 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
               </ul>
             </li>
           ))}
-          {rankedItems(sections).length === 0 && <li className="py-4 text-center text-xs text-zinc-500">Nothing open.</li>}
+          {rankedItems(live).length === 0 && <li className="py-4 text-center text-xs text-zinc-500">Nothing open.</li>}
         </ol>
       ) : (
       <div className="grid gap-4 md:grid-cols-2">
-        {sections.map((s, idx) => (
+        {live.map((s, idx) => (
           <SectionCard
             key={s.id}
             section={s}
-            all={sections}
+            all={live}
             first={idx === 0}
-            last={idx === sections.length - 1}
+            last={idx === live.length - 1}
             onRename={(title, hint) => patchSection(s.id, (x) => ({ ...x, title, hint }))}
             onMove={(dir) => moveSection(s.id, dir)}
             onDelete={() => removeSection(s.id)}
@@ -711,7 +823,12 @@ function ItemRow(props: {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(it.text);
   const [more, setMore] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
+  const { head, replies } = noteLines(it.text);
+  // Run again after a reply, or after a closed run — the route supersedes the old issue.
+  const canRun = !it.done && (!runNo || runStatus?.state === "needs-you" || runStatus?.state === "closed");
 
   useEffect(() => {
     if (editing && ref.current) {
@@ -763,18 +880,39 @@ function ItemRow(props: {
               )}
               {(() => {
                 const m = /^▶ RUNNING #(\d+) — ([\s\S]*)$/.exec(it.text);
-                if (!m) return <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{it.text}</button>;
+                if (!m) return <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{head}</button>;
                 const st = runs[Number(m[1])];
                 const chip = RUN_CHIP[st?.state ?? "running"];
                 const href = st?.url ?? `https://github.com/truefreemoney-rgb/cardflip/issues/${m[1]}`;
                 return (
                   <>
                     <a href={href} target="_blank" rel="noreferrer" title={chip.hint} className={`mr-1 rounded px-1.5 py-px text-[11px] font-semibold ${chip.cls}`}>{chip.label} #{m[1]}{st ? ` · ${since(st.startedAt)}` : ""} ↗</a>
-                    <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{m[2]}</button>
+                    <button onClick={() => { setText(it.text); setEditing(true); }} className="text-left hover:text-white">{noteLines(m[2]).head}</button>
                   </>
                 );
               })()}
             </span>
+          )}
+          {!editing && replies.length > 0 && (
+            <ul className="mt-1 space-y-0.5 border-l border-white/10 pl-2 text-[12px] text-zinc-400">
+              {replies.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          )}
+          {replying && (
+            <form
+              className="mt-1.5 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const t = reply.trim();
+                if (!t) return;
+                props.onText(`${it.text}\n↳ Chris: ${t}`);
+                setReply("");
+                setReplying(false);
+              }}
+            >
+              <input autoFocus value={reply} onChange={(e) => setReply(e.target.value)} maxLength={400} placeholder="Your reply…" aria-label="Reply" className={`${INPUT} h-8 min-w-0 flex-1 text-[13px]`} onKeyDown={(e) => { if (e.key === "Escape") setReplying(false); }} />
+              <button type="submit" disabled={!reply.trim()} className={`${PRIMARY} h-8 px-3 text-xs disabled:opacity-40`}>Reply</button>
+            </form>
           )}
           <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
           {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} />}
@@ -797,11 +935,85 @@ function ItemRow(props: {
           <button onClick={() => { props.onReorder(-1); setMore(false); }} disabled={idx <= 0} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move up</button>
           <button onClick={() => { props.onReorder(1); setMore(false); }} disabled={idx < 0 || idx >= props.items.length - 1} className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent">Move down</button>
           <PhotoButton count={it.images?.length ?? 0} onAdd={(urls) => { props.onImages([...(it.images ?? []), ...urls].slice(0, MAX_IMAGES)); setMore(false); }} onError={props.onError} />
-          <button onClick={() => { props.onRun(); setMore(false); }} disabled={it.done || /^▶ RUNNING #\d+/.test(it.text)} title="Opens a GitHub issue; the cloud board runner does the task and opens a PR" className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">▶ Run</button>
+          <button onClick={() => { setReplying(true); setMore(false); }} title="Add a reply under this note — for Claude, or for the runner before you press Run again" className="rounded px-2 py-1 text-zinc-400 hover:bg-white/5">↳ Reply</button>
+          <button onClick={() => { props.onRun(); setMore(false); }} disabled={!canRun} title={runNo && canRun ? "Runs again with your reply; the old issue is closed" : "Opens a GitHub issue; the cloud board runner does the task and opens a PR"} className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-30">{runNo && canRun ? "▶ Run again" : "▶ Run"}</button>
           <button onClick={props.onRemove} className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10">Delete</button>
         </div>
       )}
     </li>
+  );
+}
+
+/** The Completed tab: finished work grouped by day, newest first; un-tick to reopen, ⋯ to delete. */
+function CompletedView(props: {
+  section: BoardSection | undefined;
+  all: BoardSection[];
+  onToggle: (iid: string) => void;
+  onRemove: (iid: string) => void;
+  onError: (m: string) => void;
+}) {
+  const { runs } = useContext(RunsContext);
+  const items = props.section?.items ?? [];
+  if (!items.length) return <div className="rounded-2xl border border-edge bg-surface-1 p-6 text-center text-xs text-zinc-500">Nothing completed yet.</div>;
+  const groups: { day: string; items: BoardItem[] }[] = [];
+  for (const it of items) {
+    const day = dayLabel(it.completedAt ?? 0);
+    const g = groups[groups.length - 1];
+    if (g && g.day === day) g.items.push(it);
+    else groups.push({ day, items: [it] });
+  }
+  return (
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <section key={g.day} className="rounded-2xl border border-emerald-400/20 bg-surface-1 p-4">
+          <h3 className="text-sm font-semibold text-white">{g.day}</h3>
+          <ul className="mt-2 space-y-1.5">
+            {g.items.map((it) => {
+              const m = /^▶ RUNNING #(\d+) — ([\s\S]*)$/.exec(it.text);
+              const st = m ? runs[Number(m[1])] : undefined;
+              const { head, replies } = noteLines(m ? m[2] : it.text);
+              return (
+                <li key={it.id} className="group -mx-1 rounded-lg px-1 py-0.5">
+                  <div className="flex items-start gap-2 text-[13px] leading-snug">
+                    <button
+                      role="checkbox"
+                      aria-checked
+                      aria-label="Reopen"
+                      title="Un-tick to reopen it where it came from"
+                      onClick={() => props.onToggle(it.id)}
+                      className="mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center rounded border border-emerald-400/50 bg-emerald-400/25 text-emerald-200"
+                    >
+                      <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6l3 3 5-6" /></svg>
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-zinc-300">
+                        {it.from && <span className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-medium ${catChip(it.from)}`}>{it.from}</span>}
+                        {it.owner && <span className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-semibold ${chipClass(it.owner)}`}>{ownerLabel(it.owner)}</span>}
+                        {m && st && <a href={st.url} target="_blank" rel="noreferrer" className="mr-1 rounded bg-emerald-400/20 px-1.5 py-px text-[11px] font-semibold text-emerald-100">✓ #{m[1]} ↗</a>}
+                        {head}
+                      </span>
+                      {replies.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 border-l border-white/10 pl-2 text-[12px] text-zinc-500">
+                          {replies.map((r, i) => <li key={i}>{r}</li>)}
+                        </ul>
+                      )}
+                      <Thumbs urls={it.images ?? []} onRemove={() => undefined} />
+                      {st?.pr && (
+                        <p className="mt-1 text-[12px] text-zinc-500">
+                          <span className="text-zinc-600">Change: </span>
+                          {st.pr.title}
+                        </p>
+                      )}
+                    </div>
+                    <IconBtn label="Delete" onClick={() => props.onRemove(it.id)} className="opacity-40 hover:text-red-300 group-hover:opacity-100 focus:opacity-100">×</IconBtn>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
 

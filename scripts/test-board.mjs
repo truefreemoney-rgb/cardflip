@@ -62,6 +62,21 @@ const prBody = [
 check("summarize keeps the bullets, drops Closes and trailers", JSON.stringify(summarize(prBody)), JSON.stringify(["Gyarados leaves the stage — see stageCards.ts.", "Price target $50 → $35 (why)."]));
 check("summarize of empty body", summarize(null).length, 0);
 
+// Completed sweep (09-09): done items move to Completed (stamped), un-ticked ones go home.
+const { normalizeBoard } = await import(new URL("../src/lib/server/board.ts", import.meta.url).href);
+const swept = normalizeBoard(
+  [
+    { id: "now", title: "Now", hint: null, items: [{ id: "a", done: true, owner: "Claude", text: "shipped" }, { id: "b", done: false, owner: null, text: "open" }] },
+    { id: "c", title: "Completed", hint: null, items: [{ id: "old", done: true, owner: null, text: "older", completedAt: 5, from: "Now" }, { id: "re", done: false, owner: null, text: "reopen me", completedAt: 4, from: "Now" }] },
+  ],
+  1000,
+);
+check("sweep moved the done item out of Now", swept.sections[0].items.map((i) => i.id).join(","), "b,re");
+check("sweep put it on top of Completed, stamped", JSON.stringify(swept.sections[1].items.map((i) => [i.id, i.completedAt, i.from])), JSON.stringify([["a", 1000, "Now"], ["old", 5, "Now"]]));
+check("reopened item lost its stamp", "completedAt" in swept.sections[0].items[1], false);
+check("sweep reports change", swept.changed, true);
+check("sweep is idempotent", normalizeBoard(swept.sections, 2000).changed, false);
+
 const real = parseBoard(readFileSync(new URL("../docs/BOARD.md", import.meta.url), "utf8"));
 check("real board has the core categories", ["Now", "Chris", "Claude", "Future ideas"].every((t) => real.some((x) => x.title === t)), true);
 check("every OPEN real item carries an owner tag", real.flatMap((x) => x.items).filter((i) => !i.done).every((i) => i.owner !== null), true);

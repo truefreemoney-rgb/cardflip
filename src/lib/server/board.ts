@@ -25,7 +25,20 @@ export interface BoardItem {
   text: string;
   /** Photos attached to the note (Vercel Blob URLs, 09-09: "for my thoughts, i need a image update option"). */
   images?: string[];
+  /** When it reached Completed (ms). Set by normalizeBoard, never by hand. */
+  completedAt?: number;
+  /** The category it lived in before Completed, so it can be reopened there. */
+  from?: string;
 }
+
+/**
+ * Completed (Chris, 09-09: "once tasks are 100% complete, they move to a
+ * complete section … you should be the only one completing these tasks").
+ * Every done item anywhere is swept here, newest first — by Claude in a
+ * session, by a merged-and-live run, or by a tick. Live views hide it.
+ */
+export const COMPLETED_TITLE = "Completed";
+export const isCompletedSection = (s: BoardSection): boolean => /^completed$|^done/i.test(s.title.trim());
 export interface BoardSection {
   id: string;
   title: string;
@@ -78,7 +91,10 @@ export function serializeBoard(sections: BoardSection[]): string {
   const out = ["# CardFlip Board", "", "Exported from the admin console (the live copy is in the settings table).", ""];
   for (const s of sections) {
     out.push(`## ${s.title}${s.hint ? ` — ${s.hint}` : ""}`, "");
-    for (const it of s.items) out.push(`- [${it.done ? "x" : " "}] ${it.owner ? `[${it.owner}] ` : ""}${it.text}${(it.images ?? []).map((u) => ` [image](${u})`).join("")}`);
+    for (const it of s.items) {
+      const stamp = it.completedAt ? ` (completed ${new Date(it.completedAt).toISOString().slice(0, 10)}${it.from ? `, from ${it.from}` : ""})` : "";
+      out.push(`- [${it.done ? "x" : " "}] ${it.owner ? `[${it.owner}] ` : ""}${it.text.replace(/\r?\n/g, " ⏎ ")}${(it.images ?? []).map((u) => ` [image](${u})`).join("")}${stamp}`);
+    }
     out.push("");
   }
   return out.join("\n");
@@ -104,7 +120,7 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
     const clean: BoardItem[] = [];
     for (const it of items) {
       if (!it || typeof it !== "object") return { ok: false, error: "Bad item" };
-      const { id: iid, done, owner, text, images } = it as Record<string, unknown>;
+      const { id: iid, done, owner, text, images, completedAt, from } = it as Record<string, unknown>;
       if (typeof iid !== "string" || !ID_RE.test(iid) || seen.has(iid)) return { ok: false, error: "Bad item id" };
       seen.add(iid);
       if (typeof text !== "string" || text.length > 1000) return { ok: false, error: "Item text too long (max 1000)" };
@@ -115,11 +131,70 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
         if (!images.every((u) => typeof u === "string" && BLOB_URL_RE.test(u))) return { ok: false, error: "Bad image URL" };
         imgs = images.length ? (images as string[]) : undefined;
       }
-      clean.push({ id: iid, done: Boolean(done), owner: (owner as BoardOwner) ?? null, text: text.trim(), ...(imgs ? { images: imgs } : {}) });
+      if (completedAt != null && (typeof completedAt !== "number" || !Number.isFinite(completedAt))) return { ok: false, error: "Bad completedAt" };
+      if (from != null && (typeof from !== "string" || from.length > 80)) return { ok: false, error: "Bad from" };
+      clean.push({
+        id: iid,
+        done: Boolean(done),
+        owner: (owner as BoardOwner) ?? null,
+        text: text.trim(),
+        ...(imgs ? { images: imgs } : {}),
+        ...(typeof completedAt === "number" ? { completedAt } : {}),
+        ...(typeof from === "string" && from.trim() ? { from: from.trim() } : {}),
+      });
     }
     sections.push({ id, title: title.trim(), hint: typeof hint === "string" && hint.trim() ? hint.trim() : null, items: clean });
   }
   return { ok: true, sections };
+}
+
+/**
+ * Sweep every done item into Completed (newest first, stamped with when and
+ * where from) and every not-done item in Completed back to where it came
+ * from (a reopen). Pure; returns whether anything moved.
+ */
+export function normalizeBoard(sections: BoardSection[], now = Date.now()): { sections: BoardSection[]; changed: boolean } {
+  let changed = false;
+  const next = sections.map((s) => ({ ...s, items: s.items.slice() }));
+  let completed = next.find(isCompletedSection);
+  if (!completed) {
+    completed = { id: randomUUID(), title: COMPLETED_TITLE, hint: "what got finished, newest first", items: [] };
+    next.push(completed);
+    changed = true;
+  }
+  const arrivals: BoardItem[] = [];
+  for (const s of next) {
+    if (s === completed) continue;
+    const keep: BoardItem[] = [];
+    for (const it of s.items) {
+      if (it.done) {
+        arrivals.push({ ...it, completedAt: it.completedAt ?? now, from: it.from ?? s.title });
+        changed = true;
+      } else keep.push(it);
+    }
+    s.items = keep;
+  }
+  // Reopened: un-ticked inside Completed goes home (or to the first section).
+  const reopened = completed.items.filter((it) => !it.done);
+  if (reopened.length) {
+    changed = true;
+    completed.items = completed.items.filter((it) => it.done);
+    for (const it of reopened) {
+      const home = next.find((s) => s !== completed && s.title === it.from) ?? next.find((s) => s !== completed);
+      const clean: BoardItem = { ...it };
+      delete clean.completedAt;
+      delete clean.from;
+      home?.items.push(clean);
+    }
+  }
+  if (arrivals.length) completed.items = [...arrivals.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)), ...completed.items];
+  // Completed always sits last so the live cards read top-down.
+  if (next[next.length - 1] !== completed) {
+    next.splice(next.indexOf(completed), 1);
+    next.push(completed);
+    changed = true;
+  }
+  return { sections: next, changed };
 }
 
 /** The personal category Chris asked for; seeded once alongside the file. */
@@ -145,8 +220,13 @@ export async function loadBoard(): Promise<{ sections: BoardSection[]; updatedAt
     try {
       const v = validateBoard(JSON.parse(stored));
       if (v.ok) {
+        const n = normalizeBoard(v.sections);
+        if (n.changed) {
+          await saveBoard(n.sections);
+          return { sections: n.sections, updatedAt: Date.now() };
+        }
         const row = (await db.prepare("SELECT updated_at FROM settings WHERE key = ?").get(BOARD_KEY)) as { updated_at: number } | undefined;
-        return { sections: v.sections, updatedAt: row?.updated_at ?? null };
+        return { sections: n.sections, updatedAt: row?.updated_at ?? null };
       }
     } catch {
       /* fall through: reseed */
@@ -179,7 +259,7 @@ export async function reseedBoard(): Promise<{ sections: BoardSection[]; updated
 }
 
 export async function saveBoard(sections: BoardSection[]): Promise<void> {
-  const json = JSON.stringify(sections);
+  const json = JSON.stringify(normalizeBoard(sections).sections);
   if (json.length > BOARD_MAX_BYTES) throw new Error("Board too large");
   await setSetting(BOARD_KEY, json);
 }
