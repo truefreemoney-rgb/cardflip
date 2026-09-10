@@ -2,10 +2,12 @@ import ActivityBars from "@/components/admin/ActivityBars";
 import { money, num } from "@/components/admin/format";
 import { getAdminOverview } from "@/lib/server/adminStats";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
+  await requireOwnerPage();
   const [o, { last24h: spend24h, last30d: spend30d }] = await Promise.all([getAdminOverview(), scanSpendSummary()]);
   const s = o.stats;
 

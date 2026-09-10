@@ -7,8 +7,8 @@ import { ownerLabel } from "@/components/admin/format";
 import type { RunStatus } from "@/lib/server/boardRuns";
 
 /** Run outcomes by issue number, read once per visit (GET /api/admin/board/runs), plus a way to re-read them. */
-const RunsContext = createContext<{ runs: Record<number, RunStatus>; reload: () => void }>({ runs: {}, reload: () => {} });
-const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: string }> = {
+export const RunsContext = createContext<{ runs: Record<number, RunStatus>; reload: () => void }>({ runs: {}, reload: () => {} });
+export const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: string }> = {
   running: { label: "▶ Running", cls: "bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25", hint: "The cloud runner has it — opens the GitHub issue" },
   "needs-you": { label: "? Needs you", cls: "bg-amber-400/20 text-amber-200 hover:bg-amber-400/30", hint: "The runner asked a question — it is shown below" },
   "pr-ready": { label: "✓ PR ready", cls: "bg-sky-400/20 text-sky-200 hover:bg-sky-400/30", hint: "Read the summary below and press Merge" },
@@ -22,7 +22,7 @@ const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: s
  * task, its question if it has one, the PR in plain words, a Merge button,
  * and whether the merge has reached cardflip.io yet. GitHub stays a ↗ link.
  */
-function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string) => void; onReply: () => void }) {
+export function RunPanel({ st, onError, onReply, canMerge = true }: { st: RunStatus; onError: (m: string) => void; onReply: () => void; canMerge?: boolean }) {
   const { reload } = useContext(RunsContext);
   const [merging, setMerging] = useState(false);
   // The bullet list + screenshots fold away by default: on a phone the
@@ -98,7 +98,7 @@ function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 pt-0.5">
-        {st.state === "pr-ready" && pr && (
+        {st.state === "pr-ready" && pr && canMerge && (
           <button type="button" onClick={merge} disabled={merging} className={`${PRIMARY} h-8 px-3 text-xs disabled:opacity-50`}>
             {merging ? "Merging…" : "Merge → goes live"}
           </button>
@@ -146,7 +146,7 @@ function deleteImage(url: string) {
 }
 
 /** Paperclip: picks photos (camera roll on the phone), uploads, hands back the URLs. */
-function PhotoButton({ count, onAdd, onError, className = "", compact = false }: { count: number; onAdd: (urls: string[]) => void; onError: (m: string) => void; className?: string; compact?: boolean }) {
+export function PhotoButton({ count, onAdd, onError, className = "", compact = false }: { count: number; onAdd: (urls: string[]) => void; onError: (m: string) => void; className?: string; compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const full = count >= MAX_IMAGES;
@@ -187,7 +187,7 @@ function PhotoButton({ count, onAdd, onError, className = "", compact = false }:
 }
 
 /** Thumbnails under a note; tap opens the full image, × removes it (and the blob). */
-function Thumbs({ urls, onRemove }: { urls: string[]; onRemove: (url: string) => void }) {
+export function Thumbs({ urls, onRemove }: { urls: string[]; onRemove: (url: string) => void }) {
   if (!urls.length) return null;
   return (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -213,7 +213,7 @@ function Thumbs({ urls, onRemove }: { urls: string[]; onRemove: (url: string) =>
 }
 
 /** "3m" / "2h" / "1d" since the Run press — Chris, 09-09: "there was no task time indicator". */
-function since(iso: string): string {
+export function since(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
   if (m < 60) return `${m}m`;
   if (m < 60 * 24) return `${Math.round(m / 60)}h`;
@@ -279,7 +279,7 @@ function sweepCompleted(sections: BoardSection[]): BoardSection[] {
 }
 
 /** A note with replies: the first line is the task, "↳ Chris: …" lines are replies. */
-function noteLines(text: string): { head: string; replies: string[] } {
+export function noteLines(text: string): { head: string; replies: string[] } {
   const [head, ...rest] = text.split(/\r?\n/);
   return { head, replies: rest.filter((l) => l.trim()) };
 }
@@ -324,9 +324,9 @@ function chipClass(o: BoardOwner): string {
   return "bg-zinc-700/60 text-zinc-400";
 }
 
-const INPUT = "rounded-lg border border-edge bg-black/40 px-3 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm";
-const PRIMARY = "rounded-full bg-brand-500 font-semibold text-white transition hover:bg-brand-400";
-const GHOST = "rounded-full border border-edge text-zinc-300 transition hover:bg-white/5";
+export const INPUT = "rounded-lg border border-edge bg-black/40 px-3 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm";
+export const PRIMARY = "rounded-full bg-brand-500 font-semibold text-white transition hover:bg-brand-400";
+export const GHOST = "rounded-full border border-edge text-zinc-300 transition hover:bg-white/5";
 
 type Status = "saved" | "saving" | "dirty" | "error";
 

@@ -1,9 +1,11 @@
 import FeatureToggles from "@/components/admin/FeatureToggles";
 import { magicPublic } from "@/lib/server/settings";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSwitchesPage() {
+  await requireOwnerPage();
   const magicOn = await magicPublic();
   return (
     <section>

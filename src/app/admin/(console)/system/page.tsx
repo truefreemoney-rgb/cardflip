@@ -7,6 +7,7 @@ import { cronLabel } from "@/lib/cronSchedule";
 import { getAdminOverview, perDay } from "@/lib/server/adminStats";
 import { ERROR_DIGEST_MIN } from "@/lib/server/errorDigest";
 import { errorCount24h, errorGroups24h } from "@/lib/server/errorLog";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ function daysSince(isoDay: string, now: number): number {
 }
 
 export default async function AdminSystemPage() {
+  await requireOwnerPage();
   const [o, errors24h, errorDays, groups] = await Promise.all([
     getAdminOverview(),
     errorCount24h(),

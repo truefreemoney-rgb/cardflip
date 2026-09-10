@@ -33,6 +33,12 @@ export async function requireAdmin(): Promise<void> {
   await requireAdminPanel();
 }
 
+/** Owner only — anything that changes the site, other people's rows, or settings. */
+export async function requireAdminOwner(): Promise<void> {
+  const { requireOwnerPanel } = await import("@/lib/server/adminGate");
+  await requireOwnerPanel();
+}
+
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;

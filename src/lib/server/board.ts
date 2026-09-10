@@ -4,6 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
+import { helperName } from "@/lib/adminAuth";
 
 /**
  * The board — Chris's organised task list, edited live in the admin console
@@ -200,6 +201,26 @@ export function normalizeBoard(sections: BoardSection[], now = Date.now()): { se
 /** The personal category Chris asked for; seeded once alongside the file. */
 export function notesSection(): BoardSection {
   return { id: randomUUID(), title: "Chris's thoughts", hint: "your own notes, anything goes", items: [] };
+}
+
+/**
+ * The helper's own category (lib/adminAuth.ts helper role): "<Name>'s
+ * thoughts", the only place she can write. Created on her first note, right
+ * after Chris's thoughts so both inboxes sit together.
+ */
+export function helperSectionTitle(): string {
+  return `${helperName()}'s thoughts`;
+}
+
+export function helperSection(sections: BoardSection[]): BoardSection {
+  const title = helperSectionTitle();
+  let s = sections.find((x) => x.title === title);
+  if (!s) {
+    s = { id: randomUUID(), title, hint: "notes from the helper — Run sends one to the runner", items: [] };
+    const after = sections.findIndex((x) => /thoughts/i.test(x.title));
+    sections.splice(after >= 0 ? after + 1 : sections.length, 0, s);
+  }
+  return s;
 }
 
 async function seedFromFile(): Promise<BoardSection[]> {

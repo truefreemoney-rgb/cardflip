@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminUsingDefaults, verifyAdminCredentials } from "@/lib/adminAuth";
+import { adminUsingDefaults, verifyAdminLogin } from "@/lib/adminAuth";
 import { ADMIN_COOKIE, adminCookieOptions, issueAdminSession } from "@/lib/server/adminGate";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
@@ -22,11 +22,12 @@ export async function POST(req: Request) {
     const locked = await limitOrRespondAsync(`auth:admin:acct:${user.toLowerCase()}`, LIMITS.authAccount);
     if (locked) return locked;
   }
-  if (!verifyAdminCredentials(user, password)) {
+  const role = verifyAdminLogin(user, password);
+  if (!role) {
     return NextResponse.json({ error: "Incorrect username or password." }, { status: 401 });
   }
-  const { token, expiresAt } = issueAdminSession();
-  const res = NextResponse.json({ ok: true, expiresAt });
+  const { token, expiresAt } = issueAdminSession(role);
+  const res = NextResponse.json({ ok: true, expiresAt, role });
   res.cookies.set(ADMIN_COOKIE, token, adminCookieOptions(expiresAt));
   return res;
 }

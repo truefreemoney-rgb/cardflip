@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { findUserById } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
@@ -16,7 +16,7 @@ interface RouteParams {
  */
 export async function POST(req: Request, { params }: RouteParams) {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const { id } = await params;
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });

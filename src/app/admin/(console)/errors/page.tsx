@@ -1,9 +1,11 @@
 import { fmtDate, num } from "@/components/admin/format";
 import { errorCount24h, listRecentErrors } from "@/lib/server/errorLog";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminErrorsPage() {
+  await requireOwnerPage();
   const [recentErrors, errors24h] = await Promise.all([listRecentErrors(50), errorCount24h()]);
   return (
     <section>

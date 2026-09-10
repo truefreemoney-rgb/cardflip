@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
 
 /**
@@ -12,7 +12,7 @@ import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
  */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const token = process.env.GITHUB_TOKEN;
     if (!token) return NextResponse.json({ error: "Set GITHUB_TOKEN on Vercel to enable Merge." }, { status: 503 });
     const body = await req.json().catch(() => null);

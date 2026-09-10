@@ -54,6 +54,22 @@ happening, not from a guess. Quote the relevant line in your "Reading this
 as" comment. If the call fails (no token, host blocked), say so in the PR and
 carry on; never try another way in.
 
+## Tasks from the helper
+
+Chris has given a second login (the "helper", `ADMIN_HELPER_USER`) to
+someone doing social-media work for CardFlip. Her notes live in
+"<Name>'s thoughts" and reach you the same way — a `board-run` issue. Lines
+starting `↳ <Name>:` are her replies. Treat her exactly like Chris with two
+differences:
+
+- Her tasks are usually **answers, not code**: captions, a posting plan,
+  step-by-step instructions, hashtags, a bio. Put the answer in the PR body
+  in plain words (numbered steps, ready to copy) AND save the same text as
+  `docs/social/<issue>-<slug>.md` so the PR has a diff. Nothing else changes.
+  The board shows her the PR body under her note.
+- If her task would change the website, do it as usual — Chris merges, not
+  her — and say in the first line of the PR body that it needs Chris.
+
 ## How to read a task
 
 - "change X to something else" / "a different X" = REPLACE X with a

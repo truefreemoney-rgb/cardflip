@@ -1,10 +1,12 @@
 import { fmtDate, money, STATUS_STYLE } from "@/components/admin/format";
 import { listAllCards } from "@/lib/server/cards";
 import { listAllUsers } from "@/lib/server/users";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCardsPage() {
+  await requireOwnerPage();
   const [cards, users] = await Promise.all([listAllCards(60), listAllUsers()]);
   const userById = new Map(users.map((u) => [u.id, u]));
   return (

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { ACCESS_OVERRIDES, findUserById, setAccessOverride, toPublicUser, type AccessOverride } from "@/lib/server/users";
 
 interface RouteParams {
@@ -13,7 +13,7 @@ interface RouteParams {
  */
 export async function PATCH(req: Request, { params }: RouteParams) {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const { id } = await params;
     const body = await req.json().catch(() => null);
     const raw = body?.override;

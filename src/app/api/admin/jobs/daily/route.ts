@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { dailyStatus, runDailyIfDue } from "@/lib/server/dailyJobs";
 
 /**
@@ -14,7 +14,7 @@ export const maxDuration = 300;
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     return NextResponse.json({ status: await dailyStatus() });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const status = await dailyStatus();
     if (status.running) return NextResponse.json({ started: false, status });
     after(() => runDailyIfDue(true));

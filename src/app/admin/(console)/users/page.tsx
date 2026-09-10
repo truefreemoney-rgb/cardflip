@@ -1,10 +1,12 @@
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import { getAdminOverview } from "@/lib/server/adminStats";
 import { listAllUsers, monthlyScans, scanTier } from "@/lib/server/users";
+import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
+  await requireOwnerPage();
   const [o, all] = await Promise.all([getAdminOverview(), listAllUsers()]);
   const users = all.map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt,

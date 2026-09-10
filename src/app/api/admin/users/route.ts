@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { createUser, findUserByEmail, toPublicUser, type Role } from "@/lib/server/users";
 
 /**
@@ -9,7 +9,7 @@ import { createUser, findUserByEmail, toPublicUser, type Role } from "@/lib/serv
  */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const body = await req.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";

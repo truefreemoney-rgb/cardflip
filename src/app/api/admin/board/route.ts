@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdmin, requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { BoardConflictError, loadBoard, normalizeBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
 
 /**
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 /** Replace the live board with docs/BOARD.md (the seed) — Claude updates the file; Chris reloads. */
 export async function POST() {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const board = await reseedBoard();
     return NextResponse.json(board);
   } catch (err) {
@@ -36,7 +36,8 @@ export async function POST() {
 
 export async function PUT(req: Request) {
   try {
-    await requireAdmin();
+    // A helper never replaces the board — her writes go through /board/note.
+    await requireAdminOwner();
     const body = await req.json().catch(() => null);
     const v = validateBoard(body?.sections);
     if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });

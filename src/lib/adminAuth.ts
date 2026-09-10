@@ -57,6 +57,38 @@ export function verifyAdminCredentials(user: string, password: string, creds = a
   return u && p;
 }
 
+/**
+ * Roles. "owner" is the operator login above — everything. "helper" is a
+ * second, optional login (ADMIN_HELPER_USER / ADMIN_HELPER_PASSWORD) for
+ * someone Chris hands the board to (09-10: his girlfriend runs social-media
+ * tasks through the runner — "put some training wheels on so she doesn't
+ * break everything"). A helper sees only the Tasks page, and only her own
+ * category on it: add a note, a photo, ▶ Run, ↳ Reply. No Merge, no edits
+ * to anyone else's rows, no users / switches / system. Unset = no helper
+ * login exists.
+ */
+export type AdminRole = "owner" | "helper";
+
+export function helperCredentials(env: NodeJS.ProcessEnv = process.env): AdminCredentials | null {
+  const user = env.ADMIN_HELPER_USER?.trim();
+  const password = env.ADMIN_HELPER_PASSWORD;
+  return user && password ? { user, password } : null;
+}
+
+/** The helper's display name — "Sam" from ADMIN_HELPER_USER=sam; her notes and replies carry it. */
+export function helperName(env: NodeJS.ProcessEnv = process.env): string {
+  const u = helperCredentials(env)?.user ?? "Helper";
+  return u.charAt(0).toUpperCase() + u.slice(1);
+}
+
+/** Which login these credentials are, or null. The owner wins a tie on username. */
+export function verifyAdminLogin(user: string, password: string, env: NodeJS.ProcessEnv = process.env): AdminRole | null {
+  if (verifyAdminCredentials(user, password, adminCredentials(env))) return "owner";
+  const h = helperCredentials(env);
+  if (h && verifyAdminCredentials(user, password, h)) return "helper";
+  return null;
+}
+
 function signingKey(creds: AdminCredentials, env: NodeJS.ProcessEnv): Buffer {
   return createHmac("sha256", `${creds.user}:${creds.password}:${env.EBAY_TOKEN_KEY ?? env.EBAY_CLIENT_SECRET ?? "cardflip"}`)
     .update("admin-session-key")
@@ -78,4 +110,29 @@ export function verifyAdminToken(token: string | undefined | null, now = Date.no
   if (!Number.isFinite(expiresAt) || expiresAt <= now) return false;
   const expected = createHmac("sha256", signingKey(creds, env)).update(String(expiresAt)).digest("base64url");
   return safeEqual(mac, expected);
+}
+
+/**
+ * Helper session: "<expiresAtMs>.h.<hmac>" signed with the helper's own
+ * credentials, so the owner's key never verifies it and changing the helper
+ * password ends her sessions alone. The ".h." segment is inside the MAC.
+ */
+export function signHelperToken(now = Date.now(), creds = helperCredentials(), env: NodeJS.ProcessEnv = process.env): { token: string; expiresAt: number } {
+  if (!creds) throw new Error("No helper login is configured");
+  const expiresAt = now + ADMIN_SESSION_TTL_MS;
+  const mac = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
+  return { token: `${expiresAt}.h.${mac}`, expiresAt };
+}
+
+/** Which role a cookie value carries — owner, helper, or nothing. */
+export function adminRoleOf(token: string | undefined | null, now = Date.now(), env: NodeJS.ProcessEnv = process.env): AdminRole | null {
+  if (!token) return null;
+  if (verifyAdminToken(token, now, adminCredentials(env), env)) return "owner";
+  const m = /^(\d+)\.h\.([A-Za-z0-9_-]+)$/.exec(token);
+  const creds = helperCredentials(env);
+  if (!m || !creds) return null;
+  const expiresAt = Number(m[1]);
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) return null;
+  const expected = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
+  return safeEqual(m[2], expected) ? "helper" : null;
 }

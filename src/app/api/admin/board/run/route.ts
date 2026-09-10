@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { loadBoard, saveBoard } from "@/lib/server/board";
+import { AuthError } from "@/lib/server/auth";
+import { requireAdminPanel } from "@/lib/server/adminGate";
+import { helperSectionTitle, loadBoard, saveBoard } from "@/lib/server/board";
 
 const REPO = "truefreemoney-rgb/cardflip";
 const LABEL = "board-run";
@@ -15,14 +16,17 @@ const LABEL = "board-run";
  */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    const role = await requireAdminPanel();
     const token = process.env.GITHUB_TOKEN;
     if (!token) return NextResponse.json({ error: "Set GITHUB_TOKEN on Vercel to enable Run." }, { status: 503 });
     const body = await req.json().catch(() => null);
     const id = typeof body?.id === "string" ? body.id : "";
     const { sections } = await loadBoard();
-    const item = sections.flatMap((s) => s.items).find((i) => i.id === id);
-    if (!item) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    const section = sections.find((s) => s.items.some((i) => i.id === id));
+    const item = section?.items.find((i) => i.id === id);
+    if (!section || !item) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    // Training wheels: a helper runs her own notes only.
+    if (role === "helper" && section.title !== helperSectionTitle()) return NextResponse.json({ error: "You can only run notes in your own category" }, { status: 403 });
     if (item.done) return NextResponse.json({ error: "That task is completed" }, { status: 409 });
     // A re-run (Chris replied to the runner's question, or the last run was
     // closed): the old issue is superseded — close it so the runner can't pick

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { deleteUser, findUserById } from "@/lib/server/users";
 
 interface RouteParams {
@@ -9,7 +9,7 @@ interface RouteParams {
 /** Admin: delete an account and everything under it (cards, wishlist, sessions cascade). */
 export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
-    await requireAdmin();
+    await requireAdminOwner();
     const { id } = await params;
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
