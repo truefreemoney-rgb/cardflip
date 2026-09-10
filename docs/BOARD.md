@@ -27,6 +27,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Claude — my queue (in order)
 
+- [ ] [Claude] LOGGED 09-10: #26 social thread auto-completed on merge+deploy; Chris: far from done. On go: un-tick #26 back to Chris's thoughts; a run on a NOTE never completes itself (AdminBoard.tsx loadRuns finished set — skip thoughts sections).
 - [ ] [Claude] Homepage demo frame: static 2x image of the Inventory with one card per stage, EXAMPLE ribbon on the art, one-line caption + Try 10 scans free. Mockup approved 09-08; build after lockdown.
 - [ ] [Claude] RUNNER UPGRADE 1 — brain files: docs/RUNNER.md distilled from STATE.md + my memory rules (mobile-first, tight spacing, build for everyone, no auto-scan, one obvious action per screen) + the recent Completed list; the routine prompt reads it first. ~1h.
 - [ ] [Claude] RUNNER UPGRADE 2 — prove visuals: before/after phone-size Playwright screenshots committed to the branch and shown in the PR body, so Chris yea/nays from the board without deploying. ~1 day.
