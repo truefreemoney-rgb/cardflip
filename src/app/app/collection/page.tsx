@@ -12,6 +12,7 @@ import CategoryManager from "@/components/CategoryManager";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
+import InventoryValueChart from "@/components/InventoryValueChart";
 import { readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
@@ -1229,6 +1230,9 @@ export default function CollectionPage() {
             )}
           </div>
         </div>
+        {/* The pile's value day by day, from our own price series (Chris,
+            09-10: "a graph of their listing value changing over time"). */}
+        <InventoryValueChart game={gameView} version={gameCards.length} />
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> drafts
