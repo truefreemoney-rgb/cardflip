@@ -12,7 +12,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 ## Now — current main tasks
 
 - [x] [Chris] Lock down Pokémon + the website: fresh scan batch on the phone 09-10 — "nothing looks off".
-- [ ] [Chris] First soft-launch invite — docs/SOFT-LAUNCH.md (20–30 hand-picked sellers over 3 weeks, green/red table).
+- [ ] [Chris] Soft launch IN PROGRESS — first invite sent 09-10. Ledger: docs/COHORT.md (Chris: who/where per invite; Claude fills the numbers weekly). Week 1 target: 10 invites; follow-up message on day 3.
 - [ ] [Chris] Yea/nay still open on the live site: Pikachu stage card + "Your turn to scan", the board's run panel / Merge button / Live–Completed tabs / ↳ Reply; plus sold-row look (needs a real sale), category manager, admin toggle. (Watchlist summary strip: yea 09-09. /admin/system: fine for now, 09-09.)
 
 ## Chris — needs you
