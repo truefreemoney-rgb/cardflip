@@ -26,11 +26,20 @@ export interface VisionScanOutcome {
  * times more per scan for no extra accuracy.
  */
 const MAX_EDGE = 1024;
+/**
+ * Magic reads more small print than Pokémon: the collector line, the artist
+ * credit, the copyright year, and The List's planeswalker icon in the corner
+ * (09-10: at Scryfall's 680px "normal" size the icon was invisible to the
+ * model, at 936px it was read every time). 1568 is the largest edge the API
+ * takes without resizing it back down itself; the extra image tokens are
+ * ~2x, on a game that is admins-only until it scans right.
+ */
+const MAX_EDGE_MTG = 1568;
 
-async function downscale(file: File): Promise<{ base64: string; mediaType: string }> {
+async function downscale(file: File, maxEdge = MAX_EDGE): Promise<{ base64: string; mediaType: string }> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   try {
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
     const width = Math.round(bitmap.width * scale);
     const height = Math.round(bitmap.height * scale);
 
@@ -58,7 +67,7 @@ export async function scanCardWithVision(
   game: GameId = "pokemon",
 ): Promise<VisionScanOutcome> {
   try {
-    const { base64, mediaType } = await downscale(file);
+    const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
     if (!base64) return { status: "error", read: null, usage: null, error: null };
 
     const res = await fetch(apiPath("/api/vision/scan"), {

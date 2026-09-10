@@ -178,6 +178,53 @@ check("a misread name still resolves when number + set code agree",
 check("a misread name with the wrong set code stays a no-match",
   await mtgTop("Pyrettc Ritval", "46", "m11"), null);
 
+// --- mtg printing cues (09-10, docs/MTG-IDENTIFICATION.md phase 1) --------
+// Same name, same set, different treatment; and same name across sets with
+// different artists / years. Each cue breaks the tie the printed key leaves,
+// and never outvotes an agreeing set code.
+for (const [id, name, code, setName, num, date, usd, artist, frame, border, effects] of [
+  ["dmu-107", "Sheoldred, the Apocalypse", "dmu", "Dominaria United", "107", "2022-09-09", 60, "Chris Rahn", "2015", "black", ""],
+  ["dmu-322", "Sheoldred, the Apocalypse", "dmu", "Dominaria United", "322", "2022-09-09", 65, "Chris Rahn", "2015", "black", "showcase"],
+  ["dmu-380", "Sheoldred, the Apocalypse", "dmu", "Dominaria United", "380", "2022-09-09", 70, "Chris Rahn", "2015", "borderless", ""],
+  ["cma-sr",  "Sol Ring", "cma", "Commander Anthology", "224", "2017-06-09", 2.5, "Mark Tedin", "2015", "black", ""],
+  ["c21-sr",  "Sol Ring", "c21", "Commander 2021", "263", "2021-04-23", 2.4, "Mike Bierek", "2015", "black", ""],
+]) {
+  await db.prepare(
+    `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at,
+                            artist, frame, border_color, frame_effects, finishes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'nonfoil,foil')`,
+  ).run(id, name, code, setName, num, date, usd, artist, frame, border, effects);
+}
+for (const [code, name] of [["dmu", "Dominaria United"], ["cma", "Commander Anthology"], ["c21", "Commander 2021"]]) {
+  await db.prepare("INSERT INTO mtg_sets (code, name, set_type, synced_at) VALUES (?, ?, 'expansion', 0)").run(code, name);
+}
+const mtgTopC = async (name, number, setCode, cues) =>
+  (await searchMtgCardsLocal(name, number, setCode, 5, null, false, cues))[0]?.id ?? null;
+check("treatment 'showcase' picks the showcase printing of the same set",
+  await mtgTopC("Sheoldred, the Apocalypse", null, "dmu", { treatment: "showcase" }), "dmu-322");
+check("treatment 'borderless' picks the borderless printing",
+  await mtgTopC("Sheoldred, the Apocalypse", null, "dmu", { treatment: "borderless" }), "dmu-380");
+check("treatment 'standard' picks the plain printing",
+  await mtgTopC("Sheoldred, the Apocalypse", null, "dmu", { treatment: "standard" }), "dmu-107");
+check("an agreeing collector number still beats a disagreeing treatment cue",
+  await mtgTopC("Sheoldred, the Apocalypse", "322", "dmu", { treatment: "standard" }), "dmu-322");
+check("artist breaks the tie between reprints",
+  await mtgTopC("Sol Ring", null, null, { artist: "Mike Bierek" }), "c21-sr");
+check("copyright year breaks the tie between reprints",
+  await mtgTopC("Sol Ring", null, null, { copyrightYear: 2017 }), "cma-sr");
+check("a misread artist cannot outvote an agreeing set code",
+  await mtgTopC("Sol Ring", null, "cma", { artist: "Mike Bierek" }), "cma-sr");
+check("The List icon lifts the PLST printing over the plain one",
+  await mtgTopC("Pyretic Ritual", null, null, { marks: ["list-icon"] }), "plst-m11-153");
+check("The List icon + the ORIGINAL's printed code and number lands on the PLST row",
+  await mtgTopC("Pyretic Ritual", "153", "m11", { marks: ["list-icon"], copyrightYear: 2010 }), "plst-m11-153");
+check("without the icon, the original's code and number stay on the original",
+  await mtgTopC("Pyretic Ritual", "153", "m11", { copyrightYear: 2010 }), "m11-153");
+check("no marks read at all leaves the plain printing on top",
+  await mtgTopC("Pyretic Ritual", null, null, { finish: "foil" }), "m11-153");
+check("finish is carried on the card, not used to rank",
+  (await searchMtgCardsLocal("Sol Ring", null, "c21", 5, null, false, { finish: "foil" }))[0]?.finishes, ["nonfoil", "foil"]);
+
 check("id fetch returns exactly the row (fast path)",
   (await englishCardById("ex3-100")).cards.map((c) => c.id), ["ex3-100"]);
 check("id fetch misses cleanly", (await englishCardById("nope-1")).cards, []);

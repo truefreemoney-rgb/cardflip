@@ -16,6 +16,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
+import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
@@ -40,6 +41,7 @@ import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
 import type {
   ArtStyle,
+  MtgCues,
   Condition,
   GameId,
   PokemonCard,
@@ -362,6 +364,9 @@ export default function AppPage() {
           // Frame style from the photo — the tiebreak that keeps a full-art
           // card off its promo/regular printing when the number is unread.
           let art: ArtStyle = null;
+          // MTG: the rest of the read (finish, frame, marks, artist, year) —
+          // tie-breakers for the ranker, and the finish picks the price line.
+          let cues: MtgCues | null = null;
           let readError: string | null = null;
           // MTG Art Series: vision flagged it, so only art sets may answer.
           let artOnly = false;
@@ -372,6 +377,7 @@ export default function AppPage() {
             // The photo outranks the seller's language toggle — stacks get sorted wrong.
             language = read.language;
             art = read.artStyle ?? null;
+            if (next.game === "mtg") cues = mtgCuesOf(read);
             nameCandidates = [read.name, read.englishName].filter(
               (n): n is string => Boolean(n),
             );
@@ -450,7 +456,7 @@ export default function AppPage() {
           // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null);
+              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null, cues);
               if (found.length === 0) continue;
               if (matches.length === 0) matches = found;
               if (
@@ -475,7 +481,7 @@ export default function AppPage() {
               : Boolean(printed?.setTotal) && language === "en";
           if (matches.length === 0 && printed && numbersIdentify) {
             try {
-              matches = await searchCards("", printed, language, undefined, next.game, null, false, vision.read?.firstEdition ?? null);
+              matches = await searchCards("", printed, language, undefined, next.game, null, false, vision.read?.firstEdition ?? null, cues);
             } catch {
               lookupErrors++;
             }
@@ -533,6 +539,10 @@ export default function AppPage() {
               // 1st Edition is its own catalog card (the "-1st" twin); the
               // stamp vision read chose it in the search ranking above.
               firstEdition: isFirstEditionCard(card),
+              // MTG: the finish vision read off the shine is the price line
+              // (foil is often the bigger price difference); only when the
+              // printing actually comes in that finish. Null = default pick.
+              variant: cues?.finish && (card.finishes ?? []).includes(cues.finish) ? cues.finish : null,
               error: null,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`

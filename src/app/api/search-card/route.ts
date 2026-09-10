@@ -13,7 +13,8 @@ import {
   hasEnglishMirror,
   searchEnglishCardsLocal,
 } from "@/lib/server/enCards";
-import type { ArtStyle, ScanLanguage } from "@/lib/types";
+import type { ArtStyle, MtgCues, ScanLanguage } from "@/lib/types";
+import { parseMtgCuesParams } from "@/lib/mtgCues";
 import { parseGame } from "@/lib/games";
 import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtgCards";
 import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
@@ -195,13 +196,14 @@ export async function GET(req: NextRequest) {
     // bounced to "couldn't look those cards up again").
     const rawName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim();
     const artOnly = req.nextUrl.searchParams.get("art_series") === "1";
-    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly);
+    const cues: MtgCues | null = parseMtgCuesParams(req.nextUrl.searchParams);
+    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly, cues);
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     if (cards.length === 0) {
       // Vercel keeps console output per request; the request log itself
       // drops the query string, so a phone scan that matched nothing was
       // invisible (09-06, The Soul Stone). Catalog data only, no user id.
-      console.warn("search-card no match", JSON.stringify({ game: "mtg", name: rawName, number, setCode, art, artOnly }));
+      console.warn("search-card no match", JSON.stringify({ game: "mtg", name: rawName, number, setCode, art, artOnly, cues }));
     }
     return NextResponse.json({ cards, matchedOn, source: "local" });
   }

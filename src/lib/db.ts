@@ -304,7 +304,14 @@ const SCHEMA = `
     price_usd_etched REAL,
     price_eur REAL,
     price_eur_foil REAL,
-    synced_at INTEGER NOT NULL
+    synced_at INTEGER NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    frame TEXT NOT NULL DEFAULT '',
+    border_color TEXT NOT NULL DEFAULT '',
+    frame_effects TEXT NOT NULL DEFAULT '',
+    promo_types TEXT NOT NULL DEFAULT '',
+    full_art INTEGER NOT NULL DEFAULT 0,
+    textless INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_name ON mtg_cards(name);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_number ON mtg_cards(collector_number, set_code);
@@ -447,6 +454,20 @@ const SCHEMA = `
  * behaviour is unchanged from the sync driver.)
  */
 const COLUMN_PROBES: [table: string, columns: string[]][] = [
+  [
+    // Printing cues (09-10, docs/MTG-IDENTIFICATION.md); filled by
+    // scripts/sync-mtg.mjs locally and scripts/push-mtg-cues.mjs on prod.
+    "mtg_cards",
+    [
+      "artist TEXT NOT NULL DEFAULT ''",
+      "frame TEXT NOT NULL DEFAULT ''",
+      "border_color TEXT NOT NULL DEFAULT ''",
+      "frame_effects TEXT NOT NULL DEFAULT ''",
+      "promo_types TEXT NOT NULL DEFAULT ''",
+      "full_art INTEGER NOT NULL DEFAULT 0",
+      "textless INTEGER NOT NULL DEFAULT 0",
+    ],
+  ],
   [
     "en_cards",
     [

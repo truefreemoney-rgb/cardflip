@@ -1,6 +1,7 @@
 import { apiPath } from "@/lib/client/basePath";
 import type { PrintedNumber } from "@/lib/cardNumber";
-import type { ArtStyle, GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import type { ArtStyle, GameId, MtgCues, PokemonCard, ScanLanguage } from "@/lib/types";
+import { mtgCuesToParams } from "@/lib/mtgCues";
 
 /**
  * `printed` carries the whole fraction, not just the collector number. The set
@@ -61,10 +62,13 @@ export async function searchCards(
   artOnly = false,
   /** Pokémon: vision's read of the 1st Edition stamp — true ranks the 1st Edition twin first. */
   firstEdition: boolean | null = null,
+  /** MTG: the rest of the scan read (finish, treatment, marks, artist, year, border). */
+  cues: MtgCues | null = null,
 ): Promise<PokemonCard[]> {
   const params = new URLSearchParams({ name, lang });
   if (game !== "pokemon") params.set("game", game);
   if (art) params.set("art", art);
+  if (cues) for (const [k, v] of Object.entries(mtgCuesToParams(cues))) params.set(k, v);
   if (artOnly) params.set("art_series", "1");
   if (firstEdition === true) params.set("first", "1");
   else if (firstEdition === false) params.set("first", "0");

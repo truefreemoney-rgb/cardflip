@@ -143,6 +143,28 @@ beside the seller's photo, with set name · collector number · finish, and a
 images, sorted by ranker score). One glance, one tap. This is the safety
 net while Phases 1–3 push the miss rate down, and it stays after.
 
+## 3b. Phase 1 status (09-10)
+
+Shipped: `MTG_READ_SCHEMA` + `SYSTEM_MTG` read finish / treatment / marks /
+artist / copyrightYear / borderColor / serialNumber; `lib/mtgCues.ts` carries
+them scan → `/api/search-card` → `searchMtgCardsLocal(…, cues)`;
+`cuePenalty()` in `mtgCards.ts` (treatment 3, marks 3, artist 4, year 3,
+border 3 — all below the set-code penalty 9 and a name tier 8); The List
+row is read through the original's code + number when the icon is seen;
+as-is reprint sets (PLST, MB1/2, CMB1/2) skip the year cue; the scan's
+finish becomes the item's variant when the printing comes in that finish;
+Magic photos upload at 1568px long edge (`visionApi.ts`).
+
+Measured on five Scryfall images (replay-scans --file): 5/5 exact printing;
+treatment/artist/year read right on all five; The List icon was missed at
+Scryfall's 680px "normal" size and read at 936px "large" — hence the
+1568px upload. Foil cannot be judged from catalog images; that is Chris's
+phone batch.
+
+Not yet: the confirm screen (the editor's "Not your card? See every …"
+list already covers the tap-to-fix), the phase 2 panel, prod cue data
+(`scripts/push-mtg-cues.mjs` after the deploy).
+
 ## 4. What NOT to do
 
 - Do not match on name alone or fall through to a fuzzy name lookup as the

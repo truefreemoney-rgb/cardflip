@@ -17,7 +17,7 @@
 
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { db } from "@/lib/db";
-import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
+import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
 import { MTG_FINISH_LABEL } from "@/lib/games";
 
@@ -37,13 +37,22 @@ interface MtgCardRow {
   price_usd_etched: number | null;
   price_eur: number | null;
   price_eur_foil: number | null;
+  // Printing cues (09-10): '' / 0 on rows synced before they existed.
+  artist: string;
+  frame: string;
+  border_color: string;
+  frame_effects: string;
+  promo_types: string;
+  full_art: number;
+  textless: number;
   /** Joined from mtg_sets in the search queries; absent on the id fetch. */
   set_type?: string | null;
 }
 
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
                       image_url, rarity, type_line, finishes,
-                      price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil`;
+                      price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil,
+                      artist, frame, border_color, frame_effects, promo_types, full_art, textless`;
 
 /** The same columns off a `c` alias, plus the set's type — for the ranked
  * searches, which join mtg_sets (both tables have a `name` column). */
@@ -112,7 +121,99 @@ function toCard(row: MtgCardRow): PokemonCard {
     game: "mtg",
     typeLine: row.type_line || null,
     finishes: row.finishes ? row.finishes.split(",").filter(Boolean) : [],
+    artist: row.artist || null,
+    frame: row.frame || null,
+    borderColor: row.border_color || null,
+    frameEffects: row.frame_effects ? row.frame_effects.split(",").filter(Boolean) : [],
+    promoTypes: row.promo_types ? row.promo_types.split(",").filter(Boolean) : [],
+    fullArt: Boolean(row.full_art),
+    textless: Boolean(row.textless),
   };
+}
+
+/** Sets that reprint a card exactly as it was — original set symbol, set
+ * code and copyright line — and mark it only with a small icon (The List's
+ * planeswalker symbol) or nothing at all (Mystery Booster). The copyright
+ * year on the card is the ORIGINAL's, so the year cue must not count. */
+const AS_IS_REPRINT_SETS = new Set(["plst", "mb1", "mb2", "cmb1", "cmb2"]);
+
+/** Artist names fold to letters only: "Raymond Swanland" = "raymond swanland" = OCR's "Raymond  Swanland". */
+const foldArtist = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+
+/**
+ * How badly a printing disagrees with what the scan saw beyond name /
+ * number / set code (docs/MTG-IDENTIFICATION.md, phase 1). Every cue is a
+ * small, bounded penalty: less than a set-code disagreement (9) or a name
+ * tier (8), so a misread cue can never outvote the printed key — it only
+ * breaks the ties the key leaves, which is exactly where the coin flips
+ * were. A cue the scan didn't read costs nothing. A row synced before the
+ * cue columns existed ('' everywhere) is treated as unknown, not wrong.
+ */
+export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): number {
+  if (!cues) return 0;
+  const known = row.frame !== "" || row.border_color !== "";
+  let p = 0;
+  const effects = row.frame_effects ? row.frame_effects.split(",") : [];
+  const promos = row.promo_types ? row.promo_types.split(",") : [];
+  const releaseYear = Number(row.set_release_date.slice(0, 4)) || 0;
+
+  // Frame treatment ↔ Scryfall frame_effects / border / full_art / textless.
+  if (cues.treatment && known) {
+    const showcase = effects.includes("showcase");
+    const extended = effects.includes("extendedart");
+    const borderless = row.border_color === "borderless";
+    const retro = (row.frame === "1993" || row.frame === "1997") && releaseYear >= 2015;
+    const special = showcase || extended || borderless || retro || Boolean(row.full_art) || Boolean(row.textless);
+    const agrees =
+      cues.treatment === "standard" ? !special
+      : cues.treatment === "showcase" ? showcase
+      : cues.treatment === "extended-art" ? extended
+      : cues.treatment === "borderless" ? borderless
+      : cues.treatment === "retro" ? retro
+      : cues.treatment === "full-art" ? Boolean(row.full_art) || borderless
+      : cues.treatment === "textless" ? Boolean(row.textless)
+      : true;
+    if (!agrees) p += 3;
+  }
+
+  // Printed marks ↔ promo types / The List. A seen mark that the row lacks
+  // and a row that carries a mark the scan didn't see both cost.
+  const marks = new Set(cues.marks ?? []);
+  const isList = row.set_code.toLowerCase() === "plst";
+  const number = row.collector_number.toLowerCase();
+  const rowMarks = {
+    "list-icon": isList,
+    "promo-stamp": promos.includes("promopack") || /\dp$/.test(number),
+    "date-stamp": promos.includes("prerelease") || promos.includes("datestamped") || /\ds$/.test(number),
+    serialized: promos.includes("serialized"),
+  } as const;
+  for (const [mark, rowHas] of Object.entries(rowMarks)) {
+    const seen = marks.has(mark as MtgMark);
+    if (seen && !rowHas) p += 3;
+    // Only rows with cue data can be blamed for carrying an unseen mark;
+    // The List is known from the set code alone.
+    if (!seen && rowHas && (known || mark === "list-icon") && (cues.marks !== undefined)) p += 3;
+  }
+
+  // Artist: same art across reprints shares the credit, so this separates
+  // different-art printings only — which is the case that needs it.
+  if (cues.artist && row.artist) {
+    const a = foldArtist(cues.artist), b = foldArtist(row.artist);
+    if (a.length >= 4 && b.length >= 4 && a !== b && !a.includes(b) && !b.includes(a)) p += 4;
+  }
+
+  // Copyright year is the printing year. ±1 covers a set printed in
+  // December for a January release.
+  if (cues.copyrightYear && releaseYear && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) {
+    if (Math.abs(cues.copyrightYear - releaseYear) > 1) p += 3;
+  }
+
+  // Border colour, when the row knows its own and it isn't the borderless
+  // case (treatment already covers that).
+  if (cues.border && cues.border !== "borderless" && row.border_color && row.border_color !== "borderless") {
+    if (cues.border !== row.border_color) p += 3;
+  }
+  return p;
 }
 
 /** "0187" and "187" are the same collector number; suffix letters/★ stay. */
@@ -142,6 +243,8 @@ export async function searchMtgCardsLocal(
   art: ArtStyle = null,
   /** Vision saw an Art Series card: only art sets may answer (09-03). */
   artOnly = false,
+  /** Everything else the scan read (finish, treatment, marks, artist, year, border). */
+  cues: MtgCues | null = null,
 ): Promise<PokemonCard[]> {
   // Commas are punctuation, not identity: "Ragavan Nimble Pilferer" must
   // find "Ragavan, Nimble Pilferer".
@@ -225,14 +328,22 @@ export async function searchMtgCardsLocal(
       from = i + 1;
     }
   };
+  const listSeen = Boolean(cues?.marks?.includes("list-icon"));
   const score = (row: MtgCardRow): number => {
     const rowName = row.name.toLowerCase().replace(/,/g, "");
+    // A List row's "M11-153" is the original's code + number; with the icon
+    // in the photo, that IS the printed key.
+    const listTwin = listSeen && row.set_code.toLowerCase() === "plst" && wantedCode
+      ? row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
+      : false;
+    const rowCode = listTwin ? wantedCode! : row.set_code.toLowerCase();
+    const rowNumber = listTwin ? row.collector_number.slice(wantedCode!.length + 1) : row.collector_number;
     const frontFace = rowName.split(" // ")[0];
     const exactName = needle !== "" && (rowName === needle || frontFace === needle);
     const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace));
     const insideName = !exactName && !prefixName && needle !== "" && wordInside(rowName);
-    const exactNumber = Boolean(wantedNumber) && normalizeCollectorNumber(row.collector_number) === wantedNumber;
-    const codeAgrees = wantedCode ? row.set_code.toLowerCase() === wantedCode : null;
+    const exactNumber = Boolean(wantedNumber) && normalizeCollectorNumber(rowNumber) === wantedNumber;
+    const codeAgrees = wantedCode ? rowCode === wantedCode : null;
 
     let tier: number;
     if (exactName && exactNumber) tier = 0;
@@ -262,7 +373,7 @@ export async function searchMtgCardsLocal(
       !exactNumber
         ? 2
         : 0;
-    return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty;
+    return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty + cuePenalty(row, cues);
   };
 
   if (artOnly) rows = rows.filter((row) => row.set_type === "memorabilia" && /art series/i.test(row.set_name));

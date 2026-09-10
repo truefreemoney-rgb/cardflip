@@ -4,7 +4,8 @@ import { scanCard } from "@/lib/ocr";
 import { searchCards } from "@/lib/cards";
 import { scanCardWithVision } from "@/lib/client/visionApi";
 import { isSecretRareNumber, type PrintedNumber } from "@/lib/cardNumber";
-import type { ArtStyle, GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import type { ArtStyle, GameId, MtgCues, PokemonCard, ScanLanguage } from "@/lib/types";
+import { mtgCuesOf } from "@/lib/mtgCues";
 
 export interface IdentifyResult {
   cards: PokemonCard[];
@@ -30,11 +31,13 @@ export async function identifyCardImage(
     let nameCandidates: string[];
     let printed: PrintedNumber | null;
     let art: ArtStyle = null;
+    let cues: MtgCues | null = null;
 
     if (vision.status === "done" && vision.read) {
       const read = vision.read;
       language = read.language;
       art = read.artStyle ?? null;
+      if (game === "mtg") cues = mtgCuesOf(read);
       nameCandidates = [read.name, read.englishName].filter(
         (n): n is string => Boolean(n),
       );
@@ -59,7 +62,7 @@ export async function identifyCardImage(
     // unrelated cards while the exact name sits later in the candidate list.
     for (const candidate of nameCandidates) {
       try {
-        const found = await searchCards(candidate, printed, language, undefined, game, art);
+        const found = await searchCards(candidate, printed, language, undefined, game, art, false, null, cues);
         if (found.length === 0) continue;
         if (matches.length === 0) matches = found;
         // Hyphens count as spaces — the catalog says "Charizard-GX" where the
@@ -80,7 +83,7 @@ export async function identifyCardImage(
       game === "mtg" ? Boolean(printed?.setCode) : Boolean(printed?.setTotal) && language === "en";
     if (matches.length === 0 && printed && numbersIdentify) {
       try {
-        matches = await searchCards("", printed, language, undefined, game);
+        matches = await searchCards("", printed, language, undefined, game, null, false, null, cues);
       } catch {
         lookupErrors++;
       }

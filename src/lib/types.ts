@@ -64,6 +64,42 @@ export interface PokemonCard {
   typeLine?: string | null;
   /** MTG: finishes this printing exists in ("nonfoil", "foil", "etched"). */
   finishes?: string[];
+  /** MTG: artist credit as Scryfall spells it — a tie-breaker across reprints. */
+  artist?: string | null;
+  /** MTG: Scryfall frame generation ("1993", "1997", "2003", "2015", "future"). */
+  frame?: string | null;
+  /** MTG: "black" | "white" | "silver" | "gold" | "borderless". */
+  borderColor?: string | null;
+  /** MTG: Scryfall frame_effects ("showcase", "extendedart", "etched", …). */
+  frameEffects?: string[];
+  /** MTG: Scryfall promo_types ("prerelease", "promopack", "serialized", …). */
+  promoTypes?: string[];
+  fullArt?: boolean;
+  textless?: boolean;
+}
+
+/** MTG finish as read off the shine of the card — the price line it maps to. */
+export type MtgFinish = "nonfoil" | "foil" | "etched";
+/** MTG frame treatment as seen in the photo (Scryfall's own words where it has them). */
+export type MtgTreatment = "standard" | "showcase" | "extended-art" | "borderless" | "retro" | "full-art" | "textless";
+/** Small printed marks that change the printing: The List icon, promo-pack stamp, prerelease date stamp, a serial number. */
+export type MtgMark = "list-icon" | "promo-stamp" | "date-stamp" | "serialized";
+export type MtgBorder = "black" | "white" | "silver" | "gold" | "borderless";
+
+/**
+ * Everything a Magic scan read beyond name / number / set code — the cues
+ * the ranker uses to break ties between printings that share all three
+ * (lib/server/mtgCards.ts). Every field is optional: a missing cue never
+ * costs a candidate anything.
+ */
+export interface MtgCues {
+  finish?: MtgFinish | null;
+  treatment?: MtgTreatment | null;
+  marks?: MtgMark[];
+  artist?: string | null;
+  /** The last year of the "© 1993–2023 Wizards of the Coast" line. */
+  copyrightYear?: number | null;
+  border?: MtgBorder | null;
 }
 
 /** The game a card belongs to; Pokémon when the field was never set. */
@@ -111,6 +147,16 @@ export interface VisionCardRead {
    * the artwork (WotC era). Null when the model can't tell or it doesn't apply.
    */
   firstEdition?: boolean | null;
+  // --- Magic only (MTG_READ_SCHEMA); absent on Pokémon reads. ---
+  /** Foil read off the shine of the whole face; null when the photo can't settle it. */
+  finish?: MtgFinish | null;
+  treatment?: MtgTreatment | null;
+  marks?: MtgMark[];
+  artist?: string | null;
+  copyrightYear?: number | null;
+  borderColor?: MtgBorder | null;
+  /** "045/500" when the card is serialized. */
+  serialNumber?: string | null;
 }
 
 /**

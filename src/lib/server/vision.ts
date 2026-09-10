@@ -129,6 +129,50 @@ export const CARD_READ_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+/**
+ * The Magic read: everything in CARD_READ_SCHEMA plus the cues that pick a
+ * PRINTING and a FINISH (docs/MTG-IDENTIFICATION.md, phase 1). A separate
+ * schema so the Pokémon read is byte-for-byte what it was.
+ */
+export const MTG_READ_SCHEMA = {
+  ...CARD_READ_SCHEMA,
+  properties: {
+    ...CARD_READ_SCHEMA.properties,
+    finish: {
+      anyOf: [{ type: "string", enum: ["nonfoil", "foil", "etched"] }, { type: "null" }],
+      description:
+        "The card's finish, read from the surface. 'foil': a rainbow / metallic sheen runs across the WHOLE face — art, text box and border alike — and shifts with the light. 'etched': the frame linework and art glitter like metallic paint while the face itself is matte. 'nonfoil': flat printed card. A single bright glare spot is reflection, not foil. The small oval holographic stamp at the bottom of rares is a security stamp on foils AND nonfoils — it says nothing about finish. Null when the photo cannot settle it; never default to nonfoil.",
+    },
+    treatment: {
+      anyOf: [
+        { type: "string", enum: ["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"] },
+        { type: "null" },
+      ],
+      description:
+        "The frame treatment. 'standard': the normal frame for its era, art in a window, black (or white) border. 'showcase': a set-specific decorative alternate frame (stylised borders, manga panels, scrolls, storybook, etc.). 'extended-art': normal frame but the art runs out to the card edges on the sides. 'borderless': art fills the whole card face with no frame around it. 'retro': the old 1990s-style frame (rounded inner bevel, old-style title bar) printed on a MODERN card that still carries a set code. 'full-art': a basic land or promo where the art fills the card and the text sits in a small strip. 'textless': no rules text. Null if unsure.",
+    },
+    marks: {
+      type: "array",
+      items: { type: "string", enum: ["list-icon", "promo-stamp", "date-stamp", "serialized"] },
+      description:
+        "Small printed marks that change which printing this is. 'list-icon': a small WHITE planeswalker symbol (a five-pointed flame shape) printed inside the black border at the very bottom-left corner of the card, to the left of / below the copyright line — the card otherwise looks exactly like its original printing (The List reprint). Look at that corner deliberately. 'promo-stamp': a planeswalker-symbol stamp in the bottom of the text box / art (Promo Pack). 'date-stamp': a small rectangular stamp with a date near the set symbol (prerelease). 'serialized': a large printed serial like '045/500' on the face. Empty array when none.",
+    },
+    artist: nullableString("The artist credit printed at the bottom-left (after the brush icon), exactly as printed. Null if unreadable."),
+    copyrightYear: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description:
+        "The LAST year in the copyright line along the bottom, e.g. '™ & © 1993–2023 Wizards of the Coast' → 2023; '© 2025 Wizards of the Coast' → 2025. This is the year the card was printed. Null if unreadable.",
+    },
+    borderColor: {
+      anyOf: [{ type: "string", enum: ["black", "white", "silver", "gold", "borderless"] }, { type: "null" }],
+      description:
+        "The outer border colour. Modern cards are black; 1990s core sets and some 2000s cards are white; Un-sets are silver; a few promos gold; 'borderless' when the art runs to the edge with no border. Null if unsure.",
+    },
+    serialNumber: nullableString("The printed serial number when the card is serialized, e.g. '045/500'. Null otherwise."),
+  },
+  required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "copyrightYear", "borderColor", "serialNumber"],
+} as const;
+
 export const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The name and the full collector fraction are
@@ -188,6 +232,24 @@ artStyle: "standard" for the regular card frame (any era, old border included);
 "full-art" only for special treatments — borderless, showcase, extended-art,
 Mystical Archive-style alternate frames. Most cards are "standard".
 
+The same name is printed in dozens of sets, so the seller's price depends on
+the fields that tell printings apart. Read each one from the card itself:
+- finish: foil shows as a rainbow / metallic sheen across the WHOLE face (art,
+  text box, border). A single bright patch is glare from the lamp, not foil.
+  Etched foil: metallic glitter in the frame linework, matte face. The oval
+  holographic stamp at the bottom of rares is on foils and nonfoils alike — it
+  is not a foil signal. Null when you cannot tell; do not default to nonfoil.
+- treatment: standard / showcase / extended-art / borderless / retro /
+  full-art / textless, as defined in the schema. Most cards are standard.
+- marks: look at the very bottom-left corner of the black border: a small
+  white planeswalker symbol there means The List (the card otherwise looks
+  exactly like its original printing). Also: the Promo Pack planeswalker
+  stamp in the text box; a prerelease date stamp near the set symbol; a
+  printed serial number like 045/500.
+- artist: the credit after the brush icon, bottom-left, exactly as printed.
+- copyrightYear: the last year of the copyright line (© 1993–2023 → 2023).
+- borderColor: black on modern cards; white on 1990s and some 2000s cards.
+
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say
@@ -235,6 +297,37 @@ export async function analyzeCardImage(
   return (await analyzeCardImageWithUsage(base64Image, mediaType, languageHint, game)).read;
 }
 
+const MTG_FINISHES = new Set(["nonfoil", "foil", "etched"]);
+const MTG_TREATMENTS = new Set(["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"]);
+const MTG_MARKS = new Set(["list-icon", "promo-stamp", "date-stamp", "serialized"]);
+const MTG_BORDERS = new Set(["black", "white", "silver", "gold", "borderless"]);
+
+/** Schema-constrained already; this only trims strings and drops anything
+ * outside the enums so downstream never sees a surprise value. */
+function normalizeMtgCues(parsed: VisionCardRead): Partial<VisionCardRead> {
+  const year = typeof parsed.copyrightYear === "number" ? Math.trunc(parsed.copyrightYear) : null;
+  const treatment = parsed.treatment && MTG_TREATMENTS.has(parsed.treatment) ? parsed.treatment : null;
+  return {
+    finish: parsed.finish && MTG_FINISHES.has(parsed.finish) ? parsed.finish : null,
+    treatment,
+    marks: Array.isArray(parsed.marks) ? parsed.marks.filter((m) => MTG_MARKS.has(m)) : [],
+    artist: parsed.artist?.trim() || null,
+    copyrightYear: year != null && year >= 1993 && year <= 2100 ? year : null,
+    borderColor: parsed.borderColor && MTG_BORDERS.has(parsed.borderColor) ? parsed.borderColor : null,
+    serialNumber: parsed.serialNumber?.trim() || null,
+    // The older binary read is derived so every artStyle consumer keeps
+    // working: any special frame is "full-art" to the ranker's special-set gate.
+    artStyle:
+      treatment === "standard"
+        ? "standard"
+        : treatment
+          ? "full-art"
+          : parsed.artStyle === "standard" || parsed.artStyle === "full-art"
+            ? parsed.artStyle
+            : null,
+  };
+}
+
 /** Same read, plus the usage the scan route records to scan_usage. */
 export async function analyzeCardImageWithUsage(
   base64Image: string,
@@ -256,7 +349,7 @@ export async function analyzeCardImageWithUsage(
     // photo in a batch — low effort keeps a stack of cards moving.
     output_config: {
       effort: "low",
-      format: { type: "json_schema", schema: CARD_READ_SCHEMA },
+      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : CARD_READ_SCHEMA },
     },
     system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
     messages: [
@@ -306,6 +399,7 @@ export async function analyzeCardImageWithUsage(
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
     firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
     name: parsed.name.trim(),
+    ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),
   };
   const u = response.usage;
   return {

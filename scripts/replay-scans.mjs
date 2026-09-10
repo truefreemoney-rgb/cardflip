@@ -19,6 +19,7 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
 const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
+const { mtgCuesOf } = await import(at("lib/mtgCues.ts"));
 const VISION_MODEL = fs.readFileSync(new URL("../src/lib/server/vision.ts", import.meta.url), "utf8").match(/VISION_MODEL = "([^"]+)"/)[1];
 
 const args = process.argv.slice(2);
@@ -70,11 +71,15 @@ const SYSTEM = visionSrc.match(/const SYSTEM = `([\s\S]*?)`;/)[1];
 // mirror's own search (name + collector number + printed set code).
 const SYSTEM_MTG = visionSrc.match(/const SYSTEM_MTG = `([\s\S]*?)`;/)[1];
 
+// The Magic read has its own schema (finish / treatment / marks / artist /
+// year / border, 09-10); importable here under --conditions=react-server.
+const { MTG_READ_SCHEMA } = await import(at("lib/server/vision.ts"));
+
 async function readCard(b64, game) {
   const response = await anthropic.messages.create({
     model: VISION_MODEL,
     max_tokens: 2000,
-    output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
+    output_config: { effort: "low", format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : SCHEMA } },
     system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
     messages: [{
       role: "user",
@@ -93,12 +98,13 @@ if (filePath) {
   const read = await readCard(b64, fileGame);
   console.log(`\n## [${fileGame}] ${path.basename(filePath)}`);
   console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind} conf=${read.confidence}`);
+  if (fileGame === "mtg") console.log(`cues: finish=${read.finish} treatment=${read.treatment} marks=${(read.marks ?? []).join("+") || "-"} artist=${read.artist} year=${read.copyrightYear} border=${read.borderColor} serial=${read.serialNumber}`);
   const names = [read.name, read.englishName].filter(Boolean);
   for (const candidate of names) {
     const code = read.kind === "art" && read.setCode && !read.setCode.toUpperCase().startsWith("A") ? `A${read.setCode}` : read.setCode;
     const found =
       fileGame === "mtg"
-        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, code || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art")
+        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, code || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art", mtgCuesOf(read))
         : (await searchEnglishCardsLocal(candidate, read.cardNumber ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: false } : null, 5, read.artStyle ?? null)).cards;
     for (const [i, c] of found.slice(0, 4).entries()) console.log(`  ${i === 0 ? "→" : " "} ${c.name} · ${c.setName} ${c.number} [${c.setCode ?? ""}] ${c.id}`);
     if (found.length) break;
@@ -131,7 +137,7 @@ for (const id of ids) {
   for (const candidate of names) {
     const found =
       game === "mtg"
-        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, read.setCode || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art")
+        ? await searchMtgCardsLocal(candidate, read.cardNumber || null, read.setCode || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art", mtgCuesOf(read))
         : (await searchEnglishCardsLocal(candidate, printed, 5, read.artStyle ?? null)).cards;
     if (found.length === 0) continue;
     if (matches.length === 0) matches = found;

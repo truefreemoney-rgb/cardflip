@@ -46,14 +46,14 @@ const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 // Prompt + schema: the live ones (vision.ts exports them for exactly this).
-const { CARD_READ_SCHEMA, SYSTEM, SYSTEM_MTG } = await import("../src/lib/server/vision.ts");
+const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, SYSTEM, SYSTEM_MTG } = await import("../src/lib/server/vision.ts");
 
 async function readCard(model, b64, game) {
   const t0 = Date.now();
   const response = await anthropic.messages.create({
     model,
     max_tokens: 2000,
-    output_config: { ...(model.startsWith("claude-haiku") ? {} : { effort: "low" }), format: { type: "json_schema", schema: CARD_READ_SCHEMA } },
+    output_config: { ...(model.startsWith("claude-haiku") ? {} : { effort: "low" }), format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : CARD_READ_SCHEMA } },
     system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
     messages: [{
       role: "user",
