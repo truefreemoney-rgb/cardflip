@@ -39,6 +39,21 @@ short on purpose. Read it before `docs/ARCHITECTURE.md` and `docs/DESIGN.md`.
    the whole task. Do not refactor around it. Do not touch `docs/STATE.md`,
    `.env*`, Stripe, eBay, or Turso config.
 
+## Look at production first
+
+You have a read-only window on the live site. Before reading the task, run:
+
+```
+curl -sS -H "Authorization: Bearer $RUNNER_TOKEN" https://cardflip.io/api/runner/status
+```
+
+It returns the deploy sha, the daily job state, the last 24h of errors grouped
+by message, scan spend, and the last production smoke run. If the task is
+about something broken, the answer is usually in there — start from what is
+happening, not from a guess. Quote the relevant line in your "Reading this
+as" comment. If the call fails (no token, host blocked), say so in the PR and
+carry on; never try another way in.
+
 ## How to read a task
 
 - "change X to something else" / "a different X" = REPLACE X with a
