@@ -433,7 +433,7 @@ export async function analyzeCardImageWithUsage(
   }
 }
 
-async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind: "art" | "token"): Promise<VisionCardRead | null> {
+async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind: "art" | "token" = "art"): Promise<VisionCardRead | null> {
   try {
     const { matchArtSeries } = await import("@/lib/server/artHash");
     const hit = await matchArtSeries(Buffer.from(base64Image, "base64"), kind);
