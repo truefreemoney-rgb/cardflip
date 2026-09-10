@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseGame } from "@/lib/games";
 import { englishCardsBySet } from "@/lib/server/enCards";
 import { mtgCardsBySet } from "@/lib/server/mtgCards";
-import { latestUsdPrices } from "@/lib/server/priceHistory";
-import type { CardPrice } from "@/lib/types";
+import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
 
 /**
  * Every card in one set, with the latest price we hold — the set browser on
@@ -26,16 +25,7 @@ export async function GET(req: NextRequest) {
     for (const card of cards) {
       const p = prices.get(card.id);
       if (!p) continue;
-      const entry: CardPrice = {
-        source: "tcgplayer",
-        variant: p.variant,
-        label: p.variant === "normal" ? "Normal" : p.variant === "holofoil" ? "Holofoil" : p.variant === "reverseHolofoil" ? "Reverse Holofoil" : p.variant,
-        currency: "USD",
-        market: p.price,
-        low: null,
-        high: null,
-      };
-      card.prices = [entry];
+      card.prices = [heldPriceEntry(p)];
     }
     return NextResponse.json({ cards });
   } catch (err) {

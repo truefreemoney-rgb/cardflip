@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
+import { latestUsdPrice } from "@/lib/server/priceHistory";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface PriceCheckEntry {
@@ -112,7 +113,8 @@ export async function logPriceCheck(
   if (!card.name) throw new Error("price check: card name is required");
   const id = randomUUID();
   const checkedAt = Date.now();
-  const representativePrice = pickPrice(card)?.market ?? null;
+  const representativePrice =
+    pickPrice(card)?.market ?? (card.id ? await latestUsdPrice(card.id).catch(() => null) : null);
 
   const recent = (await db
     .prepare(

@@ -16,6 +16,7 @@ import {
 import type { ArtStyle, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtgCards";
+import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
 import {
   LIMITS,
   RateLimitError,
@@ -150,8 +151,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ cards: await mtgCardById(exactId), matchedOn: "id", source: "local" });
     }
     const local = await englishCardById(exactId);
-    const cards = local.cards.length ? await enrichWithPricing(local.cards, local.releaseDates) : [];
-    return NextResponse.json({ cards, matchedOn: "id", source: "local" });
+    if (local.cards.length === 0) return NextResponse.json({ cards: [], matchedOn: "id", source: "local" });
+    // Same budget as the name path (09-10: a history tile sat on its spinner
+    // for 5s+ because this branch waited out pokemontcg.io with no cap).
+    // Past the budget, or when upstream has no price, the last price we
+    // hold in price_series stands in — the tile and modal show a number
+    // instead of "—", and the lookup history stores one too.
+    const pricing = enrichWithPricing(local.cards, local.releaseDates);
+    const priced = await Promise.race([
+      pricing,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), PRICING_BUDGET_MS)),
+    ]);
+    if (priced && hasMarketPrice(priced)) {
+      return NextResponse.json({ cards: priced, matchedOn: "id", source: "local" });
+    }
+    const held = await latestUsdPrices(local.cards.map((c) => c.id));
+    const cards = (priced ?? local.cards).map((card) => {
+      const p = held.get(card.id);
+      return p ? { ...card, prices: [heldPriceEntry(p)] } : card;
+    });
+    return NextResponse.json({ cards, matchedOn: "id", source: "local", ...(priced ? {} : { pricing: "pending" }) });
   }
 
   // Magic: The Gathering — its own mirror, prices included, no upstream
@@ -281,7 +300,14 @@ export async function GET(req: NextRequest) {
           const cards = await pricing;
           if (hasMarketPrice(cards)) await putCachedCards(lang, name, cacheNumber, cards);
         });
-        return NextResponse.json({ cards: local.cards, matchedOn, source: "local", pricing: "pending" });
+        // Last held price meanwhile (09-10): a tile logged from a pending
+        // answer was showing "—" in Recent lookups for good.
+        const held = await latestUsdPrices(local.cards.map((c) => c.id));
+        const cards = local.cards.map((card) => {
+          const p = held.get(card.id);
+          return p ? { ...card, prices: [heldPriceEntry(p)] } : card;
+        });
+        return NextResponse.json({ cards, matchedOn, source: "local", pricing: "pending" });
       }
     }
 

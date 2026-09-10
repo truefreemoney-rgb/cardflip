@@ -101,6 +101,9 @@ export default function PriceCheckPage() {
   // What the grid is showing: "184 results for Charizard" / "All 182 cards in Destined Rivals".
   const [resultsTitle, setResultsTitle] = useState<string | null>(null);
   const [selected, setSelected] = useState<PokemonCard | null>(null);
+  // The modal is open on what the history row knows while the catalog row
+  // (current prices) is still on its way.
+  const [selectedLoading, setSelectedLoading] = useState(false);
   const [logging, setLogging] = useState(false);
   // Sort + in-grid filter (Chris, 09-03: "some sort options here, like
   // rarity, price high to low"). Client-side — the set is already loaded.
@@ -209,10 +212,32 @@ export default function PriceCheckPage() {
 
   async function selectCard(card: PokemonCard) {
     setSelected(card);
+    setSelectedLoading(false);
     setLogging(true);
     await logPriceCheck(card, language);
     setLogging(false);
     loadHistory();
+  }
+
+  /** What a history row already knows, shaped for the modal — shown the
+   * instant the tile is tapped (09-10: the tile sat on a spinner for 5s+
+   * with nothing on screen). Prices are left empty: the stored ones are
+   * stale, and the modal says "Loading current prices…" until the catalog
+   * row lands. */
+  function stubCard(entry: PriceCheckEntry): PokemonCard {
+    return {
+      id: entry.cardId ?? "",
+      name: entry.cardName,
+      englishName: null,
+      setName: entry.setName,
+      setSeries: "",
+      number: entry.cardNumber,
+      rarity: null,
+      imageSmall: entry.imageUrl ?? "",
+      imageLarge: entry.imageUrl ?? "",
+      prices: [],
+      ...(entry.game ? { game: entry.game } : {}),
+    };
   }
 
   /** A history row is a shortcut back to its card: re-look it up (prices go
@@ -220,6 +245,9 @@ export default function PriceCheckPage() {
   async function openHistoryEntry(entry: PriceCheckEntry) {
     if (openingId) return;
     setOpeningId(entry.id);
+    setSearchError(null);
+    setSelected(stubCard(entry));
+    setSelectedLoading(true);
     try {
       // Rows that stored the catalog id fetch it directly — the ranked
       // 200-result name walk was seconds of spinner (09-02, same fix as
@@ -227,6 +255,7 @@ export default function PriceCheckPage() {
       if (entry.cardId) {
         const direct = await fetchCardById(entry.cardId, entry.game ?? game).catch(() => null);
         if (direct) {
+          setOpeningId(null);
           await selectCard(direct);
           return;
         }
@@ -246,11 +275,14 @@ export default function PriceCheckPage() {
       if (match) {
         await selectCard(match);
       } else {
+        setSelected(null);
         setSearchError("Couldn't find that card again — try searching above.");
       }
     } catch {
+      setSelected(null);
       setSearchError("Search failed — check your connection.");
     } finally {
+      setSelectedLoading(false);
       setOpeningId(null);
     }
   }
@@ -447,7 +479,8 @@ export default function PriceCheckPage() {
           card={selected}
           language={language}
           logging={logging}
-          onClose={() => setSelected(null)}
+          loading={selectedLoading}
+          onClose={() => { setSelected(null); setSelectedLoading(false); }}
         />
       )}
 
@@ -457,7 +490,7 @@ export default function PriceCheckPage() {
             Recent lookups · {history.length}
           </h2>
           {history.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <div
                 role="tablist"
                 aria-label="Switch view"
@@ -501,11 +534,12 @@ export default function PriceCheckPage() {
                 value={historyQuery}
                 onChange={(e) => setHistoryQuery(e.target.value)}
                 placeholder="Filter lookups…"
-                className="rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+                aria-label="Filter lookups"
+                className="min-w-0 flex-1 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:w-40 sm:flex-none"
               />
               <button
                 onClick={() => void clearHistory()}
-                className="rounded-lg border border-edge px-3 py-1.5 text-xs text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-edge px-3 py-1.5 text-xs text-zinc-400 transition hover:border-edge-strong hover:text-zinc-200"
               >
                 Clear all
               </button>
@@ -540,6 +574,7 @@ export default function PriceCheckPage() {
                 subtitle={`${entry.setName} · ${entry.cardNumber}${entry.language !== "en" ? ` · ${entry.language === "ja" ? "Japanese" : "Chinese"}` : ""}`}
                 price={entry.representativePrice}
                 priceNote={formatDate(entry.checkedAt)}
+                sparkCardId={entry.cardId}
                 opening={openingId === entry.id}
                 onOpen={() => void openHistoryEntry(entry)}
                 corner={

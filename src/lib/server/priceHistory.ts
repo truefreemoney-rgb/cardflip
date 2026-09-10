@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { GameId, PokemonCard } from "@/lib/types";
+import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 import { searchEnglishCardsLocal, enrichWithPricing, hasEnglishMirror } from "@/lib/server/enCards";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
@@ -118,6 +118,20 @@ export async function latestUsdPrice(cardId: string): Promise<number | null> {
   );
   const points = series[0].points;
   return points[points.length - 1]?.price ?? null;
+}
+
+/** A held price (latestUsdPrices) shaped like a live TCGplayer row, so the
+ * set browser and the by-id lookup show it in the same table as live prices. */
+export function heldPriceEntry(p: { price: number; variant: string }): CardPrice {
+  return {
+    source: "tcgplayer",
+    variant: p.variant,
+    label: p.variant === "normal" ? "Normal" : p.variant === "holofoil" ? "Holofoil" : p.variant === "reverseHolofoil" ? "Reverse Holofoil" : p.variant,
+    currency: "USD",
+    market: p.price,
+    low: null,
+    high: null,
+  };
 }
 
 /**
