@@ -2,9 +2,9 @@
  * Inventory value over time (lib/server/inventoryValue.ts) — the graph under
  * the Inventory panel. Run: npm run test:inventoryvalue
  *
- * Pins: a card counts from its scan day at askingPriceFor(market, condition)
- * × quantity; days before the first scan are dropped; a sold copy leaves the
- * pile after its sale day; a missing series day carries the last reading;
+ * Pins: every held card counts across the window at askingPriceFor(market,
+ * condition) × quantity (market view of today's pile); days before the series
+ * has a reading are dropped; a sold copy leaves the pile after its sale day; a missing series day carries the last reading;
  * another user's cards and the other game never leak in.
  *
  * Same throwaway-db trick as test-cards.mjs.
@@ -70,12 +70,12 @@ const lpAt = (m) => askingPriceFor(m, "Lightly Played") * 2;
 const nmAt = (m) => askingPriceFor(m, "Near Mint");
 const r2 = (n) => Math.round(n * 100) / 100;
 
-check("starts on the first scan day, one point a day to today", pts.map((p) => p.day), [day(4), day(3), day(2), day(1), day(0)]);
-check("scan day: LP × 2 at that day's market", pts[0].value, r2(lpAt(110)));
-check("second copy joins on its scan day", pts[1].value, r2(lpAt(120) + nmAt(120)));
-check("a missing day carries the last reading", pts[2].value, r2(lpAt(120) + nmAt(120)));
-check("the sale day still counts the sold copy", pts[3].value, r2(lpAt(140) + nmAt(140)));
-check("after the sale only the LP pair remains", pts[4].value, r2(lpAt(150)));
+check("starts on the first series reading, one point a day to today", pts.map((p) => p.day), [day(5), day(4), day(3), day(2), day(1), day(0)]);
+check("a card scanned later still counts on earlier days (market view)", pts[0].value, r2(lpAt(100) + nmAt(100)));
+check("LP × 2 + NM at that day's market", pts[1].value, r2(lpAt(110) + nmAt(110)));
+check("a missing day carries the last reading", pts[3].value, r2(lpAt(120) + nmAt(120)));
+check("the sale day still counts the sold copy", pts[4].value, r2(lpAt(140) + nmAt(140)));
+check("after the sale only the LP pair remains", pts[5].value, r2(lpAt(150)));
 check("window shorter than the history trims the front", (await inventoryValueSeries(alice.id, "pokemon", 2, now)).map((p) => p.day), [day(1), day(0)]);
 check("Magic pile is its own line", (await inventoryValueSeries(alice.id, "mtg", 10, now)).map((p) => [p.day, p.value]), [[day(0), nmAt(50)]]);
 check("no catalog rows → no line", await inventoryValueSeries(bob.id, "mtg", 10, now), []);

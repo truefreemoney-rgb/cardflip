@@ -12,9 +12,11 @@ import type { GameId } from "@/lib/types";
  * math the live refresh uses (askingPriceFor) — so today's point is the
  * Inventory panel's "Asking" line, give or take hand-set prices.
  *
- * A card counts from the day it was scanned; a sold card stops counting on
- * its sale day. Rows without a catalog id (pre-09-01 scans) are skipped, the
- * same as the live refresh.
+ * It is a market view of the pile the seller holds today: every card counts
+ * across the whole window (a pile scanned this afternoon still gets a line —
+ * Chris's first look at it was 40 cards scanned that day and an empty strip),
+ * and a sold copy stops counting after its sale day. Rows without a catalog
+ * id (pre-09-01 scans) are skipped, the same as the live refresh.
  */
 
 const ROW_CAP = 400;
@@ -68,19 +70,26 @@ export async function inventoryValueSeries(
       series: series.get(r.catalog_card_id) ?? null,
       condition: r.condition,
       qty: r.quantity ?? 1,
-      from: dayOf(r.created_at),
+      // Day of the series' first reading — the line starts at the earliest one.
+      first: (() => {
+        const s = series.get(r.catalog_card_id);
+        const i = s ? s.prices.findIndex((p) => p != null) : -1;
+        return s && i >= 0 ? addDays(s.startDay, i) : null;
+      })(),
       // A sold row leaves the pile on its sale day (the day itself still counts).
       until: r.status === "sold" && r.sold_at ? dayOf(r.sold_at) : null,
     }))
     .filter((h) => h.series !== null);
   if (held.length === 0) return [];
+  // No reading anywhere before this day — onDay would only echo a series'
+  // first value backwards, which is not history.
+  const earliest = held.map((h) => h.first!).sort()[0];
+  const startDay = earliest > firstDay ? earliest : firstDay;
 
   const out: ValuePoint[] = [];
-  for (let d = 0; d < span; d++) {
-    const day = addDays(firstDay, d);
+  for (let day = startDay; day <= today; day = addDays(day, 1)) {
     let value = 0;
     for (const h of held) {
-      if (day < h.from) continue;
       if (h.until && day > h.until) continue;
       const market = onDay(h.series!, day);
       if (market == null || !(market > 0)) continue;
@@ -88,7 +97,5 @@ export async function inventoryValueSeries(
     }
     out.push({ day, value: Math.round(value * 100) / 100 });
   }
-  // Leading empty days (before the first scan) are not a value of $0 — drop them.
-  const start = out.findIndex((p) => p.value > 0);
-  return start < 0 ? [] : out.slice(start);
+  return out.some((p) => p.value > 0) ? out : [];
 }
