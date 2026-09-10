@@ -51,8 +51,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `GitHub said no (${gh.status}${data.message ? `: ${data.message}` : ""})` }, { status: 502 });
     }
     item.text = `▶ RUNNING #${data.number} — ${text}`;
-    await saveBoard(sections);
-    return NextResponse.json({ sections, issue: data.number, url: data.html_url });
+    const updatedAt = await saveBoard(sections);
+    return NextResponse.json({ sections, updatedAt, issue: data.number, url: data.html_url });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
     console.error("board run failed:", err);

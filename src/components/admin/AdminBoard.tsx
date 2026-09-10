@@ -302,13 +302,16 @@ const GHOST = "rounded-full border border-edge text-zinc-300 transition hover:bg
 
 type Status = "saved" | "saving" | "dirty" | "error";
 
-export default function AdminBoard({ sections: initial }: { sections: BoardSection[] }) {
+export default function AdminBoard({ sections: initial, updatedAt: initialStamp = null }: { sections: BoardSection[]; updatedAt?: number | null }) {
   const [sections, setSections] = useState<BoardSection[]>(initial);
   const [status, setStatus] = useState<Status>("saved");
   const [error, setError] = useState<string | null>(null);
   const [newCat, setNewCat] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef(sections);
+  // The updatedAt this copy came from. Every save sends it; a save built on a
+  // stale copy comes back 409 with the live board, which replaces ours.
+  const base = useRef<number | null>(initialStamp);
 
   const save = useCallback(async () => {
     setStatus("saving");
@@ -317,10 +320,18 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       const res = await fetch(apiPath("/api/admin/board"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections: sent }),
+        body: JSON.stringify({ sections: sent, base: base.current }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.sections) {
+        if (timer.current) clearTimeout(timer.current);
+        latest.current = data.sections;
+        setSections(data.sections);
+        base.current = typeof data.updatedAt === "number" ? data.updatedAt : null;
+        throw new Error(data.error ?? "The board changed elsewhere — reloaded it. Redo that last edit.");
+      }
       if (!res.ok) throw new Error(data.error ?? "Couldn't save");
+      if (typeof data.updatedAt === "number") base.current = data.updatedAt;
       // The server sweeps done items into Completed; take its word for it
       // unless another edit landed meanwhile.
       if (data.sections && latest.current === sent) {
@@ -438,6 +449,30 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       window.removeEventListener("focus", tick);
     };
   }, [moving, loadRuns]);
+  // Coming back to the tab: if the live board moved on (Claude, another
+  // tab) and nothing is unsaved here, take the live copy quietly.
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible" || timer.current || status === "saving" || status === "dirty") return;
+      try {
+        const res = await fetch(apiPath("/api/admin/board"), { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.sections && typeof data.updatedAt === "number" && data.updatedAt !== base.current) {
+          latest.current = data.sections;
+          base.current = data.updatedAt;
+          setSections(data.sections);
+        }
+      } catch {
+        /* next focus */
+      }
+    };
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, [status]);
   const run = useCallback(async (id: string) => {
     if (timer.current) clearTimeout(timer.current);
     setStatus("saving");
@@ -446,6 +481,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Couldn't start the task");
       latest.current = data.sections;
+      if (typeof data.updatedAt === "number") base.current = data.updatedAt;
       setSections(data.sections);
       setStatus("saved");
       setError(null);
@@ -465,6 +501,7 @@ export default function AdminBoard({ sections: initial }: { sections: BoardSecti
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Couldn't reload");
       latest.current = data.sections;
+      base.current = typeof data.updatedAt === "number" ? data.updatedAt : null;
       setSections(data.sections);
       setStatus("saved");
       setError(null);

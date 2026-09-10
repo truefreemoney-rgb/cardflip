@@ -13,7 +13,7 @@ export default async function AdminBoardPage() {
           Live — edit it here{board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
         </p>
       </div>
-      <AdminBoard sections={board.sections} />
+      <AdminBoard sections={board.sections} updatedAt={board.updatedAt} />
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { loadBoard, normalizeBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
+import { BoardConflictError, loadBoard, normalizeBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
 
 /**
  * The admin board. GET returns it (?format=md for markdown, the same
@@ -41,11 +41,18 @@ export async function PUT(req: Request) {
     const v = validateBoard(body?.sections);
     if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
     const n = normalizeBoard(v.sections);
-    await saveBoard(n.sections);
+    // `base` = the updatedAt this copy was loaded from. A stale copy is refused
+    // with the live board so the client can reload instead of overwriting.
+    const base = typeof body?.base === "number" && Number.isFinite(body.base) ? body.base : undefined;
+    const updatedAt = await saveBoard(n.sections, base);
     // The normalised board comes back so a tick shows up in Completed at once.
-    return NextResponse.json({ ok: true, updatedAt: Date.now(), sections: n.changed ? n.sections : undefined });
+    return NextResponse.json({ ok: true, updatedAt, sections: n.changed ? n.sections : undefined });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof BoardConflictError) {
+      const live = await loadBoard();
+      return NextResponse.json({ error: "The board changed elsewhere — reloaded it. Redo that last edit.", sections: live.sections, updatedAt: live.updatedAt }, { status: 409 });
+    }
     console.error("board save failed:", err);
     return NextResponse.json({ error: "Couldn't save the board" }, { status: 500 });
   }

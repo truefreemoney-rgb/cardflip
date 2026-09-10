@@ -258,8 +258,33 @@ export async function reseedBoard(): Promise<{ sections: BoardSection[]; updated
   return { sections, updatedAt: Date.now() };
 }
 
-export async function saveBoard(sections: BoardSection[]): Promise<void> {
+/** Thrown when a save is built on a copy of the board that is no longer the live one. */
+export class BoardConflictError extends Error {
+  constructor() {
+    super("The board changed since this copy was loaded");
+    this.name = "BoardConflictError";
+  }
+}
+
+/**
+ * Save the board. Pass `expect` (the updatedAt the caller loaded) and the
+ * write only lands if the live row still carries that stamp — a second tab
+ * or Claude's admin-API edits can't be wiped by an autosave of a stale copy
+ * (09-09: seven notes gone that way; 09-10: a row Claude added vanished under
+ * Chris's open page). Returns the stamp written.
+ */
+export async function saveBoard(sections: BoardSection[], expect?: number | null): Promise<number> {
   const json = JSON.stringify(normalizeBoard(sections).sections);
   if (json.length > BOARD_MAX_BYTES) throw new Error("Board too large");
+  const now = Date.now();
+  if (typeof expect === "number") {
+    const r = await db
+      .prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = ? AND updated_at = ?")
+      .run(json, now, BOARD_KEY, expect);
+    if (Number(r.changes ?? 0) === 0) throw new BoardConflictError();
+    return now;
+  }
   await setSetting(BOARD_KEY, json);
+  const row = (await db.prepare("SELECT updated_at FROM settings WHERE key = ?").get(BOARD_KEY)) as { updated_at: number } | undefined;
+  return row?.updated_at ?? now;
 }
