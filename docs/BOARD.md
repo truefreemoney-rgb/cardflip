@@ -12,6 +12,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 ## Now — current main tasks
 
 - [x] [Chris] Lock down Pokémon + the website: fresh scan batch on the phone 09-10 — "nothing looks off".
+- [ ] [Claude] MAGIC LOCKDOWN (Chris 09-10: "nail this down like Pokémon"): research done → docs/MTG-IDENTIFICATION.md. Phase 1 = scan reads finish/frame/border/copyright year/artist/treatment/marks, mirror stores them, ranker uses them, price follows finish, confirm screen. Phase 2 = replay-scans mtg panel (≥95% clean) then Chris's 30-card phone batch (≥90%). Phase 3 = pick-by-picture on ties. Magic stays admins-only until the numbers pass.
 - [ ] [Chris] Soft launch IN PROGRESS — first invite sent 09-10. Ledger: docs/COHORT.md (Chris: who/where per invite; Claude fills the numbers weekly). Week 1 target: 10 invites; follow-up message on day 3.
 - [ ] [Chris] Yea/nay still open on the live site: Pikachu stage card + "Your turn to scan", the board's run panel / Merge button / Live–Completed tabs / ↳ Reply; plus sold-row look (needs a real sale), category manager, admin toggle. (Watchlist summary strip: yea 09-09. /admin/system: fine for now, 09-09.)
 
