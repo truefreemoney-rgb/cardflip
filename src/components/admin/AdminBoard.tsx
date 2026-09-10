@@ -285,6 +285,14 @@ function dayLabel(ms: number): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * Chris's thoughts are notes, not tasks. Tapping a note's box opens its
+ * options (make it a task somewhere, run it, reply, complete, delete)
+ * instead of ticking it straight into Completed (Chris, 09-10: "it should
+ * just give options and complete should be an option").
+ */
+const isNotes = (title: string) => /thought|note/i.test(title);
+
 function tone(title: string): string {
   if (/^now/i.test(title)) return "border-brand-400/40";
   if (/thought|note/i.test(title)) return "border-rose-400/35";
@@ -569,7 +577,7 @@ export default function AdminBoard({ sections: initial, updatedAt: initialStamp 
     <RunsContext.Provider value={{ runs, reload: () => void loadRuns() }}>
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. Saves itself. Pick the owner when you add a task; after that Claude re-tags it as it moves.</p>
+        <p className="text-xs text-zinc-500">Tap a box to tick it, the text to edit, ⋯ to move or delete. In your thoughts the box opens the options instead. Saves itself. Pick the owner when you add a task; after that Claude re-tags it as it moves.</p>
         <div className="flex items-center gap-3 text-xs">
           <p className={status === "error" ? "text-red-300" : status === "saved" ? "text-emerald-300/80" : "text-zinc-500"} aria-live="polite">
             {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : status === "dirty" ? "Unsaved" : error}
@@ -642,6 +650,7 @@ export default function AdminBoard({ sections: initial, updatedAt: initialStamp 
                   items={section.items}
                   all={live}
                   sectionId={section.id}
+                  note={isNotes(section.title)}
                   onToggle={() => patchItem(section.id, item.id, (i) => ({ ...i, done: !i.done }))}
                   onText={(t) => (t.trim() ? patchItem(section.id, item.id, (i) => ({ ...i, text: t.trim() })) : removeItem(section.id, item.id))}
                   onRemove={() => removeItem(section.id, item.id)}
@@ -822,6 +831,7 @@ function SectionCard(props: {
             items={s.items}
             all={props.all}
             sectionId={s.id}
+            note={isNotes(s.title)}
             onToggle={() => props.onToggle(it.id)}
             onText={(t) => props.onText(it.id, t)}
             onRemove={() => props.onRemoveItem(it.id)}
@@ -874,6 +884,8 @@ function ItemRow(props: {
   items: BoardItem[];
   all: BoardSection[];
   sectionId: string;
+  /** A note in Chris's thoughts: the box opens the options, Complete is one of them. */
+  note?: boolean;
   onToggle: () => void;
   onText: (t: string) => void;
   onRemove: () => void;
@@ -883,7 +895,7 @@ function ItemRow(props: {
   onMove: (to: string) => void;
   onReorder: (dir: -1 | 1) => void;
 }) {
-  const { item: it } = props;
+  const { item: it, note } = props;
   const { runs } = useContext(RunsContext);
   const runNo = /^▶ RUNNING #(\d+)/.exec(it.text)?.[1];
   const runStatus = runNo ? runs[Number(runNo)] : undefined;
@@ -916,15 +928,27 @@ function ItemRow(props: {
   return (
     <li className={`group -mx-1 rounded-lg px-1 py-0.5 ${more ? "bg-white/[0.03]" : ""}`}>
       <div className="flex items-start gap-2 text-[13px] leading-snug">
-        <button
-          role="checkbox"
-          aria-checked={it.done}
-          aria-label={it.done ? "Mark not done" : "Mark done"}
-          onClick={props.onToggle}
-          className={`mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${it.done ? "border-emerald-400/50 bg-emerald-400/25 text-emerald-200" : "border-zinc-500 hover:border-zinc-300"}`}
-        >
-          {it.done && <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6l3 3 5-6" /></svg>}
-        </button>
+        {note && !it.done ? (
+          <button
+            aria-expanded={more}
+            aria-label={more ? "Close options" : "Options"}
+            title="What to do with this thought"
+            onClick={() => setMore((v) => !v)}
+            className={`mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${more ? "border-rose-300/70 bg-rose-400/15" : "border-zinc-500 hover:border-zinc-300"}`}
+          >
+            {more && <span className="h-1.5 w-1.5 rounded-sm bg-rose-300" />}
+          </button>
+        ) : (
+          <button
+            role="checkbox"
+            aria-checked={it.done}
+            aria-label={it.done ? "Mark not done" : "Mark done"}
+            onClick={props.onToggle}
+            className={`mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${it.done ? "border-emerald-400/50 bg-emerald-400/25 text-emerald-200" : "border-zinc-500 hover:border-zinc-300"}`}
+          >
+            {it.done && <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6l3 3 5-6" /></svg>}
+          </button>
+        )}
         <div className="min-w-0 flex-1">
           {editing ? (
             <textarea
@@ -998,6 +1022,9 @@ function ItemRow(props: {
       </div>
       {more && (
         <div className="ml-6 mt-1 flex flex-wrap items-center gap-2 text-xs">
+          {note && !it.done && (
+            <button onClick={() => { props.onToggle(); setMore(false); }} title="Done with this thought — it moves to Completed" className="rounded border border-emerald-400/40 px-2 py-1 text-emerald-200 hover:bg-emerald-500/15">✓ Complete</button>
+          )}
           <label className="flex items-center gap-1 text-zinc-500">
             Move to
             <select
