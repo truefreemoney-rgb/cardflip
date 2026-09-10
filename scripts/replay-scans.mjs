@@ -30,7 +30,9 @@ const fileArg = args.indexOf("--file");
 const filePath = fileArg > -1 ? args[fileArg + 1] : null;
 const gameArg = args.indexOf("--game");
 const fileGame = gameArg > -1 ? args[gameArg + 1] : "pokemon";
-const skip = new Set([cacheArg + 1, fileArg + 1, gameArg + 1]);
+// Only real flags claim the slot after them: an absent flag is -1, and -1 + 1
+// = 0 silently dropped the FIRST card id (09-10: Spider-Man Noir never ran).
+const skip = new Set([cacheArg, fileArg, gameArg].filter((i) => i > -1).map((i) => i + 1));
 const ids = args.filter((a, i) => !a.startsWith("--") && !skip.has(i));
 const cache = cachePath && fs.existsSync(cachePath) ? JSON.parse(fs.readFileSync(cachePath, "utf8")) : {};
 
