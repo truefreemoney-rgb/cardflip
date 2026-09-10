@@ -1,5 +1,6 @@
-import type { GameId } from "@/lib/types";
 "use client";
+
+import type { GameId } from "@/lib/types";
 
 import { apiFetch } from "@/lib/client/basePath";
 
