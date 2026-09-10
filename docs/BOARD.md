@@ -26,6 +26,12 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 ## Claude — my queue (in order)
 
 - [ ] [Claude] Homepage demo frame: static 2x image of the Inventory with one card per stage, EXAMPLE ribbon on the art, one-line caption + Try 10 scans free. Mockup approved 09-08; build after lockdown.
+- [ ] [Claude] RUNNER UPGRADE 1 — brain files: docs/RUNNER.md distilled from STATE.md + my memory rules (mobile-first, tight spacing, build for everyone, no auto-scan, one obvious action per screen) + the recent Completed list; the routine prompt reads it first. ~1h.
+- [ ] [Claude] RUNNER UPGRADE 2 — prove visuals: before/after phone-size Playwright screenshots committed to the branch and shown in the PR body, so Chris yea/nays from the board without deploying. ~1 day.
+- [ ] [Claude] RUNNER UPGRADE 3 — check the merged result: runner rebases onto main right before opening the PR; the board's Merge button refuses until CI is green on that rebased head (a green PR still broke main after merge, 09-09). ~1 day.
+- [ ] [Claude] RUNNER UPGRADE 4 — let it see prod: read-only Vercel logs + admin API so it starts from what is happening, not from guessing. WAITING on Chris for a read-only token.
+- [ ] [Claude] RUNNER UPGRADE 5 — one run per press: drop the issues.labeled event from the webhook (every press boots two sessions, one exits at once). ~15 min.
+- [ ] [Claude] RUNNER UPGRADE 6 — self-review step before the PR: re-read the issue + the diff and answer "does this do what was asked, on a phone, in the site's style". Prompt change. ~30 min.
 
 ## Prove on prod — built, not yet seen live
 
