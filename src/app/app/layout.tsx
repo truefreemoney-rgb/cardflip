@@ -7,7 +7,7 @@ import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
 import { magicPublic } from "@/lib/server/settings";
 
-export const metadata: Metadata = { title: "Scanner" };
+export const metadata: Metadata = { title: "Scanner", robots: { index: false, follow: false } };
 
 /**
  * The signed-in app carries the same legal surface as the marketing pages.

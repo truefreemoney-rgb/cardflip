@@ -4,10 +4,14 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbGraph } from "@/lib/structuredData";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description: "CardFlip is $9.99 a month: 500 scans, live pricing for the exact printing, and eBay listings written and published for you. Cancel any time.",
+  alternates: { canonical: "/pricing" },
+  openGraph: { url: "/pricing", title: "CardFlip pricing — $9.99 a month" },
 };
 
 /**
@@ -58,6 +62,7 @@ export default function PricingPage() {
   const feePct = `${(EBAY_FEE_RATE * 100).toFixed(2).replace(/\.?0+$/, "")}%`;
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <JsonLd data={breadcrumbGraph([{ name: "CardFlip", path: "/" }, { name: "Pricing", path: "/pricing" }])} />
       <MarketingNav />
       <main className="flex w-full flex-1 flex-col">
         <section className="hero-mesh grain relative overflow-hidden">

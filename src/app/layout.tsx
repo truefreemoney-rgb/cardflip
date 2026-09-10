@@ -4,6 +4,9 @@ import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 import Prefetch from "@/components/Prefetch";
 import RefCapture from "@/components/RefCapture";
+import JsonLd from "@/components/JsonLd";
+import { siteGraph } from "@/lib/structuredData";
+import { PLAN, PRO } from "@/components/PlanCard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +31,25 @@ export const metadata: Metadata = {
   },
   description:
     "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+  // Every public page overrides this with its own path; the private ones
+  // are noindex anyway. Keeps ?ref= and tracking variants from splitting
+  // the landing page in search results.
+  alternates: { canonical: "/" },
   openGraph: {
     title: "CardFlip — Scan. Price. List.",
     description:
       "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
     type: "website",
+    siteName: "CardFlip",
+    locale: "en_US",
+    url: "/",
+  },
+  // Search engine ownership proofs: paste the token each console hands out
+  // into the Vercel env (GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION)
+  // and redeploy — nothing renders while they are unset.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
   },
   // iOS ignores the manifest's display mode; these meta tags are what make
   // "Add to Home Screen" open full-screen there. Icons + manifest come from
@@ -67,6 +84,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Prefetch />
         <RefCapture />
+        <JsonLd
+          data={siteGraph([
+            { name: "CardFlip", priceUsd: Number(PLAN.price.replace("$", "")), scans: PLAN.scans },
+            { name: "CardFlip Pro", priceUsd: Number(PRO.price.replace("$", "")), scans: PRO.scans },
+          ])}
+        />
       </body>
     </html>
   );

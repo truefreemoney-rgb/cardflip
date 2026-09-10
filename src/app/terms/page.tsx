@@ -5,6 +5,8 @@ import { magicPublic } from "@/lib/server/settings";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "The terms that govern your use of CardFlip.",
+  alternates: { canonical: "/terms" },
+  openGraph: { url: "/terms", title: "CardFlip terms of service" },
 };
 
 const sections: LegalSection[] = [

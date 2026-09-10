@@ -4,10 +4,14 @@ import { magicPublic } from "@/lib/server/settings";
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbGraph, faqGraph } from "@/lib/structuredData";
 
 export const metadata: Metadata = {
   title: "Help",
   description: "How CardFlip works — scanning, pricing, eBay listings, offers, and your account.",
+  alternates: { canonical: "/help" },
+  openGraph: { url: "/help", title: "CardFlip help" },
 };
 
 /**
@@ -23,6 +27,7 @@ export default async function HelpPage() {
   const articles = helpArticlesFor(await magicPublic());
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <JsonLd data={[faqGraph(articles), breadcrumbGraph([{ name: "CardFlip", path: "/" }, { name: "Help", path: "/help" }])]} />
       <MarketingNav />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">

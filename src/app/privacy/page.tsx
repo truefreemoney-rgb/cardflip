@@ -5,6 +5,8 @@ import { magicPublic } from "@/lib/server/settings";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "What data CardFlip collects and what happens to it.",
+  alternates: { canonical: "/privacy" },
+  openGraph: { url: "/privacy", title: "CardFlip privacy policy" },
 };
 
 const sections: LegalSection[] = [
