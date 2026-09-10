@@ -17,6 +17,11 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const user = typeof body?.username === "string" ? body.username : "";
   const password = typeof body?.password === "string" ? body.password : "";
+  // Per-username lockout on top of the IP one (rotating IPs still stop).
+  if (user) {
+    const locked = await limitOrRespondAsync(`auth:admin:acct:${user.toLowerCase()}`, LIMITS.authAccount);
+    if (locked) return locked;
+  }
   if (!verifyAdminCredentials(user, password)) {
     return NextResponse.json({ error: "Incorrect username or password." }, { status: 401 });
   }

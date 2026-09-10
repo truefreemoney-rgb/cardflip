@@ -129,6 +129,10 @@ export const LIMITS = {
   searchCard: [{ limit: 120, windowMs: MINUTE }] as RateLimitRule[],
   /** Sign-in / signup / reset: brute-force backstop, per IP. */
   authAttempt: [{ limit: 20, windowMs: 10 * MINUTE }] as RateLimitRule[],
+  /** Same routes keyed by the ACCOUNT (email / admin username): an attacker
+   * rotating IPs against one login still hits a wall. Chris 09-10: "enable
+   * brute force protection". 10 tries per 15 min is plenty for a person. */
+  authAccount: [{ limit: 10, windowMs: 15 * MINUTE }] as RateLimitRule[],
   /** Help robot: per-IP burst guard; the per-account daily cap lives in helpChat.ts. */
   helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
 };

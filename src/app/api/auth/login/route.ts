@@ -19,6 +19,13 @@ export async function POST(req: Request) {
   // admin account without the email dance. Any other input is an email.
   if (email.toLowerCase() === "admin") email = "admin@cardflip.dev";
 
+  // Per-account lockout on top of the IP one: rotating IPs against a single
+  // email still stops at 10 tries per 15 minutes.
+  if (email) {
+    const locked = await limitOrRespondAsync(`auth:login:acct:${email.toLowerCase()}`, LIMITS.authAccount);
+    if (locked) return locked;
+  }
+
   const user = email ? await findUserByEmail(email) : null;
 
   // Same message whether the email is unknown or the password is wrong, so

@@ -107,11 +107,20 @@ check("login: admins skip totp", (await login.POST(post({ email: "admin", passwo
 // --- brute-force limiter ----------------------------------------------------
 const attackerIp = "203.0.113.9";
 let statuses = [];
+// Per IP: a different email each try, so only the IP counter is in play.
 for (let i = 0; i < 21; i++) {
-  statuses.push((await login.POST(post({ email: "ghost@example.com", password: "guess" }, attackerIp))).status);
+  statuses.push((await login.POST(post({ email: `ghost${i}@example.com`, password: "guess" }, attackerIp))).status);
 }
-check("login: 20 tries allowed, 21st is 429", [statuses.filter((s) => s === 401).length, statuses[20]], [20, 429]);
+check("login: 20 tries per IP allowed, 21st is 429", [statuses.filter((s) => s === 401).length, statuses[20]], [20, 429]);
 check("login: other IPs unaffected", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).status, 200);
+// Per account: one email from a fresh IP every try — still locks at 10 (09-10).
+statuses = [];
+for (let i = 0; i < 11; i++) {
+  statuses.push((await login.POST(post({ email: "Target@example.com", password: "guess" }, `198.51.100.${i + 1}`))).status);
+}
+check("login: 10 tries per account allowed, 11th is 429 across IPs", [statuses.filter((s) => s === 401).length, statuses[10]], [10, 429]);
+check("login: the lock is per account, case-insensitive", (await login.POST(post({ email: "target@example.com", password: "guess" }, "198.51.100.50"))).status, 429);
+check("login: other accounts unaffected", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }, "198.51.100.51"))).status, 200);
 
 // --- forgot -----------------------------------------------------------------
 for (const k of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"]) delete process.env[k];

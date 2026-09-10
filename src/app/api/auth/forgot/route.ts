@@ -34,6 +34,10 @@ export async function POST(req: Request) {
   if (!email) {
     return NextResponse.json({ error: "invalid", message: "Enter your email." }, { status: 400 });
   }
+  // Per-email lockout too, or one address can be flooded with reset mail
+  // from many IPs.
+  const locked = await limitOrRespondAsync(`auth:forgot:acct:${email.toLowerCase()}`, LIMITS.authAccount);
+  if (locked) return locked;
 
   const user = await findUserByEmail(email);
   if (user) {
