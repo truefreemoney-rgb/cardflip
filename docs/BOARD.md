@@ -87,6 +87,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
 
+- [x] 09-10 Magic phone batch re-run after the ledger fixes: 42/42 = 100% exact printing on Chris's real phone photos (npm run mtg:phone -- --pull)
 - [x] 09-10 Lorcana real-photo gate 100% (38/38 eBay seller photos, npm run lorcana:phone); panel 100% after the set-total fix (mirror stored /245 for a /207 set — sync-lorcana now uses the printed denominator, pushed to prod)
 - [x] 09-10 ONE PIECE IS PUBLIC (settings.onepiece_public=1 on prod, Chris: "turn it on"): gates = panel 98.0%, eBay seller photos 97.4%, CI + prod smoke green on 3f23281
 - [x] 09-10 One Piece real-photo gate 97.4% (38/39 eBay seller photos, no cards needed — npm run op:phone); glare digit-misread tier in the ranker; tiebreak token cap fixed (Opus thinks against max_tokens)
