@@ -34,31 +34,30 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 Owner cookie (the preview page) or `?key=CRON_SECRET` (the publisher).
 
-## Plan, in reach order
+## Plan, image sites only
+
+Chris (09-10): "we are not video content creators." Every post is a
+picture made from data. No YouTube, no TikTok, no Reels — nothing that
+needs a video. Order = easiest to connect first, then reach.
 
 1. **Publisher routine** — a cloud routine on the `cardflip-runner`
-   environment, runs once a day (Tue/Thu/Sat cadence from docs/SOCIAL.md
-   to start), calls `socialDrafts` through a small `GET /api/social/drafts`
-   (same auth), fetches each image, posts to every connected site, writes
+   environment, once a day (Tue/Thu/Sat cadence from docs/SOCIAL.md to
+   start), calls a small `GET /api/social/drafts` (same auth as the image
+   route), fetches each image, posts to every connected site, writes
    `social_last_post:<site>` to the settings table so a day never posts
    twice, and leaves a line on the board's Completed list.
-2. **YouTube Shorts** (biggest reach for card content). Chris: create the
-   channel on his phone (board row). Me: one Google OAuth "Allow" link →
-   refresh token as a routine env var → `youtube.videos.insert`. Shorts
-   need video: a 10–15s clip = the card-of-the-day image with a slow zoom
-   and the price counting up, rendered with ffmpeg from the PNG frames
-   (no camera, no talking); scan demos recorded from the app with
-   Playwright `recordVideo` come after.
+2. **Bluesky** — app password from Chris, one paste. Free API, image
+   posts with alt text. First because it is the cheapest connection.
 3. **Instagram + Facebook + Threads** through one Meta app: IG business
    account linked to a Facebook page, one "Allow" → long-lived token;
-   Graph API `media` + `media_publish` (image posts and Reels), Threads
-   API for text+image.
-4. **TikTok** — Content Posting API needs an app audit before posts are
-   public; I apply, manual (Chris uploads the clip) until approved.
-5. **X** (free tier: 1,500 posts/mo write-only, image upload OK),
-   **Pinterest** (pins are the movers image + a link, good SEO),
-   **Bluesky** (app password from Chris — board row), **LinkedIn** (company
-   page, OAuth) — only if free and one-time to connect.
+   Graph API image posts, Threads API text+image. Biggest reach for card
+   pictures.
+4. **X** — free tier (1,500 posts/mo, image upload OK). Chris creates the
+   developer app once and pastes the keys.
+5. **Pinterest** — pins = the movers image + a link to cardflip.io; good
+   for search. Business account + app access.
+6. **LinkedIn / Reddit** — only if free and one-time; Reddit stays human
+   (communities punish bot promo).
 
 ## Chris's part, one row at a time on the board
 
