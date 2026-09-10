@@ -34,6 +34,15 @@ interface TcgRow {
   price_usd_foil: number | null;
 }
 
+/** One Piece printings grouped by what the face shows (docs/NEW-GAMES.md). */
+function onePieceVariantFamily(v: string): string {
+  if (v === "" || v === "reprint") return "plain";
+  if (v === "parallel" || v === "alt-art" || v === "special" || v === "spr" || v === "box-topper") return "alt";
+  if (v === "manga") return "manga";
+  if (v === "full-art") return "full";
+  return "other";
+}
+
 const COLUMNS = "id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, price_usd, price_usd_foil";
 
 export type TcgGame = Extract<GameId, "lorcana" | "onepiece">;
@@ -136,9 +145,12 @@ export async function searchTcgCardsLocal(
   const wantedSub = subtitle ? fold(subtitle) : "";
   const wantedVariant = variant && variant !== "standard" ? variant : variant === "standard" ? "" : null;
   const score = (row: TcgRow): number => {
-    const rowName = fold(row.name);
+    // Some One Piece catalog rows carry the number inside the name
+    // ("Roronoa Zoro - OP10-095"); the face just says Roronoa Zoro.
+    const rowName = fold(game === "onepiece" ? row.name.replace(/s+-s+[A-Z]+d*-d+[a-z0-9_#]*$/i, "") : row.name);
     const exactName = needle !== "" && rowName === needle;
-    const rowNumber = normalizeNumber(row.collector_number);
+    // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
+    const rowNumber = normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]d+$/i, "") : row.collector_number);
     const exactNumber = Boolean(wantedNumber) && rowNumber === wantedNumber;
     let tier: number;
     if (exactName && exactNumber) tier = 0;
@@ -149,7 +161,11 @@ export async function searchTcgCardsLocal(
     let p = tier * NAME_TIER;
     // Set: Lorcana's set number / One Piece's OP01 prefix. A wrong set costs
     // more than a tiebreak — it is a different card — but less than a name.
-    if (wantedCode && row.set_code) p += row.set_code.toUpperCase() === wantedCode ? 0 : 4;
+    // One Piece: the "OP06" the read sees is the card number's prefix, printed
+    // identically on every printing of that card (a PRB01 alt art still says
+    // OP06-079), so it carries nothing the number did not — no set penalty.
+    if (game === "onepiece") { /* number already compared */ }
+    else if (wantedCode && row.set_code) p += row.set_code.toUpperCase() === wantedCode ? 0 : 4;
     else if (wantedCode) p += 1;
     // Lorcana denominator = set total.
     if (printed?.setTotal && row.set_total) p += row.set_total === printed.setTotal ? 0 : 3;
@@ -160,7 +176,17 @@ export async function searchTcgCardsLocal(
     }
     // Variant read off the face: the plain printing is the likelier one
     // when nothing special was seen; a seen variant lifts its row.
-    if (wantedVariant !== null) {
+    if (wantedVariant !== null && game === "onepiece") {
+      // Compare by family: the read says "parallel" for alt-art / special /
+      // SPR rows alike; a starter-deck reprint has the same face as the base.
+      const want = onePieceVariantFamily(wantedVariant);
+      const have = onePieceVariantFamily(row.variant || "");
+      // A reprint's face is identical to the base — keep it past the
+      // near-tie gap so the picture is not asked to tell twins apart.
+      if (want === have) p += row.variant === "reprint" ? 1.25 : 0;
+      else if (want === "plain" || have === "plain") p += 1;
+      else p += 1.5;
+    } else if (wantedVariant !== null) {
       const rowV = row.variant || "";
       if (wantedVariant === "" ) p += rowV === "" ? 0 : 1;
       else p += rowV === wantedVariant ? 0 : rowV === "" ? 1 : 2;

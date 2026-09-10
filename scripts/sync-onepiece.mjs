@@ -58,6 +58,8 @@ function splitVariant(name) {
       : tag.replace(/[^a-z0-9]+/g, "-");
     if (!variant) variant = v;
   }
+  // Some feed names carry the card number: "Roronoa Zoro - OP10-095".
+  rest = rest.replace(/s+-s+[A-Z]+d*-d+[a-z0-9_#]*$/i, "").trim();
   return { name: rest, variant };
 }
 
@@ -93,7 +95,7 @@ for (const [label, url] of [["sets", `${API}/allSetCards/`], ["starter decks", `
       "",
       setCode,
       String(c.set_name ?? ""),
-      key,
+      key.replace(/_[rp]d+$/i, ""), // the feed keys a few reprints "P-029_r1"; the face says P-029
       null,
       "",
       String(c.rarity ?? ""),

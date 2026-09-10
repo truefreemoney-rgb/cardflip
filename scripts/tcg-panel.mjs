@@ -150,7 +150,12 @@ for (const p of panel) {
       console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`);
     }
   }
-  const rank = found.findIndex((c) => c.id === p.id);
+  // A starter-deck reprint shares the base printing's face exactly (same
+  // number, same art, no mark) — either twin at the top is the right answer.
+  const plain = (v) => !v || v === "reprint";
+  const sameFace = (c) => c.id === p.id || (game === "onepiece" && plain(p.variant) && plain(c.variant) && String(c.number ?? c.collector_number).replace(/_[rp]d+$/i, "") === String(p.number).replace(/_[rp]d+$/i, "") && clean(c.name) === clean(p.name));
+  function clean(n) { return String(n).replace(/s+-s+[A-Z]+d*-d+[a-z0-9_#]*$/i, ""); }
+  const rank = found.findIndex(sameFace);
   const hit = rank === 0;
   const tally = byBucket.get(p.bucket) ?? { hit: 0, top3: 0, n: 0 };
   tally.n++;
