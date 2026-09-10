@@ -165,6 +165,34 @@ Not yet: the confirm screen (the editor's "Not your card? See every …"
 list already covers the tap-to-fix), the phase 2 panel, prod cue data
 (`scripts/push-mtg-cues.mjs` after the deploy).
 
+## 3c. Phase 2 status (09-10)
+
+`npm run mtg:panel` — 205 printings (scripts/mtg-panel.json, fixed; reads
+cached in scripts/mtg-panel.cache.json so a ranker change re-runs free;
+`--bucket x --fresh` re-reads one bucket after a prompt change).
+
+Run 1: 155/205 = 75.6%. Fixes from the numbers: stamped twins (promo pack
+0/8 → 8/8, prerelease 0/8 → 7/8, serialized 1/5 → 4/5 — the read saw the
+mark and the printed number, the row carries a p/s/z suffix and a P-set
+code); Art Series rows only answer Art Series reads (they carry no frame
+data and won name-only ties); a copyright-year window past the 600-newest
+cap (1998–2014 25 → 28); the List-icon paragraph in SYSTEM_MTG (7 → 9/15
+at Scryfall large; phones upload 1568px). Run 3: 179/205 = 87.3%.
+
+Clean at 100%: M15 standard, showcase, extended, retro, SLD, promo pack,
+DFC/split, textless. Leftovers, in order of value:
+- pre-1998 (14/24): name-only ties between Alpha/Beta/Unlimited/Revised/4th;
+  copyright year reads null on most (tiny © line). Phase 3 pick-by-picture.
+- The List (9/15): the icon is missed at 936px on 6 cards even with the
+  sharper prompt; real phone photos are the test.
+- Art Series (0/5): the front carries no name; needs the back or art match.
+- flavor names (LTC 386 "Shards of Narsil" = Thorn of Amethyst): the mirror
+  has no flavor_name column — add it in sync-mtg + name search.
+- Kamahl P15A, Archmage of Runes PFDN: the mark was not read.
+Excluding the two phase-3 buckets the panel is 165/176 = 93.8%; ≥95% needs
+the flavor-name column and one more List pass. Then Chris's 30-card phone
+batch (≥90%).
+
 ## 4. What NOT to do
 
 - Do not match on name alone or fall through to a fuzzy name lookup as the

@@ -273,14 +273,6 @@
  },
  {
   "bucket": "1998-2014 number-only",
-  "id": "0020bf27-8160-4aaa-a321-29c8f43d2624",
-  "name": "Rogue Kavu",
-  "set": "9ed",
-  "number": "213★",
-  "image": "https://cards.scryfall.io/normal/front/0/0/0020bf27-8160-4aaa-a321-29c8f43d2624.jpg?1783943954"
- },
- {
-  "bucket": "1998-2014 number-only",
   "id": "00215182-51bd-4c7e-9675-179749a25a07",
   "name": "Mad Auntie",
   "set": "mma",
@@ -326,14 +318,6 @@
   "set": "cns",
   "number": "187",
   "image": "https://cards.scryfall.io/normal/front/0/0/0029955b-32a5-4dd8-8a8c-5c80cdfd13aa.jpg?1783939339"
- },
- {
-  "bucket": "1998-2014 number-only",
-  "id": "002b75fc-c4ba-40fa-9758-8a550e68043b",
-  "name": "Crossbow Infantry",
-  "set": "9ed",
-  "number": "12★",
-  "image": "https://cards.scryfall.io/normal/front/0/0/002b75fc-c4ba-40fa-9758-8a550e68043b.jpg?1783944114"
  },
  {
   "bucket": "1998-2014 number-only",
@@ -417,19 +401,35 @@
  },
  {
   "bucket": "1998-2014 number-only",
-  "id": "004909d8-b362-44c4-ae6f-96b28546fb72",
-  "name": "Mana Clash",
-  "set": "9ed",
-  "number": "203★",
-  "image": "https://cards.scryfall.io/normal/front/0/0/004909d8-b362-44c4-ae6f-96b28546fb72.jpg?1783943963"
- },
- {
-  "bucket": "1998-2014 number-only",
   "id": "004af467-815a-47c0-a974-1ae49ca3a1a8",
   "name": "Jasmine Boreal",
   "set": "tsb",
   "number": "93",
   "image": "https://cards.scryfall.io/normal/front/0/0/004af467-815a-47c0-a974-1ae49ca3a1a8.jpg?1783943265"
+ },
+ {
+  "bucket": "1998-2014 number-only",
+  "id": "004eefa4-947b-45fc-b45c-5263bfd763bc",
+  "name": "Ancient Spring",
+  "set": "inv",
+  "number": "319",
+  "image": "https://cards.scryfall.io/normal/front/0/0/004eefa4-947b-45fc-b45c-5263bfd763bc.jpg?1783945646"
+ },
+ {
+  "bucket": "1998-2014 number-only",
+  "id": "0052158b-58d1-4416-a7ce-7c6a7595263c",
+  "name": "Belbe's Armor",
+  "set": "nem",
+  "number": "126",
+  "image": "https://cards.scryfall.io/normal/front/0/0/0052158b-58d1-4416-a7ce-7c6a7595263c.jpg?1783945810"
+ },
+ {
+  "bucket": "1998-2014 number-only",
+  "id": "00522c4b-4e64-4403-96b1-df41afbe255f",
+  "name": "Slinking Skirge",
+  "set": "uds",
+  "number": "71",
+  "image": "https://cards.scryfall.io/normal/front/0/0/00522c4b-4e64-4403-96b1-df41afbe255f.jpg?1783946070"
  },
  {
   "bucket": "M15 standard",
@@ -1393,14 +1393,6 @@
  },
  {
   "bucket": "prerelease",
-  "id": "005be4aa-9800-4f68-b341-90328dc34d13",
-  "name": "Scourge of Fleets",
-  "set": "pjou",
-  "number": "51★",
-  "image": "https://cards.scryfall.io/normal/front/0/0/005be4aa-9800-4f68-b341-90328dc34d13.jpg?1783939464"
- },
- {
-  "bucket": "prerelease",
   "id": "00604865-a6af-4ce1-8010-f9c276c2c945",
   "name": "Pia Nalaar",
   "set": "pkld",
@@ -1438,6 +1430,14 @@
   "set": "pfdn",
   "number": "30s",
   "image": "https://cards.scryfall.io/normal/front/0/0/0073371f-a31c-4b1f-9926-53efa0aadda4.jpg?1783908551"
+ },
+ {
+  "bucket": "prerelease",
+  "id": "0073802c-2758-49e7-8b1f-8113704ed8a3",
+  "name": "Finale of Promise",
+  "set": "pwar",
+  "number": "127s",
+  "image": "https://cards.scryfall.io/normal/front/0/0/0073802c-2758-49e7-8b1f-8113704ed8a3.jpg?1783933317"
  },
  {
   "bucket": "serialized",

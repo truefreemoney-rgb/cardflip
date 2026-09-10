@@ -62,7 +62,7 @@ function pickPanel() {
     const rows = db
       .prepare(
         `SELECT id, name, set_code, collector_number, image_url FROM mtg_cards
-          WHERE lang = 'en' AND image_url <> '' AND (${where})
+          WHERE lang = 'en' AND image_url <> '' AND collector_number NOT LIKE '%★' AND (${where})
           ORDER BY id LIMIT ?`,
       )
       .all(n);
@@ -76,7 +76,9 @@ function pickPanel() {
 let panel = flag("pick") || !fs.existsSync(PANEL_PATH) ? pickPanel() : JSON.parse(fs.readFileSync(PANEL_PATH, "utf8"));
 if (opt("bucket")) panel = panel.filter((p) => p.bucket.toLowerCase().includes(opt("bucket").toLowerCase()));
 if (opt("limit")) panel = panel.slice(0, Number(opt("limit")));
-const cache = !flag("fresh") && fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
+// --fresh re-reads the selected cards (keep the rest of the cache).
+const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
+if (flag("fresh")) for (const p of panel) delete cache[p.id];
 
 const env = {};
 for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8").split(/\r?\n/)) {

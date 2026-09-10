@@ -241,9 +241,12 @@ the fields that tell printings apart. Read each one from the card itself:
   is not a foil signal. Null when you cannot tell; do not default to nonfoil.
 - treatment: standard / showcase / extended-art / borderless / retro /
   full-art / textless, as defined in the schema. Most cards are standard.
-- marks: look at the very bottom-left corner of the black border: a small
-  white planeswalker symbol there means The List (the card otherwise looks
-  exactly like its original printing). Also: the Promo Pack planeswalker
+- marks: The List reprints look exactly like the original printing except
+  for one tiny white planeswalker symbol (a five-pointed emblem) printed on
+  the black border in the very bottom-left corner, level with or just below
+  the collector-number line — smaller than the set symbol and easy to miss,
+  so look there deliberately at full zoom before answering; it is NOT the set
+  symbol and NOT the artist brush icon. Also: the Promo Pack planeswalker
   stamp in the text box; a prerelease date stamp near the set symbol; a
   printed serial number like 045/500.
 - artist: the credit after the brush icon, bottom-left, exactly as printed.

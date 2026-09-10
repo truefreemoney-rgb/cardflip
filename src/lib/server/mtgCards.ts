@@ -273,6 +273,24 @@ export async function searchMtgCardsLocal(
           LIMIT 600`,
       )
       .all(needle, `${needle}\uffff`)) as unknown as MtgCardRow[];
+    // 600 newest printings is the whole story for most names, but a basic
+    // land or a 1990s card has more — the printing in the photo can sit past
+    // the cap. When the scan read a copyright year, add that year's window
+    // (phase 2 panel: a 1999 Plains and a Tempest Swamp never made the list).
+    const year = cues?.copyrightYear;
+    if (rows.length >= 600 && year) {
+      const older = (await db
+        .prepare(
+          `SELECT ${CARD_COLUMNS_JOINED}
+             FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+            WHERE REPLACE(LOWER(c.name), ',', '') >= ? AND REPLACE(LOWER(c.name), ',', '') < ?
+              AND c.set_release_date >= ? AND c.set_release_date < ?
+            LIMIT 200`,
+        )
+        .all(needle, `${needle}￿`, `${year - 1}-01-01`, `${year + 2}-01-01`)) as unknown as MtgCardRow[];
+      const seen = new Set(rows.map((r) => r.id));
+      for (const r of older) if (!seen.has(r.id)) rows.push(r);
+    }
     if (rows.length === 0 && needle.length >= 5) {
       rows = (await db
         .prepare(
