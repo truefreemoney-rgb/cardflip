@@ -72,7 +72,7 @@ export const STATUS_STYLE: Record<string, string> = {
 export const ADMIN_NAV = [
   ["/admin", "Overview"],
   ["/admin/switches", "Switches"],
-  ["/admin/board", "Board"],
+  ["/admin/board", "Tasks"],
   ["/admin/users", "Users"],
   ["/admin/cards", "Cards"],
   ["/admin/errors", "Errors"],

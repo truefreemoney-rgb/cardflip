@@ -356,7 +356,7 @@ export default function AdminBoard({ sections: initial, updatedAt: initialStamp 
         latest.current = data.sections;
         setSections(data.sections);
         base.current = typeof data.updatedAt === "number" ? data.updatedAt : null;
-        throw new Error(data.error ?? "The board changed elsewhere — reloaded it. Redo that last edit.");
+        throw new Error(data.error ?? "The tasks changed elsewhere — reloaded it. Redo that last edit.");
       }
       if (!res.ok) throw new Error(data.error ?? "Couldn't save");
       if (typeof data.updatedAt === "number") base.current = data.updatedAt;
@@ -623,7 +623,7 @@ export default function AdminBoard({ sections: initial, updatedAt: initialStamp 
           ))}
         </div>
         {tab === "live" && (
-          <div role="tablist" aria-label="Board view" className="flex rounded-full border border-edge bg-surface-1 p-0.5">
+          <div role="tablist" aria-label="Tasks view" className="flex rounded-full border border-edge bg-surface-1 p-0.5">
             {(["cards", "list"] as const).map((v) => (
               <button
                 key={v}
