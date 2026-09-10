@@ -79,6 +79,16 @@ if (opt("limit")) panel = panel.slice(0, Number(opt("limit")));
 // --fresh re-reads the selected cards (keep the rest of the cache).
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of panel) delete cache[p.id];
+// Vision budget guard (09-10: one full uncached panel ≈ 1.1M input tokens on the
+// prod API key — every uncached card is a ~5.5k-token Sonnet call). Above
+// VISION_CALL_CAP uncached reads the run stops unless --yes is passed.
+const VISION_CALL_CAP = 40;
+const uncached = panel.filter((p) => !cache[p.id]).length;
+console.log(`vision calls this run: ${uncached} uncached of ${panel.length} (≈${Math.round(uncached * 5.5)}k input tokens)`);
+if (uncached > VISION_CALL_CAP && !flag("yes")) {
+  console.error(`refusing ${uncached} vision calls without --yes (cap ${VISION_CALL_CAP}); use --limit N or --bucket to narrow`);
+  process.exit(2);
+}
 
 const env = {};
 for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8").split(/\r?\n/)) {

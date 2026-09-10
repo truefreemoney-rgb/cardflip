@@ -71,6 +71,16 @@ let batch = flag("pull") || !fs.existsSync(LIST_PATH) ? await pull() : JSON.pars
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of batch) delete cache[p.id];
+// Vision budget guard (09-10: one full uncached panel ≈ 1.1M input tokens on the
+// prod API key — every uncached card is a ~5.5k-token Sonnet call). Above
+// VISION_CALL_CAP uncached reads the run stops unless --yes is passed.
+const VISION_CALL_CAP = 40;
+const uncached = batch.filter((p) => !cache[p.id]).length;
+console.log(`vision calls this run: ${uncached} uncached of ${batch.length} (≈${Math.round(uncached * 5.5)}k input tokens)`);
+if (uncached > VISION_CALL_CAP && !flag("yes")) {
+  console.error(`refusing ${uncached} vision calls without --yes (cap ${VISION_CALL_CAP}); use --limit N or --bucket to narrow`);
+  process.exit(2);
+}
 
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 async function readCard(b64) {
