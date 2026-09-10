@@ -36,9 +36,9 @@ const remote = createClient({ url, authToken });
 
 const rows = local
   .prepare(
-    `SELECT id, artist, frame, border_color, frame_effects, promo_types, full_art, textless
+    `SELECT id, artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name
        FROM mtg_cards
-      WHERE frame <> '' OR artist <> ''`,
+      WHERE frame <> '' OR artist <> '' OR flavor_name <> ''`,
   )
   .all();
 console.log(`local: ${rows.length} printings with cue data`);
@@ -49,7 +49,7 @@ if (rows.length < 50_000) {
 
 // Sanity: the columns exist on prod (the app adds them on first request after deploy).
 try {
-  await remote.execute("SELECT artist, frame FROM mtg_cards LIMIT 1");
+  await remote.execute("SELECT artist, frame, flavor_name FROM mtg_cards LIMIT 1");
 } catch (err) {
   console.error("prod mtg_cards has no cue columns yet — deploy first, load one page, then rerun.", String(err).slice(0, 200));
   process.exit(1);
@@ -62,8 +62,8 @@ for (let i = 0; i < rows.length; i += BATCH) {
   const chunk = rows.slice(i, i + BATCH);
   await remote.batch(
     chunk.map((r) => ({
-      sql: `UPDATE mtg_cards SET artist = ?, frame = ?, border_color = ?, frame_effects = ?, promo_types = ?, full_art = ?, textless = ? WHERE id = ?`,
-      args: [r.artist, r.frame, r.border_color, r.frame_effects, r.promo_types, r.full_art, r.textless, r.id],
+      sql: `UPDATE mtg_cards SET artist = ?, frame = ?, border_color = ?, frame_effects = ?, promo_types = ?, full_art = ?, textless = ?, flavor_name = ? WHERE id = ?`,
+      args: [r.artist, r.frame, r.border_color, r.frame_effects, r.promo_types, r.full_art, r.textless, r.flavor_name, r.id],
     })),
     "write",
   );

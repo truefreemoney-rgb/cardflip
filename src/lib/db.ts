@@ -311,13 +311,16 @@ const SCHEMA = `
     frame_effects TEXT NOT NULL DEFAULT '',
     promo_types TEXT NOT NULL DEFAULT '',
     full_art INTEGER NOT NULL DEFAULT 0,
-    textless INTEGER NOT NULL DEFAULT 0
+    textless INTEGER NOT NULL DEFAULT 0,
+    flavor_name TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_name ON mtg_cards(name);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_number ON mtg_cards(collector_number, set_code);
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_set ON mtg_cards(set_code);
   -- Twin of the comma-less lowercase name in lib/server/mtgCards.ts.
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_folded ON mtg_cards(REPLACE(LOWER(name), ',', ''));
+  -- Flavor names (LTC 386 "Shards of Narsil" = Thorn of Amethyst) get the same fold; partial, most rows are blank.
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_flavor ON mtg_cards(REPLACE(LOWER(flavor_name), ',', '')) WHERE flavor_name <> '';
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
@@ -466,6 +469,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "promo_types TEXT NOT NULL DEFAULT ''",
       "full_art INTEGER NOT NULL DEFAULT 0",
       "textless INTEGER NOT NULL DEFAULT 0",
+      "flavor_name TEXT NOT NULL DEFAULT ''",
     ],
   ],
   [

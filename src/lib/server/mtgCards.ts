@@ -45,6 +45,8 @@ interface MtgCardRow {
   promo_types: string;
   full_art: number;
   textless: number;
+  /** Scryfall flavor_name: LTC 386 "Shards of Narsil" is Thorn of Amethyst; '' on most rows. */
+  flavor_name: string;
   /** Joined from mtg_sets in the search queries; absent on the id fetch. */
   set_type?: string | null;
 }
@@ -52,7 +54,7 @@ interface MtgCardRow {
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
                       image_url, rarity, type_line, finishes,
                       price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil,
-                      artist, frame, border_color, frame_effects, promo_types, full_art, textless`;
+                      artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name`;
 
 /** The same columns off a `c` alias, plus the set's type — for the ranked
  * searches, which join mtg_sets (both tables have a `name` column). */
@@ -273,6 +275,23 @@ export async function searchMtgCardsLocal(
           LIMIT 600`,
       )
       .all(needle, `${needle}\uffff`)) as unknown as MtgCardRow[];
+    // A flavor name is what the photo says (LTC 386 "Shards of Narsil" is
+    // Thorn of Amethyst; the Universes Beyond twins) \u2014 the catalog name is on
+    // the row, not the card. Partial index on the folded flavor_name.
+    const flavored = (await db
+      .prepare(
+        `SELECT ${CARD_COLUMNS_JOINED}
+           FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+          WHERE c.flavor_name <> ''
+            AND REPLACE(LOWER(c.flavor_name), ',', '') >= ? AND REPLACE(LOWER(c.flavor_name), ',', '') < ?
+          ORDER BY c.set_release_date DESC
+          LIMIT 100`,
+      )
+      .all(needle, `${needle}\uffff`)) as unknown as MtgCardRow[];
+    if (flavored.length) {
+      const seen = new Set(rows.map((r) => r.id));
+      for (const r of flavored) if (!seen.has(r.id)) rows.push(r);
+    }
     // 600 newest printings is the whole story for most names, but a basic
     // land or a 1990s card has more — the printing in the photo can sit past
     // the cap. When the scan read a copyright year, add that year's window
@@ -377,8 +396,9 @@ export async function searchMtgCardsLocal(
         ? row.collector_number.replace(stampSuffix!, "")
         : row.collector_number;
     const frontFace = rowName.split(" // ")[0];
-    const exactName = needle !== "" && (rowName === needle || frontFace === needle);
-    const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace));
+    const flavor = (row.flavor_name ?? "").toLowerCase().replace(/,/g, "");
+    const exactName = needle !== "" && (rowName === needle || frontFace === needle || (flavor !== "" && flavor === needle));
+    const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace) || (flavor !== "" && wordPrefix(flavor)));
     const insideName = !exactName && !prefixName && needle !== "" && wordInside(rowName);
     const exactNumber = Boolean(wantedNumber) && normalizeCollectorNumber(rowNumber) === wantedNumber;
     const codeAgrees = wantedCode ? rowCode === wantedCode : null;

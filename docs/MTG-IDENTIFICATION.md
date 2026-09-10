@@ -186,11 +186,14 @@ DFC/split, textless. Leftovers, in order of value:
 - The List (9/15): the icon is missed at 936px on 6 cards even with the
   sharper prompt; real phone photos are the test.
 - Art Series (0/5): the front carries no name; needs the back or art match.
-- flavor names (LTC 386 "Shards of Narsil" = Thorn of Amethyst): the mirror
-  has no flavor_name column — add it in sync-mtg + name search.
+- flavor names: DONE 09-10 — mtg_cards.flavor_name (sync-mtg writes it; `npm run
+  mtg:flavor` backfills the ~630 flavored printings in four Scryfall pages; prod
+  via push-mtg-cues). Name search also matches the folded flavor_name, so
+  "Shards of Narsil" lands on Thorn of Amethyst LTC 386. The two panel rows
+  still miss because they want 386z and the serialized mark was not read.
 - Kamahl P15A, Archmage of Runes PFDN: the mark was not read.
 Excluding the two phase-3 buckets the panel is 165/176 = 93.8%; ≥95% needs
-the flavor-name column and one more List pass. Then Chris's 30-card phone
+one more List pass (flavor names done). Then Chris's 30-card phone
 batch (≥90%).
 
 ## 4. What NOT to do

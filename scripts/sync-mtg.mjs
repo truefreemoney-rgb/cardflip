@@ -91,6 +91,7 @@ for (const column of [
   "promo_types TEXT NOT NULL DEFAULT ''",
   "full_art INTEGER NOT NULL DEFAULT 0",
   "textless INTEGER NOT NULL DEFAULT 0",
+  "flavor_name TEXT NOT NULL DEFAULT ''",
 ]) {
   try { db.exec(`ALTER TABLE mtg_cards ADD COLUMN ${column}`); } catch { /* present */ }
 }
@@ -156,8 +157,8 @@ const upsertCard = db.prepare(`
     id, oracle_id, name, set_code, set_name, collector_number, set_release_date,
     image_url, rarity, type_line, finishes, lang,
     price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil, synced_at,
-    artist, frame, border_color, frame_effects, promo_types, full_art, textless
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     oracle_id = excluded.oracle_id,
     artist = excluded.artist,
@@ -167,6 +168,7 @@ const upsertCard = db.prepare(`
     promo_types = excluded.promo_types,
     full_art = excluded.full_art,
     textless = excluded.textless,
+    flavor_name = excluded.flavor_name,
     name = excluded.name,
     set_code = excluded.set_code,
     set_name = excluded.set_name,
@@ -234,6 +236,7 @@ while (url) {
       Array.isArray(c.promo_types) ? c.promo_types.join(",") : "",
       c.full_art ? 1 : 0,
       c.textless ? 1 : 0,
+      c.flavor_name ?? c.card_faces?.[0]?.flavor_name ?? "",
     );
   }
   db.exec("COMMIT");
