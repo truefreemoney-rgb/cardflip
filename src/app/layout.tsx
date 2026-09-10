@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   // iOS ignores the manifest's display mode; these meta tags are what make
   // "Add to Home Screen" open full-screen there. Icons + manifest come from
-  // app/icon.tsx, app/apple-icon.tsx, app/manifest.ts.
+  // app/icon.png, app/apple-icon.png, public/icon-maskable.png (all from public/brand/cardflip-icon.png), app/manifest.ts.
   appleWebApp: {
     capable: true,
     title: "CardFlip",

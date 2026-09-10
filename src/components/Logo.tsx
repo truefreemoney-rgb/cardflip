@@ -10,7 +10,7 @@ import logo from "../../public/brand/cardflip-logo.png";
  * pages; the browser scales it down, so it stays sharp on 2x–4x phones.
  *
  * Replaced the inline "Spin Cycle" SVG mark + "CardFlip" text. The favicon
- * and app icon (app/icon.tsx, app/apple-icon.tsx) are unchanged.
+ * and app icon are the same CF card mark (app/icon.png, app/apple-icon.png, 09-10).
  */
 export default function Logo({ size = "md", href = "/" }: { size?: "sm" | "md"; href?: string }) {
   const box = size === "sm" ? "h-7" : "h-8";

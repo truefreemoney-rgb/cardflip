@@ -20,11 +20,11 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0a0b11",
     categories: ["shopping", "utilities"],
     icons: [
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
       // Padded variant: launchers mask to the middle ~80%, and the edge-to-edge
       // /icon lost its corners on Android (mobile QA 09-06).
-      { src: "/icon-maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/apple-icon", sizes: "180x180", type: "image/png" },
+      { src: "/icon-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
     ],
   };
 }
