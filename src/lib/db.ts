@@ -319,8 +319,6 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_set ON mtg_cards(set_code);
   -- Twin of the comma-less lowercase name in lib/server/mtgCards.ts.
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_folded ON mtg_cards(REPLACE(LOWER(name), ',', ''));
-  -- Flavor names (LTC 386 "Shards of Narsil" = Thorn of Amethyst) get the same fold; partial, most rows are blank.
-  CREATE INDEX IF NOT EXISTS idx_mtg_cards_flavor ON mtg_cards(REPLACE(LOWER(flavor_name), ',', '')) WHERE flavor_name <> '';
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
@@ -636,6 +634,12 @@ async function initSchema(): Promise<void> {
   // of en_cards because the printed index leads with local_id.
   await client.execute(
     "CREATE INDEX IF NOT EXISTS idx_en_cards_set_total ON en_cards(set_card_count_official, local_id)",
+  );
+  // Flavor names (LTC 386 "Shards of Narsil" = Thorn of Amethyst) get the same
+  // fold as idx_mtg_cards_folded; partial, most rows are blank. After the probe:
+  // prod's mtg_cards predates the column (deploy fefcbb8 failed on this).
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS idx_mtg_cards_flavor ON mtg_cards(REPLACE(LOWER(flavor_name), ',', '')) WHERE flavor_name <> ''",
   );
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",
