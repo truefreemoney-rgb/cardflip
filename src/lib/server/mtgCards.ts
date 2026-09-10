@@ -334,6 +334,13 @@ export async function searchMtgCardsLocal(
     }
   };
   const listSeen = Boolean(cues?.marks?.includes("list-icon"));
+  // A stamped card prints its ORIGINAL code + number; Scryfall files it as
+  // "268p" in set "PDFT" (promo pack), "198s" / "51★" in "PDFT" / "PJOU"
+  // (prerelease), or "141z" in the same set (serialized). With the mark in
+  // the photo, that suffixed row is the printed key — without this the base
+  // printing won every one of the 21 stamped cards on the phase 2 panel.
+  const marks = new Set(cues?.marks ?? []);
+  const stampSuffix = marks.has("promo-stamp") ? /p$/ : marks.has("date-stamp") ? /[s★]$/ : marks.has("serialized") ? /z$/ : null;
   const score = (row: MtgCardRow): number => {
     const rowName = row.name.toLowerCase().replace(/,/g, "");
     // A List row's "M11-153" is the original's code + number; with the icon
@@ -341,8 +348,16 @@ export async function searchMtgCardsLocal(
     const listTwin = listSeen && row.set_code.toLowerCase() === "plst" && wantedCode
       ? row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
       : false;
-    const rowCode = listTwin ? wantedCode! : row.set_code.toLowerCase();
-    const rowNumber = listTwin ? row.collector_number.slice(wantedCode!.length + 1) : row.collector_number;
+    const rawCode = row.set_code.toLowerCase();
+    const stampTwin =
+      Boolean(stampSuffix) && wantedNumber !== null && stampSuffix!.test(row.collector_number) &&
+      (wantedCode === null || rawCode === wantedCode || rawCode === `p${wantedCode}`);
+    const rowCode = listTwin || (stampTwin && wantedCode) ? wantedCode! : rawCode;
+    const rowNumber = listTwin
+      ? row.collector_number.slice(wantedCode!.length + 1)
+      : stampTwin
+        ? row.collector_number.replace(stampSuffix!, "")
+        : row.collector_number;
     const frontFace = rowName.split(" // ")[0];
     const exactName = needle !== "" && (rowName === needle || frontFace === needle);
     const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace));
@@ -381,7 +396,11 @@ export async function searchMtgCardsLocal(
     return tier * NAME_TIER + codePenalty + pricePenalty + specialPenalty + cuePenalty(row, cues);
   };
 
-  if (artOnly) rows = rows.filter((row) => row.set_type === "memorabilia" && /art series/i.test(row.set_name));
+  // Art Series rows answer only an Art Series read: they carry no frame data,
+  // so they dodged every cue penalty and won name-only ties (phase 2 panel:
+  // a Tempest Swamp lost to the Art Series Swamp).
+  const isArtSeries = (row: MtgCardRow) => row.set_type === "memorabilia" && /art series/i.test(row.set_name);
+  rows = rows.filter((row) => isArtSeries(row) === artOnly);
   const ranked = rows
     .map((row) => ({ row, s: score(row) }))
     .filter((x) => Number.isFinite(x.s))
