@@ -583,8 +583,18 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // "PSA 10" for slabs, the raw scale otherwise; resume parses it back.
   function syncLedgerCondition(next: Partial<ScanItem>) {
     if (!item.serverId) return;
+    const merged = { ...item, ...next } as ScanItem;
+    // A condition change re-quotes the ledger price too (Chris, 09-10: "the
+    // price seems to always stay the same") and unlocks it, so Inventory and
+    // the live refresh land on the number this editor shows. Grading keeps
+    // its own path: the graded auto-price effect writes that one.
+    const requote =
+      "condition" in next && !merged.grading
+        ? quoteForItem({ ...merged, priceOverride: null }, currentPoint)?.suggested
+        : undefined;
     void updateServerCard(item.serverId, {
-      condition: describeItemCondition({ ...item, ...next } as ScanItem),
+      condition: describeItemCondition(merged),
+      ...(requote ? { price: requote, priceLocked: false } : {}),
     });
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;

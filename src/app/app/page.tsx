@@ -1174,12 +1174,16 @@ export default function AppPage() {
       if (item.status === "listed" || item.status === "sold") return item;
       if (item.condition === condition) return item;
       touched++;
+      const next = { ...item, condition, priceOverride: null };
       if (item.serverId) {
+        // Ledger price follows the condition, same as a single edit.
+        const requote = quoteForItem(next)?.suggested;
         void updateServerCard(item.serverId, {
-          condition: describeItemCondition({ ...item, condition }),
+          condition: describeItemCondition(next),
+          ...(requote ? { price: requote, priceLocked: false } : {}),
         });
       }
-      return { ...item, condition, priceOverride: null };
+      return next;
     });
     if (touched > 0) {
       commit(next);
