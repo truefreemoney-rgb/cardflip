@@ -434,12 +434,15 @@ export default function AdminBoard({ sections: initial, updatedAt: initialStamp 
       if (res.ok && data.runs) {
         const runs = data.runs as Record<number, RunStatus>;
         setRuns(runs);
-        // A run that is merged AND live is 100% done — it completes itself
-        // (Chris, 09-09: "you should be the only one completing these tasks").
+        // A run on a TASK that is merged AND live is 100% done — it completes
+        // itself (Chris, 09-09: "you should be the only one completing these
+        // tasks"). A run on a NOTE never does (Chris, 09-10, #26 and #15:
+        // "far from done, stop pushing it to complete") — only Chris (box
+        // options → Complete) or Claude closes a thought.
         const finished = new Set(Object.entries(runs).filter(([, r]) => r.state === "done" && r.deploy === "ready").map(([n]) => Number(n)));
         if (finished.size) {
           update((prev) =>
-            prev.map((sec) => ({
+            prev.map((sec) => (isNotes(sec.title) ? sec : {
               ...sec,
               items: sec.items.map((i) => {
                 const n = /^▶ RUNNING #(\d+)/.exec(i.text)?.[1];
