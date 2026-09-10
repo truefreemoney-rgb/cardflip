@@ -39,7 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-data/
+# The local SQLite folder at the repo root only. Unanchored, this also hid
+# src/app/admin/(console)/data/ — the admin "Prices & data" page never got
+# committed and 404'd on prod (issue #21).
+/data/
 
 # generated MTG mirror seed (npm run export:mtg), ~8 MB, rebuilt on each refresh
 seed/*.gz
