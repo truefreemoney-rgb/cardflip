@@ -68,7 +68,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
 - [x] Anthropic auto-reload ON — 09-05 (Chris).
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
-- [x] Magic switch OFF 09-05 (Chris). Flip on when Magic is ready.
+- [x] Magic switch OFF 09-05 (Chris). ON 09-10 (Claude, Chris: "make your best calls") after panel 99.0% + 42/42 real phone photos + CI/smoke green.
 - [ ] MD LLC decision (also solves the Stripe address).
 - [ ] iPOSTAL1 MAILBOX: BUSINESS NAME (Chris-side, 09-08; ticket #3081502). To put a business name on the mailbox the account must move off the personal plan: Mailbox Settings → Change Plan → Monthly or Yearly (yearly = 2 months free) → Virtual Business Address (from $14.99/mo) or Virtual Office (from $39.99/mo) → View Plans → pick the tier. Charged the difference from the current plan at upgrade. USPS still requires a personal name as the responsible box holder even on a business plan (confidential — visible only to iPostal1, the mail center, USPS). Do it together with the LLC decision above so the name on the box matches the entity on Stripe.
 - [x] eBay Application Growth Check FILED 09-06 (Browse API only → 50k/day; all other Sell defaults are huge: Inventory 2M, Orders 100k, Finances 15k). eBay may bounce it for low usage — refile when scans approach 5k/day. Cc support@. Follow-up on my side: cache Browse comps per card per day.
