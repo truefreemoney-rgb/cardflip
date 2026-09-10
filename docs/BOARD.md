@@ -27,6 +27,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Claude — my queue (in order)
 
+- [ ] [Claude] SOCIAL, HANDS-OFF. Step 1 shipped 09-10 (922f30d): content engine + /admin/social (movers of the week, card of the day, pictures at every site size, caption + Copy). Next: publisher routine, then YouTube Shorts → Meta (IG/FB/Threads) → TikTok → X/Pinterest/Bluesky if free. Chris only creates each account and pastes one token per row. Plan: docs/SOCIAL-AUTOPILOT.md.
 - [ ] [Claude] LOGGED 09-10: #26 social thread auto-completed on merge+deploy; Chris: far from done. On go: un-tick #26 back to Chris's thoughts; a run on a NOTE never completes itself (AdminBoard.tsx loadRuns finished set — skip thoughts sections).
 - [ ] [Claude] Homepage demo frame: static 2x image of the Inventory with one card per stage, EXAMPLE ribbon on the art, one-line caption + Try 10 scans free. Mockup approved 09-08; build after lockdown.
 - [ ] [Claude] RUNNER UPGRADE 1 — brain files: docs/RUNNER.md distilled from STATE.md + my memory rules (mobile-first, tight spacing, build for everyone, no auto-scan, one obvious action per screen) + the recent Completed list; the routine prompt reads it first. ~1h.
