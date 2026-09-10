@@ -150,20 +150,25 @@ const foldArtist = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
  * cue columns existed ('' everywhere) is treated as unknown, not wrong.
  */
 export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): number {
-  if (!cues) return 0;
   const known = row.frame !== "" || row.border_color !== "";
   let p = 0;
   const effects = row.frame_effects ? row.frame_effects.split(",") : [];
   const promos = row.promo_types ? row.promo_types.split(",") : [];
   const releaseYear = Number(row.set_release_date.slice(0, 4)) || 0;
+  const showcase = effects.includes("showcase");
+  const extended = effects.includes("extendedart");
+  const borderless = row.border_color === "borderless";
+  const retro = (row.frame === "1993" || row.frame === "1997") && releaseYear >= 2015;
+  const special = showcase || extended || borderless || retro || Boolean(row.full_art) || Boolean(row.textless);
+
+  // No treatment read at all: the plain printing is the likelier one in the
+  // photo (a nudge, not a vote — prod 09-10 broke a Sheoldred DMU name+code
+  // tie onto the borderless #435 by row order).
+  if (!cues?.treatment && known && special) p += 0.25;
+  if (!cues) return p;
 
   // Frame treatment ↔ Scryfall frame_effects / border / full_art / textless.
   if (cues.treatment && known) {
-    const showcase = effects.includes("showcase");
-    const extended = effects.includes("extendedart");
-    const borderless = row.border_color === "borderless";
-    const retro = (row.frame === "1993" || row.frame === "1997") && releaseYear >= 2015;
-    const special = showcase || extended || borderless || retro || Boolean(row.full_art) || Boolean(row.textless);
     const agrees =
       cues.treatment === "standard" ? !special
       : cues.treatment === "showcase" ? showcase

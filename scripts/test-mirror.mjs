@@ -200,6 +200,8 @@ for (const [code, name] of [["dmu", "Dominaria United"], ["cma", "Commander Anth
 }
 const mtgTopC = async (name, number, setCode, cues) =>
   (await searchMtgCardsLocal(name, number, setCode, 5, null, false, cues))[0]?.id ?? null;
+check("no treatment read: the plain printing edges out the special ones",
+  await mtgTopC("Sheoldred, the Apocalypse", null, "dmu", null), "dmu-107");
 check("treatment 'showcase' picks the showcase printing of the same set",
   await mtgTopC("Sheoldred, the Apocalypse", null, "dmu", { treatment: "showcase" }), "dmu-322");
 check("treatment 'borderless' picks the borderless printing",
