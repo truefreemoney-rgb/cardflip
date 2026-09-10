@@ -36,6 +36,7 @@
     "backfill:pokemon": "node --experimental-strip-types --no-warnings scripts/backfill-tcgcsv.mjs",
     "test:admin": "node --experimental-strip-types --no-warnings scripts/test-admin.mjs",
     "test:inventoryvalue": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-inventory-value.mjs",
+    "mtg:panel": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/mtg-panel.mjs",
     "test:cards": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-cards.mjs",
     "test:mirror": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-mirror.mjs",
     "replay:scans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/replay-scans.mjs",
