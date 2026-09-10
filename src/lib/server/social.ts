@@ -56,6 +56,8 @@ export interface SocialPost {
   title: string;
   caption: string;
   hashtags: string[];
+  /** Same post, fewer words, for sites with a short limit (Bluesky 300). */
+  shortCaption: string;
   /** Relative path; add ?size=square|story|landscape. */
   imagePath: string;
 }
@@ -229,6 +231,16 @@ export function moversCaption(game: GameId, movers: Mover[]): string {
   ].join("\n");
 }
 
+/** The movers post in under 300 characters: name and % only. */
+export function moversShortCaption(game: GameId, movers: Mover[]): string {
+  return [
+    `${GAME_LABEL[game]} price moves this week`,
+    ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
+    "",
+    "Scan a card, see what it's worth. cardflip.io",
+  ].join("\n");
+}
+
 export function cardCaption(game: GameId, card: Mover): string {
   const move =
     Math.abs(card.pct) >= 1
@@ -254,6 +266,7 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       day,
       title: `${GAME_LABEL[game]} movers of the week`,
       caption: moversCaption(game, movers),
+      shortCaption: moversShortCaption(game, movers),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
     });
@@ -266,6 +279,7 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       day,
       title: `Card of the day: ${card.name}`,
       caption: cardCaption(game, card),
+      shortCaption: cardCaption(game, card),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=card&game=${game}&day=${day}`,
     });

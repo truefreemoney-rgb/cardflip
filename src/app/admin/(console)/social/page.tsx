@@ -1,5 +1,8 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
+import SocialSites from "@/components/admin/SocialSites";
+import { isPostDay, siteStatus } from "@/lib/server/socialPublish";
+import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
 import { addDays, todayUtc } from "@/lib/priceSeries";
@@ -15,7 +18,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   await requireOwnerPage();
   const { day: raw } = await searchParams;
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayUtc();
-  const [pokemon, mtg] = await Promise.all([socialDrafts("pokemon", day), socialDrafts("mtg", day)]);
+  const [pokemon, mtg, sites] = await Promise.all([socialDrafts("pokemon", day), socialDrafts("mtg", day), siteStatus(SOCIAL_SITES)]);
   const drafts = [...pokemon, ...mtg];
   return (
     <section>
@@ -29,6 +32,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>
       </div>
+      <SocialSites sites={sites} day={day} isPostDay={isPostDay(day)} />
       <SocialPreview drafts={drafts} />
     </section>
   );
