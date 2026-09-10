@@ -25,6 +25,9 @@ const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; hint: s
 function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string) => void; onReply: () => void }) {
   const { reload } = useContext(RunsContext);
   const [merging, setMerging] = useState(false);
+  // The bullet list + screenshots fold away by default: on a phone the
+  // panel was a wall of 12px text Chris "can't read" (09-10).
+  const [open, setOpen] = useState(false);
   const pr = st.pr;
   async function merge() {
     if (!pr) return;
@@ -49,8 +52,9 @@ function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string
           : { text: "Merged · deploying, about 3 minutes", cls: "text-zinc-400" }
       : null;
   if (!st.reading && !st.question && !pr && !deploy) return null;
+  const hasDetails = Boolean(pr && (pr.summary.length > 0 || pr.images.length > 0));
   return (
-    <div className="mt-1.5 space-y-1.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2 text-[12px] leading-snug">
+    <div className="mt-1.5 space-y-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2.5 text-[13px] leading-relaxed sm:text-[12px] sm:leading-snug">
       {st.reading && (
         <p className="text-zinc-300">
           <span className="text-zinc-500">Reading this as: </span>
@@ -70,17 +74,23 @@ function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string
             <span className="text-zinc-500">Change: </span>
             {pr.title}
           </p>
-          {pr.summary.length > 0 && (
-            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-zinc-400">
+          {hasDetails && (
+            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-1 text-zinc-400 hover:text-white">
+              {open ? "Hide the details ▴" : `Show the details ▾ (${[pr.summary.length > 0 ? `${pr.summary.length} points` : "", pr.images.length > 0 ? `${pr.images.length} screenshots` : ""].filter(Boolean).join(", ")})`}
+            </button>
+          )}
+          {open && pr.summary.length > 0 && (
+            <ul className="mt-1.5 list-disc space-y-1 pl-4 text-zinc-300 sm:text-zinc-400">
               {pr.summary.map((line, i) => <li key={i}>{line}</li>)}
             </ul>
           )}
-          {pr.images.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {open && pr.images.length > 0 && (
+            // One swipeable row, phone-height thumbnails; tap opens full size.
+            <div className="-mx-3 mt-2 flex snap-x gap-2 overflow-x-auto px-3 pb-1">
               {pr.images.map((u) => (
-                <a key={u} href={u} target="_blank" rel="noreferrer" title={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Open full size"} className="block overflow-hidden rounded-md border border-edge bg-black/40">
+                <a key={u} href={u} target="_blank" rel="noreferrer" title={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Open full size"} className="block shrink-0 snap-start overflow-hidden rounded-md border border-edge bg-black/40">
                   {/* eslint-disable-next-line @next/next/no-img-element -- raw.githubusercontent, no next/image config */}
-                  <img src={u} alt={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Screenshot from the run"} loading="lazy" className="h-36 w-auto object-contain" />
+                  <img src={u} alt={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Screenshot from the run"} loading="lazy" className="h-72 w-auto object-contain sm:h-44" />
                 </a>
               ))}
             </div>
