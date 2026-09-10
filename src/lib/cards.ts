@@ -82,6 +82,8 @@ export async function searchCards(
     if (printed.setCode) params.set("setCode", printed.setCode);
     if (printed.setName) params.set("setName", printed.setName);
     if (printed.copyrightYear) params.set("year", String(printed.copyrightYear));
+    if (printed.subtitle) params.set("sub", printed.subtitle);
+    if (printed.variant) params.set("variant", printed.variant);
   }
 
   // A hung serverless call (cold start + slow query) used to spin callers'

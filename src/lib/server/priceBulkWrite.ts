@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { GameId } from "@/lib/types";
 
 /**
  * Bulk read/write helpers for the daily price refreshers.
@@ -19,7 +20,7 @@ export interface SeriesKeyed {
 }
 
 /** All series rows for one game+source, keyed `${cardId}|${variant}`. */
-export async function readSeriesMap(game: "pokemon" | "mtg", source: string): Promise<Map<string, SeriesKeyed>> {
+export async function readSeriesMap(game: GameId, source: string): Promise<Map<string, SeriesKeyed>> {
   const map = new Map<string, SeriesKeyed>();
   // Paginate on rowid: the full family is 10s of MB and a single huge SELECT
   // risks the HTTP client's response limits.
@@ -40,7 +41,7 @@ export async function readSeriesMap(game: "pokemon" | "mtg", source: string): Pr
 
 export interface SeriesUpsert {
   cardId: string;
-  game: "pokemon" | "mtg";
+  game: GameId;
   variant: string;
   source: string;
   currency: string;

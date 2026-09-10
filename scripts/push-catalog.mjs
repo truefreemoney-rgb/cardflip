@@ -47,6 +47,7 @@ const CATALOG_TABLES = [
   "mtg_sets",
   "mtg_cards",
   "tcgplayer_products",
+  "tcg_cards",
 ];
 
 const local = new DatabaseSync(path.join(root, "data", "cardflip.db"), { readOnly: true });

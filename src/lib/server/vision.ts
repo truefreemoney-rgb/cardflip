@@ -174,6 +174,47 @@ export const MTG_READ_SCHEMA = {
   required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "borderColor", "serialNumber"],
 } as const;
 
+/**
+ * The Lorcana / One Piece read (09-10, docs/NEW-GAMES.md): everything in
+ * CARD_READ_SCHEMA plus the version line under a Lorcana name and the
+ * printing variant that picks the price line in both games.
+ */
+export const TCG_VARIANTS = new Set(["standard", "parallel", "enchanted", "alt-art", "manga", "box-topper", "full-art", "special", "reprint"]);
+
+export const TCG_READ_SCHEMA = {
+  ...CARD_READ_SCHEMA,
+  properties: {
+    ...CARD_READ_SCHEMA.properties,
+    subtitle: nullableString(
+      "Disney Lorcana only: the version line printed in smaller type directly under the character name (e.g. 'On Human Legs', 'Spectacular Singer'). Null for One Piece and when there is none.",
+    ),
+    variant: {
+      anyOf: [{ type: "string", enum: ["standard", "parallel", "enchanted", "alt-art", "manga", "box-topper", "full-art", "special"] }, { type: "null" }],
+      description:
+        "The printing. 'standard': the normal card frame with the art in its box. Lorcana: 'enchanted' when the illustration fills the whole card with a shimmering border-to-border treatment and the number is above the set total (e.g. 205/204). One Piece: 'parallel' (alternate art) when the illustration extends past the usual art box or is a different picture from the normal print, 'manga' for a manga-panel style illustration, 'box-topper' for the box-topper stamp, 'full-art' for a borderless full-art print. Null if unsure.",
+    },
+  },
+  required: [...CARD_READ_SCHEMA.required, "subtitle", "variant"],
+} as const;
+
+export const SYSTEM_LORCANA = `You identify Disney Lorcana trading cards from photos for a seller who is about to list them.
+
+Read what is actually on the card. The lookup keys on the name, the version line under it, and the collector fraction, so those matter most — return null rather than a guess for anything you cannot actually see, and let confidence reflect that.
+
+The name is the large text in the name band; the version is the smaller line right under it ("Ariel - On Human Legs" is name "Ariel", subtitle "On Human Legs") — report the two separately, never joined. The collector number is printed bottom-left as a fraction like "42/204" followed by a dot and the set number ("· 1"): cardNumber is the left half, setTotal the right half, setCode the set number after the dot. Enchanted cards fill the whole face with art and carry a number ABOVE the set total (205/204 and up); report variant "enchanted" for those. Foil is a finish, not a different card — ignore shine.
+
+The copyright line along the bottom prints a year ("©Disney" with a year on the right); report the last year you can read in copyrightYear.
+
+Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;
+
+export const SYSTEM_ONEPIECE = `You identify One Piece Card Game cards from photos for a seller who is about to list them.
+
+Read what is actually on the card. The lookup keys on the card id printed in the bottom-left corner — "OP01-077", "ST01-001", "EB01-005", "PRB01-002" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is null for this game.
+
+Alternate-art printings share the same id and are told apart only by the picture: report variant "parallel" when the illustration extends beyond the normal art box or is clearly a different illustration from the standard print, "manga" for a manga-panel style illustration, "box-topper" when a box-topper stamp is present, "full-art" for a borderless full-art print, "standard" for the normal framed print. Null if unsure. The rarity letters near the id (C, UC, R, SR, SEC, L) are not the variant.
+
+Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;
+
 export const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The name and the full collector fraction are
@@ -432,9 +473,9 @@ async function firstLook(
     // photo in a batch — low effort keeps a stack of cards moving.
     output_config: {
       effort: "low",
-      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : CARD_READ_SCHEMA },
+      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : CARD_READ_SCHEMA },
     },
-    system: game === "mtg" ? SYSTEM_MTG : SYSTEM,
+    system: game === "mtg" ? SYSTEM_MTG : game === "lorcana" ? SYSTEM_LORCANA : game === "onepiece" ? SYSTEM_ONEPIECE : SYSTEM,
     messages: [
       {
         role: "user",
@@ -484,6 +525,12 @@ async function firstLook(
     copyrightYear: typeof parsed.copyrightYear === "number" && parsed.copyrightYear >= 1993 && parsed.copyrightYear <= 2100 ? Math.trunc(parsed.copyrightYear) : null,
     name: parsed.name.trim(),
     ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),
+    ...(game === "lorcana" || game === "onepiece"
+      ? {
+          subtitle: (parsed as { subtitle?: string | null }).subtitle?.trim() || null,
+          variant: TCG_VARIANTS.has(String((parsed as { variant?: string | null }).variant)) ? (parsed as { variant?: string | null }).variant : null,
+        }
+      : {}),
   };
   const u = response.usage;
   return {
@@ -748,6 +795,9 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
   if (game === "mtg") {
     const { mtgCardById } = await import("@/lib/server/mtgCards");
     url = (await mtgCardById(id))[0]?.imageLarge ?? null;
+  } else if (game === "lorcana" || game === "onepiece") {
+    const { tcgCardById } = await import("@/lib/server/tcgCards");
+    url = (await tcgCardById(id))[0]?.imageLarge ?? null;
   } else {
     const { englishCardById } = await import("@/lib/server/enCards");
     url = (await englishCardById(id)).cards[0]?.imageLarge ?? null;
@@ -757,10 +807,27 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
   url = url.replace(/(images\.pokemontcg\.io\/[^/]+\/[^/._]+)\.png$/, "$1_hires.png");
   const res = await fetch(url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" }, signal: AbortSignal.timeout(12_000) });
   if (!res.ok) return null;
-  const bytes = Buffer.from(await res.arrayBuffer());
-  const mediaType: ImageMediaType =
-    bytes.subarray(0, 4).toString("hex") === "89504e47" ? "image/png" : bytes.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
-  return { base64: bytes.toString("base64"), mediaType };
+  return toClaudeImage(Buffer.from(await res.arrayBuffer()));
+}
+
+/**
+ * Bytes → something Claude accepts. Lorcast serves AVIF, which the API does
+ * not take, so anything that is not JPEG / PNG / WebP / GIF is re-encoded
+ * as JPEG with sharp.
+ */
+export async function toClaudeImage(bytes: Buffer): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  const head4 = bytes.subarray(0, 4).toString("hex");
+  const isPng = head4 === "89504e47";
+  const isJpeg = head4.startsWith("ffd8ff");
+  const isWebp = bytes.subarray(8, 12).toString() === "WEBP";
+  const isGif = bytes.subarray(0, 3).toString() === "GIF";
+  if (isPng) return { base64: bytes.toString("base64"), mediaType: "image/png" };
+  if (isWebp) return { base64: bytes.toString("base64"), mediaType: "image/webp" };
+  if (isGif) return { base64: bytes.toString("base64"), mediaType: "image/gif" };
+  if (isJpeg) return { base64: bytes.toString("base64"), mediaType: "image/jpeg" };
+  const sharp = (await import("sharp")).default;
+  const jpeg = await sharp(bytes).jpeg({ quality: 90 }).toBuffer();
+  return { base64: jpeg.toString("base64"), mediaType: "image/jpeg" };
 }
 
 /**

@@ -15,8 +15,9 @@ import {
 } from "@/lib/server/enCards";
 import type { ArtStyle, MtgCues, ScanLanguage } from "@/lib/types";
 import { parseMtgCuesParams } from "@/lib/mtgCues";
-import { parseGame } from "@/lib/games";
 import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtgCards";
+import { hasTcgMirror, isTcgGame, searchTcgCardsLocal, tcgCardById } from "@/lib/server/tcgCards";
+import { GAMES, parseGame } from "@/lib/games";
 import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
 import {
   LIMITS,
@@ -155,6 +156,9 @@ export async function GET(req: NextRequest) {
     if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
       return NextResponse.json({ cards: await mtgCardById(exactId), matchedOn: "id", source: "local" });
     }
+    if (isTcgGame(parseGame(req.nextUrl.searchParams.get("game")))) {
+      return NextResponse.json({ cards: await tcgCardById(exactId), matchedOn: "id", source: "local" });
+    }
     const local = await englishCardById(exactId);
     if (local.cards.length === 0) return NextResponse.json({ cards: [], matchedOn: "id", source: "local" });
     // Same budget as the name path (09-10: a history tile sat on its spinner
@@ -179,6 +183,30 @@ export async function GET(req: NextRequest) {
   }
 
   // Magic: The Gathering — its own mirror, prices included, no upstream
+  // Lorcana / One Piece (09-10, docs/NEW-GAMES.md): the shared tcg_cards
+  // mirror carries names, numbers, variants and prices — one local call.
+  {
+    const game = parseGame(req.nextUrl.searchParams.get("game"));
+    if (isTcgGame(game)) {
+      if (!name && !number) {
+        return NextResponse.json({ error: "Missing name (or a card number like OP01-001 / 42/204)" }, { status: 400 });
+      }
+      if (!(await hasTcgMirror(game))) {
+        return NextResponse.json({ error: `The ${GAMES[game].label} catalogue isn't loaded on this server yet` }, { status: 503 });
+      }
+      const rawName = (req.nextUrl.searchParams.get("name") ?? "").trim().slice(0, 120);
+      const subtitle = sanitize(req.nextUrl.searchParams.get("sub") ?? "") || null;
+      const variantParam = sanitize(req.nextUrl.searchParams.get("variant") ?? "") || null;
+      const printedKey: PrintedNumber | null = number ? { number, setTotal, setCode, isSecretRare: false } : null;
+      const cards = await searchTcgCardsLocal(game, rawName, printedKey, limit, subtitle, variantParam);
+      const matchedOn = !rawName ? "number+set" : number ? "name+number" : "name";
+      if (cards.length === 0) {
+        console.warn("search-card no match", JSON.stringify({ game, name: rawName, number, setTotal, setCode, subtitle, variant: variantParam }));
+      }
+      return NextResponse.json({ cards, matchedOn, source: "local" });
+    }
+  }
+
   // call. Name and/or (collector number + set code) identify a printing.
   // Not cached: the mirror is local and already carries the prices.
   if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {

@@ -1,5 +1,7 @@
 "use client";
 
+import type { GameId } from "@/lib/types";
+
 import { useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 
@@ -12,7 +14,7 @@ import { apiPath } from "@/lib/client/basePath";
 export interface DraftView {
   id: string;
   kind: "movers" | "card";
-  game: "pokemon" | "mtg";
+  game: GameId;
   day: string;
   title: string;
   caption: string;

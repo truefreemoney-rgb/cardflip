@@ -276,6 +276,33 @@ const SCHEMA = `
   -- doesn't: prices per printing (USD nonfoil/foil/etched, EUR), rarity,
   -- type line and finishes. Prices refresh on every sync, so MTG pricing is
   -- served from here rather than a live upstream (see lib/server/mtgCards.ts).
+  -- Shared mirror for the games after Magic (09-10: Disney Lorcana from
+  -- Lorcast, One Piece from optcgapi.com; see scripts/sync-lorcana.mjs,
+  -- scripts/sync-onepiece.mjs and docs/NEW-GAMES.md). One table, a game
+  -- column: the printed key is the same shape everywhere — name, set code,
+  -- collector number — plus a subtitle (Lorcana's version line) and a
+  -- variant (parallel / enchanted / box topper) that picks the price line.
+  CREATE TABLE IF NOT EXISTS tcg_cards (
+    id TEXT PRIMARY KEY,
+    game TEXT NOT NULL,
+    name TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    set_code TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    collector_number TEXT NOT NULL,
+    set_total INTEGER,
+    set_release_date TEXT NOT NULL DEFAULT '',
+    rarity TEXT NOT NULL DEFAULT '',
+    variant TEXT NOT NULL DEFAULT '',
+    image_url TEXT NOT NULL DEFAULT '',
+    price_usd REAL,
+    price_usd_foil REAL,
+    art_hash TEXT NOT NULL DEFAULT '',
+    synced_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_name ON tcg_cards(game, name);
+  CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_key ON tcg_cards(game, set_code, collector_number);
+
   CREATE TABLE IF NOT EXISTS mtg_sets (
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,

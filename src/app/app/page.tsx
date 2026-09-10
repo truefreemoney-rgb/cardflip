@@ -20,7 +20,7 @@ import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { parseGradeQuery } from "@/lib/grading";
-import { readSavedGame, saveGame } from "@/lib/games";
+import { parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import {
@@ -392,6 +392,8 @@ export default function AppPage() {
                   isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal),
                   setName: read.setName,
                   copyrightYear: read.copyrightYear ?? null,
+                  subtitle: read.subtitle ?? null,
+                  variant: read.variant ?? null,
                 }
               : null;
 
@@ -793,7 +795,7 @@ export default function AppPage() {
     // two-plus seconds of blank stare on a cold function (Chris, 09-02).
     const hintName = params.get("rn");
     const hintNumber = params.get("rnum");
-    const hintGame = params.get("rg") === "mtg" ? "mtg" : "pokemon";
+    const hintGame = parseGame(params.get("rg"));
     const hintPhotoAt = params.get("rp");
     const hintImage = params.get("ri");
     window.history.replaceState(null, "", window.location.pathname);
@@ -831,7 +833,7 @@ export default function AppPage() {
       // stale or hand-edited link falls back to the exact lookup). Hints
       // only ride along on single-card links.
       const build = async (row: ServerCard): Promise<ScanItem | null> => {
-        const game = row.game === "mtg" ? "mtg" : "pokemon";
+        const game = parseGame(row.game);
         const eager =
           wanted.length === 1 && hintName === row.cardName && (hintNumber || "") === (row.cardNumber || "")
             ? await eagerSearch

@@ -91,12 +91,40 @@ export const GAMES: Record<GameId, GameInfo> = {
     searchPlaceholder: "e.g. Lightning Bolt LTR 187",
     numberExample: "187/281",
   },
+  // 09-10: the games after Magic (docs/NEW-GAMES.md). Same eBay CCG
+  // categories; only the Game aspect and the words differ.
+  lorcana: {
+    id: "lorcana",
+    label: "Lorcana",
+    fullName: "Disney Lorcana",
+    titleToken: "Disney Lorcana",
+    searchToken: "lorcana",
+    ebayGameAspect: "Disney Lorcana",
+    singlesCategoryName: "Collectible Card Games > Disney Lorcana > Individual Cards",
+    sealedCategoryName: "Collectible Card Games > Disney Lorcana > Sealed Products",
+    sealedProductTypes: ["Booster Pack", "Booster Box", "Illumineer's Trove", "Starter Deck", "Gift Set", "Blister Pack"],
+    searchPlaceholder: "e.g. Elsa 42/204",
+    numberExample: "42/204",
+  },
+  onepiece: {
+    id: "onepiece",
+    label: "One Piece",
+    fullName: "One Piece Card Game",
+    titleToken: "One Piece TCG",
+    searchToken: "one piece",
+    ebayGameAspect: "One Piece Card Game",
+    singlesCategoryName: "Collectible Card Games > One Piece Card Game > Individual Cards",
+    sealedCategoryName: "Collectible Card Games > One Piece Card Game > Sealed Products",
+    sealedProductTypes: ["Booster Pack", "Booster Box", "Starter Deck", "Double Pack", "Premium Card Collection"],
+    searchPlaceholder: "e.g. Roronoa Zoro OP01-001",
+    numberExample: "OP01-001",
+  },
 };
 
-export const GAME_IDS: GameId[] = ["pokemon", "mtg"];
+export const GAME_IDS: GameId[] = ["pokemon", "mtg", "lorcana", "onepiece"];
 
 export function isGameId(value: unknown): value is GameId {
-  return value === "pokemon" || value === "mtg";
+  return typeof value === "string" && (GAME_IDS as string[]).includes(value);
 }
 
 /** Query-string / form value → GameId, Pokémon when absent or unknown. */
@@ -141,6 +169,9 @@ export function displayCardNumber(card: {
   game?: GameId;
 }): string {
   if (card.game === "mtg") return `${card.setCode ?? ""} ${card.number}`.trim();
+  // One Piece prints the set inside the number ("OP01-077"); Lorcana prints
+  // number/total like Pokémon.
+  if (card.game === "onepiece") return card.number;
   return card.setTotal ? `${card.number}/${card.setTotal}` : card.number;
 }
 

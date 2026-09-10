@@ -1,3 +1,4 @@
+import type { GameId } from "@/lib/types";
 "use client";
 
 import { apiFetch } from "@/lib/client/basePath";
@@ -7,7 +8,7 @@ export interface ServerCard {
   userId: string;
   kind: "card" | "sealed";
   /** "pokemon" | "mtg" — absent on rows written before games existed. */
-  game?: "pokemon" | "mtg";
+  game?: GameId;
   cardName: string;
   setName: string;
   cardNumber: string;
@@ -59,7 +60,7 @@ export interface ServerCard {
 
 export interface CreateCardInput {
   kind?: "card" | "sealed";
-  game?: "pokemon" | "mtg";
+  game?: GameId;
   cardName: string;
   setName: string;
   cardNumber: string;

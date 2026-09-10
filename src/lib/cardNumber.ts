@@ -47,6 +47,10 @@ export interface PrintedNumber {
   setName?: string | null;
   /** Last year of the copyright line — the print year. Tiebreak between same-fraction printings years apart. */
   copyrightYear?: number | null;
+  /** Lorcana: the version line under the name ("On Human Legs"). */
+  subtitle?: string | null;
+  /** Lorcana / One Piece: the printing the read saw — "standard", "parallel", "enchanted", "alt-art", … */
+  variant?: string | null;
 }
 
 /**

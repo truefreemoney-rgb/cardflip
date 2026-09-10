@@ -26,6 +26,34 @@ export async function magicPublic(): Promise<boolean> {
   return (await getSetting(MAGIC_PUBLIC_KEY)) === "1";
 }
 
+/**
+ * Every game after Pokémon is admin-only until its switch is flipped
+ * (docs/BACKLOG.md NEXT VERTICALS: one at a time, gated first). Magic keeps
+ * its original key; the newer games use "<game>_public".
+ */
+export const GATED_GAMES = ["mtg", "lorcana", "onepiece"] as const;
+export type GatedGame = (typeof GATED_GAMES)[number];
+
+export function gamePublicKey(game: GatedGame): string {
+  return game === "mtg" ? MAGIC_PUBLIC_KEY : `${game}_public`;
+}
+
+export async function gamePublic(game: GatedGame): Promise<boolean> {
+  return (await getSetting(gamePublicKey(game))) === "1";
+}
+
+export async function gameVisibleFor(user: Pick<User, "role"> | null | undefined, game: GatedGame): Promise<boolean> {
+  if (user?.role === "admin") return true;
+  return gamePublic(game);
+}
+
+/** The per-game visibility map the session hands the client. */
+export async function gameFeaturesFor(user: Pick<User, "role"> | null | undefined): Promise<Record<GatedGame, boolean>> {
+  const out = {} as Record<GatedGame, boolean>;
+  for (const g of GATED_GAMES) out[g] = await gameVisibleFor(user, g);
+  return out;
+}
+
 /** Magic for this viewer: admins always, everyone else only when public. */
 export async function magicVisibleFor(user: Pick<User, "role"> | null | undefined): Promise<boolean> {
   if (user?.role === "admin") return true;

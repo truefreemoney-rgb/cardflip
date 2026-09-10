@@ -24,19 +24,24 @@ interface Props {
 export default function GameToggle({ game, onChange, compact = false, counts, block = false }: Props) {
   // Magic admins-only (09-04): the toggle vanishes for sellers and a saved
   // "mtg" preference snaps back to Pokémon, so nothing downstream sees it.
+  // Every game after Pokémon is admins-only until its switch is flipped
+  // (features come from /api/auth/me); a saved preference for a hidden game
+  // snaps back to Pokémon, so nothing downstream sees it.
   const session = useOptionalSession();
-  const magic = session?.user?.features?.magic ?? true;
+  const features = session?.user?.features;
+  const visible = GAME_IDS.filter((id) => id === "pokemon" || (features ? features[id as keyof typeof features] ?? true : true));
+  const hidden = !visible.includes(game);
   useEffect(() => {
-    if (!magic && game === "mtg") onChange("pokemon");
-  }, [magic, game, onChange]);
-  if (!magic) return null;
+    if (hidden) onChange("pokemon");
+  }, [hidden, onChange]);
+  if (visible.length < 2) return null;
   return (
     <div
       role="radiogroup"
       aria-label="Card game"
       className={`${block ? "flex w-full" : "inline-flex"} rounded-full border border-edge bg-surface-1 p-1 ${compact ? "text-xs" : "text-sm"}`}
     >
-      {GAME_IDS.map((id) => (
+      {visible.map((id) => (
         <button
           key={id}
           type="button"

@@ -7,7 +7,7 @@ export type ScanLanguage = "en" | "ja" | "zh";
  * mirror table, vision prompt, listing words and eBay aspects — see
  * lib/games.ts).
  */
-export type GameId = "pokemon" | "mtg";
+export type GameId = "pokemon" | "mtg" | "lorcana" | "onepiece";
 
 export type PriceSource = "tcgplayer" | "cardmarket" | "ebay";
 
@@ -169,6 +169,11 @@ export interface VisionCardRead {
   bevel?: boolean | null;
   /** Magic, from the second look: the bottom-left corner was checked for The List icon — true seen, false empty, null unchecked. */
   listIconSeen?: boolean | null;
+  // --- Lorcana / One Piece (TCG_READ_SCHEMA), 09-10 ---
+  /** Lorcana's version line under the name ("On Human Legs"); null elsewhere. */
+  subtitle?: string | null;
+  /** The printing as the face shows it: "standard" | "parallel" | "enchanted" | "alt-art" | "manga" | "box-topper" | "full-art" | null. */
+  variant?: string | null;
   // --- Magic only (MTG_READ_SCHEMA); absent on Pokémon reads. ---
   /** Foil read off the shine of the whole face; null when the photo can't settle it. */
   finish?: MtgFinish | null;
