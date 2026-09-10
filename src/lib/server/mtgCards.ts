@@ -229,6 +229,20 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
   if (cues.border && cues.border !== "borderless" && row.border_color && row.border_color !== "borderless") {
     if (cues.border !== row.border_color) p += 3;
   }
+
+  // Second-look cues for the 1990s white-border ladder (09-10 panel):
+  // a readable bottom strip with NO year line means a pre-April-1995 card,
+  // so 4th Edition and later lose two; the Unlimited bevel (a dark inner
+  // line where the white border meets the frame) separates Unlimited from
+  // the flat-bordered Revised / Summer / 4th / 5th.
+  if (cues.noYearLine && row.set_release_date >= "1995-04-01" && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) p += 2;
+  if (typeof cues.bevel === "boolean" && row.border_color === "white" && releaseYear && releaseYear < 1998) {
+    const code = row.set_code.toLowerCase();
+    const beveled = code === "2ed";
+    const flat = code === "3ed" || code === "sum" || code === "4ed" || code === "5ed";
+    if (cues.bevel && flat) p += 2;
+    if (!cues.bevel && beveled) p += 2;
+  }
   return p;
 }
 
@@ -391,8 +405,12 @@ export async function searchMtgCardsLocal(
     const rowName = row.name.toLowerCase().replace(/,/g, "");
     // A List row's "M11-153" is the original's code + number; with the icon
     // in the photo, that IS the printed key.
+    // (Vision sometimes reports the List's own code, "PLST", with the bare
+    // original number — then any PLST row ending in that number is the key.)
     const listTwin = listSeen && row.set_code.toLowerCase() === "plst" && wantedCode
-      ? row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
+      ? wantedCode === "plst"
+        ? wantedNumber !== null && row.collector_number.toLowerCase().endsWith(`-${wantedNumber}`)
+        : row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
       : false;
     const rawCode = row.set_code.toLowerCase();
     const stampTwin =
@@ -446,7 +464,10 @@ export async function searchMtgCardsLocal(
   // Art Series rows answer only an Art Series read: they carry no frame data,
   // so they dodged every cue penalty and won name-only ties (phase 2 panel:
   // a Tempest Swamp lost to the Art Series Swamp).
-  const isArtSeries = (row: MtgCardRow) => row.set_type === "memorabilia" && /art series/i.test(row.set_name);
+  // By set name OR by the card's own type line ("Card", "Card // Card"): the
+  // Tales of Middle-earth art cards live in a set called "Scene Box" (09-10).
+  const isArtSeries = (row: MtgCardRow) =>
+    row.set_type === "memorabilia" && (/art series/i.test(row.set_name) || /^card\b/i.test(row.type_line ?? ""));
   rows = rows.filter((row) => isArtSeries(row) === artOnly);
   const ranked = rows
     .map((row) => ({ row, s: score(row) }))
@@ -488,6 +509,44 @@ export async function mtgCardsBySet(setCode: string): Promise<PokemonCard[]> {
 }
 
 /** True once scripts/sync-mtg.mjs has populated the mirror. */
+/**
+ * Whether The List reprinted this exact printing (PLST files it as
+ * "<SET>-<number>"). When it did, the scan's second look checks the
+ * bottom-left corner for the List icon before the ranker chooses.
+ */
+export async function hasListTwin(setCode: string, number: string): Promise<boolean> {
+  return (await hasTwinPrinting(setCode, number)) === "list";
+}
+
+/**
+ * Whether this printed key (set code + number) has a look-alike twin that
+ * only a corner mark tells apart: The List reprint ("<SET>-<n>" in PLST), a
+ * prerelease date stamp ("<n>s" in P<SET>), a promo-pack stamp ("<n>p"), or
+ * a serialized copy ("<n>z"). The scan's second look fires on these.
+ */
+export async function hasTwinPrinting(setCode: string, number: string): Promise<"list" | "prerelease" | "promo" | "serialized" | null> {
+  const code = setCode.toLowerCase();
+  try {
+    const rows = (await db
+      .prepare(
+        `SELECT set_code, collector_number FROM mtg_cards
+          WHERE (set_code = 'plst' AND collector_number = ?)
+             OR (set_code IN (?, ?) AND collector_number IN (?, ?, ?))
+          LIMIT 4`,
+      )
+      .all(`${setCode.toUpperCase()}-${number}`, code, `p${code}`, `${number}s`, `${number}p`, `${number}z`)) as unknown as Array<{ set_code: string; collector_number: string }>;
+    for (const r of rows) {
+      if (r.set_code === "plst") return "list";
+      if (r.collector_number.endsWith("s")) return "prerelease";
+      if (r.collector_number.endsWith("p")) return "promo";
+      if (r.collector_number.endsWith("z")) return "serialized";
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function hasMtgMirror(): Promise<boolean> {
   try {
     const row = (await db.prepare("SELECT 1 AS ok FROM mtg_cards LIMIT 1").get()) as { ok: number } | undefined;

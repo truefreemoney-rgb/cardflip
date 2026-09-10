@@ -299,6 +299,17 @@ check("a printed year rules out the no-year sets: © 1995 → 4th Edition",
   await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1995, border: "white" }), "4ed-311");
 check("same-year set beats the one-year-off set: © 1994 → Summer Magic, not 4th",
   await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1994, border: "white" }), "sum-242");
+check("second look saw no year line: 4th Edition loses, newest no-year white set (Summer) wins the tie",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true }), "sum-242");
+check("no year line + no bevel: Revised/Summer over Unlimited — Summer is newer, still a seller's tap",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: false }), "sum-242");
+check("no year line + the Unlimited bevel: Unlimited",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: true }), "2ed-241");
+check("bevel cue never touches a black-border row",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "black", bevel: false }), "leb-241");
+const { hasTwinPrinting } = await import(at("lib/server/mtgCards.ts"));
+check("twin lookup: a set+number The List reprinted", await hasTwinPrinting("m11", "153"), "list");
+check("twin lookup: a set+number with no look-alike", await hasTwinPrinting("dmu", "107"), null);
 
 check("finish is carried on the card, not used to rank",
   (await searchMtgCardsLocal("Sol Ring", null, "c21", 5, null, false, { finish: "foil" }))[0]?.finishes, ["nonfoil", "foil"]);

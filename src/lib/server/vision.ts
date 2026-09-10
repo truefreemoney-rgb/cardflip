@@ -356,11 +356,67 @@ function normalizeMtgCues(parsed: VisionCardRead): Partial<VisionCardRead> {
 }
 
 /** Same read, plus the usage the scan route records to scan_usage. */
+/**
+ * The whole read: one look at the card, then — only when that look left the
+ * identification unsettled — a second look at the bottom strip, enlarged,
+ * asking for just the printed details (docs/POKEMON-IDENTIFICATION.md,
+ * docs/MTG-IDENTIFICATION.md; Chris 09-10: 98% on a clear photo). The
+ * second call costs roughly a third of the first and fires on the hard
+ * tenth of scans, so the average scan barely moves.
+ */
 export async function analyzeCardImageWithUsage(
   base64Image: string,
   mediaType: string,
   languageHint: ScanLanguage,
   game: GameId = "pokemon",
+): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
+  const first = await firstLook(base64Image, mediaType, languageHint, game);
+  // An Art Series front prints no text at all, so the picture itself is the
+  // identification (lib/server/artHash.ts) — no second vision call needed.
+  if (game === "mtg" && (first.read.kind === "art" || /^unknown\b/i.test(first.read.name) || !first.read.name)) {
+    const matched = await matchArtByPicture(base64Image, first.read);
+    if (matched) return { read: matched, usage: first.usage };
+  }
+  const reason = await secondLookReason(first.read, game);
+  if (!reason) return first;
+  try {
+    const second = await secondLook(base64Image, game);
+    return {
+      read: mergeSecondLook(first.read, second.read, reason, game),
+      usage: addUsage(first.usage, second.usage),
+    };
+  } catch (err) {
+    // The first read stands; a failed close-up must never fail a scan.
+    console.warn("second look failed:", err instanceof Error ? err.message : err);
+    return { read: { ...first.read, secondLook: `${reason}:failed` }, usage: first.usage };
+  }
+}
+
+async function matchArtByPicture(base64Image: string, read: VisionCardRead): Promise<VisionCardRead | null> {
+  try {
+    const { matchArtSeries } = await import("@/lib/server/artHash");
+    const hit = await matchArtSeries(Buffer.from(base64Image, "base64"));
+    if (!hit) return null;
+    return {
+      ...read,
+      name: hit.name,
+      setCode: hit.setCode.toUpperCase(),
+      cardNumber: hit.number,
+      kind: "art",
+      confidence: Math.max(read.confidence ?? 0, 0.9),
+      secondLook: `art-picture:${hit.distance}`,
+    };
+  } catch (err) {
+    console.warn("art picture match failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+async function firstLook(
+  base64Image: string,
+  mediaType: string,
+  languageHint: ScanLanguage,
+  game: GameId,
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
   const response = await getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
@@ -438,5 +494,206 @@ export async function analyzeCardImageWithUsage(
       cacheReadTokens: u.cache_read_input_tokens ?? 0,
       cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Second look (09-10, the 98% push). The first read sees the whole card at
+// phone size; the printed details that settle a printing — collector
+// fraction, copyright year, the List icon, a date stamp, a serial, an Art
+// Series name — live in the bottom strip in small type. When the first read
+// left one of those open, crop that strip, enlarge it, and ask for those
+// fields alone.
+// ---------------------------------------------------------------------------
+
+export const SECOND_LOOK_SCHEMA = {
+  type: "object",
+  properties: {
+    name: nullableString(
+      "The card name if it is printed in this strip (Art Series cards print the name in small type along the bottom edge). Null when the name is not in this crop.",
+    ),
+    cardNumber: nullableString(
+      "The collector number as printed: the left half of a fraction ('199/165' -> '199', 'TG12/TG30' -> 'TG12'), or a promo number like 'SWSH001' / 'SVP 212', or a Magic number like '0158', '386z', '30s'. Null if not visible.",
+    ),
+    setTotal: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description: "The right half of that fraction ('199/165' -> 165, 'TG12/TG30' -> 30). Null when no denominator is printed.",
+    },
+    setCode: nullableString(
+      "The short expansion code printed beside the number, e.g. 'SVI', 'WAR', 'LTC'. Not a language code, not the regulation mark. Null if not visible.",
+    ),
+    copyrightYear: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description:
+        "The LAST year in the copyright line ('(c)2016 Pokemon' -> 2016; 'TM & (c) 1993-2023 Wizards of the Coast' -> 2023). Null when no year is printed (the earliest Magic cards print only 'Illus. (c) Artist').",
+    },
+    listIcon: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description:
+        "Magic only. true when a small WHITE planeswalker symbol (five-pointed flame shape) is printed inside the black border at the very bottom-left corner, left of or below the copyright line - The List reprint. false when that corner is visible and there is no such symbol. Null if the corner is not in the crop.",
+    },
+    dateStamp: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description: "Magic only. true when a small rectangular foil date stamp (prerelease) is visible. Null if unsure.",
+    },
+    serialNumber: nullableString("A printed serial like '045/500' if visible, else null."),
+    borderColor: {
+      anyOf: [{ type: "string", enum: ["black", "white", "silver", "gold", "borderless"] }, { type: "null" }],
+      description: "The colour of the card's outermost edge (outside the frame) as seen in this crop. Null if the edge is not visible.",
+    },
+    innerBevel: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description:
+        "Magic, WHITE-bordered 1990s cards only. true when the inner edge of the white border shows a thin dark bevelled / embossed line where it meets the coloured frame (Unlimited Edition prints this). false when the white border meets the frame flat, with no dark line (Revised, 4th, 5th Edition). Null for black borders, modern cards, or when the edge is not clear.",
+    },
+    confidence: { type: "number", description: "0 to 1, how sure you are of the number and year specifically." },
+  },
+  required: ["name", "cardNumber", "setTotal", "setCode", "copyrightYear", "listIcon", "dateStamp", "serialNumber", "borderColor", "innerBevel", "confidence"],
+  additionalProperties: false,
+} as const;
+
+const SYSTEM_SECOND_LOOK = `This is an enlarged close-up of the BOTTOM part of one trading card (Pokémon or Magic: The Gathering). Read only what is printed here, exactly as printed, and return null for anything you cannot actually see in this crop. Do not guess from memory of the card.
+
+What lives here: the collector number and its denominator or expansion code in the bottom corner; the copyright line and its last year; the artist credit; on Art Series cards the card's name in small type; on The List reprints a small white planeswalker symbol at the far bottom-left inside the black border; on prerelease cards a small rectangular foil date stamp; on serialized cards a printed serial like 045/500. The outer edge of the card, if visible, is black or white; on a white-bordered 1990s Magic card look at where the white border meets the coloured frame — Unlimited Edition has a thin dark bevelled line there, Revised and 4th Edition meet flat.`;
+
+type SecondLookRead = {
+  name: string | null;
+  cardNumber: string | null;
+  setTotal: number | null;
+  setCode: string | null;
+  copyrightYear: number | null;
+  listIcon: boolean | null;
+  dateStamp: boolean | null;
+  serialNumber: string | null;
+  borderColor: string | null;
+  innerBevel: boolean | null;
+  confidence: number;
+};
+
+/** Below this the first read is treated as unsettled. */
+const SECOND_LOOK_CONFIDENCE = 0.7;
+
+/**
+ * Why the first read needs a close-up, or null when it doesn't. Cheap and
+ * conservative: the second call has to earn its cost.
+ */
+export async function secondLookReason(read: VisionCardRead, game: GameId): Promise<string | null> {
+  if (game === "mtg") {
+    if (read.kind === "art" || /^unknown\b/i.test(read.name) || !read.name) return "art-name";
+    // The printed key names a card that ALSO exists as a List reprint, a
+    // prerelease / promo-pack stamp or a serialized twin: the corner mark
+    // decides, so look at the corner before the ranker chooses.
+    if (read.setCode && read.cardNumber && (read.marks ?? []).length === 0) {
+      const { hasTwinPrinting } = await import("@/lib/server/mtgCards");
+      const twin = await hasTwinPrinting(read.setCode, read.cardNumber.replace(/^0+(?=\d)/, ""));
+      if (twin) return `${twin}-twin`;
+    }
+  }
+  if (typeof read.confidence === "number" && read.confidence < SECOND_LOOK_CONFIDENCE) return "low-confidence";
+  if (!read.cardNumber && read.kind !== "art") return "no-number";
+  return null;
+}
+
+/** Bottom 45% of the image, widened to at least 1400px, as JPEG. */
+async function bottomStrip(base64Image: string): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  const sharp = (await import("sharp")).default;
+  const input = Buffer.from(base64Image, "base64");
+  const meta = await sharp(input).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  if (!w || !h) throw new Error("second look: unreadable image");
+  const top = Math.round(h * 0.55);
+  const targetWidth = Math.min(1568, Math.max(w, 1400));
+  const out = await sharp(input)
+    .extract({ left: 0, top, width: w, height: h - top })
+    .resize({ width: targetWidth, withoutEnlargement: false })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+}
+
+export async function secondLook(base64Image: string, game: GameId): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
+  const strip = await bottomStrip(base64Image);
+  const response = await getClient().messages.create({
+    model: VISION_MODEL,
+    max_tokens: 600,
+    output_config: { effort: "low", format: { type: "json_schema", schema: SECOND_LOOK_SCHEMA } },
+    system: SYSTEM_SECOND_LOOK,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: strip.mediaType, data: strip.base64 } },
+          { type: "text", text: `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.` },
+        ],
+      },
+    ],
+  });
+  const text = response.content.find((block) => block.type === "text");
+  if (!text || text.type !== "text") throw new Error("second look: no readable result");
+  const parsed = JSON.parse(text.text) as SecondLookRead;
+  const u = response.usage;
+  return {
+    read: parsed,
+    usage: {
+      inputTokens: u.input_tokens,
+      outputTokens: u.output_tokens,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+    },
+  };
+}
+
+/**
+ * Fold the close-up into the first read. Fill what was null; on a
+ * low-confidence first read let the close-up override the fraction; add the
+ * marks it saw. The first read keeps everything the crop cannot see (name
+ * band, art, condition).
+ */
+export function mergeSecondLook(first: VisionCardRead, second: SecondLookRead, reason: string, game: GameId): VisionCardRead {
+  const out: VisionCardRead = { ...first, secondLook: reason };
+  const override = reason === "low-confidence" || reason === "no-number";
+  const num = second.cardNumber?.trim() || null;
+  if (num && (override || !first.cardNumber)) out.cardNumber = num;
+  if (typeof second.setTotal === "number" && (override || !first.setTotal)) out.setTotal = second.setTotal;
+  const code = second.setCode?.trim().toUpperCase() || null;
+  if (code && (override || !first.setCode)) out.setCode = code;
+  const year =
+    typeof second.copyrightYear === "number" && second.copyrightYear >= 1993 && second.copyrightYear <= 2100
+      ? Math.trunc(second.copyrightYear)
+      : null;
+  if (year && !first.copyrightYear) out.copyrightYear = year;
+  if (second.name && (reason === "art-name" || !first.name || /^unknown\b/i.test(first.name))) out.name = second.name.trim();
+  if (override && typeof second.confidence === "number" && second.confidence > (first.confidence ?? 0)) out.confidence = second.confidence;
+  if (game === "mtg") {
+    const marks = new Set(first.marks ?? []);
+    if (second.listIcon === true) marks.add("list-icon");
+    if (second.dateStamp === true) marks.add("date-stamp");
+    const serial = second.serialNumber?.trim() || null;
+    if (serial) {
+      marks.add("serialized");
+      out.serialNumber = serial;
+    }
+    out.marks = [...marks] as VisionCardRead["marks"];
+    // The close-up sees the edge better than the whole-card read did (which
+    // called Beta white and Unlimited black on the 09-10 panel).
+    if (second.borderColor && MTG_BORDERS.has(second.borderColor) && (override || !first.borderColor)) {
+      out.borderColor = second.borderColor as VisionCardRead["borderColor"];
+    }
+    if (typeof second.innerBevel === "boolean") out.bevel = second.innerBevel;
+    // A readable bottom strip with no year on it: the card predates the
+    // year line (before 4th Edition / Ice Age) — a cue only the close-up
+    // can give, since the whole-card read cannot tell "none" from "missed".
+    if (!year && !first.copyrightYear && typeof second.confidence === "number" && second.confidence >= 0.6) out.noYearLine = true;
+  }
+  return out;
+}
+
+function addUsage(a: VisionUsage, b: VisionUsage): VisionUsage {
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
+    cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
   };
 }

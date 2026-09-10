@@ -468,6 +468,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "full_art INTEGER NOT NULL DEFAULT 0",
       "textless INTEGER NOT NULL DEFAULT 0",
       "flavor_name TEXT NOT NULL DEFAULT ''",
+      // Art Series picture fingerprint (lib/server/artHash.ts), 09-10.
+      "art_hash TEXT NOT NULL DEFAULT ''",
     ],
   ],
   [

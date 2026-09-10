@@ -46,6 +46,8 @@ penalties on purpose — they reorder ties, they never overrule a read number.
 | After the ranker rules | 178/188 = 94.7% | 96.3% |
 | After year + prompt, cached | 206/211 = 97.6% | 97.6% |
 | Same, clear images only | 206/208 = **99.0%** | |
+| Fresh prompt pass (TCGdex throttled 112 fetches; gaps filled from run 1) | 206/211 = 97.6% | 98.1% |
+| **Real phone photos on prod** (`npm run pokemon:phone`, 14 kept cards) | **14/14 = 100%** | 100% |
 
 Remaining misses that are the scanner's: two Gym Heroes / Gym Challenge
 basic energies (identical cards, only the tiny set symbol differs, vision
@@ -67,11 +69,22 @@ which is the wrong card.
   `_hires` twin. Anything rendering catalog art large should too.
 - **tk-xy-sy-20's image is card 24.**
 
+## The second look (shipped 09-10)
+
+`analyzeCardImageWithUsage` in lib/server/vision.ts is now first look +
+second look: when the first read is unsettled — confidence under 0.7, no
+number read, (Magic) an Art Series / unreadable name, or a set+number that
+The List reprinted — the server crops the bottom 45% of the photo, widens
+it to ~1400px and asks a small schema for just the printed details (number,
+denominator/code, copyright year, List icon, date stamp, serial, edge
+colour). The close-up fills what was null and, on a low-confidence first
+read, overrides the fraction. Both panels and both phone scripts run this
+exact path, so their numbers are the customer's numbers. `read.secondLook`
+says why it fired (the scan ledger keeps it).
+
 ## Next
 
-1. Fresh full re-read with the current prompt for the honest number.
-2. Second look in the app for unsure reads (confidence < 0.7) and same-tier
-   ties: crop the bottom strip, re-ask at full size; Opus on a single tie.
-3. Chris's 30–40 card phone batch (`npm run pokemon:phone`, to build like
-   mtg-phone.mjs) — the number that counts.
-4. Same loop on Magic (mtg:panel 87.3%, phone 92.9%).
+1. Chris's 30–40 card phone batch — mixed eras, a few twins, one or two
+   1st Editions — then `npm run pokemon:phone -- --pull` and read the number.
+2. Catalog dedupe (Trainer Gallery twins) and the stamped WotC art.
+3. Re-read the panel fresh when TCGdex stops throttling (≈ $2.35).

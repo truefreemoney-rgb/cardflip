@@ -196,6 +196,36 @@ Excluding the two phase-3 buckets the panel is 165/176 = 93.8%; ≥95% needs
 one more List pass (flavor names done). Then Chris's 30-card phone
 batch (≥90%).
 
+## 3d. Phase 3 status (09-10) — the 98% push, both games
+
+Chris 09-10: "nothing else matters except getting to high 90%s, both
+Pokémon and Magic". Same bar as Pokémon (docs/POKEMON-IDENTIFICATION.md):
+98% first-try on a clear photo.
+
+Shipped:
+- **Year rules** (mtgCards.ts): a printed copyright year rules out every set
+  before 4th Edition / Ice Age (April 1995) — Beta, Unlimited, Revised and
+  the early expansions print only "Illus. © Artist" — except Summer Magic,
+  which prints © 1994; a one-year gap costs a point so the same-year set
+  wins (Summer Magic over 4th on a 1994 read). Prompt says what the border
+  (the strip OUTSIDE the frame) and the year line actually are on 1990s
+  cards; vision had called Beta white and Unlimited black.
+- **Second look** (vision.ts): crop of the bottom 45%, enlarged, small
+  schema — fires on low confidence, no number, an Art Series / unreadable
+  name, or a set+number The List reprinted (hasListTwin). Adds list-icon /
+  date-stamp / serialized marks and the year the first read missed.
+- **Art Series by picture** (lib/server/artHash.ts): the front prints no
+  text at all (name and artist are on the back), so the only identification
+  is the picture. mtg_cards.art_hash = 64-bit dHash of every Art Series
+  front (`npm run mtg:arthash`, 2,488 rows; prod via push-mtg-cues);
+  matchArtSeries tries the frame and two insets, accepts ≤ 10 bits.
+  Pinned by `npm run test:arthash`. The panel proves the mechanism only
+  (its input IS the catalog picture); real phone photos are the test.
+- Both panels and both phone scripts now call analyzeCardImageWithUsage —
+  the production path — instead of a private copy of the vision call.
+
+Numbers: see the table below (filled per run).
+
 ## 4. What NOT to do
 
 - Do not match on name alone or fall through to a fuzzy name lookup as the

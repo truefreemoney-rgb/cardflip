@@ -21,8 +21,11 @@ export function mtgCuesOf(read: VisionCardRead): MtgCues | null {
     artist: read.artist ?? null,
     copyrightYear: read.copyrightYear ?? null,
     border: read.borderColor ?? null,
+    noYearLine: read.noYearLine === true,
+    bevel: typeof read.bevel === "boolean" ? read.bevel : null,
   };
-  const any = cues.finish || cues.treatment || (cues.marks?.length ?? 0) > 0 || cues.artist || cues.copyrightYear || cues.border;
+  const any =
+    cues.finish || cues.treatment || (cues.marks?.length ?? 0) > 0 || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null;
   return any ? cues : null;
 }
 
@@ -34,6 +37,8 @@ export function mtgCuesToParams(cues: MtgCues): Record<string, string> {
   if (cues.artist) out.artist = cues.artist.slice(0, 80);
   if (cues.copyrightYear) out.year = String(cues.copyrightYear);
   if (cues.border) out.border = cues.border;
+  if (cues.noYearLine) out.noyear = "1";
+  if (typeof cues.bevel === "boolean") out.bevel = cues.bevel ? "1" : "0";
   return out;
 }
 
@@ -51,7 +56,10 @@ export function parseMtgCuesParams(params: URLSearchParams): MtgCues | null {
     artist: artist || null,
     copyrightYear: Number.isInteger(year) && year >= 1993 && year <= 2100 ? year : null,
     border: border && BORDERS.has(border) ? (border as MtgBorder) : null,
+    noYearLine: params.get("noyear") === "1",
+    bevel: params.get("bevel") === "1" ? true : params.get("bevel") === "0" ? false : null,
   };
-  const any = cues.finish || cues.treatment || cues.marks !== undefined || cues.artist || cues.copyrightYear || cues.border;
+  const any =
+    cues.finish || cues.treatment || cues.marks !== undefined || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null;
   return any ? cues : null;
 }

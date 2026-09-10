@@ -21,13 +21,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import Anthropic from "@anthropic-ai/sdk";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
 const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
-const { CARD_READ_SCHEMA, SYSTEM, VISION_MODEL } = await import(at("lib/server/vision.ts"));
+const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
 const { UNREADABLE_CONFIDENCE } = await import(at("lib/types.ts"));
 
 const args = process.argv.slice(2);
@@ -104,24 +103,12 @@ for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8")
   const m = /^([A-Za-z_][A-Za-z0-9_]*)="?(.*?)"?$/.exec(line.trim());
   if (m) env[m[1]] = m[2];
 }
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-
+// The scanner's own read path — first look + second look (a crop of the
+// bottom strip when the first read is unsettled), exactly what
+// /api/vision/scan runs. The cache stores the merged read.
+process.env.ANTHROPIC_API_KEY ||= env.ANTHROPIC_API_KEY;
 async function readCard(b64, mediaType) {
-  const response = await anthropic.messages.create({
-    model: VISION_MODEL,
-    max_tokens: 2000,
-    output_config: { effort: "low", format: { type: "json_schema", schema: CARD_READ_SCHEMA } },
-    system: SYSTEM,
-    messages: [{
-      role: "user",
-      content: [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
-        { type: "text", text: "Identify this card. The seller believes it is English, but trust the photo over that if they disagree." },
-      ],
-    }],
-  });
-  const text = response.content.find((b) => b.type === "text");
-  return text ? JSON.parse(text.text) : null;
+  return (await analyzeCardImageWithUsage(b64, mediaType, "en", "pokemon")).read;
 }
 
 // TCGdex "high" (~600×825) is the closest catalog size to a 1024px phone
@@ -219,7 +206,7 @@ for (const p of panel) {
       bucket: p.bucket,
       want: `${p.name} ${p.number}/${p.official ?? "?"} [${p.set}${p.code ? " " + p.code : ""}] ${p.id}`,
       got: top ? `${top.name} ${top.number} [${top.setName}] ${top.id}` : "(nothing)",
-      read: `name=${read?.name} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} set=${read?.setName} year=${read?.copyrightYear} art=${read?.artStyle} 1st=${read?.firstEdition} conf=${read?.confidence}`,
+      read: `name=${read?.name} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} set=${read?.setName} year=${read?.copyrightYear} art=${read?.artStyle} 1st=${read?.firstEdition} conf=${read?.confidence} 2nd=${read?.secondLook ?? "-"}`,
       rank,
     });
   }

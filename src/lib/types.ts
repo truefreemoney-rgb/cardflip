@@ -100,6 +100,10 @@ export interface MtgCues {
   /** The last year of the "© 1993–2023 Wizards of the Coast" line. */
   copyrightYear?: number | null;
   border?: MtgBorder | null;
+  /** Second look: the bottom strip was readable and printed no year (pre-April-1995 card). */
+  noYearLine?: boolean;
+  /** Second look: white 1990s border with the Unlimited bevel (true) or flat like Revised / 4th (false). */
+  bevel?: boolean | null;
 }
 
 /** The game a card belongs to; Pokémon when the field was never set. */
@@ -149,6 +153,16 @@ export interface VisionCardRead {
   firstEdition?: boolean | null;
   /** Last year of the copyright line along the bottom edge — the print year (both games). */
   copyrightYear?: number | null;
+  /**
+   * Why the scan took a second look at the bottom of the card (null when the
+   * first read was enough): "low-confidence" | "no-number" | "art-name" |
+   * "list-twin". Logged for the panels and the scan ledger.
+   */
+  secondLook?: string | null;
+  /** Magic, from the second look: the bottom strip was readable and printed no copyright year (pre-1995 card). */
+  noYearLine?: boolean;
+  /** Magic, from the second look: a white 1990s border with the Unlimited bevel (true) or flat like Revised/4th (false). */
+  bevel?: boolean | null;
   // --- Magic only (MTG_READ_SCHEMA); absent on Pokémon reads. ---
   /** Foil read off the shine of the whole face; null when the photo can't settle it. */
   finish?: MtgFinish | null;

@@ -14,17 +14,13 @@
 // from .env.vercel.local. Photos never leave backups/ (gitignored).
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@libsql/client";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 const { mtgCuesOf } = await import(at("lib/mtgCues.ts"));
-const { MTG_READ_SCHEMA } = await import(at("lib/server/vision.ts"));
-const visionSrc = fs.readFileSync(path.join(root, "src/lib/server/vision.ts"), "utf8");
-const VISION_MODEL = visionSrc.match(/VISION_MODEL = "([^"]+)"/)[1];
-const SYSTEM_MTG = visionSrc.match(/const SYSTEM_MTG = `([\s\S]*?)`;/)[1];
+const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -82,23 +78,11 @@ if (uncached > VISION_CALL_CAP && !flag("yes")) {
   process.exit(2);
 }
 
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+// The scanner's own read path — first look + second look + Art Series
+// picture match, exactly what /api/vision/scan runs.
+process.env.ANTHROPIC_API_KEY ||= env.ANTHROPIC_API_KEY;
 async function readCard(b64) {
-  const response = await anthropic.messages.create({
-    model: VISION_MODEL,
-    max_tokens: 2000,
-    output_config: { effort: "low", format: { type: "json_schema", schema: MTG_READ_SCHEMA } },
-    system: SYSTEM_MTG,
-    messages: [{
-      role: "user",
-      content: [
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
-        { type: "text", text: "Identify this card. The seller believes it is English, but trust the photo over that if they disagree." },
-      ],
-    }],
-  });
-  const text = response.content.find((b) => b.type === "text");
-  return text ? JSON.parse(text.text) : null;
+  return (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg")).read;
 }
 
 // Local mirror row for the printing Chris kept, so a miss prints what it should have said.
