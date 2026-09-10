@@ -53,11 +53,19 @@ for (const set of list) {
     continue;
   }
   const rows = Array.isArray(cards) ? cards : cards.results ?? cards.data ?? [];
-  // The printed denominator is the count of regular-numbered cards; the
-  // enchanted / special printings number past it (205+ in a /204 set).
+  // The printed denominator ("176/207") is the contiguous run of regular
+  // cards from 1: Fabled's Epic 205-222 and Iconic 241-242, Ursula's
+  // Return's extra Rares 223-225, and every Enchanted sit past it and the
+  // feed does not flag them all. Max-of-regular gave 245 for a /207 set
+  // (09-10) and the ranker's denominator check was against the wrong number.
   const numeric = rows.map((c) => Number(c.collector_number)).filter((n) => Number.isFinite(n));
   const rarities = new Set(rows.map((c) => c.rarity));
-  const regular = numeric.filter((n, i) => !/enchanted|special/i.test(rows[i]?.rarity ?? ""));
+  const REGULAR = /^(common|uncommon|rare|super[_ ]?rare|legendary)$/i;
+  // Rule: the highest regular-rarity number below the first Enchanted (the
+  // feed skips the odd number, so a contiguous run is not safe — set 3).
+  const numOf = (c) => Number(c.collector_number);
+  const firstEnchanted = Math.min(...rows.filter((c) => /enchanted/i.test(String(c.rarity ?? ""))).map(numOf).filter(Number.isFinite), Infinity);
+  const regular = rows.filter((c) => REGULAR.test(String(c.rarity ?? ""))).map(numOf).filter((n) => Number.isFinite(n) && n < firstEnchanted);
   const setTotal = regular.length ? Math.max(...regular) : numeric.length ? Math.max(...numeric) : null;
   db.exec("BEGIN");
   for (const c of rows) {

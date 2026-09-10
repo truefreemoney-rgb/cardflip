@@ -7,7 +7,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "70",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0035be6616d844e58e6b42d1d804ac0b.avif?1777687433"
  },
@@ -31,7 +31,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "35",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1727b81007044782bc9c1df26820e7e1.avif?1747507340"
  },
@@ -43,7 +43,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "164",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_19e9e680d0d044d6a5fa0d39b5ab3206.avif?1740589756"
  },
@@ -55,7 +55,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "80",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1ab44dc7b1b1406ea256eb308fb857f5.avif?1709690747"
  },
@@ -67,7 +67,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "28",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1fafea8238334475ae8ed9ece3728309.avif?1723917209"
  },
@@ -79,7 +79,7 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "9",
-  "total": 225,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_294d9cff39f64e0394a0af134957afc3.avif?1716052430"
  },
@@ -91,7 +91,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "64",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_34d603519eae499991189bf1efc0207c.avif?1755540513"
  },
@@ -127,7 +127,7 @@
   "set": "10",
   "setName": "Whispers in the Well",
   "number": "44",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_6e4756264eee4c9a8e6043984cba2c1d.avif?1761752135"
  },
@@ -151,7 +151,7 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "112",
-  "total": 245,
+  "total": 207,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_8bdc25c7277245a5b690a2d5b4d63fd2.avif?1783188955"
  },
@@ -175,21 +175,9 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "193",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_26b1e9d58acf429aa2d77f89f6534c16.avif?1770260064"
- },
- {
-  "bucket": "standard",
-  "id": "crd_0ee5f4ec8dfa4e3fbf3fd802f6166047",
-  "name": "Li Shang",
-  "subtitle": "Newly Promoted",
-  "set": "P2",
-  "setName": "Promo Set 2",
-  "number": "22",
-  "total": 43,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_0ee5f4ec8dfa4e3fbf3fd802f6166047.avif?1745500450"
  },
  {
   "bucket": "standard",
@@ -202,6 +190,18 @@
   "total": 16,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_8de3ae21bca6455bb44da9803af19ea8.avif?1723596597"
+ },
+ {
+  "bucket": "standard",
+  "id": "crd_61fa338e64c749f4b236deeade5bf433",
+  "name": "Wasabi",
+  "subtitle": "Methodical Engineer",
+  "set": "P2",
+  "setName": "Promo Set 2",
+  "number": "13",
+  "total": 17,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_61fa338e64c749f4b236deeade5bf433.avif?1745500368"
  },
  {
   "bucket": "standard",
@@ -283,7 +283,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "57",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_05dcb2ebcf1340c4a16fab77145a1fec.avif?1777687384"
  },
@@ -295,7 +295,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "67",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1acf47f176fd481791f5e79e900fefe6.avif?1740589364"
  },
@@ -307,7 +307,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "174",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_380dc3639d7349c28a244b65ed675fcb.avif?1709690747"
  },
@@ -319,7 +319,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "145",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_586a47f740a3450b930cd1cbc7f3e640.avif?1747509276"
  },
@@ -331,7 +331,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "174",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_72bf539d1293473cb7d5d53231862bcb.avif?1755541268"
  },
@@ -343,7 +343,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "122",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_79bc467a7ad540e4b2012a26e7a247df.avif?1723917209"
  },
@@ -355,7 +355,7 @@
   "set": "10",
   "setName": "Whispers in the Well",
   "number": "141",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_9193681ad61242069ba2fe957ca8cb8d.avif?1761764368"
  },
@@ -367,7 +367,7 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "203",
-  "total": 225,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_a8ad84833e7f41d5bf65fe1787c65fe3.avif?1716052430"
  },
@@ -427,7 +427,7 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "148",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_600ad28b57694ad2b078261118277ad2.avif?1770259867"
  },
@@ -439,21 +439,9 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "135",
-  "total": 245,
+  "total": 207,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_b774661e34864407ad0f264bb2332333.avif?1783189090"
- },
- {
-  "bucket": "standard",
-  "id": "crd_61fa338e64c749f4b236deeade5bf433",
-  "name": "Wasabi",
-  "subtitle": "Methodical Engineer",
-  "set": "P2",
-  "setName": "Promo Set 2",
-  "number": "13",
-  "total": 43,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_61fa338e64c749f4b236deeade5bf433.avif?1745500368"
  },
  {
   "bucket": "standard",
@@ -478,6 +466,18 @@
   "total": 40,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_8b31286860cf4d2da0374f76bf93e6e7.avif?1728609660"
+ },
+ {
+  "bucket": "standard",
+  "id": "crd_3c803ea6602c49e0869da110c5d31d42",
+  "name": "Aladdin",
+  "subtitle": "Intrepid Commander",
+  "set": "P2",
+  "setName": "Promo Set 2",
+  "number": "9",
+  "total": 17,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_3c803ea6602c49e0869da110c5d31d42.avif?1745500354"
  },
  {
   "bucket": "standard",
@@ -559,7 +559,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "203",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_398194a72dfd4e41be4b6939e4e13ee3.avif?1709690747"
  },
@@ -571,7 +571,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "35",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_54b4ddf71822489da9c826190fd490c1.avif?1740589238"
  },
@@ -583,7 +583,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "187",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_9cba34a84bf04721aefd09dc1e87cb3a.avif?1755541330"
  },
@@ -595,21 +595,9 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "35",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_d3bfcff390e54c9bbd1027b57320d621.avif?1723917209"
- },
- {
-  "bucket": "standard",
-  "id": "crd_d51cdd2a1d904e03adb5e255a2b53a22",
-  "name": "Merlin",
-  "subtitle": "Completing His Research",
-  "set": "10",
-  "setName": "Whispers in the Well",
-  "number": "209",
-  "total": 242,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_d51cdd2a1d904e03adb5e255a2b53a22.avif?1761765172"
  },
  {
   "bucket": "standard",
@@ -619,7 +607,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "183",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_dc7439b895b342b99a0c373767318f64.avif?1777687872"
  },
@@ -631,7 +619,7 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "142",
-  "total": 225,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0e74340fa12045cb9bdb4824d72f2ad3.avif?1716052430"
  },
@@ -649,13 +637,25 @@
  },
  {
   "bucket": "standard",
+  "id": "crd_1e28088d9c49441390e874b91d6352d0",
+  "name": "The Headless Horseman",
+  "subtitle": "Cursed Rider",
+  "set": "10",
+  "setName": "Whispers in the Well",
+  "number": "174",
+  "total": 204,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_1e28088d9c49441390e874b91d6352d0.avif?1761764751"
+ },
+ {
+  "bucket": "standard",
   "id": "crd_2571eeb8c4914f82863610ee7c92535a",
   "name": "Bolt",
   "subtitle": "Down but Not Out",
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "29",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_2571eeb8c4914f82863610ee7c92535a.avif?1747507314"
  },
@@ -691,7 +691,7 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "132",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0fb558452ff949e1ad997108b6f0ad06.avif?1770259794"
  },
@@ -715,7 +715,7 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "142",
-  "total": 245,
+  "total": 207,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_2016e177aa05436fa2c7fc5a747572fb.avif?1783189148"
  },
@@ -727,7 +727,7 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "219",
-  "total": 225,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_79195cfde0ae4948894c37bef02d9e6f.avif?1716052430"
  },
@@ -739,7 +739,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "210",
-  "total": 224,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1cda76d2cbe84ccda25bd2dc1b21844b.avif?1740590311"
  },
@@ -751,7 +751,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "213",
-  "total": 209,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1f6ec070467643d195c82c92cf93c955.avif?1747703590"
  },
@@ -775,7 +775,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "210",
-  "total": 209,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_5a2ba6e63b07496d96a17d2565b2a1db.avif?1709690747"
  },
@@ -787,7 +787,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "210",
-  "total": 223,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_ae57eb31413644379c43ec4208a4023b.avif?1723917209"
  },
@@ -799,7 +799,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "223",
-  "total": 242,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_c233fd3627b24b02bd616aa62bbdc83a.avif?1755541543"
  },
@@ -811,7 +811,7 @@
   "set": "10",
   "setName": "Whispers in the Well",
   "number": "229",
-  "total": 242,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_c607f55525894e1bbdb8121eed6bf886.avif?1761766210"
  },
@@ -823,7 +823,7 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "239",
-  "total": 245,
+  "total": 207,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_c9705013eab04705818153d8e3419f5b.avif?1783190969"
  },
@@ -847,7 +847,7 @@
   "set": "P2",
   "setName": "Promo Set 2",
   "number": "33",
-  "total": 43,
+  "total": 17,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_248b8f0ae7a84f368e48086307f50ff7.avif?1755564077"
  },
@@ -859,7 +859,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "227",
-  "total": 242,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_ea1ebbf0332f4cb78f6b7a6a90d826a7.avif?1777688042"
  },
@@ -871,7 +871,7 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "225",
-  "total": 242,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_b3c4b83755bd417bb09f35ffea57cb68.avif?1770260221"
  },
@@ -895,7 +895,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "226",
-  "total": 242,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_c51b6a26015b45f298d1664787f37234.avif?1755541561"
  },
@@ -907,7 +907,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "220",
-  "total": 224,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0fa2b60dcf3d46fbb5e61428e33d7d7d.avif?1740590358"
  },
@@ -931,7 +931,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "208",
-  "total": 209,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_a288e4ad2fa24cadada391a6d1896d9c.avif?1747509548"
  },
@@ -943,7 +943,7 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "237",
-  "total": 245,
+  "total": 207,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_3b3d4d77c6144c049916b45c2ec3ae0c.avif?1783190870"
  },
@@ -955,7 +955,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "209",
-  "total": 223,
+  "total": 204,
   "variant": "enchanted",
   "image": "https://cards.lorcast.io/card/digital/large/crd_19b1f802f23a4673aac60e04df0fb2ba.avif?1723917209"
  },
@@ -985,15 +985,39 @@
  },
  {
   "bucket": "special / promo",
+  "id": "crd_d51cdd2a1d904e03adb5e255a2b53a22",
+  "name": "Merlin",
+  "subtitle": "Completing His Research",
+  "set": "10",
+  "setName": "Whispers in the Well",
+  "number": "209",
+  "total": 204,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_d51cdd2a1d904e03adb5e255a2b53a22.avif?1761765172"
+ },
+ {
+  "bucket": "special / promo",
   "id": "crd_0ee5f4ec8dfa4e3fbf3fd802f6166047",
   "name": "Li Shang",
   "subtitle": "Newly Promoted",
   "set": "P2",
   "setName": "Promo Set 2",
   "number": "22",
-  "total": 43,
-  "variant": "",
+  "total": 17,
+  "variant": "special",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0ee5f4ec8dfa4e3fbf3fd802f6166047.avif?1745500450"
+ },
+ {
+  "bucket": "special / promo",
+  "id": "crd_23040e61b60249f5b87587befb367d10",
+  "name": "Meilin Lee",
+  "subtitle": "Losing Control",
+  "set": "13",
+  "setName": "Attack of the Vine!",
+  "number": "210",
+  "total": 207,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_23040e61b60249f5b87587befb367d10.avif?1783189905"
  },
  {
   "bucket": "special / promo",
@@ -1006,6 +1030,18 @@
   "total": 16,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_8de3ae21bca6455bb44da9803af19ea8.avif?1723596597"
+ },
+ {
+  "bucket": "special / promo",
+  "id": "crd_4d1c2c4913d1417294da21592cee8363",
+  "name": "Max Goof",
+  "subtitle": "Rockin' Teen",
+  "set": "9",
+  "setName": "Fabled",
+  "number": "214",
+  "total": 204,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_4d1c2c4913d1417294da21592cee8363.avif?1755541500"
  },
  {
   "bucket": "special / promo",
@@ -1030,6 +1066,42 @@
   "total": 6,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_3515b2c02dd04daa83e5f77d46738b97.avif?1788886502"
+ },
+ {
+  "bucket": "special / promo",
+  "id": "crd_fb68c593a65344d5ad1585cb7a67777f",
+  "name": "Edna Mode",
+  "subtitle": "Fashion Designer",
+  "set": "12",
+  "setName": "Wilds Unknown",
+  "number": "209",
+  "total": 204,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_fb68c593a65344d5ad1585cb7a67777f.avif?1777687967"
+ },
+ {
+  "bucket": "special / promo",
+  "id": "crd_bd9957831e61475fa527ff77c2976f40",
+  "name": "Mickey Mouse",
+  "subtitle": "Playful Sorcerer",
+  "set": "4",
+  "setName": "Ursula's Return",
+  "number": "225",
+  "total": 204,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_bd9957831e61475fa527ff77c2976f40.avif?1716052430"
+ },
+ {
+  "bucket": "special / promo",
+  "id": "crd_239773eb4b194139916d4c31bba66356",
+  "name": "Mushu",
+  "subtitle": "Sneaky Dragon",
+  "set": "11",
+  "setName": "Winterspell",
+  "number": "212",
+  "total": 204,
+  "variant": "special",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_239773eb4b194139916d4c31bba66356.avif?1770260159"
  },
  {
   "bucket": "special / promo",
@@ -1068,78 +1140,6 @@
   "image": "https://cards.lorcast.io/card/digital/large/crd_62863900e1664d6d8be8280f6c23b65d.avif?1785783503"
  },
  {
-  "bucket": "special / promo",
-  "id": "crd_a057fe1c22c944a38de0a0784f7d4d5e",
-  "name": "Rapunzel",
-  "subtitle": "Appreciative Artist",
-  "set": "DIS",
-  "setName": "EPCOT Festival of the Arts",
-  "number": "1",
-  "total": 3,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_a057fe1c22c944a38de0a0784f7d4d5e.avif?1774403534"
- },
- {
-  "bucket": "special / promo",
-  "id": "crd_964fd75940c7465caafa4cec1e84ed4f",
-  "name": "Goofy",
-  "subtitle": "Groundbreaking Chef",
-  "set": "8",
-  "setName": "Reign of Jafar",
-  "number": "223",
-  "total": 209,
-  "variant": "special",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_964fd75940c7465caafa4cec1e84ed4f.avif?1778719693"
- },
- {
-  "bucket": "special / promo",
-  "id": "crd_c4ee636a797148549fed0c816122a35d",
-  "name": "Maleficent",
-  "subtitle": "Imperious Traveler",
-  "set": "P3",
-  "setName": "Promo Set 3",
-  "number": "44",
-  "total": 57,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_c4ee636a797148549fed0c816122a35d.avif?1773508950"
- },
- {
-  "bucket": "special / promo",
-  "id": "crd_61fa338e64c749f4b236deeade5bf433",
-  "name": "Wasabi",
-  "subtitle": "Methodical Engineer",
-  "set": "P2",
-  "setName": "Promo Set 2",
-  "number": "13",
-  "total": 43,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_61fa338e64c749f4b236deeade5bf433.avif?1745500368"
- },
- {
-  "bucket": "special / promo",
-  "id": "crd_9093f79568f941ccaf0f4708a1b74133",
-  "name": "Oswald",
-  "subtitle": "The Lucky Rabbit",
-  "set": "D23",
-  "setName": "D23 Collection",
-  "number": "6",
-  "total": 16,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_9093f79568f941ccaf0f4708a1b74133.avif?1724349802"
- },
- {
-  "bucket": "special / promo",
-  "id": "crd_8b31286860cf4d2da0374f76bf93e6e7",
-  "name": "Four Dozen Eggs",
-  "subtitle": "",
-  "set": "P1",
-  "setName": "Promo Set 1",
-  "number": "33",
-  "total": 40,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_8b31286860cf4d2da0374f76bf93e6e7.avif?1728609660"
- },
- {
   "bucket": "same name, different version",
   "id": "crd_0035be6616d844e58e6b42d1d804ac0b",
   "name": "Hamish, Hubert & Harris",
@@ -1147,7 +1147,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "70",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_0035be6616d844e58e6b42d1d804ac0b.avif?1777687433"
  },
@@ -1171,7 +1171,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "35",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1727b81007044782bc9c1df26820e7e1.avif?1747507340"
  },
@@ -1183,7 +1183,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "164",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_19e9e680d0d044d6a5fa0d39b5ab3206.avif?1740589756"
  },
@@ -1195,7 +1195,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "80",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1ab44dc7b1b1406ea256eb308fb857f5.avif?1709690747"
  },
@@ -1219,7 +1219,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "174",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_72bf539d1293473cb7d5d53231862bcb.avif?1755541268"
  },
@@ -1243,7 +1243,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "122",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_79bc467a7ad540e4b2012a26e7a247df.avif?1723917209"
  },
@@ -1255,7 +1255,7 @@
   "set": "10",
   "setName": "Whispers in the Well",
   "number": "141",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_9193681ad61242069ba2fe957ca8cb8d.avif?1761764368"
  },
@@ -1291,7 +1291,7 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "193",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_26b1e9d58acf429aa2d77f89f6534c16.avif?1770260064"
  },
@@ -1303,33 +1303,9 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "6",
-  "total": 225,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_2ea290775cb046cebfd884af9fd14fb6.avif?1716052430"
- },
- {
-  "bucket": "same name, different version",
-  "id": "crd_0ee5f4ec8dfa4e3fbf3fd802f6166047",
-  "name": "Li Shang",
-  "subtitle": "Newly Promoted",
-  "set": "P2",
-  "setName": "Promo Set 2",
-  "number": "22",
-  "total": 43,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_0ee5f4ec8dfa4e3fbf3fd802f6166047.avif?1745500450"
- },
- {
-  "bucket": "same name, different version",
-  "id": "crd_23040e61b60249f5b87587befb367d10",
-  "name": "Meilin Lee",
-  "subtitle": "Losing Control",
-  "set": "13",
-  "setName": "Attack of the Vine!",
-  "number": "210",
-  "total": 245,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_23040e61b60249f5b87587befb367d10.avif?1783189905"
  },
  {
   "bucket": "same name, different version",
@@ -1342,6 +1318,30 @@
   "total": 16,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_8de3ae21bca6455bb44da9803af19ea8.avif?1723596597"
+ },
+ {
+  "bucket": "same name, different version",
+  "id": "crd_fbd50cee68644238a38bb3dc1e2a13fb",
+  "name": "Genie",
+  "subtitle": "Hard to Grasp",
+  "set": "13",
+  "setName": "Attack of the Vine!",
+  "number": "45",
+  "total": 207,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_fbd50cee68644238a38bb3dc1e2a13fb.avif?1783188603"
+ },
+ {
+  "bucket": "same name, different version",
+  "id": "crd_61fa338e64c749f4b236deeade5bf433",
+  "name": "Wasabi",
+  "subtitle": "Methodical Engineer",
+  "set": "P2",
+  "setName": "Promo Set 2",
+  "number": "13",
+  "total": 17,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_61fa338e64c749f4b236deeade5bf433.avif?1745500368"
  },
  {
   "bucket": "same name, different version",
@@ -1423,7 +1423,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "57",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_05dcb2ebcf1340c4a16fab77145a1fec.avif?1777687384"
  },
@@ -1435,7 +1435,7 @@
   "set": "7",
   "setName": "Archazia's Island",
   "number": "67",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1acf47f176fd481791f5e79e900fefe6.avif?1740589364"
  },
@@ -1447,7 +1447,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "174",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_380dc3639d7349c28a244b65ed675fcb.avif?1709690747"
  },
@@ -1471,21 +1471,9 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "35",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_d3bfcff390e54c9bbd1027b57320d621.avif?1723917209"
- },
- {
-  "bucket": "same name, different version",
-  "id": "crd_d51cdd2a1d904e03adb5e255a2b53a22",
-  "name": "Merlin",
-  "subtitle": "Completing His Research",
-  "set": "10",
-  "setName": "Whispers in the Well",
-  "number": "209",
-  "total": 242,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_d51cdd2a1d904e03adb5e255a2b53a22.avif?1761765172"
  },
  {
   "bucket": "same name, different version",
@@ -1498,6 +1486,18 @@
   "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_e7b04611dd234fc7a07b0e48c2811fd2.avif?1709690747"
+ },
+ {
+  "bucket": "same name, different version",
+  "id": "crd_1e28088d9c49441390e874b91d6352d0",
+  "name": "The Headless Horseman",
+  "subtitle": "Cursed Rider",
+  "set": "10",
+  "setName": "Whispers in the Well",
+  "number": "174",
+  "total": 204,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_1e28088d9c49441390e874b91d6352d0.avif?1761764751"
  },
  {
   "bucket": "same name+version, different set (reprint)",
@@ -1543,7 +1543,7 @@
   "set": "9",
   "setName": "Fabled",
   "number": "187",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_9cba34a84bf04721aefd09dc1e87cb3a.avif?1755541330"
  },
@@ -1555,7 +1555,7 @@
   "set": "3",
   "setName": "Into the Inklands",
   "number": "190",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_fc5e485b906a4e97b420d9ea122b4414.avif?1709690747"
  },
@@ -1567,7 +1567,7 @@
   "set": "10",
   "setName": "Whispers in the Well",
   "number": "174",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_1e28088d9c49441390e874b91d6352d0.avif?1761764751"
  },
@@ -1579,7 +1579,7 @@
   "set": "11",
   "setName": "Winterspell",
   "number": "148",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_600ad28b57694ad2b078261118277ad2.avif?1770259867"
  },
@@ -1591,7 +1591,7 @@
   "set": "12",
   "setName": "Wilds Unknown",
   "number": "122",
-  "total": 242,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_d0e471f08f1e48f9ac4103827e910ce4.avif?1777687637"
  },
@@ -1603,21 +1603,9 @@
   "set": "4",
   "setName": "Ursula's Return",
   "number": "113",
-  "total": 225,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_d9c43964a9e84935940c0e01e52a7e6b.avif?1716052430"
- },
- {
-  "bucket": "same name+version, different set (reprint)",
-  "id": "crd_0ee5f4ec8dfa4e3fbf3fd802f6166047",
-  "name": "Li Shang",
-  "subtitle": "Newly Promoted",
-  "set": "P2",
-  "setName": "Promo Set 2",
-  "number": "22",
-  "total": 43,
-  "variant": "",
-  "image": "https://cards.lorcast.io/card/digital/large/crd_0ee5f4ec8dfa4e3fbf3fd802f6166047.avif?1745500450"
  },
  {
   "bucket": "same name+version, different set (reprint)",
@@ -1645,13 +1633,25 @@
  },
  {
   "bucket": "same name+version, different set (reprint)",
+  "id": "crd_61fa338e64c749f4b236deeade5bf433",
+  "name": "Wasabi",
+  "subtitle": "Methodical Engineer",
+  "set": "P2",
+  "setName": "Promo Set 2",
+  "number": "13",
+  "total": 17,
+  "variant": "",
+  "image": "https://cards.lorcast.io/card/digital/large/crd_61fa338e64c749f4b236deeade5bf433.avif?1745500368"
+ },
+ {
+  "bucket": "same name+version, different set (reprint)",
   "id": "crd_01c4835a62df4960bb973aeff81f2bb2",
   "name": "Elsa",
   "subtitle": "Ice Maker",
   "set": "7",
   "setName": "Archazia's Island",
   "number": "69",
-  "total": 224,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_01c4835a62df4960bb973aeff81f2bb2.avif?1740589372"
  },
@@ -1687,7 +1687,7 @@
   "set": "5",
   "setName": "Shimmering Skies",
   "number": "147",
-  "total": 223,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_dd74a7225ba143989196a76089b46fdc.avif?1723917209"
  },
@@ -1699,7 +1699,7 @@
   "set": "13",
   "setName": "Attack of the Vine!",
   "number": "46",
-  "total": 245,
+  "total": 207,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_fc2532363c67421eb4fa47cd45af9576.avif?1783188620"
  },
@@ -1723,7 +1723,7 @@
   "set": "8",
   "setName": "Reign of Jafar",
   "number": "157",
-  "total": 209,
+  "total": 204,
   "variant": "",
   "image": "https://cards.lorcast.io/card/digital/large/crd_37bea5da923b495eaeecaf71420a2beb.avif?1747509351"
  },

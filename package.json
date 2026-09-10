@@ -74,7 +74,8 @@
     "test:referral": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-referral.mjs",
     "test:social": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-social.mjs",
     "test:socialpublish": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-social-publish.mjs",
-    "op:phone": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/onepiece-phone.mjs"
+    "op:phone": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/tcg-phone.mjs --game onepiece",
+    "lorcana:phone": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/tcg-phone.mjs --game lorcana"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

@@ -1,20 +1,26 @@
-// One Piece "phone" batch (09-10): Chris owns no One Piece cards and never
-// will, so the real-photo gate uses eBay seller photos instead — a listing
-// whose title carries the card number ("Sugar OP04-024 Parallel") is a
-// labeled, hand-held, glare-and-sleeve photo of that card. Replayed through
-// the scanner's own vision read + ranker (the same walk as tcg-panel.mjs).
+// TCG "phone" batch (09-10): Chris owns no One Piece or Lorcana cards, so
+// the real-photo gate uses eBay seller photos instead — a listing whose
+// title carries the card number ("Sugar OP04-024 Parallel", "Elsa - Spirit
+// of Winter 41/204") is a labeled, hand-held, glare-and-sleeve photo of that
+// card. Replayed through the scanner's own vision read + ranker (the same
+// walk as tcg-panel.mjs).
 //
-// Truth is card-level (name + number): seller titles are reliable for the
-// number, unreliable for the printing (a "parallel" in the title may be
-// missing or wrong). Printing-level is printed too, not scored.
+// Truth is card-level: One Piece = name + number; Lorcana = name + version
+// + number/total. Seller titles are reliable for those, unreliable for the
+// printing (a "parallel" in the title may be missing or wrong), so the
+// exact-printing rate is printed, not scored.
 //
-//   npm run op:phone                  # run (photos cached in backups/onepiece-phone/, reads in scripts/onepiece-phone.cache.json)
-//   npm run op:phone -- --pull        # re-pull listings from eBay Browse (needs EBAY_CLIENT_ID/SECRET in .env.vercel.local)
-//   npm run op:phone -- --fresh       # re-read every photo after a prompt change
-//   npm run op:phone -- --size 60     # how many printings to sample when pulling (default 60)
+//   npm run op:phone                      # One Piece (backups/onepiece-phone/, scripts/onepiece-phone.cache.json)
+//   npm run lorcana:phone                 # Lorcana  (backups/lorcana-phone/,  scripts/lorcana-phone.cache.json)
+//   ... -- --pull        # re-pull listings from eBay Browse (needs real EBAY_CLIENT_ID/SECRET in .env.vercel.local;
+//                        # the Vercel pull redacts them — 09-10 the batch was built by driving the in-app browser
+//                        # through eBay search pages instead, see docs/STATE.md)
+//   ... -- --fresh       # re-read every photo after a prompt change
+//   ... -- --size 60     # printings to sample when pulling (default 60)
 //
 // Anthropic key + eBay app keys from .env.vercel.local. Photos never leave
-// backups/ (gitignored).
+// backups/ (gitignored). The batch list (backups/<game>-phone/batch.json)
+// rows: { id, bucket, name, subtitle?, number, total?, want, wantVariant, title, listing }.
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -28,10 +34,11 @@ const { isNearTie } = await import(at("lib/tiebreak.ts"));
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i > -1 ? args[i + 1] : null; };
-const game = "onepiece";
-const PHOTO_DIR = path.join(root, "backups/onepiece-phone");
+const game = opt("game") ?? "onepiece";
+if (game !== "onepiece" && game !== "lorcana") { console.error("--game onepiece | lorcana"); process.exit(2); }
+const PHOTO_DIR = path.join(root, `backups/${game}-phone`);
 const LIST_PATH = path.join(PHOTO_DIR, "batch.json");
-const CACHE_PATH = path.join(root, "scripts/onepiece-phone.cache.json");
+const CACHE_PATH = path.join(root, `scripts/${game}-phone.cache.json`);
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
 
 const env = {};
@@ -44,11 +51,12 @@ process.env.ANTHROPIC_API_KEY ||= env.ANTHROPIC_API_KEY;
 const mirror = new DatabaseSync(path.join(root, "data/cardflip.db"), { readOnly: true });
 const baseNumber = (n) => String(n).replace(/_[rp]\d+$/i, "").toUpperCase();
 const cleanName = (n) => String(n).replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "").trim();
+const fold = (s) => String(s ?? "").toLowerCase().replace(/[‘’‛′`´]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
 
 // ---- pull: sample printings, find one eBay listing each, save its photo ----
 async function ebayToken() {
   const cid = env.EBAY_CLIENT_ID, sec = env.EBAY_CLIENT_SECRET;
-  if (!cid || !sec) throw new Error("EBAY_CLIENT_ID / EBAY_CLIENT_SECRET missing from .env.vercel.local");
+  if (!cid || !sec || cid.includes("SENSITIVE")) throw new Error("real EBAY_CLIENT_ID / EBAY_CLIENT_SECRET missing from .env.vercel.local (Vercel redacts them)");
   const tok = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + Buffer.from(`${cid}:${sec}`).toString("base64") },
@@ -67,29 +75,58 @@ function shuffled(rows, seed = 7) {
   return a;
 }
 
+/** Sampling buckets per game: [bucket, SQL where, share]. */
+const BUCKETS = {
+  onepiece: [
+    ["base", "variant = ''", 0.5],
+    ["alt", "variant IN ('parallel','alt-art','special','manga','full-art')", 0.35],
+    ["reprint", "variant = 'reprint'", 0.15],
+  ],
+  lorcana: [
+    ["base", "variant = '' AND set_code GLOB '[0-9]*'", 0.7],
+    ["enchanted", "variant = 'enchanted' AND set_code GLOB '[0-9]*'", 0.3],
+  ],
+};
+
+/** Everything the eBay title must and must not say for this row. */
+function titleRules(r, bucket) {
+  const name = cleanName(r.name);
+  if (game === "onepiece") {
+    const number = baseNumber(r.collector_number);
+    const isAlt = bucket === "alt";
+    return {
+      q: `one piece ${name} ${number}${isAlt ? " parallel" : ""}`,
+      must: [new RegExp(number.replace("-", "[- ]?"), "i"), new RegExp(name.split(/[\s."]+/)[0], "i")],
+      variantRe: /parallel|alt[- ]?art|manga|\bsp\b|special/i,
+      wantVariantWord: isAlt,
+    };
+  }
+  const isEnch = bucket === "enchanted";
+  return {
+    q: `lorcana ${name} ${r.subtitle} ${r.collector_number}/${r.set_total}${isEnch ? " enchanted" : ""}`,
+    must: [new RegExp(`\\b${r.collector_number}\\s*/\\s*${r.set_total}\\b`), new RegExp(name.split(/[\s.&]+/)[0], "i")],
+    variantRe: /enchanted/i,
+    wantVariantWord: isEnch,
+  };
+}
+const BAD_TITLE = /\blot\b|bundle|playset|\bx[2-9]\b|[2-9]x\b|set of|proxy|custom|sleeve only|deck box|psa|bgs|cgc|graded|japanese|\bjpn?\b|japan|korean|chinese|german|french|italian|spanish/i;
+
 async function pull() {
   const size = Number(opt("size") ?? 60);
   const token = await ebayToken();
-  // Priced printings only — those are the ones sellers list. Mix of families.
-  const buckets = [
-    ["base", "variant = ''", Math.round(size * 0.5)],
-    ["alt", "variant IN ('parallel','alt-art','special','manga','full-art')", Math.round(size * 0.35)],
-    ["reprint", "variant = 'reprint'", size - Math.round(size * 0.5) - Math.round(size * 0.35)],
-  ];
   const batch = [];
-  const seenNumbers = new Set();
-  for (const [bucket, where, n] of buckets) {
-    const rows = shuffled(mirror.prepare(`SELECT id, name, set_code, collector_number, variant, price_usd FROM tcg_cards WHERE game = ? AND image_url <> '' AND price_usd >= 1 AND (${where}) ORDER BY id`).all(game), 7 + bucket.length);
+  const seen = new Set();
+  for (const [bucket, where, share] of BUCKETS[game]) {
+    const n = Math.round(size * share);
+    const rows = shuffled(mirror.prepare(`SELECT id, name, subtitle, set_code, collector_number, set_total, variant, price_usd FROM tcg_cards WHERE game = ? AND image_url <> '' AND COALESCE(price_usd, price_usd_foil) >= ${game === "lorcana" ? 3 : 1} AND (${where}) ORDER BY id`).all(game), 7 + bucket.length);
     let got = 0;
     for (const r of rows) {
       if (got >= n) break;
-      const number = baseNumber(r.collector_number);
-      if (seenNumbers.has(number)) continue;
-      const name = cleanName(r.name);
-      const isAlt = bucket === "alt";
-      const q = `one piece ${name} ${number}${isAlt ? " parallel" : ""}`;
+      const key = game === "onepiece" ? baseNumber(r.collector_number) : `${r.set_code}-${r.collector_number}`;
+      if (seen.has(key)) continue;
+      const rules = titleRules(r, bucket);
       const url = new URL("https://api.ebay.com/buy/browse/v1/item_summary/search");
-      url.searchParams.set("q", q);
+      url.searchParams.set("q", rules.q);
       url.searchParams.set("limit", "20");
       url.searchParams.set("category_ids", "183454"); // CCG Individual Cards
       let items = [];
@@ -97,36 +134,31 @@ async function pull() {
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US" } });
         if (res.status === 429) { console.log("  eBay 429, stopping pull"); break; }
         items = (await res.json()).itemSummaries ?? [];
-      } catch (err) { console.log(`  ${name} ${number}: ${err?.message ?? err}`); continue; }
-      const numRe = new RegExp(number.replace("-", "[- ]?"), "i");
-      const firstWord = name.split(/[\s."]+/)[0].toLowerCase();
+      } catch (err) { console.log(`  ${r.name}: ${err?.message ?? err}`); continue; }
       const pick = items.find((it) => {
         const t = String(it.title ?? "");
-        if (!numRe.test(t) || !t.toLowerCase().includes(firstWord)) return false;
-        if (/\blot\b|bundle|playset|\bx[2-9]\b|[2-9]x\b|set of|proxy|custom|sleeve only|deck box/i.test(t)) return false;
-        const altInTitle = /parallel|alt[- ]?art|manga|\bsp\b|special/i.test(t);
-        return isAlt ? altInTitle : !altInTitle;
+        if (!rules.must.every((re) => re.test(t)) || BAD_TITLE.test(t)) return false;
+        return rules.variantRe.test(t) === rules.wantVariantWord;
       });
       const img = pick?.image?.imageUrl;
       if (!pick || !img) continue;
-      const full = img.replace(/s-l\d+\./, "s-l1600.");
-      const id = `${bucket}-${number}`;
+      const id = `${bucket}-${key}`;
       const file = path.join(PHOTO_DIR, `${id}.jpg`);
       try {
-        const res = await fetch(full, { headers: { "User-Agent": "CardFlip-phone/1.0" }, signal: AbortSignal.timeout(20_000) });
+        const res = await fetch(img.replace(/s-l\d+\./, "s-l1600."), { headers: { "User-Agent": "CardFlip-phone/1.0" }, signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(`image ${res.status}`);
         fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
-      } catch (err) { console.log(`  ${name} ${number}: ${err?.message ?? err}`); continue; }
-      batch.push({ id, bucket, name, number, want: r.id, wantVariant: r.variant, title: pick.title, listing: pick.itemWebUrl ?? "" });
-      seenNumbers.add(number);
+      } catch (err) { console.log(`  ${r.name}: ${err?.message ?? err}`); continue; }
+      batch.push({ id, bucket, name: cleanName(r.name), subtitle: r.subtitle || "", number: game === "onepiece" ? baseNumber(r.collector_number) : r.collector_number, total: r.set_total, want: r.id, wantVariant: r.variant, title: pick.title, listing: pick.itemWebUrl ?? "" });
+      seen.add(key);
       got++;
       process.stdout.write(`\r${batch.length} listings`);
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((res) => setTimeout(res, 150));
     }
   }
   process.stdout.write("\r");
   fs.writeFileSync(LIST_PATH, JSON.stringify(batch, null, 1));
-  console.log(`pulled ${batch.length} One Piece seller photos → ${path.relative(root, PHOTO_DIR)}`);
+  console.log(`pulled ${batch.length} ${game} seller photos → ${path.relative(root, PHOTO_DIR)}`);
   return batch;
 }
 
@@ -147,7 +179,7 @@ const UNREADABLE_CONFIDENCE = 0.2;
 async function lookup(read) {
   if (!read || (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE)) return [];
   let printed = read.cardNumber ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: false } : null;
-  if (printed) {
+  if (game === "onepiece" && printed) {
     const s = splitOnePieceNumber(printed.number);
     if (s.setCode) printed = { ...printed, number: s.number, setCode: s.setCode };
   }
@@ -160,6 +192,16 @@ async function lookup(read) {
   }
   if (matches.length === 0 && printed) matches = await searchTcgCardsLocal(game, "", printed, 5, read.subtitle ?? null, read.variant ?? null);
   return matches;
+}
+
+/** Card-level truth: the same card, any printing. */
+function sameCard(c, p) {
+  if (!c) return false;
+  if (game === "onepiece") return baseNumber(c.number ?? c.collector_number) === p.number && fold(cleanName(c.name)) === fold(p.name);
+  // Lorcana: the catalog card name is "Name - Version"; number/total pins the set.
+  const [cName, ...rest] = String(c.name).split(" - ");
+  const cSub = rest.join(" - ");
+  return String(c.number) === String(p.number) && Number(c.setTotal ?? c.set_total) === Number(p.total) && fold(cName) === fold(p.name) && (!p.subtitle || fold(cSub) === fold(p.subtitle));
 }
 
 const misses = [];
@@ -187,8 +229,7 @@ for (const p of batch) {
     } catch (err) { console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`); }
   }
   const top = found[0];
-  const sameCard = (c) => c && baseNumber(c.number ?? c.collector_number) === p.number && cleanName(c.name).toLowerCase() === p.name.toLowerCase();
-  const rank = found.findIndex(sameCard);
+  const rank = found.findIndex((c) => sameCard(c, p));
   const hit = rank === 0;
   n++;
   if (hit) cardHit++;
@@ -200,9 +241,9 @@ for (const p of batch) {
   if (!hit) {
     misses.push({
       bucket: p.bucket,
-      want: `${p.name} ${p.number} (${p.wantVariant || "base"} ${p.want})  title: ${p.title}`,
-      got: top ? `${top.name} ${top.number} [${top.setCode}] ${top.variant || "base"} ${top.id}` : "(nothing)",
-      read: `name=${read?.name} number=${read?.cardNumber} code=${read?.setCode} variant=${read?.variant} conf=${read?.confidence} 2nd=${read?.secondLook ?? "-"}`,
+      want: `${p.name}${p.subtitle ? " - " + p.subtitle : ""} ${p.number}${p.total ? "/" + p.total : ""} (${p.wantVariant || "base"} ${p.want})  title: ${p.title}`,
+      got: top ? `${top.name} ${top.number}${top.setTotal ? "/" + top.setTotal : ""} [${top.setCode}] ${top.variant || "base"} ${top.id}` : "(nothing)",
+      read: `name=${read?.name} sub=${read?.subtitle} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} variant=${read?.variant} conf=${read?.confidence} 2nd=${read?.secondLook ?? "-"}`,
       rank,
       listing: p.listing,
     });
@@ -212,7 +253,7 @@ process.stdout.write("\r");
 const pct = (a) => (n ? ((a / n) * 100).toFixed(1) : "0");
 console.log("\nbucket     card / n");
 for (const [b, t] of byBucket) console.log(`${b.padEnd(10)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
-console.log(`\nonepiece seller photos: right card (name + number) first: ${cardHit}/${n} = ${pct(cardHit)}%  (target ≥ 90%)   exact printing: ${printHit}/${n} = ${pct(printHit)}% (title labels are loose — not the gate)`);
+console.log(`\n${game} seller photos: right card first: ${cardHit}/${n} = ${pct(cardHit)}%  (target ≥ 90%)   exact printing: ${printHit}/${n} = ${pct(printHit)}% (title labels are loose — not the gate)`);
 if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}\n  ${m.listing}`);
