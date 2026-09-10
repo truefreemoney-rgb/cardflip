@@ -22,7 +22,7 @@ export const RUN_CHIP: Record<RunStatus["state"], { label: string; cls: string; 
  * task, its question if it has one, the PR in plain words, a Merge button,
  * and whether the merge has reached cardflip.io yet. GitHub stays a ↗ link.
  */
-export function RunPanel({ st, onError, onReply, canMerge = true }: { st: RunStatus; onError: (m: string) => void; onReply: () => void; canMerge?: boolean }) {
+export function RunPanel({ st, onError, onReply, onComplete, canMerge = true }: { st: RunStatus; onError: (m: string) => void; onReply: () => void; /** Notes only: move the thought to Completed from right here (Chris, 09-10: "i need an option to move to completed"). */ onComplete?: () => void; canMerge?: boolean }) {
   const { reload } = useContext(RunsContext);
   const [merging, setMerging] = useState(false);
   // The bullet list + screenshots fold away by default: on a phone the
@@ -1007,7 +1007,7 @@ function ItemRow(props: {
             </ul>
           )}
           <Thumbs urls={it.images ?? []} onRemove={(u) => { deleteImage(u); props.onImages((it.images ?? []).filter((x) => x !== u)); }} />
-          {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} onReply={() => setReplying(true)} />}
+          {runStatus && !editing && <RunPanel st={runStatus} onError={props.onError} onReply={() => setReplying(true)} onComplete={note && !it.done ? props.onToggle : undefined} />}
           {replying && (
             <form
               className="mt-1.5 flex flex-wrap items-center gap-2"
