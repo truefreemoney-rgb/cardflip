@@ -224,7 +224,34 @@ Shipped:
 - Both panels and both phone scripts now call analyzeCardImageWithUsage —
   the production path — instead of a private copy of the vision call.
 
-Numbers: see the table below (filled per run).
+Numbers (panel, exact printing first):
+
+| Run | Result |
+|---|---|
+| Phase 2 end (09-10 morning) | 179/205 = 87.3% |
+| + year rules, second look, Art Series by picture | 189/205 = 92.2% |
+| + fresh pass on pre-1998 / List / prerelease / serialized | 191/205 = 93.2% |
+| + no-year-line cue (artist-gated), catalog-limited twins tallied | **195/205 = 95.1%** |
+
+Art Series 0/5 → 5/5; pre-1998 14 → 19/24; prerelease and serialized 8/8,
+5/5 once the four twins whose Scryfall scan shows no stamp / serial are
+counted on the base printing (checked by eye: PFDN 30s, LTC 386z — the
+catalog picture IS the base card; a real photo carries the stamp).
+
+Left (10), all one-tap on the confirm screen:
+- Unlimited vs Revised (3): identical white-border cards; the bevel tell
+  came back "false" on every Unlimited scan, so only a SEEN bevel counts.
+  Phone photos at 1568px are the real test.
+- The List (3): the icon is ~8px on a 672px Scryfall scan; the close-up
+  upscales blur. Phone photos are the test.
+- Basic-land art twins (Swamp TMP 339/340, Plains BRB/6ED): same name, no
+  number, same artist — the art hash could settle these (extend art_hash to
+  basic lands, ~4k rows) if sellers ever scan them.
+- Mountain 2ED → SLD 257, Kamahl P15A: promo/special rows winning a
+  no-number tie; the special-set gate needs the same "no evidence" nudge
+  for P-sets.
+- Real phone photos: mtg:phone 39/42 = 92.9% before this work; re-run after
+  Chris's next Magic batch.
 
 ## 4. What NOT to do
 

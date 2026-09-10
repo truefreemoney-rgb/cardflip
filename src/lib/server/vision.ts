@@ -537,6 +537,7 @@ export const SECOND_LOOK_SCHEMA = {
       description: "Magic only. true when a small rectangular foil date stamp (prerelease) is visible. Null if unsure.",
     },
     serialNumber: nullableString("A printed serial like '045/500' if visible, else null."),
+    artist: nullableString("The artist credit as printed ('Illus. Rob Alexander' → 'Rob Alexander'). Null if not visible."),
     borderColor: {
       anyOf: [{ type: "string", enum: ["black", "white", "silver", "gold", "borderless"] }, { type: "null" }],
       description: "The colour of the card's outermost edge (outside the frame) as seen in this crop. Null if the edge is not visible.",
@@ -548,7 +549,7 @@ export const SECOND_LOOK_SCHEMA = {
     },
     confidence: { type: "number", description: "0 to 1, how sure you are of the number and year specifically." },
   },
-  required: ["name", "cardNumber", "setTotal", "setCode", "copyrightYear", "listIcon", "dateStamp", "serialNumber", "borderColor", "innerBevel", "confidence"],
+  required: ["name", "cardNumber", "setTotal", "setCode", "copyrightYear", "listIcon", "dateStamp", "serialNumber", "artist", "borderColor", "innerBevel", "confidence"],
   additionalProperties: false,
 } as const;
 
@@ -565,6 +566,7 @@ type SecondLookRead = {
   listIcon: boolean | null;
   dateStamp: boolean | null;
   serialNumber: string | null;
+  artist: string | null;
   borderColor: string | null;
   innerBevel: boolean | null;
   confidence: number;
@@ -681,10 +683,15 @@ export function mergeSecondLook(first: VisionCardRead, second: SecondLookRead, r
       out.borderColor = second.borderColor as VisionCardRead["borderColor"];
     }
     if (typeof second.innerBevel === "boolean") out.bevel = second.innerBevel;
+    if (second.artist && !first.artist) out.artist = second.artist.trim();
     // A readable bottom strip with no year on it: the card predates the
     // year line (before 4th Edition / Ice Age) — a cue only the close-up
     // can give, since the whole-card read cannot tell "none" from "missed".
-    if (!year && !first.copyrightYear && typeof second.confidence === "number" && second.confidence >= 0.6) out.noYearLine = true;
+    // "Readable" = it read the artist credit (same line, same type size)
+    // or says it is sure; 1990s cards have no number, so the model's own
+    // confidence sits low there even when every letter is legible.
+    const stripReadable = Boolean(second.artist) || (typeof second.confidence === "number" && second.confidence >= 0.6);
+    if (!year && !first.copyrightYear && stripReadable) out.noYearLine = true;
   }
   return out;
 }

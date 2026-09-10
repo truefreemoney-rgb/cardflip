@@ -235,13 +235,14 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
   // so 4th Edition and later lose two; the Unlimited bevel (a dark inner
   // line where the white border meets the frame) separates Unlimited from
   // the flat-bordered Revised / Summer / 4th / 5th.
-  if (cues.noYearLine && row.set_release_date >= "1995-04-01" && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) p += 2;
-  if (typeof cues.bevel === "boolean" && row.border_color === "white" && releaseYear && releaseYear < 1998) {
+  // (Summer Magic prints © 1994, so "no year line" rules it out as well — it
+  // must never win a white-border tie by being the newest no-year set.)
+  if (cues.noYearLine && (row.set_release_date >= "1995-04-01" || row.set_code.toLowerCase() === "sum") && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) p += 2;
+  // Only a SEEN bevel counts: on the 09-10 panel the close-up answered
+  // "false" on every Unlimited scan, so an absent bevel is no evidence.
+  if (cues.bevel === true && row.border_color === "white" && releaseYear && releaseYear < 1998) {
     const code = row.set_code.toLowerCase();
-    const beveled = code === "2ed";
-    const flat = code === "3ed" || code === "sum" || code === "4ed" || code === "5ed";
-    if (cues.bevel && flat) p += 2;
-    if (!cues.bevel && beveled) p += 2;
+    if (code === "3ed" || code === "sum" || code === "4ed" || code === "5ed") p += 2;
   }
   return p;
 }
@@ -418,7 +419,7 @@ export async function searchMtgCardsLocal(
       (wantedCode === null || rawCode === wantedCode || rawCode === `p${wantedCode}`);
     const rowCode = listTwin || (stampTwin && wantedCode) ? wantedCode! : rawCode;
     const rowNumber = listTwin
-      ? row.collector_number.slice(wantedCode!.length + 1)
+      ? row.collector_number.slice(row.collector_number.indexOf("-") + 1)
       : stampTwin
         ? row.collector_number.replace(stampSuffix!, "")
         : row.collector_number;

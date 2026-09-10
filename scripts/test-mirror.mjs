@@ -299,10 +299,10 @@ check("a printed year rules out the no-year sets: © 1995 → 4th Edition",
   await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1995, border: "white" }), "4ed-311");
 check("same-year set beats the one-year-off set: © 1994 → Summer Magic, not 4th",
   await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1994, border: "white" }), "sum-242");
-check("second look saw no year line: 4th Edition loses, newest no-year white set (Summer) wins the tie",
-  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true }), "sum-242");
-check("no year line + no bevel: Revised/Summer over Unlimited — Summer is newer, still a seller's tap",
-  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: false }), "sum-242");
+check("second look saw no year line: 4th and Summer Magic (© 1994) lose, Revised wins the white tie",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true }), "3ed-242");
+check("no year line + no bevel seen: still Revised — an unseen bevel is no evidence",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: false }), "3ed-242");
 check("no year line + the Unlimited bevel: Unlimited",
   await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: true }), "2ed-241");
 check("bevel cue never touches a black-border row",

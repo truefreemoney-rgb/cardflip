@@ -106,6 +106,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const byBucket = new Map();
 const misses = [];
 let n = 0;
+let catalogLimited = 0;
 for (const p of panel) {
   let read = cache[p.id];
   if (!read) {
@@ -124,7 +125,16 @@ for (const p of panel) {
     if (found.length) break;
   }
   const top = found[0];
-  const hit = top?.id === p.id;
+  let hit = top?.id === p.id;
+  // Scryfall's scans of prerelease (…s), promo-pack (…p) and serialized (…z)
+  // twins show NO stamp and NO serial (checked 09-10: PFDN 30s, LTC 386z) —
+  // they are the base printing's picture. A base-printing answer on one of
+  // those is the right answer for that picture; tallied apart so the
+  // catalog limit stays visible. Real photos carry the stamp.
+  if (!hit && top && /[spz]$/.test(p.number) && top.number === p.number.replace(/[spz]$/, "") && top.name === p.name) {
+    hit = true;
+    catalogLimited++;
+  }
   const tally = byBucket.get(p.bucket) ?? { hit: 0, n: 0 };
   tally.n++;
   if (hit) tally.hit++;
@@ -149,7 +159,8 @@ for (const [bucket, t] of byBucket) {
   hit += t.hit; total += t.n;
   console.log(`${bucket.padEnd(26)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
 }
-console.log(`\nexact printing: ${hit}/${total} = ${total ? ((hit / total) * 100).toFixed(1) : 0}%  (target ≥ 95%)`);
+console.log(`\nexact printing: ${hit}/${total} = ${total ? ((hit / total) * 100).toFixed(1) : 0}%  (target ≥ 98%)`);
+if (catalogLimited) console.log(`(${catalogLimited} stamped / serialized twins whose Scryfall scan shows no stamp — counted as hits on the base printing)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }
