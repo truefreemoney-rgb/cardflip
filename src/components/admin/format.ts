@@ -62,14 +62,19 @@ export const STATUS_STYLE: Record<string, string> = {
   sold: "bg-emerald-400/10 text-emerald-300",
 };
 
-/** The console's pages, in nav order. Each is its own route under /admin. */
+/**
+ * The console's pages, in nav order. Each is its own route under /admin.
+ * "Prices & data" (/admin/data) is gone on purpose (issue #21): its page was
+ * never committed — an unanchored `data/` in .gitignore hid the folder — so
+ * the pill 404'd on prod, and everything it showed (price history, daily
+ * refresh, mirrors, storage) already lives on /admin/system.
+ */
 export const ADMIN_NAV = [
   ["/admin", "Overview"],
   ["/admin/switches", "Switches"],
   ["/admin/board", "Board"],
   ["/admin/users", "Users"],
   ["/admin/cards", "Cards"],
-  ["/admin/data", "Prices & data"],
   ["/admin/errors", "Errors"],
   ["/admin/system", "System"],
 ] as const;
