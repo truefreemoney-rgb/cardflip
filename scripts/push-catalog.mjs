@@ -38,6 +38,9 @@ if (!url || !authToken) {
   process.exit(1);
 }
 const dry = process.argv.includes("--dry");
+// --only <table[,table]>: push just those catalog tables (09-10: tcg_cards alone, not all 120k rows).
+const onlyArg = process.argv[process.argv.indexOf("--only") + 1];
+const only = process.argv.includes("--only") && onlyArg ? new Set(onlyArg.split(",")) : null;
 
 const CATALOG_TABLES = [
   "en_cards",
@@ -58,6 +61,7 @@ const STMTS_PER_BATCH = 10;
 const t0 = Date.now();
 
 for (const table of CATALOG_TABLES) {
+  if (only && !only.has(table)) continue;
   const exists = local
     .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get(table);
