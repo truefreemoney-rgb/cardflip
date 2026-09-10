@@ -87,6 +87,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
 
+- [x] 09-10 One Piece real-photo gate 97.4% (38/39 eBay seller photos, no cards needed — npm run op:phone); glare digit-misread tier in the ranker; tiebreak token cap fixed (Opus thinks against max_tokens)
 - [x] 09-10 One Piece panel 80.0% → 98.0% (target met, run 5): ranker variant families + rarity-token strip, tiebreak prompt now names the right game, feed wrong-picture guard in sync, and three files' regexes had lost their backslashes (never matched) — restored + 4 incident tests; switch still OFF, phone batch next
 - [x] 09-10 Magic phase 2 panel built and run (npm run mtg:panel, 205 printings): 75.6% → 87.3% after stamped-twin + Art Series + year-window ranker fixes and a sharper List-icon prompt; 100% on M15/showcase/extended/retro/SLD/promo pack/DFC/textless; leftovers = pre-1998 ties (phase 3), List icon at catalog size, Art Series fronts, flavor names (docs/MTG-IDENTIFICATION.md §3c).
 - [x] 09-10 SEO pass: canonical + og:url on every public page, sitemap with /pricing + /help and real dates/priorities, noindex on /app /connect-ebay /forgot-password /reset-password, JSON-LD (Organization + WebSite + SoftwareApplication with the two plans site-wide; FAQPage from the 13 help articles; breadcrumbs on /pricing /help), Search Console / Bing verification tags read from GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION env.

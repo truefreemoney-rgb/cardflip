@@ -96,6 +96,14 @@ export function splitOnePieceNumber(number: string): { setCode: string | null; n
 
 const NAME_TIER = 8;
 
+/** Same length, same letters, exactly one character different ("op13-118" vs "op10-018" is two — not this). */
+function oneCharOff(a: string, b: string): boolean {
+  if (a.length !== b.length || a === b) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && ++diff > 1) return false;
+  return diff === 1;
+}
+
 export async function searchTcgCardsLocal(
   game: TcgGame,
   name: string,
@@ -159,6 +167,10 @@ export async function searchTcgCardsLocal(
     let tier: number;
     if (exactName && exactNumber) tier = 0;
     else if (exactNumber && needle === "") tier = 0;
+    // Glare on a foil turns OP13-118 into OP10-018: with the name exact and
+    // no printing of that name carrying the read number, the row one
+    // character off is the likeliest — ahead of every other same-name row.
+    else if (exactName && wantedNumber && game === "onepiece" && oneCharOff(rowNumber, wantedNumber)) tier = 0.5;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;

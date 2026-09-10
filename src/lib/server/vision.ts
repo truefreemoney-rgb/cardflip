@@ -846,7 +846,10 @@ export async function tiebreakByPicture(
   if (!a || !b) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
   const response = await getClient().messages.create({
     model: TIEBREAK_MODEL,
-    max_tokens: 450,
+    // Opus 5 thinks by default and those tokens count against max_tokens;
+    // a tight cap (300-450) starved the JSON answer (09-10: "Unterminated
+    // string", "no readable result"). Only generated tokens are billed.
+    max_tokens: 4000,
     output_config: { effort: "medium", format: { type: "json_schema", schema: TIEBREAK_SCHEMA } },
     system: SYSTEM_TIEBREAK,
     messages: [
@@ -865,7 +868,7 @@ export async function tiebreakByPicture(
     ],
   });
   const text = response.content.find((block) => block.type === "text");
-  if (!text || text.type !== "text") throw new Error("tiebreak: no readable result");
+  if (!text || text.type !== "text") throw new Error(`tiebreak: no readable result (stop_reason ${response.stop_reason})`);
   const parsed = JSON.parse(text.text) as { pick: "A" | "B" | null; confidence: number; reason: string };
   const u = response.usage;
   const usage: VisionUsage = {

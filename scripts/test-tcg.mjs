@@ -51,6 +51,7 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-zoro-p1", "onepiece", "Roronoa Zoro", "", "OP01", "Romance Dawn", "OP01-001", null, "", "L", "parallel", 568, null],
   ["op-zoro-st", "onepiece", "Roronoa Zoro", "", "ST01", "Straw Hat Crew", "ST01-013", null, "", "C", "", 0.3, null],
   ["op-nami", "onepiece", "Nami", "", "OP01", "Romance Dawn", "OP01-016", null, "", "R", "", 1.0, null],
+  ["op-nami-2", "onepiece", "Nami", "", "OP03", "Pillars of Strength", "OP03-040", null, "2023-06-30", "L", "", 4.0, null],
   // 09-10 panel misses (run 3): rarity token in the read number, a full-art
   // read against a special + reprint twin, a feed key with its _r1 suffix,
   // and a catalog name carrying the number.
@@ -91,6 +92,7 @@ check("One Piece: rarity token before the number is ignored ('SP P-084')", await
 check("One Piece: full-art read prefers the special row over the plain reprint twin", await top("onepiece", "Shanks", pn("ST16-004"), null, "full-art"), "op-shanks-sp");
 check("One Piece: a feed key with its _r1 suffix still matches the printed number", await top("onepiece", "Sanji", pn("P-029")), "op-sanji-r1");
 check("One Piece: a catalog name carrying the number still counts as an exact name", await top("onepiece", "Trafalgar Law", pn("OP05-069")), "op-law");
+check("One Piece: a one-digit number misread with an exact name lands on the nearest number", await top("onepiece", "Nami", pn("OP01-017")), "op-nami");
 check("rankScore exposed", typeof (await searchTcgCardsLocal("onepiece", "Nami", null, 5))[0]?.rankScore === "number");
 check("Lorcana card name carries the version", (await searchTcgCardsLocal("lorcana", "Ariel", pn("1", 204), 1))[0]?.name, "Ariel - On Human Legs");
 
