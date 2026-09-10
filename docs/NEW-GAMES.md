@@ -59,4 +59,7 @@ different id). Cost guard as the other panels.
 
 ## Numbers
 
-Filled per run below.
+| Game | Panel | First try | One tap |
+|---|---|---|---|
+| Lorcana | 145 printings, run 1 (09-10) | **145/145 = 100%** (8 ties to the picture) | 100% |
+| One Piece | 150 printings, run 1 | pending | |
