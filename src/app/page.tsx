@@ -297,7 +297,7 @@ export default async function Home() {
         </section>
 
         {/* =========================== How it works ========================= */}
-        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-10 pt-6 sm:pb-12 sm:pt-8">
+        <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 pb-10 pt-6 sm:scroll-mt-20 sm:pb-12 sm:pt-8">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">How it works</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
@@ -493,7 +493,7 @@ export default async function Home() {
         </section>
 
         {/* ============================ Pricing ============================= */}
-        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 pb-10 pt-2 sm:pb-12 sm:pt-4">
+        <section id="pricing" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 pb-10 pt-2 sm:scroll-mt-20 sm:pb-12 sm:pt-4">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Pricing</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">Start free. Pay for the volume you need.</h2>

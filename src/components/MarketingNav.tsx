@@ -19,6 +19,12 @@ import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
  * capsule is gone. This is the app's own header chrome — flat, full-width,
  * sticky, holo hairline underneath — so the marketing site and the product
  * read as one thing. Links sit right, in one row, one weight.
+ *
+ * Phones (Chris, 09-10, issue #19): the logo takes its own row above the
+ * links. The 09-09 wordmark logo is 170px wide at 32px tall, and with
+ * Pricing / Log In / Get Started beside it the row needed ~420px on a
+ * 343px-wide phone line. Both rows are centered — the same masthead-over-
+ * pill shape as the app header's phone layout. From sm it is the one row.
  */
 export default function MarketingNav() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -39,9 +45,9 @@ export default function MarketingNav() {
 
   return (
     <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
-      <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+      <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 px-4 py-2 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
         <Logo />
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center justify-center gap-1 sm:gap-2">
           <Link href="/#how-it-works" className={`${link} hidden sm:inline-block`}>
             How It Works
           </Link>
