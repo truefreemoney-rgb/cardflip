@@ -433,19 +433,19 @@ export async function analyzeCardImageWithUsage(
   }
 }
 
-async function matchArtByPicture(base64Image: string, read: VisionCardRead): Promise<VisionCardRead | null> {
+async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind: "art" | "token"): Promise<VisionCardRead | null> {
   try {
     const { matchArtSeries } = await import("@/lib/server/artHash");
-    const hit = await matchArtSeries(Buffer.from(base64Image, "base64"));
+    const hit = await matchArtSeries(Buffer.from(base64Image, "base64"), kind);
     if (!hit) return null;
     return {
       ...read,
       name: hit.name,
       setCode: hit.setCode.toUpperCase(),
       cardNumber: hit.number,
-      kind: "art",
+      kind,
       confidence: Math.max(read.confidence ?? 0, 0.9),
-      secondLook: `art-picture:${hit.distance}`,
+      secondLook: `${kind}-picture:${hit.distance}`,
     };
   } catch (err) {
     console.warn("art picture match failed:", err instanceof Error ? err.message : err);

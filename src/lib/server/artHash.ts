@@ -65,7 +65,11 @@ interface ArtRow {
   set_code: string;
   collector_number: string;
   art_hash: string;
+  type_line: string;
 }
+
+/** Which hashed rows a picture may match: Art Series fronts, tokens / emblems, or everything hashed. */
+export type PictureKind = "art" | "token" | "all";
 
 let cache: { at: number; rows: ArtRow[] } | null = null;
 const CACHE_MS = 10 * 60 * 1000;
@@ -74,7 +78,7 @@ async function artRows(): Promise<ArtRow[]> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.rows;
   try {
     const rows = (await db
-      .prepare("SELECT id, name, set_code, collector_number, art_hash FROM mtg_cards WHERE art_hash <> ''")
+      .prepare("SELECT id, name, set_code, collector_number, art_hash, type_line FROM mtg_cards WHERE art_hash <> ''")
       .all()) as unknown as ArtRow[];
     cache = { at: Date.now(), rows };
     return rows;
@@ -96,8 +100,12 @@ export interface ArtMatch {
  * frame and two insets (a phone photo carries table around the card; a
  * catalog scan carries the white border) and keeps the closest.
  */
-export async function matchArtSeries(image: Buffer): Promise<ArtMatch | null> {
-  const rows = await artRows();
+export async function matchArtSeries(image: Buffer, kind: PictureKind = "art"): Promise<ArtMatch | null> {
+  const all = await artRows();
+  const rows =
+    kind === "all" ? all
+    : kind === "token" ? all.filter((r) => /^(token|emblem)/i.test(r.type_line ?? ""))
+    : all.filter((r) => /^card/i.test(r.type_line ?? ""));
   if (rows.length === 0) return null;
   const hashes = await Promise.all([0, 0.05, 0.12].map((inset) => dHash(image, inset)));
   let best: ArtMatch | null = null;

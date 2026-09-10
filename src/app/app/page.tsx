@@ -139,6 +139,8 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
 
 /** Concurrent scans per tab — see pumpingRef. */
 const SCAN_WORKERS = 2;
+/** Art Series cards are refused at the scan (Chris 09-10), like tokens. */
+const ART_CARDS_LOCKED = true;
 
 /* Reopen tracker: the ledger fetch and catalog match run in parallel and
    usually land inside two seconds; the last step holds until they do. */
@@ -421,7 +423,14 @@ export default function AppPage() {
               next.game === "mtg" &&
               (read.kind === "token" || (read.cardNumber && /^T\s*\d+$/i.test(read.cardNumber.trim())))
             ) {
-              readError = "That's a token — tokens aren't priced or listed";
+              readError = "That's a token — tokens aren't accepted. Scan a playable card";
+              nameCandidates = [];
+              printed = null;
+            } else if (next.game === "mtg" && read.kind === "art" && ART_CARDS_LOCKED) {
+              // Chris 09-10: tokens and art cards were the unreliable scans;
+              // a plain lock beats a guess. The picture match stays in the
+              // read path for the day this flips.
+              readError = "That's an art card — art cards aren't accepted. Scan a playable card";
               nameCandidates = [];
               printed = null;
             } else if (next.game === "mtg" && read.kind === "art") {

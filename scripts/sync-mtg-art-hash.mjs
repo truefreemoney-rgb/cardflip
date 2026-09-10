@@ -25,6 +25,7 @@ const SCOPES = {
   art: "type_line LIKE 'Card%' AND set_code LIKE 'a%'",
   lands: "type_line LIKE 'Basic Land%'",
   pre1998: "set_release_date < '1998-01-01'",
+  tokens: "(type_line LIKE 'Token%' OR type_line LIKE 'Emblem%')",
 };
 const where = SCOPES[scope] ?? SCOPES.art;
 const rows = db
