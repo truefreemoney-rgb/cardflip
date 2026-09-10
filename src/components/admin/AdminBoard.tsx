@@ -108,6 +108,9 @@ export function RunPanel({ st, onError, onReply, onComplete, canMerge = true }: 
         {(st.state === "done" || st.state === "pr-ready") && (
           <button type="button" onClick={reload} className="text-zinc-500 hover:text-zinc-300">Refresh</button>
         )}
+        {onComplete && st.state !== "running" && (
+          <button type="button" onClick={onComplete} title="Done with this thought — it moves to Completed" className="ml-auto rounded border border-emerald-400/40 px-2 py-0.5 text-emerald-200 hover:bg-emerald-500/15">✓ Complete</button>
+        )}
       </div>
     </div>
   );
