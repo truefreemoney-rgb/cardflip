@@ -38,6 +38,7 @@
     "test:inventoryvalue": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-inventory-value.mjs",
     "mtg:flavor": "node scripts/sync-mtg-flavor.mjs",
     "mtg:panel": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/mtg-panel.mjs",
+    "pokemon:panel": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/pokemon-panel.mjs",
     "mtg:phone": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/mtg-phone.mjs",
     "social:assets": "node scripts/social-assets.mjs",
     "test:cards": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-cards.mjs",
