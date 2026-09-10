@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { publishSocial } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
@@ -10,14 +11,23 @@ import { SOCIAL_SITES } from "@/lib/server/socialSites";
  *   ...&dry=1                                                → says what would go out, posts nothing
  *   ...&day=YYYY-MM-DD                                       → another day's drafts
  * The daily Pokémon cron calls publishSocial() itself; this route is the
- * manual handle (and the one the /admin/social "Post now" button uses).
+ * manual handle. Owner cookie (the /admin/social "Post now" button) or
+ * ?key=CRON_SECRET / Bearer (routine, manual pinger) — same gate as
+ * /api/social/image and /api/social/drafts.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 async function run(req: NextRequest) {
   const denied = cronAuthError(req);
-  if (denied) return denied;
+  if (denied) {
+    try {
+      await requireAdminOwner();
+    } catch (err) {
+      if (err instanceof AuthError) return denied;
+      throw err;
+    }
+  }
   const q = req.nextUrl.searchParams;
   const rawDay = q.get("day");
   const report = await publishSocial({
