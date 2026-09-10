@@ -127,6 +127,7 @@ for (const id of ids) {
   const game = row.game === "mtg" ? "mtg" : "pokemon";
   console.log(`\n## [${game}] ${row.card_name} — scanner chose ${row.set_name} ${row.card_number} (${row.catalog_card_id})`);
   console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind ?? "-"} conf=${read.confidence}`);
+  if (game === "mtg") console.log(`cues: finish=${read.finish} treatment=${read.treatment} marks=${(read.marks ?? []).join("+") || "-"} artist=${read.artist} year=${read.copyrightYear} border=${read.borderColor} serial=${read.serialNumber}`);
 
   // Same walk as src/app/app/page.tsx: name candidates, printed fraction, art.
   const printed = read.cardNumber
