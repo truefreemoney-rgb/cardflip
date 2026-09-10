@@ -78,6 +78,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
 
+- [x] 09-09 New logo on the site (Chris's CF card + CARDFLIP wordmark PNG, public/brand/cardflip-logo.png, 28px app header / 32px standalone pages); the old Spin Cycle mark + text are gone from Logo.tsx (favicon/app icon unchanged); marketing nav links no longer wrap beside the wider logo.
 - [x] 09-09 Board replies carry photos (📎 in the reply box; a photo-only reply works); ↳ Reply sits under every runner output (reading / question / PR / merged) and ▶ Run again works after any finished run, sending the whole thread + photos; a visible 📎 on every row adds a photo after the fact, before you press Run.
 - [x] 09-09 Board run chips are live: re-read every 20s while a run is moving (working / PR open / merged but not yet deployed), every 2 min otherwise, and whenever the tab comes back into view. Also fixed: a merged + live run now ticks itself (the self-complete regex had lost its \d).
 - [x] 09-09 Inventory bulk delete is ONE request (DELETE /api/cards {ids}) — 88 parallel deletes lost every reply while the server had removed the rows ("88 of 88 couldn't be removed"); ended auctions are now included (they were skipped silently, the 5 left over); a failed delete refetches the ledger instead of restoring from memory. test:cards pins it.

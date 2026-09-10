@@ -35,7 +35,7 @@ export default function MarketingNav() {
     };
   }, []);
 
-  const link = "px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white";
+  const link = "whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white";
 
   return (
     <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
@@ -64,7 +64,7 @@ export default function MarketingNav() {
               </button>
               <Link
                 href="/app"
-                className="ml-1 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                className="ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
               >
                 Open the App
               </Link>
@@ -76,7 +76,7 @@ export default function MarketingNav() {
               </Link>
               <Link
                 href="/signup"
-                className="ml-1 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                className="ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
               >
                 Get Started
               </Link>
