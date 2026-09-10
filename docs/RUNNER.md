@@ -63,7 +63,8 @@ starting `↳ <Name>:` are her replies. Treat her exactly like Chris with two
 differences:
 
 - Her tasks are usually **answers, not code**: captions, a posting plan,
-  step-by-step instructions, hashtags, a bio. Put the answer in the PR body
+  step-by-step instructions, hashtags, a bio. Read `docs/SOCIAL.md` first
+  (the plan from run #26) and build on it. Put the answer in the PR body
   in plain words (numbered steps, ready to copy) AND save the same text as
   `docs/social/<issue>-<slug>.md` so the PR has a diff. Nothing else changes.
   The board shows her the PR body under her note.
