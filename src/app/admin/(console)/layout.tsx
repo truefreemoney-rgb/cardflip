@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Logo from "@/components/Logo";
 import AdminNav from "@/components/admin/AdminNav";
+import AdminKeepAlive from "@/components/admin/AdminKeepAlive";
 import AdminSignOut from "@/components/admin/AdminSignOut";
 import { adminUsingDefaults, helperName } from "@/lib/adminAuth";
 import { adminRole } from "@/lib/server/adminGate";
@@ -22,6 +23,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
   const helper = role === "helper";
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <AdminKeepAlive />
       <header className="sticky top-0 z-40 border-b border-white/5 bg-background/85 px-4 py-3 backdrop-blur-md sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

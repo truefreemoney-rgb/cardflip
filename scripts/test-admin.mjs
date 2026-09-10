@@ -36,6 +36,8 @@ const { token, expiresAt } = signAdminToken(now, creds, env);
 check("expiry = now + ttl", expiresAt, now + ADMIN_SESSION_TTL_MS);
 check("valid token verifies", verifyAdminToken(token, now + 1000, creds, env), true);
 check("expired token rejected", verifyAdminToken(token, expiresAt + 1, creds, env), false);
+check("token from the old 12 h rule rejected (expiry too far out)", verifyAdminToken(token, now - 60 * 60 * 1000, creds, env), false);
+check("ttl is five minutes idle", ADMIN_SESSION_TTL_MS, 5 * 60 * 1000);
 check("tampered expiry rejected", verifyAdminToken(`${expiresAt + 5}.${token.split(".")[1]}`, now, creds, env), false);
 check("tampered mac rejected", verifyAdminToken(`${expiresAt}.AAAA`, now, creds, env), false);
 check("password change invalidates sessions", verifyAdminToken(token, now, { user: "ops", password: "other" }, env), false);
@@ -64,6 +66,7 @@ check("helper token → helper", adminRoleOf(h.token, now + 1000, henv), "helper
 check("helper token is not an owner token", verifyAdminToken(h.token, now + 1000, creds, henv), false);
 check("owner token → owner", adminRoleOf(token, now + 1000, henv), "owner");
 check("helper token expired", adminRoleOf(h.token, h.expiresAt + 1, henv), null);
+check("helper token from the old rule rejected", adminRoleOf(h.token, now - 60 * 60 * 1000, henv), null);
 check("helper token dies with the helper login", adminRoleOf(h.token, now, env), null);
 check("helper password change ends her sessions", adminRoleOf(h.token, now, { ...henv, ADMIN_HELPER_PASSWORD: "other" }), null);
 check("tampered helper mac rejected", adminRoleOf(`${h.expiresAt}.h.AAAA`, now, henv), null);

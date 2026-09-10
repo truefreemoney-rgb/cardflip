@@ -13,7 +13,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  */
 
 export const ADMIN_COOKIE = "cardflip_admin";
-export const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+/**
+ * Idle timeout (Chris, 09-10: "time out users after 5 minutes" — the helper
+ * stayed signed in on her own computer). The console keeps the cookie alive
+ * while someone is actually using it (POST /api/admin/touch from
+ * AdminKeepAlive); five quiet minutes and the next request is a login.
+ */
+export const ADMIN_SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes idle
+/** A token that expires further out than TTL was issued under an older rule: refuse it. */
+const CLOCK_SKEW_MS = 60 * 1000;
+export function tokenLifeOk(expiresAt: number, now: number): boolean {
+  return Number.isFinite(expiresAt) && expiresAt > now && expiresAt - now <= ADMIN_SESSION_TTL_MS + CLOCK_SKEW_MS;
+}
 
 export interface AdminCredentials {
   user: string;
@@ -107,7 +118,7 @@ export function verifyAdminToken(token: string | undefined | null, now = Date.no
   if (dot <= 0) return false;
   const expiresAt = Number(token.slice(0, dot));
   const mac = token.slice(dot + 1);
-  if (!Number.isFinite(expiresAt) || expiresAt <= now) return false;
+  if (!tokenLifeOk(expiresAt, now)) return false;
   const expected = createHmac("sha256", signingKey(creds, env)).update(String(expiresAt)).digest("base64url");
   return safeEqual(mac, expected);
 }
@@ -132,7 +143,7 @@ export function adminRoleOf(token: string | undefined | null, now = Date.now(), 
   const creds = helperCredentials(env);
   if (!m || !creds) return null;
   const expiresAt = Number(m[1]);
-  if (!Number.isFinite(expiresAt) || expiresAt <= now) return null;
+  if (!tokenLifeOk(expiresAt, now)) return null;
   const expected = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
   return safeEqual(m[2], expected) ? "helper" : null;
 }

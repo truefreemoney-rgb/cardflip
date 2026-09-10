@@ -4,7 +4,7 @@ import { ADMIN_COOKIE, adminCookieOptions, issueAdminSession } from "@/lib/serve
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 
-/** Admin panel sign-in: username + password → signed 12 h cookie. */
+/** Admin panel sign-in: username + password → signed cookie, 5 min idle (kept alive by /api/admin/touch). */
 export async function POST(req: Request) {
   const limited = await limitOrRespondAsync(`auth:admin:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
