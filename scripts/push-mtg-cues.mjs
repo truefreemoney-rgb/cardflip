@@ -38,7 +38,7 @@ const rows = local
   .prepare(
     `SELECT id, artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name, art_hash
        FROM mtg_cards
-      WHERE frame <> '' OR artist <> '' OR flavor_name <> ''`,
+      WHERE frame <> '' OR artist <> '' OR flavor_name <> '' OR art_hash <> ''`,
   )
   .all();
 console.log(`local: ${rows.length} printings with cue data`);
