@@ -389,6 +389,8 @@ export default function AppPage() {
                   setTotal: read.setTotal,
                   setCode: read.setCode,
                   isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal),
+                  setName: read.setName,
+                  copyrightYear: read.copyrightYear ?? null,
                 }
               : null;
 

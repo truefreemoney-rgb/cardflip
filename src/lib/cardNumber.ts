@@ -39,6 +39,14 @@ export interface PrintedNumber {
   setCode: string | null;
   /** Numerator above the set total: an ultra-rare beyond the base set. */
   isSecretRare: boolean;
+  /**
+   * Vision's read of the set name (symbol, logo, era) — the only thing that
+   * tells apart two printings sharing name, number AND total (Type: Null
+   * 183/236 is both Unified Minds and Cosmic Eclipse). Tiebreak only.
+   */
+  setName?: string | null;
+  /** Last year of the copyright line — the print year. Tiebreak between same-fraction printings years apart. */
+  copyrightYear?: number | null;
 }
 
 /**

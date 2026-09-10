@@ -96,6 +96,37 @@ const NAME_TIER = 8;
 // the twin, anything else (not stamped, couldn't see) lifts the unlimited
 // card, which is what a phone scanner overwhelmingly sees.
 const FIRST_EDITION_PENALTY = 3;
+// Set name read off the symbol/logo/era: the last tiebreak between printings
+// that share name, number and total (09-10 Pokémon panel: 9 of 21 misses were
+// exactly this, and vision had named the right set on 5 of them — Unified
+// Minds vs Cosmic Eclipse, both 183/236). One point: it can reorder a tie,
+// never overrule a fraction or a code.
+const SETNAME_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
+// Print year off the copyright line vs the set's release year. A row more
+// than a year off the read loses a point — Eevee 63/100 is Sandstorm (2003)
+// AND Majestic Dawn (2008), and only the year tells them apart. One point,
+// same as the set name: a tiebreak, never a veto (misread digits happen).
+const YEAR_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
+
+function agreesWithYear(read: number | null | undefined, releaseDate: string): keyof typeof YEAR_PENALTY {
+  if (!read) return "unknown";
+  const year = Number(releaseDate.slice(0, 4));
+  if (!Number.isFinite(year) || year < 1990) return "unknown";
+  return Math.abs(year - read) <= 1 ? "match" : "mismatch";
+}
+
+const foldSetName = (s: string): string => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+
+function agreesWithSetName(read: string | null | undefined, row: string): keyof typeof SETNAME_PENALTY {
+  if (!read) return "unknown";
+  const a = foldSetName(read);
+  const b = foldSetName(row);
+  if (!a || !b) return "unknown";
+  // Generous on purpose — "Black & White (Base Set)" vs "Black & White",
+  // "Diamond & Pearl: Great Encounters" vs "Great Encounters". Only a name
+  // that shares nothing with the row's counts against it.
+  return a.includes(b) || b.includes(a) ? "match" : "mismatch";
+}
 
 /** Whether a mirror id is a 1st Edition twin. */
 export function isFirstEditionId(id: string): boolean {
@@ -202,15 +233,25 @@ export async function searchEnglishCardsLocal(
   // query did `= ? OR LIKE '%needle%'` and scanned the whole mirror on every
   // search; that walk is what emptied the Turso read quota on 09-06.
   const wanted = printed ? normalizeNumber(stripCodePrefix(printed.number, printed.setCode)) : null;
-  let rows = (await db
-    .prepare(
-      `SELECT ${CARD_COLUMNS}
-         FROM en_cards
-        WHERE ${FOLDED_NAME} >= ? AND ${FOLDED_NAME} < ?
-        ORDER BY set_release_date DESC
-        LIMIT 400`,
-    )
-    .all(needle, `${needle}\uffff`)) as unknown as EnCardRow[];
+  const wantedRaw = printed ? normalizeNumber(printed.number) : null;
+  // Energy cards print "Basic Metal Energy" in some eras and the mirror files
+  // others as plain "Metal Energy" (SVE 024 read as "Basic Metal Energy" fell
+  // to a different set, 09-10 panel) \u2014 both spellings are the same name.
+  const needles = [needle];
+  if (/^basic .+ energy$/.test(needle)) needles.push(needle.replace(/^basic /, ""));
+  let rows: EnCardRow[] = [];
+  for (const n of needles) {
+    const found = (await db
+      .prepare(
+        `SELECT ${CARD_COLUMNS}
+           FROM en_cards
+          WHERE ${FOLDED_NAME} >= ? AND ${FOLDED_NAME} < ?
+          ORDER BY set_release_date DESC
+          LIMIT 400`,
+      )
+      .all(n, `${n}\uffff`)) as unknown as EnCardRow[];
+    rows = rows.concat(found.filter((r) => !rows.some((have) => have.id === r.id)));
+  }
 
   // Substring fallback (the full walk) only when the cheap tiers can't settle
   // it: nothing matched, or a number was read and none of the matches carry
@@ -242,11 +283,14 @@ export async function searchEnglishCardsLocal(
   }
 
   const score = (row: EnCardRow): number => {
-    const exactName = normalizeName(row.name) === needle;
-    const total = agreesWithSetTotal(
-      printed?.setTotal ?? null,
-      row.set_card_count_official,
-    );
+    const exactName = needles.includes(normalizeName(row.name));
+    // Lettered sub-series (RC1/RC25, TG01/TG30, SH1/SH12, GG16/GG70) print
+    // their own denominator, not the set's official count, so a read total
+    // that disagrees with the set count is expected there, not a contradiction
+    // (09-10 panel: Snivy RC1/25 lost to a McDonald's Snivy over "25 ≠ 113").
+    const letteredNumber = /^[a-z]{2,}\d/i.test(printed?.number ?? "") && /^[a-z]{2,}\d/i.test(row.local_id);
+    const rawTotal = agreesWithSetTotal(printed?.setTotal ?? null, row.set_card_count_official);
+    const total = letteredNumber && rawTotal === "mismatch" ? "unknown" : rawTotal;
     // A numerator only means something inside its own set: "140" read off a
     // card whose denominator says 182 does not name Rebel Clash's 140/192.
     // Chris's 09-03 stress test: a low-confidence read of Destined Rivals
@@ -254,19 +298,44 @@ export async function searchEnglishCardsLocal(
     // card over the one whose set total agreed. So an exact numerator
     // counts only while the read set total doesn't contradict the row's;
     // with the total unread (promos, glare) it still counts as before.
-    const exactNumber =
-      Boolean(wanted) && normalizeNumber(row.local_id) === wanted && total !== "mismatch";
+    // Promos file the code inside the number on both sides ("SWSH001" in the
+    // mirror, "SWSH001" or "SWSH 001" from vision), so compare the raw
+    // number, the read with its code stripped, and the row with its code
+    // stripped (09-10 panel: Grookey SWSH001 lost to a McDonald's Grookey).
+    const rowNumber = normalizeNumber(row.local_id);
+    const numberAgrees =
+      Boolean(wanted) &&
+      (rowNumber === wanted ||
+        rowNumber === wantedRaw ||
+        normalizeNumber(stripCodePrefix(row.local_id, printed?.setCode ?? null)) === wanted ||
+        normalizeNumber(stripCodePrefix(row.local_id, row.set_code || null)) === wanted);
+    const exactNumber = numberAgrees && total !== "mismatch";
 
+    // Number AND total agreeing is a stronger claim than the name alone:
+    // "Pupitar" read off "Pupitar δ" 59/101 must not lose to plain Pupitar
+    // 58 in the same set (09-10 panel; same for Groudon ★ 111/113). With
+    // the total unread (promos, glare) the exact name keeps the edge.
     let tier: number;
     if (exactName && exactNumber) tier = 0;
-    else if (exactName) tier = 1;
-    else if (exactNumber) tier = 2;
-    else tier = 3;
+    else if (exactNumber && total === "match") tier = 1;
+    else if (exactName) tier = 2;
+    else if (exactNumber) tier = 3;
+    else tier = 4;
 
     const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
     const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official));
+    const setName = agreesWithSetName(printed?.setName, row.set_name);
+    const year = agreesWithYear(printed?.copyrightYear, row.set_release_date);
 
-    return tier * NAME_TIER + TOTAL_PENALTY[total] + CODE_PENALTY[code] + ART_PENALTY[frame] + printingPenalty(row.id, firstEdition);
+    return (
+      tier * NAME_TIER +
+      TOTAL_PENALTY[total] +
+      CODE_PENALTY[code] +
+      ART_PENALTY[frame] +
+      SETNAME_PENALTY[setName] +
+      YEAR_PENALTY[year] +
+      printingPenalty(row.id, firstEdition)
+    );
   };
 
   // Stable sort, so release-date order from the query survives as the final

@@ -124,6 +124,10 @@ export async function GET(req: NextRequest) {
   const totalParam = Number(req.nextUrl.searchParams.get("setTotal"));
   const setTotal = Number.isFinite(totalParam) && totalParam > 0 ? totalParam : null;
   const setCode = sanitize(req.nextUrl.searchParams.get("setCode") ?? "") || null;
+  // Vision's set-name read — a tiebreak between same-fraction printings.
+  const setName = sanitize(req.nextUrl.searchParams.get("setName") ?? "") || null;
+  const yearParam = Number(req.nextUrl.searchParams.get("year"));
+  const copyrightYear = Number.isInteger(yearParam) && yearParam >= 1993 && yearParam <= 2100 ? yearParam : null;
   const artParam = req.nextUrl.searchParams.get("art");
   const art: ArtStyle = artParam === "standard" || artParam === "full-art" ? artParam : null;
   // Vision's read of the 1st Edition stamp: "1" lifts the 1st Edition twin
@@ -214,6 +218,8 @@ export async function GET(req: NextRequest) {
         setTotal,
         setCode,
         isSecretRare: isSecretRareNumber(number, setTotal),
+        setName,
+        copyrightYear,
       }
     : null;
 

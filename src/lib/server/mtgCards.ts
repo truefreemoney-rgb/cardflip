@@ -212,7 +212,16 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
   // Copyright year is the printing year. ±1 covers a set printed in
   // December for a January release.
   if (cues.copyrightYear && releaseYear && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) {
-    if (Math.abs(cues.copyrightYear - releaseYear) > 1) p += 3;
+    const gap = Math.abs(cues.copyrightYear - releaseYear);
+    if (gap > 1) p += 3;
+    // A one-year gap is possible but a same-year set is the better answer:
+    // Summer Magic (1994) vs 4th Edition (1995) on a "© 1994" read (09-10 panel).
+    else if (gap === 1) p += 1;
+    // Cards before 4th Edition / Ice Age (April 1995) print no year at all,
+    // so a read year rules those sets out outright (Beta, Unlimited,
+    // Revised, Arabian Nights … Fallen Empires).
+    // Summer Magic (June 1994) is the famous exception: it prints "© 1994".
+    if (row.set_release_date < "1995-04-01" && row.set_code.toLowerCase() !== "sum") p += 3;
   }
 
   // Border colour, when the row knows its own and it isn't the borderless

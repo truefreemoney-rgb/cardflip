@@ -130,6 +130,57 @@ check("curly-apostrophe query finds it too",
   await top("Team Rocket’s Zapdos", null), "dri-70");
 check("spaced-name secret rare still wins its own fraction",
   await top("Charizard GX", { number: "150", setTotal: 147, setCode: null, isSecretRare: false }), "sm3-150");
+
+// --- 09-10 Pokémon panel rules (98% push, docs/STATE.md) -------------------
+// Twins that share name, number AND total: only the set name / print year
+// tells them apart. Plus the tier change (number+total beats an exact name
+// with the wrong number), promo prefixes, Basic Energy, lettered totals.
+const seed2 = [
+  ["sm11-183", "Type: Null",        "sm11",  "Unified Minds",   "183", "2019-08-02", 236, "UNM"],
+  ["sm12-183", "Type: Null",        "sm12",  "Cosmic Eclipse",  "183", "2019-11-01", 236, "CEC"],
+  ["ex2-63",   "Eevee",             "ex2",   "Sandstorm",       "63",  "2003-09-18", 100, ""],
+  ["dp5-63",   "Eevee",             "dp5",   "Majestic Dawn",   "63",  "2008-05-21", 100, ""],
+  ["ex15-58",  "Pupitar",           "ex15",  "Dragon Frontiers","58",  "2006-11-08", 101, ""],
+  ["ex15-59",  "Pupitar δ",         "ex15",  "Dragon Frontiers","59",  "2006-11-08", 101, ""],
+  ["swshp-SWSH001", "Grookey",      "swshp", "SWSH Black Star Promos","SWSH001","2019-11-15", 307, "PR-SW"],
+  ["2021swsh-8",    "Grookey",      "2021swsh","McDonald's Collection 2021","8","2021-02-09", 25, ""],
+  ["sve-024",  "Metal Energy",      "sve",   "Scarlet & Violet Energies","024","2023-03-31", 8, "SVE"],
+  ["sv06.5-099","Basic Metal Energy","sv06.5","Shrouded Fable", "099", "2024-08-02", 64, "SFA"],
+  ["bw11-RC1", "Snivy",             "bw11",  "Legendary Treasures","RC1","2013-11-06", 113, "LTR"],
+  ["2021swsh-5","Snivy",            "2021swsh","McDonald's Collection 2021","5","2021-02-09", 25, ""],
+];
+for (const [id, name, setId, setName, local, date, official, code] of seed2) {
+  await db.prepare(
+    `INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, set_card_count_official, set_card_count_total, set_code, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?, 0)`,
+  ).run(id, name, setId, setName, local, date, official, official, code);
+}
+const pn = (number, setTotal, extra = {}) => ({ number, setTotal, setCode: null, isSecretRare: false, ...extra });
+
+check("same fraction twins, no set name: newest wins (as before)",
+  await top("Type: Null", pn("183", 236)), "sm12-183");
+check("same fraction twins: vision's set name breaks the tie",
+  await top("Type: Null", pn("183", 236, { setName: "Unified Minds" })), "sm11-183");
+check("set name matches loosely ('Sun & Moon: Unified Minds')",
+  await top("Type: Null", pn("183", 236, { setName: "Sun & Moon: Unified Minds" })), "sm11-183");
+check("same fraction twins years apart: the copyright year breaks the tie",
+  await top("Eevee", pn("63", 100, { copyrightYear: 2003 })), "ex2-63");
+check("copyright year within a year of release still matches",
+  await top("Eevee", pn("63", 100, { copyrightYear: 2008 })), "dp5-63");
+check("set name cannot overrule a contradicting set total",
+  await top("Zamazenta", pn("140", 182, { setName: "Rebel Clash" })), "sv10-146");
+check("number+total agreeing beats an exact name with the wrong number (Pupitar δ 59)",
+  await top("Pupitar", pn("59", 101)), "ex15-59");
+check("exact name keeps the edge when the total is unread",
+  await top("Pupitar", pn("59", null)), "ex15-58");
+check("promo number filed with its code in the mirror ('SWSH001') matches the read 'SWSH001'",
+  await top("Grookey", pn("SWSH001", null, { setCode: "SWSH" })), "swshp-SWSH001");
+check("'Basic Metal Energy' read finds the mirror's 'Metal Energy' by number",
+  await top("Basic Metal Energy", pn("024", null, { setCode: "SVE" })), "sve-024");
+check("'Basic Metal Energy' with the Shrouded Fable number still finds that card",
+  await top("Basic Metal Energy", pn("099", 64)), "sv06.5-099");
+check("lettered sub-series total (RC1/25) is not a contradiction of the set count (113)",
+  await top("Snivy", pn("RC1", 25)), "bw11-RC1");
 // --- mtg ranking: special sets need evidence -------------------------------
 // 09-02: a plain M11 Pyretic Ritual matched the Mystical Archive showcase —
 // with nothing readable, the tie broke newest-first onto a masterpiece set.
@@ -224,6 +275,31 @@ check("without the icon, the original's code and number stay on the original",
   await mtgTopC("Pyretic Ritual", "153", "m11", { copyrightYear: 2010 }), "m11-153");
 check("no marks read at all leaves the plain printing on top",
   await mtgTopC("Pyretic Ritual", null, null, { finish: "foil" }), "m11-153");
+// 09-10 pre-1998 rules: a printed year rules out the no-year sets (Beta,
+// Unlimited, Revised …); a same-year set beats a one-year-off set; border
+// colour separates Beta from Unlimited.
+for (const [id, code, setName, num, date, border] of [
+  ["leb-241", "leb", "Limited Edition Beta", "241", "1993-10-04", "black"],
+  ["2ed-241", "2ed", "Unlimited Edition",    "241", "1993-12-01", "white"],
+  ["3ed-242", "3ed", "Revised Edition",      "242", "1994-04-11", "white"],
+  ["sum-242", "sum", "Summer Magic / Edgar", "242", "1994-06-21", "white"],
+  ["4ed-311", "4ed", "Fourth Edition",       "311", "1995-04-01", "white"],
+]) {
+  await db.prepare(
+    `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at,
+                            artist, frame, border_color, frame_effects, finishes)
+     VALUES (?, 'Cyclopean Tomb', ?, ?, ?, ?, 1, 0, 'Anson Maddocks', '1993', ?, '', 'nonfoil')`,
+  ).run(id, code, setName, num, date, border);
+}
+check("no year read, black border: Beta over Unlimited",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "black" }), "leb-241");
+check("no year read, white border: Beta is out, the newest white-border set wins the tie the seller taps through",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white" }), "4ed-311");
+check("a printed year rules out the no-year sets: © 1995 → 4th Edition",
+  await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1995, border: "white" }), "4ed-311");
+check("same-year set beats the one-year-off set: © 1994 → Summer Magic, not 4th",
+  await mtgTopC("Cyclopean Tomb", null, null, { copyrightYear: 1994, border: "white" }), "sum-242");
+
 check("finish is carried on the card, not used to rank",
   (await searchMtgCardsLocal("Sol Ring", null, "c21", 5, null, false, { finish: "foil" }))[0]?.finishes, ["nonfoil", "foil"]);
 

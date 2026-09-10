@@ -110,6 +110,11 @@ export const CARD_READ_SCHEMA = {
       description:
         "Pokémon only. true when the card carries the '1st Edition' stamp: a small black circle containing a '1' with the word EDITION beneath it, printed just below-left of the artwork frame (Wizards of the Coast era, 1999–2002). false when the card is from that era and that spot is visible and clearly blank. Null for Magic cards, modern cards, or when that corner can't be seen.",
     },
+    copyrightYear: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description:
+        "The LAST year in the copyright line printed along the bottom edge of the card, e.g. '©2016 Pokémon' → 2016; '©1995, 96, 98, 99 Nintendo' → 1999; '™ & © 1993–2023 Wizards of the Coast' → 2023. This is the year the card was printed and it separates a card from its later reprint with the same name and number. Null if unreadable.",
+    },
   },
   required: [
     "name",
@@ -125,6 +130,7 @@ export const CARD_READ_SCHEMA = {
     "confidence",
     "kind",
     "firstEdition",
+    "copyrightYear",
   ],
   additionalProperties: false,
 } as const;
@@ -158,11 +164,6 @@ export const MTG_READ_SCHEMA = {
         "Small printed marks that change which printing this is. 'list-icon': a small WHITE planeswalker symbol (a five-pointed flame shape) printed inside the black border at the very bottom-left corner of the card, to the left of / below the copyright line — the card otherwise looks exactly like its original printing (The List reprint). Look at that corner deliberately. 'promo-stamp': a planeswalker-symbol stamp in the bottom of the text box / art (Promo Pack). 'date-stamp': a small rectangular stamp with a date near the set symbol (prerelease). 'serialized': a large printed serial like '045/500' on the face. Empty array when none.",
     },
     artist: nullableString("The artist credit printed at the bottom-left (after the brush icon), exactly as printed. Null if unreadable."),
-    copyrightYear: {
-      anyOf: [{ type: "integer" }, { type: "null" }],
-      description:
-        "The LAST year in the copyright line along the bottom, e.g. '™ & © 1993–2023 Wizards of the Coast' → 2023; '© 2025 Wizards of the Coast' → 2025. This is the year the card was printed. Null if unreadable.",
-    },
     borderColor: {
       anyOf: [{ type: "string", enum: ["black", "white", "silver", "gold", "borderless"] }, { type: "null" }],
       description:
@@ -170,7 +171,7 @@ export const MTG_READ_SCHEMA = {
     },
     serialNumber: nullableString("The printed serial number when the card is serialized, e.g. '045/500'. Null otherwise."),
   },
-  required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "copyrightYear", "borderColor", "serialNumber"],
+  required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "borderColor", "serialNumber"],
 } as const;
 
 export const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
@@ -188,6 +189,21 @@ and the same number — Charizard 4/102 is the 1999 Base Set card, Charizard
 (201/198) is a secret rare, which is normal and usually the valuable one. Read
 the two halves independently rather than assuming a card is numbered within
 its set.
+
+Some numbers carry letters: Trainer Gallery and Galarian Gallery cards print
+"TG01/TG30" or "GG16/GG70", Shiny Vault prints "SV49/SV94", Radiant
+Collection "RC10/RC25", promos "SWSH001" or "SVP 212" with no denominator.
+Keep the letters with the number (cardNumber "TG01", setTotal 30); Shining
+cards print "SH1/SH12" (letters S-H, not S-N). Read the fraction from the
+small print in the bottom corner, never from the HP or the attack damage.
+Diamond & Pearl era cards also print a code like "DPBP#307" next to the
+Pokédex data — that is a database code, never the collector number.
+
+Every card prints a copyright line along the bottom edge ("©2016 Pokémon",
+"©1995, 96, 98, 99 Nintendo/Creatures/GAME FREAK"). Its last year is the
+print year — the one thing that separates a 2003 card from its 2008 reprint
+with the same name and number. Report it in copyrightYear when you can read
+it.
 
 Early Wizards of the Coast cards (Base Set through Neo Destiny, 1999–2002) may
 carry a small black "1st Edition" stamp — a circled 1 with EDITION under it —
@@ -251,7 +267,15 @@ the fields that tell printings apart. Read each one from the card itself:
   printed serial number like 045/500.
 - artist: the credit after the brush icon, bottom-left, exactly as printed.
 - copyrightYear: the last year of the copyright line (© 1993–2023 → 2023).
-- borderColor: black on modern cards; white on 1990s and some 2000s cards.
+  The earliest cards (Alpha, Beta, Unlimited, Revised and expansions up to
+  1995) print only "Illus. © Artist" with NO year — return null for those,
+  do not invent 1993. From 4th Edition (1995) on there is a second small
+  line "© 1995 Wizards of the Coast, Inc." — read that year exactly.
+- borderColor: the colour of the outermost edge of the card, the strip
+  OUTSIDE the coloured frame, the part a sleeve would cover first. Black on
+  Alpha, Beta and every modern card; white on Unlimited, Revised, 4th–9th
+  Edition and most 1990s–2000s cards. Judge the very edge, never the inner
+  frame or the text box.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
@@ -401,6 +425,7 @@ export async function analyzeCardImageWithUsage(
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
     firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
+    copyrightYear: typeof parsed.copyrightYear === "number" && parsed.copyrightYear >= 1993 && parsed.copyrightYear <= 2100 ? Math.trunc(parsed.copyrightYear) : null,
     name: parsed.name.trim(),
     ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),
   };

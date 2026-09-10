@@ -147,13 +147,14 @@ export interface VisionCardRead {
    * the artwork (WotC era). Null when the model can't tell or it doesn't apply.
    */
   firstEdition?: boolean | null;
+  /** Last year of the copyright line along the bottom edge — the print year (both games). */
+  copyrightYear?: number | null;
   // --- Magic only (MTG_READ_SCHEMA); absent on Pokémon reads. ---
   /** Foil read off the shine of the whole face; null when the photo can't settle it. */
   finish?: MtgFinish | null;
   treatment?: MtgTreatment | null;
   marks?: MtgMark[];
   artist?: string | null;
-  copyrightYear?: number | null;
   borderColor?: MtgBorder | null;
   /** "045/500" when the card is serialized. */
   serialNumber?: string | null;

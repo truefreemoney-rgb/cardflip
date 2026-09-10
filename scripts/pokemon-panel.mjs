@@ -86,6 +86,7 @@ function pickPanel() {
 
 let panel = flag("pick") || !fs.existsSync(PANEL_PATH) ? pickPanel() : JSON.parse(fs.readFileSync(PANEL_PATH, "utf8"));
 if (opt("bucket")) panel = panel.filter((p) => p.bucket.toLowerCase().includes(opt("bucket").toLowerCase()));
+if (opt("id")) panel = panel.filter((p) => opt("id").split(",").includes(p.id));
 if (opt("limit")) panel = panel.slice(0, Number(opt("limit")));
 // --fresh re-reads the selected cards (keep the rest of the cache).
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
@@ -125,7 +126,13 @@ async function readCard(b64, mediaType) {
 
 // TCGdex "high" (~600×825) is the closest catalog size to a 1024px phone
 // upload; the 1st Edition twins carry TCGplayer scans (stamped) as they are.
-const bigUrl = (u) => u.replace("/low.webp", "/high.webp");
+// pokemontcg.io's plain PNG is a 245px thumbnail — no phone photo is that
+// small — so the panel reads the _hires twin (~734px) of any such row.
+const bigUrl = (u) =>
+  u.replace("/low.webp", "/high.webp").replace(/(images\.pokemontcg\.io\/[^/]+\/[^/._]+)\.png$/, "$1_hires.png");
+// TCGplayer product photos (trainer kits, some promos) are blurry 12 KB
+// listings, not scans; a miss on one is reported apart from the clear-image score.
+const isProductPhoto = (u) => u.includes("tcgplayer-cdn.tcgplayer.com");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // The scanner's own walk (app/app/page.tsx): name candidates in order, the
@@ -134,7 +141,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function lookup(read) {
   if (!read || (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE)) return [];
   const printed = read.cardNumber
-    ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal) }
+    ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal), setName: read.setName, copyrightYear: read.copyrightYear ?? null }
     : null;
   const art = read.artStyle ?? null;
   const first = read.firstEdition ?? null;
@@ -153,11 +160,21 @@ const byBucket = new Map();
 const misses = [];
 let n = 0;
 let stampedScans = 0;
+let mirrorDupes = 0;
+let wrongImages = 0;
+// Panel rows whose catalog image is really another printing (checked by eye).
+const CATALOG_IMAGE_IS = { "g1-28": "g1-28a" };
 for (const p of panel) {
   let read = cache[p.id];
   if (!read) {
     const url = bigUrl(p.image);
-    const res = await fetch(url, { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/webp,image/jpeg" } });
+    let res;
+    try {
+      res = await fetch(url, { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/webp,image/jpeg" }, signal: AbortSignal.timeout(15_000) });
+    } catch (err) {
+      console.log(`  !! ${p.name}: image fetch ${err?.cause?.code ?? err?.name ?? err} ${url}`);
+      continue;
+    }
     if (!res.ok) { console.log(`  !! ${p.name}: image ${res.status} ${url}`); continue; }
     const bytes = Buffer.from(await res.arrayBuffer());
     // Sniff, don't trust the URL: TCGplayer serves PNG bytes from ".jpg" paths.
@@ -180,11 +197,19 @@ for (const p of panel) {
   // catalog-art issue (unlimited rows showing a stamped scan) stays visible.
   let rank = found.findIndex((c) => c.id === p.id);
   if (rank !== 0 && read?.firstEdition === true && found[0]?.id === `${p.id}-1st`) { rank = 0; stampedScans++; }
+  // Catalog faults, not scanner faults — counted separately so they stay
+  // visible: (a) the mirror holds the same printing twice (Trainer Gallery
+  // sets exist as swsh9tg AND swsh9.5tg) and (b) the catalog image is a
+  // different printing (g1-28's TCGdex scan is 28a).
+  const top = found[0];
+  if (rank !== 0 && top && top.name === p.name && top.number === p.number && top.setName === p.setName) { rank = 0; mirrorDupes++; }
+  if (rank !== 0 && top && CATALOG_IMAGE_IS[p.id] === top.id) { rank = 0; wrongImages++; }
   const hit = rank === 0;
-  const tally = byBucket.get(p.bucket) ?? { hit: 0, top3: 0, n: 0 };
+  const tally = byBucket.get(p.bucket) ?? { hit: 0, top3: 0, n: 0, blurry: 0 };
   tally.n++;
   if (hit) tally.hit++;
   if (rank > -1 && rank < 3) tally.top3++;
+  if (!hit && isProductPhoto(p.image)) tally.blurry++;
   byBucket.set(p.bucket, tally);
   n++;
   process.stdout.write(`\r${n}/${panel.length}`);
@@ -194,22 +219,25 @@ for (const p of panel) {
       bucket: p.bucket,
       want: `${p.name} ${p.number}/${p.official ?? "?"} [${p.set}${p.code ? " " + p.code : ""}] ${p.id}`,
       got: top ? `${top.name} ${top.number} [${top.setName}] ${top.id}` : "(nothing)",
-      read: `name=${read?.name} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} art=${read?.artStyle} 1st=${read?.firstEdition} conf=${read?.confidence}`,
+      read: `name=${read?.name} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} set=${read?.setName} year=${read?.copyrightYear} art=${read?.artStyle} 1st=${read?.firstEdition} conf=${read?.confidence}`,
       rank,
     });
   }
 }
 process.stdout.write("\r");
 
-let hit = 0, top3 = 0, total = 0;
+let hit = 0, top3 = 0, total = 0, blurry = 0;
 console.log("\nbucket                              top1 / top3 / n");
 for (const [bucket, t] of byBucket) {
-  hit += t.hit; top3 += t.top3; total += t.n;
-  console.log(`${bucket.padEnd(35)} ${String(t.hit).padStart(3)} / ${String(t.top3).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
+  hit += t.hit; top3 += t.top3; total += t.n; blurry += t.blurry;
+  console.log(`${bucket.padEnd(35)} ${String(t.hit).padStart(3)} / ${String(t.top3).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}${t.blurry ? `  (${t.blurry} blurry product photo)` : ""}`);
 }
-const pct = (a) => (total ? ((a / total) * 100).toFixed(1) : "0");
+const pct = (a, of = total) => (of ? ((a / of) * 100).toFixed(1) : "0");
 console.log(`\nexact printing first: ${hit}/${total} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${total} = ${pct(top3)}%`);
+if (blurry) console.log(`clear images only (${blurry} misses on blurry TCGplayer product photos set aside): ${hit}/${total - blurry} = ${pct(hit, total - blurry)}%`);
 if (stampedScans) console.log(`(${stampedScans} unlimited rows whose catalog scan is a stamped 1st Edition copy — counted as hits on the twin)`);
+if (mirrorDupes) console.log(`(${mirrorDupes} hits on a duplicate mirror row of the same printing — catalog dedupe needed)`);
+if (wrongImages) console.log(`(${wrongImages} hits where the catalog image is another printing — catalog art needed)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }
