@@ -48,12 +48,14 @@ penalties on purpose — they reorder ties, they never overrule a read number.
 | Same, clear images only | 206/208 = **99.0%** | |
 | Fresh prompt pass (TCGdex throttled 112 fetches; gaps filled from run 1) | 206/211 = 97.6% | 98.1% |
 | **Real phone photos on prod** (`npm run pokemon:phone`, 14 kept cards) | **14/14 = 100%** | 100% |
+| + picture tiebreak (Opus on near-ties, 18 of 213) | **208/211 = 98.6%** | 99.1% |
+| Same, clear images only | **208/209 = 99.5%** | |
 
-Remaining misses that are the scanner's: two Gym Heroes / Gym Challenge
-basic energies (identical cards, only the tiny set symbol differs, vision
-named the wrong set; the right one is #2). Set aside: three trainer-kit
-cards whose catalog images are blurry 12 KB TCGplayer product photos, one of
-which is the wrong card.
+Remaining: one McDonald's Pikachu (2015 vs 2016, same fraction; the tiebreak
+read the catalog picture as 2015 — the picture itself may be the 2015
+print) and two trainer-kit cards whose catalog images are blurry 12 KB
+TCGplayer product photos, one of which is the wrong card. The two Gym
+energies are settled by the picture tiebreak.
 
 ## Catalog faults the panel exposed (not scanner faults)
 
@@ -81,6 +83,17 @@ colour). The close-up fills what was null and, on a low-confidence first
 read, overrides the fraction. Both panels and both phone scripts run this
 exact path, so their numbers are the customer's numbers. `read.secondLook`
 says why it fired (the scan ledger keeps it).
+
+## The picture tiebreak (shipped 09-10, Chris: "get us close to 99%")
+
+Both rankers now expose `rankScore` on every result. When #1 and #2 sit
+within a point (lib/tiebreak.ts isNearTie) the scanner posts the photo and
+the two ids to POST /api/vision/tiebreak; the server fetches both catalog
+pictures and asks Opus 5 which printing the photo shows, judging only
+printed details (border, symbol, number, year, stamps, icon, frame, art).
+A confident A/B reorders the pair; null keeps the ranker's order. Billed on
+the scan ledger as Opus, ~3¢, on roughly one scan in ten on the panel and
+fewer on real photos. Both panels run the same call.
 
 ## Next
 

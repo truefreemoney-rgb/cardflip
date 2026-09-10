@@ -683,6 +683,7 @@ export function mergeSecondLook(first: VisionCardRead, second: SecondLookRead, r
       out.borderColor = second.borderColor as VisionCardRead["borderColor"];
     }
     if (typeof second.innerBevel === "boolean") out.bevel = second.innerBevel;
+    if (typeof second.listIcon === "boolean") out.listIconSeen = second.listIcon;
     if (second.artist && !first.artist) out.artist = second.artist.trim();
     // A readable bottom strip with no year on it: the card predates the
     // year line (before 4th Edition / Ice Age) — a cue only the close-up
@@ -703,4 +704,110 @@ function addUsage(a: VisionUsage, b: VisionUsage): VisionUsage {
     cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
     cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Picture tiebreak (09-10, Chris: "get us close to 99%, I don't care how").
+// When the ranker's #1 and #2 sit within a point of each other — Unlimited
+// vs Revised, two McDonald's Pikachus, a List reprint vs its original — the
+// printed key has run out. Send the photo and BOTH catalog pictures to the
+// stronger model and ask which one it is. Fires on ties only (about one
+// scan in fifty), a few cents each.
+// ---------------------------------------------------------------------------
+
+export const TIEBREAK_MODEL = "claude-opus-5";
+
+export const TIEBREAK_SCHEMA = {
+  type: "object",
+  properties: {
+    pick: {
+      anyOf: [{ type: "string", enum: ["A", "B"] }, { type: "null" }],
+      description: "Which catalog picture shows the SAME printing as the photo: 'A' (second image) or 'B' (third image). Null when the two catalog pictures are the same printing to your eye or the photo cannot settle it.",
+    },
+    confidence: { type: "number", description: "0 to 1." },
+    reason: { type: "string", description: "One short sentence: the printed detail that decided it (border, set symbol, copyright line, stamp, frame, art)." },
+  },
+  required: ["pick", "confidence", "reason"],
+  additionalProperties: false,
+} as const;
+
+const SYSTEM_TIEBREAK = `You compare trading cards for a seller's listing. The FIRST image is the seller's photo. The SECOND (A) and THIRD (B) images are two catalog pictures of different printings that share the same name. Decide which catalog printing the photo shows.
+
+Judge only by what is printed: border colour and its inner edge, the set symbol or expansion code, the collector number and denominator, the copyright line and its year, a 1st Edition stamp, a promo or date stamp, a List icon in the bottom-left corner, frame style, and the artwork. Ignore lighting, glare, sleeves, angle and wear. If the two catalog pictures show no printed difference you can see, or the photo does not show the deciding detail, answer null rather than guess.`;
+
+export interface TiebreakResult {
+  id: string | null;
+  pick: "A" | "B" | null;
+  confidence: number;
+  reason: string;
+  usage: VisionUsage;
+}
+
+async function catalogPicture(id: string, game: GameId): Promise<{ base64: string; mediaType: ImageMediaType } | null> {
+  let url: string | null = null;
+  if (game === "mtg") {
+    const { mtgCardById } = await import("@/lib/server/mtgCards");
+    url = (await mtgCardById(id))[0]?.imageLarge ?? null;
+  } else {
+    const { englishCardById } = await import("@/lib/server/enCards");
+    url = (await englishCardById(id)).cards[0]?.imageLarge ?? null;
+  }
+  if (!url) return null;
+  // pokemontcg.io's plain PNG is a 245px thumbnail; use the _hires twin.
+  url = url.replace(/(images\.pokemontcg\.io\/[^/]+\/[^/._]+)\.png$/, "$1_hires.png");
+  const res = await fetch(url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" }, signal: AbortSignal.timeout(12_000) });
+  if (!res.ok) return null;
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const mediaType: ImageMediaType =
+    bytes.subarray(0, 4).toString("hex") === "89504e47" ? "image/png" : bytes.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
+  return { base64: bytes.toString("base64"), mediaType };
+}
+
+/**
+ * Which of two catalog printings the photo shows. Returns id null when the
+ * model declines or a catalog picture is missing — the caller keeps the
+ * ranker's order then.
+ */
+export async function tiebreakByPicture(
+  base64Image: string,
+  mediaType: string,
+  game: GameId,
+  ids: [string, string],
+): Promise<TiebreakResult> {
+  const zero: VisionUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const [a, b] = await Promise.all([catalogPicture(ids[0], game), catalogPicture(ids[1], game)]);
+  if (!a || !b) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
+  const response = await getClient().messages.create({
+    model: TIEBREAK_MODEL,
+    max_tokens: 300,
+    output_config: { effort: "medium", format: { type: "json_schema", schema: TIEBREAK_SCHEMA } },
+    system: SYSTEM_TIEBREAK,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Seller's photo:" },
+          { type: "image", source: { type: "base64", media_type: normalizeMediaType(mediaType), data: base64Image } },
+          { type: "text", text: "Catalog printing A:" },
+          { type: "image", source: { type: "base64", media_type: a.mediaType, data: a.base64 } },
+          { type: "text", text: "Catalog printing B:" },
+          { type: "image", source: { type: "base64", media_type: b.mediaType, data: b.base64 } },
+          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"}.` },
+        ],
+      },
+    ],
+  });
+  const text = response.content.find((block) => block.type === "text");
+  if (!text || text.type !== "text") throw new Error("tiebreak: no readable result");
+  const parsed = JSON.parse(text.text) as { pick: "A" | "B" | null; confidence: number; reason: string };
+  const u = response.usage;
+  const usage: VisionUsage = {
+    inputTokens: u.input_tokens,
+    outputTokens: u.output_tokens,
+    cacheReadTokens: u.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+  };
+  const pick = parsed.pick === "A" || parsed.pick === "B" ? parsed.pick : null;
+  const sure = typeof parsed.confidence === "number" && parsed.confidence >= 0.6;
+  return { id: pick && sure ? ids[pick === "A" ? 0 : 1] : null, pick, confidence: parsed.confidence ?? 0, reason: parsed.reason ?? "", usage };
 }

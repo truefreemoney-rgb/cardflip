@@ -22,7 +22,8 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 const { mtgCuesOf } = await import(at("lib/mtgCues.ts"));
-const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
+const { analyzeCardImageWithUsage, tiebreakByPicture } = await import(at("lib/server/vision.ts"));
+const { isNearTie } = await import(at("lib/tiebreak.ts"));
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -107,12 +108,21 @@ const byBucket = new Map();
 const misses = [];
 let n = 0;
 let catalogLimited = 0;
+let tiebreaks = 0;
+// Catalog bytes kept per card so a near-tie can go to the picture tiebreak
+// even on a cached read (the read is cached, the picture is re-fetched).
+let imageB64 = null;
 for (const p of panel) {
   let read = cache[p.id];
+  imageB64 = null;
+  const fetchImage = async () => {
+    const res = await fetch(largeUrl(p.image), { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/jpeg" }, signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw new Error(`image ${res.status}`);
+    return Buffer.from(await res.arrayBuffer()).toString("base64");
+  };
   if (!read) {
-    const res = await fetch(largeUrl(p.image), { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/jpeg" } });
-    if (!res.ok) { console.log(`  !! ${p.name}: image ${res.status}`); continue; }
-    read = await readCard(Buffer.from(await res.arrayBuffer()).toString("base64"));
+    try { imageB64 = await fetchImage(); } catch (err) { console.log(`  !! ${p.name}: ${err.message}`); continue; }
+    read = await readCard(imageB64);
     cache[p.id] = read;
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
     await sleep(120);
@@ -123,6 +133,17 @@ for (const p of panel) {
   for (const candidate of [read.name, read.englishName].filter(Boolean)) {
     found = await searchMtgCardsLocal(candidate, read.cardNumber || null, code || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art", mtgCuesOf(read));
     if (found.length) break;
+  }
+  // Near-tie: the picture decides (Opus, ~3¢) — the same call the app makes.
+  if (isNearTie(found) && !flag("no-tiebreak")) {
+    try {
+      imageB64 ??= await fetchImage();
+      const t = await tiebreakByPicture(imageB64, "image/jpeg", "mtg", [found[0].id, found[1].id]);
+      tiebreaks++;
+      if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+    } catch (err) {
+      console.log(`  !! ${p.name}: tiebreak ${err.message}`);
+    }
   }
   const top = found[0];
   let hit = top?.id === p.id;
@@ -161,6 +182,7 @@ for (const [bucket, t] of byBucket) {
 }
 console.log(`\nexact printing: ${hit}/${total} = ${total ? ((hit / total) * 100).toFixed(1) : 0}%  (target ≥ 98%)`);
 if (catalogLimited) console.log(`(${catalogLimited} stamped / serialized twins whose Scryfall scan shows no stamp — counted as hits on the base printing)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

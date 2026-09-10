@@ -18,15 +18,24 @@ const db = new DatabaseSync(path.join(root, "data/cardflip.db"));
 try { db.exec("ALTER TABLE mtg_cards ADD COLUMN art_hash TEXT NOT NULL DEFAULT ''"); } catch { /* present */ }
 
 const all = process.argv.includes("--all");
+// --scope art (default) | lands | pre1998 | all-old: which rows to fingerprint.
+const scopeArg = process.argv[process.argv.indexOf("--scope") + 1];
+const scope = process.argv.includes("--scope") ? scopeArg : "art";
+const SCOPES = {
+  art: "type_line LIKE 'Card%' AND set_code LIKE 'a%'",
+  lands: "type_line LIKE 'Basic Land%'",
+  pre1998: "set_release_date < '1998-01-01'",
+};
+const where = SCOPES[scope] ?? SCOPES.art;
 const rows = db
   .prepare(
     `SELECT id, name, image_url FROM mtg_cards
-      WHERE lang = 'en' AND image_url <> '' AND type_line LIKE 'Card%' AND set_code LIKE 'a%'
+      WHERE lang = 'en' AND image_url <> '' AND (${where})
         ${all ? "" : "AND art_hash = ''"}
       ORDER BY id`,
   )
   .all();
-console.log(`${rows.length} Art Series fronts to hash`);
+console.log(`${rows.length} ${scope} fronts to hash`);
 const update = db.prepare("UPDATE mtg_cards SET art_hash = ? WHERE id = ?");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let n = 0;

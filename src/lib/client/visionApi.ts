@@ -58,6 +58,28 @@ async function downscale(file: File, maxEdge = MAX_EDGE): Promise<{ base64: stri
 }
 
 /**
+ * The picture tiebreak: two printings within a point of each other, the
+ * photo decides. Returns the winning id or null (keep the ranker's order).
+ * Never throws.
+ */
+export async function tiebreakCard(file: File, game: GameId, ids: [string, string]): Promise<string | null> {
+  try {
+    const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
+    if (!base64) return null;
+    const res = await fetch(apiPath("/api/vision/tiebreak"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: base64, mediaType, game, ids }),
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
+    });
+    const data = await res.json().catch(() => null);
+    return res.ok && typeof data?.id === "string" ? data.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Never throws — a vision failure means the scanner falls back to OCR rather
  * than losing the card.
  */

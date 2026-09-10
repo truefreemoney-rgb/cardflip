@@ -26,7 +26,8 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
 const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
-const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
+const { analyzeCardImageWithUsage, tiebreakByPicture } = await import(at("lib/server/vision.ts"));
+const { isNearTie } = await import(at("lib/tiebreak.ts"));
 const { UNREADABLE_CONFIDENCE } = await import(at("lib/types.ts"));
 
 const args = process.argv.slice(2);
@@ -151,24 +152,24 @@ let mirrorDupes = 0;
 let wrongImages = 0;
 // Panel rows whose catalog image is really another printing (checked by eye).
 const CATALOG_IMAGE_IS = { "g1-28": "g1-28a" };
+// Sniff, don't trust the URL: TCGplayer serves PNG bytes from ".jpg" paths.
+const sniff = (bytes) => bytes.subarray(0, 4).toString("hex") === "89504e47" ? "image/png"
+  : bytes.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
+let tiebreaks = 0;
 for (const p of panel) {
   let read = cache[p.id];
-  if (!read) {
+  let image = null; // { b64, mediaType } once fetched — the tiebreak needs it even on a cached read
+  const fetchImage = async () => {
     const url = bigUrl(p.image);
-    let res;
-    try {
-      res = await fetch(url, { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/webp,image/jpeg" }, signal: AbortSignal.timeout(15_000) });
-    } catch (err) {
-      console.log(`  !! ${p.name}: image fetch ${err?.cause?.code ?? err?.name ?? err} ${url}`);
-      continue;
-    }
-    if (!res.ok) { console.log(`  !! ${p.name}: image ${res.status} ${url}`); continue; }
+    const res = await fetch(url, { headers: { "User-Agent": "CardFlip-panel/1.0", Accept: "image/webp,image/jpeg" }, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) throw new Error(`image ${res.status} ${url}`);
     const bytes = Buffer.from(await res.arrayBuffer());
-    // Sniff, don't trust the URL: TCGplayer serves PNG bytes from ".jpg" paths.
-    const mediaType = bytes.subarray(0, 4).toString("hex") === "89504e47" ? "image/png"
-      : bytes.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
+    return { b64: bytes.toString("base64"), mediaType: sniff(bytes) };
+  };
+  if (!read) {
+    try { image = await fetchImage(); } catch (err) { console.log(`  !! ${p.name}: ${err?.cause?.code ?? err?.message ?? err}`); continue; }
     try {
-      read = await readCard(bytes.toString("base64"), mediaType);
+      read = await readCard(image.b64, image.mediaType);
     } catch (err) {
       console.log(`  !! ${p.name}: vision ${err?.message ?? err}`);
       continue;
@@ -177,7 +178,18 @@ for (const p of panel) {
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
     await sleep(120);
   }
-  const found = await lookup(read);
+  let found = await lookup(read);
+  // Near-tie: the picture decides (Opus, ~3¢) — the same call the app makes.
+  if (isNearTie(found) && !flag("no-tiebreak")) {
+    try {
+      image ??= await fetchImage();
+      const t = await tiebreakByPicture(image.b64, image.mediaType, "pokemon", [found[0].id, found[1].id]);
+      tiebreaks++;
+      if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+    } catch (err) {
+      console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`);
+    }
+  }
   // TCGdex's WotC-era scans are mostly 1st Edition copies (checked 09-10:
   // base1-7, base5-52 both stamped), so when the read saw the stamp the twin
   // IS the right answer for that image — count it, and keep the tally so the
@@ -224,6 +236,7 @@ console.log(`\nexact printing first: ${hit}/${total} = ${pct(hit)}%  (target ≥
 if (blurry) console.log(`clear images only (${blurry} misses on blurry TCGplayer product photos set aside): ${hit}/${total - blurry} = ${pct(hit, total - blurry)}%`);
 if (stampedScans) console.log(`(${stampedScans} unlimited rows whose catalog scan is a stamped 1st Edition copy — counted as hits on the twin)`);
 if (mirrorDupes) console.log(`(${mirrorDupes} hits on a duplicate mirror row of the same printing — catalog dedupe needed)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
 if (wrongImages) console.log(`(${wrongImages} hits where the catalog image is another printing — catalog art needed)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);

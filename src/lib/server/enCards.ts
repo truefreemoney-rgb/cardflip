@@ -345,10 +345,13 @@ export async function searchEnglishCardsLocal(
   // current product, and when the tie is a vintage name+number collision
   // (Base Set 4/102 vs Base Set 2 4/130) newest-first errs toward the
   // cheaper reprint — the safer wrong answer for a listing price.
-  const ranked = [...rows].sort((a, b) => score(a) - score(b)).slice(0, limit);
+  const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);
+  const ranked = scored.map((x) => x.row);
 
   return {
-    cards: ranked.map(toCard),
+    // rankScore rides along so the scanner can see a near-tie between #1 and
+    // #2 and send the photo to the picture tiebreak (vision.ts, 09-10).
+    cards: scored.map((x) => ({ ...toCard(x.row), rankScore: x.s })),
     releaseDates: new Map(ranked.map((r) => [r.id, r.set_release_date])),
   };
 }

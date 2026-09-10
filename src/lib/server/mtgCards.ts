@@ -142,6 +142,20 @@ const AS_IS_REPRINT_SETS = new Set(["plst", "mb1", "mb2", "cmb1", "cmb2"]);
 /** Artist names fold to letters only: "Raymond Swanland" = "raymond swanland" = OCR's "Raymond  Swanland". */
 const foldArtist = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 
+/** Levenshtein distance, capped at 3 — only "close enough" matters here. */
+function editDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 3) return 3;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return Math.min(prev[b.length], 3);
+}
+
 /**
  * How badly a printing disagrees with what the scan saw beyond name /
  * number / set code (docs/MTG-IDENTIFICATION.md, phase 1). Every cue is a
@@ -199,14 +213,20 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
     if (seen && !rowHas) p += 3;
     // Only rows with cue data can be blamed for carrying an unseen mark;
     // The List is known from the set code alone.
-    if (!seen && rowHas && (known || mark === "list-icon") && (cues.marks !== undefined)) p += 3;
+    if (!seen && rowHas && (known || mark === "list-icon") && (cues.marks !== undefined)) {
+      // A List row with the corner unchecked / unsure costs one (a near-tie
+      // for the picture tiebreak); with the corner seen empty it costs three.
+      p += mark === "list-icon" && cues.listIconSeen !== false ? 1 : 3;
+    }
   }
 
   // Artist: same art across reprints shares the credit, so this separates
   // different-art printings only — which is the case that needs it.
   if (cues.artist && row.artist) {
     const a = foldArtist(cues.artist), b = foldArtist(row.artist);
-    if (a.length >= 4 && b.length >= 4 && a !== b && !a.includes(b) && !b.includes(a)) p += 4;
+    // One or two letters off is a misread ("Douglas Schuler" for Shuler,
+    // 09-10 panel), not a different artist.
+    if (a.length >= 4 && b.length >= 4 && a !== b && !a.includes(b) && !b.includes(a) && editDistance(a, b) > 2) p += 4;
   }
 
   // Copyright year is the printing year. ±1 covers a set printed in
@@ -321,7 +341,11 @@ export async function searchMtgCardsLocal(
     // the cap. When the scan read a copyright year, add that year's window
     // (phase 2 panel: a 1999 Plains and a Tempest Swamp never made the list).
     const year = cues?.copyrightYear;
-    if (rows.length >= 600 && year) {
+    // "No year line" (second look, 09-10) means a pre-April-1995 card: open
+    // the 1993–1995 window the same way (an Unlimited Mountain sat past 600
+    // Mountains and a Secret Lair one won).
+    const window = year ? [`${year - 1}-01-01`, `${year + 2}-01-01`] : cues?.noYearLine ? ["1993-01-01", "1995-04-01"] : null;
+    if (rows.length >= 600 && window) {
       const older = (await db
         .prepare(
           `SELECT ${CARD_COLUMNS_JOINED}
@@ -330,7 +354,7 @@ export async function searchMtgCardsLocal(
               AND c.set_release_date >= ? AND c.set_release_date < ?
             LIMIT 200`,
         )
-        .all(needle, `${needle}￿`, `${year - 1}-01-01`, `${year + 2}-01-01`)) as unknown as MtgCardRow[];
+        .all(needle, `${needle}￿`, window[0], window[1])) as unknown as MtgCardRow[];
       const seen = new Set(rows.map((r) => r.id));
       for (const r of older) if (!seen.has(r.id)) rows.push(r);
     }
@@ -395,6 +419,11 @@ export async function searchMtgCardsLocal(
     }
   };
   const listSeen = Boolean(cues?.marks?.includes("list-icon"));
+  // Icon not seen but not ruled out either (the close-up answered null, or
+  // never looked): the List twin stays on the printed key one point behind
+  // the original, which makes it a near-tie — and the picture tiebreak, not
+  // row order, settles it (09-10: three List cards at 672px).
+  const listMaybe = !listSeen && cues?.marks !== undefined && cues?.listIconSeen !== false;
   // A stamped card prints its ORIGINAL code + number; Scryfall files it as
   // "268p" in set "PDFT" (promo pack), "198s" / "51★" in "PDFT" / "PJOU"
   // (prerelease), or "141z" in the same set (serialized). With the mark in
@@ -408,7 +437,7 @@ export async function searchMtgCardsLocal(
     // in the photo, that IS the printed key.
     // (Vision sometimes reports the List's own code, "PLST", with the bare
     // original number — then any PLST row ending in that number is the key.)
-    const listTwin = listSeen && row.set_code.toLowerCase() === "plst" && wantedCode
+    const listTwin = (listSeen || listMaybe) && row.set_code.toLowerCase() === "plst" && wantedCode
       ? wantedCode === "plst"
         ? wantedNumber !== null && row.collector_number.toLowerCase().endsWith(`-${wantedNumber}`)
         : row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
@@ -474,9 +503,10 @@ export async function searchMtgCardsLocal(
     .map((row) => ({ row, s: score(row) }))
     .filter((x) => Number.isFinite(x.s))
     .sort((a, b) => a.s - b.s)
-    .slice(0, limit)
-    .map((x) => x.row);
-  return ranked.map(toCard);
+    .slice(0, limit);
+  // rankScore rides along so the scanner can see a near-tie between #1 and
+  // #2 and send the photo to the picture tiebreak (vision.ts, 09-10).
+  return ranked.map((x) => ({ ...toCard(x.row), rankScore: x.s }));
 }
 
 /** One row per set with a card in the mirror, newest first — for the sealed picker. */

@@ -40,6 +40,8 @@ export interface PokemonCard {
   id: string;
   name: string;
   setName: string;
+  /** Ranker score (lower is better) from the local search — lets the scanner spot a near-tie. */
+  rankScore?: number;
   setSeries: string;
   number: string;
   rarity: string | null;
@@ -104,6 +106,8 @@ export interface MtgCues {
   noYearLine?: boolean;
   /** Second look: white 1990s border with the Unlimited bevel (true) or flat like Revised / 4th (false). */
   bevel?: boolean | null;
+  /** Second look: The List corner — true icon seen, false corner empty, null not checked. */
+  listIconSeen?: boolean | null;
 }
 
 /** The game a card belongs to; Pokémon when the field was never set. */
@@ -163,6 +167,8 @@ export interface VisionCardRead {
   noYearLine?: boolean;
   /** Magic, from the second look: a white 1990s border with the Unlimited bevel (true) or flat like Revised/4th (false). */
   bevel?: boolean | null;
+  /** Magic, from the second look: the bottom-left corner was checked for The List icon — true seen, false empty, null unchecked. */
+  listIconSeen?: boolean | null;
   // --- Magic only (MTG_READ_SCHEMA); absent on Pokémon reads. ---
   /** Foil read off the shine of the whole face; null when the photo can't settle it. */
   finish?: MtgFinish | null;

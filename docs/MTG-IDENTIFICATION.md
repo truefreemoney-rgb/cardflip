@@ -232,26 +232,30 @@ Numbers (panel, exact printing first):
 | + year rules, second look, Art Series by picture | 189/205 = 92.2% |
 | + fresh pass on pre-1998 / List / prerelease / serialized | 191/205 = 93.2% |
 | + no-year-line cue (artist-gated), catalog-limited twins tallied | **195/205 = 95.1%** |
+| + picture tiebreak (Opus on near-ties: Unlimited/Revised, art twins) | 199/205 = 97.1% |
+| + no-year window past the 600 cap, artist misspelling tolerated | 200/205 = 97.6% |
+| + List twin kept on the key when the corner is unchecked → tiebreak | **203/205 = 99.0%** |
 
 Art Series 0/5 → 5/5; pre-1998 14 → 19/24; prerelease and serialized 8/8,
 5/5 once the four twins whose Scryfall scan shows no stamp / serial are
 counted on the base printing (checked by eye: PFDN 30s, LTC 386z — the
 catalog picture IS the base card; a real photo carries the stamp).
 
-Left (10), all one-tap on the confirm screen:
-- Unlimited vs Revised (3): identical white-border cards; the bevel tell
-  came back "false" on every Unlimited scan, so only a SEEN bevel counts.
-  Phone photos at 1568px are the real test.
-- The List (3): the icon is ~8px on a 672px Scryfall scan; the close-up
-  upscales blur. Phone photos are the test.
-- Basic-land art twins (Swamp TMP 339/340, Plains BRB/6ED): same name, no
-  number, same artist — the art hash could settle these (extend art_hash to
-  basic lands, ~4k rows) if sellers ever scan them.
-- Mountain 2ED → SLD 257, Kamahl P15A: promo/special rows winning a
-  no-number tie; the special-set gate needs the same "no evidence" nudge
-  for P-sets.
-- Real phone photos: mtg:phone 39/42 = 92.9% before this work; re-run after
-  Chris's next Magic batch.
+Left (2), both one-tap on the confirm screen: Plains BRB 128 vs 6ED 333
+(same art, same year, no number — a basic land nobody lists) and Kamahl
+P15A (the 15th-anniversary promo carries the 10E number). 22 of the 205
+panel cards went to the picture tiebreak (Opus, ~3¢ each ≈ 66¢ a run); on
+real phone photos fewer ties are expected because the List icon and the
+Unlimited bevel actually show at 1568px.
+
+The picture tiebreak (lib/tiebreak.ts, vision.ts tiebreakByPicture,
+POST /api/vision/tiebreak): both rankers expose rankScore; when #1 and #2
+sit within a point the scanner sends the photo plus both ids, the server
+fetches both catalog pictures and Opus 5 answers A / B / null on printed
+details only. Null keeps the ranker's order. Billed on the scan ledger.
+
+Real phone photos: mtg:phone 39/42 = 92.9% before this work; re-run after
+Chris's next Magic batch.
 
 ## 4. What NOT to do
 

@@ -185,6 +185,7 @@ check("lettered sub-series total (RC1/25) is not a contradiction of the set coun
 // 09-02: a plain M11 Pyretic Ritual matched the Mystical Archive showcase —
 // with nothing readable, the tie broke newest-first onto a masterpiece set.
 const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
+const { isNearTie } = await import(at("lib/tiebreak.ts"));
 for (const [id, name, code, setName, num, date, usd] of [
   ["m11-153", "Pyretic Ritual", "m11", "Magic 2011", "153", "2010-07-16", 6.13],
   ["soa-46",  "Pyretic Ritual", "soa", "Mystical Archive", "46", "2026-04-24", 6.3],
@@ -273,6 +274,10 @@ check("The List icon + the ORIGINAL's printed code and number lands on the PLST 
   await mtgTopC("Pyretic Ritual", "153", "m11", { marks: ["list-icon"], copyrightYear: 2010 }), "plst-m11-153");
 check("without the icon, the original's code and number stay on the original",
   await mtgTopC("Pyretic Ritual", "153", "m11", { copyrightYear: 2010 }), "m11-153");
+check("vision read the card, corner unchecked: original still first but the List twin is a near-tie for the picture",
+  isNearTie(await searchMtgCardsLocal("Pyretic Ritual", "153", "m11", 5, null, false, { marks: [], copyrightYear: 2010 })));
+check("corner checked and empty: no near-tie, the original stands",
+  !isNearTie(await searchMtgCardsLocal("Pyretic Ritual", "153", "m11", 5, null, false, { marks: [], copyrightYear: 2010, listIconSeen: false })));
 check("no marks read at all leaves the plain printing on top",
   await mtgTopC("Pyretic Ritual", null, null, { finish: "foil" }), "m11-153");
 // 09-10 pre-1998 rules: a printed year rules out the no-year sets (Beta,
@@ -307,6 +312,17 @@ check("no year line + the Unlimited bevel: Unlimited",
   await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: true }), "2ed-241");
 check("bevel cue never touches a black-border row",
   await mtgTopC("Cyclopean Tomb", null, null, { border: "black", bevel: false }), "leb-241");
+// 09-10 picture tiebreak: both rankers expose rankScore; a 1-point gap is a tie.
+{
+  const twins = (await searchEnglishCardsLocal("Type: Null", { number: "183", setTotal: 236, setCode: null, isSecretRare: false }, 5)).cards;
+  check("Pokémon ranker exposes rankScore", typeof twins[0]?.rankScore === "number");
+  check("same-fraction twins with nothing else read are a near-tie", isNearTie(twins));
+  const settled = (await searchEnglishCardsLocal("Type: Null", { number: "183", setTotal: 236, setCode: "UNM", isSecretRare: false }, 5)).cards;
+  check("an agreeing set code settles the tie", !isNearTie(settled));
+  const mtgTwins = await searchMtgCardsLocal("Cyclopean Tomb", null, null, 5, null, false, { border: "white" });
+  check("Magic ranker exposes rankScore", typeof mtgTwins[0]?.rankScore === "number");
+  check("white-border no-year printings are a near-tie", isNearTie(mtgTwins));
+}
 const { hasTwinPrinting } = await import(at("lib/server/mtgCards.ts"));
 check("twin lookup: a set+number The List reprinted", await hasTwinPrinting("m11", "153"), "list");
 check("twin lookup: a set+number with no look-alike", await hasTwinPrinting("dmu", "107"), null);
