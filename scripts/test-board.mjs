@@ -47,7 +47,7 @@ check("empty images list is dropped", "images" in validateBoard([{ id: "a", titl
 check("serialize appends image links", serializeBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x", images: [BLOB] }] }]).includes(`x [image](${BLOB})`), true);
 
 // Run panel on the board (09-09): the PR body in plain words.
-const { summarize } = await import(new URL("../src/lib/server/boardRuns.ts", import.meta.url).href);
+const { summarize, images } = await import(new URL("../src/lib/server/boardRuns.ts", import.meta.url).href);
 const prBody = [
   "Closes #9",
   "",
@@ -80,6 +80,24 @@ check("sweep is idempotent", normalizeBoard(swept.sections, 2000).changed, false
 const real = parseBoard(readFileSync(new URL("../docs/BOARD.md", import.meta.url), "utf8"));
 check("real board has the core categories", ["Now", "Chris", "Claude", "Future ideas"].every((t) => real.some((x) => x.title === t)), true);
 check("every OPEN real item carries an owner tag", real.flatMap((x) => x.items).filter((i) => !i.done).every((i) => i.owner !== null), true);
+
+// --- images(): the runner's before/after shots reach the board, nothing else does (09-10)
+{
+  const body = [
+    "Closes #21",
+    "",
+    "- Tightened the strip",
+    "",
+    "![before home](https://raw.githubusercontent.com/truefreemoney-rgb/cardflip/abc123/docs/runs/21/before-home.png)",
+    "![after home](https://raw.githubusercontent.com/truefreemoney-rgb/cardflip/abc123/docs/runs/21/after-home.png)",
+    "![evil](https://example.com/x.png)",
+    '<img src="https://raw.githubusercontent.com/other/repo/x/y.png">',
+    "![dup](https://raw.githubusercontent.com/truefreemoney-rgb/cardflip/abc123/docs/runs/21/after-home.png)",
+  ].join("\n");
+  check("images: own-repo raw URLs only, deduped, in order", images(body), ["https://raw.githubusercontent.com/truefreemoney-rgb/cardflip/abc123/docs/runs/21/before-home.png", "https://raw.githubusercontent.com/truefreemoney-rgb/cardflip/abc123/docs/runs/21/after-home.png"]);
+  check("summarize drops image lines", summarize(body), ["Tightened the strip"]);
+  check("images: null body", images(null), []);
+}
 
 console.log(failures === 0 ? "\nAll board checks passed." : `\n${failures} board check(s) FAILED.`);
 process.exitCode = failures === 0 ? 0 : 1;

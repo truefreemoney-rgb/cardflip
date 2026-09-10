@@ -75,6 +75,16 @@ function RunPanel({ st, onError, onReply }: { st: RunStatus; onError: (m: string
               {pr.summary.map((line, i) => <li key={i}>{line}</li>)}
             </ul>
           )}
+          {pr.images.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {pr.images.map((u) => (
+                <a key={u} href={u} target="_blank" rel="noreferrer" title={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Open full size"} className="block overflow-hidden rounded-md border border-edge bg-black/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- raw.githubusercontent, no next/image config */}
+                  <img src={u} alt={/before/i.test(u) ? "Before" : /after/i.test(u) ? "After" : "Screenshot from the run"} loading="lazy" className="h-36 w-auto object-contain" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 pt-0.5">

@@ -53,6 +53,7 @@
     "test:e2e:iphone": "playwright test --project=iphone",
     "test:queryplans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-query-plans.mjs",
     "test:board": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-board.mjs",
+    "runner:shots": "node scripts/runner-shots.mjs",
     "test:boardsave": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-board-save.mjs",
     "test:cardart": "node --experimental-strip-types --no-warnings scripts/test-card-art.mjs",
     "test:liveprices": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-live-prices.mjs",

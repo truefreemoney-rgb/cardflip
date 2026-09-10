@@ -21,11 +21,35 @@ export async function POST(req: Request) {
 
     const prRes = await fetch(`https://api.github.com/repos/${BOARD_REPO}/pulls/${number}`, { headers: ghHeaders(token), cache: "no-store", signal: AbortSignal.timeout(8_000) });
     if (!prRes.ok) return NextResponse.json({ error: "Couldn't find that PR" }, { status: 404 });
-    const pr = (await prRes.json()) as { state: string; merged: boolean; mergeable: boolean | null; head: { ref: string }; title: string };
+    const pr = (await prRes.json()) as { state: string; merged: boolean; mergeable: boolean | null; mergeable_state?: string; head: { ref: string; sha: string }; title: string };
     if (pr.merged) return NextResponse.json({ ok: true, alreadyMerged: true });
     if (pr.state !== "open") return NextResponse.json({ error: "That PR is closed" }, { status: 409 });
     if (!/^board\//.test(pr.head.ref)) return NextResponse.json({ error: "Only board runner PRs can be merged from here" }, { status: 403 });
     if (pr.mergeable === false) return NextResponse.json({ error: "GitHub says this PR has conflicts — it needs a fresh run" }, { status: 409 });
+
+    // Check the MERGED result, not just the branch (09-09: a green PR still
+    // broke main after merging because its base was stale). A branch behind
+    // main is brought up to date first — GitHub merges main into it, CI
+    // re-runs — and the merge waits for that. Then every check on the head
+    // has to be green before the button does anything.
+    if (pr.mergeable_state === "behind") {
+      const upd = await fetch(`https://api.github.com/repos/${BOARD_REPO}/pulls/${number}/update-branch`, {
+        method: "PUT",
+        headers: { ...ghHeaders(token), "Content-Type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!upd.ok && upd.status !== 202) return NextResponse.json({ error: "This branch is behind main and GitHub couldn't update it — it needs a fresh run" }, { status: 409 });
+      return NextResponse.json({ error: "Brought the branch up to date with main — the checks are re-running. Press Merge again in a few minutes." }, { status: 409 });
+    }
+    const checksRes = await fetch(`https://api.github.com/repos/${BOARD_REPO}/commits/${pr.head.sha}/check-runs?per_page=50`, { headers: ghHeaders(token), cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    const checks = (await checksRes.json().catch(() => ({}))) as { check_runs?: { name: string; status: string; conclusion: string | null }[] };
+    const runs = (checks.check_runs ?? []).filter((c) => !/vercel/i.test(c.name));
+    if (runs.length === 0) return NextResponse.json({ error: "The checks haven't started on this branch yet — press Merge again in a minute." }, { status: 409 });
+    const pending = runs.filter((c) => c.status !== "completed");
+    if (pending.length) return NextResponse.json({ error: `Checks still running (${pending.map((c) => c.name).join(", ")}) — press Merge again when they're green.` }, { status: 409 });
+    const red = runs.filter((c) => !["success", "skipped", "neutral"].includes(c.conclusion ?? ""));
+    if (red.length) return NextResponse.json({ error: `Checks failed (${red.map((c) => c.name).join(", ")}) — this needs a fresh run, not a merge.` }, { status: 409 });
 
     const res = await fetch(`https://api.github.com/repos/${BOARD_REPO}/pulls/${number}/merge`, {
       method: "PUT",

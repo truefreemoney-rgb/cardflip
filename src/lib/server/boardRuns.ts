@@ -29,8 +29,8 @@ export interface RunStatus {
   reading?: string;
   /** What the runner asked when it labelled needs-chris. */
   question?: string;
-  /** The PR, once opened: number, title, and the body bullets in plain words. */
-  pr?: { number: number; title: string; summary: string[]; mergedAt: string | null };
+  /** The PR, once opened: number, title, the body bullets in plain words, and the runner's before/after images. */
+  pr?: { number: number; title: string; summary: string[]; images: string[]; mergedAt: string | null };
   /** After the merge: Vercel's production build of the merge commit. */
   deploy?: DeployState;
 }
@@ -96,10 +96,28 @@ export function summarize(body: string | null): string[] {
     .replace(/https:\/\/claude\.ai\/code\/\S+/g, "")
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l && !/^closes #\d+/i.test(l) && !/^🤖/.test(l) && !/^generated (with|by)/i.test(l));
+    .filter((l) => l && !/^closes #\d+/i.test(l) && !/^🤖/.test(l) && !/^generated (with|by)/i.test(l) && !/^!\[/.test(l) && !/^<img/i.test(l) && !/^#+\s/.test(l));
   const bullets = lines.filter((l) => /^[-*]\s+/.test(l)).map((l) => plain(l.replace(/^[-*]\s+/, "")));
   const pick = bullets.length ? bullets : lines.map(plain);
   return pick.filter(Boolean).slice(0, 6).map((l) => (l.length > 240 ? `${l.slice(0, 237)}…` : l));
+}
+
+/**
+ * Image URLs in a PR body — the runner's before/after phone screenshots
+ * (docs/runs/<n>/…, committed on the branch and linked by commit sha so they
+ * survive the branch being deleted). Only our own repo's raw host, so a PR
+ * body can't put an arbitrary image on the admin board.
+ */
+export function images(body: string | null): string[] {
+  if (!body) return [];
+  const out: string[] = [];
+  const re = /!\[[^\]]*\]\((https:\/\/raw\.githubusercontent\.com\/[^\s)]+)\)|<img[^>]+src="(https:\/\/raw\.githubusercontent\.com\/[^"]+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const u = m[1] ?? m[2];
+    if (u && u.startsWith(`https://raw.githubusercontent.com/${BOARD_REPO}/`) && !out.includes(u)) out.push(u);
+  }
+  return out.slice(0, 8);
 }
 
 export async function runStatuses(numbers: number[]): Promise<Record<number, RunStatus>> {
@@ -147,7 +165,7 @@ export async function runStatuses(numbers: number[]): Promise<Record<number, Run
       startedAt: issue.created_at,
       ...(reading ? { reading: reading.replace(/^reading this as:\s*/i, "") } : {}),
       ...(question ? { question } : {}),
-      ...(pr ? { pr: { number: pr.number, title: pr.title, summary: summarize(pr.body), mergedAt: pr.merged_at } } : {}),
+      ...(pr ? { pr: { number: pr.number, title: pr.title, summary: summarize(pr.body), images: images(pr.body), mergedAt: pr.merged_at } } : {}),
     };
   });
 
