@@ -110,7 +110,11 @@ export async function searchTcgCardsLocal(
   let wantedNumber = printed ? normalizeNumber(printed.number) : null;
   let wantedCode = printed?.setCode ? printed.setCode.toUpperCase() : null;
   if (game === "onepiece" && wantedNumber) {
-    const split = splitOnePieceNumber(printed!.number);
+    // The read sometimes prepends the rarity printed beside the number
+    // ("SP P-084", "SR OP05-119"); the catalog key is the number alone.
+    const bare = printed!.number.trim().replace(/^(?:SP|SR|SEC|UC|R|C|L|P)\s+(?=[A-Z]{1,4}\d{0,3}-\d)/i, "");
+    wantedNumber = normalizeNumber(bare);
+    const split = splitOnePieceNumber(bare);
     if (split.setCode) { wantedCode = split.setCode; wantedNumber = normalizeNumber(split.number); }
   }
 
@@ -147,10 +151,10 @@ export async function searchTcgCardsLocal(
   const score = (row: TcgRow): number => {
     // Some One Piece catalog rows carry the number inside the name
     // ("Roronoa Zoro - OP10-095"); the face just says Roronoa Zoro.
-    const rowName = fold(game === "onepiece" ? row.name.replace(/s+-s+[A-Z]+d*-d+[a-z0-9_#]*$/i, "") : row.name);
+    const rowName = fold(game === "onepiece" ? row.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "") : row.name);
     const exactName = needle !== "" && rowName === needle;
     // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
-    const rowNumber = normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]d+$/i, "") : row.collector_number);
+    const rowNumber = normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
     const exactNumber = Boolean(wantedNumber) && rowNumber === wantedNumber;
     let tier: number;
     if (exactName && exactNumber) tier = 0;
@@ -183,8 +187,14 @@ export async function searchTcgCardsLocal(
       const have = onePieceVariantFamily(row.variant || "");
       // A reprint's face is identical to the base — keep it past the
       // near-tie gap so the picture is not asked to tell twins apart.
+      // Two art families ("full-art" read, "special" row) are both "a
+      // different picture was seen" — closer to each other than to plain.
+      // Foil treatments of the standard art (pirate / jolly-roger foil) are
+      // not: a full-art read is not evidence for them.
+      const ART = new Set(["alt", "full", "manga"]);
       if (want === have) p += row.variant === "reprint" ? 1.25 : 0;
       else if (want === "plain" || have === "plain") p += 1;
+      else if (ART.has(want) && ART.has(have)) p += 0.5;
       else p += 1.5;
     } else if (wantedVariant !== null) {
       const rowV = row.variant || "";

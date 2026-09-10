@@ -506,7 +506,7 @@
  {
   "bucket": "standard booster",
   "id": "OP14-080#3019",
-  "name": "Gecko Moria - OP14-080",
+  "name": "Gecko Moria",
   "subtitle": "",
   "set": "OP14EB04",
   "setName": "The Azure Sea's Seven",
@@ -606,7 +606,7 @@
   "subtitle": "",
   "set": "ST16",
   "setName": "Starter Deck 16: GREEN Uta",
-  "number": "P-029_r1",
+  "number": "P-029",
   "total": null,
   "variant": "",
   "image": "https://optcgapi.com/media/static/Card_Images/P-029_r1.jpg"
@@ -618,7 +618,7 @@
   "subtitle": "",
   "set": "ST17",
   "setName": "Starter Deck 17: BLUE Donquixote Doflamingo",
-  "number": "P-030_r1",
+  "number": "P-030",
   "total": null,
   "variant": "",
   "image": "https://optcgapi.com/media/static/Card_Images/P-030_r1.jpg"
@@ -782,7 +782,7 @@
  {
   "bucket": "extra / premium booster",
   "id": "PRB02-009",
-  "name": "Mr.3(Galdino) - PRB02-009",
+  "name": "Mr.3(Galdino)",
   "subtitle": "",
   "set": "PRB02",
   "setName": "Premium Booster -The Best- Vol. 2",
@@ -878,7 +878,7 @@
  {
   "bucket": "extra / premium booster",
   "id": "PRB02-006",
-  "name": "Roronoa Zoro - PRB02-006",
+  "name": "Roronoa Zoro",
   "subtitle": "",
   "set": "PRB02",
   "setName": "Premium Booster -The Best- Vol. 2",
@@ -950,7 +950,7 @@
  {
   "bucket": "parallel / alt art",
   "id": "OP10-095_p1",
-  "name": "Roronoa Zoro - OP10-095",
+  "name": "Roronoa Zoro",
   "subtitle": "",
   "set": "PRB02",
   "setName": "Premium Booster -The Best- Vol. 2",
@@ -1082,7 +1082,7 @@
  {
   "bucket": "parallel / alt art",
   "id": "OP14-001_p1",
-  "name": "Trafalgar Law - OP14-001",
+  "name": "Trafalgar Law",
   "subtitle": "",
   "set": "OP14EB04",
   "setName": "The Azure Sea's Seven",
@@ -1454,7 +1454,7 @@
  {
   "bucket": "reprint (same id, later set)",
   "id": "OP10-095_r1",
-  "name": "Roronoa Zoro - OP10-095",
+  "name": "Roronoa Zoro",
   "subtitle": "",
   "set": "PRB02",
   "setName": "Premium Booster -The Best- Vol. 2",
@@ -1498,18 +1498,6 @@
   "total": null,
   "variant": "reprint",
   "image": "https://optcgapi.com/media/static/Card_Images/OP09-010_r1.jpg"
- },
- {
-  "bucket": "reprint (same id, later set)",
-  "id": "OP10-109_r1#4246",
-  "name": "Basil Hawkins",
-  "subtitle": "",
-  "set": "ST36",
-  "setName": "Starter Deck 36: YELLOW Eustass\"Captain\"Kid",
-  "number": "OP10-109",
-  "total": null,
-  "variant": "reprint",
-  "image": "https://optcgapi.com/media/static/Card_Images/OP10-103_r1_QmckfUc.jpg"
  },
  {
   "bucket": "reprint (same id, later set)",
@@ -1558,6 +1546,18 @@
   "total": null,
   "variant": "reprint",
   "image": "https://optcgapi.com/media/static/Card_Images/OP12-028_r1.jpg"
+ },
+ {
+  "bucket": "reprint (same id, later set)",
+  "id": "P-101-r1",
+  "name": "Tony Tony.Chopper",
+  "subtitle": "",
+  "set": "ST31",
+  "setName": "Starter Deck 31: RED Monkey.D.Luffy",
+  "number": "P-101",
+  "total": null,
+  "variant": "reprint",
+  "image": "https://optcgapi.com/media/static/Card_Images/P-101_r1.jpg"
  },
  {
   "bucket": "same name, different id",

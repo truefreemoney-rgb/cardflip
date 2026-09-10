@@ -59,7 +59,7 @@ function splitVariant(name) {
     if (!variant) variant = v;
   }
   // Some feed names carry the card number: "Roronoa Zoro - OP10-095".
-  rest = rest.replace(/s+-s+[A-Z]+d*-d+[a-z0-9_#]*$/i, "").trim();
+  rest = rest.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "").trim();
   return { name: rest, variant };
 }
 
@@ -89,18 +89,25 @@ for (const [label, url] of [["sets", `${API}/allSetCards/`], ["starter decks", `
     const suffix = imageId !== key ? imageId.slice(key.length).replace(/^[_-]+/, "").toLowerCase() : "";
     const variant = nameVariant || (/^p\d/.test(suffix) ? "parallel" : /^r\d/.test(suffix) ? "reprint" : suffix);
     const setCode = String(c.set_id ?? key.split("-")[0]).replace("-", ""); // "OP-01" → "OP01"
+    // The feed occasionally attaches another card's picture (ST36 Basil
+    // Hawkins carried OP10-103_r1 = Bege). A picture of the wrong card is
+    // worse than none: the scanner would show it and the tiebreak would
+    // compare against it. Blank it when the filename names a different number.
+    let image = String(c.card_image ?? "");
+    const fileNum = /^([A-Z]{1,4}\d{0,3}-\d{1,4})/i.exec(image.split("/").pop() ?? "");
+    if (fileNum && fileNum[1].toUpperCase() !== key.replace(/_[rp]\d+$/i, "").toUpperCase()) { console.log(`  wrong picture dropped: ${id} ${name} → ${image.split("/").pop()}`); image = ""; }
     upsert.run(
       id,
       name,
       "",
       setCode,
       String(c.set_name ?? ""),
-      key.replace(/_[rp]d+$/i, ""), // the feed keys a few reprints "P-029_r1"; the face says P-029
+      key.replace(/_[rp]\d+$/i, ""), // the feed keys a few reprints "P-029_r1"; the face says P-029
       null,
       "",
       String(c.rarity ?? ""),
       variant,
-      String(c.card_image ?? ""),
+      image,
       c.market_price != null ? Number(c.market_price) : null,
       null,
       now,

@@ -846,7 +846,7 @@ export async function tiebreakByPicture(
   if (!a || !b) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
   const response = await getClient().messages.create({
     model: TIEBREAK_MODEL,
-    max_tokens: 300,
+    max_tokens: 450,
     output_config: { effort: "medium", format: { type: "json_schema", schema: TIEBREAK_SCHEMA } },
     system: SYSTEM_TIEBREAK,
     messages: [
@@ -859,7 +859,7 @@ export async function tiebreakByPicture(
           { type: "image", source: { type: "base64", media_type: a.mediaType, data: a.base64 } },
           { type: "text", text: "Catalog printing B:" },
           { type: "image", source: { type: "base64", media_type: b.mediaType, data: b.base64 } },
-          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"}.` },
+          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : game === "onepiece" ? "One Piece Card Game" : game === "lorcana" ? "Disney Lorcana" : "Pokémon"}.` },
         ],
       },
     ],
