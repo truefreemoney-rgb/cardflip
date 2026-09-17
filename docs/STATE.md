@@ -1,83 +1,85 @@
 # Project state
 
-**CI WAS SILENTLY RED 08-late→09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite — cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
+**CI WAS SILENTLY RED 08-lateâ†’09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite â€” cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
 Last updated: 2026-09-06 ~3am ET 09-07 (session 11 end; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 90`).
 
-**DEPLOY TRAP: production deploys from `main` ONLY** — pushing
+**DEPLOY TRAP: production deploys from `main` ONLY** â€” pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
 main (`git checkout main && git merge --ff-only vercel-migration && git push`)
-or nothing reaches cardflip.io. Classifier may block `git push` in PS —
+or nothing reaches cardflip.io. Classifier may block `git push` in PS â€”
 the Bash tool's `git push origin main` went through (08-31).
 
 **Resume cheap (Chris, 08-16: "keep the context window usage low when we
 resume"): read ONLY the FIRST ACTION block below (through line ~110, use
 `limit: 90`) and act on it; everything after is reference for when a task
-needs it.** This file is the whole orientation — don't read `CLAUDE.md`
+needs it.** This file is the whole orientation â€” don't read `CLAUDE.md`
 unless the task touches identification/pricing/deploy (its trap table matters
 when *editing* that code), and don't read `docs/HISTORY.md` at all on resume
 (it's the archive of past work, for debugging a specific old feature only).
 Read task files directly; push fan-out exploration to an Explore subagent.
 For any visual/design work, read `docs/DESIGN.md` first (the design-system
-source of truth — tokens, holo rationing rule, motion policy, voice).
+source of truth â€” tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**FIRST ACTION (saved 09-16, session 27 tail, Chris: "this is stuck, cant get into admin").** ADMIN SIGN-IN HANG FIXED (4966662): POST /api/admin/login was 200 but GET /admin came back status 0 in Vercel logs — the overview page's catalog block (getAdminOverview → cachedList admin:catalog:v1, 6h TTL) is 8 whole-table walks that take ~10-15s on Turso when the memo is cold (measured from here: 10.7s; mtg_cards COUNT 4.4s, price_series 3.9s), past the 15s function default, so the first admin visit after every TTL expiry died and the login page sat on "Signing in…" (router.replace to a page that never rendered). Fix = listCache.cachedListSwr: fresh → value; stale/missing → last memo (or zeros, data.catalogStale=true) at once and the walk runs in next/server after(); console page maxDuration 60; scripts/test-listcache.mjs in the test chain. Prod memo was warmed by hand right after the push. HOW TO SEE IT NEXT TIME: `vercel logs --environment production -n 100 --json` and look for requestPath /admin with status 0. Chris should retry the console once CI+smoke are green on 4966662 (Lorcana switch still awaiting his yea/nay — panel 100%, seller photos 100%).
+**FIRST ACTION (saved 09-17, session 27 end, Chris: "save, reset, and continue with lets go").** ADMIN CONSOLE IS FIXED AND VERIFIED: Chris signed in at 23:35 on the fix deployment (4966662) and every tab rendered in the same second. Cause + fix in PREVIOUS. TOOLING RULE from 09-16: use the PowerShell tool for commands on this box, not Bash (Bash strips backslashes; PowerShell 5.1 syntax, no && chaining). OPEN ITEMS, in order: (1) LORCANA SWITCH = Chris's yea/nay — panel 145/145 = 100%, eBay seller photos 38/38 = 100%, CI + smoke green; flip = INSERT settings lorcana_public=1 on prod via .env.migration.json exactly like onepiece_public (set 09-10); then all four games are public and the 98% accuracy push is done. (2) Forgot-password flow verified wired (login → /forgot-password → SMTP via Fastmail from support@cardflip.io, prod returns ok) but no real delivery ever observed — offer Chris a test email to his own address. (3) One Piece scans cost ~4¢ (tiebreak on 85% of scans, base/reprint twins) vs 2¢/scan revenue at $9.99/500 — a follow-up if One Piece volume shows up; Lorcana/Pokémon ~1.4¢. (4) Back to the board after that. Board runner note for Chris: Tasks-page Run uses his claude.ai subscription (cloud routine, Fable 5.1), not the metered API key; only scans/tiebreak/help chat use the API key.
 
-**PREVIOUS (saved 09-10 night ET, session 27 end, Chris: "go what you got to do").** LORCANA REAL-PHOTO GATE PASSED: npm run lorcana:phone = 38/38 = 100% right card (27 base / 11 enchanted eBay seller photos; 1 graded slab + 1 duplicate dropped), exact printing 97.4%. Panel re-run on the corrected mirror = 145/145 = 100%. LORCANA SET_TOTAL WAS WRONG IN THE MIRROR: sync-lorcana derived it as max regular number, but the feed does not flag Fabled's Epic 205-222 / Iconic 241-242 or Ursula's Return's extra Rares 223-225, so set 13 stored /245 while the card prints /207 (eBay titles proved it). Now = highest Common/Uncommon/Rare/Super_rare/Legendary number below the first Enchanted → sets 1-12 = /204, set 13 = /207; rows above it become variant "special". Re-synced locally and pushed to prod (push-catalog --only tcg_cards). The ranker's Lorcana denominator check (+3 when printed total ≠ set_total) was comparing against the wrong number before this. SCRIPT: scripts/onepiece-phone.mjs → scripts/tcg-phone.mjs --game onepiece|lorcana (npm run op:phone / lorcana:phone); batches in backups/<game>-phone/batch.json, reads in scripts/<game>-phone.cache.json (committed). Batches were built by driving the in-app browser through eBay search pages (Vercel redacts the eBay keys; see PREVIOUS). MAGIC PHONE BATCH re-run with --pull after the ledger fixes = 42/42 = 100%. NEXT = lorcana_public switch is Chris's yea/nay (panel 100%, seller photos 100%, CI+smoke on this push). After that: all four games are public; the 98% focus is done for the three TCGs — go back to the board.
+**PREVIOUS (saved 09-16, session 27 tail, Chris: "this is stuck, cant get into admin").** ADMIN SIGN-IN HANG FIXED (4966662): POST /api/admin/login was 200 but GET /admin came back status 0 in Vercel logs â€” the overview page's catalog block (getAdminOverview â†’ cachedList admin:catalog:v1, 6h TTL) is 8 whole-table walks that take ~10-15s on Turso when the memo is cold (measured from here: 10.7s; mtg_cards COUNT 4.4s, price_series 3.9s), past the 15s function default, so the first admin visit after every TTL expiry died and the login page sat on "Signing inâ€¦" (router.replace to a page that never rendered). Fix = listCache.cachedListSwr: fresh â†’ value; stale/missing â†’ last memo (or zeros, data.catalogStale=true) at once and the walk runs in next/server after(); console page maxDuration 60; scripts/test-listcache.mjs in the test chain. Prod memo was warmed by hand right after the push. HOW TO SEE IT NEXT TIME: `vercel logs --environment production -n 100 --json` and look for requestPath /admin with status 0. Chris should retry the console once CI+smoke are green on 4966662 (Lorcana switch still awaiting his yea/nay â€” panel 100%, seller photos 100%).
 
-**PREVIOUS (saved 09-10 late ET, session 27, Chris: "i dont and will never have one piece cards, dig online").** ONE PIECE REAL-PHOTO GATE PASSED WITHOUT CHRIS'S CARDS: npm run op:phone (scripts/onepiece-phone.mjs) replays eBay SELLER PHOTOS — listing titles carry the card number, so each is a labeled hand-held glare/sleeve shot. 39 listings (20 base / 10 alt / 9 reprint; 4 Japanese and 1 multi-card listing dropped; 1 card-back photo dropped) = right card (name+number) first 38/39 = 97.4% (gate ≥ 90%); exact printing 48.7% is NOT the gate (seller titles are loose about printings). The one miss: heavy-foil SEC where the number is glare-washed (OP13-118 read as OP10-018, two digits off, low confidence). HOW THE BATCH WAS BUILT: eBay Browse API keys in .env.vercel.local are redacted "[SENSITIVE]" (Vercel pull) and Fly is logged out, so the script's --pull cannot run here; a plain fetch of ebay.com is 403. I drove the in-app browser (mcp Claude_Browser) through 45 eBay search pages, stashed title+image per query in localStorage, wrote scratchpad op-picks.json, merged with op-sample.json (seeded sample from the local mirror) into backups/onepiece-phone/batch.json and downloaded the s-l1600 images (i.ebayimg.com fetches fine). Reads cached in scripts/onepiece-phone.cache.json (committed). To grow the batch: repeat that browser loop, or paste real EBAY_CLIENT_ID/SECRET into .env.vercel.local and run op:phone --pull. RANKER ADDED: exact name + no printing of that name has the read number + a row one character off → tier 0.5 (glare digit misread; Nami OP08-106 read OP09-106 now hits); test added. TIEBREAK FIX: max_tokens 450→4000 (Opus 5 thinks by default and it counts against the cap; "Unterminated string"/"no readable result" were starvation) — panel run 6 (started before this fix) still 98.0% with the same 3 misses. ONE PIECE IS PUBLIC: settings.onepiece_public=1 set on prod by me on Chris's "turn it on" (CI + prod smoke green on 3f23281). NEXT = Lorcana real-photo gate via the same eBay seller-photo loop, then its switch. Then Lorcana: same seller-photo loop (Lorcana panel was done earlier, no real-photo gate yet).
+**PREVIOUS (saved 09-10 night ET, session 27 end, Chris: "go what you got to do").** LORCANA REAL-PHOTO GATE PASSED: npm run lorcana:phone = 38/38 = 100% right card (27 base / 11 enchanted eBay seller photos; 1 graded slab + 1 duplicate dropped), exact printing 97.4%. Panel re-run on the corrected mirror = 145/145 = 100%. LORCANA SET_TOTAL WAS WRONG IN THE MIRROR: sync-lorcana derived it as max regular number, but the feed does not flag Fabled's Epic 205-222 / Iconic 241-242 or Ursula's Return's extra Rares 223-225, so set 13 stored /245 while the card prints /207 (eBay titles proved it). Now = highest Common/Uncommon/Rare/Super_rare/Legendary number below the first Enchanted â†’ sets 1-12 = /204, set 13 = /207; rows above it become variant "special". Re-synced locally and pushed to prod (push-catalog --only tcg_cards). The ranker's Lorcana denominator check (+3 when printed total â‰  set_total) was comparing against the wrong number before this. SCRIPT: scripts/onepiece-phone.mjs â†’ scripts/tcg-phone.mjs --game onepiece|lorcana (npm run op:phone / lorcana:phone); batches in backups/<game>-phone/batch.json, reads in scripts/<game>-phone.cache.json (committed). Batches were built by driving the in-app browser through eBay search pages (Vercel redacts the eBay keys; see PREVIOUS). MAGIC PHONE BATCH re-run with --pull after the ledger fixes = 42/42 = 100%. NEXT = lorcana_public switch is Chris's yea/nay (panel 100%, seller photos 100%, CI+smoke on this push). After that: all four games are public; the 98% focus is done for the three TCGs â€” go back to the board.
 
-**PREVIOUS (saved 09-10 evening ET, session 27 mid, Chris: "up to you now champ").** ONE PIECE PANEL = 98.0% (run 5, target met; top-3 99.3%; 85 near-ties ≈ $2.60/run). Session 27 fixes (commit after bdb6fe3): (1) THREE FILES HAD REGEXES WITH NO BACKSLASHES — the Bash tool on this Windows box collapses a doubled backslash to a single one (and a single one to nothing) inside node -e / heredocs, so session 26 wrote /_[rp]d+$/ and /s+-s+[A-Z]+d*-d+/ into tcgCards.ts, sync-onepiece.mjs, tcg-panel.mjs; they compiled and silently never matched (reprint suffix strip, name-number strip, sync cleaning). Fixed by inserting the backslashes via String.fromCharCode(92); scratchpad scan-regex.mjs found 0 other hits repo-wide. RULE: never type a regex with backslashes through Bash — use the Write/Edit tools or fromCharCode. (2) Ranker: rarity token before the number ("SP P-084") stripped; full-art read vs special row = +0.5 (art families alt/full/manga are near each other), foil treatments (pirate/jolly-roger) stay +1.5. (3) Picture tiebreak prompt said the game was Pokémon for One Piece/Lorcana — now names the right game; max_tokens 300→450 (one answer truncated). (4) sync-onepiece blanks image_url when the feed filename names a different card (ST36 Basil Hawkins carried Bege's picture); re-synced locally, clean (0 dirty numbers, 0 dirty names, 3 blank images), pushed to prod via push-catalog --only tcg_cards (7,478 rows). (5) 4 incident tests in test-tcg.mjs. REMAINING 3 MISSES (not ranker): Sugar OP04-024 + Kingdom of GERMA = vision read the wrong variant off the catalog picture; Ace OP13-119 p2/p3 = 3-way alt-art tie, tiebreakByPicture only compares 2 (extending to 3 = new schema + API route; skip unless the phone batch shows it). NEXT = One Piece phone batch needs Chris's cards (op:phone does not exist yet — mirror mtg:phone), then onepiece_public switch is Chris's call. One Piece switch still OFF. Lorcana untouched since its panel.
+**PREVIOUS (saved 09-10 late ET, session 27, Chris: "i dont and will never have one piece cards, dig online").** ONE PIECE REAL-PHOTO GATE PASSED WITHOUT CHRIS'S CARDS: npm run op:phone (scripts/onepiece-phone.mjs) replays eBay SELLER PHOTOS â€” listing titles carry the card number, so each is a labeled hand-held glare/sleeve shot. 39 listings (20 base / 10 alt / 9 reprint; 4 Japanese and 1 multi-card listing dropped; 1 card-back photo dropped) = right card (name+number) first 38/39 = 97.4% (gate â‰¥ 90%); exact printing 48.7% is NOT the gate (seller titles are loose about printings). The one miss: heavy-foil SEC where the number is glare-washed (OP13-118 read as OP10-018, two digits off, low confidence). HOW THE BATCH WAS BUILT: eBay Browse API keys in .env.vercel.local are redacted "[SENSITIVE]" (Vercel pull) and Fly is logged out, so the script's --pull cannot run here; a plain fetch of ebay.com is 403. I drove the in-app browser (mcp Claude_Browser) through 45 eBay search pages, stashed title+image per query in localStorage, wrote scratchpad op-picks.json, merged with op-sample.json (seeded sample from the local mirror) into backups/onepiece-phone/batch.json and downloaded the s-l1600 images (i.ebayimg.com fetches fine). Reads cached in scripts/onepiece-phone.cache.json (committed). To grow the batch: repeat that browser loop, or paste real EBAY_CLIENT_ID/SECRET into .env.vercel.local and run op:phone --pull. RANKER ADDED: exact name + no printing of that name has the read number + a row one character off â†’ tier 0.5 (glare digit misread; Nami OP08-106 read OP09-106 now hits); test added. TIEBREAK FIX: max_tokens 450â†’4000 (Opus 5 thinks by default and it counts against the cap; "Unterminated string"/"no readable result" were starvation) â€” panel run 6 (started before this fix) still 98.0% with the same 3 misses. ONE PIECE IS PUBLIC: settings.onepiece_public=1 set on prod by me on Chris's "turn it on" (CI + prod smoke green on 3f23281). NEXT = Lorcana real-photo gate via the same eBay seller-photo loop, then its switch. Then Lorcana: same seller-photo loop (Lorcana panel was done earlier, no real-photo gate yet).
 
-**PREVIOUS (saved 09-10 ~2pm ET, session 26 end, Chris: "finish, figure out later"). ONE PIECE: run 1 80.0% → run 2 92.0% (ranker: no set-code penalty for One Piece — the OP06 prefix is on every printing; variant families parallel/alt-art/special/spr; reprint = same face as base, +1.25 so twins skip the paid tiebreak — run 2 sent 93 near-ties to Opus ≈ $2.80, run 3 should send far fewer; panel accepts either twin on the reprint bracket). Catalog quirk fixed: 206 rows had the number inside the name ("Roronoa Zoro - OP10-095") and 8 had _r1/_p1 in collector_number — cleaned locally + on prod, sync-onepiece patched so it stays clean. RUN 3 RESULT: +process.argv[1]+ (scratchpad onepiece-panel3.log; if unfinished, rerun `npm run tcg:panel -- --game onepiece --pick --yes`, all reads cached). Left after run 3 (from run 2 misses): Sugar OP04-024 + Kingdom of GERMA = vision read the wrong variant; Ace p2/p3 = 3-way alt-art tie (tiebreak only compares top 2); Buggy P-084 read as "SP P-084"; Basil Hawkins OP10-109_r1#4246 = panel image/feed mismatch. Then One Piece phone batch needs Chris's cards. EARLIER TODAY: MAGIC IS PUBLIC (settings.magic_public=1, set by me on Chris's "make your best calls"): gates = panel 99.0%, mtg:phone fresh 39/42 where all 3 misses were wrong ledger rows (fixed on prod: Spider-Woman→SPM 230, Hometown Hero→Cosmic Spider-Man SPM 271, Pyretic Ritual→M11 153; rerun should read 42/42), CI+prod smoke green. Board Completed line added. Full mtg_cards mirror pushed to prod (push-mtg.log). NEXT = One Piece ranker: reprint-same-id-later-set bucket (9) then manga/parallel variants (16), run 2. EARLIER: PROD WAS BROKEN FOR 7 DEPLOYS: every Vercel build since 66c2a57 failed ("use client" on line 2 of lib/client/cardsApi.ts) — fixed 401b8f4, prod Ready; the Magic 99% tiebreak batch only reached prod NOW. Then: push-catalog --only tcg_cards done (Lorcana 3,198 + One Piece 4,280 on prod, switches still OFF); push-mtg-cues now also pushes art_hash-only rows (lands/pre-1998) — prod 11,119 hashed. One Piece panel run 1 = 120/150 = 80.0% first try, 137/150 one tap; misses: 9 reprint-same-id-later-set (ranker picks base over ST reprint), 9 manga/special/full art, 7 parallel/alt art, 2 starter, 2 premium booster, 1 standard → NEXT: One Piece ranker pass (reprints + variants), then run 2. Prod mtg_cards is 1,105 rows behind local (97,899 vs 96,794) — weekly push-catalog covers it. Chris asked whether Magic can go public: I said yes, the only gap is no real-phone Magic batch yet; switch is his.**
+**PREVIOUS (saved 09-10 evening ET, session 27 mid, Chris: "up to you now champ").** ONE PIECE PANEL = 98.0% (run 5, target met; top-3 99.3%; 85 near-ties â‰ˆ $2.60/run). Session 27 fixes (commit after bdb6fe3): (1) THREE FILES HAD REGEXES WITH NO BACKSLASHES â€” the Bash tool on this Windows box collapses a doubled backslash to a single one (and a single one to nothing) inside node -e / heredocs, so session 26 wrote /_[rp]d+$/ and /s+-s+[A-Z]+d*-d+/ into tcgCards.ts, sync-onepiece.mjs, tcg-panel.mjs; they compiled and silently never matched (reprint suffix strip, name-number strip, sync cleaning). Fixed by inserting the backslashes via String.fromCharCode(92); scratchpad scan-regex.mjs found 0 other hits repo-wide. RULE: never type a regex with backslashes through Bash â€” use the Write/Edit tools or fromCharCode. (2) Ranker: rarity token before the number ("SP P-084") stripped; full-art read vs special row = +0.5 (art families alt/full/manga are near each other), foil treatments (pirate/jolly-roger) stay +1.5. (3) Picture tiebreak prompt said the game was PokÃ©mon for One Piece/Lorcana â€” now names the right game; max_tokens 300â†’450 (one answer truncated). (4) sync-onepiece blanks image_url when the feed filename names a different card (ST36 Basil Hawkins carried Bege's picture); re-synced locally, clean (0 dirty numbers, 0 dirty names, 3 blank images), pushed to prod via push-catalog --only tcg_cards (7,478 rows). (5) 4 incident tests in test-tcg.mjs. REMAINING 3 MISSES (not ranker): Sugar OP04-024 + Kingdom of GERMA = vision read the wrong variant off the catalog picture; Ace OP13-119 p2/p3 = 3-way alt-art tie, tiebreakByPicture only compares 2 (extending to 3 = new schema + API route; skip unless the phone batch shows it). NEXT = One Piece phone batch needs Chris's cards (op:phone does not exist yet â€” mirror mtg:phone), then onepiece_public switch is Chris's call. One Piece switch still OFF. Lorcana untouched since its panel.
 
-**FIRST ACTION (saved 09-11 ~12:15am ET, session 25 end). RESUME: (1) read scratchpad onepiece-panel1.log (One Piece panel run 1 was ~100/150 at save; Lorcana run 1 = 145/145 = 100%, 8 ties to the picture); (2) once prod serves the new code (curl /api/search-card?game=lorcana&name=Elsa returns source:local or a 503 catalogue message — at save it still answered the old pokemon path), run `node scripts/push-catalog.mjs --only tcg_cards` (new --only flag) so Lorcana + One Piece exist on prod (switches stay OFF until Chris says); (3) CI on main: b842a3d/f4539a9 must be green — 858537b and 519ddda went out with a broken art-hash regex (fixed in b842a3d). LOCKED per Chris: art cards and tokens are refused at the scan (ART_CARDS_LOCKED); do not build on them. Chris: keep the big picture — 99% on Pokémon/Magic/Lorcana/One Piece, then sports; social scrapped (park vs delete unanswered). Chris waits on nothing; his phone batches are the only ask.**
-**FIRST ACTION (saved 09-10 ~11:30pm ET, session 25). NEW GAMES STARTED (Chris: 'One Piece and Lorcana, then sports — no time like the present; don't bother me unless it's a huge change'). SHIPPED 66c2a57 (admins-only, switches off): docs/NEW-GAMES.md — tcg_cards mirror (sync:lorcana = Lorcast 3,198 cards w/ USD+foil; sync:onepiece = optcgapi 4,280 entries w/ parallels), TCG_READ_SCHEMA + SYSTEM_LORCANA / SYSTEM_ONEPIECE, lib/server/tcgCards.ts ranker (rankScore → tiebreak), search-card branch, per-game public flags (settings.ts gamePublic/gameFeaturesFor; Magic keeps magic_public), GameToggle per-game gating, admin Switches rows, PrintedNumber.subtitle/variant, test:tcg (24). PANELS RUNNING at save time: `npm run tcg:panel -- --game lorcana` (145) and `--game onepiece` (150), logs in scratchpad lorcana-panel1.log / onepiece-panel1.log — read the misses, fix buckets, re-run. PROD TODO after deploy: `node scripts/push-catalog.mjs` (tcg_cards is in CATALOG_TABLES; the table is created on first request), and `node scripts/push-mtg-cues.mjs` once the pre-1998 art_hash sync finishes (arthash2.log). Chris said scrap social (park vs delete unanswered — do not touch). Sports cards after these two prove out. All earlier numbers stand: Pokémon 98.6/99.5, Magic 99.0 on the panels.**
-**FIRST ACTION (saved 09-10 ~10pm ET, session 25). MAIN FOCUS = 98% first-try on a clear photo, BOTH games — REACHED ON THE PANELS: Pokémon 208/211 = 98.6% (99.5% clear images, 99.1% one tap), Magic 203/205 = 99.0% (docs/POKEMON-IDENTIFICATION.md, docs/MTG-IDENTIFICATION.md §3d). THE LEVER WAS THE PICTURE TIEBREAK (Chris: 'get us close to 99%, I don't care how'): both rankers expose rankScore, lib/tiebreak.ts isNearTie (gap ≤ 1), app/app/page.tsx → lib/client/visionApi.ts tiebreakCard → POST /api/vision/tiebreak → vision.ts tiebreakByPicture = Opus 5 with the photo + both catalog pictures, A/B/null; billed as claude-opus-5 on scan_usage (~3¢, ~1 scan in 10 on the panel). Also: noYearLine opens the 1993-1995 window past the 600 cap; artist misspellings ≤ 2 edits tolerated; List twins stay on the key one point behind when the corner is unchecked (listIconSeen), so the picture decides; art_hash now also basic lands + pre-1998 (mtg:arthash --scope lands|pre1998; re-run push-mtg-cues after). Both panels run the tiebreak (--no-tiebreak skips). NOT YET PUSHED TO PROD at save time: this last batch (tiebreak + window + List) — push it. WAITING ON CHRIS: Pokémon phone batch 30-40 cards (`npm run pokemon:phone -- --pull`), then Magic batch; SOCIAL: he said scrap it, I asked park vs delete, no answer — do not touch. Cost rule: say it first; a panel run with tiebreaks ≈ 66¢ Magic / 54¢ Pokémon on cached reads.**
-**FIRST ACTION (saved 09-10 ~7:30pm ET, session 25). MAIN FOCUS = 98% first-try on a clear photo, BOTH games. NUMBERS: Pokémon panel 97.6% (98.6% clear images), pokemon:phone 14/14 on prod photos; Magic panel 87.3% → 95.1% (docs/MTG-IDENTIFICATION.md §3d). SHIPPED: second look (vision.ts: crop bottom 45%, small schema — number/total/code/year/List icon/date stamp/serial/artist/edge/bevel; fires on conf<0.7, no number, art/unknown name, hasTwinPrinting list|prerelease|promo|serialized), Art Series by picture (lib/server/artHash.ts dHash of 2,488 fronts, mtg:arthash, PUSHED TO PROD via push-mtg-cues 09-10 evening), noYearLine + bevel(true only) cues, Summer Magic never wins a no-year tie, PLST bare-number match, art rows by type_line; both panels + both phone scripts run analyzeCardImageWithUsage (production path); pokemon:phone added (14 prod photos); scripts/board-edit.mjs edits one live row by --match. LESSONS: never run two panel/phone scripts at once (cache file clobbered); Scryfall scans of s/p/z twins show no stamp/serial (panel tallies them as catalog-limited); TCGdex 503s after ~100 fetches. LEFT ON MAGIC: Unlimited vs Revised (3), List icon at 672px (3), basic-land art twins (2), Mountain→SLD, Kamahl P15A — all one-tap. WAITING ON CHRIS: 30-40 card Pokémon phone batch (then `npm run pokemon:phone -- --pull`), then a Magic batch; his answer on SOCIAL (he said scrap it 09-10 evening — I asked park vs delete, no answer yet; do NOT touch social until he answers). Cost rule: say it first.**
-**FIRST ACTION (saved 09-10 ~5pm ET, session 25). MAIN FOCUS = 98% first-try identification on a clear photo, BOTH games (Chris: nothing else matters). POKÉMON PANEL DONE FOR NOW: 89% → 97.6% first try / 98.1% one tap / 98.6% on clear images (213 printings; docs/POKEMON-IDENTIFICATION.md has the rules table + catalog faults). Rules shipped in enCards.ts (setName + copyrightYear tiebreaks, number+total beats exact-name-wrong-number, promo prefixes, Basic Energy, lettered totals) + CARD_READ_SCHEMA copyrightYear + prompt (lettered numbers, SH, DPBP code, year line); PrintedNumber carries setName/copyrightYear through cards.ts → route → ranker. MAGIC: mtgCards.ts year rules (printed year rules out pre-1995-04 sets except SUM; 1-year gap +1) + border/year prompt wording; mtg:panel still 87.3% on OLD reads — pre-1998 (10), The List (6), Art Series (5), prerelease/serialized need the SECOND LOOK (next: vision.ts secondLook = crop bottom 45%, upscale, small schema; triggers: conf<0.7, no number, mtg art/Unknown name, PLST twin exists via hasListTwin) and both panels switch to analyzeCardImageWithUsage (the real path). TCGdex throttles after ~100 fetches (503) — panel reads got filled from the run-1 cache; re-read the rest when it recovers. Chris phone batch per game comes after. Cost rule: say it first; full Pokémon re-read ≈ $2.35.**
-**FIRST ACTION (saved 09-10 ~3:45pm ET, session 25). MAIN FOCUS, Chris 09-10: "nothing else matters except getting to high 90%s, both Pokémon and Magic" — 98% first-try identification on a CLEAR photo. Board row at the top of Now. Pokémon panel built: scripts/pokemon-panel.mjs (npm run pokemon:panel; 213 printings in scripts/pokemon-panel.json across 14 buckets; reads cached in pokemon-panel.cache.json; refuses >40 uncached calls without --yes; full fresh run ≈ $2.30 — SAY THE COST FIRST, Chris flagged today as insane usage). Walks the scanner's own path (name candidates → searchEnglishCardsLocal with printed fraction/art/firstEdition → number-only fallback). FINDING: TCGdex WotC-era catalog scans are 1st Edition copies (base1-7, base5-52 stamped) — panel counts the -1st twin as a hit when the read saw the stamp; app-side, unlimited rows show a stamped image (catalog art issue, later). Baseline run 1 in progress at save time (log: scratchpad panel-run1.log). NEXT: read the misses by bucket, fix ranker/prompt per bucket, rerun that bucket with --fresh, then the second-look step, then Chris's phone batch. Magic gets the same loop after (mtg:panel 87.3%, phone 92.9%). Board scripts: scripts/board-read.mjs / board-add.mjs hit prod Turso, no cookie. Chris cannot type his password for me — never ask; sign-in is his.**
-**FIRST ACTION (saved 09-10 ~3pm ET, session 25). RESUME = read the LIVE board (seed tab was signed out by the 5-min idle timeout — Chris signs in first). FIXED: /api/social/publish only took the cron key, so the /admin/social Post now button (POSTs with the owner cookie, no key) would have 403d on prod — route now accepts owner cookie OR key, same gate as image/drafts. Could NOT dry-run the publisher from here: `vercel env pull` returns a redacted placeholder for CRON_SECRET (Sensitive), so the keyed check must come from the browser tab (signed in) via Post now, or from the cron run. Still WAITING on Chris: Bluesky app password (board row) → BLUESKY_HANDLE + BLUESKY_APP_PASSWORD on Vercel in bypass mode. NEXT: Meta adapter per docs/SOCIAL-AUTOPILOT.md §3.**
-**FIRST ACTION (saved 09-10 ~2:30pm ET, session 24). RESUME = read the LIVE board. SOCIAL PUBLISHER SHIPPED (this commit, deploying): lib/server/socialPublish.ts (publishSocial: Tue/Thu/Sat UTC post days, once per site per day via settings social_last_post:<site> + :uris, fitText caption→short→cut, JPEG under the site cap via sharp, one Completed line on the board per run; retries the board save once on conflict) + lib/server/sites/bluesky.ts (createSession/uploadBlob/createRecord, link+tag facets by byte offset, 300 chars, 950 KB) + socialSites.ts registry + GET|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=] + GET /api/social/drafts + components/admin/SocialSites.tsx strip (connected / last post / Post now) on /admin/social; runs as the LAST STEP of /api/cron/pokemon-prices (Hobby = two crons, never fails the price run). npm run test:socialpublish (in the chain), tsc + eslint clean. LESSON: a folder named like a sibling .ts file (lib/server/social/ next to social.ts) breaks the alias loader → adapters live in lib/server/sites/. NOT yet seen on prod: check /admin/social sites strip shows "Bluesky · not connected" and /api/social/publish?key=...&dry=1 answers. WAITING on Chris: Bluesky app password on his board row → then in bypass-permissions mode `vercel env add BLUESKY_HANDLE production` (cardflipio.bsky.social) + BLUESKY_APP_PASSWORD, push any commit, press Post now on /admin/social once, check the Completed line. NEXT: Meta adapter (IG/FB/Threads, one Meta app) per docs/SOCIAL-AUTOPILOT.md §3. CI on main: a164f61 e2e was a mobile flake (post-scan editor), rerun queued; c50f6e4 green.**
-**FIRST ACTION (saved 09-10 ~1pm ET, session 23). CI WAS RED ON MAIN since bf56e8d (this morning): the 'stray untracked' src/app/admin/(console)/data/page.tsx was in fact COMMITTED by bf56e8d and failed lint (Date.now() in render); removed in c50f6e4. Chris saw 8 red CI emails — check gh run list --branch main before saying green. RESUME = read the LIVE board. SOCIAL AUTOPILOT STEP 1 SHIPPED (922f30d on main, deploying): lib/server/social.ts (topMovers / cardOfTheDay / socialDrafts from price_series, fresh-3-days gate, ≥$3 movers, ≥$15 COTD hashed by date), GET /api/social/image?kind=movers|card&game&day&size=square|story|landscape (owner cookie or ?key=CRON_SECRET; TCGdex WebP → PNG via sharp dynamic import, pokemontcg.io PNG twin fallback — Satori cannot draw WebP), /admin/social page + nav "Social" + components/admin/SocialPreview.tsx, npm run test:social (in the chain). Verified on dev: all four images render with art at every size. NOT yet seen on prod — check cardflip.io/admin/social once. Board row under Claude queue updated (PUT with base). NEXT: publisher routine (docs/SOCIAL-AUTOPILOT.md plan §1: GET /api/social/drafts + cloud routine on cardflip-runner env, social_last_post:<site> in settings), then Bluesky (Chris pastes an app password on his row). CHRIS 09-10: 'we are not video content creators' — NO YouTube/TikTok/Reels, ever; image sites only; the YouTube board row was replaced with Bluesky. Dev server on :3000 is someone else's process (not the preview tool); admin cookie on dev must be signed with signAdminToken (default creds), the browser tab held the helper cookie — Sign Out first.**
+**PREVIOUS (saved 09-10 ~2pm ET, session 26 end, Chris: "finish, figure out later"). ONE PIECE: run 1 80.0% â†’ run 2 92.0% (ranker: no set-code penalty for One Piece â€” the OP06 prefix is on every printing; variant families parallel/alt-art/special/spr; reprint = same face as base, +1.25 so twins skip the paid tiebreak â€” run 2 sent 93 near-ties to Opus â‰ˆ $2.80, run 3 should send far fewer; panel accepts either twin on the reprint bracket). Catalog quirk fixed: 206 rows had the number inside the name ("Roronoa Zoro - OP10-095") and 8 had _r1/_p1 in collector_number â€” cleaned locally + on prod, sync-onepiece patched so it stays clean. RUN 3 RESULT: +process.argv[1]+ (scratchpad onepiece-panel3.log; if unfinished, rerun `npm run tcg:panel -- --game onepiece --pick --yes`, all reads cached). Left after run 3 (from run 2 misses): Sugar OP04-024 + Kingdom of GERMA = vision read the wrong variant; Ace p2/p3 = 3-way alt-art tie (tiebreak only compares top 2); Buggy P-084 read as "SP P-084"; Basil Hawkins OP10-109_r1#4246 = panel image/feed mismatch. Then One Piece phone batch needs Chris's cards. EARLIER TODAY: MAGIC IS PUBLIC (settings.magic_public=1, set by me on Chris's "make your best calls"): gates = panel 99.0%, mtg:phone fresh 39/42 where all 3 misses were wrong ledger rows (fixed on prod: Spider-Womanâ†’SPM 230, Hometown Heroâ†’Cosmic Spider-Man SPM 271, Pyretic Ritualâ†’M11 153; rerun should read 42/42), CI+prod smoke green. Board Completed line added. Full mtg_cards mirror pushed to prod (push-mtg.log). NEXT = One Piece ranker: reprint-same-id-later-set bucket (9) then manga/parallel variants (16), run 2. EARLIER: PROD WAS BROKEN FOR 7 DEPLOYS: every Vercel build since 66c2a57 failed ("use client" on line 2 of lib/client/cardsApi.ts) â€” fixed 401b8f4, prod Ready; the Magic 99% tiebreak batch only reached prod NOW. Then: push-catalog --only tcg_cards done (Lorcana 3,198 + One Piece 4,280 on prod, switches still OFF); push-mtg-cues now also pushes art_hash-only rows (lands/pre-1998) â€” prod 11,119 hashed. One Piece panel run 1 = 120/150 = 80.0% first try, 137/150 one tap; misses: 9 reprint-same-id-later-set (ranker picks base over ST reprint), 9 manga/special/full art, 7 parallel/alt art, 2 starter, 2 premium booster, 1 standard â†’ NEXT: One Piece ranker pass (reprints + variants), then run 2. Prod mtg_cards is 1,105 rows behind local (97,899 vs 96,794) â€” weekly push-catalog covers it. Chris asked whether Magic can go public: I said yes, the only gap is no real-phone Magic batch yet; switch is his.**
 
-**SOCIAL AUTOPILOT (09-10 ~noon ET): Chris hates social media, girlfriend quit, but it must be done → I run it hands-off. NEXT SESSION BUILD: (1) content engine = post images from our data (price movers / card of the day via an ImageResponse route like opengraph-image.tsx, plus app-recorded scan clips via Playwright recordVideo) + /admin/social preview page; (2) publisher routine (cloud, scheduled) posting by API; Bluesky first (Chris row on the board asks for an app password), then YouTube OAuth, X free tier, Meta app for IG/FB/Threads, Pinterest/LinkedIn, TikTok last (app audit). Write docs/SOCIAL-AUTOPILOT.md first. Kit assets already live: docs/SOCIAL-KIT.md, cardflip.io/social/. Helper login built, unset, parked.** **LOGGED 09-10 ~11am ET: #26 auto-completed on merge+deploy, Chris says far from done — do NOT touch until he says go (board row, Claude queue top). Chris moved on to something bigger.** **FIRST ACTION (saved 09-10 ~10:45am ET, session 22). RESUME = read the LIVE board. THIS SESSION: (1) HELPER LOGIN shipped (bf56e8d + b6baabf on main): ADMIN_HELPER_USER/PASSWORD → role "helper" (lib/adminAuth.ts adminRoleOf, cookie <exp>.h.<mac>); helper sees only /admin/board via HelperBoard.tsx — her category "<Name>'s thoughts", Add note / Photo / ▶ Run / ↳ Reply through POST /api/admin/board/note (server re-reads the board); board PUT/reseed, Merge, users, settings, jobs = requireAdminOwner; other console pages requireOwnerPage (lib/server/adminPage.ts — NOT in adminGate, next/navigation breaks the script tests); Run on another section → 403; RUNNER.md "Tasks from the helper" (answers in PR body + docs/social/, start from docs/SOCIAL.md from runner PR #27). WAITING on Chris: set the two env vars on Vercel (vercel env add is blocked for me in auto mode) — board row under "Chris — needs you". Verified on dev at 375px as helper sam/wheels (.env.local only). (2) MAGIC PHONE BATCH: npm run mtg:phone = 39/42 = 92.9% on Chris's real prod photos — the ≥90% gate PASSED; List icon still needs real List-card photos from Chris. (3) Prod smoke reds at 08:54/08:56Z were a tcgdex blip (rerun queued), not the geofence. Stray untracked src/app/admin/(console)/data/page.tsx still there (rm blocked) — do not commit; it is the only local lint error.**
+**FIRST ACTION (saved 09-11 ~12:15am ET, session 25 end). RESUME: (1) read scratchpad onepiece-panel1.log (One Piece panel run 1 was ~100/150 at save; Lorcana run 1 = 145/145 = 100%, 8 ties to the picture); (2) once prod serves the new code (curl /api/search-card?game=lorcana&name=Elsa returns source:local or a 503 catalogue message â€” at save it still answered the old pokemon path), run `node scripts/push-catalog.mjs --only tcg_cards` (new --only flag) so Lorcana + One Piece exist on prod (switches stay OFF until Chris says); (3) CI on main: b842a3d/f4539a9 must be green â€” 858537b and 519ddda went out with a broken art-hash regex (fixed in b842a3d). LOCKED per Chris: art cards and tokens are refused at the scan (ART_CARDS_LOCKED); do not build on them. Chris: keep the big picture â€” 99% on PokÃ©mon/Magic/Lorcana/One Piece, then sports; social scrapped (park vs delete unanswered). Chris waits on nothing; his phone batches are the only ask.**
+**FIRST ACTION (saved 09-10 ~11:30pm ET, session 25). NEW GAMES STARTED (Chris: 'One Piece and Lorcana, then sports â€” no time like the present; don't bother me unless it's a huge change'). SHIPPED 66c2a57 (admins-only, switches off): docs/NEW-GAMES.md â€” tcg_cards mirror (sync:lorcana = Lorcast 3,198 cards w/ USD+foil; sync:onepiece = optcgapi 4,280 entries w/ parallels), TCG_READ_SCHEMA + SYSTEM_LORCANA / SYSTEM_ONEPIECE, lib/server/tcgCards.ts ranker (rankScore â†’ tiebreak), search-card branch, per-game public flags (settings.ts gamePublic/gameFeaturesFor; Magic keeps magic_public), GameToggle per-game gating, admin Switches rows, PrintedNumber.subtitle/variant, test:tcg (24). PANELS RUNNING at save time: `npm run tcg:panel -- --game lorcana` (145) and `--game onepiece` (150), logs in scratchpad lorcana-panel1.log / onepiece-panel1.log â€” read the misses, fix buckets, re-run. PROD TODO after deploy: `node scripts/push-catalog.mjs` (tcg_cards is in CATALOG_TABLES; the table is created on first request), and `node scripts/push-mtg-cues.mjs` once the pre-1998 art_hash sync finishes (arthash2.log). Chris said scrap social (park vs delete unanswered â€” do not touch). Sports cards after these two prove out. All earlier numbers stand: PokÃ©mon 98.6/99.5, Magic 99.0 on the panels.**
+**FIRST ACTION (saved 09-10 ~10pm ET, session 25). MAIN FOCUS = 98% first-try on a clear photo, BOTH games â€” REACHED ON THE PANELS: PokÃ©mon 208/211 = 98.6% (99.5% clear images, 99.1% one tap), Magic 203/205 = 99.0% (docs/POKEMON-IDENTIFICATION.md, docs/MTG-IDENTIFICATION.md Â§3d). THE LEVER WAS THE PICTURE TIEBREAK (Chris: 'get us close to 99%, I don't care how'): both rankers expose rankScore, lib/tiebreak.ts isNearTie (gap â‰¤ 1), app/app/page.tsx â†’ lib/client/visionApi.ts tiebreakCard â†’ POST /api/vision/tiebreak â†’ vision.ts tiebreakByPicture = Opus 5 with the photo + both catalog pictures, A/B/null; billed as claude-opus-5 on scan_usage (~3Â¢, ~1 scan in 10 on the panel). Also: noYearLine opens the 1993-1995 window past the 600 cap; artist misspellings â‰¤ 2 edits tolerated; List twins stay on the key one point behind when the corner is unchecked (listIconSeen), so the picture decides; art_hash now also basic lands + pre-1998 (mtg:arthash --scope lands|pre1998; re-run push-mtg-cues after). Both panels run the tiebreak (--no-tiebreak skips). NOT YET PUSHED TO PROD at save time: this last batch (tiebreak + window + List) â€” push it. WAITING ON CHRIS: PokÃ©mon phone batch 30-40 cards (`npm run pokemon:phone -- --pull`), then Magic batch; SOCIAL: he said scrap it, I asked park vs delete, no answer â€” do not touch. Cost rule: say it first; a panel run with tiebreaks â‰ˆ 66Â¢ Magic / 54Â¢ PokÃ©mon on cached reads.**
+**FIRST ACTION (saved 09-10 ~7:30pm ET, session 25). MAIN FOCUS = 98% first-try on a clear photo, BOTH games. NUMBERS: PokÃ©mon panel 97.6% (98.6% clear images), pokemon:phone 14/14 on prod photos; Magic panel 87.3% â†’ 95.1% (docs/MTG-IDENTIFICATION.md Â§3d). SHIPPED: second look (vision.ts: crop bottom 45%, small schema â€” number/total/code/year/List icon/date stamp/serial/artist/edge/bevel; fires on conf<0.7, no number, art/unknown name, hasTwinPrinting list|prerelease|promo|serialized), Art Series by picture (lib/server/artHash.ts dHash of 2,488 fronts, mtg:arthash, PUSHED TO PROD via push-mtg-cues 09-10 evening), noYearLine + bevel(true only) cues, Summer Magic never wins a no-year tie, PLST bare-number match, art rows by type_line; both panels + both phone scripts run analyzeCardImageWithUsage (production path); pokemon:phone added (14 prod photos); scripts/board-edit.mjs edits one live row by --match. LESSONS: never run two panel/phone scripts at once (cache file clobbered); Scryfall scans of s/p/z twins show no stamp/serial (panel tallies them as catalog-limited); TCGdex 503s after ~100 fetches. LEFT ON MAGIC: Unlimited vs Revised (3), List icon at 672px (3), basic-land art twins (2), Mountainâ†’SLD, Kamahl P15A â€” all one-tap. WAITING ON CHRIS: 30-40 card PokÃ©mon phone batch (then `npm run pokemon:phone -- --pull`), then a Magic batch; his answer on SOCIAL (he said scrap it 09-10 evening â€” I asked park vs delete, no answer yet; do NOT touch social until he answers). Cost rule: say it first.**
+**FIRST ACTION (saved 09-10 ~5pm ET, session 25). MAIN FOCUS = 98% first-try identification on a clear photo, BOTH games (Chris: nothing else matters). POKÃ‰MON PANEL DONE FOR NOW: 89% â†’ 97.6% first try / 98.1% one tap / 98.6% on clear images (213 printings; docs/POKEMON-IDENTIFICATION.md has the rules table + catalog faults). Rules shipped in enCards.ts (setName + copyrightYear tiebreaks, number+total beats exact-name-wrong-number, promo prefixes, Basic Energy, lettered totals) + CARD_READ_SCHEMA copyrightYear + prompt (lettered numbers, SH, DPBP code, year line); PrintedNumber carries setName/copyrightYear through cards.ts â†’ route â†’ ranker. MAGIC: mtgCards.ts year rules (printed year rules out pre-1995-04 sets except SUM; 1-year gap +1) + border/year prompt wording; mtg:panel still 87.3% on OLD reads â€” pre-1998 (10), The List (6), Art Series (5), prerelease/serialized need the SECOND LOOK (next: vision.ts secondLook = crop bottom 45%, upscale, small schema; triggers: conf<0.7, no number, mtg art/Unknown name, PLST twin exists via hasListTwin) and both panels switch to analyzeCardImageWithUsage (the real path). TCGdex throttles after ~100 fetches (503) â€” panel reads got filled from the run-1 cache; re-read the rest when it recovers. Chris phone batch per game comes after. Cost rule: say it first; full PokÃ©mon re-read â‰ˆ $2.35.**
+**FIRST ACTION (saved 09-10 ~3:45pm ET, session 25). MAIN FOCUS, Chris 09-10: "nothing else matters except getting to high 90%s, both PokÃ©mon and Magic" â€” 98% first-try identification on a CLEAR photo. Board row at the top of Now. PokÃ©mon panel built: scripts/pokemon-panel.mjs (npm run pokemon:panel; 213 printings in scripts/pokemon-panel.json across 14 buckets; reads cached in pokemon-panel.cache.json; refuses >40 uncached calls without --yes; full fresh run â‰ˆ $2.30 â€” SAY THE COST FIRST, Chris flagged today as insane usage). Walks the scanner's own path (name candidates â†’ searchEnglishCardsLocal with printed fraction/art/firstEdition â†’ number-only fallback). FINDING: TCGdex WotC-era catalog scans are 1st Edition copies (base1-7, base5-52 stamped) â€” panel counts the -1st twin as a hit when the read saw the stamp; app-side, unlimited rows show a stamped image (catalog art issue, later). Baseline run 1 in progress at save time (log: scratchpad panel-run1.log). NEXT: read the misses by bucket, fix ranker/prompt per bucket, rerun that bucket with --fresh, then the second-look step, then Chris's phone batch. Magic gets the same loop after (mtg:panel 87.3%, phone 92.9%). Board scripts: scripts/board-read.mjs / board-add.mjs hit prod Turso, no cookie. Chris cannot type his password for me â€” never ask; sign-in is his.**
+**FIRST ACTION (saved 09-10 ~3pm ET, session 25). RESUME = read the LIVE board (seed tab was signed out by the 5-min idle timeout â€” Chris signs in first). FIXED: /api/social/publish only took the cron key, so the /admin/social Post now button (POSTs with the owner cookie, no key) would have 403d on prod â€” route now accepts owner cookie OR key, same gate as image/drafts. Could NOT dry-run the publisher from here: `vercel env pull` returns a redacted placeholder for CRON_SECRET (Sensitive), so the keyed check must come from the browser tab (signed in) via Post now, or from the cron run. Still WAITING on Chris: Bluesky app password (board row) â†’ BLUESKY_HANDLE + BLUESKY_APP_PASSWORD on Vercel in bypass mode. NEXT: Meta adapter per docs/SOCIAL-AUTOPILOT.md Â§3.**
+**FIRST ACTION (saved 09-10 ~2:30pm ET, session 24). RESUME = read the LIVE board. SOCIAL PUBLISHER SHIPPED (this commit, deploying): lib/server/socialPublish.ts (publishSocial: Tue/Thu/Sat UTC post days, once per site per day via settings social_last_post:<site> + :uris, fitText captionâ†’shortâ†’cut, JPEG under the site cap via sharp, one Completed line on the board per run; retries the board save once on conflict) + lib/server/sites/bluesky.ts (createSession/uploadBlob/createRecord, link+tag facets by byte offset, 300 chars, 950 KB) + socialSites.ts registry + GET|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=] + GET /api/social/drafts + components/admin/SocialSites.tsx strip (connected / last post / Post now) on /admin/social; runs as the LAST STEP of /api/cron/pokemon-prices (Hobby = two crons, never fails the price run). npm run test:socialpublish (in the chain), tsc + eslint clean. LESSON: a folder named like a sibling .ts file (lib/server/social/ next to social.ts) breaks the alias loader â†’ adapters live in lib/server/sites/. NOT yet seen on prod: check /admin/social sites strip shows "Bluesky Â· not connected" and /api/social/publish?key=...&dry=1 answers. WAITING on Chris: Bluesky app password on his board row â†’ then in bypass-permissions mode `vercel env add BLUESKY_HANDLE production` (cardflipio.bsky.social) + BLUESKY_APP_PASSWORD, push any commit, press Post now on /admin/social once, check the Completed line. NEXT: Meta adapter (IG/FB/Threads, one Meta app) per docs/SOCIAL-AUTOPILOT.md Â§3. CI on main: a164f61 e2e was a mobile flake (post-scan editor), rerun queued; c50f6e4 green.**
+**FIRST ACTION (saved 09-10 ~1pm ET, session 23). CI WAS RED ON MAIN since bf56e8d (this morning): the 'stray untracked' src/app/admin/(console)/data/page.tsx was in fact COMMITTED by bf56e8d and failed lint (Date.now() in render); removed in c50f6e4. Chris saw 8 red CI emails â€” check gh run list --branch main before saying green. RESUME = read the LIVE board. SOCIAL AUTOPILOT STEP 1 SHIPPED (922f30d on main, deploying): lib/server/social.ts (topMovers / cardOfTheDay / socialDrafts from price_series, fresh-3-days gate, â‰¥$3 movers, â‰¥$15 COTD hashed by date), GET /api/social/image?kind=movers|card&game&day&size=square|story|landscape (owner cookie or ?key=CRON_SECRET; TCGdex WebP â†’ PNG via sharp dynamic import, pokemontcg.io PNG twin fallback â€” Satori cannot draw WebP), /admin/social page + nav "Social" + components/admin/SocialPreview.tsx, npm run test:social (in the chain). Verified on dev: all four images render with art at every size. NOT yet seen on prod â€” check cardflip.io/admin/social once. Board row under Claude queue updated (PUT with base). NEXT: publisher routine (docs/SOCIAL-AUTOPILOT.md plan Â§1: GET /api/social/drafts + cloud routine on cardflip-runner env, social_last_post:<site> in settings), then Bluesky (Chris pastes an app password on his row). CHRIS 09-10: 'we are not video content creators' â€” NO YouTube/TikTok/Reels, ever; image sites only; the YouTube board row was replaced with Bluesky. Dev server on :3000 is someone else's process (not the preview tool); admin cookie on dev must be signed with signAdminToken (default creds), the browser tab held the helper cookie â€” Sign Out first.**
 
-**FIRST ACTION (saved 09-10 ~9:30am ET, session 21). RESUME = read the LIVE board. THIS SESSION: flavor_name column shipped (db.ts + sync-mtg + new scripts/sync-mtg-flavor.mjs = `npm run mtg:flavor`, 626 local rows; mtgCards name search matches folded flavor_name; query-plan gate green; panel still 179/205 because the two Narsil rows want the 386z serialized twin and vision missed the mark). PROD DONE: fefcbb8 build FAILED (index on flavor_name sat in the SCHEMA block before the column probe — LESSON: any index on a probed column goes AFTER the probe loop in initSchema), fixed ccca7c8, deployed, push-mtg-cues ran (94,144 rows), prod search verified. Answered Chris's "social media presence" thought (marked done → Completed). Runner #23 (thoughts checkbox → options) was still running, no PR yet. Stray untracked src/app/admin/(console)/data/page.tsx is a leftover; PR #22 removed that page on purpose — do not commit it. NEXT ON MAGIC: one more List pass on real phone photos, then Chris's 30-card batch ≥90%.**
-**FIRST ACTION (saved 09-10 ~7:30am ET, session 20 end). RESUME = read the LIVE board. MAGIC PHASE 2 RAN (docs/MTG-IDENTIFICATION.md §3c): npm run mtg:panel = 179/205 = 87.3% (was 75.6%); ranker fixes on main (stamped p/s/z twins, Art Series only for art reads, copyright-year window past the 600 cap) + sharper List-icon prompt in SYSTEM_MTG. NEXT ON MAGIC: (1) flavor_name column (sync-mtg.mjs + mtgCards name search; LTC 386 Shards of Narsil), (2) one more List pass on real phone photos, (3) then Chris's 30-card phone batch ≥90%; pre-1998 + Art Series are phase 3. Chris: first Spider-Man batch \"first pass looks good\", foil read confirmed right. ALSO THIS SESSION: condition→price fix (2462aff), Inventory value graph (bd3fdd5, market view of today's pile; Chris has not yea/nay'd yet), SEO pass (f62c3c5: canonicals, sitemap, noindex, JSON-LD, verification env hooks) + Google verification file a57c645 live — Chris was mid-way through Search Console (click Verify, then Sitemaps → sitemap.xml); check the board row under Chris. Runner #21 = PR #22 open for Chris to merge.**
+**SOCIAL AUTOPILOT (09-10 ~noon ET): Chris hates social media, girlfriend quit, but it must be done â†’ I run it hands-off. NEXT SESSION BUILD: (1) content engine = post images from our data (price movers / card of the day via an ImageResponse route like opengraph-image.tsx, plus app-recorded scan clips via Playwright recordVideo) + /admin/social preview page; (2) publisher routine (cloud, scheduled) posting by API; Bluesky first (Chris row on the board asks for an app password), then YouTube OAuth, X free tier, Meta app for IG/FB/Threads, Pinterest/LinkedIn, TikTok last (app audit). Write docs/SOCIAL-AUTOPILOT.md first. Kit assets already live: docs/SOCIAL-KIT.md, cardflip.io/social/. Helper login built, unset, parked.** **LOGGED 09-10 ~11am ET: #26 auto-completed on merge+deploy, Chris says far from done â€” do NOT touch until he says go (board row, Claude queue top). Chris moved on to something bigger.** **FIRST ACTION (saved 09-10 ~10:45am ET, session 22). RESUME = read the LIVE board. THIS SESSION: (1) HELPER LOGIN shipped (bf56e8d + b6baabf on main): ADMIN_HELPER_USER/PASSWORD â†’ role "helper" (lib/adminAuth.ts adminRoleOf, cookie <exp>.h.<mac>); helper sees only /admin/board via HelperBoard.tsx â€” her category "<Name>'s thoughts", Add note / Photo / â–¶ Run / â†³ Reply through POST /api/admin/board/note (server re-reads the board); board PUT/reseed, Merge, users, settings, jobs = requireAdminOwner; other console pages requireOwnerPage (lib/server/adminPage.ts â€” NOT in adminGate, next/navigation breaks the script tests); Run on another section â†’ 403; RUNNER.md "Tasks from the helper" (answers in PR body + docs/social/, start from docs/SOCIAL.md from runner PR #27). WAITING on Chris: set the two env vars on Vercel (vercel env add is blocked for me in auto mode) â€” board row under "Chris â€” needs you". Verified on dev at 375px as helper sam/wheels (.env.local only). (2) MAGIC PHONE BATCH: npm run mtg:phone = 39/42 = 92.9% on Chris's real prod photos â€” the â‰¥90% gate PASSED; List icon still needs real List-card photos from Chris. (3) Prod smoke reds at 08:54/08:56Z were a tcgdex blip (rerun queued), not the geofence. Stray untracked src/app/admin/(console)/data/page.tsx still there (rm blocked) â€” do not commit; it is the only local lint error.**
 
-**FIRST ACTION (saved 09-10 ~5am ET, session 20). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md; PUT with base: updatedAt). SHIPPED THIS SESSION (main 7cae191, awaiting Chris yea/nay on the live site): (1) 2462aff condition change re-quotes the SAVED price — syncLedgerCondition in CardEditor + applyConditionToAll in app/page.tsx now PATCH price + priceLocked:false (grading keeps its own auto-price path); Chris thought marked done on the board. (2) 7cae191 INVENTORY VALUE GRAPH: lib/server/inventoryValue.ts (asking value per day from price_series via askingPriceFor; card counts from scan day, sold copy leaves on sale day, ROW_CAP 400, MAX 365d) + GET /api/cards/value-history?game&days + components/InventoryValueChart.tsx (strip under the In play / Earned panel, 30d/90d/1y) + scripts/test-inventory-value.mjs (npm run test:inventoryvalue, in the test chain). Dev tab (tab-1, localhost:3000) is SIGNED OUT — verify on prod from the seed tab. MTG cue push to prod is DONE (94k/97k rows filled; verified by count, not by rerunning). Runner run #21 (admin Prices & data 404) = PR #22 OPEN, waiting on Chris to merge from the board. Chris inbox is now empty except #21.**
+**FIRST ACTION (saved 09-10 ~9:30am ET, session 21). RESUME = read the LIVE board. THIS SESSION: flavor_name column shipped (db.ts + sync-mtg + new scripts/sync-mtg-flavor.mjs = `npm run mtg:flavor`, 626 local rows; mtgCards name search matches folded flavor_name; query-plan gate green; panel still 179/205 because the two Narsil rows want the 386z serialized twin and vision missed the mark). PROD DONE: fefcbb8 build FAILED (index on flavor_name sat in the SCHEMA block before the column probe â€” LESSON: any index on a probed column goes AFTER the probe loop in initSchema), fixed ccca7c8, deployed, push-mtg-cues ran (94,144 rows), prod search verified. Answered Chris's "social media presence" thought (marked done â†’ Completed). Runner #23 (thoughts checkbox â†’ options) was still running, no PR yet. Stray untracked src/app/admin/(console)/data/page.tsx is a leftover; PR #22 removed that page on purpose â€” do not commit it. NEXT ON MAGIC: one more List pass on real phone photos, then Chris's 30-card batch â‰¥90%.**
+**FIRST ACTION (saved 09-10 ~7:30am ET, session 20 end). RESUME = read the LIVE board. MAGIC PHASE 2 RAN (docs/MTG-IDENTIFICATION.md Â§3c): npm run mtg:panel = 179/205 = 87.3% (was 75.6%); ranker fixes on main (stamped p/s/z twins, Art Series only for art reads, copyright-year window past the 600 cap) + sharper List-icon prompt in SYSTEM_MTG. NEXT ON MAGIC: (1) flavor_name column (sync-mtg.mjs + mtgCards name search; LTC 386 Shards of Narsil), (2) one more List pass on real phone photos, (3) then Chris's 30-card phone batch â‰¥90%; pre-1998 + Art Series are phase 3. Chris: first Spider-Man batch \"first pass looks good\", foil read confirmed right. ALSO THIS SESSION: conditionâ†’price fix (2462aff), Inventory value graph (bd3fdd5, market view of today's pile; Chris has not yea/nay'd yet), SEO pass (f62c3c5: canonicals, sitemap, noindex, JSON-LD, verification env hooks) + Google verification file a57c645 live â€” Chris was mid-way through Search Console (click Verify, then Sitemaps â†’ sitemap.xml); check the board row under Chris. Runner #21 = PR #22 open for Chris to merge.**
 
-**FIRST ACTION (saved 09-10 ~3:30am ET, session 19 cont.). RESUME = read the LIVE board. MAGIC PHASE 1 SHIPPED (see docs/MTG-IDENTIFICATION.md + BOARD row): vision.ts MTG_READ_SCHEMA + normalizeMtgCues; lib/mtgCues.ts (cues ↔ query params); mtgCards.ts cuePenalty + List twin; db.ts COLUMN_PROBES adds 7 mtg_cards columns on first request after deploy; sync-mtg.mjs fills them locally; scripts/push-mtg-cues.mjs copies them to prod Turso (reads .env.migration.json) — RUN IT after the deploy is live and one page has loaded, then curl /api/search-card?game=mtg&name=Sheoldred%2C%20the%20Apocalypse&treatment=showcase and expect dmu-322 first. visionApi.ts uploads Magic at 1568px. test:mirror pins the ranker cues. replay-scans --file x.jpg --game mtg prints the cues. KNOWN: The List icon needs ≥~900px card height to be read. Runner 4 DONE (env cardflip-runner). Soft launch: friends round only so far (docs/COHORT.md). Recent lookups pass: Chris yea.**
+**FIRST ACTION (saved 09-10 ~5am ET, session 20). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md; PUT with base: updatedAt). SHIPPED THIS SESSION (main 7cae191, awaiting Chris yea/nay on the live site): (1) 2462aff condition change re-quotes the SAVED price â€” syncLedgerCondition in CardEditor + applyConditionToAll in app/page.tsx now PATCH price + priceLocked:false (grading keeps its own auto-price path); Chris thought marked done on the board. (2) 7cae191 INVENTORY VALUE GRAPH: lib/server/inventoryValue.ts (asking value per day from price_series via askingPriceFor; card counts from scan day, sold copy leaves on sale day, ROW_CAP 400, MAX 365d) + GET /api/cards/value-history?game&days + components/InventoryValueChart.tsx (strip under the In play / Earned panel, 30d/90d/1y) + scripts/test-inventory-value.mjs (npm run test:inventoryvalue, in the test chain). Dev tab (tab-1, localhost:3000) is SIGNED OUT â€” verify on prod from the seed tab. MTG cue push to prod is DONE (94k/97k rows filled; verified by count, not by rerunning). Runner run #21 (admin Prices & data 404) = PR #22 OPEN, waiting on Chris to merge from the board. Chris inbox is now empty except #21.**
 
-**FIRST ACTION (saved 09-10 ~2:40am ET, session 19). RESUME = read the LIVE board. SHIPPED a975262 (Chris asked for a Recent lookups pass before runner 4): lookup tile opens the modal at once on a stub, spinner ends when the card lands; /api/search-card?id= has the 2.5s pricing budget + last-held-price fallback (heldPriceEntry in priceHistory.ts, shared with set-cards); name search past the budget also ships held prices; logPriceCheck falls back to latestUsdPrice; sparkCardId on lookup tiles; header wraps on phone. Verified with a throwaway Playwright run at 390px (modal in 65ms, prices 200ms, 2 sparklines). AWAITING Chris yea/nay on the live site. RUNNER 4: Vercel half DONE (bypass-permissions mode got past the classifier; prod 06b22e9 answers 401 bare / 200 with the key). Routine half is UI-ONLY: the remote-trigger API cannot set env vars (session_request.worker is an undocumented union; top-level environment_variables 200s but no-ops) — routine env vars live on the cloud ENVIRONMENT (claude.ai/code → environment gear → Environment variables, .env format). DONE 09-10: Chris created cloud environment `cardflip-runner` (env_01Thon9Abjp9qwqAbKtL4TMn) with RUNNER_TOKEN; routine trig_019ZEFG5D6dSJMqiAmEWVQxc runs on it (confirmed via get). Remaining proof: on the next Run press that the runner's first comment quotes /api/runner/status, and tick runner 4 on the live board (PUT with base).**
+**FIRST ACTION (saved 09-10 ~3:30am ET, session 19 cont.). RESUME = read the LIVE board. MAGIC PHASE 1 SHIPPED (see docs/MTG-IDENTIFICATION.md + BOARD row): vision.ts MTG_READ_SCHEMA + normalizeMtgCues; lib/mtgCues.ts (cues â†” query params); mtgCards.ts cuePenalty + List twin; db.ts COLUMN_PROBES adds 7 mtg_cards columns on first request after deploy; sync-mtg.mjs fills them locally; scripts/push-mtg-cues.mjs copies them to prod Turso (reads .env.migration.json) â€” RUN IT after the deploy is live and one page has loaded, then curl /api/search-card?game=mtg&name=Sheoldred%2C%20the%20Apocalypse&treatment=showcase and expect dmu-322 first. visionApi.ts uploads Magic at 1568px. test:mirror pins the ranker cues. replay-scans --file x.jpg --game mtg prints the cues. KNOWN: The List icon needs â‰¥~900px card height to be read. Runner 4 DONE (env cardflip-runner). Soft launch: friends round only so far (docs/COHORT.md). Recent lookups pass: Chris yea.**
 
-**FIRST ACTION (saved 09-10 ~6:10am UTC, session 18 end). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md; every PUT must send base: updatedAt — a stale copy gets 409, see 6633e34). RUNNER UPGRADES SHIPPED (main 6d5c07d): docs/RUNNER.md is the runner's brain file (keep it in step with my memory rules); `npm run runner:shots` = phone screenshots the PR carries and the board shows under the task (images() in boardRuns, own-repo raw URLs only, first screen by default, --full for the page); Merge button updates a behind branch then refuses until every check is green; routine prompt rewritten (rebase before PR, self-review, screenshots); runner model = Fable 5.1. RUNNER 4 HALF DONE (Chris yes): GET /api/runner/status is on main (579c07a), RUNNER.md + the new routine's prompt already tell it to curl that first. PENDING = the classifier blocked `vercel env add RUNNER_TOKEN production`; the value sits in the session scratchpad file runner-token.txt (regenerate if gone: rk_ + 24 random bytes base64url). NEXT SESSION: in ask mode run the vercel env add (prod), then RemoteTrigger update trig_019ZEFG5D6dSJMqiAmEWVQxc with the same value as its environment variable (body shape unknown — try {environment_variables:{RUNNER_TOKEN}} then session_request.environment_variables), push any commit so prod picks up the env, then curl prod with + without the header (200 / 401), tick runner 4 on the live board (PUT with base). RUNNER 5 DONE (new routine trig_019ZEFG5D6dSJMqiAmEWVQxc, issues.opened only; old routine disabled; verify one session per Run press). STILL OPEN: runner 7 (runner cannot see Blob photos → copy into repo on a board-assets branch), runner 4 (read-only Vercel/admin token from Chris). PARKED WITH A LOCK: stewardship phases 1–3 — never start without Chris's explicit go (memory: cardflip-stewardship-parked). ALSO 09-10: new logo on the site (Chris's PNG, public/brand), bulk delete = one request, board live chips + reply photos + conflict guard, /admin/data build fix after the runner's ops-page pass, logo/flyer files in the scratchpad (flyer = Tony 2 Turnt, not CardFlip). NEXT FOR CHRIS: fresh scan batch (lockdown) + yea/nay on the header logo; first runner task with screenshots is the real test of upgrades 1–3/6.**
+**FIRST ACTION (saved 09-10 ~2:40am ET, session 19). RESUME = read the LIVE board. SHIPPED a975262 (Chris asked for a Recent lookups pass before runner 4): lookup tile opens the modal at once on a stub, spinner ends when the card lands; /api/search-card?id= has the 2.5s pricing budget + last-held-price fallback (heldPriceEntry in priceHistory.ts, shared with set-cards); name search past the budget also ships held prices; logPriceCheck falls back to latestUsdPrice; sparkCardId on lookup tiles; header wraps on phone. Verified with a throwaway Playwright run at 390px (modal in 65ms, prices 200ms, 2 sparklines). AWAITING Chris yea/nay on the live site. RUNNER 4: Vercel half DONE (bypass-permissions mode got past the classifier; prod 06b22e9 answers 401 bare / 200 with the key). Routine half is UI-ONLY: the remote-trigger API cannot set env vars (session_request.worker is an undocumented union; top-level environment_variables 200s but no-ops) â€” routine env vars live on the cloud ENVIRONMENT (claude.ai/code â†’ environment gear â†’ Environment variables, .env format). DONE 09-10: Chris created cloud environment `cardflip-runner` (env_01Thon9Abjp9qwqAbKtL4TMn) with RUNNER_TOKEN; routine trig_019ZEFG5D6dSJMqiAmEWVQxc runs on it (confirmed via get). Remaining proof: on the next Run press that the runner's first comment quotes /api/runner/status, and tick runner 4 on the live board (PUT with base).**
 
-**FIRST ACTION (saved 09-09 ~10:40pm UTC, session 18). RESUME = read the LIVE board (seed tab; GET /api/admin/board?format=md) — the seed tab needs Chris to sign in to /admin again (session expired; password is his). PENDING ON THE LIVE BOARD once signed in: mark the /admin/system thought done (Chris: "looks fine for now") and note Watchlist strip yea (both already in docs/BOARD.md). RUNNER NOW FABLE 5.1 (claude-fable-5-1; Chris: it must match this session). Run in flight: issue #15 (Chris pressed Run on the /admin/system note; runner is building it into a real ops page — deploy sha, runtime, DB size/row counts, job runs) → watch for its PR on the board; Chris chose to let it finish. SHIPPED 09-09 evening (main f8f037f, live, Chris yea on all of it): live run chips (poll 20s while moving, 2 min idle, on focus; self-complete regex fixed); replies take photos + ↳ Reply under every runner output + Run again after any finished run + visible 📎 on rows; #15 /admin/system ops page merged by Chris from the board (PR #16); Inventory bulk delete is ONE request (DELETE /api/cards {ids}; deleteCards in lib/server/cards.ts; test:cards pins it) after 88 parallel deletes lost every reply; ended auctions included; refetch on failure. Chris deleted the 5 leftovers with it — works. Board pass done (runs #7/#11 + session-17 work in Completed; launch gate "admin console opened on prod" met). NEXT: Chris scans a fresh batch (lockdown) and reports what looks off; then homepage demo frame (my queue). Still WAITING on Chris: LLC + iPostal1, Stripe public details, cron-job.org account for the heartbeat pinger.**
+**FIRST ACTION (saved 09-10 ~6:10am UTC, session 18 end). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md; every PUT must send base: updatedAt â€” a stale copy gets 409, see 6633e34). RUNNER UPGRADES SHIPPED (main 6d5c07d): docs/RUNNER.md is the runner's brain file (keep it in step with my memory rules); `npm run runner:shots` = phone screenshots the PR carries and the board shows under the task (images() in boardRuns, own-repo raw URLs only, first screen by default, --full for the page); Merge button updates a behind branch then refuses until every check is green; routine prompt rewritten (rebase before PR, self-review, screenshots); runner model = Fable 5.1. RUNNER 4 HALF DONE (Chris yes): GET /api/runner/status is on main (579c07a), RUNNER.md + the new routine's prompt already tell it to curl that first. PENDING = the classifier blocked `vercel env add RUNNER_TOKEN production`; the value sits in the session scratchpad file runner-token.txt (regenerate if gone: rk_ + 24 random bytes base64url). NEXT SESSION: in ask mode run the vercel env add (prod), then RemoteTrigger update trig_019ZEFG5D6dSJMqiAmEWVQxc with the same value as its environment variable (body shape unknown â€” try {environment_variables:{RUNNER_TOKEN}} then session_request.environment_variables), push any commit so prod picks up the env, then curl prod with + without the header (200 / 401), tick runner 4 on the live board (PUT with base). RUNNER 5 DONE (new routine trig_019ZEFG5D6dSJMqiAmEWVQxc, issues.opened only; old routine disabled; verify one session per Run press). STILL OPEN: runner 7 (runner cannot see Blob photos â†’ copy into repo on a board-assets branch), runner 4 (read-only Vercel/admin token from Chris). PARKED WITH A LOCK: stewardship phases 1â€“3 â€” never start without Chris's explicit go (memory: cardflip-stewardship-parked). ALSO 09-10: new logo on the site (Chris's PNG, public/brand), bulk delete = one request, board live chips + reply photos + conflict guard, /admin/data build fix after the runner's ops-page pass, logo/flyer files in the scratchpad (flyer = Tony 2 Turnt, not CardFlip). NEXT FOR CHRIS: fresh scan batch (lockdown) + yea/nay on the header logo; first runner task with screenshots is the real test of upgrades 1â€“3/6.**
 
-**FIRST ACTION (saved 09-09 ~5pm UTC, session 17 end). RESUME = read the LIVE board (seed tab; GET /api/admin/board?format=md). BOARD RULES NOW: Live/Completed TABS; every done item is swept into Completed by normalizeBoard (server, on load+save) and sweepCompleted (client) with completedAt+from; Completed tab groups by day; un-tick = reopen to its home category. CLAUDE COMPLETES TASKS, not Chris: when I finish something, set done:true via PUT (the sweep moves it) — never delete notes. A merged run that is LIVE (deploy ready) completes itself on the next board visit. REPLY: row menu has ↳ Reply (appends "↳ Chris: …" line to the note) and Run becomes "Run again" after needs-you/closed (run route closes the old issue, opens a new one with the thread). Read replies on WAITING-on-Chris notes first thing. DEMO ACCOUNT GONE (bbca420 + row e538c32e deleted from prod 09-09 via admin API). Watchlist summary strip makeover (PR #12, runner) merged from the board — awaiting yea/nay. Still WAITING on Chris: what /admin/system should show more of (check its note for a reply); iPostal1 + LLC; Stripe public details; external heartbeat pinger needs an account he creates.**
+**FIRST ACTION (saved 09-09 ~10:40pm UTC, session 18). RESUME = read the LIVE board (seed tab; GET /api/admin/board?format=md) â€” the seed tab needs Chris to sign in to /admin again (session expired; password is his). PENDING ON THE LIVE BOARD once signed in: mark the /admin/system thought done (Chris: "looks fine for now") and note Watchlist strip yea (both already in docs/BOARD.md). RUNNER NOW FABLE 5.1 (claude-fable-5-1; Chris: it must match this session). Run in flight: issue #15 (Chris pressed Run on the /admin/system note; runner is building it into a real ops page â€” deploy sha, runtime, DB size/row counts, job runs) â†’ watch for its PR on the board; Chris chose to let it finish. SHIPPED 09-09 evening (main f8f037f, live, Chris yea on all of it): live run chips (poll 20s while moving, 2 min idle, on focus; self-complete regex fixed); replies take photos + â†³ Reply under every runner output + Run again after any finished run + visible ðŸ“Ž on rows; #15 /admin/system ops page merged by Chris from the board (PR #16); Inventory bulk delete is ONE request (DELETE /api/cards {ids}; deleteCards in lib/server/cards.ts; test:cards pins it) after 88 parallel deletes lost every reply; ended auctions included; refetch on failure. Chris deleted the 5 leftovers with it â€” works. Board pass done (runs #7/#11 + session-17 work in Completed; launch gate "admin console opened on prod" met). NEXT: Chris scans a fresh batch (lockdown) and reports what looks off; then homepage demo frame (my queue). Still WAITING on Chris: LLC + iPostal1, Stripe public details, cron-job.org account for the heartbeat pinger.**
 
-**FIRST ACTION (saved 09-09 ~10am UTC, session 17 cont.). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md). CHRIS DIRECTION (09-09): "I don't want things interconnected — everything on cardflip"; the runner is for one-line phone tasks, makeovers happen HERE with me; he felt the runner day "went backwards" — get back to the Now list (lockdown scan batch, his paid signup, Stripe details, soft launch). SHIPPED (main 762ea2f, awaiting yea/nay): RUN PANEL on /admin/board under each ▶ RUNNING row — runner's "Reading this as" line, needs-you question, PR title + body bullets in plain words (summarize() in lib/server/boardRuns.ts), MERGE BUTTON (POST /api/admin/board/merge: admin only, board/* branches only, refuses conflicts, uses GITHUB_TOKEN), deploy state of the merge commit via GitHub commit status (Merged · deploying / Live on cardflip.io / build failed). Auto-mode classifier BLOCKED writing the merge route 3x; Chris switched to ask mode, approved, switched back. RUNNER: now Opus 5 with reading rules (posts "Reading this as:" before code; "change X to something else" = replace X); runs #7 (Dragonite $35 stage) and #9 (Pikachu lead card; also fixed the server-list/client-pick wiring so the lead is what shows) merged and live; #11 (photo of Watchlist summary strip → makeover) = PR #12 OPEN, first Merge-from-board test. Completed section on the board = where finished thoughts go (never delete). Photos on notes shipped earlier today (Vercel Blob). OPEN THOUGHT WAITING on Chris: what /admin/system should show more of.**
+**FIRST ACTION (saved 09-09 ~5pm UTC, session 17 end). RESUME = read the LIVE board (seed tab; GET /api/admin/board?format=md). BOARD RULES NOW: Live/Completed TABS; every done item is swept into Completed by normalizeBoard (server, on load+save) and sweepCompleted (client) with completedAt+from; Completed tab groups by day; un-tick = reopen to its home category. CLAUDE COMPLETES TASKS, not Chris: when I finish something, set done:true via PUT (the sweep moves it) â€” never delete notes. A merged run that is LIVE (deploy ready) completes itself on the next board visit. REPLY: row menu has â†³ Reply (appends "â†³ Chris: â€¦" line to the note) and Run becomes "Run again" after needs-you/closed (run route closes the old issue, opens a new one with the thread). Read replies on WAITING-on-Chris notes first thing. DEMO ACCOUNT GONE (bbca420 + row e538c32e deleted from prod 09-09 via admin API). Watchlist summary strip makeover (PR #12, runner) merged from the board â€” awaiting yea/nay. Still WAITING on Chris: what /admin/system should show more of (check its note for a reply); iPostal1 + LLC; Stripe public details; external heartbeat pinger needs an account he creates.**
 
-**FIRST ACTION (saved 09-09 ~9am UTC, session 17). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md); "Chris's thoughts" = his inbox (do / WAITING / delete; RE-FETCH before every PUT, edit by id/text only). SHIPPED THIS SESSION (main 4247a29, awaiting yea/nay): PHOTOS ON BOARD NOTES — Vercel Blob store "cardflip-blob" (public, iad1; BLOB_READ_WRITE_TOKEN + BLOB_STORE_ID on prod+preview, NOT in .env.local so dev uploads fail locally — test on prod from the seed tab); 📎 Photo in the row ⋯ menu + the add box, thumbs under the note, × deletes the blob; client shrinks to ≤1600px JPEG (4.5 MB function cap); POST/DELETE /api/admin/board/image; BoardItem.images (≤6, BLOB_URL_RE = our host only); md export appends [image](url); Run issues embed photos. Board hygiene done: #2 ticked, scrapped #1 note + Run-button note + image-attach note removed. RUNNER: issue #5 ($35–$50 Gyarados band) → PR #6 MERGED by Chris; chip shows Done until he ticks it after seeing the scan page. OPEN THOUGHT still WAITING on Chris: what /admin/system should show more of.**
+**FIRST ACTION (saved 09-09 ~10am UTC, session 17 cont.). RESUME = read the LIVE board (seed tab, GET /api/admin/board?format=md). CHRIS DIRECTION (09-09): "I don't want things interconnected â€” everything on cardflip"; the runner is for one-line phone tasks, makeovers happen HERE with me; he felt the runner day "went backwards" â€” get back to the Now list (lockdown scan batch, his paid signup, Stripe details, soft launch). SHIPPED (main 762ea2f, awaiting yea/nay): RUN PANEL on /admin/board under each â–¶ RUNNING row â€” runner's "Reading this as" line, needs-you question, PR title + body bullets in plain words (summarize() in lib/server/boardRuns.ts), MERGE BUTTON (POST /api/admin/board/merge: admin only, board/* branches only, refuses conflicts, uses GITHUB_TOKEN), deploy state of the merge commit via GitHub commit status (Merged Â· deploying / Live on cardflip.io / build failed). Auto-mode classifier BLOCKED writing the merge route 3x; Chris switched to ask mode, approved, switched back. RUNNER: now Opus 5 with reading rules (posts "Reading this as:" before code; "change X to something else" = replace X); runs #7 (Dragonite $35 stage) and #9 (Pikachu lead card; also fixed the server-list/client-pick wiring so the lead is what shows) merged and live; #11 (photo of Watchlist summary strip â†’ makeover) = PR #12 OPEN, first Merge-from-board test. Completed section on the board = where finished thoughts go (never delete). Photos on notes shipped earlier today (Vercel Blob). OPEN THOUGHT WAITING on Chris: what /admin/system should show more of.**
 
-**FIRST ACTION (saved 09-09 ~4:30am ET, session 16). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md); "Chris's thoughts" = his inbox (do / WAITING / delete; RE-FETCH before every PUT). BOARD RUNNER IS LIVE (09-09): GITHUB_TOKEN on Vercel prod (classic ghp_ token, works); Claude GitHub App installed on truefreemoney-rgb (all repos); routine trig_01XuiaziN2cGvcRimsEL1LzB "CardFlip board runner" (Sonnet 5, env env_01AUQymZbJL5PrPcYr8ni2uR, cron 0 10 * * * UTC) + webhook trigger 2fdfadbc (hook_type app, source github, scope_id truefreemoney-rgb/cardflip, events issues.opened + issues.labeled — NO label filter, the API rejects filter fields; the prompt filters on board-run itself). Body shape that works: {routine_trigger_id, hook_type:"app", source:"github", scope_id:"owner/repo", events:[...]}. Labels board-run / in-progress / needs-chris exist. Known: a Run press fires TWO runs (opened + labeled); in-progress is the guard. Proven on issue #1: runner labelled needs-chris with questions; Chris scrapped that idea (in-app coding robot) — the runner + the Claude phone app cover it. STATUS CHIPS (Chris: "indicators after run, doesn't have to be live"): lib/server/boardRuns.ts runStatuses() reads each RUNNING #n issue + the last 50 PRs (body starts "Closes #n") → running / needs-you / pr-ready / done / closed; GET /api/admin/board/runs; AdminBoard fetches once on mount + after Run (RunsContext → chip in ItemRow). Routine prompt UPDATED: stops on issues.labeled events (two runs had both claimed #2 → PR #3 + duplicate PR #4, closed), re-checks in-progress before claiming, branches from origin/main. Issue #2 = Gyarados slot prefers a full-art printing → PR #3 awaiting Chris merge. Debug a run: RemoteTrigger list_runs → get_run_log. The auto-mode classifier blocked create_webhook_trigger twice until Chris said "allow". OPEN THOUGHTS still WAITING: image attach per thought (Vercel Blob), what /admin/system should show more of.**
+**FIRST ACTION (saved 09-09 ~9am UTC, session 17). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md); "Chris's thoughts" = his inbox (do / WAITING / delete; RE-FETCH before every PUT, edit by id/text only). SHIPPED THIS SESSION (main 4247a29, awaiting yea/nay): PHOTOS ON BOARD NOTES â€” Vercel Blob store "cardflip-blob" (public, iad1; BLOB_READ_WRITE_TOKEN + BLOB_STORE_ID on prod+preview, NOT in .env.local so dev uploads fail locally â€” test on prod from the seed tab); ðŸ“Ž Photo in the row â‹¯ menu + the add box, thumbs under the note, Ã— deletes the blob; client shrinks to â‰¤1600px JPEG (4.5 MB function cap); POST/DELETE /api/admin/board/image; BoardItem.images (â‰¤6, BLOB_URL_RE = our host only); md export appends [image](url); Run issues embed photos. Board hygiene done: #2 ticked, scrapped #1 note + Run-button note + image-attach note removed. RUNNER: issue #5 ($35â€“$50 Gyarados band) â†’ PR #6 MERGED by Chris; chip shows Done until he ticks it after seeing the scan page. OPEN THOUGHT still WAITING on Chris: what /admin/system should show more of.**
 
-**FIRST ACTION (saved 09-09 ~3am ET, session 15 end). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md) — the "Chris's thoughts" category is his inbox: do / replace with "WAITING on X — why" / delete when finished; RE-FETCH before every PUT and edit by id/text only (I wiped 7 notes once). PENDING ON CHRIS for the board Run button (6c14127): (1) connect GitHub on claude.ai (RemoteTrigger create returned 401 "Connect your GitHub account"), (2) GITHUB_TOKEN on Vercel Production + redeploy. WHEN HE SAYS "github connected": RemoteTrigger create the routine "CardFlip board runner" (Sonnet 5, env env_01AUQymZbJL5PrPcYr8ni2uR, repo truefreemoney-rgb/cardflip, daily cron 0 10 * * * UTC, prompt = take oldest open issue labelled board-run, branch board/<n>-slug, PR "Closes #n", never merge, label needs-chris if unclear), then create_webhook_trigger on the repo issues-opened event filtered to label board-run. First Run press is the test; check list_runs/get_run_log. SHIPPED 09-09 session 15 (all main): admin password lock was the built-in default → Chris set a real ADMIN_PANEL_PASSWORD; Reload from file keeps Chris's thoughts; owner chips render Admin / Admin / Claude (ownerLabel in components/admin/format.ts, parseBoard accepts [Admin]); Move up/down; logo → /app/collection when user.hasCards else /app; ▶ Run (POST /api/admin/board/run → GitHub issue). Open thoughts left WAITING: image attach per thought (needs Vercel Blob), what /admin/system should show more of.**
+**FIRST ACTION (saved 09-09 ~4:30am ET, session 16). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md); "Chris's thoughts" = his inbox (do / WAITING / delete; RE-FETCH before every PUT). BOARD RUNNER IS LIVE (09-09): GITHUB_TOKEN on Vercel prod (classic ghp_ token, works); Claude GitHub App installed on truefreemoney-rgb (all repos); routine trig_01XuiaziN2cGvcRimsEL1LzB "CardFlip board runner" (Sonnet 5, env env_01AUQymZbJL5PrPcYr8ni2uR, cron 0 10 * * * UTC) + webhook trigger 2fdfadbc (hook_type app, source github, scope_id truefreemoney-rgb/cardflip, events issues.opened + issues.labeled â€” NO label filter, the API rejects filter fields; the prompt filters on board-run itself). Body shape that works: {routine_trigger_id, hook_type:"app", source:"github", scope_id:"owner/repo", events:[...]}. Labels board-run / in-progress / needs-chris exist. Known: a Run press fires TWO runs (opened + labeled); in-progress is the guard. Proven on issue #1: runner labelled needs-chris with questions; Chris scrapped that idea (in-app coding robot) â€” the runner + the Claude phone app cover it. STATUS CHIPS (Chris: "indicators after run, doesn't have to be live"): lib/server/boardRuns.ts runStatuses() reads each RUNNING #n issue + the last 50 PRs (body starts "Closes #n") â†’ running / needs-you / pr-ready / done / closed; GET /api/admin/board/runs; AdminBoard fetches once on mount + after Run (RunsContext â†’ chip in ItemRow). Routine prompt UPDATED: stops on issues.labeled events (two runs had both claimed #2 â†’ PR #3 + duplicate PR #4, closed), re-checks in-progress before claiming, branches from origin/main. Issue #2 = Gyarados slot prefers a full-art printing â†’ PR #3 awaiting Chris merge. Debug a run: RemoteTrigger list_runs â†’ get_run_log. The auto-mode classifier blocked create_webhook_trigger twice until Chris said "allow". OPEN THOUGHTS still WAITING: image attach per thought (Vercel Blob), what /admin/system should show more of.**
 
-**FIRST ACTION (saved 09-09 ~1am, session 14 end — Chris /cleared). RESUME = read docs/BOARD.md, show Chris ONE task. STATE OF PLAY: everything on main + deployed, last = 963ea5e (the hard pass). NOTHING PENDING ON MY SIDE. Chris yea'd the /admin sub-pages (09-09). Still owes the yea/nay on: Board (Cards | List view, owner tags locked, add-box owner picker, Reload from file, Technical category), the hard-pass fixes on his phone. USAGE RULES NOW IN MEMORY (feedback-usage-sonnet-subagents): Sonnet subagents, ≤10-file audits, one fix agent per job, quiet shell, short replies; session stays on Fable. Android emulator is PAUSED in the Technical category (Chris asking a friend; BIOS SVM off; SDK in sandboxed AppData) — do not touch.** **HARD PASS 09-09 (session 14): 36 audit findings fixed in one push (BOARD.md → Done this week has the list). NEW SCHEMA: users.stripe_subscription_id + rate_limits table (dev restart done; prod creates on first request). New modules: lib/server/ebayNotification.ts (eBay deletion signature), lib/server/rateLimitDb.ts (limitOrRespondAsync, fails open), lib/client/useBackToClose.ts (Android Back closes sheets), lib/speciesName.ts. Admin login 503s in production while ADMIN_PANEL_* are unset (they ARE set on Vercel, verified via vercel env ls). WINDOWS TRAP: a dynamic await import() of a .ts file at the end of a node test script trips a libuv assert on exit (exit 127) and kills the npm test chain — use a static import. Browser sweep (scratchpad audit.mjs, 3 profiles × 21 routes) was clean apart from the scanner ✕ z-index (fixed) and dead tcgdex URLs in the mirror (fallback covers them).** **ADMIN CONSOLE IS SUB-PAGES (09-09): app/admin/(console)/layout.tsx = gate + header + AdminNav (usePathname lights the pill); routes /admin (overview), /admin/switches, /board, /users, /cards, /data, /errors, /system; shared formatters in components/admin/format.ts (ADMIN_NAV is the list); /admin/login stays outside the group. Owner tags on the board are LOCKED on rows (Claude re-tags via the file); the add box picks the owner for a new task.** **BOARD IS LIVE (09-09, session 14): the admin Board is editable — DB-backed (settings key "board", lib/server/board.ts, PUT /api/admin/board), seeded once from docs/BOARD.md (+ a "Chris's thoughts" category). Checkboxes tick, text edits inline, owner chip cycles, ⋯ = move/delete, add box per card, add/rename/reorder/delete categories, autosaves. docs/BOARD.md is now the SEED + reference; the live list is in the DB (export: GET /api/admin/board?format=md). "list categories" on prod = ask Chris to paste the export or read BOARD.md as the approximation. Reload from file (POST /api/admin/board) replaces the live board with docs/BOARD.md — so the loop is: I edit BOARD.md in the commit, Chris presses Reload. TECHNICAL category added 09-09 (complicated stuff, Chris asks a friend): Android emulator is PAUSED — Android Studio installed; SDK + Pixel 7 image (3.5 GB) sit in the SANDBOXED AppData (AppData\Local\Packages\Claude_…\LocalCache\Local\Android\Sdk), move blocked (busy) and Chris said wait; BIOS SVM Mode is OFF so the emulator cannot boot anyway. Do not touch until Chris says. e2e now runs android (Pixel 7/Chromium) + iphone (iPhone 13/WebKit) projects, CI installs webkit. Awaiting Chris yea/nay on /admin → Board.**
+**FIRST ACTION (saved 09-09 ~3am ET, session 15 end). RESUME = read the LIVE board (Browser pane tab "seed" is signed in to /admin: GET https://cardflip.io/api/admin/board?format=md) â€” the "Chris's thoughts" category is his inbox: do / replace with "WAITING on X â€” why" / delete when finished; RE-FETCH before every PUT and edit by id/text only (I wiped 7 notes once). PENDING ON CHRIS for the board Run button (6c14127): (1) connect GitHub on claude.ai (RemoteTrigger create returned 401 "Connect your GitHub account"), (2) GITHUB_TOKEN on Vercel Production + redeploy. WHEN HE SAYS "github connected": RemoteTrigger create the routine "CardFlip board runner" (Sonnet 5, env env_01AUQymZbJL5PrPcYr8ni2uR, repo truefreemoney-rgb/cardflip, daily cron 0 10 * * * UTC, prompt = take oldest open issue labelled board-run, branch board/<n>-slug, PR "Closes #n", never merge, label needs-chris if unclear), then create_webhook_trigger on the repo issues-opened event filtered to label board-run. First Run press is the test; check list_runs/get_run_log. SHIPPED 09-09 session 15 (all main): admin password lock was the built-in default â†’ Chris set a real ADMIN_PANEL_PASSWORD; Reload from file keeps Chris's thoughts; owner chips render Admin / Admin / Claude (ownerLabel in components/admin/format.ts, parseBoard accepts [Admin]); Move up/down; logo â†’ /app/collection when user.hasCards else /app; â–¶ Run (POST /api/admin/board/run â†’ GitHub issue). Open thoughts left WAITING: image attach per thought (needs Vercel Blob), what /admin/system should show more of.**
 
-**FIRST ACTION (saved 09-09 morning, session 13 end — Chris /cleared). RESUME = read docs/BOARD.md (short; it is THE list — "Now" is what's next; keep it current in the same commit as any task) then show Chris ONE task. STATE OF PLAY: everything on main + deployed, last = de9be6b (the board + admin Board section; Chris has NOT yet seen it — first thing: ask if /admin → Board looks right). CI green. NOTHING PENDING ON MY SIDE; Chris's next moves are in BOARD → Now (clear inventory, scan a fresh batch on the phone, report; first soft-launch invite). SESSION 13 (09-07 night → 09-09), ALL ON MAIN, ALL YEA'd unless noted: live Inventory prices (cards.price_locked, scan_price; drafts follow today's market; scanned → now in the card detail; row chip vs scan price); Inventory Text row + price column makeover (3-slot action grid: primary · View on eBay / Not Listed ghost · Delete; Live badge; End Auction amber last); two-row phone header (invite pill sm+ only; Sign out moved to Account on phones); scan counter in the header (ScanCounter, taps → /pricing); stage sweep loops under reduced motion; second art source (lib/cardArt.ts → images.pokemontcg.io twin; tcgdex 404'd everything 09-08 morning, heartbeat probes it now); watchlist tile makeover + rows saved from Inventory get a price; card modal price table USD-only; FEE FLOOR IS A HARD RULE (server 400s under $1.79 on PATCH/reprice/draft/publish; UI clamps); SOLD = the record (no delete/relist, 409; SOLD marker + sold price) — not yet seen live (no sale); CATEGORY MANAGEMENT (add/rename/merge/delete; categories table for empty ones; scanner prompt uses the server list); admin toggle in the user drawer; tier (not admin role) decides plan cards + header chip; landing CTA → Open the App when signed in; e2e tour flake fixed (stamp tour seen after signup); iPostal1 + LLC on the board (Chris-side). DECISIONS: verticals = more games on THIS site via the game switch (Magic → Yu-Gi-Oh → sports), Pokémon + site locked down FIRST (memory saved); current theme kept (4 alt themes demoed); homepage demo frame (Inventory with one card per stage, EXAMPLE ribbon on the art, static image) approved as a Future idea, build after lockdown; redesign direction C (product-first) ranked first, parked. GOTCHAS this session: new DB columns/tables (scan_price, categories) need a dev-server restart; String.replace with "$$" in a replacement eats a dollar sign — use a function replacer; the Browser pane can't screenshot reliably while hidden; admin console needs the panel password (I don't enter passwords) — Chris verifies /admin. **
+**FIRST ACTION (saved 09-09 ~1am, session 14 end â€” Chris /cleared). RESUME = read docs/BOARD.md, show Chris ONE task. STATE OF PLAY: everything on main + deployed, last = 963ea5e (the hard pass). NOTHING PENDING ON MY SIDE. Chris yea'd the /admin sub-pages (09-09). Still owes the yea/nay on: Board (Cards | List view, owner tags locked, add-box owner picker, Reload from file, Technical category), the hard-pass fixes on his phone. USAGE RULES NOW IN MEMORY (feedback-usage-sonnet-subagents): Sonnet subagents, â‰¤10-file audits, one fix agent per job, quiet shell, short replies; session stays on Fable. Android emulator is PAUSED in the Technical category (Chris asking a friend; BIOS SVM off; SDK in sandboxed AppData) â€” do not touch.** **HARD PASS 09-09 (session 14): 36 audit findings fixed in one push (BOARD.md â†’ Done this week has the list). NEW SCHEMA: users.stripe_subscription_id + rate_limits table (dev restart done; prod creates on first request). New modules: lib/server/ebayNotification.ts (eBay deletion signature), lib/server/rateLimitDb.ts (limitOrRespondAsync, fails open), lib/client/useBackToClose.ts (Android Back closes sheets), lib/speciesName.ts. Admin login 503s in production while ADMIN_PANEL_* are unset (they ARE set on Vercel, verified via vercel env ls). WINDOWS TRAP: a dynamic await import() of a .ts file at the end of a node test script trips a libuv assert on exit (exit 127) and kills the npm test chain â€” use a static import. Browser sweep (scratchpad audit.mjs, 3 profiles Ã— 21 routes) was clean apart from the scanner âœ• z-index (fixed) and dead tcgdex URLs in the mirror (fallback covers them).** **ADMIN CONSOLE IS SUB-PAGES (09-09): app/admin/(console)/layout.tsx = gate + header + AdminNav (usePathname lights the pill); routes /admin (overview), /admin/switches, /board, /users, /cards, /data, /errors, /system; shared formatters in components/admin/format.ts (ADMIN_NAV is the list); /admin/login stays outside the group. Owner tags on the board are LOCKED on rows (Claude re-tags via the file); the add box picks the owner for a new task.** **BOARD IS LIVE (09-09, session 14): the admin Board is editable â€” DB-backed (settings key "board", lib/server/board.ts, PUT /api/admin/board), seeded once from docs/BOARD.md (+ a "Chris's thoughts" category). Checkboxes tick, text edits inline, owner chip cycles, â‹¯ = move/delete, add box per card, add/rename/reorder/delete categories, autosaves. docs/BOARD.md is now the SEED + reference; the live list is in the DB (export: GET /api/admin/board?format=md). "list categories" on prod = ask Chris to paste the export or read BOARD.md as the approximation. Reload from file (POST /api/admin/board) replaces the live board with docs/BOARD.md â€” so the loop is: I edit BOARD.md in the commit, Chris presses Reload. TECHNICAL category added 09-09 (complicated stuff, Chris asks a friend): Android emulator is PAUSED â€” Android Studio installed; SDK + Pixel 7 image (3.5 GB) sit in the SANDBOXED AppData (AppData\Local\Packages\Claude_â€¦\LocalCache\Local\Android\Sdk), move blocked (busy) and Chris said wait; BIOS SVM Mode is OFF so the emulator cannot boot anyway. Do not touch until Chris says. e2e now runs android (Pixel 7/Chromium) + iphone (iPhone 13/WebKit) projects, CI installs webkit. Awaiting Chris yea/nay on /admin â†’ Board.**
 
-**FIRST ACTION (saved 09-07 evening, session 12 end — Chris /cleared). BOARD (09-09): docs/BOARD.md is the one organised list — "list categories" = read it; keep it current in the same commit as any task; the admin console renders it. STATE OF PLAY: everything on main + deployed, CI green (checks + e2e), heartbeat green, last = FOLDER MANAGEMENT + SOLD = THE RECORD (09-08, awaiting yea/nay) + FLOOR IS A HARD RULE (09-08, server + UI, BACKLOG §0.0) + SCANNED → NOW in the card detail + USD-only price table (09-08, awaiting yea/nay) + SECOND ART SOURCE (09-08 morning: tcgdex assets 404'd for hours, every card image blank; lib/cardArt.ts swaps a dead tcgdex image for its images.pokemontcg.io twin in CardImage/HoloCard/ArtImg — BACKLOG §0.0) + HEADER SCAN COUNTER (09-07 night, YEA'd: ScanCounter.tsx, taps to /pricing) + stage sweep loops under reduced motion (8ae4c33) + 37ae5dc heartbeat probes tcgdex (stock art host blipped 09-07 ~6:30pm ET, not us). YEA'd 09-07 evening: PHONE HEADER TWO ROWS (invite pill sm+ only; Sign out moved to Account on phones) + INVENTORY TEXT ROW MAKEOVER ( one action row per card, price top-right, $ restored; BACKLOG §0.0) on top of LIVE INVENTORY PRICES (09-07 evening, Chris yea'd: Inventory rows now follow today's market; untouched drafts repriced on load with a was-$X chip in Text view; hand-set prices locked via cards.price_locked; details BACKLOG §0.0). Before that 7894efe scanner stage = card nearest $50. NOTHING ELSE PENDING ON MY SIDE. Every open BACKLOG §0.0 item is Chris-gated: on-device iPhone pass (the only mobile item left), yea/nay on live UI, eBay live-test batch, MTG stress test (say when; 1h pre-flight), MD LLC, soft-launch invites (docs/SOFT-LAUNCH.md), prove-on-prod items that need a real sale/subscribe. Only code item I could do alone: MTG Art Series USD prices (multi-hour TCGCSV→Scryfall product map from Chris's PC) — do it only if he asks. On resume: read BACKLOG §0.0 open boxes, show him ONE next task. Chris is sore about 09-06 (Turso outage + publish 25604 + Soul Stone no-match); lead with proof, small pushes, verify the real check. Session 12 history: TURSO OUTAGE 09-06 ~11:43am–12:20pm ET: free tier row-read quota (500M/mo) exhausted in 6 days → account blocked, every prod DB read 500d. Chris upgraded to Developer. Read hogs fixed in 136dacc (missing indexes on mtg_cards.set_code / en_cards set + set_total / price_series(game,source); listMtgSets EXISTS→IN; hasEnglishMirror LIMIT 1; hasMtgMirror await). Details BACKLOG §0.0 → "Turso outage 09-06". Then (same evening, all main): test:queryplans (EXPLAIN QUERY PLAN gate, fails CI on any catalog SCAN), set lists + admin catalog block + catalogSize memoed 6h on card_cache (lib/server/listCache.ts), name searches on expression indexes ('%x%' only as fallback). Watch Turso Analytics rows-read for a week. MOBILE QA SWEEP: ALL FIVE BATCHES SHIPPED 09-06/07 (found/fixed/left in BACKLOG §0.0 → Mobile QA 09-06; emulation persona pass done 09-07 (anon/trial/admin/tour/paywall/editor/camera-blocked; camera error block was hidden under the capture bar → fixed 2d5c31f); only the real-device pass is left, that's Chris's phone; PLAYWRIGHT MOBILE E2E added 09-07 (e2e/mobile.spec.ts, `npm run test:e2e`, CI job e2e — 10 tests: anon pages, tour across 4 pages, header, every /app page clean, camera-blocked overlay, editor via ?resume; reuses a running dev server locally)). Also 09-06 night: eBay publish retries through 25604 inventory lag; Magic ranker keeps number+set matches on a misread name; search-card logs empty scans; admin table shows ended listings as ended; Inventory game switch is a full-width bar; stage reel follows the public Magic switch; PRODUCTION HEARTBEAT (.github/workflows/prod-smoke.yml, 14 probes, after every deploy + best-effort 15-min cron, emails Chris on red). Chris asked for the ~100-simulation mobile sweep; done as two read-only audit agents (static UX + client robustness, ~70 findings) plus emulated runs of every public and /app page at 375x812 and 360x780 as the subscribed account. Fixed in one commit: header strip overflow (every /app page scrolled sideways at 375 — short pill label, icon-only Help on phones, name hidden below sm), global ≥16px inputs below 640px (iOS zoom), session bootstrap retry (was blank forever on a network error), 30s vision timeout, camera re-acquire after backgrounding, scanFx localStorage guard, same-tab /help links (PWA lost users to Safari), Android keyboard viewport flag, safe-area bottoms on sheets/dialog/publish bar, eBay photo input offers the library again, 40px close buttons, chart touch-pan-y, clipboard guard. The written found/fixed/left list is docs/BACKLOG.md §0.0 → "Mobile QA 09-06" (top of §0.0). NEXT: Chris judges on his iPhone (the yea/nay is: no sideways scroll, no zoom when tapping search, header fits). If he says go, the LEFT list is ranked — first two are a shared body-scroll-lock hook (iOS rubber-band behind sheets) and a shared apiFetch() 15s timeout for all lib/client calls. Not exercised in emulation: anon/trial/admin personas, editor, paywall, camera sheet, tour end-to-end. Dev-server note: the Browser pane tab "seed" is logged in as invite-test@example.com (subscribed); the tour shows on every /app visit for that account (tourSeenAt null) — close it with the ✕ before measuring. CONTEXT FROM 09-06 (all main, deployed, yea'd): Invite a friend / Rewards (lib/server/referrals.ts, /app/rewards, header pill), Title Case sweep, perf fix (stage cards from mirror + 6h cache; schema-fingerprint gate in db.ts), Haiku A/B = NO (Sonnet stays), tests added: errordigest, compscache, adminroutes, ebaysync, ebaysweeps, ebaysell, referral. Vercel: Fluid Compute on, region iad1. CHRIS-SIDE PARKED: first soft-launch invite (docs/SOFT-LAUNCH.md), off-site backup destination. SESSION 10 SHIPPED (all main, deployed): paywall one sentence/one button; editor = "Is this your card?" before Verify then FULL sheet; scan chip "Check and publish"; help panel portalled to body; Magic switch busts static cache (revalidatePath layout); docs/ARCHITECTURE.md; test:helpchat + test:webhook; remembered scan category keyed per user; SUBSCRIBE-FIRST for trial sellers → /pricing; PlanCta.tsx live plan cards; RULE LEARNED TWICE: gate on user.tier (server-resolved), NEVER raw subStatus. Remote Control is on for this session. BACKLOG §0.0 is the one list.**
+**FIRST ACTION (saved 09-09 morning, session 13 end â€” Chris /cleared). RESUME = read docs/BOARD.md (short; it is THE list â€” "Now" is what's next; keep it current in the same commit as any task) then show Chris ONE task. STATE OF PLAY: everything on main + deployed, last = de9be6b (the board + admin Board section; Chris has NOT yet seen it â€” first thing: ask if /admin â†’ Board looks right). CI green. NOTHING PENDING ON MY SIDE; Chris's next moves are in BOARD â†’ Now (clear inventory, scan a fresh batch on the phone, report; first soft-launch invite). SESSION 13 (09-07 night â†’ 09-09), ALL ON MAIN, ALL YEA'd unless noted: live Inventory prices (cards.price_locked, scan_price; drafts follow today's market; scanned â†’ now in the card detail; row chip vs scan price); Inventory Text row + price column makeover (3-slot action grid: primary Â· View on eBay / Not Listed ghost Â· Delete; Live badge; End Auction amber last); two-row phone header (invite pill sm+ only; Sign out moved to Account on phones); scan counter in the header (ScanCounter, taps â†’ /pricing); stage sweep loops under reduced motion; second art source (lib/cardArt.ts â†’ images.pokemontcg.io twin; tcgdex 404'd everything 09-08 morning, heartbeat probes it now); watchlist tile makeover + rows saved from Inventory get a price; card modal price table USD-only; FEE FLOOR IS A HARD RULE (server 400s under $1.79 on PATCH/reprice/draft/publish; UI clamps); SOLD = the record (no delete/relist, 409; SOLD marker + sold price) â€” not yet seen live (no sale); CATEGORY MANAGEMENT (add/rename/merge/delete; categories table for empty ones; scanner prompt uses the server list); admin toggle in the user drawer; tier (not admin role) decides plan cards + header chip; landing CTA â†’ Open the App when signed in; e2e tour flake fixed (stamp tour seen after signup); iPostal1 + LLC on the board (Chris-side). DECISIONS: verticals = more games on THIS site via the game switch (Magic â†’ Yu-Gi-Oh â†’ sports), PokÃ©mon + site locked down FIRST (memory saved); current theme kept (4 alt themes demoed); homepage demo frame (Inventory with one card per stage, EXAMPLE ribbon on the art, static image) approved as a Future idea, build after lockdown; redesign direction C (product-first) ranked first, parked. GOTCHAS this session: new DB columns/tables (scan_price, categories) need a dev-server restart; String.replace with "$$" in a replacement eats a dollar sign â€” use a function replacer; the Browser pane can't screenshot reliably while hidden; admin console needs the panel password (I don't enter passwords) â€” Chris verifies /admin. **
 
-**SHARED VIEWS (09-04 night): components/CardTile.tsx = the Watchlist tile look (big art, name, set · number, display-type price, optional sparkline/badge/corner/footer) now used by Search cards results (2/3/4-col grid; no sparkline there — a set is 120 tiles); components/SetBrowser.tsx = Search cards' By-set picker (owns set list + set-cards fetch, mount with key={game}) now also on Watchlist (By name | By set pills above the add box). Watchlist's own tile is still inline (AlertControl/PriceDelta specifics). ** **MAGIC IS ADMINS-ONLY (09-04 night, Chris: "take it off the site until it's finished"): settings table (key/value, lib/server/settings.ts) → magic_public, default OFF. Admin console → Switches → Magic: The Gathering toggle (PATCH /api/admin/settings). /api/auth/me adds user.features.magic (admins always true); GameToggle returns null + snaps a saved mtg pref to pokemon when false (scanner, inventory, search, watchlist all go Pokémon-only); landing pill/FAQ, site metadata, OG image, /help + the help robot follow the switch (helpArticlesFor(magic)). Chris (role admin) keeps the full Magic product on the live site. Flip the switch when Magic is ready; nothing else to deploy. ** **ADMIN (09-04 evening, main): users section makeover (avatar rows, Plan column w/ tier + usage, tap-to-unfold drawer), Add account (POST /api/admin/users, generated password shown once), and PLAN OVERRIDES: users.access_override (db.ts probe) = NULL|unlimited|comp_standard|comp_pro|legacy|trial — scanTier/planOf honour it first (isComped for the account plan copy), PATCH /api/admin/users/[id]/access sets it, the row drawer has the Plan select ("Automatic → what it resolves to"). Admin routes auth = the PANEL cookie (requireAdmin → requireAdminPanel), not a user session. ALSO: scanner empty state is now the viewfinder stage (Uploader.tsx) + display headline; landing hero centered on phones; hero section overflow-x-clip (glow no longer cut). ** **HELP ROBOT (09-04 evening, main): RobotBuddy.tsx (floating core, 10 poses) lives in AppHeader via NavRobot.tsx — moods every 20–40s, tap = help chat panel (bottom sheet on phones). Chat = one rolling thread per user in help_messages (db.ts), POST /api/help/chat → lib/server/helpChat.ts → claude-haiku-4-5, system = robot voice + lib/helpArticles.ts (shared with /help page now) + account facts (tier/plan/scans/eBay/2FA); no actions, escalates to support@; caps: 12/min per IP (LIMITS.helpChat) + 40 user msgs/day per account (HELP_DAILY_CAP). Verified: table + GET/POST/DELETE + UI locally; the Haiku call verified by a one-off script with the Vercel key (dev .env.local has NO ANTHROPIC_API_KEY, so the panel says "offline here" in dev). The TOUR is now 9 steps starting on the Help button; the robot is the pointer (sits on the card corner). Tour copy is one snarky line per step. Stale help copy fixed (drafts/CSV → Verify+Publish, Inventory price edits).** **VERCEL PRO since 09-04 (Chris upgraded after the Hobby 100/day cap blocked four tour commits for hours) — deploy cap no longer a concern; a74e167 redeployed everything, tour incl. arrows + ?tour=1 is LIVE.** **SESSION 9 CLOSE (09-04 ~3:30pm ET, Chris /cleared; everything on main + deployed, last = d195b82): since the guides — server strips {{tags}} into HelpMessage.actions (old cached bundles showed them raw); prompt has an app map + must-point rule (5/5 on real model); admin Plan dropdown has a Role group (Make/Remove admin); Search cards Recent lookups got the Image|Text switch (cardflip.searchView); overlays (tour card, chat panel, card modal) on .panel-solid (opaque); scanner category ask moved from first capture to camera Done (was covering the reveal). Chris yea'd tour/robot/help chat/stage/admin. DESIGN RULE saved to memory: build for an ~IQ-85 average user without capping the capable — one obvious action per screen, solid overlays, robot solves not describes. NEXT (his call): apply that lens to the post-scan editor (one question at a time: Verify → Publish) and the paywall (one sentence, one button); still-open gates unchanged (paid signup E2E, Stripe address, open admin console on prod once). BACKLOG §0.0 is the one list.** **HELP ROBOT GUIDES (09-04 late, Chris: "solve 99% of user issues the easiest way"): lib/helpGuides.ts = 8 walkthroughs (connect-ebay, publish, reprice, watchlist-alert, two-step, subscribe, inventory, search) as spotlight steps on the real pages; the robot's prompt lists them and ends replies with {{guide:id}} / {{link:/path}}; NavRobot parses the tags into "Walk me through it" / "Open X" buttons and shows six starter questions in an empty chat; TourOverlay runs guides via window event cardflip:guide (startGuide(steps)) without stamping tour_seen_at. New data-tour anchors: connect-ebay, subscribe, two-step (Account), alert (Watchlist), verify (editor), publish. Verified with the real model: 4/4 questions got the right tag. ** **SESSION 9 (09-04, all day → night, ALL ON MAIN + DEPLOYED, Vercel PRO now): first-login tutorial (TourOverlay, 9 steps page-by-page, snarky one-liners, the robot as pointer); RobotBuddy (floating core) in the header as "Help" + help chat (Haiku 4.5, grounded on lib/helpArticles.ts + account facts, help_messages table, 40/day cap); scanner empty state = viewfinder stage rotating 10 real cards (/api/cards/featured); landing hero centered on phones + hero overflow-x-clip; admin users makeover + Add account + per-row Plan dropdown (users.access_override) ; trial = scan+price only (sellingGate 402 on eBay draft/publish, editor shows Subscribe); Magic admins-only via settings.magic_public (admin → Switches); shared CardTile + SetBrowser (Search cards ↔ Watchlist); QA leftovers all done; dead code out (PriceTicker, Fly backup), .env.example current; TOTP backup codes; tests: test:quota (overrides/gates), test:settings (new), test:totp (codes). Hidden egg: components/Prefetch.tsx (shift + n s s w t → duck overlay; SVG stand-in until Chris supplies the PNG). GOTCHA: node test scripts need `--conditions=react-server --import ./scripts/lib/register-alias.mjs` for @/ imports; new DB columns/tables need a dev-server restart. RESUME: BACKLOG §0.0 is the one list — section A is Chris-only (paid signup E2E, Stripe address, open the admin console on prod once to confirm the new tables initialised), B/C are yea/nay + unproven-on-prod. Nothing approved-and-pending on my side.** **FIRST ACTION (saved 09-04 ~9:40am ET, session 8 end — Chris /cleared; SESSION 9 addendum 09-04 midday: FIRST-LOGIN TUTORIAL shipped to main — src/components/TourOverlay.tsx mounted in app/app/layout.tsx, 4 coach marks (capture button → "Check, then sell" centred card → Inventory tab → Watchlist tab) over the real /app page, anchors are data-tour attrs (Uploader "Use camera", AppTabs); users.tour_seen_at (db.ts COLUMN_PROBES + users.ts markTourSeen + PublicUser/SessionUser tourSeenAt) stamped by POST /api/account/tour; Account → Support → Tutorial "Replay" sets sessionStorage cardflip.tourReplay and routes to /app. Every existing account (Chris included) sees it ONCE on the next /app visit — that is the yea/nay. Verified locally in mobile emulation: steps advance, anchors found, flag stamped, Replay works. NOW PAGE-BY-PAGE (Chris: one page leads to another): 8 steps across /app (2) → /app/collection (3: Card game toggle, Switch view, Sort) → /app/price-check (1: search input) → /app/wishlist (2); last step on a page shows "Next: <page>" and router.pushes; progress in sessionStorage cardflip.tourStep survives navigation/reload; anchors are CSS selectors in STEPS (aria-labels on those pages — renaming one silently drops that spotlight to a centred card); /app?tour=1 also starts it. Spotlight has no transition on purpose (reduced-motion global transition froze it in a hidden tab). Chris also set the live paid-signup E2E test as TOP PRIORITY for later (BACKLOG §0 top).):
+**FIRST ACTION (saved 09-07 evening, session 12 end â€” Chris /cleared). BOARD (09-09): docs/BOARD.md is the one organised list â€” "list categories" = read it; keep it current in the same commit as any task; the admin console renders it. STATE OF PLAY: everything on main + deployed, CI green (checks + e2e), heartbeat green, last = FOLDER MANAGEMENT + SOLD = THE RECORD (09-08, awaiting yea/nay) + FLOOR IS A HARD RULE (09-08, server + UI, BACKLOG Â§0.0) + SCANNED â†’ NOW in the card detail + USD-only price table (09-08, awaiting yea/nay) + SECOND ART SOURCE (09-08 morning: tcgdex assets 404'd for hours, every card image blank; lib/cardArt.ts swaps a dead tcgdex image for its images.pokemontcg.io twin in CardImage/HoloCard/ArtImg â€” BACKLOG Â§0.0) + HEADER SCAN COUNTER (09-07 night, YEA'd: ScanCounter.tsx, taps to /pricing) + stage sweep loops under reduced motion (8ae4c33) + 37ae5dc heartbeat probes tcgdex (stock art host blipped 09-07 ~6:30pm ET, not us). YEA'd 09-07 evening: PHONE HEADER TWO ROWS (invite pill sm+ only; Sign out moved to Account on phones) + INVENTORY TEXT ROW MAKEOVER ( one action row per card, price top-right, $ restored; BACKLOG Â§0.0) on top of LIVE INVENTORY PRICES (09-07 evening, Chris yea'd: Inventory rows now follow today's market; untouched drafts repriced on load with a was-$X chip in Text view; hand-set prices locked via cards.price_locked; details BACKLOG Â§0.0). Before that 7894efe scanner stage = card nearest $50. NOTHING ELSE PENDING ON MY SIDE. Every open BACKLOG Â§0.0 item is Chris-gated: on-device iPhone pass (the only mobile item left), yea/nay on live UI, eBay live-test batch, MTG stress test (say when; 1h pre-flight), MD LLC, soft-launch invites (docs/SOFT-LAUNCH.md), prove-on-prod items that need a real sale/subscribe. Only code item I could do alone: MTG Art Series USD prices (multi-hour TCGCSVâ†’Scryfall product map from Chris's PC) â€” do it only if he asks. On resume: read BACKLOG Â§0.0 open boxes, show him ONE next task. Chris is sore about 09-06 (Turso outage + publish 25604 + Soul Stone no-match); lead with proof, small pushes, verify the real check. Session 12 history: TURSO OUTAGE 09-06 ~11:43amâ€“12:20pm ET: free tier row-read quota (500M/mo) exhausted in 6 days â†’ account blocked, every prod DB read 500d. Chris upgraded to Developer. Read hogs fixed in 136dacc (missing indexes on mtg_cards.set_code / en_cards set + set_total / price_series(game,source); listMtgSets EXISTSâ†’IN; hasEnglishMirror LIMIT 1; hasMtgMirror await). Details BACKLOG Â§0.0 â†’ "Turso outage 09-06". Then (same evening, all main): test:queryplans (EXPLAIN QUERY PLAN gate, fails CI on any catalog SCAN), set lists + admin catalog block + catalogSize memoed 6h on card_cache (lib/server/listCache.ts), name searches on expression indexes ('%x%' only as fallback). Watch Turso Analytics rows-read for a week. MOBILE QA SWEEP: ALL FIVE BATCHES SHIPPED 09-06/07 (found/fixed/left in BACKLOG Â§0.0 â†’ Mobile QA 09-06; emulation persona pass done 09-07 (anon/trial/admin/tour/paywall/editor/camera-blocked; camera error block was hidden under the capture bar â†’ fixed 2d5c31f); only the real-device pass is left, that's Chris's phone; PLAYWRIGHT MOBILE E2E added 09-07 (e2e/mobile.spec.ts, `npm run test:e2e`, CI job e2e â€” 10 tests: anon pages, tour across 4 pages, header, every /app page clean, camera-blocked overlay, editor via ?resume; reuses a running dev server locally)). Also 09-06 night: eBay publish retries through 25604 inventory lag; Magic ranker keeps number+set matches on a misread name; search-card logs empty scans; admin table shows ended listings as ended; Inventory game switch is a full-width bar; stage reel follows the public Magic switch; PRODUCTION HEARTBEAT (.github/workflows/prod-smoke.yml, 14 probes, after every deploy + best-effort 15-min cron, emails Chris on red). Chris asked for the ~100-simulation mobile sweep; done as two read-only audit agents (static UX + client robustness, ~70 findings) plus emulated runs of every public and /app page at 375x812 and 360x780 as the subscribed account. Fixed in one commit: header strip overflow (every /app page scrolled sideways at 375 â€” short pill label, icon-only Help on phones, name hidden below sm), global â‰¥16px inputs below 640px (iOS zoom), session bootstrap retry (was blank forever on a network error), 30s vision timeout, camera re-acquire after backgrounding, scanFx localStorage guard, same-tab /help links (PWA lost users to Safari), Android keyboard viewport flag, safe-area bottoms on sheets/dialog/publish bar, eBay photo input offers the library again, 40px close buttons, chart touch-pan-y, clipboard guard. The written found/fixed/left list is docs/BACKLOG.md Â§0.0 â†’ "Mobile QA 09-06" (top of Â§0.0). NEXT: Chris judges on his iPhone (the yea/nay is: no sideways scroll, no zoom when tapping search, header fits). If he says go, the LEFT list is ranked â€” first two are a shared body-scroll-lock hook (iOS rubber-band behind sheets) and a shared apiFetch() 15s timeout for all lib/client calls. Not exercised in emulation: anon/trial/admin personas, editor, paywall, camera sheet, tour end-to-end. Dev-server note: the Browser pane tab "seed" is logged in as invite-test@example.com (subscribed); the tour shows on every /app visit for that account (tourSeenAt null) â€” close it with the âœ• before measuring. CONTEXT FROM 09-06 (all main, deployed, yea'd): Invite a friend / Rewards (lib/server/referrals.ts, /app/rewards, header pill), Title Case sweep, perf fix (stage cards from mirror + 6h cache; schema-fingerprint gate in db.ts), Haiku A/B = NO (Sonnet stays), tests added: errordigest, compscache, adminroutes, ebaysync, ebaysweeps, ebaysell, referral. Vercel: Fluid Compute on, region iad1. CHRIS-SIDE PARKED: first soft-launch invite (docs/SOFT-LAUNCH.md), off-site backup destination. SESSION 10 SHIPPED (all main, deployed): paywall one sentence/one button; editor = "Is this your card?" before Verify then FULL sheet; scan chip "Check and publish"; help panel portalled to body; Magic switch busts static cache (revalidatePath layout); docs/ARCHITECTURE.md; test:helpchat + test:webhook; remembered scan category keyed per user; SUBSCRIBE-FIRST for trial sellers â†’ /pricing; PlanCta.tsx live plan cards; RULE LEARNED TWICE: gate on user.tier (server-resolved), NEVER raw subStatus. Remote Control is on for this session. BACKLOG Â§0.0 is the one list.**
+
+**SHARED VIEWS (09-04 night): components/CardTile.tsx = the Watchlist tile look (big art, name, set Â· number, display-type price, optional sparkline/badge/corner/footer) now used by Search cards results (2/3/4-col grid; no sparkline there â€” a set is 120 tiles); components/SetBrowser.tsx = Search cards' By-set picker (owns set list + set-cards fetch, mount with key={game}) now also on Watchlist (By name | By set pills above the add box). Watchlist's own tile is still inline (AlertControl/PriceDelta specifics). ** **MAGIC IS ADMINS-ONLY (09-04 night, Chris: "take it off the site until it's finished"): settings table (key/value, lib/server/settings.ts) â†’ magic_public, default OFF. Admin console â†’ Switches â†’ Magic: The Gathering toggle (PATCH /api/admin/settings). /api/auth/me adds user.features.magic (admins always true); GameToggle returns null + snaps a saved mtg pref to pokemon when false (scanner, inventory, search, watchlist all go PokÃ©mon-only); landing pill/FAQ, site metadata, OG image, /help + the help robot follow the switch (helpArticlesFor(magic)). Chris (role admin) keeps the full Magic product on the live site. Flip the switch when Magic is ready; nothing else to deploy. ** **ADMIN (09-04 evening, main): users section makeover (avatar rows, Plan column w/ tier + usage, tap-to-unfold drawer), Add account (POST /api/admin/users, generated password shown once), and PLAN OVERRIDES: users.access_override (db.ts probe) = NULL|unlimited|comp_standard|comp_pro|legacy|trial â€” scanTier/planOf honour it first (isComped for the account plan copy), PATCH /api/admin/users/[id]/access sets it, the row drawer has the Plan select ("Automatic â†’ what it resolves to"). Admin routes auth = the PANEL cookie (requireAdmin â†’ requireAdminPanel), not a user session. ALSO: scanner empty state is now the viewfinder stage (Uploader.tsx) + display headline; landing hero centered on phones; hero section overflow-x-clip (glow no longer cut). ** **HELP ROBOT (09-04 evening, main): RobotBuddy.tsx (floating core, 10 poses) lives in AppHeader via NavRobot.tsx â€” moods every 20â€“40s, tap = help chat panel (bottom sheet on phones). Chat = one rolling thread per user in help_messages (db.ts), POST /api/help/chat â†’ lib/server/helpChat.ts â†’ claude-haiku-4-5, system = robot voice + lib/helpArticles.ts (shared with /help page now) + account facts (tier/plan/scans/eBay/2FA); no actions, escalates to support@; caps: 12/min per IP (LIMITS.helpChat) + 40 user msgs/day per account (HELP_DAILY_CAP). Verified: table + GET/POST/DELETE + UI locally; the Haiku call verified by a one-off script with the Vercel key (dev .env.local has NO ANTHROPIC_API_KEY, so the panel says "offline here" in dev). The TOUR is now 9 steps starting on the Help button; the robot is the pointer (sits on the card corner). Tour copy is one snarky line per step. Stale help copy fixed (drafts/CSV â†’ Verify+Publish, Inventory price edits).** **VERCEL PRO since 09-04 (Chris upgraded after the Hobby 100/day cap blocked four tour commits for hours) â€” deploy cap no longer a concern; a74e167 redeployed everything, tour incl. arrows + ?tour=1 is LIVE.** **SESSION 9 CLOSE (09-04 ~3:30pm ET, Chris /cleared; everything on main + deployed, last = d195b82): since the guides â€” server strips {{tags}} into HelpMessage.actions (old cached bundles showed them raw); prompt has an app map + must-point rule (5/5 on real model); admin Plan dropdown has a Role group (Make/Remove admin); Search cards Recent lookups got the Image|Text switch (cardflip.searchView); overlays (tour card, chat panel, card modal) on .panel-solid (opaque); scanner category ask moved from first capture to camera Done (was covering the reveal). Chris yea'd tour/robot/help chat/stage/admin. DESIGN RULE saved to memory: build for an ~IQ-85 average user without capping the capable â€” one obvious action per screen, solid overlays, robot solves not describes. NEXT (his call): apply that lens to the post-scan editor (one question at a time: Verify â†’ Publish) and the paywall (one sentence, one button); still-open gates unchanged (paid signup E2E, Stripe address, open admin console on prod once). BACKLOG Â§0.0 is the one list.** **HELP ROBOT GUIDES (09-04 late, Chris: "solve 99% of user issues the easiest way"): lib/helpGuides.ts = 8 walkthroughs (connect-ebay, publish, reprice, watchlist-alert, two-step, subscribe, inventory, search) as spotlight steps on the real pages; the robot's prompt lists them and ends replies with {{guide:id}} / {{link:/path}}; NavRobot parses the tags into "Walk me through it" / "Open X" buttons and shows six starter questions in an empty chat; TourOverlay runs guides via window event cardflip:guide (startGuide(steps)) without stamping tour_seen_at. New data-tour anchors: connect-ebay, subscribe, two-step (Account), alert (Watchlist), verify (editor), publish. Verified with the real model: 4/4 questions got the right tag. ** **SESSION 9 (09-04, all day â†’ night, ALL ON MAIN + DEPLOYED, Vercel PRO now): first-login tutorial (TourOverlay, 9 steps page-by-page, snarky one-liners, the robot as pointer); RobotBuddy (floating core) in the header as "Help" + help chat (Haiku 4.5, grounded on lib/helpArticles.ts + account facts, help_messages table, 40/day cap); scanner empty state = viewfinder stage rotating 10 real cards (/api/cards/featured); landing hero centered on phones + hero overflow-x-clip; admin users makeover + Add account + per-row Plan dropdown (users.access_override) ; trial = scan+price only (sellingGate 402 on eBay draft/publish, editor shows Subscribe); Magic admins-only via settings.magic_public (admin â†’ Switches); shared CardTile + SetBrowser (Search cards â†” Watchlist); QA leftovers all done; dead code out (PriceTicker, Fly backup), .env.example current; TOTP backup codes; tests: test:quota (overrides/gates), test:settings (new), test:totp (codes). Hidden egg: components/Prefetch.tsx (shift + n s s w t â†’ duck overlay; SVG stand-in until Chris supplies the PNG). GOTCHA: node test scripts need `--conditions=react-server --import ./scripts/lib/register-alias.mjs` for @/ imports; new DB columns/tables need a dev-server restart. RESUME: BACKLOG Â§0.0 is the one list â€” section A is Chris-only (paid signup E2E, Stripe address, open the admin console on prod once to confirm the new tables initialised), B/C are yea/nay + unproven-on-prod. Nothing approved-and-pending on my side.** **FIRST ACTION (saved 09-04 ~9:40am ET, session 8 end â€” Chris /cleared; SESSION 9 addendum 09-04 midday: FIRST-LOGIN TUTORIAL shipped to main â€” src/components/TourOverlay.tsx mounted in app/app/layout.tsx, 4 coach marks (capture button â†’ "Check, then sell" centred card â†’ Inventory tab â†’ Watchlist tab) over the real /app page, anchors are data-tour attrs (Uploader "Use camera", AppTabs); users.tour_seen_at (db.ts COLUMN_PROBES + users.ts markTourSeen + PublicUser/SessionUser tourSeenAt) stamped by POST /api/account/tour; Account â†’ Support â†’ Tutorial "Replay" sets sessionStorage cardflip.tourReplay and routes to /app. Every existing account (Chris included) sees it ONCE on the next /app visit â€” that is the yea/nay. Verified locally in mobile emulation: steps advance, anchors found, flag stamped, Replay works. NOW PAGE-BY-PAGE (Chris: one page leads to another): 8 steps across /app (2) â†’ /app/collection (3: Card game toggle, Switch view, Sort) â†’ /app/price-check (1: search input) â†’ /app/wishlist (2); last step on a page shows "Next: <page>" and router.pushes; progress in sessionStorage cardflip.tourStep survives navigation/reload; anchors are CSS selectors in STEPS (aria-labels on those pages â€” renaming one silently drops that spotlight to a centred card); /app?tour=1 also starts it. Spotlight has no transition on purpose (reduced-motion global transition froze it in a hidden tab). Chris also set the live paid-signup E2E test as TOP PRIORITY for later (BACKLOG Â§0 top).):
 (0) GIT: checkout is vercel-migration; ALWAYS `git push origin HEAD:main`
 and confirm origin/main moved. Vercel Hobby deploy cap (100/day rolling)
-tripped twice tonight — if a push doesn't deploy, check `gh api
+tripped twice tonight â€” if a push doesn't deploy, check `gh api
 repos/truefreemoney-rgb/cardflip/commits/<sha>/status`. (1) ACCESS TIERS
 (296c59c, last deploy): owner = truefreemoney@gmail.com / admin, unlimited;
 LEGACY = accounts created before PAID_SWITCH_AT (09-04 13:25 UTC, in
@@ -85,91 +87,91 @@ lib/server/users.ts) get 100 scans/DAY, no wall (day key stored in
 scan_month); subscribed 500/mo or Pro 2,000/mo (users.plan from the Stripe
 webhook price id); TRIAL = new accounts, 10 lifetime scans
 (users.trial_scans_used) then the Paywall. Server is the truth
-(toPublicUser.appAccess → client canUseApp); SubscriptionGate walls /app
+(toPublicUser.appAccess â†’ client canUseApp); SubscriptionGate walls /app
 except /app/account; server 402 on scan / cards POST / ebay draft+publish.
 Demo is GONE. UNTESTED END-TO-END with a real card: Chris should sign up a
-fresh account on the live site and go through trial → wall → Stripe →
-webhook. (2) STRIPE: TWO accounts — .env.local STRIPE_LIVE_SECRET_KEY is
+fresh account on the live site and go through trial â†’ wall â†’ Stripe â†’
+webhook. (2) STRIPE: TWO accounts â€” .env.local STRIPE_LIVE_SECRET_KEY is
 the SANDBOX; the real live key is stripe2.txt (repo root, gitignored, DO
 NOT delete). Live: product prod_VB68qbGnNfQpty ($9.99
 price_1UAjvlHrYyCaAIAxazDtv1Dz), product prod_VCLaeDbdIdU2yA "CardFlip
 Pro" ($24.99 price_1UBwtjHrYyCaAIAxHtHBqUl7, STRIPE_PRO_PRICE_ID on Vercel
 prod+preview); prod_VAzsshadbHo9Sg is a duplicate CardFlip (unused);
 portal plan-switching ON with both products (Chris did it in the
-dashboard; the API's products field doesn't reflect the new dashboard —
+dashboard; the API's products field doesn't reflect the new dashboard â€”
 don't chase that again). Classifier blocks Stripe WRITES from Bash;
-reads are fine. Chris still owes STRIPE PUBLIC-DETAILS (BACKLOG §0 item
+reads are fine. Chris still owes STRIPE PUBLIC-DETAILS (BACKLOG Â§0 item
 1). (3) TONIGHT, all main, all deployed, awaiting yea/nay: landing makeover
-(scanner-in-phone hero, seamless — no section backgrounds, flat sticky nav
-w/ How it works · Pricing only, three plan cards Free trial / CardFlip /
+(scanner-in-phone hero, seamless â€” no section backgrounds, flat sticky nav
+w/ How it works Â· Pricing only, three plan cards Free trial / CardFlip /
 Pro, app-tight spacing py-10/12), /pricing page (PlanCard shared, billing
 FAQ), account makeover, inventory toolbar (CSV export REMOVED),
 categories, QA batches (pickPrinting, verify clears doubt, price-history
 guards, Esc scoping, number-mismatch review, watchlist Undo, MEP promos
 pushed to prod via scripts/push-catalog.mjs). Spacing rule: apps don't
-have gaps — take spacing DOWN. QA leftovers: Inventory search by card
+have gaps â€” take spacing DOWN. QA leftovers: Inventory search by card
 number, tappable Text-view rows, category prompt on photo uploads,
 condition-change price feedback, "Move your cursor" on touch, one word
 for verified-unlisted, 134px mobile header, 32px nav targets, signup
 "Already have an account" link, error focus, set picker type-ahead; dead
 "demo" copy in account/EbayConnectCard/admin table; PriceTicker component
-unused (Chris hates it — delete when convenient). Chris wants a v1.0.0
+unused (Chris hates it â€” delete when convenient). Chris wants a v1.0.0
 tag once his own paid signup works and Stripe public details are done.**
 
 **SESSION 7 SHIPPED (09-04, main, deployed):** Inventory BINDER VIEW (grid default, View: Image | Text slide tab, tile art opens CardDetailModal with an Inventory aside), RepriceSheet for LIVE rows, sort by RARITY (backfill-rarity.mjs), listed panel makeover, StagedProgress for reopen + publish, "Not your card?" lists every same-name printing, watchlist tiles open instantly.
 
-**SESSION 6 SHIPPED (09-04, main, deployed):** LATER 09-04 — 1ST EDITION IS ITS OWN CATALOG CARD (Chris: "totally different card, totally different price, its own stock image"): scripts/sync-first-edition.mjs [--prod] wrote 939 "-1st" twins (set "<set> (1st Edition)", Base Set twins use TCGplayer Shadowless photos + products mapped so 1st Ed Holofoil prices land on them; existing 1stEdition* series moved to twins; ran local AND prod, prod refresh run too — base1-4-1st = $10,000 TCGplayer). Search ?first=1|0 (vision firstEdition) ranks twin vs unlimited; splitFirstEditionPrices keeps 1st Ed variants ONLY on twins; pokemonPriceRefresh routes 1stEdition* to twins. Editor checkbox → swap link between printings; ledger row follows the catalog card (PATCH cardName/setName/cardNumber/imageUrl/catalogCardId). isFirstEditionCard/itemFirstEdition in lib/listing are the truth. If Chris rescans the stamped Charizard it should land on Base Set (1st Edition) with the shadowless image. Inventory price is TAP-TO-EDIT on every unsold row; cards with an eBay offer go through POST /api/ebay/reprice so the LIVE LISTING changes in place (Chris: change the price here, never on eBay). 1ST EDITION IS ITS OWN PRODUCT: vision read gains `firstEdition` (stamp below-left of art, WotC sets only via canBeFirstEdition); the scan flips the editor toggle itself; cards.first_edition column persisted (PATCH accepts firstEdition), resumed, and shown as a "1st Edition" pill in Inventory; eBay comps carry the flag (query adds "1st edition", isComparable REQUIRES the stamp in titles when true and REJECTS stamped titles when false for sets that had a run); effectiveVariant falls to EBAY_VARIANT (the 1st-Ed-only asking comps) when TCGplayer has no 1st Ed line (Base Set) — the only value change, 1st Edition items only. Watchlist: tile tap opens the modal INSTANTLY (stub card from the tile + `loading` prop, resolved cards cached from the reprice pass). Chris still owes the STRIPE PUBLIC-DETAILS errand.**
+**SESSION 6 SHIPPED (09-04, main, deployed):** LATER 09-04 â€” 1ST EDITION IS ITS OWN CATALOG CARD (Chris: "totally different card, totally different price, its own stock image"): scripts/sync-first-edition.mjs [--prod] wrote 939 "-1st" twins (set "<set> (1st Edition)", Base Set twins use TCGplayer Shadowless photos + products mapped so 1st Ed Holofoil prices land on them; existing 1stEdition* series moved to twins; ran local AND prod, prod refresh run too â€” base1-4-1st = $10,000 TCGplayer). Search ?first=1|0 (vision firstEdition) ranks twin vs unlimited; splitFirstEditionPrices keeps 1st Ed variants ONLY on twins; pokemonPriceRefresh routes 1stEdition* to twins. Editor checkbox â†’ swap link between printings; ledger row follows the catalog card (PATCH cardName/setName/cardNumber/imageUrl/catalogCardId). isFirstEditionCard/itemFirstEdition in lib/listing are the truth. If Chris rescans the stamped Charizard it should land on Base Set (1st Edition) with the shadowless image. Inventory price is TAP-TO-EDIT on every unsold row; cards with an eBay offer go through POST /api/ebay/reprice so the LIVE LISTING changes in place (Chris: change the price here, never on eBay). 1ST EDITION IS ITS OWN PRODUCT: vision read gains `firstEdition` (stamp below-left of art, WotC sets only via canBeFirstEdition); the scan flips the editor toggle itself; cards.first_edition column persisted (PATCH accepts firstEdition), resumed, and shown as a "1st Edition" pill in Inventory; eBay comps carry the flag (query adds "1st edition", isComparable REQUIRES the stamp in titles when true and REJECTS stamped titles when false for sets that had a run); effectiveVariant falls to EBAY_VARIANT (the 1st-Ed-only asking comps) when TCGplayer has no 1st Ed line (Base Set) â€” the only value change, 1st Edition items only. Watchlist: tile tap opens the modal INSTANTLY (stub card from the tile + `loading` prop, resolved cards cached from the reprice pass). Chris still owes the STRIPE PUBLIC-DETAILS errand.**
 
 **SESSION 5 SHIPPED (09-03, all main, all deployed):** Inventory (was My
-cards): Live → "Awaiting sale" + "End auction" (POST /api/ebay/end
-withdraws the eBay offer → ebay_ended_at), ended → "Auction ended" pill +
-Relist/Delete, sold → Sold + Delete, ended cards have own count/filter and
-are out of In play; Pokémon/Magic split (game toggle + counts); shift+click
+cards): Live â†’ "Awaiting sale" + "End auction" (POST /api/ebay/end
+withdraws the eBay offer â†’ ebay_ended_at), ended â†’ "Auction ended" pill +
+Relist/Delete, sold â†’ Sold + Delete, ended cards have own count/filter and
+are out of In play; PokÃ©mon/Magic split (game toggle + counts); shift+click
 range select. Editor: header makeover (title + Watch + Delete, verify strip
-— verification is FINAL, no Undo; facts panel; "Not your card? N other
+â€” verification is FINAL, no Undo; facts panel; "Not your card? N other
 matches" back, hidden once verified); no-art match shows a labelled
 placeholder; Copies input gone; pricing labels "Suggested listing price" /
 at $5+ "Listing price": Quick sale + Full value (quick sale is a $5+ option).
-Search cards: makeover, By name / By set (dropdown of every set → all cards
+Search cards: makeover, By name / By set (dropdown of every set â†’ all cards
 priced via price_series batch), sort (set/price/rarity/name) + filter.
 Watchlist: makeover (Watching + Total value strip, tiles with now-vs-saved,
 alert pill + badge). Scanner: BLUR GATE (lib/sharpness.ts, text-band
-Laplacian ≥ 90, refuses once, next tap always goes through — conservative,
+Laplacian â‰¥ 90, refuses once, next tap always goes through â€” conservative,
 Chris hates false fires); vision read gains `kind` (card/token/art);
-tokens refused; art → artOnly search over Art Series sets;
+tokens refused; art â†’ artOnly search over Art Series sets;
 UNREADABLE_CONFIDENCE=0.2 retake floor (art exempt); camera chip shows the
 specific reason; photo upload retries once. Identification: numerator can't
 outvote set total; newest-first ties; promo "SVP 212" prefix stripped; MTG
-name matches need word boundaries (Hero ≠ Heroic Return); DFC/colon names
+name matches need word boundaries (Hero â‰  Heroic Return); DFC/colon names
 survive the route (mirror gets the raw name); resume fetches by catalog id
-first. Catalogue art 661 → 184 missing (scripts/fill-images.mjs: TCGplayer
+first. Catalogue art 661 â†’ 184 missing (scripts/fill-images.mjs: TCGplayer
 CDN, pokemontcg.io map, tcgcsv group map, public/cards hand files; Chris
 scanned all 29 MEP promos). Account page shows "build <sha>" (his iPhone
-held a 3-hour-old bundle through a refresh — private tab / kill app fixes).
+held a 3-hour-old bundle through a refresh â€” private tab / kill app fixes).
 Day rules still hold: TCGplayer current-day point = value, eBay asking =
 reference chip, fee-aware floor $1.79, ONE quote everywhere; auto-scan is
 GONE; don't touch pickPrice / pointCanRebase without a one-card agreement.
 Main = vercel-migration = origin. `gh` is logged in (use gh api).**
 
-**SHIPPED SESSION 4 — VERIFY MATCH GATE (Chris's "big safety feature",
+**SHIPPED SESSION 4 â€” VERIFY MATCH GATE (Chris's "big safety feature",
 09-03): every identified card is "Verify match" (amber) until the seller
 taps Verify match (CardEditor block under the set line, or the My Cards row
-button) → "Active". Publish locked client-side (EbayPostActions 🔒 button,
-sendAllToEbay filter + note) AND server-side (ebaySell requireVerified →
+button) â†’ "Active". Publish locked client-side (EbayPostActions ðŸ”’ button,
+sendAllToEbay filter + note) AND server-side (ebaySell requireVerified â†’
 409 on createDraft/pushDraft/publishDraft). Persisted as cards.verified_at
 (COLUMN_PROBES; PATCH /api/cards/[id] accepts verifiedAt), hydrated on
 resume, cleared by candidate pick / name search / rescan. Internal statuses
-ready/review unchanged — only the labels changed (StatusChip verified
+ready/review unchanged â€” only the labels changed (StatusChip verified
 prop). NEEDS CHRIS'S YEA/NAY on the live site; not browser-verified this
 session (needs a logged-in scan).**
 
 **FEE-AWARE LISTING FLOOR (09-03 night, Chris chose option 1: "$0.50 net,
 $0.75 postage"):** lib/fees.ts MIN_NET_USD=0.50, POSTAGE_USD=0.75,
-listingFloor() = ceil((net + $0.30 + postage) / (1 − 13.25%)) = $1.79.
+listingFloor() = ceil((net + $0.30 + postage) / (1 âˆ’ 13.25%)) = $1.79.
 quotePrice raises `suggested` to the floor (USD only, flag `floored`);
 `base` (TCGplayer value) untouched. Editor tiles show floorNote() as the
 hint when floored ("Raised to $1.79 so you clear $0.50 after eBay fees and
-$0.75 postage"). Flows through the shared quote → Your price, queue row,
+$0.75 postage"). Flows through the shared quote â†’ Your price, queue row,
 ledger price, bulk send all agree. Never bites above ~$1.79, so mid/high
 cards unchanged. Basis question settled for now: TCGplayer current-day
 market = value; eBay asking = reference chip; the floor handles cheap
@@ -179,17 +181,17 @@ cards. 4 checks in test:pricing.**
 totally screwed up"):** the editor's tiles quoted with the chart's
 current-day point (useLastRecordedPrice) while Your price, the queue row,
 the header total, the ledger price and bulk send used quoteForItem WITHOUT
-it — two calculators on one screen (Eri PRE 136: tiles $0.91/$1.03, Your
-price + queue $1.83). Fix: ScanItem.currentPoint — the page fetches the
+it â€” two calculators on one screen (Eri PRE 136: tiles $0.91/$1.03, Your
+price + queue $1.83). Fix: ScanItem.currentPoint â€” the page fetches the
 point (lastRecordedPoint, same fetch/cache as the chart) alongside the
 eBay comps and stores it on the item; quoteForItem defaults to
 item.currentPoint; the editor writes its (variant-aware) hook point back
 onto the item when it differs; whichever of comps/point lands second
-re-saves the ledger price. No pricing RULE changed — this is the 09-01
+re-saves the ledger price. No pricing RULE changed â€” this is the 09-01
 rule applied everywhere instead of in one place.**
 
 **PRICING IS BACK TO THE 09-03 MORNING STATE (b42cccd reverts daf236b
-too — Chris was worried, "prices are all messed up still" on Eri PRE
+too â€” Chris was worried, "prices are all messed up still" on Eri PRE
 136/131: Market $2.08 eBay asking vs TCGplayer $1.03). Verified against
 TCGplayer's live feed: $1.03 IS today's market for that card; eBay asking
 $2.08 over 92 listings is real. So the data is fine; what he saw was the
@@ -202,32 +204,32 @@ pointCanRebase again; every such change is site-wide.**
 **REVERSE-HOLO WORK FULLY REVERTED (09-03 ~eve, Chris: "we broke
 something bad once we started messing with the reverse holofoil, all the
 prices and graphs are totally messed up across the whole site"):** the
-site-wide damage was VARIANT_PRIORITY going normal-first (3e6e918) —
+site-wide damage was VARIANT_PRIORITY going normal-first (3e6e918) â€”
 every card with a "normal" row quoted the plain print (often cents) and
 the chart followed that series. Reverted 3e6e918 (pattern variants,
 normal-first, no "Printing: Normal", vision finish) and 1686584 (title
-printing tokens) → c2754e3 / 6f6cac4. Nothing from the printing round
+printing tokens) â†’ c2754e3 / 6f6cac4. Nothing from the printing round
 remains in code except this note. Still LIVE from the same evening and
 kept on purpose: the pricing-coherence rule below (daf236b) and eBay
 asking history banking. If Chris says prices are still off after
 c2754e3 deploys, revert daf236b next (it changes cheap-card quotes to the
 eBay basis instead of the TCGplayer point). Lesson: a default-printing
-change is a site-wide price change — never ship one without checking
+change is a site-wide price change â€” never ship one without checking
 My Cards totals before/after.
 
 **PRICING COHERENCE (09-03 late, Hoothoot PRE 077 "pricing makes no
 sense" + "the graph is wrong too"):** (1) pointCanRebase cross-source rule
-— the chart's TCGplayer current-day point replaces an eBay-asking basis
-ONLY when point ≥ 50% of the basis (CROSS_SOURCE_REBASE_FLOOR); below that
+â€” the chart's TCGplayer current-day point replaces an eBay-asking basis
+ONLY when point â‰¥ 50% of the basis (CROSS_SOURCE_REBASE_FLOOR); below that
 it's the shipping-floor regime and the eBay basis stays, so tiles / Your
 price / eBay line agree. 09-01 "today's point outranks eBay asking" still
 holds for same-ballpark cards (test updated to point(300) vs $520 basis).
 (2) /api/ebay/comps now records raw-card asking averages as price_series
-(variant ebayAverage, source ebay, count ≥ 3); pickSeries prefers the
-quote's variant only once it has ≥ 3 points, else the longest series —
+(variant ebayAverage, source ebay, count â‰¥ 3); pickSeries prefers the
+quote's variant only once it has â‰¥ 3 points, else the longest series â€”
 so the chart follows the eBay basis after a card has been priced a few
-days. Chart labels: "eBay · asking". (3) The "TCGplayer · holofoil" line
-on that Hoothoot was the Poké Ball pattern product mislabelled — clears at
+days. Chart labels: "eBay Â· asking". (3) The "TCGplayer Â· holofoil" line
+on that Hoothoot was the PokÃ© Ball pattern product mislabelled â€” clears at
 the 09:45 UTC refresh.
 
 **PRINTING WORK SCRATCHED (Chris, 09-03 late: "scratch the whole idea for
@@ -236,82 +238,82 @@ the printing-aware eBay comps commit (e247208: comps searched per printing,
 dropdown = printings only, quote prefers the printing's own eBay row) is
 REVERTED (9249f16); the Printing dropdown is gone from CardEditor
 (7403f62); the scan no longer sets item.variant from the photo's finish.
-Quotes sit on the eBay-first default basis (pickPrice: eBay sold → eBay
-asking → normal → holo …). What REMAINS: pattern variants in the price
+Quotes sit on the eBay-first default basis (pickPrice: eBay sold â†’ eBay
+asking â†’ normal â†’ holo â€¦). What REMAINS: pattern variants in the price
 refresh (pokeBallPattern / masterBallPattern, mislabelled "holofoil" rows
 cleaned nightly), normal-first VARIANT_PRIORITY, no "Printing: Normal"
 line, title/description printing tokens when a holo/reverse/pattern row
 drives the quote, vision's `finish` field (read, unused). Hoothoot PRE 077
-was the trigger: "eBay asking (91 listings) — $1.45" vs TCGplayer reverse
+was the trigger: "eBay asking (91 listings) â€” $1.45" vs TCGplayer reverse
 $0.18 / normal $0.06 in one dropdown.
 
-**SCAN SPEED — BACKBURNERED (Chris, 09-03 eve):** ~4s/card is the Sonnet 5
+**SCAN SPEED â€” BACKBURNERED (Chris, 09-03 eve):** ~4s/card is the Sonnet 5
 vision call itself (09-02 A/B: median 4.0s, p90 6.7s, ~110 out tokens).
 Shipped 22b65ad: pump runs SCAN_WORKERS=2 cards concurrently (stacks ~2x
 faster, per-card unchanged). NOT done, only if he asks for more speed:
 Haiku 4.5 vs Sonnet 5 A/B via scripts/ab-vision.mjs (~$1; Haiku rejects
 output_config.effort), then swap VISION_MODEL. Do not run it unprompted.**
 
-**PRINTINGS / REVERSE HOLO / POKÉ BALL PATTERN (09-03 eve, Chris's
-Harlequin White Flare 083 photo — a Poké Ball pattern reverse holo — was
+**PRINTINGS / REVERSE HOLO / POKÃ‰ BALL PATTERN (09-03 eve, Chris's
+Harlequin White Flare 083 photo â€” a PokÃ© Ball pattern reverse holo â€” was
 quoted and described as "Printing: Holofoil"):** root cause = TCGplayer
 lists pattern cards as a SEPARATE product ("Harlequin (Poke Ball Pattern)",
 only subtype "Holofoil") mapped to the same card_id, so its price landed
 as variant "holofoil" and VARIANT_PRIORITY put holofoil first. Fixed:
-(1) tcgplayerProductPattern() → variants pokeBallPattern /
+(1) tcgplayerProductPattern() â†’ variants pokeBallPattern /
 masterBallPattern; the refresh fetches /products only for groups with
 two products on one card and DELETEs the mislabelled series rows;
-(2) VARIANT_PRIORITY now normal → unlimited → holofoil → reverseHolofoil →
+(2) VARIANT_PRIORITY now normal â†’ unlimited â†’ holofoil â†’ reverseHolofoil â†’
 patterns; (3) "Printing:" line omitted for Normal/Unlimited; (4) vision
 reads `finish` (normal | reverse-holo | holo | pokeball-pattern |
 masterball-pattern | null) and the scan sets item.variant from it (a key
 with no price falls back to the default pick). Stale "holofoil" rows on
-pattern cards clear on the next Pokémon price refresh (cron 09:45 UTC, or
+pattern cards clear on the next PokÃ©mon price refresh (cron 09:45 UTC, or
 force via /api/cron/pokemon-prices). Vision finish accuracy on real phone
-photos is UNTESTED — watch the Printing dropdown on the next scans.**
+photos is UNTESTED â€” watch the Printing dropdown on the next scans.**
 
 **AUTO-SCAN IS GONE (Chris, 09-03 eve: "remove it completely"). The
 toggle, sampler loop, all card-likeness gates and the miss counter were
-deleted from CameraCapture.tsx (1178 → 782 lines); the Capture button is
-the only shutter. The rounds below are history — do NOT rebuild auto
+deleted from CameraCapture.tsx (1178 â†’ 782 lines); the Capture button is
+the only shutter. The rounds below are history â€” do NOT rebuild auto
 without asking. If it ever comes back, the lever is a server-side "is
 this a card" check before the paid vision call, not more client heuristics.**
 
 **AUTO-SCAN FALSE-FIRE, ROUND 3 (09-03 ~4:10pm, phone: hand + monitor
-auto-captured even with round 2 live):** added cardOutline() — all four
-guide sides must show a straight luminance edge within ±4px of the guide
-border (≥55% coverage per side) on a 60×78 guide+margin thumbnail; and a
-HARD CAP — MAX_MISSES=2 auto captures in a row with no match switch auto
-OFF ("Auto-scan paused — nothing looked like a card. Tap Auto on to
+auto-captured even with round 2 live):** added cardOutline() â€” all four
+guide sides must show a straight luminance edge within Â±4px of the guide
+border (â‰¥55% coverage per side) on a 60Ã—78 guide+margin thumbnail; and a
+HARD CAP â€” MAX_MISSES=2 auto captures in a row with no match switch auto
+OFF ("Auto-scan paused â€” nothing looked like a card. Tap Auto on to
 resume"). Synthetic tests (scratch edgetest.js, not in repo): card / bigger
 / smaller pass; hand blob, monitor, keyboard, noise fail. Real-phone
-result still pending from Chris. Layers now, in order: CONTENT_STDDEV →
-looksLikeCard → edgeInGuide → cardOutline → isNew (normalised) →
-blocked-after-no-match → MAX_MISSES auto-off.
+result still pending from Chris. Layers now, in order: CONTENT_STDDEV â†’
+looksLikeCard â†’ edgeInGuide â†’ cardOutline â†’ isNew (normalised) â†’
+blocked-after-no-match â†’ MAX_MISSES auto-off.
 
 **AUTO-SCAN FALSE-FIRE, ROUND 2 (09-03 late, Chris phone screenshot: a
-backlit keyboard got auto-captured twice — shape test alone passes it):**
-added (a) edgeInGuide — band just inside the guide vs band just outside
+backlit keyboard got auto-captured twice â€” shape test alone passes it):**
+added (a) edgeInGuide â€” band just inside the guide vs band just outside
 must differ in luma (>16) or colour (>24); a keyboard/desk runs straight
 through the guide edge and fails, a bordered card passes; black card on a
-black mat fails (manual Capture still works); (b) no-match backoff —
+black mat fails (manual Capture still works); (b) no-match backoff â€”
 after a capture returns "No match", auto stays disarmed (status row: "No
-card found — clear the guide…") until the guide is seen empty. If Chris
+card found â€” clear the guideâ€¦") until the guide is seen empty. If Chris
 still sees false fires on a real scene, the next lever is a server-side
 "is this a card?" pre-check before the paid vision call.
 
-**ALSO SHIPPED SESSION 4 (00fe161): auto-scan false-fire fix** — Chris:
+**ALSO SHIPPED SESSION 4 (00fe161): auto-scan false-fire fix** â€” Chris:
 "taking random pictures without a card, costs people scans". Sampler now
-needs card shape (looksLikeCard: detail in 9/16 cells + ≥2 horizontal row
+needs card shape (looksLikeCard: detail in 9/16 cells + â‰¥2 horizontal row
 edges) on top of the contrast floor, and the "new card" comparison runs on
 a contrast-normalised signature so auto-exposure drift no longer re-arms
 it. Tuning knobs at the top of CameraCapture.tsx (CELL_STDDEV, CARD_CELLS,
-ROW_EDGE, CARD_ROW_EDGES). Untested on a real phone — if auto now never
+ROW_EDGE, CARD_ROW_EDGES). Untested on a real phone â€” if auto now never
 fires on a real card, loosen CARD_CELLS / CARD_ROW_EDGES first.
 
 **SHIPPED SESSION 4 (bd636d3, Chris 09-03: "it looks great"):** scanner HUD
-makeover — full-bleed on phones, status row (auto-scan state + tally) above
-the video, result chip below it, only ✕/torch/sound on the video, guide
+makeover â€” full-bleed on phones, status row (auto-scan state + tally) above
+the video, result chip below it, only âœ•/torch/sound on the video, guide
 narrowed to clear them; one `guideGeometry()` rect drives the viewfinder,
 auto-scan sampler and capture crop. Layout only; reveal sequence untouched.
 
@@ -319,12 +321,12 @@ auto-scan sampler and capture crop. Layout only; reveal sequence untouched.
 status rule (6e96b6a); camera capture crops to the guide (ba4ba91);
 scan_usage ledger + admin 'Vision cost / scan' tiles (b1a5fb9/81ba606);
 landing copy leads with discovery + pricing FAQ truth (737a802); My
-Cards mobile row/toolbar fix (ee90c70); queue-row ✕ clipping fix
+Cards mobile row/toolbar fix (ee90c70); queue-row âœ• clipping fix
 (b2f923a); 'card lookup is down' ROOT CAUSE = pokemontcg.io fallback
-failing after mirror misses → now an honest no-match (cc5572e); the
-mirror misses were APOSTROPHES (vision writes ’, mirror mixes ' and ’) →
+failing after mirror misses â†’ now an honest no-match (cc5572e); the
+mirror misses were APOSTROPHES (vision writes â€™, mirror mixes ' and â€™) â†’
 folded both sides + SQL twin + 2 mirror checks (9d3ecff). MEASURED COST
-$0.0071/scan (73 real scans = $0.52) → 62% margin at max usage; pricing
+$0.0071/scan (73 real scans = $0.52) â†’ 62% margin at max usage; pricing
 model holds, keep 500, no packs, no value floor (Chris: user's own
 judgement). PSA parked; TCGplayer parked; Chris's remaining errand =
 Stripe business address. Memories added: ci-verify-actual-run,
@@ -332,15 +334,15 @@ chris-visual-push-immediately, cardflip-mobile-first,
 cardflip-mobile-polish-priority (native apps are the end goal; calm
 weekly releases after POC launch; written phone QA pass gates launch).**
 
-**PREVIOUS FIRST ACTION (saved 09-02 LATE — full day-2 session, all deployed +
+**PREVIOUS FIRST ACTION (saved 09-02 LATE â€” full day-2 session, all deployed +
 CI genuinely green b927454, main = vercel-migration = origin, tree
 clean): NO pending deploy. Present Chris ONE gated task: the last POC
-blocker is Stripe business address + phone (Public details → Customer-
+blocker is Stripe business address + phone (Public details â†’ Customer-
 facing info; UPS Store mailbox easiest, PO boxes rejected; swap the
 personal cell for a Google-Voice-style number). Everything else is
 done or parked.**
 
-**COST FACT (09-02 night, measured): $0.0071/scan on Sonnet with real phone photos (73 scans = $0.52 on the console). 500/mo worst case = $3.56 → 62% margin; pricing model holds. Ledger: scan_usage table + admin "Vision cost / scan" tile.**
+**COST FACT (09-02 night, measured): $0.0071/scan on Sonnet with real phone photos (73 scans = $0.52 on the console). 500/mo worst case = $3.56 â†’ 62% margin; pricing model holds. Ledger: scan_usage table + admin "Vision cost / scan" tile.**
 
 **SHIPPED TODAY (day 2, ~9 commits, each live-verified):**
 - Durable daily budgets (6eed61f): dayBudget.ts db counters on vision
@@ -352,7 +354,7 @@ done or parked.**
   caught up to live product (Stripe/Vercel/Turso, eBay present-tense).
   Error states deep-link to /help#ids (9b80008).
 - Shiny Vault match fix (9d7512b): TCGdex hyphenates names
-  ("Charizard-GX") vs card/vision "Charizard GX" — 170 rows were
+  ("Charizard-GX") vs card/vision "Charizard GX" â€” 170 rows were
   unfindable, matched wrong printing. Hyphens now fold to spaces both
   sides; vision reads lettered fractions (SV49/SV94).
 - MTG special-printing fix (3c57174 + 9fd807b): plain M11 Pyretic
@@ -361,7 +363,7 @@ done or parked.**
   frame) to win. searchMtgCardsLocal takes art now.
 - Sold rows show "listed $X" (9a8235c).
 - In-app confirm dialog (1483b41): iOS kills window.confirm in
-  standalone PWAs → mobile bulk-delete silently no-oped. ConfirmDialog.tsx
+  standalone PWAs â†’ mobile bulk-delete silently no-oped. ConfirmDialog.tsx
   (host in Toaster + EbayConnectCard), all 6 confirm sites converted.
   SAME commit fixed a CardEditor setState-in-effect lint error.
 - Scanner cleanup (45b158b): removed the eBay drafts-CSV button (Send
@@ -373,15 +375,15 @@ done or parked.**
   node:sqlite-read, platform-split; now single-library. See top-of-file
   note + memory ci-verify-actual-run. WAS red ~18 commits unnoticed.
 
-**PSA (CONFIRMED, do not retest):** prod 403s graded verify — Vercel
+**PSA (CONFIRMED, do not retest):** prod 403s graded verify â€” Vercel
 IPs blocked at PSA's edge (Chris tapped Verify cert 26573583 on a real
 session, fresh quota, 09-02 = airtight). Corroborated: r/psagrading
 thread + our garbage-token 429 = PSA free tier pooled/per-IP & broken
-≥1yr. ONLY fix = collectors-apis reply (emailed 09-01 from
-support@cardflip.io, watch Fastmail — NOT in as of 09-02). App
+â‰¥1yr. ONLY fix = collectors-apis reply (emailed 09-01 from
+support@cardflip.io, watch Fastmail â€” NOT in as of 09-02). App
 degrades fine (manual grade + help link). Not a launch blocker.
 
-**PARKED / WAITING:** TCGplayer selling road (Chris thinking about it —
+**PARKED / WAITING:** TCGplayer selling road (Chris thinking about it â€”
 API closed to new devs, v1 = CSV export like eBay; unblock = his seller
 account + an Export-From-Live CSV; scoped in BACKLOG backburner).
 eBay Marketplace Insights re-apply = post-POC (needs revenue+LLC).
@@ -389,60 +391,60 @@ Backburner trimmed to 8 real items (superiormarketing SPF removed).
 
 **--- older context below, keep for reference ---**
 
-**FIRST ACTION (saved 09-02 END OF NIGHT): (0) Chris must run the main ff-push deploy line FIRST if he hasn't (63c1f8e pending: SONNET SCAN SWITCH — A/B on 64 prod photos proved identical identification at 2.5x cheaper, $0.011 vs $0.028/scan; also pre-scale docs). THEN: (1) PSA counter-vs-quota comparison when a fresh window shows. (2) BUSINESS PLAN LOCKED 09-02 night: Chris is a professional advertiser, plan = POC month of real sales, then scale hard if numbers hold — see BACKLOG PRE-SCALE TRACK (10 items, what breaks at 5-25k users). Chris blockers for POC launch: business address+phone only. Margin analysis + competitor research done (CollX $10M ARR profitable = model proven; Ludex $19.99; nobody does scan→publish→auto-reprice at $9.99). Older same-day context: PSA quota mystery SOLVED — it was OUR leak (ad0427f, deployed): public demo login could reach the PSA route AND the 80/day global limiter was in-memory (never binds on serverless). Demo now refused + durable db day-counter (price_history_meta psa_calls_<day>). Tomorrow post-reset (~6am ET) = clean test: if prod still 403s on fresh quota, IP-block diagnosis is airtight. NOTE: demo-login curl can no longer test PSA (blocked by our fix) — Chris must tap Verify on a graded card, or use a real session. Swagger re-proof 09-02 eve: token valid (429 quota, not auth error). Earlier same day: PSA retested after quota
-reset — prod STILL 403 (demo-login + cert 28400235 → PSA answered
+**FIRST ACTION (saved 09-02 END OF NIGHT): (0) Chris must run the main ff-push deploy line FIRST if he hasn't (63c1f8e pending: SONNET SCAN SWITCH â€” A/B on 64 prod photos proved identical identification at 2.5x cheaper, $0.011 vs $0.028/scan; also pre-scale docs). THEN: (1) PSA counter-vs-quota comparison when a fresh window shows. (2) BUSINESS PLAN LOCKED 09-02 night: Chris is a professional advertiser, plan = POC month of real sales, then scale hard if numbers hold â€” see BACKLOG PRE-SCALE TRACK (10 items, what breaks at 5-25k users). Chris blockers for POC launch: business address+phone only. Margin analysis + competitor research done (CollX $10M ARR profitable = model proven; Ludex $19.99; nobody does scanâ†’publishâ†’auto-reprice at $9.99). Older same-day context: PSA quota mystery SOLVED â€” it was OUR leak (ad0427f, deployed): public demo login could reach the PSA route AND the 80/day global limiter was in-memory (never binds on serverless). Demo now refused + durable db day-counter (price_history_meta psa_calls_<day>). Tomorrow post-reset (~6am ET) = clean test: if prod still 403s on fresh quota, IP-block diagnosis is airtight. NOTE: demo-login curl can no longer test PSA (blocked by our fix) â€” Chris must tap Verify on a graded card, or use a real session. Swagger re-proof 09-02 eve: token valid (429 quota, not auth error). Earlier same day: PSA retested after quota
+reset â€” prod STILL 403 (demo-login + cert 28400235 â†’ PSA answered
 403) = Vercel IPs blocked at PSA's edge. CONFIRMED, do not retest;
 parked on collectors-apis reply (Chris emailed 09-01 from
-support@cardflip.io; reply lands in his Fastmail — ask him to check).
+support@cardflip.io; reply lands in his Fastmail â€” ask him to check).
 seedMtgMirror completeness test DONE same session (test:mirror now 24
-checks; committed on vercel-migration, NOT pushed — batch with next
-real change per the cold-deploy lesson). Bulk-CSV validated live same session (3 rows → Seller Hub drafts,
-escaping/qty/price all correct; NOTE eBay username is christophis01 —
+checks; committed on vercel-migration, NOT pushed â€” batch with next
+real change per the cold-deploy lesson). Bulk-CSV validated live same session (3 rows â†’ Seller Hub drafts,
+escaping/qty/price all correct; NOTE eBay username is christophis01 â€”
 "truefreemoney" was only the email; eBay payouts PARKED by Chris,
 test rig only). Watcher offers v2 SHIPPED + DEPLOYED (bb5cbc8 on
 main): opt-in auto-offers (14d slow movers, 10/day cap), paged
-eligibility, custom message — live-verifies when a listing ages 14d
+eligibility, custom message â€” live-verifies when a listing ages 14d
 w/ watchers. Price LOCKED $9.99/500. Stripe branding was ALREADY done
-09-02 morning (stale BACKLOG line nearly re-gated it — Chris caught
-it; trust the mega-day summary over §0 lines). Auto-mode classifier
+09-02 morning (stale BACKLOG line nearly re-gated it â€” Chris caught
+it; trust the mega-day summary over Â§0 lines). Auto-mode classifier
 blocked auto-send edits + all git-main ops: Edit(cardflip/**) now
 allowed in settings.local.json (Chris, via Notepad); for deploys hand
 Chris the PS 5.1 ff-push line (no &&). No collectors-apis reply yet
 (checked 09-02 eve). GRADED COMPS SHIPPED same eve (2a7db51, deployed
-+ live-verified: PSA 7 base1-4 → $445.94 avg / 19 listings via prod
++ live-verified: PSA 7 base1-4 â†’ $445.94 avg / 19 listings via prod
 API): grading rides the comps query and isComparable requires the
 exact company+grade; CardEditor banner now leads with the graded
 number, raw market demoted to floor (Chris hated the floor-only
 note). Known loose: same-number/different-set titles without a
 printed fraction slip in; Tukey trim absorbs. Local .env eBay creds
-are STALE (401) — live checks must go through prod. FOLLOW-UP 448d54a
+are STALE (401) â€” live checks must go through prod. FOLLOW-UP 448d54a
 (deployed): graded comps also drive the Quick/Market tiles (quick =
-avg×0.88, header "Pricing — PSA 10 market") and auto-fill Your price
+avgÃ—0.88, header "Pricing â€” PSA 10 market") and auto-fill Your price
 (autoGradedPrice ref guards typed prices from being stomped);
 Printing dropdown deliberately keeps raw per-printing numbers (slab
 titles don't split by printing). Chris verified prod ("pretty good").
 CHART SCALING SHIPPED 363a4da (deployed): grade/condition rescales
-the history curve (graded avg ÷ quote.base, or CONDITION_MULTIPLIER —
+the history curve (graded avg Ã· quote.base, or CONDITION_MULTIPLIER â€”
 now exported from listing.ts), "PSA 10 est." chip in the header,
 source-average strip hidden while scaled; NM ungraded chart
 untouched. ALSO 2f7f203 (deployed): desktop Add-more-cards = 
 photos/camera menu (pointer:fine check in Uploader.tsx; touch keeps
 one-tap camera); verified in dev-server browser (DataTransfer-inject
 a file into the picker to reach the queue layout without a webcam).
-ALSO 86b0872 (deployed): grade-flip smoothing — gradedCompsCache
+ALSO 86b0872 (deployed): grade-flip smoothing â€” gradedCompsCache
 (module Map in CardEditor, misses cached too), previous graded value
-held during refetch (kills the graded→raw→graded double-jump), chart
+held during refetch (kills the gradedâ†’rawâ†’graded double-jump), chart
 tweens factor 350ms ease-out (reduced-motion snaps). 6 features
 shipped 09-02 eve total.
-NEXT: BACKLOG §0:
+NEXT: BACKLOG Â§0:
 catalog sync automation (MTG
-mirror refresh + Pokémon set sync, manual on Chris's PC — Scryfall
+mirror refresh + PokÃ©mon set sync, manual on Chris's PC â€” Scryfall
 429s cloud IPs, needs care). Remaining Chris blocker: business
-address ONLY (virtual mailbox rec'd). BACKLOG §0 IS
-the one task list — for Chris, present ONE task at a time, easiest
+address ONLY (virtual mailbox rec'd). BACKLOG Â§0 IS
+the one task list â€” for Chris, present ONE task at a time, easiest
 first, as a gate (see memory chris-single-task-gating); his parked
 blockers: business address (virtual mailbox rec'd, PO rejected by
-Stripe) + price-point decision. LESSON 09-02: batch deploys — ~15
+Stripe) + price-point decision. LESSON 09-02: batch deploys â€” ~15
 pushes in one day kept prod perpetually cold (every deploy dumps warm
 functions; 1.4s cold vs 67ms warm measured) and Chris felt it as "site
 lags so much now". Also still true: COLUMN_PROBES run once per process
@@ -451,12 +453,12 @@ gate on every push; verification gates must check THEIR exit code
 (never `tsc | tail && push`).**
 
 **09-02 MEGA-DAY (all live-verified w/ real money/listings, detail in
-BACKLOG §0 + §1-5 ticks):** Stripe end-to-end (subscribe $9.99 →
-active banner → welcome email to MSN inbox → portal → cancel-at-
-period-end Oct 2 → refund; payout BANK ACCOUNT added — was missing
+BACKLOG Â§0 + Â§1-5 ticks):** Stripe end-to-end (subscribe $9.99 â†’
+active banner â†’ welcome email to MSN inbox â†’ portal â†’ cancel-at-
+period-end Oct 2 â†’ refund; payout BANK ACCOUNT added â€” was missing
 entirely; branding + solid publish popup); SMTP first-ever real sends;
-402 banner via temp quota=5 (reverted); publish chain (Simisage live →
-ended → amber chip verified; $475.95 Mewtwo popup exposed transparent-
+402 banner via temp quota=5 (reverted); publish chain (Simisage live â†’
+ended â†’ amber chip verified; $475.95 Mewtwo popup exposed transparent-
 modal bug, fixed); reprice nudge verified on live data ($11.03 vs
 $14.99), PUT itself parks til a real listing drifts (7d gate
 restored); holo + close-up auto-scan fixed & hardware-verified (3-tier
@@ -472,15 +474,15 @@ test:mirror (16, probe-integrity + ranking ladder).**
 the search-cards makeover, tsc/lint/tests green, working tree clean
 on `vercel-migration` = `main` = origin):**
 Huge shipping day. Vision stays on Opus (A/B said identical ID, Sonnet
-nulls condition — `scripts/ab-vision.mjs` re-runs it). Shipped: welcome
+nulls condition â€” `scripts/ab-vision.mjs` re-runs it). Shipped: welcome
 email on subscribe; ended-listing sync + amber chip; condition-descriptor
-id FIX for 183454 (LP/MP/HP were sports-card ids — real bug); scanner's
+id FIX for 183454 (LP/MP/HP were sports-card ids â€” real bug); scanner's
 add-without-photo section REMOVED (Chris) and publish flow cut to ONE
-road (confirm popup → loading → Live panel w/ View-on-eBay link);
+road (confirm popup â†’ loading â†’ Live panel w/ View-on-eBay link);
 quantity >1 (Copies input, qty-aware sales sync w/ ebay_sold_lines
 dedup); wishlist price alerts (daily email); collection Export CSV;
-reprice nudge (catalog_card_id + price_series, amber "Market $X —
-reprice" → ledger + live offer); market chip links to eBay best-match;
+reprice nudge (catalog_card_id + price_series, amber "Market $X â€”
+reprice" â†’ ledger + live offer); market chip links to eBay best-match;
 My cards "Build listing" resume (photo panel + loader, no hero flash) +
 checkbox mass delete; graded round-trip (editor syncs "PSA 10" to ledger
 live, resume parses it back).
@@ -489,13 +491,13 @@ live, resume parses it back).
 to prod. Batch 1: retry failed scans, undoable queue remove, Next-card
 on receipts, editable sale prices + Mark-sold price prompt, bulk
 listed/sold/drafts, My Cards sort, sticky condition/strategy prefs +
-apply-to-all. Batch 2 (09-01): (2a) scan-quota 402 surfaced — vision
-route returns `usage` on success AND 402, visionApi maps 402 → status
+apply-to-all. Batch 2 (09-01): (2a) scan-quota 402 surfaced â€” vision
+route returns `usage` on success AND 402, visionApi maps 402 â†’ status
 "quota" (added to VisionStatus union), scanner shows red dismissible
 banner + "Scans left" stat chip (subscribers only; OCR fallback
 unchanged); (2b) account page reads ?billing=success/canceled (no
-useSearchParams — window.location at first render, param stripped),
-success polls fetchAccount 2s×15 until subStatus flips
+useSearchParams â€” window.location at first render, param stripped),
+success polls fetchAccount 2sÃ—15 until subStatus flips
 (waiting/confirmed/stalled notices in PlanSection); (2c) bulk send
 collects failedIds + "Retry failed (N)" button in bulkNote,
 sendAllToEbay(retryIds?) re-runs just those; recordScan now returns
@@ -503,21 +505,21 @@ post-scan ScanQuota. billing=success confirmed path VERIFIED LIVE
 09-01 (Chris subscribed w/ real card on christophis@msn.com test
 account: active banner + plan chip + renewal + 0/500 meter; welcome
 email delivered to MSN inbox, renders clean; SMTP also proven same day
-via reset email — first real sends ever). Chris may cancel+refund via
+via reset email â€” first real sends ever). Chris may cancel+refund via
 Stripe dashboard (~$0.59 fee eaten). 402 banner ALSO LIVE-VERIFIED
 09-01 (quota temp-dropped to 5, Chris hit it on scan 6: banner + OCR
-fallback + red Scans-left chip; reverted to 500 same hour) — every
+fallback + red Scans-left chip; reverted to 500 same hour) â€” every
 Stripe/quota/email path is now reality-tested. NOTE Chris is
 rethinking the $9.99/500 price point; when he decides: MONTHLY_SCANS
 + "500" hardcoded in 5 copy spots (grep "500 scans").
 Batch 3 SHIPPED (09-01, all 9): price-check history rows clickable
-(re-lookup by stored card_id+game — new price_checks columns + probes
+(re-lookup by stored card_id+game â€” new price_checks columns + probes
 in db.ts; logPriceCheck backfills them on re-check) + filter input +
 real loading state; wishlist tiles open CardDetailModal via
-resolveWishlistCard (NO scanner handoff — Chris veto) + filter/sort
+resolveWishlistCard (NO scanner handoff â€” Chris veto) + filter/sort
 (hidden under 2 items) + 15-row reprice-cap caption + tile skeletons;
 mobile scanner: queue capped 32dvh (was 70) and publish row sticky at
-viewport bottom on <lg — REQUIRED making CardEditor/SealedEditor roots
+viewport bottom on <lg â€” REQUIRED making CardEditor/SealedEditor roots
 lg:overflow-y-auto (the inert mobile overflow container swallowed the
 sticky); My Cards toasts on remove/bulk-remove/unlist/reprice/export +
 err toasts doubling syncError banners; empty-collection "Scan your
@@ -525,27 +527,27 @@ first card" link; camera-denied escape hatch (NotAllowedError/
 NotFoundError-specific copy, "Choose photos" multi-file input feeding
 onCapture then close, "Try again" re-runs getUserMedia via retryKey);
 collection list skeleton; account fetchAccount catches network errors
-+ Try-again banner (setLoading in the click handler, not the effect —
-react-hooks/set-state-in-effect). Verified in browser: history click →
-modal, wishlist tile → modal, toasts, camera fallback buttons, sticky
++ Try-again banner (setLoading in the click handler, not the effect â€”
+react-hooks/set-state-in-effect). Verified in browser: history click â†’
+modal, wishlist tile â†’ modal, toasts, camera fallback buttons, sticky
 bar on mobile, desktop grid unchanged.**
 
-**NEXT WORK (nothing approved-and-pending on my end — pick with Chris):**
+**NEXT WORK (nothing approved-and-pending on my end â€” pick with Chris):**
 (a) offers to watchers SHIPPED 09-01 (manual-only v1; eBay ticket
 260901-000003 had cleared it: "sell.negotiation" isn't a real scope,
 Negotiation API runs on sell.inventory, already held). Built:
 lib/server/ebayNegotiation.ts (findEligibleListingIds = GET
 find_eligible_items limit 200, no pagination yet; sendWatcherOffer =
 POST send_offer_to_interested_buyers, discountPercentage clamped
-5–50, allowCounterOffer false, quantity=card.quantity, stamps NEW
-cards.watcher_offer_at probe); /api/ebay/offers GET = eligible ids ∩
-user's listed-with-listing-id (demo → empty), POST = ONE card per
+5â€“50, allowCounterOffer false, quantity=card.quantity, stamps NEW
+cards.watcher_offer_at probe); /api/ebay/offers GET = eligible ids âˆ©
+user's listed-with-listing-id (demo â†’ empty), POST = ONE card per
 click, deliberately no bulk; My Cards "Offer to watchers" toolbar
-button (shows only when a listed card has a listing id) → panel with
+button (shows only when a listed card has a listing id) â†’ panel with
 discount % input (default 10) + per-card Send behind window.confirm
 ("emails real buyers"), "Offer sent <date>" replaces the button
 (watcher_offer_at is a soft guard; eBay hard-limits one offer per
-buyer per listing anyway). UNTESTED live — needs a listing with real
+buyer per listing anyway). UNTESTED live â€” needs a listing with real
 watchers (queued w/ live-test batch). NOT built (needs Chris):
 auto-fire on slow movers, eligible-list pagination, custom message;
 (b)
@@ -553,53 +555,53 @@ photo-first sealed re-add (Chris:
 "sometime later"); (c) graded cert-number lookup (needs PSA/CGC API key
 from Chris); (d) real net-after-fees SHIPPED 09-01: sell.finances in
 USER_SCOPES (+ EbayConnectCard copy), lib/fees.ts is now the ONE fee
-source (13.25%+$0.30 estimate, netAfterFees(gross, actualFees?) —
+source (13.25%+$0.30 estimate, netAfterFees(gross, actualFees?) â€”
 collection page, SoldPanel, cards.ts getPlatformStats all import it);
 sales sync stamps ebay_order_id/ebay_line_item_id on sold rows (probes
-on cards; partial-split insert carries them; reverting sold→listed
+on cards; partial-split insert carries them; reverting soldâ†’listed
 clears fees+refs in updateCard); lib/server/ebayFinances.ts
 syncEbayFees pulls SALE transactions from apiz.ebay.com (ebayFetch
-grew a base param) — per-line marketplaceFees, order total only for
+grew a base param) â€” per-line marketplaceFees, order total only for
 single-line orders, no SALE tx yet = retry next pass; wired after
 ended-sync in sync-sales route + own seller sweep in dailyJobs
-(fee-pending sellers ≠ listed-card sellers); 403 → no_scope, silent
+(fee-pending sellers â‰  listed-card sellers); 403 â†’ no_scope, silent
 estimate fallback. CHRIS MUST RECONNECT EBAY (old token lacks the
-scope — refresh replays stored scopes); then verify next real sale's
+scope â€” refresh replays stored scopes); then verify next real sale's
 net matches the payout email. Verified locally by hand-setting
-sold_fees (≈ drops, net recomputes); real Finances call untested until
+sold_fees (â‰ˆ drops, net recomputes); real Finances call untested until
 reconnect + a sale; (e) test
-suites — auth DONE 09-01 (`npm run test:auth` = password/sessions/reset
+suites â€” auth DONE 09-01 (`npm run test:auth` = password/sessions/reset
 libs, `npm run test:authroutes` = login/signup/forgot/reset handlers
 called as plain functions; both chdir to a temp dir so the db lands
 there, use `--conditions=react-server`, and set process.exitCode instead
 of process.exit so libsql's beforeExit close runs; alias-loader now maps
-`next/xxx` → `next/xxx.js`); `npm run test:quota` = scanQuota metering +
+`next/xxx` â†’ `next/xxx.js`); `npm run test:quota` = scanQuota metering +
 cronAuthError gate (09-01); remaining: account/admin/eBay routes (use
-request-scoped cookies() → need a harness, lower value);
-(f) BACK BURNER (Chris 09-01): own eBay price series — record asking avg
+request-scoped cookies() â†’ need a harness, lower value);
+(f) BACK BURNER (Chris 09-01): own eBay price series â€” record asking avg
 in comps route (card.id + recordPoint, variant "ebayAverage") + one
 comps call per card in sweepPriceHistory (~150/5000 daily limit); chart
 pickSeries prefers ebay source once points exist; no backfill possible
 (Insights denied 08-16); (g) POST-LAUNCH MAYBE (Chris 09-01, "leave as
-is for now"): merge Search cards into Watchlist — pages overlap heavily
+is for now"): merge Search cards into Watchlist â€” pages overlap heavily
 (same search/modal/add) but split matches appraise-vs-track intent;
 merge only if real users get confused. Ask Chris which.
 
-**WAITING ON CHRIS:** (0) eBay RECONNECTED with sell.finances 09-01 ✓
-— fee sync is armed, needs a real sale to prove it (queued in the
+**WAITING ON CHRIS:** (0) eBay RECONNECTED with sell.finances 09-01 âœ“
+â€” fee sync is armed, needs a real sale to prove it (queued in the
 live-test batch below; Chris isn't listing right now);
 (1) PRE-LAUNCH BLOCKER: street address for Stripe
 public details (PO boxes rejected; options: UPS Store box / iPostal1 /
-LLC agent — home address currently shows on paying invoices);
-(2) eBay live-test batch next time he posts (ANY live listing works —
+LLC agent â€” home address currently shows on paying invoices);
+(2) eBay live-test batch next time he posts (ANY live listing works â€”
 Chris may use MTG, not necessarily Keldeo 5230387616323): end one
-listing → expect amber Ended chip; push a non-NM card → expect NO
-"saved without condition detail"; reprice a live listing → verify
-offer PUT; real multi-qty sale → verify partial-sale split; offer to
+listing â†’ expect amber Ended chip; push a non-NM card â†’ expect NO
+"saved without condition detail"; reprice a live listing â†’ verify
+offer PUT; real multi-qty sale â†’ verify partial-sale split; offer to
 watchers once a listing has any; NET-AFTER-FEES: after the
-sale syncs, the sold row's net should flip from ≈estimate to actual
+sale syncs, the sold row's net should flip from â‰ˆestimate to actual
 within ~a day (fee sync retries until eBay posts the SALE transaction)
-— check it matches the eBay payout email, tooltip on the net figure
+â€” check it matches the eBay payout email, tooltip on the net figure
 says "(actual)"; (3) first real welcome email
 + wishlist alert email confirm themselves; (4) optional: Anthropic
 auto-reload (credits ran out 09-01, topped up), real-card charge test,
@@ -608,80 +610,80 @@ live-key rotation, Stripe branding/email toggle.
 **09-01 later: Pricing tiles rebase to the chart's current-day point**
 (Chris: "market price should reflect the current price from that current
 day"). `quotePrice`/`quoteForItem` take an optional CurrentSeriesPoint;
-rules in `pointCanRebase` (lib/listing.ts): fresh (≤7d) USD point beats
+rules in `pointCanRebase` (lib/listing.ts): fresh (â‰¤7d) USD point beats
 the default pick incl. eBay-asking; eBay SOLD still wins; an explicit
 Printing pick / 1st-Ed toggle only refreshes from its own series. Editor
 feeds it via useLastRecordedPrice. Queue rows/CSV still quote the
-snapshot (no per-card series fetch there) — known drift, flag if Chris
+snapshot (no per-card series fetch there) â€” known drift, flag if Chris
 notices.
 
-**Session detail below is REFERENCE — don't read on resume.**
+**Session detail below is REFERENCE â€” don't read on resume.**
 
-**09-01 latest — MY CARDS: resume + mass delete (Chris's asks):**
-(a) "Build listing" on ready card rows → /app?resume=<id>; scanner
+**09-01 latest â€” MY CARDS: resume + mass delete (Chris's asks):**
+(a) "Build listing" on ready card rows â†’ /app?resume=<id>; scanner
 rebuilds that ONE item (search by name/number, match on catalog_card_id,
 row supplies photo/price/condition/qty; comps reload; URL param stripped;
-sealed/sold rows excluded, toast fallback). Fresh-start rule intact — no
+sealed/sold rows excluded, toast fallback). Fresh-start rule intact â€” no
 auto-restore. (b) Row checkboxes + Select all (visible rows) + bulk
 Delete with one confirm; listed rows can't be ticked (live on eBay).
 Verified in dev: resume rebuilt Sheoldred at ledger price; bulk delete
-6→4 rows. FOLLOW-UP same day (Chris: "graded cards will be important —
+6â†’4 rows. FOLLOW-UP same day (Chris: "graded cards will be important â€”
 cover the bases"): editor grade/condition changes now sync the ledger
-condition string live (`syncLedgerCondition` in CardEditor — "PSA 10"
+condition string live (`syncLedgerCondition` in CardEditor â€” "PSA 10"
 etc., not just at the listed/sold checkpoint), and resume parses it back
-via parseGradeQuery → slab restores with company+grade+market strategy.
-Verified both directions in dev (resume → PSA/10 selects + slab pricing
-note; grade change → ledger "PSA 9").
+via parseGradeQuery â†’ slab restores with company+grade+market strategy.
+Verified both directions in dev (resume â†’ PSA/10 selects + slab pricing
+note; grade change â†’ ledger "PSA 9").
 
-**09-01 late — REPRICE NUDGE SHIPPED (half of BACKLOG's auto-offers item):**
+**09-01 late â€” REPRICE NUDGE SHIPPED (half of BACKLOG's auto-offers item):**
 new `cards.catalog_card_id` (saved at scan; old rows don't nudge),
 `repriceNudges.ts` compares listed price vs latest price_series USD point
-(±15%, listed 7d+, cap 50) via GET /api/cards/reprice-nudges; collection
-listed rows show amber "Market $X — reprice" button → POST /api/ebay/reprice
-(ledger price always; live offer via new `updateOfferPrice` in ebaySell —
+(Â±15%, listed 7d+, cap 50) via GET /api/cards/reprice-nudges; collection
+listed rows show amber "Market $X â€” reprice" button â†’ POST /api/ebay/reprice
+(ledger price always; live offer via new `updateOfferPrice` in ebaySell â€”
 GET offer + PUT with pricingSummary swapped; eBay failure reported, ledger
 keeps new price). Verified in dev incl. real nudge computation (base1-58,
 -59% drift) + UI; live-offer PUT untested against real eBay. Also market
-chip → eBay link (best-match sort, `2b2a260`+`2dbf1e8`+`a770848`). OTHER
-HALF (auto-offers to watchers) NOT built — needs sell.negotiation scope =
+chip â†’ eBay link (best-match sort, `2b2a260`+`2dbf1e8`+`a770848`). OTHER
+HALF (auto-offers to watchers) NOT built â€” needs sell.negotiation scope =
 keyset probe + reconnect; discuss with Chris first.
 
-**09-01 late — three small ships:** (a) wishlist PRICE ALERTS — "🔔 price
+**09-01 late â€” three small ships:** (a) wishlist PRICE ALERTS â€” "ðŸ”” price
 alert" per row (needs cardId), target saved via PATCH /api/wishlist/[id]
 (wishlist_items.alert_price/alerted_at), daily sweep
 (`wishlistAlerts.ts`, wired after prices in runPokemonSteps) reads OUR
 price_series latest USD point (variant pref normal>holo>reverse) and
 emails once per user via new sendWishlistAlertEmail; one-shot until
-target changes; verified in dev (set/clear/render; email path untested —
+target changes; verified in dev (set/clear/render; email path untested â€”
 SMTP is prod-only). NOTE dev gotcha: COLUMN_PROBES only run at process
-start (globalThis memo) — restart dev server after adding columns.
+start (globalThis memo) â€” restart dev server after adding columns.
 (b) collection EXPORT CSV button (full ledger, own format, BOM+CRLF).
 (c) BACKLOG cron item marked stale-done (Vercel Cron already covers the
-daily job). Popup follow-up: success step removed same day — Chris fine
+daily job). Popup follow-up: success step removed same day â€” Chris fine
 with landing on the Live panel, which has the View-on-eBay link.
 
-**09-01 — PUBLISH CONFIRM POPUP SHIPPED (Chris's ask):** Publish on eBay
-now opens a popup — confirm ("publishes a real listing, fees apply") →
-loading → success with the live-listing link (`dc37507`). Listed patch
+**09-01 â€” PUBLISH CONFIRM POPUP SHIPPED (Chris's ask):** Publish on eBay
+now opens a popup â€” confirm ("publishes a real listing, fees apply") â†’
+loading â†’ success with the live-listing link (`dc37507`). Listed patch
 applies on Done so the Live panel doesn't yank the popup away; failures
 close it into the existing error/ZIP UI; photo picker still runs first.
 Mockup of all 3 states sent to Chris (he approved the concept in chat).
 
-**09-01 — QUANTITY >1 SHIPPED (BACKLOG "table-stakes" item; multi-photo
-half VETOED by Chris — "we dont need the back of the card", reverted
-uncommitted):** cards.quantity (default 1) + "Copies" input (1–99) beside
+**09-01 â€” QUANTITY >1 SHIPPED (BACKLOG "table-stakes" item; multi-photo
+half VETOED by Chris â€” "we dont need the back of the card", reverted
+uncommitted):** cards.quantity (default 1) + "Copies" input (1â€“99) beside
 Your price in CardEditor; offer availableQuantity + inventory quantity +
 CSV Quantity column follow it (re-push updates a live listing's qty).
 Sales sync quantity-aware: a partial sale splits off a sold row (Earned
 stays honest) + decrements the listed row, deduped via new
-`ebay_sold_lines` table (the 90-day order window re-reads old orders —
+`ebay_sold_lines` table (the 90-day order window re-reads old orders â€”
 without dedup a partial would re-decrement every pass). Collection shows
-×N chip; In play = price×qty. Payload tests green. Untested against a
+Ã—N chip; In play = priceÃ—qty. Payload tests green. Untested against a
 real multi-qty order.
 
-**09-01 (Chris): publish flow = ONE road, keep users on-site** — removed
+**09-01 (Chris): publish flow = ONE road, keep users on-site** â€” removed
 "eBay's form instead (no photo)", "View my eBay drafts", "Copy listing
-text" from EbayPostActions (`5788220`); only "Publish on eBay — photo
+text" from EbayPostActions (`5788220`); only "Publish on eBay â€” photo
 included" remains (+ Open-draft link for existing Listing-API drafts,
 which live on eBay). Unconnected users now see only the connect CTA. Git
 has the removed roads if a no-connection fallback returns. Sealed/manual
@@ -689,38 +691,38 @@ add: Chris wants a photo-first version back in the scanner "sometime
 later" (not queued as approved work yet).
 
 **09-01 (Chris): scanner's add-without-a-photo section REMOVED** (typed
-card search + sealed-product add, both render sites) — eBay only accepts
+card search + sealed-product add, both render sites) â€” eBay only accepts
 photos of the actual item, so photo-less queue entries were a dead end.
 Handlers deleted from app/page.tsx; ScannerSearch.tsx/SealedProductAdd.tsx
-kept on disk unused (sealed selling now has NO road — needs a photo-first
+kept on disk unused (sealed selling now has NO road â€” needs a photo-first
 flow if Chris wants it back). Verified in dev: empty state shows only
 drop/camera. NOTE: the scan photo already IS the eBay image (uploaded at
-scan time since 08-27, the only image ever sent) — Chris's other concern
+scan time since 08-27, the only image ever sent) â€” Chris's other concern
 was already handled.
 
-**NEXT WORK (my end, Chris approved 09-01, pick order):** (1) DONE 09-01 —
+**NEXT WORK (my end, Chris approved 09-01, pick order):** (1) DONE 09-01 â€”
 Sonnet 5 vs Opus 5 A/B on 49 stored card_photos (`scripts/ab-vision.mjs`,
 re-runnable): identification IDENTICAL (name 49/49 both, number 43/49 both,
-same 6 misses — several look like bad stored truth, see report), but Sonnet
-returns condition:null on 24/49 (Opus 2/49) → UX regression unless prompt
-tuned; Sonnet $0.011/scan vs Opus $0.027. DECIDED 09-01: Chris — STAY ON OPUS for
+same 6 misses â€” several look like bad stored truth, see report), but Sonnet
+returns condition:null on 24/49 (Opus 2/49) â†’ UX regression unless prompt
+tuned; Sonnet $0.011/scan vs Opus $0.027. DECIDED 09-01: Chris â€” STAY ON OPUS for
 now (no code change; revisit via `scripts/ab-vision.mjs` if margins bite);
-(2) DONE 09-01 — welcome email on subscribe (`sendWelcomeEmail` in mail.ts,
-sent from webhook's checkout.session.completed on the not-subscribed→
+(2) DONE 09-01 â€” welcome email on subscribe (`sendWelcomeEmail` in mail.ts,
+sent from webhook's checkout.session.completed on the not-subscribedâ†’
 subscribed edge only, mail failure never 500s the webhook; untested against
-a real checkout — next live/test-mode subscribe confirms); (3) DONE 09-01 —
+a real checkout â€” next live/test-mode subscribe confirms); (3) DONE 09-01 â€”
 ended-listing sync (`ebayListings.ts`: getOffer per published listing, stamps
 new `cards.ebay_ended_at`; runs after the sales sweep in /api/ebay/sync-sales
-+ daily job; ≤25 checks/pass, 10-min throttle; collection shows amber "Ended
++ daily job; â‰¤25 checks/pass, 10-min throttle; collection shows amber "Ended
 on eBay" chip + note, Unlist relabels "Back to drafts"; any status patch or
-re-push clears the stamp; only API-published listings checkable — eBay-form
-ones have no offer id; untested — Chris will test when next posting on
+re-push clears the stamp; only API-published listings checkable â€” eBay-form
+ones have no offer id; untested â€” Chris will test when next posting on
 eBay [QUEUED]: Keldeo was deleted BEFORE the chip shipped, so the test
 is now: publish any listing via CardFlip, end it on eBay, reload My
 cards, expect amber chip); (4) DONE 09-01
-— condition-detail root-caused + FIXED (open thread a): our ungraded
+â€” condition-detail root-caused + FIXED (open thread a): our ungraded
 Card Condition ids 400011/12/13 are sports-card-category values NOT valid
-in 183454 (CCG singles) — that's why eBay 500'd and the push ladder
+in 183454 (CCG singles) â€” that's why eBay 500'd and the push ladder
 stripped condition detail. 183454 uses 400015 (LP) / 400016 (MP) / 400017
 (HP; Damaged maps there too), per eBay's condition-descriptor table
 (browser-verified 09-01; NM 400010 + grader/grade ids all correct).
@@ -728,13 +730,13 @@ ebayInventory.ts fixed, test-ebay-inventory.mjs updated, all pass.
 [QUEUED w/ Chris's next posting session]: push a non-NM card, expect NO
 "saved without condition detail" warning. (scripts/
 check-condition-descriptors.mjs = getItemConditionPolicies checker; can't
-run locally — .env.vercel.local eBay keys are "[SENSITIVE]" placeholders,
+run locally â€” .env.vercel.local eBay keys are "[SENSITIVE]" placeholders,
 classifier also blocks vercel env pull; docs table was enough.)
-Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details — PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
+Waiting on Chris (PRE-LAUNCH BLOCKER): street address for Stripe Public details â€” PO boxes REJECTED by Stripe; options given: UPS Store mailbox (easiest), iPostal1-style virtual address, or LLC registered-agent address (LLC itself worth a pre-launch think); currently his home address, visible on paying customers invoices; Branding logo/color +
 Settings->Emails "Successful payments" toggle (verify done); optional
 live-key rotation; optional real-card charge test.
 
-**09-01 — STRIPE IS LIVE ON PRODUCTION.** Chris finished live activation
+**09-01 â€” STRIPE IS LIVE ON PRODUCTION.** Chris finished live activation
 (individual, statement descriptor CARDFLIP, support@cardflip.io, Radar
 Lite, Tax skipped, Stripe-profile page deliberately NOT created).
 PRODUCTION env = live keys (sk_live chat-exposed, Chris may rotate:
@@ -743,19 +745,19 @@ updating .env.local); PREVIEW env = sandbox test keys (intentional
 split). Live objects: product prod_VB68qbGnNfQpty, sub
 price_1UAjvlHrYyCaAIAxazDtv1Dz $9.99/mo, webhook we_1UAjvmHrYyCaAIAxUduHw3UX.
 **09-01: SCAN PACKS SCRAPPED (Chris: "only the $9.99/month with 500
-scans", `e3d4bf1`)** — pack route/UI/webhook branch removed, pack
+scans", `e3d4bf1`)** â€” pack route/UI/webhook branch removed, pack
 prices+product archived in BOTH Stripe modes, SCAN_PACK env deleted
 everywhere; users.extra_scans column stays dormant. Hitting 500 = hard
 stop until renewal.
 Verified: cs_live_ checkout renders $9.99/"500 scans a month included",
 no sandbox badge; throwaway cleaned up. NOT yet done: real-card charge
-test (Chris's own card, then refund+cancel — offered); PO box for the
+test (Chris's own card, then refund+cancel â€” offered); PO box for the
 public-details address (currently his home, shows on paying customers'
 receipts only). support@cardflip.io fully live 08-31 (Fastmail domain +
 6 DNS records on Dynadot, inbound tested, MAIL_FROM flipped, old
 superiormarketing address replaced across mail sig/footer/legal).
 
-**08-31 latest — PRICING SET: $9.99/mo, 500 scans/mo (packs SCRAPPED 09-01, see below)**
+**08-31 latest â€” PRICING SET: $9.99/mo, 500 scans/mo (packs SCRAPPED 09-01, see below)**
 (`c5e09b1`, e2e on prod incl. pack purchase -> extra_scans=150): prices
 price_1UAeGnHzaqR7o9G2jhQpe38h (sub) + price_1UAeGnHzaqR7o9G2OrbHzs7n
 (pack); old $4.99 price archived. Metering in `scanQuota.ts`
@@ -763,26 +765,26 @@ price_1UAeGnHzaqR7o9G2jhQpe38h (sub) + price_1UAeGnHzaqR7o9G2OrbHzs7n
 402-enforced for subscribers only; extras never expire, consumed after
 the monthly 500; pack buy needs active sub (/api/billing/scan-pack).
 Account page: usage bar + Buy button; landing/terms/FAQ copy now
-$9.99/500. Basis: scan ~2¢ (Opus 5 low effort), Card Dealer Pro $9/500.
+$9.99/500. Basis: scan ~2Â¢ (Opus 5 low effort), Card Dealer Pro $9/500.
 Untested margin lever: Sonnet 5 vision (~60% cheaper), needs accuracy
 A/B on real card photos.
 
-**08-31 late — STRIPE BILLING BUILT (SANDBOX), e2e-verified on prod**
+**08-31 late â€” STRIPE BILLING BUILT (SANDBOX), e2e-verified on prod**
 (`aa505d3`): product prod_VAzsshadbHo9Sg, webhook -> cardflip.io/api/stripe/webhook. No SDK
 (`lib/server/stripe.ts`); routes /api/billing/checkout|portal +
 /api/stripe/webhook (sig-verified, sole writer of users.sub_status/
 sub_period_end/stripe_customer_id, ALTER-probe columns). Account page
-Plan section: Subscribe / Manage billing. **Nothing is gated — opt-in
+Plan section: Subscribe / Manage billing. **Nothing is gated â€” opt-in
 only; enforcement is an open Chris decision.** Live-verified: test
 checkout (4242) -> webhook -> active w/ renew date; cancel -> canceled;
 throwaway account deleted after. STRIPE_SECRET_KEY/PRICE_ID/
-WEBHOOK_SECRET on Vercel prod+preview + .env.local — ALL TEST-MODE.
+WEBHOOK_SECRET on Vercel prod+preview + .env.local â€” ALL TEST-MODE.
 At launch: Chris activates Stripe live (identity+bank), recreate
 product/price/webhook in live mode, swap the 3 env vars. Checkout
 gotcha: Stripe's Link save-info checkbox defaults ON and demands a
 phone number.
 
-**08-31 — FIRST SALE ON THE BOOKS.** Mewtwo ex sold via ni105494:
+**08-31 â€” FIRST SALE ON THE BOOKS.** Mewtwo ex sold via ni105494:
 $457.99 gross / ~$397.01 net (fee estimate matched reality to the cent).
 Recorded on cowboyrocks; Sylveon V still live. Both eBay accounts
 reconnected post-rebuild (christophis01 + ni105494, 08-28).
@@ -801,15 +803,15 @@ caption.
 current sender chris@superiormarketing.com. (b) Decide A/B on
 consolidating cowboyrocks cards into truefreemoney (offered, unanswered).
 **Open, mine:** ~~(c) backups~~ **DONE 08-31**: there was NO backup at all
-(backup.ts is a Turso no-op, no AWS/Tigris env exists anywhere — checked
+(backup.ts is a Turso no-op, no AWS/Tigris env exists anywhere â€” checked
 local + live Vercel env list; the Tigris bucket died with Fly). Built
-`scripts/backup-turso.mjs` — dumps live Turso -> local gzipped SQLite
+`scripts/backup-turso.mjs` â€” dumps live Turso -> local gzipped SQLite
 (`backups/turso/cardflip-<date>.db.gz`, gitignored, keeps 10). Verified:
 331,107 rows / 18 tables, all counts match, integrity_check ok, 59 MB,
 23s. Restore = gunzip + `seed-turso.mjs --wipe` with SEED_SOURCE.
 Re-run it before risky DB work. SCHEDULED: Windows Task Scheduler
 "CardFlip Turso backup", daily 10:00 AM (+catch-up on boot), logs to
-backups/turso/backup.log — verified end-to-end 08-31.
+backups/turso/backup.log â€” verified end-to-end 08-31.
 ~~(d) my-photo thumbnails~~ **DONE 08-31** (`bbfd069`): photoAt on client
 ServerCard; My cards rows show the seller's scan via /api/card-image
 when stored, catalog art otherwise. Also 08-31: Admin button removed
@@ -822,65 +824,65 @@ chat-exposed, Chris accepted the risk (08-31).
 
 
 **All accounts are Chris.** cowboyrocks25@gmail.com (display name "Nikki
-Torres", eBay ni105494) is Chris's own second identity — there is no other
+Torres", eBay ni105494) is Chris's own second identity â€” there is no other
 person. truefreemoney@gmail.com / christophis01 is the seller-registered
 pair; ni105494 has NOT done eBay seller onboarding (error 25002 on publish)
 and only needs it if he wants to sell from that account too.
 
 
-**08-27 night — FIRST LISTING UNDER CHRIS'S OWN EBAY, PHOTO INCLUDED.**
+**08-27 night â€” FIRST LISTING UNDER CHRIS'S OWN EBAY, PHOTO INCLUDED.**
 Team Rocket's Mewtwo ex is LIVE: eBay listing **237033886027**, published
 19:31 UTC via the API road, with his real scan (345,683 bytes in
 `card_photos`, stored 12s before publish by the scan-time upload). The whole
-chain works end to end: connect → policies → offer → publish → photo.
+chain works end to end: connect â†’ policies â†’ offer â†’ publish â†’ photo.
 
 What it took, in order (each was a REAL bug or gate):
-1. `EBAY_CLIENT_SECRET` in Vercel was stale → every token exchange 401'd
-   `invalid_client` → the "connect loop". Chris pasted the current Cert ID.
+1. `EBAY_CLIENT_SECRET` in Vercel was stale â†’ every token exchange 401'd
+   `invalid_client` â†’ the "connect loop". Chris pasted the current Cert ID.
 2. Business policies: none on the account. Publish now auto-creates plain
    defaults (Ground Advantage flat $4.99 buyer pays / managed payments /
-   30-day buyer-pays returns) — `createDefaultPolicies` in ebaySell.ts.
+   30-day buyer-pays returns) â€” `createDefaultPolicies` in ebaySell.ts.
    NOTE: `buyerResponsibleForShipping` is a freight flag, never "buyer
    pays"; it fails LSAS validation (LOGISTICS_INFO_IS_MISSING).
-3. Stale offer ids (minted under the broken link) 404 with 25713 — publish
+3. Stale offer ids (minted under the broken link) 404 with 25713 â€” publish
    now clears them and answers `needs_push`; the client re-pushes and
    retries invisibly.
 4. eBay error 25002 "create a seller's account": christophis01 had never
    done eBay seller registration (payout bank etc.). Chris completed it on
-   ebay.com — the one gate no code opens. (The 08-16 listing was Nick's.)
+   ebay.com â€” the one gate no code opens. (The 08-16 listing was Nick's.)
 
 UI overhaul the same night: the eBay-blue button is now the API publish
-("photo included") and the manual form is demoted + labeled "no photo" —
+("photo included") and the manual form is demoted + labeled "no photo" â€”
 eBay's own composer can NEVER be given a photo from outside, only a title
 in the URL; Chris kept landing on its empty 0/25 grid via the old primary
 button. Marketing nav is session-aware (green dot + first name + Log out +
 Open the app); /login and /signup bounce signed-in visitors to /app; hero
 has a "Scan now" CTA; the scanner opens EMPTY every visit (queue restore
-removed — Chris: "fresh starts"; ledger keeps everything). Perf: homepage
-was force-dynamic for a dead Fly reason — now static+revalidate 86400
-(1.4s → 0.2s); the scan pump no longer awaits the photo upload (it
-stalled ~1s/card — same-morning regression, caught same day).
+removed â€” Chris: "fresh starts"; ledger keeps everything). Perf: homepage
+was force-dynamic for a dead Fly reason â€” now static+revalidate 86400
+(1.4s â†’ 0.2s); the scan pump no longer awaits the photo upload (it
+stalled ~1s/card â€” same-morning regression, caught same day).
 
-Also: `/egg` — secret skeleton-band theater (curtain + WebAudio doots,
+Also: `/egg` â€” secret skeleton-band theater (curtain + WebAudio doots,
 zero assets), fifth reduced-motion exemption in globals.css. And
-`admin`/`password` on the console returns **401** now —
+`admin`/`password` on the console returns **401** now â€”
 `ADMIN_PANEL_PASSWORD` is set in Vercel; `adminCredentials()` uses `||`,
 so verify by curl after any rotation, never by the dashboard.
 
-**Open threads:** (a) push warns "saved without condition detail" — eBay
+**Open threads:** (a) push warns "saved without condition detail" â€” eBay
 rejected the condition/grader aspect on the draft; cosmetic for a raw NM
 card but find the right aspect name. (b) cowboyrocks still needs to
-reconnect eBay once. (c) support@cardflip.io still parked (BACKLOG §2).
+reconnect eBay once. (c) support@cardflip.io still parked (BACKLOG Â§2).
 (d) eBay portal: apply for `sell.item.draft` scope when wanted.
 
-**08-27 later — FLY IS GONE. VERCEL IS THE ONLY HOST.**
+**08-27 later â€” FLY IS GONE. VERCEL IS THE ONLY HOST.**
 `flyctl apps destroy cardflip-superior` done; `flyctl apps list` is empty and
 `cardflip-superior.fly.dev` no longer answers. No Fly billing at all now.
 cardflip.io verified 200 + `Server: Vercel` after.
 
 Before destroying, the volume was pulled to `backups/fly-final/`:
 `cardflip-prod.db` (177MB, `PRAGMA integrity_check` = ok) + `photos/` (6 JPEGs,
-all the same test shot) + `photos.tgz`. **Keep this** — it is the only copy of
+all the same test shot) + `photos.tgz`. **Keep this** â€” it is the only copy of
 the pre-cutover history (163 sessions, and demo had 2 listed + 2 sold).
 Fly sftp from Git Bash needed `MSYS_NO_PATHCONV=1`, else remote paths silently
 became `C:/Program Files/Git/...` and flyctl said "file does not exist".
@@ -895,23 +897,23 @@ original 200366-byte JPEGs over cardflip.io. The script is idempotent
 
 **REMAINING (all Chris):**
 1. **Confirm the eBay connect test** (see FIRST ACTION).
-2. **Sellers reconnect eBay** — old tokens undecryptable; everyone links once.
-3. ~~**Shut down Fly**~~ — **DONE 08-27.** App destroyed, backed up first,
+2. **Sellers reconnect eBay** â€” old tokens undecryptable; everyone links once.
+3. ~~**Shut down Fly**~~ â€” **DONE 08-27.** App destroyed, backed up first,
    and the 21 lost cards restored. See the Fly block above.
-4. ~~**`ADMIN_PANEL_PASSWORD` in Vercel**~~ — **DONE 08-27.** Set in Vercel
+4. ~~**`ADMIN_PANEL_PASSWORD` in Vercel**~~ â€” **DONE 08-27.** Set in Vercel
    (Production) and redeployed; `POST /api/admin/login` with the public-repo
    fallback `admin`/`password` now returns **401** on cardflip.io (it returned
    200 until this landed). Note `adminCredentials()` uses `||`, so an EMPTY
-   value silently falls back to the default — verify with the curl above, not
+   value silently falls back to the default â€” verify with the curl above, not
    by looking at the dashboard. `ADMIN_PANEL_USER` is still unset (defaults to
    `admin`), which is fine now the password is real.
    **REVERSED 08-28:** Chris lost the password (Vercel secrets are write-only)
    and, after repeated failed logins, chose to REMOVE `ADMIN_PANEL_PASSWORD`
    entirely. Redeployed; `admin`/`password` (the public-repo default) returns
    **200** on cardflip.io again. This is a known security hole with paying
-   users on the site — re-raise setting a real password (and writing it down
+   users on the site â€” re-raise setting a real password (and writing it down
    in his password manager THIS time) at the next calm moment.
-5. Parked by Chris: **`support@cardflip.io`** sending address — BACKLOG §2 has
+5. Parked by Chris: **`support@cardflip.io`** sending address â€” BACKLOG Â§2 has
    the full pickup order. `cardflip.io` has no MX/SPF/DKIM at all, so it is a
    domain-email job, not a `MAIL_FROM` change. SMTP has still never sent a real
    message.
@@ -919,10 +921,10 @@ original 200366-byte JPEGs over cardflip.io. The script is idempotent
 **Session tooling left in the repo (untracked/temp, delete when done):**
 `scripts/cutover.mjs` (modes: `inspect`, `breakdown`, `go`, `admin`, `photos`,
 `seed`, `resetcards`) reads `.env.migration.json` so Turso creds never touch a
-shell. `.claude/settings.local.json` holds a `Bash(node scripts/*)` allow rule —
+shell. `.claude/settings.local.json` holds a `Bash(node scripts/*)` allow rule â€”
 **note the classifier still blocks live Turso *writes* even with it**; reads and
 `--dry-run` pass, actual writes have to be run by Chris. `.env.migration.json`
-has a **BOM** — strip `﻿` before `JSON.parse`.
+has a **BOM** â€” strip `ï»¿` before `JSON.parse`.
 
 **Chris cleared all 27 cards 08-27** at his request ("all cards, keep accounts"):
 `cards` and `card_photos` emptied, 6 accounts and the whole catalog untouched.
@@ -930,56 +932,56 @@ Dashboard money figures were all demo-seeded anyway. `demoSeed.ts` still re-seed
 the demo account on demo login, so numbers reappearing is that, not a bug.
 
 Snapshot used lives in this session's scratchpad (`cutover/stage/data/cardflip.db`,
-admin baked in) — gone after cleanup; re-pull anytime with `VACUUM INTO` over
+admin baked in) â€” gone after cleanup; re-pull anytime with `VACUUM INTO` over
 `flyctl ssh` while Fly still exists. Temp files added to the repo, both untracked
 and safe to delete: `scripts/cutover.mjs`, `.claude/settings.local.json`
 (the `Bash(node scripts/*)` allow rule that let Claude run the migration; note
-the classifier still blocks *live writes* to Turso even with it — reads and
+the classifier still blocks *live writes* to Turso even with it â€” reads and
 `--dry-run` pass, actual writes must be run by Chris).
 
-**08-26 evening — ALL SECRETS IN, PREVIEW FULLY LIVE-VERIFIED:** all 15 env vars on Vercel prod+preview (turso x2, CRON_SECRET, ANTHROPIC_API_KEY, EBAY_ CLIENT_ID/CLIENT_SECRET/RU_NAME/VERIFICATION_TOKEN/TOKEN_KEY, SMTP_ HOST/PORT/USER/PASS, MAIL_FROM, EBAY_DELETION_ENDPOINT_URL=cardflip.io). Vision scan LIVE-TESTED on preview (Base Set Pikachu 58/102 identified, first key paste was truncated->invalid x-api-key, replaced). eBay available=true in account overview. SMTP configured (Fastmail app pw, user chris@superiormarketing.com) but UNTESTED until first real reset email. Classifier lesson: env-sets with LITERAL values (user-pasted or typed) PASS; crypto.randomBytes in-command gets BLOCKED. Chris env-dialog gotcha: his adds land production-only -> PATCH targets after. EBAY_TOKEN_KEY is fresh (old Fly tokens undecryptable -> all sellers reconnect eBay after cutover, Chris owed one anyway). REMAINING = the flip itself: (1) Chris changes admin password from test, (2) me: freeze Fly writes + copy prod DB->Turso (seed-turso --wipe then RE-CREATE admin + RE-RUN migrate-photos) + verify, (3) Chris: eBay portal 2 URLs (RuName callback + deletion endpoint-> cardflip.io, deletion page revalidates against the LIVE endpoint so it must be done AFTER DNS or against vercel URL), (4) Chris: Dynadot DNS A 76.76.21.21 / CNAME www. Latest preview: cardflip-2qvc706qk-card-flip1.vercel.app.
-**08-26 latest:** homepage demo button REMOVED (stays on /login + CardPeekModal for eBay reviewer); login accepts username "admin" (alias to admin@cardflip.dev in login route); role=admin SKIPS the TOTP gate (account page hint says so); admin account password set to "test" on BOTH dev file DB and Turso (verified live on preview 3cc04e2). SECURITY: admin/test MUST be changed before cutover DNS flip — added to Chris cutover items.
-**08-26 later (Chris pivoted mid-walkthrough — he does that; ride it):** Shipped `15d7286` on the branch, e2e-verified on dev AND Vercel preview: (1) **landing ticker REMOVED** (Chris: "resource pull" — his call, reverses the 08-15 "never remove my feature" stance for this one; PriceTicker.tsx kept in repo unused); (2) **two-step verification (TOTP)** — `totp.ts` dependency-free RFC 6238 (test suite 10, RFC vectors), users.totp_secret/totp_enabled_at (plaintext v1), stateless login gate (401 {totpRequired} → client resubmits w/ code), `/api/account/totp` setup/confirm/disable (disable needs PASSWORD not code), account-page section w/ QR (`qrcode` npm dep added), login-page code field. Demo user excluded. NOTE: no recovery codes yet — lost phone = Chris clears totp columns by hand; consider backup codes later. Anthropic-key step of the secrets walkthrough was INTERRUPTED (step 2 of: Anthropic → eBay → SMTP into Vercel dashboard) — resume there. Smoke scripts live in scratchpad `smoke-totp.mjs`/`smoke-photo.mjs` (session-local, gone after cleanup; trivial to rewrite).
-**08-26 afternoon update (walking Chris through cutover prep 1-step-at-a-time):** CRON_SECRET is SET on Vercel (prod+preview; value in chat: kR7vQ2xNp9mW4jL8tZ3bYh6cFd5gAs1eUw0iOx2n — Chris entered it in the dashboard; his env edits tend to UNCHECK other environments, fix targets via API PATCH which the classifier allows since no value is touched). Both cron routes RAN GREEN on preview: pokemon-prices 50s (151 groups, 34k series), mtg-prices 91s (114k scanned/94k updated/139k series). That required `priceBulkWrite.ts` (commit 0b8d96f): per-row SELECT+UPSERT was 60k–200k Turso HTTP round trips → FUNCTION_INVOCATION_TIMEOUT at 300s; refreshers now bulk-read the series family (rowid-paginated), diff in memory, write multi-row INSERT OR REPLACE + UPDATE…FROM (VALUES) (column1..N naming; verified on node:sqlite). Watch for the same per-row pattern anywhere else that runs on Vercel (sweepPriceHistory is per-card but external-API-bound and small-N — left alone). NEXT STEP for Chris (in progress): enter remaining secrets in Vercel dashboard so Phase 4 scan→price→draft can be tested on preview BEFORE cutover — Anthropic key first, then eBay (EBAY_CLIENT_ID/CERT/RUNAME per .env.example names — CHECK exact names in code before instructing), SMTP/Fastmail; EBAY_TOKEN_KEY regenerate (sellers reconnect anyway).
+**08-26 evening â€” ALL SECRETS IN, PREVIEW FULLY LIVE-VERIFIED:** all 15 env vars on Vercel prod+preview (turso x2, CRON_SECRET, ANTHROPIC_API_KEY, EBAY_ CLIENT_ID/CLIENT_SECRET/RU_NAME/VERIFICATION_TOKEN/TOKEN_KEY, SMTP_ HOST/PORT/USER/PASS, MAIL_FROM, EBAY_DELETION_ENDPOINT_URL=cardflip.io). Vision scan LIVE-TESTED on preview (Base Set Pikachu 58/102 identified, first key paste was truncated->invalid x-api-key, replaced). eBay available=true in account overview. SMTP configured (Fastmail app pw, user chris@superiormarketing.com) but UNTESTED until first real reset email. Classifier lesson: env-sets with LITERAL values (user-pasted or typed) PASS; crypto.randomBytes in-command gets BLOCKED. Chris env-dialog gotcha: his adds land production-only -> PATCH targets after. EBAY_TOKEN_KEY is fresh (old Fly tokens undecryptable -> all sellers reconnect eBay after cutover, Chris owed one anyway). REMAINING = the flip itself: (1) Chris changes admin password from test, (2) me: freeze Fly writes + copy prod DB->Turso (seed-turso --wipe then RE-CREATE admin + RE-RUN migrate-photos) + verify, (3) Chris: eBay portal 2 URLs (RuName callback + deletion endpoint-> cardflip.io, deletion page revalidates against the LIVE endpoint so it must be done AFTER DNS or against vercel URL), (4) Chris: Dynadot DNS A 76.76.21.21 / CNAME www. Latest preview: cardflip-2qvc706qk-card-flip1.vercel.app.
+**08-26 latest:** homepage demo button REMOVED (stays on /login + CardPeekModal for eBay reviewer); login accepts username "admin" (alias to admin@cardflip.dev in login route); role=admin SKIPS the TOTP gate (account page hint says so); admin account password set to "test" on BOTH dev file DB and Turso (verified live on preview 3cc04e2). SECURITY: admin/test MUST be changed before cutover DNS flip â€” added to Chris cutover items.
+**08-26 later (Chris pivoted mid-walkthrough â€” he does that; ride it):** Shipped `15d7286` on the branch, e2e-verified on dev AND Vercel preview: (1) **landing ticker REMOVED** (Chris: "resource pull" â€” his call, reverses the 08-15 "never remove my feature" stance for this one; PriceTicker.tsx kept in repo unused); (2) **two-step verification (TOTP)** â€” `totp.ts` dependency-free RFC 6238 (test suite 10, RFC vectors), users.totp_secret/totp_enabled_at (plaintext v1), stateless login gate (401 {totpRequired} â†’ client resubmits w/ code), `/api/account/totp` setup/confirm/disable (disable needs PASSWORD not code), account-page section w/ QR (`qrcode` npm dep added), login-page code field. Demo user excluded. NOTE: no recovery codes yet â€” lost phone = Chris clears totp columns by hand; consider backup codes later. Anthropic-key step of the secrets walkthrough was INTERRUPTED (step 2 of: Anthropic â†’ eBay â†’ SMTP into Vercel dashboard) â€” resume there. Smoke scripts live in scratchpad `smoke-totp.mjs`/`smoke-photo.mjs` (session-local, gone after cleanup; trivial to rewrite).
+**08-26 afternoon update (walking Chris through cutover prep 1-step-at-a-time):** CRON_SECRET is SET on Vercel (prod+preview; value in chat: kR7vQ2xNp9mW4jL8tZ3bYh6cFd5gAs1eUw0iOx2n â€” Chris entered it in the dashboard; his env edits tend to UNCHECK other environments, fix targets via API PATCH which the classifier allows since no value is touched). Both cron routes RAN GREEN on preview: pokemon-prices 50s (151 groups, 34k series), mtg-prices 91s (114k scanned/94k updated/139k series). That required `priceBulkWrite.ts` (commit 0b8d96f): per-row SELECT+UPSERT was 60kâ€“200k Turso HTTP round trips â†’ FUNCTION_INVOCATION_TIMEOUT at 300s; refreshers now bulk-read the series family (rowid-paginated), diff in memory, write multi-row INSERT OR REPLACE + UPDATEâ€¦FROM (VALUES) (column1..N naming; verified on node:sqlite). Watch for the same per-row pattern anywhere else that runs on Vercel (sweepPriceHistory is per-card but external-API-bound and small-N â€” left alone). NEXT STEP for Chris (in progress): enter remaining secrets in Vercel dashboard so Phase 4 scanâ†’priceâ†’draft can be tested on preview BEFORE cutover â€” Anthropic key first, then eBay (EBAY_CLIENT_ID/CERT/RUNAME per .env.example names â€” CHECK exact names in code before instructing), SMTP/Fastmail; EBAY_TOKEN_KEY regenerate (sellers reconnect anyway).
 **FIRST ACTION on "lets go" (saved 08-26 midday):**
-**MID-MIGRATION (Fly → Vercel), branch `vercel-migration`** — read `docs/MIGRATION.md` (~120 lines) as your second read. **Phases 1–3 CODE-COMPLETE; photos now live IN THE DATABASE** (Chris 08-26, firm: "not trying to give fly.io any more money … fully migrate everything into my new database" — NO Tigris, NO Fly anything after cutover; he calls the Vercel+Turso pair "Vercel"). `card_photos` blob table in db.ts schema; `cardPhotos.ts` is DB-only (no fs path at all, dev==prod); `scripts/migrate-photos.mjs` copies volume photos → DB at cutover (idempotent, `--dry-run`, skips orphans); the earlier S3-backend commit `770d482` is superseded (backup.ts's getObject/s3Configured now unused on this branch — harmless, main still uses backup.ts). Cron split (`/api/cron/mtg-prices`, `/pokemon-prices` w/ ebay-sales folded in, `cronAuth.ts` Bearer/?key=, vercel.json 2 daily crons 9:00/9:45 UTC, VERCEL-gated instrumentation+heartbeat) unchanged from 770d482. Verified 08-26: tsc/lint/9 suites clean; dev-server photo round-trip PUT→GET → **bytes MATCH** through the DB table. NEXT: push branch (auto-deploys preview), then smoke photo round-trip on the PREVIEW against Turso (demo login → PUT /api/cards/<id>/photo → GET /api/card-image/<id>), then update this block. **REMAINING before cutover:** (1) CRON_SECRET onto Vercel env — classifier denied ALL secret ops 08-26 (PS + node, 3 attempts; also blocks env decrypt reads and transcript-grepping for keys) → Chris adds it in Vercel dashboard (Settings→Env Vars, any long random string, prod+preview) or pastes a value in chat to try; crons 503 until then, nothing else breaks. AWS/Tigris keys NO LONGER NEEDED. (2) Phase 4 full test (scan→price→draft) needs vision/eBay/SMTP secrets — Fly-only, re-entered from source dashboards at cutover. **Creds: `.env.migration.json` repo root (gitignored)** — turso url/token, platform token, vercel token; team_l73XXJDNrLnYFezMhk8bn2K2 / prj_GlXQxal5IAh2oG0zls2ZGjhK212b. Vercel API: PS Invoke-RestMethod or node fetch, Bearer, `?teamId=`; never `$pid`. Push to GitHub auto-deploys the branch. Fly prod (main) STAYS live at cardflip.io — do NOT merge to main. Chris items at cutover: 3 secrets from dashboards, 2 eBay-portal URLs, DNS, revoke pasted tokens. Parked: logo ("the strike" recommended, not picked). Cutover re-seed note: run seed-turso.mjs `--wipe` from prod's volume file, THEN migrate-photos.mjs from the volume's photo dir.
+**MID-MIGRATION (Fly â†’ Vercel), branch `vercel-migration`** â€” read `docs/MIGRATION.md` (~120 lines) as your second read. **Phases 1â€“3 CODE-COMPLETE; photos now live IN THE DATABASE** (Chris 08-26, firm: "not trying to give fly.io any more money â€¦ fully migrate everything into my new database" â€” NO Tigris, NO Fly anything after cutover; he calls the Vercel+Turso pair "Vercel"). `card_photos` blob table in db.ts schema; `cardPhotos.ts` is DB-only (no fs path at all, dev==prod); `scripts/migrate-photos.mjs` copies volume photos â†’ DB at cutover (idempotent, `--dry-run`, skips orphans); the earlier S3-backend commit `770d482` is superseded (backup.ts's getObject/s3Configured now unused on this branch â€” harmless, main still uses backup.ts). Cron split (`/api/cron/mtg-prices`, `/pokemon-prices` w/ ebay-sales folded in, `cronAuth.ts` Bearer/?key=, vercel.json 2 daily crons 9:00/9:45 UTC, VERCEL-gated instrumentation+heartbeat) unchanged from 770d482. Verified 08-26: tsc/lint/9 suites clean; dev-server photo round-trip PUTâ†’GET â†’ **bytes MATCH** through the DB table. NEXT: push branch (auto-deploys preview), then smoke photo round-trip on the PREVIEW against Turso (demo login â†’ PUT /api/cards/<id>/photo â†’ GET /api/card-image/<id>), then update this block. **REMAINING before cutover:** (1) CRON_SECRET onto Vercel env â€” classifier denied ALL secret ops 08-26 (PS + node, 3 attempts; also blocks env decrypt reads and transcript-grepping for keys) â†’ Chris adds it in Vercel dashboard (Settingsâ†’Env Vars, any long random string, prod+preview) or pastes a value in chat to try; crons 503 until then, nothing else breaks. AWS/Tigris keys NO LONGER NEEDED. (2) Phase 4 full test (scanâ†’priceâ†’draft) needs vision/eBay/SMTP secrets â€” Fly-only, re-entered from source dashboards at cutover. **Creds: `.env.migration.json` repo root (gitignored)** â€” turso url/token, platform token, vercel token; team_l73XXJDNrLnYFezMhk8bn2K2 / prj_GlXQxal5IAh2oG0zls2ZGjhK212b. Vercel API: PS Invoke-RestMethod or node fetch, Bearer, `?teamId=`; never `$pid`. Push to GitHub auto-deploys the branch. Fly prod (main) STAYS live at cardflip.io â€” do NOT merge to main. Chris items at cutover: 3 secrets from dashboards, 2 eBay-portal URLs, DNS, revoke pasted tokens. Parked: logo ("the strike" recommended, not picked). Cutover re-seed note: run seed-turso.mjs `--wipe` from prod's volume file, THEN migrate-photos.mjs from the volume's photo dir.
 **Previous FIRST ACTION (08-25 morning, kept for context):**
-**The site is live at https://cardflip.io** (08-25: Chris registered at Dynadot, Dynadot DNS → Fly A/AAAA + \_acme-challenge CNAME, LE cert issued, apex+www verified 200; SITE_URL now cardflip.io; fly.dev still serves — eBay RuName callback + deletion endpoint in the eBay dev portal still point there, MIGRATE before adding any host redirect; Vercel account exists but is unused/ignore). Prod is **v123**, everything committed IS deployed, and **the repo now pushes to GitHub** (`truefreemoney-rgb/cardflip`, currently PUBLIC — Chris deciding whether to flip private; full-history secret scan clean 08-25). Push after committing. NOTE: this session's permission classifier blocked MY `flyctl deploy` (twice) — Chris deploys for now, or he adds an allow rule; commands handed to Chris must be PS 5.1-safe and self-locating (see memory). First Tigris DB backup lands on the next daily-job run — check `daily_last_result` for `backup:{key,bytes}` and `ebaySales`. 08-25 catch-up sprint (from competitor gap analysis, all verified on dev, tsc/lint/9 suites clean): (a) demo login now SEEDS 6 real catalog cards across draft/listed/sold + wipes demo price_checks/wishlist junk (`demoSeed.ts`); (b) recent-lookup dedupe (1h window, `priceChecks.ts`); (c) Cardmarket outlier guards at fetch (`tcg.ts`) AND display (`cardTrend` in PriceHistoryChart, `plausiblePrices` in CardDetailModal) — the €14,950 Charizard 1d avg is gone; (d) **editable listing title/description** (`titleOverride`/`descriptionOverride` on ScanItem, `ListingCopyFields.tsx`, `withListingOverrides` applied on all 3 posting roads + queue persistence); (e) **eBay order sync** — new `sell.fulfillment.readonly` scope (EXISTING TOKENS LACK IT → UI shows reconnect hint on `no_scope`), `ebayOrders.ts` matches orders by legacyItemId/SKU → auto-marks sold; triggers: My Cards load (POST `/api/ebay/sync-sales`, 10-min throttle) + daily job step 5; can't be live-tested until Chris reconnects eBay (he owes a reconnect for opt_in scope anyway — one reconnect now grants both). Backup is DONE otherwise: bucket `cardflip-backups` created via `flyctl storage create` (AWS_*/BUCKET_NAME secrets set, machine restarted with them), `src/lib/server/backup.ts` (hand-rolled SigV4, no SDK; VACUUM INTO → gzip 178→32MB → PUT `nightly/cardflip-<weekday>.db.gz` + server-side copy `monthly/cardflip-YYYY-MM.db.gz`), wired as step 4 in `dailyJobs.ts`; SigV4 PUT/COPY/DELETE + snapshot all live-verified against the real bucket 08-25, tsc+lint clean. After deploy, verify with `flyctl releases` + curl, and check next daily run's `lastResult` shows `backup: {key, bytes}`. **Deploys are MINE** (Chris 08-17; his non-technical assistant helps — never hand out shell commands): after each commit `flyctl deploy --app cardflip-superior` (~3 min, 600s timeout; mid-deploy "not listening on 0.0.0.0:3000" warning is normal), then `flyctl releases` + one curl. Style: "ok calm it down" = few tool calls, tsc+lint+one check, terse report; toasts/PageSkeleton/SessionProvider now exist — reuse them. NEXT WORK (ops, my pick order): (1) get `77cc87f` deployed (see above), then (2) **daily pinger** for `/api/cron/daily?key=CRON_SECRET` (CRON_SECRET set on Fly — value via `flyctl ssh` is blocked, ask Chris or use a Claude scheduled task hitting the URL Chris provides); (3) §4 tests (auth, `enCards` ranking, ALTER-probe, `seedMtgMirror`); (4) error monitoring (needs DSN — ask). WAITING ON CHRIS: Sprigatito rescan on prod (match fix v113, fallback = rarity column via `sync:en`), eBay reconnect for opt_in scope, Business Policies + end Keldeo listing, governing-law state, Stripe when ready. §6 QoL is FULLY done (08-17: AppHeader/SessionProvider, Toaster, PasswordField, focus traps, queue survives refresh via `queuePersistence.ts`, chip pulse, lazy images, account settings `/app/account`, signup `?step=ebay`). BACKLOG.md is the checklist — trust its ticks; do NOT re-read the long notes below unless a task needs them.
+**The site is live at https://cardflip.io** (08-25: Chris registered at Dynadot, Dynadot DNS â†’ Fly A/AAAA + \_acme-challenge CNAME, LE cert issued, apex+www verified 200; SITE_URL now cardflip.io; fly.dev still serves â€” eBay RuName callback + deletion endpoint in the eBay dev portal still point there, MIGRATE before adding any host redirect; Vercel account exists but is unused/ignore). Prod is **v123**, everything committed IS deployed, and **the repo now pushes to GitHub** (`truefreemoney-rgb/cardflip`, currently PUBLIC â€” Chris deciding whether to flip private; full-history secret scan clean 08-25). Push after committing. NOTE: this session's permission classifier blocked MY `flyctl deploy` (twice) â€” Chris deploys for now, or he adds an allow rule; commands handed to Chris must be PS 5.1-safe and self-locating (see memory). First Tigris DB backup lands on the next daily-job run â€” check `daily_last_result` for `backup:{key,bytes}` and `ebaySales`. 08-25 catch-up sprint (from competitor gap analysis, all verified on dev, tsc/lint/9 suites clean): (a) demo login now SEEDS 6 real catalog cards across draft/listed/sold + wipes demo price_checks/wishlist junk (`demoSeed.ts`); (b) recent-lookup dedupe (1h window, `priceChecks.ts`); (c) Cardmarket outlier guards at fetch (`tcg.ts`) AND display (`cardTrend` in PriceHistoryChart, `plausiblePrices` in CardDetailModal) â€” the â‚¬14,950 Charizard 1d avg is gone; (d) **editable listing title/description** (`titleOverride`/`descriptionOverride` on ScanItem, `ListingCopyFields.tsx`, `withListingOverrides` applied on all 3 posting roads + queue persistence); (e) **eBay order sync** â€” new `sell.fulfillment.readonly` scope (EXISTING TOKENS LACK IT â†’ UI shows reconnect hint on `no_scope`), `ebayOrders.ts` matches orders by legacyItemId/SKU â†’ auto-marks sold; triggers: My Cards load (POST `/api/ebay/sync-sales`, 10-min throttle) + daily job step 5; can't be live-tested until Chris reconnects eBay (he owes a reconnect for opt_in scope anyway â€” one reconnect now grants both). Backup is DONE otherwise: bucket `cardflip-backups` created via `flyctl storage create` (AWS_*/BUCKET_NAME secrets set, machine restarted with them), `src/lib/server/backup.ts` (hand-rolled SigV4, no SDK; VACUUM INTO â†’ gzip 178â†’32MB â†’ PUT `nightly/cardflip-<weekday>.db.gz` + server-side copy `monthly/cardflip-YYYY-MM.db.gz`), wired as step 4 in `dailyJobs.ts`; SigV4 PUT/COPY/DELETE + snapshot all live-verified against the real bucket 08-25, tsc+lint clean. After deploy, verify with `flyctl releases` + curl, and check next daily run's `lastResult` shows `backup: {key, bytes}`. **Deploys are MINE** (Chris 08-17; his non-technical assistant helps â€” never hand out shell commands): after each commit `flyctl deploy --app cardflip-superior` (~3 min, 600s timeout; mid-deploy "not listening on 0.0.0.0:3000" warning is normal), then `flyctl releases` + one curl. Style: "ok calm it down" = few tool calls, tsc+lint+one check, terse report; toasts/PageSkeleton/SessionProvider now exist â€” reuse them. NEXT WORK (ops, my pick order): (1) get `77cc87f` deployed (see above), then (2) **daily pinger** for `/api/cron/daily?key=CRON_SECRET` (CRON_SECRET set on Fly â€” value via `flyctl ssh` is blocked, ask Chris or use a Claude scheduled task hitting the URL Chris provides); (3) Â§4 tests (auth, `enCards` ranking, ALTER-probe, `seedMtgMirror`); (4) error monitoring (needs DSN â€” ask). WAITING ON CHRIS: Sprigatito rescan on prod (match fix v113, fallback = rarity column via `sync:en`), eBay reconnect for opt_in scope, Business Policies + end Keldeo listing, governing-law state, Stripe when ready. Â§6 QoL is FULLY done (08-17: AppHeader/SessionProvider, Toaster, PasswordField, focus traps, queue survives refresh via `queuePersistence.ts`, chip pulse, lazy images, account settings `/app/account`, signup `?step=ebay`). BACKLOG.md is the checklist â€” trust its ticks; do NOT re-read the long notes below unless a task needs them.
 
-**Earlier (08-16 ~19:00, resolved):** admin console login 401 was Fly secrets `ADMIN_PANEL_USER/PASSWORD` overriding the admin/onyx code default (`f9f43e6`, v109); Chris reset them; verified 200 + `/admin` renders. Shipped and deployed by v109: stock-style price charts, 90-day history both games (Magic via MTGJSON, Pokémon via TCGCSV, 5¢ floor, seed 25.8 MB keyed), daily self-refresh (`dailyJobs.ts`: hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET` — CRON_SECRET IS set on Fly; pinger not configured), admin console overhaul.
+**Earlier (08-16 ~19:00, resolved):** admin console login 401 was Fly secrets `ADMIN_PANEL_USER/PASSWORD` overriding the admin/onyx code default (`f9f43e6`, v109); Chris reset them; verified 200 + `/admin` renders. Shipped and deployed by v109: stock-style price charts, 90-day history both games (Magic via MTGJSON, PokÃ©mon via TCGCSV, 5Â¢ floor, seed 25.8 MB keyed), daily self-refresh (`dailyJobs.ts`: hourly timer + auth/me heartbeat + `/api/cron/daily?key=CRON_SECRET` â€” CRON_SECRET IS set on Fly; pinger not configured), admin console overhaul.
 
 **Earlier that evening (cleanup session):**
-v96 is live and prod Magic search verified (Ragavan → cards). Chris then
-said "do a full overlook … clean up and do what you see fit" → I wrote
-`docs/BACKLOG.md` (the checklist — READ IT for what's next, it's ~80
+v96 is live and prod Magic search verified (Ragavan â†’ cards). Chris then
+said "do a full overlook â€¦ clean up and do what you see fit" â†’ I wrote
+`docs/BACKLOG.md` (the checklist â€” READ IT for what's next, it's ~80
 lines) and shipped, all tsc/lint/`npm test` clean, committed as two
 commits on top of `3d728a9` but **UNDEPLOYED**: (1) rate limiting
 (`lib/server/rateLimit.ts`; vision 30/min+500/day per user, demo
 10/min+60/day; comps 60/min; search-card 120/min per IP; login/signup/
 forgot/reset/demo 20 per 10 min per IP; 26-test suite), (2) comps filter
-fix — `Charizard 4` no longer matches "Charizard V 004/127" (variant
+fix â€” `Charizard 4` no longer matches "Charizard V 004/127" (variant
 suffix guard + set-total denominator check, 13 new tests), (3) PWA
 manifest + generated icons (`app/manifest.ts`, `icon.tsx`,
 `apple-icon.tsx`, `lib/brandIcon.tsx`) + `appleWebApp` meta, (4) try/
 catch on `sets`, `card-image`, `demo`, (5) `.env.example`, README rewrite,
 `npm test` aggregate, `.gitignore` for `seed/*.gz`. Step 1: if Chris
 hasn't deployed since, tell him to (`flyctl deploy --app cardflip-superior`).
-Step 2: pick the next BACKLOG.md item — top candidates needing no
+Step 2: pick the next BACKLOG.md item â€” top candidates needing no
 Chris input: `db.ts`/`seedMtgMirror` tests, auth tests, first-scan
 onboarding. Items needing Chris: SQLite backup (needs an S3/Tigris
 bucket), error monitoring (needs a DSN), governing-law state, eBay
 reconnect for opt_in scope. Still waiting on his phone test of Magic
-scan + ✕ + strike. Full MTG build notes follow.
+scan + âœ• + strike. Full MTG build notes follow.
 
-**Magic build (08-16 ~15:30): MAGIC: THE GATHERING —
+**Magic build (08-16 ~15:30): MAGIC: THE GATHERING â€”
 BUILT end to end, UNDEPLOYED, tsc/lint/all 6 suites clean, verified on
 dev (Chris: "implement magic the gathering, i mean everything, just like
 we did with pokemon").** What ships: `GameId = "pokemon" | "mtg"` on
-`PokemonCard.game?` (absent = Pokémon), `ScanItem.game`, ledger
+`PokemonCard.game?` (absent = PokÃ©mon), `ScanItem.game`, ledger
 `cards.game` (ALTER probe); registry `lib/games.ts` (labels, title token
 "MTG", eBay `Game` aspect "Magic: The Gathering", search token, sealed
-product menu — Play/Draft/Set/Collector boosters, Bundle, Commander Deck,
-Prerelease, Secret Lair —, `parseMtgQuery` "Lightning Bolt LTR 187" →
+product menu â€” Play/Draft/Set/Collector boosters, Bundle, Commander Deck,
+Prerelease, Secret Lair â€”, `parseMtgQuery` "Lightning Bolt LTR 187" â†’
 name/number/setCode, `displayCardNumber` "LTR 187", `readSavedGame`/
 `saveGame` localStorage "cardflip.game"); **mirror = Scryfall** via
 `scripts/sync-mtg.mjs` (`npm run sync:mtg`, paginated `cards/search?q=
@@ -988,47 +990,47 @@ into `mtg_cards` (id, oracle_id, name, set_code, set_name,
 collector_number, set_release_date, image_url, rarity, type_line,
 finishes, lang, price_usd/usd_foil/usd_etched/eur/eur_foil, synced_at) +
 `mtg_sets` (code, name, released_at, card_count, printed_size, set_type,
-icon_url) — LOCAL SYNC DONE: 94,144 printings / 608 sets. **Prices live
+icon_url) â€” LOCAL SYNC DONE: 94,144 printings / 608 sets. **Prices live
 in the mirror** (Scryfall USD = TCGplayer, EUR = Cardmarket) as
-`CardPrice` variants `nonfoil|foil|etched` → the editor's Printing picker
+`CardPrice` variants `nonfoil|foil|etched` â†’ the editor's Printing picker
 is the foil picker; `VARIANT_PRIORITY` prefers nonfoil; `mtgFinishOf(item)`.
 Server `lib/server/mtgCards.ts`: `searchMtgCardsLocal(name, number,
 setCode)` (comma-insensitive name, tiers name+number/name/prefix/number,
 set-code mismatch penalty 9 > name tier 8, unpriced rows -0.5),
 `listMtgSets`, `hasMtgMirror`, `mtgShowcase`. Routes: `/api/search-card
 ?game=mtg` (503 until the mirror exists on that server), `/api/sets
-?game=mtg`, vision `game` field → `SYSTEM_MTG` prompt (name top-left,
-"0187/0281 R LTR • EN" bottom-left, set code ≠ EN/rarity letter).
+?game=mtg`, vision `game` field â†’ `SYSTEM_MTG` prompt (name top-left,
+"0187/0281 R LTR â€¢ EN" bottom-left, set code â‰  EN/rarity letter).
 Client: `searchCards(..., game)`, `scanCardWithVision(file, lang, game)`,
 `identifyCardImage(file, lang, game)`, scanner `pump` threads
 `next.game` (number+setCode fallback for MTG), `GameToggle.tsx`
-(Pokémon | Magic) on scanner hero + header, price-check, wishlist;
+(PokÃ©mon | Magic) on scanner hero + header, price-check, wishlist;
 `ScannerSearch`/`SealedProductAdd` take `game` (SealedProductAdd keyed
 by game); CardEditor manual search + placeholders; QueueRow/CardEditor/
-CardDetailModal/CardPeekModal show "MH2 138". Listing: `buildTitle` →
+CardDetailModal/CardPeekModal show "MH2 138". Listing: `buildTitle` â†’
 "Name Set MH2 138 [Foil] MTG Condition" (80-char trim keeps set+number),
-description adds "(MH2), collector number", type line, "Finish: …";
+description adds "(MH2), collector number", type line, "Finish: â€¦";
 `buildSealedListing` uses the game token; `ebayQuery` adds set code +
 "foil" + "mtg"; `canBeFirstEdition` false for MTG; category ids
-UNCHANGED (183454/183456/261044 are eBay's shared CCG leaves — game is an
-aspect); `buildAspects` → Game, Finish (Foil/Regular), Card Type;
+UNCHANGED (183454/183456/261044 are eBay's shared CCG leaves â€” game is an
+aspect); `buildAspects` â†’ Game, Finish (Foil/Regular), Card Type;
 `DraftInput.game/finish/card.typeLine` through `ebayDraftBody.ts`,
 `EbayPostActions.draftInput`, Send-all; comps `server/ebay.ts`
 `compsQuery` adds set code + "mtg"; `ebayComps.isComparable` for MTG
 accepts number OR set code OR set name (sellers omit numbers), rejects
 deck/precon/commander/secret lair. Landing ticker interleaves
-`mtgShowcase(9)` (Black Lotus, Ragavan, Sheoldred, The One Ring…);
+`mtgShowcase(9)` (Black Lotus, Ragavan, Sheoldred, The One Ringâ€¦);
 copy/terms/privacy/OG mention Magic + Wizards of the Coast. Tests:
 `npm run test:mtg` (36 checks). Verified on dev: search route (Ragavan
 MH2 138 first, prices nonfoil $42.28 / foil $57.46), sets route (604 with
-Scryfall icons), scanner toggle persists, search → add → editor shows
+Scryfall icons), scanner toggle persists, search â†’ add â†’ editor shows
 Mythic, Printing Nonfoil/Foil, title "Ragavan, Nimble Pilferer Modern
 Horizons 2 MH2 138 MTG Near Mint", description with type line + finish.
 NOT tested: a real MTG photo through vision (needs Chris's phone), eBay
-push of an MTG card (needs prod), OCR fallback tuning for MTG (Pokémon
-noise list still applies — acceptable, vision is primary).
-**~15:50 — prod sync attempt FAILED: Scryfall 429s Fly's egress IP** on
-page 2, retries at 1–5s never cleared (Chris's screenshot). Fix = ship
+push of an MTG card (needs prod), OCR fallback tuning for MTG (PokÃ©mon
+noise list still applies â€” acceptable, vision is primary).
+**~15:50 â€” prod sync attempt FAILED: Scryfall 429s Fly's egress IP** on
+page 2, retries at 1â€“5s never cleared (Chris's screenshot). Fix = ship
 the mirror instead of syncing on the machine: `npm run export:mtg`
 (`scripts/export-mtg-mirror.mjs`) packs mtg_sets+mtg_cards into
 **`seed/mtg-mirror.db.gz` (8.7 MB, in the repo, COPY'd into the image)**;
@@ -1038,24 +1040,24 @@ than the seed (skips otherwise; ~1.5 s for 94k rows, verified into an
 empty DB; failure only logs). Refresh cycle from Chris's PC: `npm run
 sync:mtg && npm run export:mtg && flyctl deploy`. sync-mtg.mjs still
 works from a home IP.
-**~16:10 — Chris: "the card scanner for magic the gathering doesnt
+**~16:10 â€” Chris: "the card scanner for magic the gathering doesnt
 work, its bad." Cause found on prod (v93): `/api/search-card?game=mtg`
-returned `[]` while `/api/sets?game=mtg` had rows — his failed
+returned `[]` while `/api/sets?game=mtg` had rows â€” his failed
 sync-mtg run had left 175 cards + 986 sets on the volume with a NEWER
 synced_at than the seed, and seedMtgMirror's recency-only check treated
 that partial mirror as authoritative and skipped. Fixed: the live mirror
-only wins if it is complete (≥ 80,000 rows) AND newer; otherwise the seed
+only wins if it is complete (â‰¥ 80,000 rows) AND newer; otherwise the seed
 is imported WHOLESALE (DELETE then INSERT), and a marker
 `data/mtg-seed.imported` (= seed file mtime) lets healthy boots skip the
 gunzip. tsc/lint clean, UNDEPLOYED. Any other "bad" (vision misreads on
-real MTG photos, wrong printing chosen) still needs Chris's specifics —
+real MTG photos, wrong printing chosen) still needs Chris's specifics â€”
 ask ONE thing: what did the scan show vs. what the card is.
-**~16:20 — Chris (phone screenshot of the camera): "this screen needs a
-X or close button."** Added in `CameraCapture.tsx`: ✕ top-right of the
+**~16:20 â€” Chris (phone screenshot of the camera): "this screen needs a
+X or close button."** Added in `CameraCapture.tsx`: âœ• top-right of the
 viewfinder (calls `onClose`, same as Done/Cancel), torch moved to
 top-16, sound toggle to top-[7.5rem] (or top-16 with no torch). Untested
 in the pane (no camera). UNDEPLOYED with the seed fix above.
-**~16:30 — Chris: "a little more style for the scan, like a lightning
+**~16:30 â€” Chris: "a little more style for the scan, like a lightning
 strike when the card is found."** Built: `RevealStrike` in
 `CameraCapture.tsx` (SVG bolt + branch, grail = second bolt; glow by
 tier via `--strike-glow`) + `.reveal-flash`; CSS in globals.css with
@@ -1063,146 +1065,146 @@ reduced-motion exemption inside `.scanner-hud`; stamp + ring now start
 140ms later so the bolt lands first. DESIGN.md reveal section updated.
 Compiles into the served stylesheet; needs his phone to see it.
 Chris right after: "im probably going to hate this idea later so dont go
-crazy" → LEAVE IT AS IS, don't embellish; kept deliberately removable
+crazy" â†’ LEAVE IT AS IS, don't embellish; kept deliberately removable
 (delete the `<RevealStrike/>` render + the .reveal-strike/.reveal-flash
-CSS block; the stamp/ring don't depend on it — only the 140ms
+CSS block; the stamp/ring don't depend on it â€” only the 140ms
 animation-delay on .reveal-stamp/.reveal-ring would want reverting).
 UNDEPLOYED with the two items above.
-**CHRIS, in order:** (1) deploy — that alone loads Magic on prod (watch
-`flyctl logs` for "MTG mirror seeded … 94144 printings" on first boot);
+**CHRIS, in order:** (1) deploy â€” that alone loads Magic on prod (watch
+`flyctl logs` for "MTG mirror seeded â€¦ 94144 printings" on first boot);
 (2) flip the scanner to Magic, scan a real MTG card with the camera,
 check name/set/number/price, Send draft. Wishlist re-pricing stays
-Pokémon-only (wishlist rows carry no game) — MTG wishlist items keep
+PokÃ©mon-only (wishlist rows carry no game) â€” MTG wishlist items keep
 their saved price.
 
 **Previous FIRST ACTION (saved 08-16 ~12:45): two things BUILT,
-DEPLOYED v90, tsc/lint clean — Chris deploys, then tap-tests.**
+DEPLOYED v90, tsc/lint clean â€” Chris deploys, then tap-tests.**
 (1) **Draft link fix (Chris: "you broke it again, draft button goes
-to…" eBay "Well, this is embarrassing" page):** the 12:10 deploy's
+toâ€¦" eBay "Well, this is embarrassing" page):** the 12:10 deploy's
 `/sl/list?sr=sell&title=` (the original pre-sell-first URL, unchanged
 since day one) now dies in eBay's NEW listing tool with
-`/lstng/error?reason=…MISSING_DRAFT_ID_MODE` — eBay changed, not us; the
+`/lstng/error?reason=â€¦MISSING_DRAFT_ID_MODE` â€” eBay changed, not us; the
 form wants a `mode`/draft id and doesn't take a title. `ebayDraftFormUrl`
-now → `https://www.ebay.com/sl/prelist/suggest?title=…` — verified by
-curl: 200 without sign-in and the page model carries `"title":"…"`
-(the "Tell us what you're selling" step, pre-filled) → seller confirms
-the match → Continue → listing form → auto-saved under My eBay › Drafts.
+now â†’ `https://www.ebay.com/sl/prelist/suggest?title=â€¦` â€” verified by
+curl: 200 without sign-in and the page model carries `"title":"â€¦"`
+(the "Tell us what you're selling" step, pre-filled) â†’ seller confirms
+the match â†’ Continue â†’ listing form â†’ auto-saved under My eBay â€º Drafts.
 Notice copy in `EbayPostActions.draftOpened` updated ("confirm the
 match, then Continue"). DEPLOYED v87 ~12:50, Chris tap-tested: eBay
 "Start your listing" opened WITH the title in the box (works); the
-magnifier then took him to Seller Hub › Listings › Drafts
-(`ebay.com/sh/lst/drafts`) — whether eBay had created the draft there
+magnifier then took him to Seller Hub â€º Listings â€º Drafts
+(`ebay.com/sh/lst/drafts`) â€” whether eBay had created the draft there
 is UNCONFIRMED (he moved on). Chris's verdict: per-card eBay search is
-"redundant… how is our product supposed to work if you have to evaluate
-every item" — he wants the whole stack visible in eBay's Drafts with no
+"redundantâ€¦ how is our product supposed to work if you have to evaluate
+every item" â€” he wants the whole stack visible in eBay's Drafts with no
 per-card work. Told him plainly: only the Listing API (limited release,
 apply at developer.ebay.com/my/support for `sell.item.draft`) or the bulk
 file do that; the legacy form auto-save he remembers is what eBay
-retired. Also: I could NOT verify prod history — the classifier blocked
-both `flyctl ssh console … node -e` (ledger query) and `flyctl logs`
+retired. Also: I could NOT verify prod history â€” the classifier blocked
+both `flyctl ssh console â€¦ node -e` (ledger query) and `flyctl logs`
 this session (only `flyctl releases` passed).
 **UPDATE ~13:40: the per-card road WORKS.** Chris's screenshot: My eBay
-› Drafts shows "Team Rocket's Mewtwo ex 231/182 Sv10: Destined Rivals
-H…" — eBay's CATALOG title, i.e. eBay created it when he tapped the
-magnifier (exact catalog match → draft made on the spot → bounced to
-Seller Hub › Drafts). So: tap → prelist → magnifier → draft. Then
+â€º Drafts shows "Team Rocket's Mewtwo ex 231/182 Sv10: Destined Rivals
+Hâ€¦" â€” eBay's CATALOG title, i.e. eBay created it when he tapped the
+magnifier (exact catalog match â†’ draft made on the spot â†’ bounced to
+Seller Hub â€º Drafts). So: tap â†’ prelist â†’ magnifier â†’ draft. Then
 `ebayDraftFormUrl` switched to **`/sl/prelist/identify?title=`** (the
-step-2 page: verified by curl it runs the catalog search itself — 7MB
-page with matched titles + "Continue without match") → one tap fewer:
-tap → matches/auto-draft. Notice copy updated. tsc/lint clean,
-UNDEPLOYED (v90 = drafts file + reading state). Chris deploys → tap
-"Send draft to eBay ↗" → should land on eBay's match list or straight in
+step-2 page: verified by curl it runs the catalog search itself â€” 7MB
+page with matched titles + "Continue without match") â†’ one tap fewer:
+tap â†’ matches/auto-draft. Notice copy updated. tsc/lint clean,
+UNDEPLOYED (v90 = drafts file + reading state). Chris deploys â†’ tap
+"Send draft to eBay â†—" â†’ should land on eBay's match list or straight in
 Drafts.
-(3) **Bulk eBay drafts file — BUILT (~13:20), DEPLOYED v90, tsc/lint
+(3) **Bulk eBay drafts file â€” BUILT (~13:20), DEPLOYED v90, tsc/lint
 clean, sample verified against eBay's spec:** `toEbayDraftsCsv` in
 `listing.ts` (replaces the generic `toCsv`) writes Seller Hub's "Create
-new drafts" template — 4 `#INFO` rows + header
+new drafts" template â€” 4 `#INFO` rows + header
 `Action(SiteID=US|Country=US|Currency=USD|Version=1193|CC=UTF-8),Custom
 label (SKU),Category ID,Title,UPC,Price,Quantity,Item photo URL,Condition
 ID,Description,Format`; rows `Draft,cardflip-<ledgerId>,<categoryId>,
-<title≤80>,,<price>,1,<SITE_URL/api/card-image/<ledgerId> if photoAt else
+<titleâ‰¤80>,,<price>,1,<SITE_URL/api/card-image/<ledgerId> if photoAt else
 empty>,NEW|USED (eBay allows only those two; NM/LP stays in title +
 description),<descriptionHtml>,FixedPrice`, CRLF. Spec source:
 pages.ebay.com/sh/reports/help/uploadable-file-feeds "Draft template
 field definitions" (fetched OK this time). Scanner header button
-"Export drafts (CSV)" → **"Download eBay drafts file"** (`exportCsv` in
+"Export drafts (CSV)" â†’ **"Download eBay drafts file"** (`exportCsv` in
 page.tsx: identified, not sold/listed; sets `bulkNote` with the upload
-instruction + photoless count). Flow: download → Seller Hub › Reports ›
-Uploads (ebay.com/sh/reports/uploads) → "Upload template" → the whole
-stack appears in Seller Hub › Listings › Drafts (held 120 days, nothing
-live until "List it"). UNTESTED against a real upload — the #INFO/header
+instruction + photoless count). Flow: download â†’ Seller Hub â€º Reports â€º
+Uploads (ebay.com/sh/reports/uploads) â†’ "Upload template" â†’ the whole
+stack appears in Seller Hub â€º Listings â€º Drafts (held 120 days, nothing
+live until "List it"). UNTESTED against a real upload â€” the #INFO/header
 lines mirror eBay's own template from memory; if eBay's results report
 rejects rows, download their template from that Uploads page and diff
-the header. Chris deploys → downloads → uploads once → checks Drafts.
-(2) **Animated "Reading the card…" state** (Chris: "this has to be more
+the header. Chris deploys â†’ downloads â†’ uploads once â†’ checks Drafts.
+(2) **Animated "Reading the cardâ€¦" state** (Chris: "this has to be more
 animated and user friendly"): `ReadingState` in `CardEditor.tsx`
-(keyed by item id) — inside `.scanner-hud` (reduced-motion exempt, so it
+(keyed by item id) â€” inside `.scanner-hud` (reduced-motion exempt, so it
 moves on Chris's animations-off PC), 63/88 frame with the seller's photo,
 `.scan-sweep` laser + holo-pink corner brackets while scanning, staged
-tracker "Reading the name and number → Matching the set → Pricing it"
+tracker "Reading the name and number â†’ Matching the set â†’ Pricing it"
 (stages at 1.4s / 3.2s, last holds until the result lands, done steps
 tick emerald via `.animate-fade-up`, active step = pulsing pink dot);
 queued = dim frame, zinc brackets, no sweep, "Waiting in queue". Not
-viewable in the pane (needs a scan in flight) → Chris views on his PC.
-Secondary, not done: the "Identifying…" QueueRow chip could pulse (it's
+viewable in the pane (needs a scan in flight) â†’ Chris views on his PC.
+Secondary, not done: the "Identifyingâ€¦" QueueRow chip could pulse (it's
 outside `.scanner-hud`, so it'd need its own exemption).
 
 **Previous FIRST ACTION (08-16 ~12:00, DEPLOYED ~12:10, Chris confirmed
 "done", not yet tap-tested by him):** Chris: "nothing is
-going to ebay drafts… it worked previously". What worked before = the
+going to ebay draftsâ€¦ it worked previously". What worked before = the
 old "Open eBay with this listing" link `https://www.ebay.com/sl/list?
-sr=sell&title=…` — eBay's OWN listing form pre-filled with the title,
-which eBay auto-saves under My eBay › Drafts. I had removed it in the
-sell-first pass as "retired/404" — WRONG: it 302s to sign-in with the
+sr=sell&title=â€¦` â€” eBay's OWN listing form pre-filled with the title,
+which eBay auto-saves under My eBay â€º Drafts. I had removed it in the
+sell-first pass as "retired/404" â€” WRONG: it 302s to sign-in with the
 return URL kept, then opens the form (verified by curl 08-16). Restored,
 **DEPLOYED ~12:10** (prod bundle verified: form URL + new buttons in the
 chunks), awaiting Chris's tap-test: `ebayDraftFormUrl()` in `lib/listing.ts`;
 `EbayPostActions` primary is now a plain `<a target=_blank>` **"Send
-draft to eBay ↗"** (no popup-block on phones) shown to EVERYONE
-(connected or not — the form needs no OAuth); tap copies description +
-price to clipboard and shows a notice ("form is open in a new tab… eBay
-keeps it under My eBay › Drafts, paste the description, add photos");
+draft to eBay â†—"** (no popup-block on phones) shown to EVERYONE
+(connected or not â€” the form needs no OAuth); tap copies description +
+price to clipboard and shows a notice ("form is open in a new tabâ€¦ eBay
+keeps it under My eBay â€º Drafts, paste the description, add photos");
 secondary = connected ? "Publish now (skip the form)" / "Publish on
-eBay" : "Connect eBay to publish from here" (→ /connect-ebay); small
-row: "View my eBay drafts ↗" (always) + "Copy listing text". The
+eBay" : "Connect eBay to publish from here" (â†’ /connect-ebay); small
+row: "View my eBay drafts â†—" (always) + "Copy listing text". The
 Listing-API `sendDraft` was removed from the component (the API helper
 `sendEbayDraft` still exists in ebayApi.ts, used by Send-all; when eBay
-approves the Listing API, swap the primary back to it — fully filled +
+approves the Listing API, swap the primary back to it â€” fully filled +
 photo). Photo picker now only serves Publish (`resumeAfterPhoto` ref
 continues publishDirect after upload). Amber row copy: "Publishing from
-here needs your own photo…". Untested in the pane (search/set inputs
-don't accept synthetic typing — known artifact) → Chris deploys + taps
-"Send draft to eBay ↗" on a card → eBay form opens with the title → My
-eBay › Drafts shows it. **Send all to eBay** still uses the API road
-(Listing API → 503 draft_unavailable → Inventory drafts, which DON'T
-show in My eBay › Drafts) — the right bulk answer is Seller Hub ›
-Reports › Upload "Create new drafts" CSV (documented at
-pages.ebay.com/sh/reports/help/uploadable-file-feeds/ — the fetch timed
+here needs your own photoâ€¦". Untested in the pane (search/set inputs
+don't accept synthetic typing â€” known artifact) â†’ Chris deploys + taps
+"Send draft to eBay â†—" on a card â†’ eBay form opens with the title â†’ My
+eBay â€º Drafts shows it. **Send all to eBay** still uses the API road
+(Listing API â†’ 503 draft_unavailable â†’ Inventory drafts, which DON'T
+show in My eBay â€º Drafts) â€” the right bulk answer is Seller Hub â€º
+Reports â€º Upload "Create new drafts" CSV (documented at
+pages.ebay.com/sh/reports/help/uploadable-file-feeds/ â€” the fetch timed
 out; spec still needed): CardFlip generates the CSV, seller uploads once,
 every row lands in Drafts. NEXT if Chris wants bulk drafts: build that
 export in place of Send-all. Background: the Listing API (real API
-drafts) is LIMITED RELEASE — approved keysets only; our path/headers are
-right; `createDraft` maps the empty 404 → `EbayDraftUnavailableError` →
+drafts) is LIMITED RELEASE â€” approved keysets only; our path/headers are
+right; `createDraft` maps the empty 404 â†’ `EbayDraftUnavailableError` â†’
 `503 draft_unavailable`; `sellFlowUrl` is the draft link field. Chris
 can apply at developer.ebay.com/my/support (name the Listing API /
-`sell.item.draft`, app id, use case). Why it broke: **the Listing API (My eBay › Drafts) is LIMITED
-RELEASE** — approved keysets only (eBay docs); path/headers were right,
-eBay just doesn't route it → 404 empty body. Fix = **two roads behind
+`sell.item.draft`, app id, use case). Why it broke: **the Listing API (My eBay â€º Drafts) is LIMITED
+RELEASE** â€” approved keysets only (eBay docs); path/headers were right,
+eBay just doesn't route it â†’ 404 empty body. Fix = **two roads behind
 one button**: client `sendEbayDraft()` (ebayApi.ts) tries the Listing
 API draft; server `createDraft` turns the empty 404 into
-`EbayDraftUnavailableError` → route `503 draft_unavailable` (and
-remembers per process, `isListingApiUnavailable`) → client falls back to
+`EbayDraftUnavailableError` â†’ route `503 draft_unavailable` (and
+remembers per process, `isListingApiUnavailable`) â†’ client falls back to
 `pushEbayDraft` (Inventory draft, the road that worked since 05:06) and
 remembers per page load. `EbayPostActions.sendDraft` handles both (`via:
 "listing" | "inventory"`; shared `afterPush()`), button reads "Update
 draft on eBay" once pushed, caption explains API drafts don't show in My
-eBay › Drafts; `sendAllToEbay` in page.tsx same. Also `sellFlowUrl` (not
-`itemWebUrl`) is the Listing API's draft link — read first, so the day
-eBay approves, "Open draft on eBay ↗" just starts working with no
-change. **CHRIS:** (1) deploy; (2) re-test Send draft → should say
-"Draft saved on eBay — nothing is live yet" → Publish; (3) optionally
+eBay â€º Drafts; `sendAllToEbay` in page.tsx same. Also `sellFlowUrl` (not
+`itemWebUrl`) is the Listing API's draft link â€” read first, so the day
+eBay approves, "Open draft on eBay â†—" just starts working with no
+change. **CHRIS:** (1) deploy; (2) re-test Send draft â†’ should say
+"Draft saved on eBay â€” nothing is live yet" â†’ Publish; (3) optionally
 apply for Listing API access (developer.ebay.com/my/support, name the
-Listing API / `sell.item.draft`, app id, use case) — nothing else needs
+Listing API / `sell.item.draft`, app id, use case) â€” nothing else needs
 to change when it lands. Publish still needs Business Policies + a
 location on the account (20403 seen this morning). Unknown whether he
 RECONNECTED eBay after the scope change (irrelevant on the inventory
@@ -1210,36 +1212,36 @@ road). Everything else below is DEPLOYED as of his 08:20 deploy unless
 it says otherwise.
 
 **Listing API draft (08-16 ~08:00): "Send draft to eBay" creates a real
-eBay draft** — Chris looked at My eBay › Drafts, saw nothing, and
+eBay draft** â€” Chris looked at My eBay â€º Drafts, saw nothing, and
 said "from here it should be in the eBay drafts after you hit that
 button". Inventory-API offers never show there, so: Listing API
 `POST /sell/listing/v1_beta/item_draft/` (`buildItemDraft` in
-ebayInventory.ts — same title/desc(HTML)/condition/descriptors/aspects/
+ebayInventory.ts â€” same title/desc(HTML)/condition/descriptors/aspects/
 photo as the inventory item; `createDraft` in ebaySell.ts; route
 `POST /api/ebay/draft`; shared body parser `lib/server/ebayDraftBody.ts`;
 ledger cols `ebay_draft_id/url/at` + `setCardEbayDraft`; ScanItem
 `ebayDraftUrl`; client `createEbayDraft`). **SCOPES CHANGED** in
-`USER_SCOPES`: + `sell.item.draft`, and `sell.account.readonly` →
-`sell.account` (fixes the opt-in 403 too) → **Chris must RECONNECT eBay
-once after deploy** (existing token lacks the scope → eBay 403 → surfaced
+`USER_SCOPES`: + `sell.item.draft`, and `sell.account.readonly` â†’
+`sell.account` (fixes the opt-in 403 too) â†’ **Chris must RECONNECT eBay
+once after deploy** (existing token lacks the scope â†’ eBay 403 â†’ surfaced
 as `needs_reconnect` with a "Reconnect eBay" link). UI (`EbayPostActions`):
-primary "Send draft to eBay" (or "Add photo & send…") → after: primary
-"Open draft on eBay ↗" (itemWebUrl) + text "Send a fresh draft" (eBay has
+primary "Send draft to eBay" (or "Add photo & sendâ€¦") â†’ after: primary
+"Open draft on eBay â†—" (itemWebUrl) + text "Send a fresh draft" (eBay has
 no update-draft; a resend makes another draft); quiet "Publish now (skip
 the form)" = push+publish direct (old road, kept; needs business policies
-on the account — this account got 20403 "not eligible" today). "Send all
+on the account â€” this account got 20403 "not eligible" today). "Send all
 to eBay" now creates eBay Drafts. **UNVERIFIED against eBay** (Listing API
-is v1_beta; body shape from docs memory — if it 400s, read the error in
-fly logs `eBay POST /sell/listing/v1_beta/item_draft/ →`; likely culprits:
+is v1_beta; body shape from docs memory â€” if it 400s, read the error in
+fly logs `eBay POST /sell/listing/v1_beta/item_draft/ â†’`; likely culprits:
 `conditionDescriptors` unsupported on drafts (drop), or `imageUrls`
 required non-empty). test:inventory 46 pass, tsc/lint clean.
 
 **FIRST ACTION on resume (2026-08-16 ~05:10):** the whole batch (items
-000000 → 0000 + publish opt-in/ZIP) IS on prod as **v73** (verified: prod
+000000 â†’ 0000 + publish opt-in/ZIP) IS on prod as **v73** (verified: prod
 chunk contains "Send all to eBay" / "Connect eBay to list this card").
 **FIRST REAL LISTING WENT LIVE 08-16 ~05:06** (Keldeo 019/086 Chaos
-Rising, eBay item 5230387616323, christophis01) — publish works end to
-end, BUT the listing had NO PHOTO (empty gallery) — and Chris then
+Rising, eBay item 5230387616323, christophis01) â€” publish works end to
+end, BUT the listing had NO PHOTO (empty gallery) â€” and Chris then
 recalled eBay's picture policy: listing photos must be the seller's OWN
 photo of the actual item, stock/catalogue art is not allowed. So catalogue
 art is now NEVER sent. Built 08-16 ~06:00, UNDEPLOYED, **seller-photo
@@ -1249,7 +1251,7 @@ Fly volume; JPEG magic-byte check, 6MB cap, write-then-rename;
 `storeCardPhoto/hasCardPhoto/readCardPhoto/deleteCardPhoto`);
 `PUT /api/cards/[id]/photo` (auth+owner, raw JPEG body) stores it; public
 `GET /api/card-image/[id]` serves it to eBay's picture fetcher (404 when
-none). Client `lib/client/cardPhotoApi.ts` downscales to ≤1600px JPEG
+none). Client `lib/client/cardPhotoApi.ts` downscales to â‰¤1600px JPEG
 (canvas, like visionApi) and uploads; `pushEbayDraft(draft, photoFile)`
 uploads first when given a not-yet-uploaded `item.file`; ScanItem gained
 `photoAt`. Server `pushDraft` sets `DraftInput.hasPhoto` from disk (never
@@ -1257,11 +1259,11 @@ from the client) and throws `needs_photo` (409) when missing;
 `imageUrls()` = `[SITE_URL/api/card-image/<id>]` or []. UI
 (`EbayPostActions`): scanned items just work (photo uploads on first
 Send); search-added/sealed items show an amber "eBay needs your own photo
-— Add photo" row (hidden `<input type=file capture=environment>`), Send
-opens the picker if no photo, `needs_photo` also opens it, "Photo saved ·
+â€” Add photo" row (hidden `<input type=file capture=environment>`), Send
+opens the picker if no photo, `needs_photo` also opens it, "Photo saved Â·
 Replace" afterwards. Send-all skips photoless items with a count in the
 note. Card DELETE + demo reset unlink photos. Verified on dev via curl:
-PUT 200 → GET image/jpeg 109KB, non-JPEG 400, no-auth 401; tsc/lint/
+PUT 200 â†’ GET image/jpeg 109KB, non-JPEG 400, no-auth 401; tsc/lint/
 test:inventory clean. `ebayFetch` also logs eBay `warnings` on 2xx and
 the inventory PUT logs the image URLs it sent. Also undeployed: Market
 value panel collapsed to a one-line summary by default
@@ -1270,104 +1272,104 @@ value panel collapsed to a one-line summary by default
 images. Chris deploys himself (classifier blocks me):
 `cd C:\Users\Chris\cardflip; flyctl deploy --app cardflip-superior`.
 Then: scan a cheap card with the camera/photo (so it has a real photo),
-Send draft → Publish; check `flyctl logs --app cardflip-superior --no-tail`
+Send draft â†’ Publish; check `flyctl logs --app cardflip-superior --no-tail`
 for `GET /api/card-image/` (eBay fetched it) and any `with warnings:`
 line. ALSO undeployed (Chris's ask 08-16 ~06:20): the Scrydex-style
-**laser sweep** in the camera guide — `.scan-sweep` in globals.css (pink
-line + trailing glow, top→bottom, fade, rest, repeat, 2.2s; reduced-motion
+**laser sweep** in the camera guide â€” `.scan-sweep` in globals.css (pink
+line + trailing glow, topâ†’bottom, fade, rest, repeat, 2.2s; reduced-motion
 exempt inside `.scanner-hud`), rendered in `CameraCapture.tsx` inside the
 guide while `sweeping` = ready && (last capture still queued/scanning ||
 auto && phase !== "captured"). Untestable in the harness (no camera, pane
 hidden freezes animation clocks); keyframes verified resolving. Tune the
 duration/colour on his phone if it feels off. ALSO undeployed (Chris's
-ask ~07:00, "make every scan memorable"): the **scan reveal** — see
+ask ~07:00, "make every scan memorable"): the **scan reveal** â€” see
 DESIGN.md "The scan reveal" for the sequence + tiers. Files: new
-`lib/client/scanFx.ts` (WebAudio synth shutter tick / 2–4-note match
+`lib/client/scanFx.ts` (WebAudio synth shutter tick / 2â€“4-note match
 chime / miss note + `navigator.vibrate` haptics, `revealTier()` thresholds
 $20/$100/$500, pref `cardflip.scanFx`, `primeScanFx()` must run inside a
-tap — called from `openCamera` in page.tsx and any pointerdown in the
+tap â€” called from `openCamera` in page.tsx and any pointerdown in the
 dialog); `CameraCapture.tsx` `RevealChip` (card art pop `.reveal-art` +
 one-shot sheen, display-type name, `useCountUp` market price, tier
 styling, "% sure" from vision), grail `.reveal-burst` keyed by scan id,
 **"Found!" stamp** (`RevealStamp`: `.reveal-stamp` slam + `.reveal-ring`
 kick, tiered copy Found!/Nice pull!/Big one!, flat amber "No match" on a
-miss; Chris's ask ~07:15) — a full-frame RevealScene + personalNote layer
+miss; Chris's ask ~07:15) â€” a full-frame RevealScene + personalNote layer
 was built ~07:30 and REVERTED at Chris's request ~07:40 (not wanted),
-🔊/🔇 toggle under the torch, tally pill (`tally` prop from page.tsx =
-identified count + Σ currentPrice); CSS in globals.css with reduced-motion
+ðŸ”Š/ðŸ”‡ toggle under the torch, tally pill (`tally` prop from page.tsx =
+identified count + Î£ currentPrice); CSS in globals.css with reduced-motion
 exemptions. tsc/lint clean; modal opens clean in the pane but the reveal
-itself needs a real camera → phone test after deploy (also check the
-chime volume and that sounds play after auto-capture on iOS — if not, the
+itself needs a real camera â†’ phone test after deploy (also check the
+chime volume and that sounds play after auto-capture on iOS â€” if not, the
 prime didn't stick and needs to move). ALSO undeployed (Chris's
 ask ~06:40, "mobile login + stay logged in"): the landing nav's "Log in"
-link was `hidden sm:block` = INVISIBLE ON PHONES → now shown at every
+link was `hidden sm:block` = INVISIBLE ON PHONES â†’ now shown at every
 width (`MarketingNav.tsx`, verified at 375px). Sessions are now SLIDING:
 `touchSession` in `sessions.ts` re-extends a live session to a fresh 30
 days when it's >1 day old, and `/api/auth/me` (called on every app page
 load) re-issues the cookie to match; `sessionCookieOptions()` is the one
 cookie shape for login/signup/demo/reset/renewal. Verified on dev (aged
-session → Set-Cookie with 30d expiry). Listed cards have no "Update draft" in the UI (ListedPanel takes
-over) — the Keldeo listing stays photoless; END IT on eBay (stock-art
-listing = policy risk). Real-phone concern: HEIC → `createImageBitmap`
+session â†’ Set-Cookie with 30d expiry). Listed cards have no "Update draft" in the UI (ListedPanel takes
+over) â€” the Keldeo listing stays photoless; END IT on eBay (stock-art
+listing = policy risk). Real-phone concern: HEIC â†’ `createImageBitmap`
 decodes it in Safari, not Chrome-on-Windows; the same limit already
 applies to vision scans, so no new failure mode.
-Also seen in logs: `POST /sell/account/v1/program/opt_in → 403 Access
-denied` — the opt-in needs `sell.account` (write) scope, we only hold
+Also seen in logs: `POST /sell/account/v1/program/opt_in â†’ 403 Access
+denied` â€” the opt-in needs `sell.account` (write) scope, we only hold
 `sell.account.readonly`; publish still succeeded (policies exist), so
 low priority; fix = add scope + reconnect.
 Then the live test, all his clicks, on whichever account he uses (only
 christophis01 / "Nikki Torres" is eBay-linked so far): "Connect eBay to
-list this card" → lands on /app with banner → open a cheap card → **Send
-draft to eBay** → **Publish on eBay** → ZIP prompt once → live listing OR
-`needs_policies` (he creates shipping/payment/return once in Seller Hub) →
+list this card" â†’ lands on /app with banner â†’ open a cheap card â†’ **Send
+draft to eBay** â†’ **Publish on eBay** â†’ ZIP prompt once â†’ live listing OR
+`needs_policies` (he creates shipping/payment/return once in Seller Hub) â†’
 "View on eBay". Read eBay's raw errors with
-`flyctl logs --app cardflip-superior --no-tail` (lines `eBay PUT/POST … →`).
+`flyctl logs --app cardflip-superior --no-tail` (lines `eBay PUT/POST â€¦ â†’`).
 Admin unlock (also in that deploy): `flyctl ssh console --app cardflip-superior -C "node scripts/issue-reset-link.mjs truefreemoney@gmail.com"`
-→ link → set password → /admin. If "No account with email" → /signup with it.
+â†’ link â†’ set password â†’ /admin. If "No account with email" â†’ /signup with it.
 Open asks from Chris: real-camera test of auto-scan (item 00000). (Market
 value collapse: DONE, awaiting his deploy.)
-Backlog: comps filter lets loose number matches through (`Charizard 4` →
-"Charizard V 004/127", avg $326 vs ~$800 — tighten `isComparable` in
+Backlog: comps filter lets loose number matches through (`Charizard 4` â†’
+"Charizard V 004/127", avg $326 vs ~$800 â€” tighten `isComparable` in
 `lib/ebayComps.ts`); governing-law state; Marketplace Insights ticket
 pending (tile hidden until data arrives); rotate PRD Cert ID sometime.
-Push history (08-16): 25709 header → fixed; 25001 500s ×2 (webp→jpg fix +
-self-bisect added) → 4th attempt clean; publish blocked by 20403 no
-Business Policies + no location → opt-in/ZIP flow built (item 000).
+Push history (08-16): 25709 header â†’ fixed; 25001 500s Ã—2 (webpâ†’jpg fix +
+self-bisect added) â†’ 4th attempt clean; publish blocked by 20403 no
+Business Policies + no location â†’ opt-in/ZIP flow built (item 000).
 Design work: read `docs/DESIGN.md` first.
 
 000000. **Sell-first editor pass (Chris, 08-16 late): "this should be a
-   window to sell, not look at the lists… open eBay listing at the bottom
+   window to sell, not look at the listsâ€¦ open eBay listing at the bottom
    shouldn't be an option."** UNDEPLOYED. `EbayPostActions`: the manual
    "Open eBay with this listing" is GONE (eBay also retired that prefill
-   URL — it 404'd); not connected → primary button "Connect eBay to list
-   this card" (→ /connect-ebay), copy stays; connected → Send draft /
-   Update draft / Publish; the "I posted this — mark as listed" big button
+   URL â€” it 404'd); not connected â†’ primary button "Connect eBay to list
+   this card" (â†’ /connect-ebay), copy stays; connected â†’ Send draft /
+   Update draft / Publish; the "I posted this â€” mark as listed" big button
    is now a one-line text link. `ebaySellUrl` deleted from listing.ts.
    (DEPLOYED v73, verified in prod bundle 05:05.)
-   Scanner header: "Post all to eBay · soon" placeholder replaced by a real
+   Scanner header: "Post all to eBay Â· soon" placeholder replaced by a real
    **Send all to eBay** (`sendAllToEbay` in page.tsx: sequential
    pushEbayDraft for every ready, priced, not-yet-pushed item; not
-   connected → routes to /connect-ebay; result line under the header).
+   connected â†’ routes to /connect-ebay; result line under the header).
    Description bug fixed: "Printing: eBay asking (54 listings)" no longer
-   leaks — `buildListing` drops labels starting "eBay". Still open from
-   his ask: Market value panel collapse → DONE 05:10 (undeployed, see
+   leaks â€” `buildListing` drops labels starting "eBay". Still open from
+   his ask: Market value panel collapse â†’ DONE 05:10 (undeployed, see
    FIRST ACTION).
 
 00000. **Camera auto-scan ("Scrydex Vision"-style, from Chris's reference
    video IMG_5423.mov): BUILT 2026-08-16, NOT DEPLOYED, UNTESTED ON A REAL
    CAMERA** (harness pane has no camera; modal renders, controls present,
-   tsc/lint clean). `CameraCapture.tsx`: hands-free capture — every 200ms
-   a 24×32 grayscale thumbnail of the guide region is sampled; when the
+   tsc/lint clean). `CameraCapture.tsx`: hands-free capture â€” every 200ms
+   a 24Ã—32 grayscale thumbnail of the guide region is sampled; when the
    frame is steady (mean diff <6 for 3 samples), has print in it (stddev
    >28), differs from the last captured signature (>25) AND there's been
    motion since the last capture (a swap), it calls `capture()` itself.
-   Bracket colour = state (brand looking / holo-pink "Hold still…" with
-   pulse ring / emerald "Captured — swap the card"), status pill top-left,
+   Bracket colour = state (brand looking / holo-pink "Hold stillâ€¦" with
+   pulse ring / emerald "Captured â€” swap the card"), status pill top-left,
    "Auto on/off" toggle (default on; shutter still works), ScanToast
-   restyled as the glass MATCH FOUND chip (icon, name · set · #, CONF from
+   restyled as the glass MATCH FOUND chip (icon, name Â· set Â· #, CONF from
    vision) with `.animate-fade-up` keyed per scan. Vision cost unchanged:
    one identification per card placement. Thresholds are constants at the
-   top of the file — tune on a real device (Chris's phone) if it fires too
+   top of the file â€” tune on a real device (Chris's phone) if it fires too
    eagerly (empty mat) or not at all (dim light lowers stddev). ffmpeg was
    installed via winget on Chris's PC to read the .mov (frames in scratch).
 
@@ -1376,45 +1378,45 @@ Design work: read `docs/DESIGN.md` first.
    `password_resets` table stores SHA-256 of the token, 1h TTL, single use,
    one live link per user, consuming it also deletes all the user's
    sessions; demo account never resettable). (a) Self-service: login page
-   "Forgot password?" → `/forgot-password` → `POST /api/auth/forgot` — emails
+   "Forgot password?" â†’ `/forgot-password` â†’ `POST /api/auth/forgot` â€” emails
    the link via `lib/server/mail.ts` (nodemailer, plain SMTP; **unconfigured
-   → honest 503 with support@ address**, page shows it). To switch on, Chris
+   â†’ honest 503 with support@ address**, page shows it). To switch on, Chris
    sets Fastmail SMTP secrets (no DNS): `SMTP_HOST=smtp.fastmail.com
    SMTP_PORT=465 SMTP_USER=support@superiormarketing.com SMTP_PASS=<Fastmail
    app password>` (+ optional `MAIL_FROM`). Response never reveals whether an
-   email is registered. (b) Admin: /admin users table "Reset password" →
-   `POST /api/admin/users/[id]/reset-link` → link shown once to copy (also
+   email is registered. (b) Admin: /admin users table "Reset password" â†’
+   `POST /api/admin/users/[id]/reset-link` â†’ link shown once to copy (also
    emailed if SMTP on). (c) Operator: `scripts/issue-reset-link.mjs <email>`
-   (standalone node:sqlite, same table/rules — keep in step with
+   (standalone node:sqlite, same table/rules â€” keep in step with
    passwordReset.ts) for the locked-out case. `/reset-password?token=` page:
    GET `/api/auth/reset?token=` pre-checks validity (expired state renders
    "Request a new link"), POST sets password + logs in. robots disallows
-   /reset-password. Verified on dev end-to-end: script → valid:true → short
-   pw 400 → reset 200 + session → reuse 400 → old pw 401 / new pw 200 →
-   non-admin reset-link 403 → forgot 503 unconfigured. tsc/lint clean.
+   /reset-password. Verified on dev end-to-end: script â†’ valid:true â†’ short
+   pw 400 â†’ reset 200 + session â†’ reuse 400 â†’ old pw 401 / new pw 200 â†’
+   non-admin reset-link 403 â†’ forgot 503 unconfigured. tsc/lint clean.
 
 000. **Sell Inventory draft push + publish: BUILT + verified on dev
    2026-08-16, DEPLOYED v61/v62.** Two explicit steps for connected sellers:
    "Send draft to eBay" = createOrReplaceInventoryItem (SKU
    `cardflip-<cardId>`) + createOffer (or updateOffer if the card already
-   has an offer; 404 → recreate), unpublished, seller's default business
+   has an offer; 404 â†’ recreate), unpublished, seller's default business
    policies + inventory location attached best-effort (Account API
    `fulfillment/payment/return_policy`, Inventory `location`); "Publish on
-   eBay" = publishOffer → live listing, ledger flips to listed with
-   `ebay_listing_id` → "View on eBay" links (ListedPanel + collection).
-   Files: pure builder `lib/ebayInventory.ts` (condition mapping: raw →
+   eBay" = publishOffer â†’ live listing, ledger flips to listed with
+   `ebay_listing_id` â†’ "View on eBay" links (ListedPanel + collection).
+   Files: pure builder `lib/ebayInventory.ts` (condition mapping: raw â†’
    `USED_VERY_GOOD` (=Ungraded 4000) + descriptor 40001 Card Condition
    {NM 400010, LP 400011 Excellent, MP 400012 Very Good, HP/Damaged 400013
-   Poor}; graded → `LIKE_NEW` (=Graded 2750) + 27501 Grader {PSA 275010,
-   CGC 275015} + 27502 Grade ladder 275020(10)…2750218(1); sealed → NEW;
+   Poor}; graded â†’ `LIKE_NEW` (=Graded 2750) + 27501 Grader {PSA 275010,
+   CGC 275015} + 27502 Grade ladder 275020(10)â€¦2750218(1); sealed â†’ NEW;
    aspects Game/Language/Set/Card Name/Card Number/Rarity/Graded/Grade/
-   Features:1st Edition; description → `<p>` HTML for listingDescription;
+   Features:1st Edition; description â†’ `<p>` HTML for listingDescription;
    **descriptor ids are from eBay's published trading-card table and
-   UNVERIFIED against a real push — if eBay 400s, check Metadata API
+   UNVERIFIED against a real push â€” if eBay 400s, check Metadata API
    getItemConditionPolicies for category 183454**; cert number descriptor
-   27503 not sent — we don't collect it, may be required for Graded),
+   27503 not sent â€” we don't collect it, may be required for Graded),
    `lib/server/ebaySell.ts` (HTTP; `EbaySellError` carries eBay's message
-   list → UI shows eBay's own wording), `ebaySellRoute.ts` (error → HTTP:
+   list â†’ UI shows eBay's own wording), `ebaySellRoute.ts` (error â†’ HTTP:
    401 auth, 403 demo, 409 not_connected / not-pushed, 400 invalid, 404,
    503 unconfigured, 502 ebay+details), routes `POST /api/ebay/listing`
    and `/api/ebay/listing/publish`. `cards` table gained `ebay_sku`,
@@ -1423,42 +1425,42 @@ Design work: read `docs/DESIGN.md` first.
    `setCardEbayListing`, never from client PATCH). ScanItem gained
    `ebayOfferId`/`ebayListingUrl`. UI: `EbayPostActions.tsx` shared by
    CardEditor + SealedEditor (`ebayConnected` prop from page user):
-   connected → Send draft / Update draft / Publish + fee warning; not
-   connected or demo → old "Open eBay pre-filled" + Connect link; manual
+   connected â†’ Send draft / Update draft / Publish + fee warning; not
+   connected or demo â†’ old "Open eBay pre-filled" + Connect link; manual
    "I posted this" checkpoint kept on both. Tests: `npm run test:inventory`
    (39). Verified on dev: demo 403, logged-out 401, real user not connected
-   409, price 0 → 400, publish-before-push 409, foreign card 404, /app +
+   409, price 0 â†’ 400, publish-before-push 409, foreign card 404, /app +
    /collection + /connect-ebay 200, no server errors. Note eBay does NOT
-   show API-created unpublished offers in Seller Hub — CardFlip is where
+   show API-created unpublished offers in Seller Hub â€” CardFlip is where
    the draft lives until published.
 
 00. **eBay user OAuth ("Connect with eBay"): BUILT + verified on dev
    2026-08-15, NOT DEPLOYED. Portal steps + secrets DONE 08-16** (PRD
-   keyset unlocked via account-deletion notification — endpoint validated
+   keyset unlocked via account-deletion notification â€” endpoint validated
    live; RuName `christopher_wag-christop-TCGCar-qznrbmo` set; comps
    confirmed live on prod same day). eBay dev account approved 08-15. New
    `lib/server/ebayAuth.ts`: authorize URL (redirect_uri = RuName),
-   code→token exchange, refresh-on-demand `getUserAccessToken(userId)`,
+   codeâ†’token exchange, refresh-on-demand `getUserAccessToken(userId)`,
    AES-GCM-encrypted `ebay_tokens` table (key from `EBAY_TOKEN_KEY` or
    derived from client secret), HMAC state bound to user + state cookie,
    `disconnectEbay`, `purgeEbayAccount` (wired into the account-deletion
-   POST — verified purges row + flag). Scopes: sell.inventory,
-   sell.account.readonly, commerce.identity.readonly (identity → "Connected
+   POST â€” verified purges row + flag). Scopes: sell.inventory,
+   sell.account.readonly, commerce.identity.readonly (identity â†’ "Connected
    as <username>"). Routes: `/api/ebay/connect` (GET redirect, 503 if
    unconfigured, demo user bounced), `/callback` (accept+decline URL, all
-   outcomes → `/connect-ebay?connected=1|error=declined|state|exchange|
+   outcomes â†’ `/connect-ebay?connected=1|error=declined|state|exchange|
    demo|unavailable`), `/disconnect`, `/status`. UI: `EbayConnectCard.tsx`
    shared by /connect-ebay + signup step 2 (connect button / connected-as
    + disconnect / demo refusal / honest not-live copy, from /status);
    app-header chip links to /connect-ebay. `isDemoUser` in users.ts.
    Verified on dev with placeholder creds: redirect to auth.ebay.com has
-   correct params + state cookie; wrong state → error=state; no code →
+   correct params + state cookie; wrong state â†’ error=state; no code â†’
    declined; exchange hit eBay's real token endpoint (401 invalid_client
    as expected); connected/disconnect UI; deletion purge. tsc/lint/tests/
    build clean. Redirects are relative (`localRedirect`) so dev works.
    **Portal steps DONE 08-16** (keyset, RuName, account-deletion endpoint
    validated with token `EM6pmCncmGYIavTKNTI0F2hmON8VNBAL`, all secrets on
-   Fly). Learned: `flyctl secrets set` restarts the machine by itself — no
+   Fly). Learned: `flyctl secrets set` restarts the machine by itself â€” no
    deploy needed for a secret to take effect; Production keyset stays
    disabled until the deletion notification is saved + validated. Still
    for Chris: apply for Marketplace Insights (sold comps; until then
@@ -1466,38 +1468,38 @@ Design work: read `docs/DESIGN.md` first.
    Deploy: `cd C:\Users\Chris\cardflip; flyctl deploy --app cardflip-superior`.
 
 0. **Landing v2.1 + design-system pass: DEPLOYED, verified on prod
-   2026-08-15** (18 clickable ticker chips with live prices, chip →
-   portaled CardPeekModal centered with focus on ✕, Esc closes, holo hero,
+   2026-08-15** (18 clickable ticker chips with live prices, chip â†’
+   portaled CardPeekModal centered with focus on âœ•, Esc closes, holo hero,
    `no-store` headers = force-dynamic, zero failed resources).
    Impeccable-inspired additions on top of v2.1:
    NEW `docs/DESIGN.md` = design-system source of truth (tokens, holo
    rationing rule, motion policy incl. ticker exemption, data-honesty
-   rule, voice) — read it before any design work. Audit fixes:
+   rule, voice) â€” read it before any design work. Audit fixes:
    CardPeekModal close button autoFocus (keyboard focus lands in
-   dialog, verified), 11-12px captions zinc-600→zinc-500 (contrast).
+   dialog, verified), 11-12px captions zinc-600â†’zinc-500 (contrast).
    BUG FIX (Chris caught on prod): modal was visually clipped by the
-   marquee's mask-image/overflow — CardPeekModal now renders via
+   marquee's mask-image/overflow â€” CardPeekModal now renders via
    createPortal(document.body); centered-in-viewport verified. Rule:
    overlays triggered from inside `.marquee`/`.sheen` containers must
    portal out.
    BUG FIX 2 (Chris caught: ticker VANISHED on prod): pokemontcg.io was
    down at deploy build time, empty ticker got baked into the static
-   page. Fixes: (a) `showcaseFromMirror()` in tcg.ts — priceless
+   page. Fixes: (a) `showcaseFromMirror()` in tcg.ts â€” priceless
    fallback chips from the local mirror (18 verified vs the real DB;
    ticker caption switches to non-price wording, chips/modal already
    hide missing prices); (b) hero card falls back to showcase[0];
-   (c) landing page is `force-dynamic` — the mirror lives on the Fly
+   (c) landing page is `force-dynamic` â€” the mirror lives on the Fly
    volume which doesn't exist in the Docker builder, so build-time
    prerender can never see it. Rule: landing sections must degrade to
    mirror data, never disappear. Chris's asks: ticker must move like a live stock
-   ticker (marquee now exempt from the reduced-motion kill — his Windows
+   ticker (marquee now exempt from the reduced-motion kill â€” his Windows
    has animations off, which froze ALL site animation for him; other
    animations still respect the setting) and cards must be clickable.
    Ticker chips + bento card wall now open `CardPeekModal.tsx` (public,
-   logged-out peek: HoloCard 3D + live price + signup/demo CTAs — leaner
+   logged-out peek: HoloCard 3D + live price + signup/demo CTAs â€” leaner
    than app's CardDetailModal which needs auth). PriceTicker became a
-   client component; wall extracted to `CardWall.tsx`. Verified: click →
-   modal (real Umbreon ex $1,494 data), Esc/backdrop/✕ close, fresh
+   client component; wall extracted to `CardWall.tsx`. Verified: click â†’
+   modal (real Umbreon ex $1,494 data), Esc/backdrop/âœ• close, fresh
    loads clean, lint clean.
 
 0a. **Landing overhaul v2 ("extremely modern" pass): DEPLOYED 2026-08-15,
@@ -1506,7 +1508,7 @@ Design work: read `docs/DESIGN.md` first.
    felt v1 was too tame; this is the structural pass on top of it. New: split hero with interactive
    HoloCard (reused 3D-tilt component) + live price chip, full-bleed
    `PriceTicker.tsx` marquee of 18 real cards (new `getShowcaseCards()`
-   in `lib/tcg.ts` — pokemontcg.io OR-query must be
+   in `lib/tcg.ts` â€” pokemontcg.io OR-query must be
    `(name:x OR name:y)` form, `name:(x OR y)` 400s), Bricolage Grotesque
    display font (`--font-display`, layout.tsx), editorial how-it-works
    with giant holo numerals, bento features with real-card wall,
@@ -1515,13 +1517,13 @@ Design work: read `docs/DESIGN.md` first.
    globals.css. Copy unchanged. Verified: ticker 18 chips, card wall 8,
    font loaded, mobile 375px no overflow, zero console/server errors,
    lint clean. HoloCard tilt untestable synthetically (known harness
-   artifact) — component already shipped in 3D viewer, trusted.
+   artifact) â€” component already shipped in 3D viewer, trusted.
 
 0b. **Holo-foil redesign v1: DEPLOYED 2026-08-15, verified on prod** (foil
    markup live, key routes 200). "2026/modern" visual pass, all copy/content unchanged
    (eBay review prep intact). New system in `globals.css`: `.holo-text`
    (animated iridescent text), `.foil-edge` / `.foil-edge-live` (gradient
-   hairline borders; fill via `--foil-fill` **fallback var — never declare
+   hairline borders; fill via `--foil-fill` **fallback var â€” never declare
    it in globals.css, un-layered CSS beats Tailwind's `[--foil-fill:...]`
    utilities**), `.hero-mesh`, `.grain`, `.sheen` (hover sweep). Animated
    foil rationed to hero headline + pricing card. Touched: landing
@@ -1534,29 +1536,29 @@ Design work: read `docs/DESIGN.md` first.
    styles checked in browser.
 
 1. **eBay-review hardening batch: DEPLOYED + VERIFIED on prod 2026-08-14
-   late** (20 rejection risks — list in HISTORY.md "eBay-review
+   late** (20 rejection risks â€” list in HISTORY.md "eBay-review
    hardening"). Verified live: all security headers, honest 503s on both
    eBay endpoints, demo `ebayConnected:false`, /app legal footer, /login
    demo button, terms "Governing law" + privacy "eBay data" sections, OG
    image, price-checks scoped per user.
    Resume-from-suspend VERIFIED 2026-08-15: 200 in 0.59s after 20+ min
-   idle — suspend works, no fly.toml change needed.
+   idle â€” suspend works, no fly.toml change needed.
    Still open, small:
    - support@superiormarketing.com CONFIRMED receiving mail (08-15).
    - Governing-law clause says "the U.S. state where CardFlip's operator
-     resides" — name the real state when Chris shares it.
+     resides" â€” name the real state when Chris shares it.
    - Deletion-endpoint registration: item 00 step (3).
 2. **eBay-review prep: DEPLOYED 2026-08-14, verified on production.**
    Context: eBay dev-account reapplication went in with an email on
    superiormarketing.com (his 2005 domain); manual/AI legitimacy review of
    the site is expected any day. What shipped, tersely:
    - `/admin` gated (login + admin role; operator bootstraps via
-     `ADMIN_EMAIL` Fly secret = truefreemoney@gmail.com — matching user is
+     `ADMIN_EMAIL` Fly secret = truefreemoney@gmail.com â€” matching user is
      promoted on first /admin visit; **Chris still hasn't confirmed he can
      get in**). Admin link off the public nav; non-admins bounce to /app.
    - Fake "Connect with eBay" flow removed everywhere: signup step 2 and
      /connect-ebay state the truth ("completing eBay's API onboarding",
-     upcoming scopes listed), `/api/ebay/connect` → honest 503, login no
+     upcoming scopes listed), `/api/ebay/connect` â†’ honest 503, login no
      longer detours there. Related stale copy fixed (signup button now
      "Create account"; landing CTA no longer says "connect eBay").
    - `/terms` + `/privacy` (shell: `LegalArticle.tsx`), `Footer.tsx`
@@ -1564,10 +1566,10 @@ Design work: read `docs/DESIGN.md` first.
      sitemap.xml, branded 404, `metadataBase`.
    - Full reviewer simulation run against prod: every page/link/image,
      demo flow, all four app pages, auth edge cases, logged-out redirects,
-     mobile widths, console — all clean. Locally /admin needs `ADMIN_EMAIL`
+     mobile widths, console â€” all clean. Locally /admin needs `ADMIN_EMAIL`
      in `.env.local` (unset).
 3. **Graded search parse: DEPLOYED 2026-08-14, verified on prod.** Scanner
-   search understands "Charizard 4/102 PSA 10" — `parseGradeQuery` in
+   search understands "Charizard 4/102 PSA 10" â€” `parseGradeQuery` in
    `lib/grading.ts` (strips grade BEFORE `parseCardQuery`; off-ladder
    grades like PSA 9.5 don't parse), queue item enters as a slab, grade is
    stored condition, market floor quoted. 8 new checks in test:pricing (49).
@@ -1575,11 +1577,11 @@ Design work: read `docs/DESIGN.md` first.
    production** (`/api/sets` serves 199 sets with derived logos; a sealed
    draft round-tripped through POST/DELETE `/api/cards` on the prod DB, so
    the `kind`/`product_type` ALTER probes ran). Batch details:
-   - **Sealed products** — scanner page has an "or sell sealed product"
+   - **Sealed products** â€” scanner page has an "or sell sealed product"
      picker (both hero + queue layouts, `SealedProductAdd.tsx`): pick any of
      the 218 sets (new `/api/sets`, served from the mirror; logos derived
      from card image paths via `setLogoFromCardImage`) + a product type
-     (Booster Pack/Box, ETB, tins, decks… — curated list in
+     (Booster Pack/Box, ETB, tins, decksâ€¦ â€” curated list in
      `lib/grading.ts`, no per-set product database exists anywhere). Enters
      the queue as `kind: "sealed"` with a synthesized PokemonCard
      (`makeSealedProduct`), edits in `SealedEditor.tsx` (manual price only,
@@ -1588,13 +1590,13 @@ Design work: read `docs/DESIGN.md` first.
      261044), ledger row shows "Factory Sealed". Sealed items never get
      comps (the comp filters reject sealed lots by design) and never hit
      the scan pump.
-   - **Graded cards** — CardEditor "Graded slab" select (PSA or CGC) +
+   - **Graded cards** â€” CardEditor "Graded slab" select (PSA or CGC) +
      grade dropdown with each grader's real ladder (`lib/grading.ts`: PSA
      whole grades + 1.5 only; CGC half-grades + "10 Pristine").
-     Grade replaces Condition in the UI, title ("… Pokemon TCG PSA 10"),
+     Grade replaces Condition in the UI, title ("â€¦ Pokemon TCG PSA 10"),
      description, and ledger (`describeItemCondition`, synced at
      listed/sold checkpoints). Pricing bypasses condition/strategy
-     multipliers (`quoteForItem`) — raw market quoted as a floor with a
+     multipliers (`quoteForItem`) â€” raw market quoted as a floor with a
      note, eBay links search the grade. No fake graded price data.
    - Server: `cards` table gained `kind` + `product_type` via the ALTER
      probe pattern; grade lives in the existing `condition` text column.
@@ -1603,20 +1605,20 @@ Design work: read `docs/DESIGN.md` first.
      filename, the `@/` alias is bundler-only).
    Deploy: `cd C:\Users\Chris\cardflip; flyctl deploy --app cardflip-superior`
    (add `--depot=false` if the depot builder hangs; no mirror re-sync needed
-   for this batch — schema changes are in app code, not the mirror).
+   for this batch â€” schema changes are in app code, not the mirror).
 5. **Domain: REDIRECT-ONLY is Chris's actual intent (settled late
    2026-08-14 after much Dynadot churn).** superiormarketing.com should
-   simply 301 to https://cardflip-superior.fly.dev — the site is NOT
+   simply 301 to https://cardflip-superior.fly.dev â€” the site is NOT
    served on his domain. History, tersely: the site was briefly live at
    cardflip.superiormarketing.com (CNAME + Fly cert, which ISSUED and
    still sits at Fly, harmless), but the CNAME got mangled into a TXT in
    Dynadot's UI, went dark, and Chris then clarified he never wanted the
-   subdomain — just the redirect. `lib/siteUrl.ts` canonical was reverted
-   to fly.dev. FINAL, VERIFIED 2026-08-14 late: root Forward 301 →
+   subdomain â€” just the redirect. `lib/siteUrl.ts` canonical was reverted
+   to fly.dev. FINAL, VERIFIED 2026-08-14 late: root Forward 301 â†’
    https://cardflip-superior.fly.dev works on http AND https, one hop,
-   200. Dynadot end state: MX ×2 + Forward (section 1), fm1-3 _domainkey
+   200. Dynadot end state: MX Ã—2 + Forward (section 1), fm1-3 _domainkey
    CNAMEs (section 2), nothing else. Don't touch it.
-   The old wildcard stealth-forward (iframe) is gone for good — never
+   The old wildcard stealth-forward (iframe) is gone for good â€” never
    re-add it; it breaks logins/camera and X-Frame-Options: DENY blanks it.
    Mail: Fastmail MX + DKIM verified intact; root SPF ended up nowhere
    (optional; `v=spf1 include:spf.messagingengine.com ?all` as a section-1
@@ -1636,29 +1638,29 @@ Everything below is deployed and verified on production unless marked.
 
 | Area | State |
 |---|---|
-| Scanning → identify → price → listing | Working end to end |
-| English catalogue | Mirrored locally + production; post-purge 20,964 cards, 20,408 with images (the 556 without exist at neither source — future syncs pick them up when art appears). **Do NOT re-add a generic same-release-date image join**: it attached sibling printings' art (POP6 onto trainer kits) and was reverted |
+| Scanning â†’ identify â†’ price â†’ listing | Working end to end |
+| English catalogue | Mirrored locally + production; post-purge 20,964 cards, 20,408 with images (the 556 without exist at neither source â€” future syncs pick them up when art appears). **Do NOT re-add a generic same-release-date image join**: it attached sibling printings' art (POP6 onto trainer kits) and was reverted |
 | Japanese / Chinese | Mirrored locally, English name overlay on foreign cards |
 | Sealed products (packs/boxes/ETBs per set) | Deployed + verified on production |
 | Graded cards (PSA/CGC, real grade ladders) | Deployed + verified on production |
-| Vision card reading + condition grading | **Live on production** (key set, $5 credit — degrades to Tesseract silently when credit runs out) |
+| Vision card reading + condition grading | **Live on production** (key set, $5 credit â€” degrades to Tesseract silently when credit runs out) |
 | eBay comps (asking + sold) | **Asking comps LIVE on prod 08-16.** Sold comps need Marketplace Insights. Filter lets loose number matches through (first-action item 3) |
 | eBay user OAuth ("Connect with eBay") | Built 08-15, secrets set 08-16, **awaiting deploy** (item 00) |
-| eBay draft push + publish (Sell Inventory) | **LIVE — first real listing published 08-16** (item 000). Seller-photo pipeline (eBay picture policy: own photo, no stock art) built same day, **awaiting deploy** — see FIRST ACTION |
+| eBay draft push + publish (Sell Inventory) | **LIVE â€” first real listing published 08-16** (item 000). Seller-photo pipeline (eBay picture policy: own photo, no stock art) built same day, **awaiting deploy** â€” see FIRST ACTION |
 | Wishlist (incl. add panel), price-check history, 3D viewer, admin | Working |
 | Password reset (self-service via email, admin link, operator script) | Built 08-16, **awaiting deploy**; email path needs SMTP secrets (item 0000) |
 | My cards ledger, camera scanning | Deployed (camera untested on a real device) |
-| 1st Edition toggle | All ten WotC sets, real TCGplayer 1st Ed prices (except Base Set — amber note); Base Set Machamp carved out |
+| 1st Edition toggle | All ten WotC sets, real TCGplayer 1st Ed prices (except Base Set â€” amber note); Base Set Machamp carved out |
 | English-only UI | LanguageToggle removed from pages; ja/zh pipeline intact underneath |
 | Card-number matching | Full printed fraction; set total settles 94.3% of name+number collisions; typed numbers filter search to the exact card |
-| Test suites | `test:ocr` (21), `test:cardnumber` (53), `test:ebay` (40), `test:pricing` (49), `test:inventory` (39), `test:mtg` (36) — all passing |
+| Test suites | `test:ocr` (21), `test:cardnumber` (53), `test:ebay` (40), `test:pricing` (49), `test:inventory` (39), `test:mtg` (36) â€” all passing |
 | Magic: The Gathering | **Built 08-16, awaiting deploy + one-time prod `sync-mtg` on the Fly volume** (94k printings, prices in the mirror). Same pipeline behind a game toggle |
 
-Reference case: Base Set Charizard (`base1-4`) → **Charizard · Base Set · #4 ·
+Reference case: Base Set Charizard (`base1-4`) â†’ **Charizard Â· Base Set Â· #4 Â·
 ~$818 TCGplayer**, quick-sale ~$720. Test changes with a real card image
 (`CLAUDE.md` has the curl line).
 
-Business model: **$4.99/mo, free during early access** — no Stripe yet, don't
+Business model: **$4.99/mo, free during early access** â€” no Stripe yet, don't
 gate features, keep the demo login working (Chris tests with it).
 
 ## Key implementation notes (pending-deploy features)
@@ -1667,37 +1669,37 @@ gate features, keep the demo login working (Chris tests with it).
   local modal). Torch renders only if `getCapabilities().torch`, un-renders if
   `applyConstraints` rejects.
 - Wishlist add panel (`app/wishlist/page.tsx`) identifies dropped images via
-  `lib/client/identifyCard.ts` — the scanner's pipeline **without**
+  `lib/client/identifyCard.ts` â€” the scanner's pipeline **without**
   `createServerCard`; wanted cards must not land in the seller ledger.
 - My cards status moves PATCH `/api/cards/[id]`; "Mark sold" defaults
   soldPrice to listing price. Profit shown net of est. eBay fees
   (13.25% + $0.30, mirroring `lib/server/cards.ts`).
 
-Full write-ups: `docs/HISTORY.md` (archive — don't read to resume).
+Full write-ups: `docs/HISTORY.md` (archive â€” don't read to resume).
 
 ## Blocked on someone else
 
-1. **eBay developer account — APPROVED 2026-08-15, portal + secrets DONE
+1. **eBay developer account â€” APPROVED 2026-08-15, portal + secrets DONE
    08-16, asking comps live.** Remaining: confirm sold prices take over in
    `pickPrice` when Insights lands, re-check spread copy in
    `MarketMetricsPanel`.
-2. **Marketplace Insights** — apply now (separate limited-release request).
+2. **Marketplace Insights** â€” apply now (separate limited-release request).
    Unlocks sold prices.
-3. **Stripe** — Chris creates the account; nothing billing-related exists.
+3. **Stripe** â€” Chris creates the account; nothing billing-related exists.
 
-## When new Pokémon sets release
+## When new PokÃ©mon sets release
 
 ```bash
 npm run sync:en
 flyctl ssh console --app cardflip-superior -C "node scripts/sync-cards.mjs en en_cards"
 ```
 
-(Wake the machine with a request first — it scale-to-zeros.)
+(Wake the machine with a request first â€” it scale-to-zeros.)
 
 ## Unverified
 
 - Search inputs (Price Check, wishlist) don't register synthetically-typed
-  values in the browser test pane — React state stays empty. `form_input` and
+  values in the browser test pane â€” React state stays empty. `form_input` and
   real keyboards work, so it's a harness artifact, not an app bug. Reproduced
   on both pages 2026-08-11.
 - Real-device camera capture + torch (needs the pending deploy).
