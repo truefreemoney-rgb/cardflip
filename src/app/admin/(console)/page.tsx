@@ -5,6 +5,9 @@ import { scanSpendSummary } from "@/lib/server/scanUsage";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
+// The overview is a dozen Turso queries; give it room past the 15s default so
+// a slow one degrades to a slow page, never to a blank one (09-16).
+export const maxDuration = 60;
 
 export default async function AdminOverviewPage() {
   await requireOwnerPage();

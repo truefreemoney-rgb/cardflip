@@ -33,5 +33,53 @@ export async function cachedList<T>(key: string, ttlMs: number, build: () => Pro
   return value;
 }
 
+/**
+ * Stale-while-revalidate for memos too slow to block a page on. Fresh →
+ * the value. Stale or missing → the old value (or the fallback) right now,
+ * and the walk runs after the response (next/server after()). The admin
+ * console's catalog block is ~10-15s of Turso COUNT(*)s on a cold memo,
+ * which is past the function timeout: 09-16 the first admin visit after
+ * the six-hour TTL returned nothing and sign-in sat on "Signing in…".
+ */
+export async function cachedListSwr<T>(
+  key: string,
+  ttlMs: number,
+  build: () => Promise<T>,
+  fallback: T,
+  now = Date.now(),
+): Promise<{ value: T; stale: boolean }> {
+  let row: { payload: string; cached_at: number } | undefined;
+  try {
+    row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as typeof row;
+  } catch {
+    // Cache miss is fine.
+  }
+  if (row && now - row.cached_at < ttlMs) return { value: JSON.parse(row.payload) as T, stale: false };
+  const refresh = async () => {
+    try {
+      const value = await build();
+      await db
+        .prepare(
+          `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
+        )
+        .run(key, JSON.stringify(value), Date.now());
+    } catch {
+      // Next visit tries again.
+    }
+  };
+  try {
+    const { after } = await import("next/server");
+    after(refresh);
+  } catch {
+    void refresh(); // outside a request (scripts): fire and forget
+  }
+  let stale: T = fallback;
+  if (row) {
+    try { stale = JSON.parse(row.payload) as T; } catch { /* keep fallback */ }
+  }
+  return { value: stale, stale: true };
+}
+
 /** Set lists refresh with the daily mirror sync; six hours is plenty. */
 export const SET_LIST_TTL_MS = 6 * 60 * 60 * 1000;

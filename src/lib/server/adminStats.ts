@@ -1,5 +1,5 @@
 import "server-only";
-import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { cachedListSwr, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import fs from "node:fs";
 import path from "node:path";
 import { db, dbIsRemote } from "@/lib/db";
@@ -88,6 +88,8 @@ export interface AdminOverview {
     mtgSyncedAt: number | null;
     priceSeries: { pokemon: number; mtg: number; total: number; latestDay: string | null };
     tcgplayerMap: number;
+    /** True when the catalog numbers above are the last memo (or zeros) and a background refresh is running. */
+    catalogStale?: boolean;
     dbBytes: number;
     seedMarker: string | null;
     daily: Awaited<ReturnType<typeof dailyStatus>>;
@@ -128,6 +130,13 @@ async function count(sql: string, ...args: (string | number)[]): Promise<number>
   }
 }
 
+type CatalogHealth = Pick<AdminOverview["data"], "enCards" | "jpCards" | "zhCards" | "mtgCards" | "mtgSets" | "mtgSyncedAt" | "priceSeries" | "tcgplayerMap">;
+const EMPTY_CATALOG: CatalogHealth = {
+  enCards: 0, jpCards: 0, zhCards: 0, mtgCards: 0, mtgSets: 0, mtgSyncedAt: null,
+  priceSeries: { pokemon: 0, mtg: 0, total: 0, latestDay: null },
+  tcgplayerMap: 0,
+};
+
 export async function getAdminOverview(now = Date.now()): Promise<AdminOverview> {
   const base = await getPlatformStats();
   const week = now - 7 * DAY_MS;
@@ -152,7 +161,9 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
   // sets, tcgplayer map, price_series sums). It only changes on a sync or the
   // daily cron, and the admin console loads it on every visit — memoed for six
   // hours (Turso row-read outage 09-06).
-  const catalog = await cachedList("admin:catalog:v1", SET_LIST_TTL_MS, async () => {
+  // Served stale-while-revalidate: the walk is slower than the function
+  // timeout on a cold memo (09-16), so a visit never waits on it.
+  const catalogSwr = await cachedListSwr<CatalogHealth>("admin:catalog:v1", SET_LIST_TTL_MS, async () => {
     const seriesRow = (await db
       .prepare(
         `SELECT SUM(game = 'pokemon') AS pokemon, SUM(game = 'mtg') AS mtg, COUNT(*) AS total, MAX(updated_day) AS latest
@@ -175,7 +186,8 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
       },
       tcgplayerMap: await count("SELECT COUNT(*) AS n FROM tcgplayer_products"),
     };
-  });
+  }, EMPTY_CATALOG);
+  const catalog = { ...catalogSwr.value, catalogStale: catalogSwr.stale };
 
   const dataDir = path.join(process.cwd(), "data");
   let dbBytes = 0;
