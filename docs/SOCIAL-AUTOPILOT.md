@@ -92,8 +92,9 @@ needs a video. Order = easiest to connect first, then reach.
    long-lived token expires after 60 days, refresh via
    /refresh_access_token before 11-24). FACEBOOK LIVE 09-25 (Page 1314676718400499; META_PAGE_TOKEN is a
    user token from the Explorer, swapped for the Page token at post time).
-   Instagram = INSTAGRAM_TOKEN from the "Instagram API with Instagram Login"
-   use case (graph.instagram.com, /me, no Page needed);
+   INSTAGRAM LIVE 09-25: INSTAGRAM_TOKEN from the "Instagram API with
+   Instagram Login" use case (graph.instagram.com, /me, no Page needed;
+   60-day token, refresh before 11-20);
    the Page <-> Instagram link is restricted on the new account and not needed.
 4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
    with node:crypto, v2 media upload + /2/tweets). LIVE 09-25: @cardflipio,
