@@ -21,8 +21,8 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Chris] Helper login for the social-media work (training wheels, 09-10): on Vercel set ADMIN_HELPER_USER (her first name, e.g. sam) and ADMIN_HELPER_PASSWORD, redeploy. She signs in at cardflip.io/admin/login with those; she gets the Tasks page only — her own category, Add note / Photo / ▶ Run / ↳ Reply — and nothing can be merged or deleted from there. Runner answers social tasks in the PR body (docs/social/).
 - [ ] [Chris] eBay live-test batch next time you post: non-NM push, graded push, reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual, watchlist dip email.
 - [ ] [Chris] MD LLC decision (also solves the Stripe address).
-- [ ] [Chris] iPostal1 business name: Mailbox Settings → Change Plan → Virtual Business Address (from $14.99/mo); do it with the LLC (ticket #3081502).
-- [ ] [Chris] Stripe public details errand (v1.0.0 tag waits on this + your own paid signup working).
+- [x] 09-25 iPostal1 business name — NOT NEEDED (no LLC; Stripe public business name = CardFlip is enough). Was: Mailbox Settings → Change Plan → Virtual Business Address (from $14.99/mo); do it with the LLC (ticket #3081502).
+- [x] 09-25 Stripe public details errand DONE + verified via live API: name CardFlip, iPostal1 address (Chevy Chase MD), support@cardflip.io, descriptor CARDFLIP. FOUND+FIXED same day: prod STRIPE_SECRET_KEY had been the SANDBOX key since 09-02 11:13Z (flip script read the wrong .env.local line); live key restored on Vercel production + redeployed, script now reads stripe2.txt. v1.0.0 tag now waits only on Chris's own paid signup.
 - [ ] [Chris] Log in to /admin once in the Browser pane each session (panel password is yours to type; I never enter passwords, no override exists) — then I can drive and verify every admin page from that tab.
 
 ## Claude — my queue (in order)
