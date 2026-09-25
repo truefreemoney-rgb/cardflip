@@ -85,10 +85,13 @@ needs a video. Order = easiest to connect first, then reach.
    Graph API image posts, Threads API text+image. Biggest reach for card
    pictures.
 4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
-   with node:crypto, v2 media upload + /2/tweets). Free tier (1,500 posts/mo,
-   image upload OK). Chris creates the developer app once and pastes four
-   keys: X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET (app
-   permissions must be Read and write BEFORE generating the access token).
+   with node:crypto, v2 media upload + /2/tweets). LIVE 09-25: @cardflipio,
+   four keys on Vercel prod (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN,
+   X_ACCESS_SECRET; app permissions Read and write BEFORE generating the
+   access token). The free tier is GONE: console.x.com is pay-per-use,
+   $0.015 per post created, prepaid credits; Chris bought $5 on 09-25
+   (about 330 posts, 3 to 4 months at 3/day), auto-recharge OFF. When the
+   balance runs out posts fail with 402 and the Completed line says so.
 5. **Pinterest** — pins = the movers image + a link to cardflip.io; good
    for search. Business account + app access.
 6. **LinkedIn / Reddit** — only if free and one-time; Reddit stays human
