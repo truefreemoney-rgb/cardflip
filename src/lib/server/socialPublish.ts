@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { getSetting, setSetting } from "@/lib/server/settings";
+import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import { socialDrafts, POST_SIZES, type SocialPost } from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { todayUtc } from "@/lib/priceSeries";
@@ -21,7 +21,22 @@ import type { GameId } from "@/lib/types";
  */
 export const POST_WEEKDAYS = [2, 4, 6]; // Tue, Thu, Sat (UTC)
 export const LAST_POST_PREFIX = "social_last_post:";
-export const GAMES: GameId[] = ["pokemon", "mtg"];
+/**
+ * Games the autopilot posts about. Pokémon only (Chris 09-25: "as far as the
+ * public is concerned, the site is Pokémon only"). Add a game here AND it
+ * must be switched on for the public before it is drafted (socialGames).
+ */
+export const GAMES: GameId[] = ["pokemon"];
+
+/** GAMES, minus any gated game whose public switch is still off. */
+export async function socialGames(): Promise<GameId[]> {
+  const out: GameId[] = [];
+  for (const g of GAMES) {
+    const gated = (GATED_GAMES as readonly string[]).includes(g);
+    if (!gated || (await gamePublic(g as GatedGame))) out.push(g);
+  }
+  return out;
+}
 
 export interface SitePost {
   text: string;
@@ -124,7 +139,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "not a post day", posts: [] });
     return report;
   }
-  const drafts = (await Promise.all(GAMES.map((g) => socialDrafts(g, day)))).flat();
+  const drafts = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
   report.drafts = drafts.length;
   if (drafts.length === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });

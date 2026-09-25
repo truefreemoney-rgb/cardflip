@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { socialDrafts } from "@/lib/server/social";
-import { GAMES, siteStatus } from "@/lib/server/socialPublish";
+import { siteStatus, socialGames } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { todayUtc } from "@/lib/priceSeries";
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("day");
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayUtc();
   const [drafts, sites] = await Promise.all([
-    Promise.all(GAMES.map((g) => socialDrafts(g, day))).then((d) => d.flat()),
+    socialGames().then((games) => Promise.all(games.map((g) => socialDrafts(g, day)))).then((d) => d.flat()),
     siteStatus(SOCIAL_SITES),
   ]);
   return NextResponse.json({ day, drafts, sites });
