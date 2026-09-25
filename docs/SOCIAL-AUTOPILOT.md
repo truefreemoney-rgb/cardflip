@@ -14,7 +14,7 @@ sentence case, no exclamation marks, ends on cardflip.io).
 | Post image, every site size (1080², 1080×1920, 1200×628) | `GET /api/social/image?kind=movers\|card&game=pokemon\|mtg&day=&size=` | shipped |
 | Preview page: today's drafts, image at each size, caption + Copy | `/admin/social` (owner only; nav "Social") | shipped |
 | Test | `npm run test:social` (in the `npm test` chain) | green |
-| Publisher: posts every draft to every connected site, once a day, Tue/Thu/Sat | `src/lib/server/socialPublish.ts`; runs as the last step of the daily Pokémon cron (`/api/cron/pokemon-prices`, Hobby = two crons) and by hand from `GET\|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=]` | shipped 09-10 |
+| Publisher: three posts a day (7am card / 1pm movers / 7pm drops ET), one per slot | `src/lib/server/socialPublish.ts`; runs as the last step of the daily Pokémon cron (`/api/cron/pokemon-prices`, Hobby = two crons) and by hand from `GET\|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=]` | shipped 09-10 |
 | Drafts as JSON + site status | `GET /api/social/drafts` (owner cookie or `?key=`) | shipped 09-10 |
 | Sites strip on `/admin/social`: connected / last post / Post now | `src/components/admin/SocialSites.tsx` | shipped 09-10 |
 | Bluesky adapter (app password, image + alt, link/tag facets, JPEG under 1 MB) | `src/lib/server/sites/bluesky.ts`; env `BLUESKY_HANDLE` + `BLUESKY_APP_PASSWORD` | shipped 09-10, waiting on the password |
@@ -25,10 +25,17 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 - A site is **connected** when its env vars exist on Vercel. Nothing else
   switches it on; `/admin/social` shows the rest as "not connected".
-- Post days: Tue / Thu / Sat (UTC weekday), from docs/SOCIAL.md. The
-  cron runs daily; other days the publisher answers "not a post day".
-- Once per day per site: `settings` key `social_last_post:<site>` = the
-  day; `…:uris` = the post links. `force=1` re-posts (the Post now button).
+- Three posts a day, Eastern (Chris 09-25, hands off): 7am card of the
+  day, 1pm movers of the week, 7pm price drops (`SLOTS` in
+  socialPublish.ts). `.github/workflows/social-post.yml` pings
+  `POST /api/social/publish?slot=` at each slot's EDT and EST hour with
+  the `SOCIAL_POST_KEY` secret (also on Vercel); the publisher picks the
+  slot from the Eastern clock when none is given. Pokémon only
+  (`socialGames()` follows the game switches).
+- Once per slot per site per Eastern day: `settings` key
+  `social_slot:<site>:<slot>` = the ET day; `social_last_post:<site>` and
+  `…:uris` keep the strip on /admin/social current. `force=1` posts the
+  next unposted slot (the Post now button).
 - Text is fitted to the site's limit: caption + hashtags → caption alone →
   `shortCaption` (name + % only) → cut on a line with `cardflip.io` kept.
 - Picture: the square PNG from `/api/social/image` (fetched from the same

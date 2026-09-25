@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
-import { socialDrafts, POST_SIZES, type SocialPost } from "@/lib/server/social";
+import { socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
@@ -11,16 +11,46 @@ import type { GameId } from "@/lib/types";
  * the last step of the daily Pokémon cron (Hobby plan = two crons, so it
  * rides along) and from GET/POST /api/social/publish?key=CRON_SECRET.
  *
- * Every connected site gets today's drafts as pictures, at most once per
- * day (settings key social_last_post:<site> = the day posted), only on
- * post days (Tue/Thu/Sat UTC, docs/SOCIAL.md cadence) unless forced. A
+ * Every connected site gets one picture per slot (7am card of the day,
+ * 1pm movers, 7pm price drops, Eastern; see SLOTS), at most once per slot
+ * per day, from the GitHub Actions schedule or a forced Post now. A
  * site is "connected" when its env vars exist — Chris pastes one token on
  * his board row, I put it on Vercel, nothing else. Each run leaves one
  * line on the board's Completed list so Chris sees what went out without
  * opening any social site.
  */
-export const POST_WEEKDAYS = [2, 4, 6]; // Tue, Thu, Sat (UTC)
 export const LAST_POST_PREFIX = "social_last_post:";
+
+/**
+ * Three posts a day (Chris 09-25: 7am / 1pm / 7pm, hands off). Each slot
+ * posts ONE draft kind; a slot posts at most once per Eastern day
+ * (settings key social_slot:<site>:<slot> = the ET day). The GitHub
+ * Actions schedule (.github/workflows/social-post.yml) pings the publish
+ * route around each hour in both DST offsets; the guard makes the second
+ * ping a no-op.
+ */
+export type Slot = "morning" | "midday" | "evening";
+export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
+  morning: { hour: 7, kind: "card", label: "7am card of the day" },
+  midday: { hour: 13, kind: "movers", label: "1pm movers of the week" },
+  evening: { hour: 19, kind: "dips", label: "7pm price drops" },
+};
+export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
+export const SLOT_PREFIX = "social_slot:";
+export const ET_ZONE = "America/New_York";
+
+/** Eastern day (YYYY-MM-DD) and hour for a timestamp. */
+export function eastern(now = Date.now()): { day: string; hour: number } {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: ET_ZONE, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit" }).formatToParts(new Date(now));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) % 24 };
+}
+
+/** The slot whose hour is within an hour after now (7-8am → morning), else null. */
+export function slotAt(now = Date.now()): Slot | null {
+  const { hour } = eastern(now);
+  return SLOT_ORDER.find((s) => hour === SLOTS[s].hour || hour === SLOTS[s].hour + 1) ?? null;
+}
 /**
  * Games the autopilot posts about. Pokémon only (Chris 09-25: "as far as the
  * public is concerned, the site is Pokémon only"). Add a game here AND it
@@ -67,14 +97,12 @@ export interface SiteReport {
 
 export interface PublishReport {
   day: string;
-  postDay: boolean;
+  /** Eastern day the slot guard is keyed on. */
+  etDay: string;
+  slot: Slot | null;
   forced: boolean;
   drafts: number;
   sites: SiteReport[];
-}
-
-export function isPostDay(day: string): boolean {
-  return POST_WEEKDAYS.includes(new Date(`${day}T00:00:00Z`).getUTCDay());
 }
 
 /** Caption + hashtags, shortened until it fits the site's limit. */
@@ -109,6 +137,12 @@ async function fitImage(png: Buffer, maxBytes: number): Promise<{ bytes: Buffer;
 
 export interface PublishOptions {
   day?: string;
+  /**
+   * Which slot to post. Omitted → the slot for the current Eastern hour
+   * (null outside the slot windows → nothing posts unless forced, in
+   * which case the first slot not yet posted today, else morning).
+   */
+  slot?: Slot;
   force?: boolean;
   /** Report what would go out; touch nothing. */
   dry?: boolean;
@@ -126,20 +160,41 @@ async function defaultFetchImage(url: string): Promise<Buffer> {
 }
 
 export async function publishSocial(opts: PublishOptions): Promise<PublishReport> {
+  const now = opts.now ?? Date.now();
   const day = opts.day ?? todayUtc();
   const force = Boolean(opts.force);
-  const postDay = isPostDay(day);
-  const report: PublishReport = { day, postDay, forced: force, drafts: 0, sites: [] };
+  const { day: etDay } = eastern(now);
   const connected = opts.sites.filter((s) => s.connected());
+  const slotKey = (site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
+  let slot: Slot | null = opts.slot ?? slotAt(now);
+  if (!slot && force) {
+    // "Post now" outside a window: the first slot nobody has posted today.
+    for (const s of SLOT_ORDER) {
+      const done = await Promise.all(connected.map((site) => getSetting(slotKey(site, s))));
+      if (done.some((d) => d !== etDay)) { slot = s; break; }
+    }
+    slot ??= "morning";
+  }
+  const report: PublishReport = { day, etDay, slot, forced: force, drafts: 0, sites: [] };
   for (const s of opts.sites) {
     if (!connected.includes(s)) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "not connected", posts: [] });
   }
   if (connected.length === 0) return report;
-  if (!postDay && !force) {
-    for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "not a post day", posts: [] });
+  if (!slot) {
+    for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "outside the 7am / 1pm / 7pm windows", posts: [] });
     return report;
   }
-  const drafts = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
+  const all = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
+  // One draft per game for this slot's kind; fall back to any other kind
+  // so a thin data day still posts something.
+  const want = SLOTS[slot].kind;
+  const games = [...new Set(all.map((d) => d.game))];
+  const drafts: SocialPost[] = [];
+  for (const g of games) {
+    const mine = all.filter((d) => d.game === g);
+    const pick = mine.find((d) => d.kind === want) ?? mine[0];
+    if (pick) drafts.push(pick);
+  }
   report.drafts = drafts.length;
   if (drafts.length === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
@@ -157,9 +212,9 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   }
 
   for (const site of connected) {
-    const last = await getSetting(`${LAST_POST_PREFIX}${site.id}`);
-    if (last === day && !force) {
-      report.sites.push({ site: site.id, label: site.label, status: "skipped", reason: "already posted today", posts: [] });
+    const last = await getSetting(slotKey(site, slot));
+    if (last === etDay && !force) {
+      report.sites.push({ site: site.id, label: site.label, status: "skipped", reason: `${slot} slot already posted today`, posts: [] });
       continue;
     }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
@@ -189,13 +244,14 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       const posted = entry.posts.filter((p) => p.uri);
       if (posted.length === 0) entry.status = "failed";
       else {
-        await setSetting(`${LAST_POST_PREFIX}${site.id}`, day);
+        await setSetting(slotKey(site, slot), etDay);
+        await setSetting(`${LAST_POST_PREFIX}${site.id}`, etDay);
         await setSetting(`${LAST_POST_PREFIX}${site.id}:uris`, JSON.stringify(posted.map((p) => p.uri)));
       }
     }
     report.sites.push(entry);
   }
-  if (!opts.dry) await noteOnBoard(report, opts.now ?? Date.now());
+  if (!opts.dry) await noteOnBoard(report, now);
   return report;
 }
 
@@ -221,7 +277,7 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
         completed = { id: randomUUID(), title: COMPLETED_TITLE, hint: "what got finished, newest first", items: [] };
         sections.push(completed);
       }
-      completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text: `Social autopilot ${report.day} — ${text}`, completedAt: now, from: "Claude — my queue (in order)" });
+      completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text: `Social autopilot ${report.etDay} ${report.slot ? SLOTS[report.slot].label : ""} — ${text}`, completedAt: now, from: "Claude — my queue (in order)" });
       await saveBoard(sections, updatedAt);
       return;
     } catch (err) {

@@ -2,7 +2,7 @@
  * Social autopilot publisher (lib/server/socialPublish.ts + sites/bluesky.ts).
  * Run: npm run test:socialpublish
  *
- * Pins: posts only on Tue/Thu/Sat unless forced; never twice a day per
+ * Pins: three Eastern slots (7am card, 1pm movers, 7pm drops); never twice per slot per
  * site; a site without env vars never posts; dry runs touch nothing; a
  * failed site does not mark the day; text is fitted to the site's limit
  * and still ends on cardflip.io; Bluesky facets land on the right bytes;
@@ -23,7 +23,7 @@ process.env.CRON_SECRET = "cron-test";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
-const { publishSocial, fitText, isPostDay, LAST_POST_PREFIX } = await import(at("lib/server/socialPublish.ts"));
+const { publishSocial, fitText, slotAt, eastern, LAST_POST_PREFIX, SLOT_PREFIX } = await import(at("lib/server/socialPublish.ts"));
 const { blueskyFacets, BLUESKY_MAX_CHARS } = await import(at("lib/server/sites/bluesky.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
 const { loadBoard, isCompletedSection } = await import(at("lib/server/board.ts"));
@@ -64,51 +64,60 @@ function fakeSite(id, { connected = true, fail = false, maxChars = 5000 } = {}) 
   };
 }
 
-console.log("cadence");
-check("Thu is a post day", isPostDay(THU));
-check("Wed is not", isPostDay(day(1)), false);
-check("Sat is", isPostDay(addDays(THU, 2)));
+console.log("slots (Eastern; 2026-09-10 is EDT = UTC-4)");
+const at = (h, m = 30) => Date.UTC(2026, 8, 10, h, m);
+check("7am ET → morning", slotAt(at(11)), "morning");
+check("8am ET still morning (the EST-hour ping)", slotAt(at(12)), "morning");
+check("1pm ET → midday", slotAt(at(17)), "midday");
+check("7pm ET → evening", slotAt(at(23)), "evening");
+check("11am ET → no slot", slotAt(at(15)), null);
+check("Eastern day rolls at midnight ET, not UTC", eastern(Date.UTC(2026, 8, 11, 2)).day, THU);
 
 console.log("publish");
 const off = fakeSite("off", { connected: false });
-let r = await publishSocial({ day: THU, origin: "http://x", sites: [off], fetchImage });
+let r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [off], fetchImage });
 check("unconnected site is skipped", r.sites.map((s) => [s.status, s.reason]), [["skipped", "not connected"]]);
 
 const bsky = fakeSite("bsky");
-r = await publishSocial({ day: day(1), origin: "http://x", sites: [bsky], fetchImage });
-check("Wednesday: skipped, not a post day", r.sites[0].reason, "not a post day");
+r = await publishSocial({ day: THU, now: at(15), origin: "http://x", sites: [bsky], fetchImage });
+check("11am: skipped, outside the windows", r.sites[0].reason, "outside the 7am / 1pm / 7pm windows");
 check("nothing fetched", fetched.length, 0);
 
-r = await publishSocial({ day: THU, origin: "http://x", sites: [bsky], fetchImage, dry: true });
-check("dry run reports the drafts", r.sites[0].posts.length, 2);
+r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [bsky], fetchImage, dry: true });
+check("dry run reports one draft for the slot", [r.slot, r.sites[0].posts.length], ["morning", 1]);
 check("dry run posts nothing", bsky.posts.length, 0);
-check("dry run marks nothing", await getSetting(`${LAST_POST_PREFIX}bsky`), null);
+check("dry run marks nothing", await getSetting(`${SLOT_PREFIX}bsky:morning`), null);
 
-r = await publishSocial({ day: THU, origin: "http://x", sites: [bsky], fetchImage });
-check("Thursday: posted both drafts", [r.sites[0].status, bsky.posts.length], ["posted", 2]);
-check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=movers&game=pokemon&day=${THU}&size=square&key=cron-test`);
-check("alt text set", bsky.posts[0].alt.startsWith("Pokémon movers of the week."));
-check("day marked", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
-check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1", "https://bsky/2"]);
+r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [bsky], fetchImage });
+check("7am: card of the day posted", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
+check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=card&game=pokemon&day=${THU}&size=square&key=cron-test`);
+check("alt text set", bsky.posts[0].alt.startsWith("Card of the day:"));
+check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:morning`), THU);
+check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
+check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1"]);
 
-r = await publishSocial({ day: THU, origin: "http://x", sites: [bsky], fetchImage });
-check("same day again: skipped", [r.sites[0].reason, bsky.posts.length], ["already posted today", 2]);
-r = await publishSocial({ day: THU, origin: "http://x", sites: [bsky], fetchImage, force: true });
-check("force re-posts", [r.sites[0].status, bsky.posts.length], ["posted", 4]);
-check("image fetched once per draft per run (cache)", fetched.length, 4);
+r = await publishSocial({ day: THU, now: at(12), origin: "http://x", sites: [bsky], fetchImage });
+check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
+r = await publishSocial({ day: THU, now: at(17), origin: "http://x", sites: [bsky], fetchImage });
+check("1pm: movers posted", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
+r = await publishSocial({ day: THU, now: at(23), origin: "http://x", sites: [bsky], fetchImage });
+check("7pm: no dips draft (one drop only) → falls back to another kind", [r.slot, r.drafts, bsky.posts.length], ["evening", 1, 3]);
+r = await publishSocial({ day: THU, now: at(15), origin: "http://x", sites: [bsky], fetchImage, force: true });
+check("forced outside a window with every slot done → morning again", [r.slot, r.sites[0].status, bsky.posts.length], ["morning", "posted", 4]);
+check("one image fetch per posting run", fetched.length, 4);
 
 const broken = fakeSite("broken", { fail: true });
-r = await publishSocial({ day: THU, origin: "http://x", sites: [broken], fetchImage });
-check("failing site → failed, day not marked", [r.sites[0].status, await getSetting(`${LAST_POST_PREFIX}broken`)], ["failed", null]);
+r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [broken], fetchImage });
+check("failing site → failed, slot not marked", [r.sites[0].status, await getSetting(`${SLOT_PREFIX}broken:morning`)], ["failed", null]);
 check("errors carried per post", r.sites[0].posts.every((p) => p.error === "boom"));
 
 console.log("board");
 const { sections } = await loadBoard();
 const completed = sections.find(isCompletedSection);
 const notes = completed.items.filter((i) => i.text.startsWith("Social autopilot"));
-check("one Completed line per run that posted or failed", notes.length, 3);
-check("newest first, done, Claude's", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out")], [true, "Claude", true]);
-check("posted line carries the uri", notes[1].text.includes("https://bsky/3"));
+check("one Completed line per run that posted or failed", notes.length, 5);
+check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am card of the day")], [true, "Claude", true, true]);
+check("posted line carries the uri", notes[1].text.includes("https://bsky/4"));
 
 console.log("text fitting");
 const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };

@@ -1,0 +1,41 @@
+name: social-post
+
+# Social autopilot schedule (Chris 09-25: three posts a day, 7am / 1pm / 7pm
+# Eastern, hands off). GitHub cron is UTC and best-effort, so each slot is
+# pinged at both its EDT and EST hour; the publisher keys each slot to the
+# Eastern day and the second ping is a no-op. Manual: Run workflow.
+on:
+  schedule:
+    - cron: "5 11 * * *"  # 7am EDT
+    - cron: "5 12 * * *"  # 7am EST
+    - cron: "5 17 * * *"  # 1pm EDT
+    - cron: "5 18 * * *"  # 1pm EST
+    - cron: "5 23 * * *"  # 7pm EDT
+    - cron: "5 0 * * *"   # 7pm EST
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "morning | midday | evening (blank = by the clock)"
+        required: false
+        default: ""
+      force:
+        description: "1 = post even if this slot already went out today"
+        required: false
+        default: ""
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the publisher
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          SLOT: ${{ inputs.slot }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          url="https://cardflip.io/api/social/publish?slot=${SLOT}&force=${FORCE}"
+          code=$(curl -sS -o report.json -w '%{http_code}' -X POST -H "Authorization: Bearer ${KEY}" "$url")
+          echo "HTTP $code"
+          cat report.json | head -c 4000; echo
+          test "$code" = "200"

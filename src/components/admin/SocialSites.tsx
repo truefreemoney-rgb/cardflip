@@ -5,7 +5,7 @@ import { apiPath } from "@/lib/client/basePath";
 
 /**
  * /admin/social — the sites strip: which sites the publisher can post to,
- * when each last posted, and one "Post now" for the day. A site shows
+ * when each last posted, and one "Post now" (next unposted slot). A site shows
  * "not connected" until its token is on Vercel (Chris's board row).
  */
 export interface SiteView {
@@ -20,13 +20,13 @@ interface Report {
   sites: Array<{ label: string; status: string; reason?: string; posts: Array<{ title: string; uri?: string; error?: string }> }>;
 }
 
-export default function SocialSites({ sites, day, isPostDay }: { sites: SiteView[]; day: string; isPostDay: boolean }) {
+export default function SocialSites({ sites, day, slotNow }: { sites: SiteView[]; day: string; slotNow: string | null }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const anyConnected = sites.some((s) => s.connected);
 
   async function postNow() {
-    if (!confirm(`Post today's pictures to every connected site now?`)) return;
+    if (!confirm(`Post the next slot's picture to every connected site now?`)) return;
     setBusy(true);
     setNote(null);
     try {
@@ -76,7 +76,7 @@ export default function SocialSites({ sites, day, isPostDay }: { sites: SiteView
         </span>
       ))}
       <span className="ml-auto flex items-center gap-3">
-        <span className="text-xs text-zinc-500">{isPostDay ? "Posts today with the daily cron." : "Posts Tue / Thu / Sat with the daily cron."}</span>
+        <span className="text-xs text-zinc-500">{slotNow ? `In the ${slotNow} window now.` : "Posts 7am / 1pm / 7pm ET on their own."}</span>
         <button
           type="button"
           onClick={postNow}

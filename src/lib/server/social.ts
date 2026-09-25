@@ -28,7 +28,7 @@ export const COTD_MIN_PRICE = 15;
 const ROW_CAP = 6000;
 const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
 
-export type PostKind = "movers" | "card";
+export type PostKind = "movers" | "card" | "dips";
 export type PostSize = "square" | "story" | "landscape";
 export const POST_SIZES: Record<PostSize, { width: number; height: number }> = {
   square: { width: 1080, height: 1080 },
@@ -146,7 +146,7 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 export async function topMovers(
   game: GameId,
   day = todayUtc(),
-  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE } = {},
+  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "down" } = {},
 ): Promise<Mover[]> {
   const series = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
@@ -155,6 +155,7 @@ export async function topMovers(
     if (Math.max(s.from, s.to) < minPrice) continue;
     const pct = ((s.to - s.from) / s.from) * 100;
     if (Math.abs(pct) < 1) continue;
+    if (direction === "down" && pct >= 0) continue;
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
@@ -243,6 +244,22 @@ export function moversShortCaption(game: GameId, movers: Mover[]): string {
   ].join("\n");
 }
 
+/** Caption for the price-drops post (evening slot): the week's biggest falls. */
+export function dipsCaption(game: GameId, dips: Mover[]): string {
+  const lines = dips.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
+  return [
+    `${GAME_LABEL[game]} price drops this week, from CardFlip's own price history.`,
+    "",
+    ...lines,
+    "",
+    "Scan a card, see what it's worth. cardflip.io",
+  ].join("\n");
+}
+
+export function dipsShortCaption(game: GameId, dips: Mover[]): string {
+  return [`${GAME_LABEL[game]} price drops this week`, ...dips.map((m) => `${m.name} ${pctLabel(m.pct)}`), "", "Scan a card, see what it's worth. cardflip.io"].join("\n");
+}
+
 export function cardCaption(game: GameId, card: Mover): string {
   const move =
     Math.abs(card.pct) >= 1
@@ -258,7 +275,7 @@ export function cardCaption(game: GameId, card: Mover): string {
 
 /** Today's drafts for a game, in posting order. Empty when the data is thin. */
 export async function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
-  const [movers, card] = await Promise.all([topMovers(game, day), cardOfTheDay(game, day)]);
+  const [movers, card, dips] = await Promise.all([topMovers(game, day), cardOfTheDay(game, day), topMovers(game, day, { direction: "down" })]);
   const posts: SocialPost[] = [];
   if (movers.length >= 3) {
     posts.push({
@@ -284,6 +301,19 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       shortCaption: cardCaption(game, card),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=card&game=${game}&day=${day}`,
+    });
+  }
+  if (dips.length >= 3) {
+    posts.push({
+      id: `${game}-dips-${day}`,
+      kind: "dips",
+      game,
+      day,
+      title: `${GAME_LABEL[game]} price drops this week`,
+      caption: dipsCaption(game, dips),
+      shortCaption: dipsShortCaption(game, dips),
+      hashtags: GAME_TAGS[game],
+      imagePath: `/api/social/image?kind=dips&game=${game}&day=${day}`,
     });
   }
   return posts;

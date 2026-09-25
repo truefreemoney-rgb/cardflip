@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
-import { isPostDay, siteStatus, socialGames } from "@/lib/server/socialPublish";
+import { siteStatus, slotAt, socialGames } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
@@ -33,7 +33,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>
       </div>
-      <SocialSites sites={sites} day={day} isPostDay={isPostDay(day)} />
+      <SocialSites sites={sites} day={day} slotNow={slotAt()} />
       <SocialPreview drafts={drafts} />
     </section>
   );

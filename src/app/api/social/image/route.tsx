@@ -87,7 +87,7 @@ async function allowed(req: NextRequest): Promise<boolean> {
 export async function GET(req: NextRequest) {
   if (!(await allowed(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = req.nextUrl.searchParams;
-  const kind = q.get("kind") === "card" ? "card" : "movers";
+  const kind = q.get("kind") === "card" ? "card" : q.get("kind") === "dips" ? "dips" : "movers";
   const game: GameId = q.get("game") === "mtg" ? "mtg" : "pokemon";
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
@@ -101,9 +101,9 @@ export async function GET(req: NextRequest) {
     if (!card) return NextResponse.json({ error: "No card today" }, { status: 404 });
     return new ImageResponse(<CardOfTheDay card={await withArt(card)} label={label} tall={tall} wide={wide} />, size);
   }
-  const movers = await topMovers(game, day);
+  const movers = await topMovers(game, day, kind === "dips" ? { direction: "down" } : {});
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
-  return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} />, size);
+  return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price moves this week"} />, size);
 }
 
 function Frame({ children, tall, wide }: { children: React.ReactNode; tall: boolean; wide: boolean }) {
@@ -142,14 +142,14 @@ function Pct({ pct, size }: { pct: number; size: number }) {
   );
 }
 
-function Movers({ movers, label, tall, wide }: { movers: Mover[]; label: string; tall: boolean; wide: boolean }) {
+function Movers({ movers, label, tall, wide, heading }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string }) {
   const rows = wide ? movers.slice(0, 3) : movers;
   const art = wide ? 92 : tall ? 190 : 108;
   const fs = wide ? 24 : tall ? 38 : 27;
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 38 : tall ? 64 : 50, fontWeight: 700, letterSpacing: -1 }}>
-        {label} price moves this week
+        {label} {heading}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
         Market price, last 7 days, from CardFlip&apos;s price history
