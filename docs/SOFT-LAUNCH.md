@@ -18,7 +18,7 @@ numbers: trial → paid conversion, scans per active user, and 30-day churn.
 - Where: r/pkmntcgtrades, r/PokemonTCG weekly threads, Facebook buy/sell
   groups, local card shop regulars, Discord servers you already sit in.
 - The ask is one sentence: "I built a phone app that scans a card, prices it,
-  and posts it to eBay. Free 10 scans, no card needed. Would you try it and
+  and posts it to eBay. Free 5 scans, no card needed. Would you try it and
   tell me where it breaks?"
 
 Do NOT post it publicly yet. Public posts bring lookers, not sellers, and
@@ -26,7 +26,7 @@ burn the eBay Browse quota on curiosity scans.
 
 ## What each invitee gets
 
-- The link (cardflip.io), the 10 free scans, nothing comped. A comped plan
+- The link (cardflip.io), the 5 free scans, nothing comped. A comped plan
   hides the only number that matters.
 - One follow-up message after 3 days: "Did you list anything? What stopped
   you?" Their answer goes in a notes file, verbatim.
@@ -35,7 +35,7 @@ burn the eBay Browse quota on curiosity scans.
 
 | Number | Where | Green | Red |
 |---|---|---|---|
-| Trial users who ran 10 scans | Users table, Plan column | 60%+ | under 30% |
+| Trial users who ran 5 scans | Users table, Plan column | 60%+ | under 30% |
 | Trial → paid | Users table (Subscribed count / invited) | 15%+ | under 5% |
 | eBay connected / paid | KPI tile | 70%+ | under 40% |
 | Listed per paid user, week 1 | Users table row drawer | 5+ | under 2 |

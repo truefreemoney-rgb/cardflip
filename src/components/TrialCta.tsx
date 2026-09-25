@@ -5,8 +5,8 @@ import Link from "next/link";
 import { fetchCurrentUser } from "@/lib/client/auth";
 
 /**
- * The landing page's "Try 10 Scans Free" button, session-aware (Chris,
- * 09-07: "after a user makes an account and logged in, the try 10 free
+ * The landing page's "Try 5 Scans Free" button, session-aware (Chris,
+ * 09-07: "after a user makes an account and logged in, the try 5 free
  * scans button should just be Open the App"). The page is a server
  * component; this renders the signup link first (identical markup for
  * crawlers and the first paint, same trick as PlanCta) and swaps to the
@@ -31,7 +31,7 @@ export default function TrialCta({ className }: { className: string }) {
     </Link>
   ) : (
     <Link href="/signup" className={className}>
-      Try 10 Scans Free
+      Try 5 Scans Free
     </Link>
   );
 }

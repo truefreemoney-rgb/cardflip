@@ -154,8 +154,8 @@ export function monthlyScans(user: Pick<User, "plan" | "accessOverride">): numbe
   return PLAN_SCANS[planOf(user)];
 }
 
-/** Free trial (09-04): ten scans on a fresh account, no card. */
-export const TRIAL_SCANS = 10;
+/** Free trial (09-04, cut to five 09-25): five scans on a fresh account, no card. */
+export const TRIAL_SCANS = 5;
 
 export function trialScansLeft(
   user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "trialScansUsed">,
@@ -174,7 +174,7 @@ export function trialScansLeft(
  *  - subscribed: 500 (Pro 2,000) a month.
  *  - legacy: accounts that existed before the switch get 100 scans a DAY,
  *    no subscription, no wall.
- *  - trial: new accounts, 10 scans lifetime, then the wall.
+ *  - trial: new accounts, 5 scans lifetime, then the wall.
  */
 export type ScanTier = "owner" | "subscribed" | "legacy" | "trial";
 export const OWNER_EMAIL = "truefreemoney@gmail.com";

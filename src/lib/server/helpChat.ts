@@ -101,7 +101,7 @@ function accountFacts(user: User): string {
     `Access tier: ${tier}`,
     `Plan: ${user.plan ?? "none"}; scans included per month: ${monthlyScans(user)}`,
     `Scans used this period: ${user.scansUsed}`,
-    tier === "trial" ? `Free-trial scans used (of 10): ${user.trialScansUsed}` : null,
+    tier === "trial" ? `Free-trial scans used (of 5): ${user.trialScansUsed}` : null,
     `eBay connected: ${user.ebayConnected ? "yes" : "no"}`,
     `Two-step verification: ${user.totpEnabledAt ? "on" : "off"}`,
   ].filter(Boolean);

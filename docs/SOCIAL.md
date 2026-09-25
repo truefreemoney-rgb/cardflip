@@ -31,12 +31,12 @@ Case; captions are sentence case.
    - Display name: `CardFlip`
    - Website: `https://cardflip.io`
    - Bio (Instagram and X, up to 150 characters):
-     `Scan a Pokémon card. Get the real price. List it on eBay. 10 free
+     `Scan a Pokémon card. Get the real price. List it on eBay. 5 free
      scans at cardflip.io`
      (No "Magic coming" line: the site only claims what it does today, and
      Magic is still admin-only.)
    - Bio (TikTok, 80 characters max):
-     `Scan a card. Get the real price. List it on eBay. 10 free scans below`
+     `Scan a card. Get the real price. List it on eBay. 5 free scans below`
    - Category, when asked: Software / App.
 
 ## Part 2 — make the accounts (about 15 min each)
@@ -105,7 +105,7 @@ start and end in Photos.
 1. **Post 1: one scan, start to finish.** A card you own with a real price
    worth seeing (a $100+ card, so the reveal does the "Nice pull" stamp).
    Point the camera, capture, let the price count up, stop recording.
-   Caption: `Point the phone at a card. This is what happens. 10 free
+   Caption: `Point the phone at a card. This is what happens. 5 free
    scans at cardflip.io`
 2. **Post 2: three cards, three prices.** Scan three cards back to back.
    Caption: `What are these worth today. Scanned, priced, done.`
@@ -143,6 +143,6 @@ trolls.
 `docs/SOFT-LAUNCH.md` (09-06) says not to post publicly until the invite
 cohort's numbers are read, because a public "try it free" brings lookers
 who burn the eBay Browse quota (5,000 a day). Setting up the accounts and
-posting the scan videos is fine now; hold the "10 free scans" line in the
+posting the scan videos is fine now; hold the "5 free scans" line in the
 captions until the cohort is done, or say on the board that the rule is
 dropped and the captions above stand as written.

@@ -130,7 +130,7 @@ export function isSubscribed(user: Pick<SessionUser, "subStatus"> | null | undef
   return s === "active" || s === "trialing" || s === "past_due";
 }
 
-/** Subscribed, or still inside the 10-scan free trial. */
+/** Subscribed, or still inside the 5-scan free trial. */
 export function canUseApp(
   user: Pick<SessionUser, "subStatus" | "trialScansLeft" | "appAccess"> | null | undefined,
 ): boolean {

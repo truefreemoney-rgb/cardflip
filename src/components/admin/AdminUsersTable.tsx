@@ -55,7 +55,7 @@ const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
   { value: "comp_standard", label: "Subscribed, comped (500/mo)" },
   { value: "comp_pro", label: "Pro, comped (2,000/mo)" },
   { value: "legacy", label: "Legacy (100/day)" },
-  { value: "trial", label: "Trial (10 scans, no selling)" },
+  { value: "trial", label: "Trial (5 scans, no selling)" },
 ];
 
 /** What "Automatic" resolves to for this account, so the admin knows what clearing does. */

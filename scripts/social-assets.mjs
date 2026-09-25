@@ -80,7 +80,7 @@ function banner(w, h, safe) {
     <div style="width:${sw}px;height:${sh}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${Math.round(logoH * 0.34)}px;text-align:center">
       <img src="${logo}" style="height:${logoH}px;width:auto">
       <p class="display" style="font-size:${tag}px;line-height:1.15">${TAGLINE}</p>
-      <p class="url" style="font-size:${url}px">${URL} · 10 free scans</p>
+      <p class="url" style="font-size:${url}px">${URL} · 5 free scans</p>
     </div></body>`;
 }
 
@@ -95,7 +95,7 @@ function post(w, h) {
       <div>
         <p class="muted" style="font-size:${Math.round(big * 0.38)}px;font-weight:500;margin-bottom:${Math.round(big * 0.3)}px">Is it worth anything?</p>
         <p class="display" style="font-size:${big}px;line-height:1.02;max-width:${Math.round(w * 0.84)}px">Scan the card.<br>See the price.<br>List it on eBay.</p>
-        <p class="url" style="font-size:${Math.round(big * 0.42)}px;margin-top:${Math.round(big * 0.5)}px">${URL} · 10 free scans</p>
+        <p class="url" style="font-size:${Math.round(big * 0.42)}px;margin-top:${Math.round(big * 0.5)}px">${URL} · 5 free scans</p>
       </div>
     </div>
     <div class="holo" style="position:absolute;left:0;bottom:0"></div></body>`;

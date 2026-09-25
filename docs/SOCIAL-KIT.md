@@ -15,8 +15,8 @@ run #26 (handles, first posts, weekly rhythm); this is the checklist.
 | Profile picture | `avatar-1000.png` (sites that cap lower: `avatar-512.png`, `avatar-400.png`) |
 | Category | App / Software · Collectibles |
 | Email on the account | support@cardflip.io |
-| Bio, 150 chars | Scan a Pokémon or Magic card. Get the real price. List it on eBay in one tap. 10 free scans → cardflip.io |
-| Bio, 80 chars | Scan a card. See the real price. List it on eBay. 10 free scans ↓ |
+| Bio, 150 chars | Scan a Pokémon or Magic card. Get the real price. List it on eBay in one tap. 5 free scans → cardflip.io |
+| Bio, 80 chars | Scan a card. See the real price. List it on eBay. 5 free scans ↓ |
 | Bio, 1 line | Scan a card, see what it's worth. |
 
 Use a new email alias per site only if a site refuses a shared one. Turn on

@@ -44,7 +44,7 @@ export default function Paywall() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <Logo />
       <h1 className="mt-8 font-display text-3xl font-bold text-white sm:text-4xl">
-        {lapsed ? "Your subscription ended." : "Your 10 free scans are used."}
+        {lapsed ? "Your subscription ended." : "Your 5 free scans are used."}
       </h1>
       <p className="mt-3 text-lg text-zinc-300">
         {lapsed ? "Everything is still here. Pick it back up for $9.99 a month." : "Keep going for $9.99 a month."}

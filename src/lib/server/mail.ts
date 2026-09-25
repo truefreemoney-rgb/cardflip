@@ -123,7 +123,7 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string): Pro
   const text = [
     hi,
     "",
-    "Your first 10 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:",
+    "Your first 5 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:",
     scanUrl,
     "",
     `Want more? 500 scans a month for $9.99: ${pricingUrl}`,
@@ -134,7 +134,7 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string): Pro
   ].join("\n");
   const html = `
     <p>${hi}</p>
-    <p>Your first 10 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
+    <p>Your first 5 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
     <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
     <p style="color:#666;font-size:13px">Want more? <a href="${pricingUrl}">500 scans a month for $9.99</a>.</p>
     <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>

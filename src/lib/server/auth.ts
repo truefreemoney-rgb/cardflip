@@ -72,7 +72,7 @@ export function sellingGate(user: User): NextResponse | null {
 export function subscriptionGate(user: User): NextResponse | null {
   if (user.role === "admin" || canUseApp(user)) return null;
   return NextResponse.json(
-    { error: "Your 10 free scans are used — CardFlip is $9.99 a month from here", paywall: true, quota: true },
+    { error: "Your 5 free scans are used — CardFlip is $9.99 a month from here", paywall: true, quota: true },
     { status: 402 },
   );
 }

@@ -940,7 +940,7 @@ function PlanSection({
   ) : user.subStatus === "canceled" ? (
     "Your subscription has ended. Resubscribe to keep scanning."
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of 10 scans left. Subscribe for 500 a month at $9.99, or Pro at 2,000 for $24.99.`
+    `Free trial: ${user.trialScansLeft ?? 0} of 5 scans left. Subscribe for 500 a month at $9.99, or Pro at 2,000 for $24.99.`
   );
   const showBody = billingReturn !== null || (subscribed && !!quota) || !!msg;
 

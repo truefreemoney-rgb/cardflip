@@ -46,7 +46,7 @@ const billing = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes. Every new account gets 10 scans free with no card on file: scan, see live prices, build your inventory. Publishing to eBay starts with a subscription. When the free scans are used, the app asks you to subscribe; everything you scanned stays on the account.",
+    a: "Yes. Every new account gets 5 scans free with no card on file: scan, see live prices, build your inventory. Publishing to eBay starts with a subscription. When the free scans are used, the app asks you to subscribe; everything you scanned stays on the account.",
   },
   {
     q: "Do I need my own eBay account?",
@@ -74,7 +74,7 @@ export default function PricingPage() {
                 Start free. Pay for the volume you need.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
-                Ten scans free to start. Then {PLAN.price} a month, or Pro at {PRO.price} when the binder outgrows it. Same product on both.
+                Five scans free to start. Then {PLAN.price} a month, or Pro at {PRO.price} when the binder outgrows it. Same product on both.
               </p>
             </div>
             <PlanCard className="mx-auto mt-6 max-w-6xl" />

@@ -17,7 +17,7 @@ const BONUS = 500;
 
 const STEPS: { n: string; title: string; body: string }[] = [
   { n: "1", title: "Send your link", body: "Text it, post it, hand it to the guy at the card shop. Anyone who signs up through it is yours." },
-  { n: "2", title: "They try it free", body: "Ten scans, no card. They point the camera at a card and it prices itself. Most people get it by scan three." },
+  { n: "2", title: "They try it free", body: "Five scans, no card. They point the camera at a card and it prices itself. Most people get it by scan three." },
   { n: "3", title: "They subscribe, you get 500", body: `The moment their first payment lands, ${BONUS} scans land in your account. Every friend, every time, no cap.` },
 ];
 
@@ -62,7 +62,7 @@ export default function RewardsPage() {
   async function share() {
     if (!info) return;
     try {
-      await navigator.share({ title: "CardFlip", text: "Scan a card, price it, list it on eBay. Ten free scans:", url: info.url });
+      await navigator.share({ title: "CardFlip", text: "Scan a card, price it, list it on eBay. Five free scans:", url: info.url });
     } catch {
       // Dismissed.
     }

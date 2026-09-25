@@ -119,7 +119,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price="$0"
         per=""
         lines={TRIAL.lines}
-        cta="Try 10 scans free"
+        cta="Try 5 scans free"
         note="No card needed. Takes a minute to set up."
         primary={false}
       />

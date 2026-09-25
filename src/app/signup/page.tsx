@@ -93,7 +93,7 @@ export default function SignupPage() {
         <div className="foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
           <h1 className="text-xl font-semibold text-white">Create your account</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            10 free scans, no card needed.
+            5 free scans, no card needed.
           </p>
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
@@ -204,7 +204,7 @@ export default function SignupPage() {
             You&apos;re in{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Your first 10 scans are free. Point your camera at a card and CardFlip
+            Your first 5 scans are free. Point your camera at a card and CardFlip
             names it and prices it.
           </p>
 
@@ -212,7 +212,7 @@ export default function SignupPage() {
             onClick={() => router.push("/app")}
             className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
           >
-            Start scanning · 10 free
+            Start scanning · 5 free
           </button>
           <button
             onClick={() => router.push("/pricing")}

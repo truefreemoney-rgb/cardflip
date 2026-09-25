@@ -50,7 +50,7 @@ export async function POST(req: Request) {
               ? "You've used today's 100 scans — the counter resets at midnight UTC, or subscribe for a monthly allowance"
               : isSubscribed(user)
                 ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
-                : "Your 10 free scans are used — subscribe to keep scanning",
+                : "Your 5 free scans are used — subscribe to keep scanning",
           quota: true,
           usage: scanQuota(user),
         },
