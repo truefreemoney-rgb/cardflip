@@ -50,9 +50,9 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Launch gates — must be true before v1.0.0
 
-- [ ] [Chris] Chris's own paid signup works end to end (trial → wall → Stripe → webhook).
+- [x] 09-25 Chris's own paid signup works end to end on prod: fresh account → signup welcome email → Subscribe → live Checkout with promo CHRISTEST (100% off, max 3 uses) → $0 invoice under 'CardFlip' → webhook delivered → users row sub_status=active plan=standard.
 - [ ] [Chris] Stripe public details done.
-- [ ] [Chris] Admin console opened once on prod to confirm the new tables initialised.
+- [x] 09-17 Admin console opened on prod (fix deployment 4966662), every tab rendered.
 - [ ] [Chris] Soft-launch cohort measured (conversion / churn / scans) before any ad spend.
 
 ## Future ideas — parked, not forgotten
