@@ -80,10 +80,16 @@ needs a video. Order = easiest to connect first, then reach.
 2. **Bluesky** — adapter DONE 09-10; app password from Chris, one paste,
    then the two env vars on Vercel. Free API, image posts with alt text.
    First because it is the cheapest connection.
-3. **Instagram + Facebook + Threads** through one Meta app: IG business
-   account linked to a Facebook page, one "Allow" → long-lived token;
-   Graph API image posts, Threads API text+image. Biggest reach for card
-   pictures.
+3. **Instagram + Facebook + Threads** — adapter DONE 09-25
+   (src/lib/server/sites/meta.ts = three sites: facebook, instagram,
+   threads, each with its own slot). Env on Vercel prod: META_PAGE_ID +
+   META_PAGE_TOKEN (long-lived Page token; also drives Instagram),
+   META_IG_USER_ID (IG business account linked to the Page), THREADS_USER_ID
+   + THREADS_TOKEN (Threads has its own token). Facebook takes the picture
+   as an upload; Instagram and Threads only take a public image URL, so the
+   picture is parked on the Vercel Blob store (BLOB_READ_WRITE_TOKEN) for
+   the post and deleted after. WAITING on Meta: the Threads appeal, then
+   the Page <-> Instagram link, then the developer app for the tokens.
 4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
    with node:crypto, v2 media upload + /2/tweets). LIVE 09-25: @cardflipio,
    four keys on Vercel prod (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN,
