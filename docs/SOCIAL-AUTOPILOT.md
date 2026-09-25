@@ -11,10 +11,10 @@ sentence case, no exclamation marks, ends on cardflip.io).
 | Piece | Where | Status |
 |---|---|---|
 | Content engine: movers of the week + card of the day, per game, from `price_series` | `src/lib/server/social.ts` | shipped |
-| Post image, every site size (1080², 1080×1920, 1200×628) | `GET /api/social/image?kind=movers\|card&game=pokemon\|mtg&day=&size=` | shipped |
+| Post image, every site size (1080Â², 1080Ã—1920, 1200Ã—628) | `GET /api/social/image?kind=movers\|card&game=pokemon\|mtg&day=&size=` | shipped |
 | Preview page: today's drafts, image at each size, caption + Copy | `/admin/social` (owner only; nav "Social") | shipped |
 | Test | `npm run test:social` (in the `npm test` chain) | green |
-| Publisher: three posts a day (7am card / 1pm movers / 7pm drops ET), one per slot | `src/lib/server/socialPublish.ts`; runs as the last step of the daily Pokémon cron (`/api/cron/pokemon-prices`, Hobby = two crons) and by hand from `GET\|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=]` | shipped 09-10 |
+| Publisher: three posts a day (7am card / 1pm movers / 7pm drops ET), one per slot | `src/lib/server/socialPublish.ts`; runs as the last step of the daily PokÃ©mon cron (`/api/cron/pokemon-prices`, Hobby = two crons) and by hand from `GET\|POST /api/social/publish?key=CRON_SECRET[&force=1][&dry=1][&day=]` | shipped 09-10 |
 | Drafts as JSON + site status | `GET /api/social/drafts` (owner cookie or `?key=`) | shipped 09-10 |
 | Sites strip on `/admin/social`: connected / last post / Post now | `src/components/admin/SocialSites.tsx` | shipped 09-10 |
 | Bluesky adapter (app password, image + alt, link/tag facets, JPEG under 1 MB) | `src/lib/server/sites/bluesky.ts`; env `BLUESKY_HANDLE` + `BLUESKY_APP_PASSWORD` | shipped 09-10, waiting on the password |
@@ -30,7 +30,7 @@ sentence case, no exclamation marks, ends on cardflip.io).
   socialPublish.ts). `.github/workflows/social-post.yml` pings
   `POST /api/social/publish?slot=` at each slot's EDT and EST hour with
   the `SOCIAL_POST_KEY` secret (also on Vercel); the publisher picks the
-  slot from the Eastern clock when none is given. Pokémon only
+  slot from the Eastern clock when none is given. PokÃ©mon only
   (`socialGames()` follows the game switches).
 - Catch-up rule (Chris 09-25: every platform gets the same posts): a run
   posts every slot whose hour has passed today that the site has not
@@ -39,28 +39,28 @@ sentence case, no exclamation marks, ends on cardflip.io).
   (say, fewer than 3 drops) stays quiet instead of repeating another kind.
 - Once per slot per site per Eastern day: `settings` key
   `social_slot:<site>:<slot>` = the ET day; `social_last_post:<site>` and
-  `…:uris` keep the strip on /admin/social current. `force=1` posts the
+  `â€¦:uris` keep the strip on /admin/social current. `force=1` posts the
   next unposted slot (the Post now button).
-- Text is fitted to the site's limit: caption + hashtags → caption alone →
-  `shortCaption` (name + % only) → cut on a line with `cardflip.io` kept.
+- Text is fitted to the site's limit: caption + hashtags â†’ caption alone â†’
+  `shortCaption` (name + % only) â†’ cut on a line with `cardflip.io` kept.
 - Picture: the square PNG from `/api/social/image` (fetched from the same
   deployment with the cron key), turned into a JPEG when the site caps
   bytes (Bluesky: 1 MB).
 - Every run that posted or failed leaves one line on the board's
-  Completed list ("Social autopilot 2026-09-10 — Bluesky: … → link").
+  Completed list ("Social autopilot 2026-09-10 â€” Bluesky: â€¦ â†’ link").
 - A social failure never fails the price cron; it lands in the cron's
   JSON as `social.error`.
 
 ### Content rules
 
-- **Movers**: the 5 biggest |%| moves over 7 days among cards worth ≥ $3
+- **Movers**: the 5 biggest |%| moves over 7 days among cards worth â‰¥ $3
   on either end; series must have been updated in the last 3 days; the
-  preferred variant per card (normal → holofoil → reverse). Fewer than 3
+  preferred variant per card (normal â†’ holofoil â†’ reverse). Fewer than 3
   movers = no post that day.
-- **Card of the day**: one card worth ≥ $15, chosen by a hash of the date
-  over the fresh pool — same pick for every viewer and every run, cycles
+- **Card of the day**: one card worth â‰¥ $15, chosen by a hash of the date
+  over the fresh pool â€” same pick for every viewer and every run, cycles
   instead of repeating the top card.
-- Art: TCGdex WebP → PNG through sharp, pokemontcg.io PNG twin as the
+- Art: TCGdex WebP â†’ PNG through sharp, pokemontcg.io PNG twin as the
   fallback (lib/cardArt.ts). Scryfall JPG passes through.
 - One Turso read per call, capped at 6,000 series rows per game.
 
@@ -71,24 +71,24 @@ Owner cookie (the preview page) or `?key=CRON_SECRET` (the publisher).
 ## Plan, image sites only
 
 Chris (09-10): "we are not video content creators." Every post is a
-picture made from data. No YouTube, no TikTok, no Reels — nothing that
+picture made from data. No YouTube, no TikTok, no Reels â€” nothing that
 needs a video. Order = easiest to connect first, then reach.
 
-1. **Publisher** — DONE 09-10, inside the app (not a cloud routine: the
+1. **Publisher** â€” DONE 09-10, inside the app (not a cloud routine: the
    pictures, the DB and sharp are all here, and the daily cron already
    fires). See "How posting works" above.
-2. **Bluesky** — adapter DONE 09-10; app password from Chris, one paste,
+2. **Bluesky** â€” adapter DONE 09-10; app password from Chris, one paste,
    then the two env vars on Vercel. Free API, image posts with alt text.
    First because it is the cheapest connection.
 3. **Instagram + Facebook + Threads** through one Meta app: IG business
-   account linked to a Facebook page, one "Allow" → long-lived token;
+   account linked to a Facebook page, one "Allow" â†’ long-lived token;
    Graph API image posts, Threads API text+image. Biggest reach for card
    pictures.
-4. **X** — free tier (1,500 posts/mo, image upload OK). Chris creates the
+4. **X** â€” free tier (1,500 posts/mo, image upload OK). Chris creates the
    developer app once and pastes the keys.
-5. **Pinterest** — pins = the movers image + a link to cardflip.io; good
+5. **Pinterest** â€” pins = the movers image + a link to cardflip.io; good
    for search. Business account + app access.
-6. **LinkedIn / Reddit** — only if free and one-time; Reddit stays human
+6. **LinkedIn / Reddit** â€” only if free and one-time; Reddit stays human
    (communities punish bot promo).
 
 ## Chris's part, one row at a time on the board

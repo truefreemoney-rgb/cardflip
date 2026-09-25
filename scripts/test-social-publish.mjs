@@ -147,5 +147,26 @@ check("link facet on cardflip.io by byte offset", facets[0], {
 check("tag facets", facets.slice(1).map((f) => f.features[0].tag), ["PokemonTCG", "TCG"]);
 check("no facet on support@cardflip.io", blueskyFacets("mail support@cardflip.io").length, 0);
 
+console.log("x oauth 1.0a");
+const { xAuthHeader, rfc3986, X_MAX_CHARS } = await import(at("lib/server/sites/x.ts"));
+check("x limit leaves room for the t.co link", X_MAX_CHARS, 257);
+check("rfc3986 escapes what encodeURIComponent skips", rfc3986("a b!*'()"), "a%20b%21%2A%27%28%29");
+// The worked example from X's "Creating a signature" docs page.
+const hdr = xAuthHeader(
+  "POST",
+  "https://api.twitter.com/1.1/statuses/update.json",
+  { include_entities: "true", status: "Hello Ladies + Gentlemen, a signed OAuth request!" },
+  {
+    apiKey: "xvz1evFS4wEEPTGEFPHBog",
+    apiSecret: "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw",
+    accessToken: "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb",
+    accessSecret: "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE",
+  },
+  "kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg",
+  "1318622958",
+);
+check("signature matches X's documented example", /oauth_signature="([^"]+)"/.exec(hdr)?.[1], rfc3986("hCtSmYh+iHYCEqBWrE7C7hYmtUk="));
+check("header starts with OAuth and carries the token", [hdr.startsWith("OAuth "), hdr.includes('oauth_token="370773112-')], [true, true]);
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
