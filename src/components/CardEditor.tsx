@@ -19,7 +19,7 @@ import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
-import { GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
+import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
@@ -988,6 +988,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {GRADED_LOCKED && !item.grading ? (
+          <p className="text-xs text-zinc-500 sm:col-span-2">Graded slabs aren&apos;t accepted yet. Raw cards only for now.</p>
+        ) : (
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Graded slab
           <select
@@ -1008,6 +1011,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             ))}
           </select>
         </label>
+        )}
 
         {/* A slab's condition IS its grade, so the two selects swap: showing
             both would invite "PSA 10, Moderately Played". */}

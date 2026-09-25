@@ -18,6 +18,15 @@ import { GAMES } from "./games.ts";
 export const GRADING_COMPANIES: GradingCompany[] = ["PSA", "CGC"];
 
 /**
+ * Graded slabs are locked out (Chris 09-25): PSA closed its free API tier,
+ * so cert verification is off and a slab would price as a raw card. Flip
+ * this once a PSA plan is bought (docs/BACKLOG.md). Items already graded
+ * keep their grade; the scanner refuses new slabs, the editor hides the
+ * option, /api/psa/cert answers 503.
+ */
+export const GRADED_LOCKED = true;
+
+/**
  * Each grader's real scale, best grade first (the common case — people slab
  * cards they expect to grade well).
  *

@@ -37,6 +37,8 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Prove on prod — built, not yet seen live
 
+- [ ] [Chris] GRADED SLABS LOCKED 09-25 (PSA killed its free API tier; enterprise = $7,500/yr for 2,500/day, 500/day and 1,000/day plans priced on request — Chris asked PSA for those numbers). Scanner refuses a slab (vision reads "slab"), editor hides Graded, /api/psa/cert 503, help says so. Unlock = lib/grading.ts GRADED_LOCKED=false once a PSA plan is bought. Chris: forward PSA's reply with the prices.
+
 - [ ] [both] 09-09 hard pass on prod: eBay account-deletion webhook now verifies eBay's signature (needs the real key fetch to succeed once — check Vercel logs after the next eBay test notification); Stripe webhook now pins the subscription id (first real subscribe/cancel proves it); DB-backed login rate limit (rate_limits table created on first request).
 - [ ] [both] Sold-row treatment (SOLD marker, no delete/relist) — needs a real sale.
 - [ ] [both] Help chat's Haiku call on prod (dev has no key; verified by a one-off script).

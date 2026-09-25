@@ -19,7 +19,7 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
-import { parseGradeQuery } from "@/lib/grading";
+import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
@@ -141,6 +141,8 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
 const SCAN_WORKERS = 2;
 /** Art Series cards are refused at the scan (Chris 09-10), like tokens. */
 const ART_CARDS_LOCKED = true;
+/** Graded slabs refused at the scan while lib/grading GRADED_LOCKED is on (09-25). */
+const SLAB_MESSAGE = "That's a graded slab — graded cards aren't accepted yet. Scan a raw card";
 
 /* Reopen tracker: the ledger fetch and catalog match run in parallel and
    usually land inside two seconds; the last step holds until they do. */
@@ -417,6 +419,10 @@ export default function AppPage() {
             // to real cards only.
             if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
               readError = `Couldn't read this card (${Math.round(read.confidence * 100)}% sure) — retake with the whole card in the guide and no glare`;
+              nameCandidates = [];
+              printed = null;
+            } else if (read.slab && GRADED_LOCKED) {
+              readError = SLAB_MESSAGE;
               nameCandidates = [];
               printed = null;
             } else if (

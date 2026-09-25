@@ -150,6 +150,8 @@ export interface VisionCardRead {
   confidence: number;
   /** MTG: token / Art Series card / normal card, or null when unsure. */
   kind?: "card" | "token" | "art" | null;
+  /** The card is sealed in a graded slab (PSA/CGC/BGS holder). Null when unsure. */
+  slab?: boolean | null;
   /**
    * Pokémon: the card carries the "1st Edition" stamp printed below-left of
    * the artwork (WotC era). Null when the model can't tell or it doesn't apply.

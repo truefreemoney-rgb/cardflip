@@ -105,6 +105,11 @@ export const CARD_READ_SCHEMA = {
       description:
         "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'card': a normal playable card. Null if unsure.",
     },
+    slab: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description:
+        "true when the card is sealed inside a graded slab: a rigid clear plastic holder with a printed grading label across the top (PSA, CGC, BGS, SGC, ACE and the like, showing a company name, a grade number and a cert number). false for a raw card, sleeved or not. Null if unsure.",
+    },
     firstEdition: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
       description:
@@ -129,6 +134,7 @@ export const CARD_READ_SCHEMA = {
     "conditionNotes",
     "confidence",
     "kind",
+    "slab",
     "firstEdition",
     "copyrightYear",
   ],
@@ -277,6 +283,10 @@ code ("EN"), NOT the rarity letter (C/U/R/M) that sits between number and code,
 and NOT the artist credit. Put the full name in "name" exactly as printed; for a
 double-faced or adventure card use the front/main name. Leave englishName null.
 setName is optional — the set code is what identifies the printing.
+
+If the card sits inside a graded slab (a rigid plastic holder with a grading
+label across the top: PSA, CGC, BGS, SGC, ACE), say so in "slab" and still
+read the card underneath as usual.
 
 Two things that are not playable cards come out of the same packs and must
 be called out in "kind": tokens (type line "Token Creature — …", collector
@@ -521,6 +531,7 @@ async function firstLook(
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
+    slab: typeof parsed.slab === "boolean" ? parsed.slab : null,
     firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
     copyrightYear: typeof parsed.copyrightYear === "number" && parsed.copyrightYear >= 1993 && parsed.copyrightYear <= 2100 ? Math.trunc(parsed.copyrightYear) : null,
     name: parsed.name.trim(),

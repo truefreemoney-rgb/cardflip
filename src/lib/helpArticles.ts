@@ -52,6 +52,7 @@ export const helpArticles: HelpArticle[] = [
     id: "graded",
     heading: "Graded cards",
     paragraphs: [
+      "Graded slabs are not accepted yet: the scanner asks for a raw card and the graded option is hidden in the editor. It comes back once cert verification is in place.",
       "Mark a card as graded by PSA or CGC and pick the grade — the price then follows real sold listings for that exact company and grade instead of the raw-card market, and the history chart rescales to match.",
       "For PSA slabs you can verify the cert: type the cert number into the Verify field and CardFlip checks it against PSA's records and fills in the grade. If verification is temporarily unavailable, you can still set the grade yourself.",
       "Condition grades you pick for raw cards are informal descriptions, not the equivalent of professional grading.",

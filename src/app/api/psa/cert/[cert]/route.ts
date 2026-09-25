@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
+import { GRADED_LOCKED } from "@/lib/grading";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { LIMITS, limitOrRespond } from "@/lib/server/rateLimit";
 import { lookupPsaCert, psaConfigured, PsaApiError, PsaCertNotFound } from "@/lib/server/psa";
@@ -21,6 +22,9 @@ export async function GET(
 ) {
   try {
     const user = await requireUser();
+    if (GRADED_LOCKED) {
+      return NextResponse.json({ error: "Graded cards aren't accepted yet" }, { status: 503 });
+    }
     if (!psaConfigured()) {
       return NextResponse.json({ error: "PSA lookup isn't configured" }, { status: 503 });
     }
