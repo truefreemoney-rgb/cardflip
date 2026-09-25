@@ -88,8 +88,11 @@ needs a video. Order = easiest to connect first, then reach.
    (Threads has its own token; THREADS_USER_ID optional, /me resolves it). Facebook takes the picture
    as an upload; Instagram and Threads only take a public image URL, so the
    picture is parked on the Vercel Blob store (BLOB_READ_WRITE_TOKEN) for
-   the post and deleted after. WAITING on Meta: the Threads appeal, then
-   the Page <-> Instagram link, then the developer app for the tokens.
+   the post and deleted after. THREADS LIVE 09-25 (@cardflipio; token pasted by Chris into Vercel;
+   long-lived token expires after 60 days, refresh via
+   /refresh_access_token before 11-24). Facebook + Instagram wait on the
+   Page token / Instagram Login token from the same developer app; the
+   Page <-> Instagram link is restricted on the new account and not needed.
 4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
    with node:crypto, v2 media upload + /2/tweets). LIVE 09-25: @cardflipio,
    four keys on Vercel prod (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN,
