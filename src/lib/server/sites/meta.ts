@@ -8,7 +8,7 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  * token and post URL and the publisher tracks slots per site. One Meta
  * developer app covers all three; Chris does the clicks once and pastes:
  *
- *   META_PAGE_ID + META_PAGE_TOKEN        Facebook Page (long-lived page token)
+ *   META_PAGE_TOKEN (+ optional META_PAGE_ID) Facebook Page (long-lived page token)
  *   META_IG_USER_ID (+ META_PAGE_TOKEN)   Instagram business account linked to the page
  *   THREADS_TOKEN (+ optional THREADS_USER_ID)  Threads (its own long-lived token)
  *
@@ -88,10 +88,10 @@ async function waitForContainer(url: string, step: string): Promise<void> {
 
 /* ---------- Facebook Page ---------- */
 
+/** META_PAGE_ID is optional: a Page token resolves /me to its own Page. */
 function fbCreds() {
-  const pageId = process.env.META_PAGE_ID?.trim();
   const token = process.env.META_PAGE_TOKEN?.trim();
-  return pageId && token ? { pageId, token } : null;
+  return token ? { pageId: process.env.META_PAGE_ID?.trim() || "me", token } : null;
 }
 
 export const facebook: SocialSite = {
