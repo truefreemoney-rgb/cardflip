@@ -110,6 +110,45 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
 }
 
 /**
+ * Sent right after signup (Chris, 09-25: the site welcomes a new user; the
+ * subscription mail below is a different moment). Fire-and-forget from the
+ * signup route: a mail failure never fails the signup.
+ */
+export async function sendSignupWelcomeEmail(to: string, firstName: string): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const scanUrl = `${site}/app`;
+  const pricingUrl = `${site}/pricing`;
+  const hi = firstName ? `Welcome to CardFlip, ${firstName}.` : "Welcome to CardFlip.";
+  const text = [
+    hi,
+    "",
+    "Your first 10 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:",
+    scanUrl,
+    "",
+    `Want more? 500 scans a month for $9.99: ${pricingUrl}`,
+    "",
+    "Questions? Reply to this email.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>${hi}</p>
+    <p>Your first 10 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
+    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
+    <p style="color:#666;font-size:13px">Want more? <a href="${pricingUrl}">500 scans a month for $9.99</a>.</p>
+    <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: firstName ? `Welcome to CardFlip, ${firstName}` : "Welcome to CardFlip",
+    text,
+    html,
+  });
+}
+
+/**
  * Sent once, from the Stripe webhook, when a checkout completes. The webhook
  * swallows failures — a missed welcome must never make Stripe retry the event.
  */

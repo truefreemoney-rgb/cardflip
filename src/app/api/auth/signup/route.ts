@@ -4,6 +4,7 @@ import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { attachReferral } from "@/lib/server/referrals";
+import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -43,6 +44,15 @@ export async function POST(req: Request) {
   // Best effort — a bad or stale code never blocks the signup.
   if (typeof body?.ref === "string" && body.ref) await attachReferral(user.id, body.ref).catch(() => {});
   const session = await createSession(user.id);
+  // Welcome mail (Chris, 09-25). Awaited so Vercel doesn't freeze the
+  // function before the send finishes, but never fails the signup.
+  if (isMailConfigured()) {
+    try {
+      await sendSignupWelcomeEmail(user.email, name.split(" ")[0]);
+    } catch (err) {
+      console.error(`signup: welcome email to ${user.email} failed:`, err);
+    }
+  }
 
   const res = NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
