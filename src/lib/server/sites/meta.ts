@@ -9,7 +9,7 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  * developer app covers all three; Chris does the clicks once and pastes:
  *
  *   META_PAGE_TOKEN (+ optional META_PAGE_ID) Facebook Page (page OR user token, see fbCreds)
- *   META_IG_USER_ID (+ META_PAGE_TOKEN)   Instagram business account linked to the page
+ *   INSTAGRAM_TOKEN                       Instagram (Instagram Login; or META_IG_USER_ID + META_PAGE_TOKEN via the Page)
  *   THREADS_TOKEN (+ optional THREADS_USER_ID)  Threads (its own long-lived token)
  *
  * Facebook takes the picture as an upload. Instagram and Threads only take a
@@ -144,10 +144,19 @@ export const facebook: SocialSite = {
 
 /* ---------- Instagram ---------- */
 
-function igCreds() {
+/**
+ * Two ways in: INSTAGRAM_TOKEN from "Instagram API with Instagram Login"
+ * (no Facebook Page needed, graph.instagram.com, /me) — or the older
+ * Page-linked route (META_IG_USER_ID + META_PAGE_TOKEN, graph.facebook.com).
+ */
+const IG_LOGIN = process.env.INSTAGRAM_GRAPH_BASE ?? "https://graph.instagram.com/v21.0";
+
+function igCreds(): { base: string; userId: string; token: string } | null {
+  const loginToken = process.env.INSTAGRAM_TOKEN?.trim();
+  if (loginToken) return { base: IG_LOGIN, userId: "me", token: loginToken };
   const userId = process.env.META_IG_USER_ID?.trim();
   const token = process.env.META_PAGE_TOKEN?.trim();
-  return userId && token ? { userId, token } : null;
+  return userId && token ? { base: GRAPH, userId, token } : null;
 }
 
 export const instagram: SocialSite = {
@@ -162,20 +171,20 @@ export const instagram: SocialSite = {
     const parked = await parkImage("instagram", await asJpeg(p));
     try {
       const container = await graph<{ id?: string }>(
-        `${GRAPH}/${c.userId}/media`,
+        `${c.base}/${c.userId}/media`,
         { method: "POST", headers: FORM, body: form({ image_url: parked.url, caption: p.text, alt_text: p.alt.slice(0, 1000), access_token: c.token }) },
         "instagram media",
       );
       if (!container.id) throw new Error("instagram media: no container id");
-      await waitForContainer(`${GRAPH}/${container.id}?fields=status_code&access_token=${encodeURIComponent(c.token)}`, "instagram media");
+      await waitForContainer(`${c.base}/${container.id}?fields=status_code&access_token=${encodeURIComponent(c.token)}`, "instagram media");
       const published = await graph<{ id?: string }>(
-        `${GRAPH}/${c.userId}/media_publish`,
+        `${c.base}/${c.userId}/media_publish`,
         { method: "POST", headers: FORM, body: form({ creation_id: container.id, access_token: c.token }) },
         "instagram media_publish",
       );
       if (!published.id) throw new Error("instagram media_publish: no id");
       const info = await graph<{ permalink?: string; shortcode?: string }>(
-        `${GRAPH}/${published.id}?fields=permalink,shortcode&access_token=${encodeURIComponent(c.token)}`,
+        `${c.base}/${published.id}?fields=permalink,shortcode&access_token=${encodeURIComponent(c.token)}`,
         {},
         "instagram permalink",
       ).catch(() => ({}) as { permalink?: string; shortcode?: string });
