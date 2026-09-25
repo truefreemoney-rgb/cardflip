@@ -82,7 +82,9 @@ export async function createCheckoutSession(customerId: string, userId: string, 
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
     allow_promotion_codes: "true",
-    success_url: `${SITE_URL}/app/account?billing=success`,
+    // A fresh subscriber lands on one screen with one job (scan), not on
+    // the Profile page (Chris, 09-25).
+    success_url: `${SITE_URL}/app/account/welcome?billing=success`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
   });
   return s.url;
