@@ -10,7 +10,7 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  *
  *   META_PAGE_ID + META_PAGE_TOKEN        Facebook Page (long-lived page token)
  *   META_IG_USER_ID (+ META_PAGE_TOKEN)   Instagram business account linked to the page
- *   THREADS_USER_ID + THREADS_TOKEN       Threads (its own long-lived token)
+ *   THREADS_TOKEN (+ optional THREADS_USER_ID)  Threads (its own long-lived token)
  *
  * Facebook takes the picture as an upload. Instagram and Threads only take a
  * PUBLIC image URL, so the fitted picture is parked on our Vercel Blob store
@@ -161,10 +161,10 @@ export const instagram: SocialSite = {
 
 /* ---------- Threads ---------- */
 
+/** THREADS_USER_ID is optional: the token knows whose it is (GET /me). */
 function threadsCreds() {
-  const userId = process.env.THREADS_USER_ID?.trim();
   const token = process.env.THREADS_TOKEN?.trim();
-  return userId && token ? { userId, token } : null;
+  return token ? { userId: process.env.THREADS_USER_ID?.trim() || "me", token } : null;
 }
 
 export const threads: SocialSite = {

@@ -84,8 +84,8 @@ needs a video. Order = easiest to connect first, then reach.
    (src/lib/server/sites/meta.ts = three sites: facebook, instagram,
    threads, each with its own slot). Env on Vercel prod: META_PAGE_ID +
    META_PAGE_TOKEN (long-lived Page token; also drives Instagram),
-   META_IG_USER_ID (IG business account linked to the Page), THREADS_USER_ID
-   + THREADS_TOKEN (Threads has its own token). Facebook takes the picture
+   META_IG_USER_ID (IG business account linked to the Page), THREADS_TOKEN
+   (Threads has its own token; THREADS_USER_ID optional, /me resolves it). Facebook takes the picture
    as an upload; Instagram and Threads only take a public image URL, so the
    picture is parked on the Vercel Blob store (BLOB_READ_WRITE_TOKEN) for
    the post and deleted after. WAITING on Meta: the Threads appeal, then
