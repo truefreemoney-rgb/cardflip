@@ -84,8 +84,11 @@ needs a video. Order = easiest to connect first, then reach.
    account linked to a Facebook page, one "Allow" → long-lived token;
    Graph API image posts, Threads API text+image. Biggest reach for card
    pictures.
-4. **X** — free tier (1,500 posts/mo, image upload OK). Chris creates the
-   developer app once and pastes the keys.
+4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
+   with node:crypto, v2 media upload + /2/tweets). Free tier (1,500 posts/mo,
+   image upload OK). Chris creates the developer app once and pastes four
+   keys: X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET (app
+   permissions must be Read and write BEFORE generating the access token).
 5. **Pinterest** — pins = the movers image + a link to cardflip.io; good
    for search. Business account + app access.
 6. **LinkedIn / Reddit** — only if free and one-time; Reddit stays human
