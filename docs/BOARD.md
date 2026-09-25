@@ -43,7 +43,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [both] Trial selling gate (402 on draft/publish) on prod.
 - [ ] [both] Admin plan overrides + Add account on prod.
 - [ ] [both] Tour once-only stamp on prod.
-- [ ] [both] Verify-match gate on a live phone scan; vision printing/finish accuracy on real phone photos.
+- [x] 09-25 Real-phone walk on prod, Chris 'all good' (Ben account, subscribed): camera + torch, capture + identify + price, draft editor with keyboard, Connect eBay sign-in, publish one listing. Verify-match on a live phone scan: passed in that walk.
 - [x] 09-25 Prod mail DELIVERS (Fastmail via chris@superiormarketing.com as support@cardflip.io): SMTP test + the new signup welcome email both landed in Gmail inbox. Forgot-password uses the same transport.
 - [x] 09-25 Subscription welcome email arrived on the CHRISTEST subscribe.
 - [x] 09-25 Signup flow pass, Chris yea ('looks good'): step 2 = welcome card (scan free / subscribe, eBay behind a link, 3264e4d); signup welcome email (5fe88f0); checkout allows promo codes (13fc3ba); Stripe returns to /app/account/welcome, one job = Scan a card (685ec23); Cancel plan link opens Stripe's cancel flow and comes back (3e0cfc3). Promo CHRISTEST = 100% off once, 3 uses (2 used).
