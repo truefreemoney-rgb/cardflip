@@ -44,7 +44,8 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [both] Admin plan overrides + Add account on prod.
 - [ ] [both] Tour once-only stamp on prod.
 - [ ] [both] Verify-match gate on a live phone scan; vision printing/finish accuracy on real phone photos.
-- [ ] [both] Welcome email on a real subscribe; wishlist dip email; Finances call after a real sale; ended-listing sync; live-offer PUT; multi-qty order.
+- [x] 09-25 Prod mail DELIVERS (Fastmail via chris@superiormarketing.com as support@cardflip.io): SMTP test + the new signup welcome email both landed in Gmail inbox. Forgot-password uses the same transport.
+- [ ] [both] Subscription welcome email on a real subscribe (next: CHRISTEST checkout); wishlist dip email; Finances call after a real sale; ended-listing sync; live-offer PUT; multi-qty order.
 - [ ] [both] Camera controls / torch positions on a real device.
 
 ## Launch gates — must be true before v1.0.0
