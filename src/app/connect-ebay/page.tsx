@@ -29,7 +29,7 @@ export default function ConnectEbayPage() {
         <Logo />
       </div>
 
-      <OnboardingSteps current={1} />
+      <OnboardingSteps current={1} steps={["Account", "eBay setup"]} />
 
       {/* useSearchParams inside the card needs a Suspense boundary to build. */}
       <Suspense fallback={null}>

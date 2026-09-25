@@ -2,13 +2,12 @@
 
 import PasswordField from "@/components/PasswordField";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import OnboardingSteps from "@/components/OnboardingSteps";
-import EbayConnectCard from "@/components/EbayConnectCard";
 import DevLoginButton from "@/components/DevLoginButton";
 import { fetchCurrentUser, signup } from "@/lib/client/auth";
 import { readReferralCode } from "@/components/RefCapture";
@@ -35,14 +34,15 @@ export default function SignupPage() {
 
   const [firstName, setFirstName] = useState("");
 
-  // `?step=ebay` + a live session = the account already exists; resume on
-  // the eBay step instead of asking them to sign up again.
+  // `?step=welcome` (or the old `?step=ebay`) + a live session = the account
+  // already exists; resume on step 2 instead of asking them to sign up again.
   useEffect(() => {
-    const ebayStep = new URLSearchParams(window.location.search).get("step") === "ebay";
+    const step = new URLSearchParams(window.location.search).get("step");
+    const welcomeStep = step === "welcome" || step === "ebay";
     let alive = true;
     fetchCurrentUser().then((u) => {
       if (!alive || !u) return;
-      if (ebayStep) {
+      if (welcomeStep) {
         setFirstName(u.name.split(" ")[0]);
         setPhase("ebay");
       } else {
@@ -69,13 +69,12 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       const user = await signup(name.trim(), email.trim(), password, readReferralCode());
-      // Stay on this page and slide straight into the eBay step — no reload,
-      // no separate route, so linking eBay reads as part of signing up.
+      // Stay on this page and slide straight into the welcome step.
       setFirstName(user.name.split(" ")[0]);
       setPhase("ebay");
-      // Mark the step in the URL so a refresh (or coming back from eBay's
-      // sign-in) lands on step 2, not on an empty account form.
-      window.history.replaceState(null, "", "/signup?step=ebay");
+      // Mark the step in the URL so a refresh lands on step 2, not on an
+      // empty account form.
+      window.history.replaceState(null, "", "/signup?step=welcome");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed.");
       setSubmitting(false);
@@ -191,15 +190,43 @@ export default function SignupPage() {
           </p>
         </div>
       ) : (
-        <div className="animate-fade-up w-full max-w-md">
-          {/* useSearchParams inside the card needs a Suspense boundary to build. */}
-          <Suspense fallback={null}>
-            <EbayConnectCard
-              firstName={firstName}
-              doneLabel="Start scanning · 10 free"
-              onDone={() => router.push("/app")}
-            />
-          </Suspense>
+        // Step 2 is the two things a new account can do: scan free or
+        // subscribe. eBay lives behind one link (Chris, 09-25: the eBay
+        // rambling belongs after "Connect eBay", not on the welcome screen).
+        <div className="foil-edge animate-fade-up relative w-full max-w-sm rounded-2xl p-8 text-center shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
+          <div
+            className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl text-emerald-400"
+            aria-hidden
+          >
+            ✓
+          </div>
+          <h1 className="mt-5 text-xl font-semibold text-white">
+            You&apos;re in{firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            Your first 10 scans are free. Point your camera at a card and CardFlip
+            names it and prices it.
+          </p>
+
+          <button
+            onClick={() => router.push("/app")}
+            className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
+          >
+            Start scanning · 10 free
+          </button>
+          <button
+            onClick={() => router.push("/pricing")}
+            className="mt-3 w-full rounded-full border border-edge px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-surface-2"
+          >
+            Subscribe now
+          </button>
+
+          <p className="mt-5 text-xs text-zinc-500">
+            Selling on eBay?{" "}
+            <Link href="/connect-ebay" className="font-medium text-brand-300 transition hover:text-brand-200">
+              Connect eBay
+            </Link>
+          </p>
         </div>
       )}
 

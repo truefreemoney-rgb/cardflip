@@ -1,9 +1,9 @@
-const STEPS = ["Account", "eBay setup"];
+const STEPS = ["Account", "Get started"];
 
-export default function OnboardingSteps({ current }: { current: 0 | 1 }) {
+export default function OnboardingSteps({ current, steps = STEPS }: { current: 0 | 1; steps?: string[] }) {
   return (
     <ol className="mb-6 flex items-center gap-2 text-xs font-medium text-zinc-500">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const done = i < current;
         const active = i === current;
 
