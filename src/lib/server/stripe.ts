@@ -91,11 +91,25 @@ export async function createCheckoutSession(customerId: string, userId: string, 
 }
 
 /** Stripe's hosted manage-billing page (cancel, change card, invoices). */
-export async function createPortalSession(customerId: string): Promise<string> {
-  const s = await stripeRequest<{ url: string }>("billing_portal/sessions", {
+export async function createPortalSession(
+  customerId: string,
+  opts: { cancelSubscriptionId?: string | null } = {},
+): Promise<string> {
+  const params: Record<string, string> = {
     customer: customerId,
     return_url: `${SITE_URL}/app/account`,
-  });
+  };
+  // The plain portal never leaves on its own; only a flow can redirect when
+  // it finishes (Chris, 09-25: cancelling stranded him on Stripe's page).
+  // Opened from the Cancel plan link, the portal goes straight to the cancel
+  // confirmation and comes back to the account page when it is done.
+  if (opts.cancelSubscriptionId) {
+    params["flow_data[type]"] = "subscription_cancel";
+    params["flow_data[subscription_cancel][subscription]"] = opts.cancelSubscriptionId;
+    params["flow_data[after_completion][type]"] = "redirect";
+    params["flow_data[after_completion][redirect][return_url]"] = `${SITE_URL}/app/account?billing=ending`;
+  }
+  const s = await stripeRequest<{ url: string }>("billing_portal/sessions", params);
   return s.url;
 }
 

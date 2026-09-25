@@ -12,7 +12,13 @@ export async function POST(req: NextRequest) {
     if (!stripeConfigured() || !user.stripeCustomerId) {
       return NextResponse.json({ error: "No billing to manage yet" }, { status: 400 });
     }
-    return NextResponse.json({ url: await createPortalSession(user.stripeCustomerId) });
+    const body = await req.json().catch(() => null);
+    const cancel = body?.flow === "cancel";
+    return NextResponse.json({
+      url: await createPortalSession(user.stripeCustomerId, {
+        cancelSubscriptionId: cancel ? user.stripeSubscriptionId : null,
+      }),
+    });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

@@ -139,10 +139,10 @@ function AccountSettings({
   // only writer of subStatus, so a single fetch races it — on success we poll
   // the overview until the badge flips. Read at first render (no
   // useSearchParams — that would force a Suspense boundary on the whole page).
-  const [billingReturn] = useState<"success" | "canceled" | null>(() => {
+  const [billingReturn] = useState<"success" | "canceled" | "ending" | null>(() => {
     if (typeof window === "undefined") return null;
     const b = new URLSearchParams(window.location.search).get("billing");
-    return b === "success" || b === "canceled" ? b : null;
+    return b === "success" || b === "canceled" || b === "ending" ? b : null;
   });
   const [billingPhase, setBillingPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
   useEffect(() => {
@@ -891,7 +891,7 @@ function PlanSection({
 }: {
   user: SessionUser;
   quota?: { used: number; included: number; remaining: number | null; bonus?: number };
-  billingReturn: "success" | "canceled" | null;
+  billingReturn: "success" | "canceled" | "ending" | null;
   billingPhase: "waiting" | "confirmed" | "stalled";
 }) {
   const [busy, setBusy] = useState(false);
@@ -977,6 +977,12 @@ function PlanSection({
           </Notice>
         ))}
       {billingReturn === "canceled" && <p className="text-sm text-zinc-400">Checkout canceled — nothing was charged.</p>}
+      {billingReturn === "ending" && (
+        <Notice kind="ok">
+          Your plan stays active until the end of this billing period, then ends. Nothing more will be
+          charged. Changed your mind? Manage Billing can undo it.
+        </Notice>
+      )}
       {subscribed && quota && (
         <div className="max-w-sm">
           <p className="text-xs text-zinc-400">
@@ -992,6 +998,16 @@ function PlanSection({
             Your allowance resets at the start of each month.
             {quota.bonus ? ` Plus ${quota.bonus.toLocaleString("en-US")} bonus scans from friends, used after it.` : ""}
           </p>
+          {billingReturn !== "ending" && (
+            <button
+              type="button"
+              onClick={() => go(() => openBillingPortal("cancel"))}
+              disabled={busy}
+              className="mt-3 text-xs text-zinc-500 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-300 disabled:opacity-60"
+            >
+              Cancel plan
+            </button>
+          )}
         </div>
       )}
       {msg && <Notice kind="err">{msg}</Notice>}

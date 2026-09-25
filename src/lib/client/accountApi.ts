@@ -116,8 +116,12 @@ export async function startCheckout(plan: "standard" | "pro" = "standard"): Prom
 }
 
 /** Answers the Stripe billing-portal URL (cancel, change card, invoices). */
-export async function openBillingPortal(): Promise<string> {
-  const res = await apiFetch("/api/billing/portal", { method: "POST" });
+export async function openBillingPortal(flow?: "cancel"): Promise<string> {
+  const res = await apiFetch("/api/billing/portal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ flow: flow ?? null }),
+  });
   return (await expectOk<{ url: string }>(res)).url;
 }
 
