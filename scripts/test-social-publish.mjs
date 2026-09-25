@@ -168,5 +168,10 @@ const hdr = xAuthHeader(
 check("signature matches X's documented example", /oauth_signature="([^"]+)"/.exec(hdr)?.[1], rfc3986("hCtSmYh+iHYCEqBWrE7C7hYmtUk="));
 check("header starts with OAuth and carries the token", [hdr.startsWith("OAuth "), hdr.includes('oauth_token="370773112-')], [true, true]);
 
+const meta = await import(at("lib/server/sites/meta.ts"));
+check("meta limits: threads 500, instagram 2200, facebook 5000", [meta.THREADS_MAX_CHARS, meta.INSTAGRAM_MAX_CHARS, meta.FACEBOOK_MAX_CHARS], [500, 2200, 5000]);
+check("meta sites are off without tokens", [meta.facebook.connected(), meta.instagram.connected(), meta.threads.connected()], [false, false, false]);
+check("meta post urls", [meta.metaPostUrl("facebook", "1_2"), meta.metaPostUrl("instagram", "ABC"), meta.metaPostUrl("threads", "9")], ["https://www.facebook.com/1_2", "https://www.instagram.com/p/ABC/", "https://www.threads.net/post/9"]);
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
