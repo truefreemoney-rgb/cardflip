@@ -40,14 +40,15 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [both] 09-09 hard pass on prod: eBay account-deletion webhook now verifies eBay's signature (needs the real key fetch to succeed once — check Vercel logs after the next eBay test notification); Stripe webhook now pins the subscription id (first real subscribe/cancel proves it); DB-backed login rate limit (rate_limits table created on first request).
 - [ ] [both] Sold-row treatment (SOLD marker, no delete/relist) — needs a real sale.
 - [ ] [both] Help chat's Haiku call on prod (dev has no key; verified by a one-off script).
-- [ ] [both] Trial selling gate (402 on draft/publish) on prod.
+- [x] 09-25 Trial selling gate PROVEN on prod: fresh trial account (truefreemoney+dip402@gmail.com, "Dip Test") got 402 {paywall, selling} from both POST /api/ebay/draft and /api/ebay/listing/publish.
 - [ ] [both] Admin plan overrides + Add account on prod.
 - [ ] [both] Tour once-only stamp on prod.
 - [x] 09-25 Real-phone walk on prod, Chris 'all good' (Ben account, subscribed): camera + torch, capture + identify + price, draft editor with keyboard, Connect eBay sign-in, publish one listing. Verify-match on a live phone scan: passed in that walk.
 - [x] 09-25 Prod mail DELIVERS (Fastmail via chris@superiormarketing.com as support@cardflip.io): SMTP test + the new signup welcome email both landed in Gmail inbox. Forgot-password uses the same transport.
 - [x] 09-25 Subscription welcome email arrived on the CHRISTEST subscribe.
 - [x] 09-25 Signup flow pass, Chris yea ('looks good'): step 2 = welcome card (scan free / subscribe, eBay behind a link, 3264e4d); signup welcome email (5fe88f0); checkout allows promo codes (13fc3ba); Stripe returns to /app/account/welcome, one job = Scan a card (685ec23); Cancel plan link opens Stripe's cancel flow and comes back (3e0cfc3). Promo CHRISTEST = 100% off once, 3 uses (2 used).
-- [ ] [both] Wishlist dip email; Finances call after a real sale; ended-listing sync; live-offer PUT; multi-qty order.
+- [ ] [Chris] Wishlist dip email ARMED 09-25: the Dip Test account watches Charizard ex Paldean Fates (sv04.5-054, USD holo $5.60) with alert $9,999, so the next daily sweep (pokemon-prices cron 09:45 UTC = 5:45am ET, 09-26) must email truefreemoney+dip402@gmail.com (lands in Chris's Gmail). Chris: say "dip email arrived" or "no dip email". Then Claude deletes the test account.
+- [ ] [both] Finances call after a real sale; ended-listing sync; live-offer PUT; multi-qty order.
 - [ ] [both] Camera controls / torch positions on a real device.
 
 ## Launch gates — must be true before v1.0.0
