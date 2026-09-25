@@ -32,6 +32,11 @@ sentence case, no exclamation marks, ends on cardflip.io).
   the `SOCIAL_POST_KEY` secret (also on Vercel); the publisher picks the
   slot from the Eastern clock when none is given. Pokémon only
   (`socialGames()` follows the game switches).
+- Catch-up rule (Chris 09-25: every platform gets the same posts): a run
+  posts every slot whose hour has passed today that the site has not
+  posted yet, so a site connected at 3pm gets the 7am and 1pm pictures at
+  once and a missed ping is made good by the next. A slot with no draft
+  (say, fewer than 3 drops) stays quiet instead of repeating another kind.
 - Once per slot per site per Eastern day: `settings` key
   `social_slot:<site>:<slot>` = the ET day; `social_last_post:<site>` and
   `…:uris` keep the strip on /admin/social current. `force=1` posts the

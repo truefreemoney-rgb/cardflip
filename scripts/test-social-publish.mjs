@@ -65,30 +65,30 @@ function fakeSite(id, { connected = true, fail = false, maxChars = 5000 } = {}) 
 }
 
 console.log("slots (Eastern; 2026-09-10 is EDT = UTC-4)");
-const at = (h, m = 30) => Date.UTC(2026, 8, 10, h, m);
-check("7am ET → morning", slotAt(at(11)), "morning");
-check("8am ET still morning (the EST-hour ping)", slotAt(at(12)), "morning");
-check("1pm ET → midday", slotAt(at(17)), "midday");
-check("7pm ET → evening", slotAt(at(23)), "evening");
-check("11am ET → no slot", slotAt(at(15)), null);
+const clock = (h, m = 30) => Date.UTC(2026, 8, 10, h, m);
+check("7am ET → morning", slotAt(clock(11)), "morning");
+check("8am ET still morning (the EST-hour ping)", slotAt(clock(12)), "morning");
+check("1pm ET → midday", slotAt(clock(17)), "midday");
+check("7pm ET → evening", slotAt(clock(23)), "evening");
+check("11am ET → no slot", slotAt(clock(15)), null);
 check("Eastern day rolls at midnight ET, not UTC", eastern(Date.UTC(2026, 8, 11, 2)).day, THU);
 
 console.log("publish");
 const off = fakeSite("off", { connected: false });
-let r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [off], fetchImage });
+let r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [off], fetchImage });
 check("unconnected site is skipped", r.sites.map((s) => [s.status, s.reason]), [["skipped", "not connected"]]);
 
 const bsky = fakeSite("bsky");
-r = await publishSocial({ day: THU, now: at(15), origin: "http://x", sites: [bsky], fetchImage });
-check("11am: skipped, outside the windows", r.sites[0].reason, "outside the 7am / 1pm / 7pm windows");
+r = await publishSocial({ day: THU, now: clock(9), origin: "http://x", sites: [bsky], fetchImage });
+check("5am: skipped, before the first window", r.sites[0].reason, "before the 7am window");
 check("nothing fetched", fetched.length, 0);
 
-r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [bsky], fetchImage, dry: true });
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [bsky], fetchImage, dry: true });
 check("dry run reports one draft for the slot", [r.slot, r.sites[0].posts.length], ["morning", 1]);
 check("dry run posts nothing", bsky.posts.length, 0);
 check("dry run marks nothing", await getSetting(`${SLOT_PREFIX}bsky:morning`), null);
 
-r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [bsky], fetchImage });
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [bsky], fetchImage });
 check("7am: card of the day posted", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
 check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=card&game=pokemon&day=${THU}&size=square&key=cron-test`);
 check("alt text set", bsky.posts[0].alt.startsWith("Card of the day:"));
@@ -96,18 +96,24 @@ check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:m
 check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
 check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1"]);
 
-r = await publishSocial({ day: THU, now: at(12), origin: "http://x", sites: [bsky], fetchImage });
+r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
-r = await publishSocial({ day: THU, now: at(17), origin: "http://x", sites: [bsky], fetchImage });
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", sites: [bsky], fetchImage });
 check("1pm: movers posted", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
-r = await publishSocial({ day: THU, now: at(23), origin: "http://x", sites: [bsky], fetchImage });
-check("7pm: no dips draft (one drop only) → falls back to another kind", [r.slot, r.drafts, bsky.posts.length], ["evening", 1, 3]);
-r = await publishSocial({ day: THU, now: at(15), origin: "http://x", sites: [bsky], fetchImage, force: true });
-check("forced outside a window with every slot done → morning again", [r.slot, r.sites[0].status, bsky.posts.length], ["morning", "posted", 4]);
-check("one image fetch per posting run", fetched.length, 4);
+r = await publishSocial({ day: THU, now: clock(23), origin: "http://x", sites: [bsky], fetchImage });
+check("7pm: one drop only → no dips post, stays quiet rather than repeat", [r.slot, r.sites[0].status, r.sites[0].reason, bsky.posts.length], ["evening", "skipped", "nothing to post for the evening slot", 2]);
+r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true });
+check("Post now at 11am (only morning due, already done) → re-does morning", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["morning", "posted", null, 3]);
+check("one image fetch per posting run", fetched.length, 3);
+
+const late = fakeSite("late");
+r = await publishSocial({ day: THU, now: clock(19), origin: "http://x", sites: [bsky, late], fetchImage });
+check("a site connected at 3pm catches up on the 7am and 1pm posts in one run", [r.sites[1].status, r.sites[1].posts.map((p) => p.title.split(":")[0])], ["posted", ["Card of the day", "Pokémon movers of the week"]]);
+check("both slots marked for it", [await getSetting(`${SLOT_PREFIX}late:morning`), await getSetting(`${SLOT_PREFIX}late:midday`)], [THU, THU]);
+check("the site that already had them is left alone", [r.sites[0].status, bsky.posts.length], ["skipped", 3]);
 
 const broken = fakeSite("broken", { fail: true });
-r = await publishSocial({ day: THU, now: at(11), origin: "http://x", sites: [broken], fetchImage });
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [broken], fetchImage });
 check("failing site → failed, slot not marked", [r.sites[0].status, await getSetting(`${SLOT_PREFIX}broken:morning`)], ["failed", null]);
 check("errors carried per post", r.sites[0].posts.every((p) => p.error === "boom"));
 
@@ -117,7 +123,7 @@ const completed = sections.find(isCompletedSection);
 const notes = completed.items.filter((i) => i.text.startsWith("Social autopilot"));
 check("one Completed line per run that posted or failed", notes.length, 5);
 check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am card of the day")], [true, "Claude", true, true]);
-check("posted line carries the uri", notes[1].text.includes("https://bsky/4"));
+check("posted line carries the uri", notes[1].text.includes("https://late/2"));
 
 console.log("text fitting");
 const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };

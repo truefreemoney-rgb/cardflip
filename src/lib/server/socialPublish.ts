@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import { socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
-import { todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -161,42 +160,35 @@ async function defaultFetchImage(url: string): Promise<Buffer> {
 
 export async function publishSocial(opts: PublishOptions): Promise<PublishReport> {
   const now = opts.now ?? Date.now();
-  const day = opts.day ?? todayUtc();
   const force = Boolean(opts.force);
-  const { day: etDay } = eastern(now);
+  const { day: etDay, hour } = eastern(now);
+  const day = opts.day ?? etDay;
   const connected = opts.sites.filter((s) => s.connected());
   const slotKey = (site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
-  let slot: Slot | null = opts.slot ?? slotAt(now);
-  if (!slot && force) {
-    // "Post now" outside a window: the first slot nobody has posted today.
-    for (const s of SLOT_ORDER) {
-      const done = await Promise.all(connected.map((site) => getSetting(slotKey(site, s))));
-      if (done.some((d) => d !== etDay)) { slot = s; break; }
-    }
-    slot ??= "morning";
-  }
+  // Slots due now: the named one, else every slot whose hour has passed
+  // today. That is the catch-up rule (Chris 09-25: every platform gets the
+  // same posts): a site connected at 3pm still gets the 7am and 1pm posts,
+  // and a missed ping is made good by the next one. Before 7am nothing is due.
+  const due: Slot[] = opts.slot ? [opts.slot] : SLOT_ORDER.filter((s) => hour >= SLOTS[s].hour);
+  const slot = due[due.length - 1] ?? null;
   const report: PublishReport = { day, etDay, slot, forced: force, drafts: 0, sites: [] };
   for (const s of opts.sites) {
     if (!connected.includes(s)) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "not connected", posts: [] });
   }
   if (connected.length === 0) return report;
   if (!slot) {
-    for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "outside the 7am / 1pm / 7pm windows", posts: [] });
+    for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "before the 7am window", posts: [] });
     return report;
   }
   const all = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
-  // One draft per game for this slot's kind; fall back to any other kind
-  // so a thin data day still posts something.
-  const want = SLOTS[slot].kind;
   const games = [...new Set(all.map((d) => d.game))];
-  const drafts: SocialPost[] = [];
-  for (const g of games) {
-    const mine = all.filter((d) => d.game === g);
-    const pick = mine.find((d) => d.kind === want) ?? mine[0];
-    if (pick) drafts.push(pick);
-  }
-  report.drafts = drafts.length;
-  if (drafts.length === 0) {
+  // One draft per game per slot, of that slot's kind only: repeating the
+  // midday picture at 7pm is worse than staying quiet on a thin day.
+  const plan = due
+    .map((s) => ({ slot: s, drafts: games.map((g) => all.find((d) => d.game === g && d.kind === SLOTS[s].kind)).filter((d): d is SocialPost => Boolean(d)) }))
+    .filter((p) => p.drafts.length > 0);
+  report.drafts = plan.reduce((n, p) => n + p.drafts.length, 0);
+  if (report.drafts === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
     return report;
   }
@@ -212,39 +204,51 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   }
 
   for (const site of connected) {
-    const last = await getSetting(slotKey(site, slot));
-    if (last === etDay && !force) {
-      report.sites.push({ site: site.id, label: site.label, status: "skipped", reason: `${slot} slot already posted today`, posts: [] });
+    // What this site still owes today. A named slot with force re-posts it;
+    // Post now (force, no slot) re-does the latest due slot when nothing is owed.
+    let todo: typeof plan = [];
+    for (const p of plan) {
+      const done = (await getSetting(slotKey(site, p.slot))) === etDay;
+      if (!done || (force && opts.slot)) todo.push(p);
+    }
+    if (todo.length === 0 && force) todo = plan.slice(-1);
+    if (todo.length === 0) {
+      const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
+      report.sites.push({ site: site.id, label: site.label, status: "skipped", reason, posts: [] });
       continue;
     }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
-    for (const d of drafts) {
-      const text = fitText(d, site.maxChars);
-      if (opts.dry) {
-        entry.posts.push({ id: d.id, title: d.title });
-        continue;
+    for (const p of todo) {
+      let landed = 0;
+      for (const d of p.drafts) {
+        const text = fitText(d, site.maxChars);
+        if (opts.dry) {
+          entry.posts.push({ id: d.id, title: d.title });
+          continue;
+        }
+        try {
+          const png = await pngFor(d);
+          const img = await fitImage(png, site.maxImageBytes);
+          const { uri } = await site.post({
+            text,
+            image: img.bytes,
+            mime: img.mime,
+            width: POST_SIZES.square.width,
+            height: POST_SIZES.square.height,
+            alt: `${d.title}. ${d.caption.split("\n")[0]}`,
+          });
+          entry.posts.push({ id: d.id, title: d.title, uri });
+          landed++;
+        } catch (err) {
+          entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
+        }
       }
-      try {
-        const png = await pngFor(d);
-        const img = await fitImage(png, site.maxImageBytes);
-        const { uri } = await site.post({
-          text,
-          image: img.bytes,
-          mime: img.mime,
-          width: POST_SIZES.square.width,
-          height: POST_SIZES.square.height,
-          alt: `${d.title}. ${d.caption.split("\n")[0]}`,
-        });
-        entry.posts.push({ id: d.id, title: d.title, uri });
-      } catch (err) {
-        entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
-      }
+      if (!opts.dry && landed > 0) await setSetting(slotKey(site, p.slot), etDay);
     }
     if (!opts.dry) {
       const posted = entry.posts.filter((p) => p.uri);
       if (posted.length === 0) entry.status = "failed";
       else {
-        await setSetting(slotKey(site, slot), etDay);
         await setSetting(`${LAST_POST_PREFIX}${site.id}`, etDay);
         await setSetting(`${LAST_POST_PREFIX}${site.id}:uris`, JSON.stringify(posted.map((p) => p.uri)));
       }
