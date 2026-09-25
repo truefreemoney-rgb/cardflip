@@ -22,6 +22,8 @@ export const MOVER_DAYS = 7;
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a 40¢ common doubling). */
 export const MOVER_MIN_PRICE = 3;
+/** A move counts once the new price has held this many of the last MOVER_DAYS days (one odd sale is not a move; Grass Energy +650%, 09-25). */
+export const HELD_DAYS = 3;
 /** Card of the day comes from the cards worth talking about. */
 export const COTD_MIN_PRICE = 15;
 /** How many series rows one call may read (Turso rows-read, 09-06). */
@@ -107,15 +109,21 @@ async function freshSeries(game: GameId, day: string, days: number) {
         LIMIT ${ROW_CAP}`,
     )
     .all(game, since)) as unknown as SeriesRow[];
-  const out = new Map<string, { variant: string; from: number | null; to: number }>();
+  const out = new Map<string, { variant: string; from: number | null; to: number; held: number }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
     const to = priceAt(prices, todayIdx);
     if (to == null) continue;
     const from = todayIdx - days >= 0 ? priceAt(prices, todayIdx - days) : null;
+    // Days in the window whose price sits within 15% of today's: a real move holds, a stray sale does not.
+    let held = 0;
+    for (let i = Math.max(0, todayIdx - days + 1); i <= Math.min(todayIdx, prices.length - 1); i++) {
+      const v = prices[i];
+      if (v != null && Math.abs(v - to) / to <= 0.15) held++;
+    }
     const have = out.get(r.card_id);
-    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to });
+    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held });
   }
   return out;
 }
@@ -155,6 +163,7 @@ export async function topMovers(
     if (Math.max(s.from, s.to) < minPrice) continue;
     const pct = ((s.to - s.from) / s.from) * 100;
     if (Math.abs(pct) < 1) continue;
+    if (s.held < HELD_DAYS) continue;
     if (direction === "down" && pct >= 0) continue;
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
   }

@@ -41,7 +41,8 @@ async function catalog(id, name, num) {
 }
 async function series(id, from, to, { stale = false } = {}) {
   await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", from, day(7));
-  await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", to, day(stale ? 4 : 0));
+  // the new price holds 3 days (HELD_DAYS), the way a real move does
+  for (const back of stale ? [4] : [2, 1, 0]) await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", to, day(back));
 }
 
 await catalog("sv1-1", "Sprigatito", "1");     await series("sv1-1", 0.2, 0.6);          // +200% but cheap: skipped
@@ -50,6 +51,7 @@ await catalog("sv1-3", "Koraidon ex", "125");  await series("sv1-3", 40, 20);   
 await catalog("sv1-4", "Gardevoir ex", "86");  await series("sv1-4", 20, 24);            // +20%
 await catalog("sv1-5", "Arcanine ex", "32");   await series("sv1-5", 30, 30.1);          // flat: skipped
 await catalog("sv1-6", "Old holo", "999");     await series("sv1-6", 10, 100, { stale: true }); // stale: skipped
+await catalog("sv1-8", "Grass Energy", "88");  await recordPoint("sv1-8", "pokemon", "normal", "tcgplayer", "USD", 10, day(7)); for (const b of [3, 2, 1]) await recordPoint("sv1-8", "pokemon", "normal", "tcgplayer", "USD", 10, day(b)); await recordPoint("sv1-8", "pokemon", "normal", "tcgplayer", "USD", 74.99, day(0)); // one-day spike: skipped
 await catalog("sv1-7", "Pricey", "250");       await recordPoint("sv1-7", "pokemon", "normal", "tcgplayer", "USD", 80, day(0)); // no 7d point: COTD only
 await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, synced_at) VALUES (?, ?, 'dmu', 'Dominaria United', '107', 'https://cards.scryfall.io/normal/x.jpg', 0)").run("mtg-1", "Sheoldred");
 await recordPoint("mtg-1", "mtg", "normal", "tcgplayer", "USD", 5, day(7));
@@ -57,7 +59,8 @@ await recordPoint("mtg-1", "mtg", "normal", "tcgplayer", "USD", 50, day(0)); // 
 
 console.log("topMovers");
 const movers = await topMovers("pokemon", TODAY);
-check("ranked by |%|, cheap/flat/stale/other game skipped", movers.map((m) => m.cardId), ["sv1-2", "sv1-3", "sv1-4"]);
+check("ranked by |%|, cheap/flat/stale/spike/other game skipped", movers.map((m) => m.cardId), ["sv1-2", "sv1-3", "sv1-4"]);
+check("a one-day spike is not a move (Grass Energy +650%)", movers.some((m) => m.cardId === "sv1-8"), false);
 check("pct signed", movers.map((m) => Math.round(m.pct)), [50, -50, 20]);
 check("art upgraded to high.webp", movers[0].imageUrl.endsWith("/high.webp"));
 check("catalog fields joined", [movers[0].name, movers[0].number], ["Miraidon ex", "81"]);

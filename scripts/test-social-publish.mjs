@@ -47,7 +47,7 @@ async function catalog(id, name, num) {
 }
 async function series(id, from, to) {
   await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", from, day(7));
-  await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", to, day(0));
+  for (const back of [2, 1, 0]) await recordPoint(id, "pokemon", "normal", "tcgplayer", "USD", to, day(back));
 }
 await catalog("sv1-2", "Miraidon ex", "81"); await series("sv1-2", 10, 15);
 await catalog("sv1-3", "Koraidon ex", "125"); await series("sv1-3", 40, 20);
@@ -129,7 +129,9 @@ console.log("text fitting");
 const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
 check("fits: caption + tags when room", fitText({ caption: "hi cardflip.io", shortCaption: "hi", hashtags: ["A"] }, 300), "hi cardflip.io\n\n#A");
 check("drops tags when the caption alone fits", fitText(long, 300), long.caption);
-check("falls back to the short caption", fitText(long, 290), long.shortCaption);
+check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
+
+#PokemonTCG #TCG`);
 const tiny = fitText(long, 40);
 check("last resort still ends on cardflip.io", [tiny.length <= 40, tiny.endsWith("cardflip.io")], [true, true]);
 check("bluesky limit constant", BLUESKY_MAX_CHARS, 300);

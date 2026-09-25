@@ -111,6 +111,8 @@ export function fitText(post: SocialPost, maxChars: number): string {
   if (full.length <= maxChars) return full;
   if (post.caption.length <= maxChars) return post.caption;
   const short = post.shortCaption ?? post.caption;
+  const shortTagged = `${short}\n\n${tags}`;
+  if (shortTagged.length <= maxChars) return shortTagged;
   if (short.length <= maxChars) return short;
   // Last resort: cut on a line boundary and keep the sign-off.
   const signOff = "cardflip.io";
