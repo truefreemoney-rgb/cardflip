@@ -8,7 +8,7 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  * token and post URL and the publisher tracks slots per site. One Meta
  * developer app covers all three; Chris does the clicks once and pastes:
  *
- *   META_PAGE_TOKEN (+ optional META_PAGE_ID) Facebook Page (long-lived page token)
+ *   META_PAGE_TOKEN (+ optional META_PAGE_ID) Facebook Page (page OR user token, see fbCreds)
  *   META_IG_USER_ID (+ META_PAGE_TOKEN)   Instagram business account linked to the page
  *   THREADS_TOKEN (+ optional THREADS_USER_ID)  Threads (its own long-lived token)
  *
@@ -88,10 +88,36 @@ async function waitForContainer(url: string, step: string): Promise<void> {
 
 /* ---------- Facebook Page ---------- */
 
-/** META_PAGE_ID is optional: a Page token resolves /me to its own Page. */
+/**
+ * META_PAGE_TOKEN may be a Page token OR a user token (the Graph API
+ * Explorer hands out either): a user token is swapped for the Page token
+ * through /me/accounts (long-lived in, long-lived out). META_PAGE_ID is
+ * optional and only picks a Page when the user manages several.
+ */
 function fbCreds() {
   const token = process.env.META_PAGE_TOKEN?.trim();
-  return token ? { pageId: process.env.META_PAGE_ID?.trim() || "me", token } : null;
+  return token ? { pageId: process.env.META_PAGE_ID?.trim() || "", token } : null;
+}
+
+let pageCache: { pageId: string; token: string } | null = null;
+
+async function resolvePage(c: { pageId: string; token: string }): Promise<{ pageId: string; token: string }> {
+  if (pageCache) return pageCache;
+  const accounts = await graph<{ data?: Array<{ id: string; name?: string; access_token?: string }> }>(
+    `${GRAPH}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(c.token)}`,
+    {},
+    "facebook accounts",
+  ).catch(() => ({ data: [] as Array<{ id: string; access_token?: string }> }));
+  const pages = accounts.data ?? [];
+  const page = (c.pageId ? pages.find((p) => p.id === c.pageId) : pages[0]) ?? null;
+  if (page?.access_token) {
+    pageCache = { pageId: page.id, token: page.access_token };
+    return pageCache;
+  }
+  // No manageable pages listed: the token is (hopefully) a Page token already.
+  const me = await graph<{ id?: string }>(`${GRAPH}/me?fields=id&access_token=${encodeURIComponent(c.token)}`, {}, "facebook me");
+  pageCache = { pageId: c.pageId || me.id || "me", token: c.token };
+  return pageCache;
 }
 
 export const facebook: SocialSite = {
@@ -101,8 +127,9 @@ export const facebook: SocialSite = {
   maxImageBytes: META_MAX_IMAGE_BYTES,
   connected: () => fbCreds() !== null,
   async post(p: SitePost): Promise<{ uri: string }> {
-    const c = fbCreds();
-    if (!c) throw new Error("facebook: not connected");
+    const creds = fbCreds();
+    if (!creds) throw new Error("facebook: not connected");
+    const c = await resolvePage(creds);
     const fd = new FormData();
     fd.append("access_token", c.token);
     fd.append("message", p.text);
