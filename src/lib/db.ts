@@ -472,6 +472,19 @@ const SCHEMA = `
     game TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_tcgplayer_products_group ON tcgplayer_products(group_id);
+
+  -- Daily visitors for the admin console (09-25). One row per visitor per
+  -- path per UTC day; "visitor" is sha256(day + ip + user agent + salt), so
+  -- it cannot be joined across days or back to a person (the privacy page
+  -- promises no analytics profile). Public pages only; /admin never pings.
+  CREATE TABLE IF NOT EXISTS page_views (
+    day TEXT NOT NULL,
+    visitor TEXT NOT NULL,
+    path TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (day, visitor, path)
+  ) WITHOUT ROWID;
+  CREATE INDEX IF NOT EXISTS idx_page_views_at ON page_views(at);
 `;
 
 /**

@@ -63,6 +63,8 @@ export default async function AdminOverviewPage() {
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {[
+          { title: "Visitors", series: o.activity.visitors, color: "#fbbf24" },
+          { title: "Page views", series: o.activity.pageViews, color: "#f59e0b" },
           { title: "Cards scanned", series: o.activity.scans, color: "var(--color-brand-400)" },
           { title: "Sign-ups", series: o.activity.signups, color: "var(--color-holo-sky)" },
           { title: "Price checks", series: o.activity.priceChecks, color: "var(--color-holo-violet)" },

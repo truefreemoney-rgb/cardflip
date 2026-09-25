@@ -17,7 +17,8 @@ const sections: LegalSection[] = [
       "Your selling data: the card photos you upload, the cards you match, the conditions, grades, and prices you set, your watchlist, and the status of each item (draft, listed, sold). This is the product — it is what the app stores so your inventory is there when you come back.",
       "Billing details, if you subscribe: payments are processed by Stripe, which holds your card details — CardFlip never sees your card number, only your subscription status.",
       "Basic technical logs: requests to our servers, with timestamps and IP addresses, kept for debugging and abuse prevention.",
-      "That is the list. There is no advertising, no analytics profile, and no tracking across other sites. The only cookie CardFlip sets is the session cookie that keeps you logged in.",
+      "Visit counts: we count how many people visit each day using a one-way hash of your connection that changes every day, so it cannot identify you or follow you between days. We also use Google Analytics on the public pages (not inside your account) to see which pages people read; Google’s own policy covers what it collects.",
+      "That is the list. There is no advertising, no selling of data, and no profile built about you. The only cookies CardFlip itself sets are the session cookie that keeps you logged in and Google Analytics’ measurement cookies.",
     ],
   },
   {

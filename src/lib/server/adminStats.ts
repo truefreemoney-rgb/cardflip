@@ -50,6 +50,15 @@ export async function perDay(table: string, tsColumn: string, days: number, wher
   return daySeries(rows, days, now);
 }
 
+/** Distinct visitors per UTC day from page_views (the visitor key already changes daily). */
+export async function visitorsPerDay(days: number, now = Date.now()): Promise<DaySeries> {
+  const since = new Date(now - days * DAY_MS).toISOString().slice(0, 10);
+  const rows = (await db
+    .prepare("SELECT day, COUNT(DISTINCT visitor) AS n FROM page_views WHERE day >= ? GROUP BY day")
+    .all(since)) as unknown as { day: string; n: number }[];
+  return daySeries(rows, days, now);
+}
+
 export interface UserRollup {
   id: string;
   cards: number;
@@ -73,6 +82,8 @@ export interface AdminOverview {
     pokemonCards: number;
   };
   activity: {
+    visitors: DaySeries;
+    pageViews: DaySeries;
     scans: DaySeries;
     signups: DaySeries;
     priceChecks: DaySeries;
@@ -232,6 +243,8 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
       pokemonCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'pokemon'"),
     },
     activity: {
+      visitors: await visitorsPerDay(30, now),
+      pageViews: await perDay("page_views", "at", 30, "", now),
       scans: await perDay("cards", "created_at", 30, "", now),
       signups: await perDay("users", "created_at", 30, "", now),
       priceChecks: await perDay("price_checks", "checked_at", 30, "", now),

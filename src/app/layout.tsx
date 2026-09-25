@@ -4,6 +4,8 @@ import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 import Prefetch from "@/components/Prefetch";
 import RefCapture from "@/components/RefCapture";
+import VisitPing from "@/components/VisitPing";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import JsonLd from "@/components/JsonLd";
 import { siteGraph } from "@/lib/structuredData";
 import { PLAN, PRO } from "@/components/PlanCard";
@@ -84,6 +86,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Prefetch />
         <RefCapture />
+        <VisitPing />
+        <GoogleAnalytics />
         <JsonLd
           data={siteGraph([
             { name: "CardFlip", priceUsd: Number(PLAN.price.replace("$", "")), scans: PLAN.scans },
