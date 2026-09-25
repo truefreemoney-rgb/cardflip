@@ -46,6 +46,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [both] Verify-match gate on a live phone scan; vision printing/finish accuracy on real phone photos.
 - [x] 09-25 Prod mail DELIVERS (Fastmail via chris@superiormarketing.com as support@cardflip.io): SMTP test + the new signup welcome email both landed in Gmail inbox. Forgot-password uses the same transport.
 - [x] 09-25 Subscription welcome email arrived on the CHRISTEST subscribe.
+- [x] 09-25 Signup flow pass, Chris yea ('looks good'): step 2 = welcome card (scan free / subscribe, eBay behind a link, 3264e4d); signup welcome email (5fe88f0); checkout allows promo codes (13fc3ba); Stripe returns to /app/account/welcome, one job = Scan a card (685ec23); Cancel plan link opens Stripe's cancel flow and comes back (3e0cfc3). Promo CHRISTEST = 100% off once, 3 uses (2 used).
 - [ ] [both] Wishlist dip email; Finances call after a real sale; ended-listing sync; live-offer PUT; multi-qty order.
 - [ ] [both] Camera controls / torch positions on a real device.
 
