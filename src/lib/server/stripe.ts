@@ -81,6 +81,7 @@ export async function createCheckoutSession(customerId: string, userId: string, 
     client_reference_id: userId,
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
+    allow_promotion_codes: "true",
     success_url: `${SITE_URL}/app/account?billing=success`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
   });
