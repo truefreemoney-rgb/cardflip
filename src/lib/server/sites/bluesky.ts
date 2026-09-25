@@ -58,8 +58,8 @@ export const bluesky: SocialSite = {
   connected: () => Boolean(process.env.BLUESKY_HANDLE && process.env.BLUESKY_APP_PASSWORD),
   async post(p: SitePost): Promise<{ uri: string }> {
     const session = await xrpc<{ accessJwt: string; did: string }>("com.atproto.server.createSession", {
-      identifier: process.env.BLUESKY_HANDLE,
-      password: process.env.BLUESKY_APP_PASSWORD,
+      identifier: process.env.BLUESKY_HANDLE?.trim(),
+      password: process.env.BLUESKY_APP_PASSWORD?.trim(),
     });
     const upload = await xrpc<{ blob: unknown }>("com.atproto.repo.uploadBlob", p.image, session.accessJwt, p.mime);
     const record = await xrpc<{ uri: string }>(
