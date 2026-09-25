@@ -1,5 +1,6 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { getSetting, setSetting } from "@/lib/server/settings";
 import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
 
 /**
@@ -86,6 +87,102 @@ async function waitForContainer(url: string, step: string): Promise<void> {
   throw new Error(`${step}: container never finished`);
 }
 
+/* ---------- 60-day tokens (Instagram Login + Threads) ---------- */
+
+/**
+ * Instagram Login and Threads tokens are long-lived but die after 60 days.
+ * Both APIs hand out a fresh 60-day token from GET /refresh_access_token
+ * once the current one is over a day old, so the publisher calls
+ * refreshMetaTokens() on every scheduled run and each token is renewed
+ * weekly, hands off. The renewed token lives in the settings table
+ * (social_token:<site>); the env var Chris pasted stays as the seed. A
+ * stored token is only used while it descends from the CURRENT env token
+ * (fingerprint check), so a freshly pasted env token always wins.
+ */
+export const TOKEN_PREFIX = "social_token:";
+export const TOKEN_REFRESHED_PREFIX = "social_token_refreshed:";
+export const REFRESH_EVERY_MS = 7 * 86_400_000;
+
+type RefreshSite = "instagram" | "threads";
+const REFRESH: Record<RefreshSite, { env: string; grant: string; base: () => string }> = {
+  instagram: { env: "INSTAGRAM_TOKEN", grant: "ig_refresh_token", base: () => IG_LOGIN },
+  threads: { env: "THREADS_TOKEN", grant: "th_refresh_token", base: () => THREADS },
+};
+
+function fingerprint(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 16);
+}
+
+/** The token to post with: the latest refreshed one for this env seed, else the env token. */
+export async function liveToken(site: RefreshSite): Promise<string | null> {
+  const seed = process.env[REFRESH[site].env]?.trim();
+  if (!seed) return null;
+  try {
+    const raw = await getSetting(`${TOKEN_PREFIX}${site}`);
+    const stored = raw ? (JSON.parse(raw) as { token?: string; from?: string }) : null;
+    if (stored?.token && stored.from === fingerprint(seed)) return stored.token;
+  } catch {
+    /* unreadable row = fall back to the env token */
+  }
+  return seed;
+}
+
+export interface TokenRefreshReport {
+  site: RefreshSite;
+  status: "off" | "skipped" | "refreshed" | "failed";
+  reason?: string;
+  /** Days the new token is good for (Meta answers in seconds). */
+  expiresDays?: number;
+}
+
+/** Renew every 60-day token that is a week past its last renewal (or its first sighting). */
+export async function refreshMetaTokens(now = Date.now()): Promise<TokenRefreshReport[]> {
+  const out: TokenRefreshReport[] = [];
+  for (const site of Object.keys(REFRESH) as RefreshSite[]) {
+    const cfg = REFRESH[site];
+    const seed = process.env[cfg.env]?.trim();
+    if (!seed) {
+      out.push({ site, status: "off" });
+      continue;
+    }
+    const from = fingerprint(seed);
+    const clockKey = `${TOKEN_REFRESHED_PREFIX}${site}`;
+    let clock: { at?: number; from?: string } | null = null;
+    try {
+      const raw = await getSetting(clockKey);
+      clock = raw ? (JSON.parse(raw) as { at?: number; from?: string }) : null;
+    } catch {
+      clock = null;
+    }
+    if (!clock?.at || clock.from !== from) {
+      // New env token (or first run): start its clock; Meta refuses refreshes under a day old anyway.
+      await setSetting(clockKey, JSON.stringify({ at: now, from }));
+      out.push({ site, status: "skipped", reason: "clock started for a new token" });
+      continue;
+    }
+    if (now - clock.at < REFRESH_EVERY_MS) {
+      out.push({ site, status: "skipped", reason: `renewed ${Math.floor((now - clock.at) / 86_400_000)}d ago` });
+      continue;
+    }
+    try {
+      const current = (await liveToken(site)) ?? seed;
+      const j = await graph<{ access_token?: string; expires_in?: number }>(
+        `${cfg.base()}/refresh_access_token?grant_type=${cfg.grant}&access_token=${encodeURIComponent(current)}`,
+        {},
+        `${site} refresh`,
+      );
+      if (!j.access_token) throw new Error(`${site} refresh: no access_token in response`);
+      await setSetting(`${TOKEN_PREFIX}${site}`, JSON.stringify({ token: j.access_token, from }));
+      await setSetting(clockKey, JSON.stringify({ at: now, from }));
+      out.push({ site, status: "refreshed", expiresDays: j.expires_in ? Math.round(j.expires_in / 86_400) : undefined });
+    } catch (err) {
+      // Token stays as it was; the next run tries again (the old token has weeks left).
+      out.push({ site, status: "failed", reason: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return out;
+}
+
 /* ---------- Facebook Page ---------- */
 
 /**
@@ -168,6 +265,7 @@ export const instagram: SocialSite = {
   async post(p: SitePost): Promise<{ uri: string }> {
     const c = igCreds();
     if (!c) throw new Error("instagram: not connected");
+    if (c.base === IG_LOGIN) c.token = (await liveToken("instagram")) ?? c.token;
     const parked = await parkImage("instagram", await asJpeg(p));
     try {
       const container = await graph<{ id?: string }>(
@@ -212,6 +310,7 @@ export const threads: SocialSite = {
   async post(p: SitePost): Promise<{ uri: string }> {
     const c = threadsCreds();
     if (!c) throw new Error("threads: not connected");
+    c.token = (await liveToken("threads")) ?? c.token;
     const parked = await parkImage("threads", await asJpeg(p));
     try {
       const container = await graph<{ id?: string }>(

@@ -173,5 +173,42 @@ check("meta limits: threads 500, instagram 2200, facebook 5000", [meta.THREADS_M
 check("meta sites are off without tokens", [meta.facebook.connected(), meta.instagram.connected(), meta.threads.connected()], [false, false, false]);
 check("meta post urls", [meta.metaPostUrl("facebook", "1_2"), meta.metaPostUrl("instagram", "ABC"), meta.metaPostUrl("threads", "9")], ["https://www.facebook.com/1_2", "https://www.instagram.com/p/ABC/", "https://www.threads.net/post/9"]);
 
+console.log("60-day token refresh (Instagram Login + Threads)");
+const realFetch = globalThis.fetch;
+const refreshCalls = [];
+let refreshFail = false;
+globalThis.fetch = async (url) => {
+  refreshCalls.push(String(url));
+  if (refreshFail) return new Response("boom", { status: 400 });
+  const grant = new URL(String(url)).searchParams.get("grant_type");
+  return new Response(JSON.stringify({ access_token: `fresh-${grant}`, token_type: "bearer", expires_in: 5_183_944 }), { status: 200 });
+};
+process.env.INSTAGRAM_TOKEN = "ig-seed";
+process.env.THREADS_TOKEN = "th-seed";
+const T0 = Date.UTC(2026, 8, 25, 12);
+const DAY = 86_400_000;
+let rr = await meta.refreshMetaTokens(T0);
+check("first sighting starts the clock, calls nothing", [rr.map((r) => r.status), refreshCalls.length], [["skipped", "skipped"], 0]);
+check("posts with the env token until then", [await meta.liveToken("instagram"), await meta.liveToken("threads")], ["ig-seed", "th-seed"]);
+rr = await meta.refreshMetaTokens(T0 + 3 * DAY);
+check("under a week → skipped", [rr.map((r) => r.status), refreshCalls.length], [["skipped", "skipped"], 0]);
+rr = await meta.refreshMetaTokens(T0 + 8 * DAY);
+check("a week later → both refreshed, 60 days", rr.map((r) => [r.status, r.expiresDays]), [["refreshed", 60], ["refreshed", 60]]);
+check("right grant per site, old token sent", [refreshCalls[0].includes("graph.instagram.com") && refreshCalls[0].includes("grant_type=ig_refresh_token&access_token=ig-seed"), refreshCalls[1].includes("graph.threads.net") && refreshCalls[1].includes("grant_type=th_refresh_token&access_token=th-seed")], [true, true]);
+check("stored tokens now used for posting", [await meta.liveToken("instagram"), await meta.liveToken("threads")], ["fresh-ig_refresh_token", "fresh-th_refresh_token"]);
+refreshFail = true;
+rr = await meta.refreshMetaTokens(T0 + 16 * DAY);
+check("a failed refresh keeps the last good token", [rr[0].status, rr[0].reason?.startsWith("instagram refresh 400"), await meta.liveToken("instagram")], ["failed", true, "fresh-ig_refresh_token"]);
+refreshFail = false;
+rr = await meta.refreshMetaTokens(T0 + 16 * DAY + 1);
+check("next run retries with the stored token", [rr[0].status, refreshCalls.at(-2).includes("access_token=fresh-ig_refresh_token")], ["refreshed", true]);
+process.env.INSTAGRAM_TOKEN = "ig-seed-2";
+rr = await meta.refreshMetaTokens(T0 + 30 * DAY);
+check("a newly pasted env token wins and restarts its clock", [rr[0].status, await meta.liveToken("instagram"), rr[1].status], ["skipped", "ig-seed-2", "refreshed"]);
+delete process.env.INSTAGRAM_TOKEN;
+delete process.env.THREADS_TOKEN;
+check("no env token → off", (await meta.refreshMetaTokens(T0)).map((r) => r.status), ["off", "off"]);
+globalThis.fetch = realFetch;
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

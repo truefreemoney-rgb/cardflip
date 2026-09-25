@@ -3,6 +3,7 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { publishSocial, SLOT_ORDER, type Slot } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
+import { refreshMetaTokens } from "@/lib/server/sites/meta";
 
 /**
  * Social autopilot publisher (docs/SOCIAL-AUTOPILOT.md §1).
@@ -48,7 +49,9 @@ async function run(req: NextRequest) {
     dry: q.get("dry") === "1",
     day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
   });
-  return NextResponse.json(report);
+  // Ride-along: renew the 60-day Instagram/Threads tokens weekly (never on a dry run).
+  const tokens = q.get("dry") === "1" ? [] : await refreshMetaTokens().catch((err) => [{ site: "meta", status: "failed", reason: err instanceof Error ? err.message : String(err) }]);
+  return NextResponse.json({ ...report, tokens });
 }
 
 export const GET = run;

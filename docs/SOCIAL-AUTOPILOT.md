@@ -94,8 +94,19 @@ needs a video. Order = easiest to connect first, then reach.
    user token from the Explorer, swapped for the Page token at post time).
    INSTAGRAM LIVE 09-25: INSTAGRAM_TOKEN from the "Instagram API with
    Instagram Login" use case (graph.instagram.com, /me, no Page needed;
-   60-day token, refresh before 11-20);
+   60-day token);
    the Page <-> Instagram link is restricted on the new account and not needed.
+   TOKEN REFRESH IS AUTOMATIC (09-25): every scheduled publish run ends with
+   refreshMetaTokens() (sites/meta.ts), which renews the Instagram Login and
+   Threads tokens once a week via GET /refresh_access_token (ig_refresh_token /
+   th_refresh_token). The renewed token lives in settings social_token:<site>
+   and is only used while it descends from the current env token (fingerprint),
+   so pasting a new env token always wins and restarts its clock
+   (social_token_refreshed:<site>). A failed refresh keeps the last good token
+   and retries next run; the run's report.json carries a `tokens` array. The
+   Facebook Page token needs no refresh (a Page token from a long-lived user
+   token does not expire); if the user token Chris pasted was the 1-hour kind,
+   the first failed Facebook post says so and he re-pastes an extended one.
 4. **X** — adapter DONE 09-25 (src/lib/server/sites/x.ts, OAuth 1.0a signed
    with node:crypto, v2 media upload + /2/tweets). LIVE 09-25: @cardflipio,
    four keys on Vercel prod (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN,
