@@ -17,44 +17,48 @@ export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]
   // One card per stage, no repeated names (the wall is allowed twins; the list is not).
   const rows: PokemonCard[] = [];
   // Pokémon only (Chris 09-26): the frame is the Pokémon story.
-  for (const c of cards) {
-    if (c.game && c.game !== "pokemon") continue;
+  // Priced / Listed / Sold need a real price; Scanned is "pricing…" anyway.
+  const pool = cards.filter((c) => !c.game || c.game === "pokemon");
+  for (const c of pool) {
     if (rows.length === STAGES.length) break;
+    if (rows.length > 0 && priceOf(c) === null) continue;
     if (!rows.some((r) => r.name === c.name)) rows.push(c);
   }
   if (rows.length < STAGES.length) return null;
   return (
-    <figure className="mt-4 overflow-hidden rounded-2xl border border-edge bg-black/30">
-      <ul className="divide-y divide-edge">
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-edge bg-black/30 p-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {rows.map((c, i) => {
           const stage = STAGES[i];
           const price = priceOf(c);
           return (
-            <li key={c.id} className="flex items-center gap-3 px-3 py-2.5">
-              <div className="relative h-[5.6rem] w-16 shrink-0 overflow-hidden rounded-lg bg-black/50 sm:h-28 sm:w-20">
+            <li key={c.id} className="min-w-0">
+              <div className="relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-black/50 shadow-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.imageSmall} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
-                <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center whitespace-nowrap py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-200">
+                <img src={c.imageLarge || c.imageSmall} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
+                <span className="absolute left-2 top-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-200 backdrop-blur">
                   Example
                 </span>
               </div>
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <div className="truncate text-sm font-medium text-white">{c.name}</div>
-                <div className="mt-0.5 flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs text-zinc-500">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${stage.cls}`}>{stage.label}</span>
-                  <span className="truncate">{stage.hint}</span>
-                </div>
+              <div className="mt-2 truncate text-sm font-medium text-white">{c.name}</div>
+              <div className="mt-1">
+                <span className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 align-top text-[11px] font-semibold ${stage.cls}`}>{stage.label}</span>
               </div>
-              {i > 0 && price !== null && (
-                <span className="shrink-0 font-display text-sm font-semibold text-white">${price.toFixed(2)}</span>
-              )}
-              {i === 0 && <span className="shrink-0 text-xs text-zinc-600">pricing…</span>}
+              <div className="mt-1 whitespace-nowrap text-xs text-zinc-500">
+                {i === 0 ? (
+                  "pricing…"
+                ) : price !== null ? (
+                  <span className="font-display text-sm font-semibold text-white">${price.toFixed(2)}</span>
+                ) : (
+                  stage.hint
+                )}
+              </div>
             </li>
           );
         })}
       </ul>
-      <figcaption className="border-t border-edge px-3 py-2 text-xs text-zinc-500">
-        Every card moves down this list on its own. You only press the shutter.
+      <figcaption className="mt-3 text-xs text-zinc-500">
+        Every card moves through these four steps on its own. You only press the shutter.
       </figcaption>
     </figure>
   );
