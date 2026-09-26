@@ -24,6 +24,7 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { ACCESS_OVERRIDES, createUser, findUserById, markTourSeen, setAccessOverride, setUserRole, toPublicUser } = await import(at("lib/server/users.ts"));
 const { getSetting, setSetting, magicPublic, magicVisibleFor, MAGIC_PUBLIC_KEY } = await import(at("lib/server/settings.ts"));
 const { db } = await import(at("lib/db.ts"));
+const { PRICING } = await import(at("lib/pricing.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -72,8 +73,8 @@ check("garbage column value reads as null", (await findUserById(seller.id)).acce
 check("garbage value does not change the tier", toPublicUser(await findUserById(seller.id)).tier, "trial");
 await setAccessOverride(seller.id, "comp_pro");
 const comped = toPublicUser(await findUserById(seller.id));
-check("comped Pro shows as subscribed Pro with 2,000 scans and app access",
-  [comped.tier, comped.plan, comped.monthlyScans, comped.appAccess], ["subscribed", "pro", 2000, true]);
+check(`comped Pro shows as subscribed Pro with ${PRICING.pro.scans} scans and app access`,
+  [comped.tier, comped.plan, comped.monthlyScans, comped.appAccess], ["subscribed", "pro", PRICING.pro.scans, true]);
 await setUserRole(seller.id, "admin");
 await setAccessOverride(seller.id, null);
 check("admin with no override is owner", toPublicUser(await findUserById(seller.id)).tier, "owner");
