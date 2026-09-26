@@ -67,14 +67,14 @@ check("attach: not to yourself", await attachReferral(alice.id, code), false);
 check("reward: referrer on trial → nothing", await rewardReferrerIfDue(await u(bob.id)), false);
 check("reward: bob stays unrewarded (referrer can still earn later if they subscribe first)", (await u(bob.id)).referralRewardedAt, null);
 await subscribe(alice.id);
-check("reward: referrer subscribed → +500 once", [await rewardReferrerIfDue(await u(bob.id)), (await u(alice.id)).bonusScans], [true, REFERRAL_BONUS_SCANS]);
+check("reward: referrer subscribed → +bonus once", [await rewardReferrerIfDue(await u(bob.id)), (await u(alice.id)).bonusScans], [true, REFERRAL_BONUS_SCANS]);
 check("reward: retried webhook pays nothing", [await rewardReferrerIfDue(await u(bob.id)), (await u(alice.id)).bonusScans], [false, REFERRAL_BONUS_SCANS]);
 check("reward: no referrer → nothing", await rewardReferrerIfDue(await u(cid.id)), false);
 
 const dee = (await (await signup.POST(post({ name: "Dee", email: "dee@example.com", password: "hunter22", ref: code }))).json()).user;
 check("stats: joined vs subscribed", await referralStats(alice.id), { friendsJoined: 2, friendsSubscribed: 1, scansEarned: REFERRAL_BONUS_SCANS });
 await rewardReferrerIfDue(await u(dee.id));
-check("stats: second friend subscribes → 1,000 banked", [(await u(alice.id)).bonusScans, (await referralStats(alice.id)).friendsSubscribed], [1000, 2]);
+check("stats: second friend subscribes → 2× bonus banked", [(await u(alice.id)).bonusScans, (await referralStats(alice.id)).friendsSubscribed], [REFERRAL_BONUS_SCANS * 2, 2]);
 
 // --- quota: bonus spent after the allowance -------------------------------------
 const month = new Date().toISOString().slice(0, 7);

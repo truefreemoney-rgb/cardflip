@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { findUserById, scanTier, type User } from "@/lib/server/users";
+import { PRICING } from "@/lib/pricing";
 
 /**
  * Invite a friend (Chris, 09-06): subscribers only. A subscriber shares
@@ -16,7 +17,7 @@ import { findUserById, scanTier, type User } from "@/lib/server/users";
  * extra — the product is the pitch.
  */
 
-export const REFERRAL_BONUS_SCANS = 500;
+export const REFERRAL_BONUS_SCANS = PRICING.referral.scans;
 
 // Unambiguous letters/digits (no 0/O/1/I), 8 chars → 40 bits.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

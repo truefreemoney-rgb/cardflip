@@ -3,23 +3,23 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
-import { PRICE_SHORT } from "@/lib/pricing";
+import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
 import PageSkeleton from "@/components/PageSkeleton";
 import { fetchInvite, startCheckout, type InviteInfo } from "@/lib/client/accountApi";
 
 /**
- * Rewards (Chris, 09-06): the page behind "Unlock 500 free scans". Short,
+ * Rewards (Chris, 09-06): the page behind "Unlock N free scans". Short,
  * one job — hand the seller their link and say what it earns. Subscribers
  * only; a trial account sees the same page with a Subscribe button where
  * the link would be.
  */
 
-const BONUS = 500;
+const BONUS = PRICING.referral.scans;
 
 const STEPS: { n: string; title: string; body: string }[] = [
   { n: "1", title: "Send your link", body: "Text it, post it, hand it to the guy at the card shop. Anyone who signs up through it is yours." },
   { n: "2", title: "They try it free", body: "Five scans, no card. They point the camera at a card and it prices itself. Most people get it by scan three." },
-  { n: "3", title: "They subscribe, you get 500", body: `The moment their first payment lands, ${BONUS} scans land in your account. Every friend, every time, no cap.` },
+  { n: "3", title: `They subscribe, you get ${BONUS}`, body: `The moment their first payment lands, ${BONUS} scans land in your account. Every friend, every time, no cap.` },
 ];
 
 export default function RewardsPage() {
@@ -88,7 +88,7 @@ export default function RewardsPage() {
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Rewards</p>
         <h1 className="holo-text mt-2 font-display text-4xl font-bold leading-tight sm:text-5xl">Unlock {BONUS} Free Scans</h1>
         <p className="mx-auto mt-3 max-w-md text-sm text-zinc-400">
-          Send a friend your link. When they subscribe, {BONUS} scans land in your account. That is a full month of CardFlip, for
+          Send a friend your link. When they subscribe, {BONUS} scans land in your account. That is a whole Scan Pack, for
           one text message.
         </p>
       </section>
@@ -175,8 +175,8 @@ export default function RewardsPage() {
       <section className="rounded-2xl border border-edge bg-surface-1 p-5">
         <p className="text-sm font-medium text-white">The math</p>
         <p className="mt-1 text-sm text-zinc-400">
-          A subscription is {BONUS} scans a month. One friend is a month on the house. Ten friends is most of a year. The scans stack,
-          they wait behind your monthly allowance, and they never expire.
+          A Scan Pack is {SCANS.pack} scans for {PRICE.pack}. One friend is a free pack. Ten friends is a thousand scans. The scans
+          stack, they wait behind your monthly allowance, and they never expire.
         </p>
       </section>
 

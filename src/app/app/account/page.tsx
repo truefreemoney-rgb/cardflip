@@ -1028,7 +1028,7 @@ function PlanSection({
 
 /**
  * Invite a friend (Chris, 09-06): subscribers only. Share the link; when the
- * friend subscribes, 500 bonus scans land here and are spent after the
+ * friend subscribes, SCANS.referral bonus scans land here and are spent after the
  * month's allowance. Trial accounts see the pitch, not a link.
  */
 function InviteRow({ subscribed }: { subscribed: boolean }) {
@@ -1060,7 +1060,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
     return (
       <Row
         title="Invite a friend"
-        status="Subscribers earn 500 bonus scans for every friend who subscribes."
+        status={`Subscribers earn ${SCANS.referral} bonus scans for every friend who subscribes.`}
         action={
           <Link href="/app/rewards" className={rowBtn}>
             How It Works
@@ -1076,7 +1076,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
         info
           ? info.friendsSubscribed > 0
             ? `${info.friendsSubscribed} friend${info.friendsSubscribed === 1 ? "" : "s"} subscribed · ${info.scansEarned.toLocaleString("en-US")} scans earned${info.bonusScans > 0 ? ` · ${info.bonusScans.toLocaleString("en-US")} left` : ""}`
-            : "Send your link. When a friend subscribes, you get 500 bonus scans."
+            : `Send your link. When a friend subscribes, you get ${SCANS.referral} bonus scans.`
           : "Loading…"
       }
       action={

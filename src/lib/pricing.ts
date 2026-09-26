@@ -21,6 +21,8 @@ export const PRICING = {
   standard: { price: 9.99, scans: 250 },
   /** Volume tier. Scans per calendar month. */
   pro: { price: 19.99, scans: 750 },
+  /** Referral: bonus scans banked by the referrer when an invited friend subscribes (Chris 09-26: one pack's worth). */
+  referral: { scans: 100 },
 } as const;
 
 export type PaidPlan = "standard" | "pro";
@@ -41,6 +43,7 @@ export const SCANS = {
   pack: num(PRICING.pack.scans),
   standard: num(PRICING.standard.scans),
   pro: num(PRICING.pro.scans),
+  referral: num(PRICING.referral.scans),
 } as const;
 
 /** "$9.99 a month" / "$4.99 one time" */

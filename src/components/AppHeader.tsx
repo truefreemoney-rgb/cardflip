@@ -8,6 +8,7 @@ import NavRobot from "@/components/NavRobot";
 import ScanCounter from "@/components/ScanCounter";
 import { logout } from "@/lib/client/auth";
 import { useSession } from "@/components/SessionProvider";
+import { SCANS } from "@/lib/pricing";
 
 /**
  * The one sticky header for the signed-in app. Rendered by the /app layout so
@@ -41,14 +42,14 @@ export default function AppHeader() {
           {user && (user.tier === "subscribed" || user.tier === "owner") && (
             <Link
               href="/app/rewards"
-              title="Invite a friend — when they subscribe, you get 500 bonus scans"
+              title={`Invite a friend — when they subscribe, you get ${SCANS.referral} bonus scans`}
               // sm+ only: on a phone the header is two rows (09-07) and an
               // icon-only spark read as "what is this" (Chris) — Account →
               // Rewards carries the invite there.
               className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-200 transition hover:border-brand-400/60 hover:bg-brand-500/25 hover:text-white sm:flex"
             >
               <span aria-hidden className="text-[10px] text-brand-300">✦</span>
-              Unlock 500 Free Scans
+              Unlock {SCANS.referral} Free Scans
             </Link>
           )}
           {user && showEbay && (

@@ -146,7 +146,7 @@ a drawn arrow line was tried and read as robotic.
 ## Casing (Chris, 09-06)
 
 Buttons, links that act as buttons, nav tabs, header pills and chips, and
-step chips are **Title Case**: "Unlock 500 Free Scans", "Scan a Card",
+step chips are **Title Case**: "Unlock 100 Free Scans", "Scan a Card",
 "Search Cards", "Copy Link". Articles, short prepositions and conjunctions
 stay lower ("a", "the", "to", "on", "in", "of", "and") except in "Log In" /
 "Sign Up" / "Sign Out". Brand spellings win ("eBay", "CardFlip", "PSA").
