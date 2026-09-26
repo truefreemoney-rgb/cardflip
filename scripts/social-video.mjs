@@ -190,10 +190,12 @@ for (let i = 0; i < frames; i++) {
 }
 await browser.close();
 
-// Backing track (scripts/social-audio.mjs, ours): trimmed to the video, fades out over the last 0.5s.
-const AUDIO = arg("--audio", path.join(root, "public/social/audio/spotlight-114bpm.mp3"));
+// Backing track: SILENT by default (Chris 09-25: "i hate the audio" on the
+// synthesized loop). --audio <mp3> muxes one in, trimmed to the video with a
+// 0.5s fade-out, once a track he likes exists.
+const AUDIO = arg("--audio", "none");
 const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
-if (!withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
+if (AUDIO !== "none" && !withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
 const ffmpeg = (await import("ffmpeg-static")).default;
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const r = spawnSync(ffmpeg, [
