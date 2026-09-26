@@ -14,7 +14,14 @@ const STAGES = [
 ] as const;
 
 export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]; priceOf: (c: PokemonCard) => number | null }) {
-  const rows = cards.slice(0, STAGES.length);
+  // One card per stage, no repeated names (the wall is allowed twins; the list is not).
+  const rows: PokemonCard[] = [];
+  // Pokémon only (Chris 09-26): the frame is the Pokémon story.
+  for (const c of cards) {
+    if (c.game && c.game !== "pokemon") continue;
+    if (rows.length === STAGES.length) break;
+    if (!rows.some((r) => r.name === c.name)) rows.push(c);
+  }
   if (rows.length < STAGES.length) return null;
   return (
     <figure className="mt-4 overflow-hidden rounded-2xl border border-edge bg-black/30">
@@ -27,7 +34,7 @@ export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]
               <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.imageSmall} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
-                <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center text-[7px] font-semibold uppercase tracking-wider text-zinc-200">
+                <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center whitespace-nowrap text-[7px] font-semibold uppercase leading-3 text-zinc-200">
                   Example
                 </span>
               </div>
