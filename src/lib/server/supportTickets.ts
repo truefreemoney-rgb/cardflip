@@ -70,6 +70,9 @@ function fromRow(r: Row): Ticket {
 export class TicketLimitError extends Error {}
 export class TicketInputError extends Error {}
 
+/** Numbering starts here (Chris 09-26): #2 and #3 read like nobody uses the site. */
+export const FIRST_TICKET_NUMBER = 1000;
+
 /** "SUPPORT TICKET #12 · Can't publish" — the mail subject and the chat label. */
 export function ticketTag(t: Pick<Ticket, "number">): string {
   return `SUPPORT TICKET #${t.number}`;
@@ -109,7 +112,7 @@ export async function openTicket(
   const now = Date.now();
   // Numbering inside the transaction so two sellers never share a number.
   const number = await db.transaction(async (tx) => {
-    const row = (await tx.prepare("SELECT COALESCE(MAX(number), 0) + 1 AS n FROM support_tickets").get()) as { n: number };
+    const row = (await tx.prepare(`SELECT COALESCE(MAX(number), ${FIRST_TICKET_NUMBER - 1}) + 1 AS n FROM support_tickets`).get()) as { n: number };
     const n = Number(row.n);
     await tx
       .prepare("INSERT INTO support_tickets (id, number, user_id, subject, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'open', ?, ?)")

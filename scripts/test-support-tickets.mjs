@@ -1,7 +1,7 @@
 /**
  * Support tickets (lib/server/supportTickets.ts). Run: npm run test:supporttickets
  *
- * Pins: numbering starts at 1 and climbs, subject falls back to the first
+ * Pins: numbering starts at 1000 and climbs, subject falls back to the first
  * line, the support mail goes to the inbox with Reply-To the seller and the
  * transcript, the seller gets a receipt, five open tickets is the cap,
  * closing mails the seller once and is idempotent, reopen clears closed_at,
@@ -46,22 +46,22 @@ const b = await createUser("Brock", "brock@x.io", "pw-long-enough");
 console.log("open");
 check("empty body refused", await throwsWith(() => openTicket(a, { subject: "", body: "   " }, [], { mail }), TicketInputError));
 const t1 = await openTicket(a, { subject: "", body: "Scan keeps failing\nOn a Charizard." }, [{ role: "user", content: "hi" }, { role: "assistant", content: "hello" }], { mail });
-check("number 1, subject from first line, open", [t1.number, t1.subject, t1.status, t1.closedAt], [1, "Scan keeps failing", "open", null]);
-check("tag", ticketTag(t1), "SUPPORT TICKET #1");
+check("number 1000, subject from first line, open", [t1.number, t1.subject, t1.status, t1.closedAt], [1000, "Scan keeps failing", "open", null]);
+check("tag", ticketTag(t1), "SUPPORT TICKET #1000");
 check("support mail + receipt", sent, [
-  { kind: "support", to: "support@cardflip.io", number: 1, subject: "Scan keeps failing", replyTo: "ash@x.io", turns: 2 },
-  { kind: "receipt", to: "ash@x.io", number: 1 },
+  { kind: "support", to: "support@cardflip.io", number: 1000, subject: "Scan keeps failing", replyTo: "ash@x.io", turns: 2 },
+  { kind: "receipt", to: "ash@x.io", number: 1000 },
 ]);
 sent.length = 0;
 const t2 = await openTicket(b, { subject: "  Refund please ", body: "x".repeat(3000) }, [], { mail });
-check("number climbs across users, subject trimmed, body capped", [t2.number, t2.subject, t2.body.length], [2, "Refund please", 2000]);
-check("mail failure keeps the row", (await openTicket(a, { subject: "q", body: "b" }, [], { mail: { support: async () => { throw new Error("smtp down"); }, receipt: mail.receipt } })).number, 3);
+check("number climbs across users, subject trimmed, body capped", [t2.number, t2.subject, t2.body.length], [1001, "Refund please", 2000]);
+check("mail failure keeps the row", (await openTicket(a, { subject: "q", body: "b" }, [], { mail: { support: async () => { throw new Error("smtp down"); }, receipt: mail.receipt } })).number, 1002);
 sent.length = 0;
 
 console.log("lists");
-check("ash sees only hers, newest first", (await listUserTickets(a.id)).map((t) => t.number), [3, 1]);
+check("ash sees only hers, newest first", (await listUserTickets(a.id)).map((t) => t.number), [1002, 1000]);
 check("open count", await openTicketCount(a.id), 2);
-check("admin list: all, with who", (await listAllTickets()).map((t) => [t.number, t.status, t.userEmail]), [[3, "open", "ash@x.io"], [2, "open", "brock@x.io"], [1, "open", "ash@x.io"]]);
+check("admin list: all, with who", (await listAllTickets()).map((t) => [t.number, t.status, t.userEmail]), [[1002, "open", "ash@x.io"], [1001, "open", "brock@x.io"], [1000, "open", "ash@x.io"]]);
 
 console.log("cap");
 for (let i = 0; i < OPEN_TICKETS_PER_USER - 2; i++) await openTicket(a, { subject: "", body: `spam ${i}` }, [], { mail });
@@ -70,7 +70,7 @@ check("sixth open ticket refused", await throwsWith(() => openTicket(a, { subjec
 console.log("status");
 sent.length = 0;
 const closed = await setTicketStatus(t1.id, "closed", { closedMail });
-check("closed: status + closed_at + one mail", [closed.status, typeof closed.closedAt, sent], ["closed", "number", [{ kind: "closed", to: "ash@x.io", number: 1 }]]);
+check("closed: status + closed_at + one mail", [closed.status, typeof closed.closedAt, sent], ["closed", "number", [{ kind: "closed", to: "ash@x.io", number: 1000 }]]);
 await setTicketStatus(t1.id, "closed", { closedMail });
 check("closing again mails nothing", sent.length, 1);
 const reopened = await setTicketStatus(t1.id, "open", { closedMail });
@@ -83,7 +83,7 @@ check("then a new one opens", (await openTicket(a, { subject: "", body: "after c
 console.log("delete");
 await deleteUser(a.id);
 check("deleteUser takes tickets", (await db.prepare("SELECT COUNT(*) AS n FROM support_tickets WHERE user_id = ?").get(a.id)).n, 0);
-check("brock's stays", (await getTicket(t2.id))?.number, 2);
+check("brock's stays", (await getTicket(t2.id))?.number, 1001);
 
 if (failures) {
   console.log(`\n${failures} failure(s)`);
