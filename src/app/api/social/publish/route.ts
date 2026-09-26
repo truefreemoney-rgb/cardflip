@@ -42,10 +42,14 @@ async function run(req: NextRequest) {
   const rawDay = q.get("day");
   const rawSlot = q.get("slot");
   const slot = SLOT_ORDER.find((s) => s === rawSlot) as Slot | undefined;
+  // ...&site=tiktok → only that site (the per-site "post" link on /admin/social); unknown id = 400.
+  const onlySite = q.get("site");
+  const sites = onlySite ? SOCIAL_SITES.filter((s) => s.id === onlySite) : SOCIAL_SITES;
+  if (onlySite && sites.length === 0) return NextResponse.json({ error: `unknown site ${onlySite}` }, { status: 400 });
   const report = await publishSocial({
     slot,
     origin: req.nextUrl.origin,
-    sites: SOCIAL_SITES,
+    sites,
     force: q.get("force") === "1",
     dry: q.get("dry") === "1",
     day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,

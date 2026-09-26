@@ -27,12 +27,15 @@ export default function SocialSites({ sites, day, slotNow, notice }: { sites: Si
   const [note, setNote] = useState<string | null>(notice ?? null);
   const anyConnected = sites.some((s) => s.connected);
 
-  async function postNow() {
-    if (!confirm(`Post the next slot's picture to every connected site now?`)) return;
+  /** No site = every connected site, next unposted slot. A site = that site only, its 7am set spotlight, re-posted if it already went out. */
+  async function postNow(site?: SiteView) {
+    const ask = site ? `Post today's 7am set spotlight to ${site.label} only, now? (Re-posts if it already went out.)` : `Post the next slot's picture to every connected site now?`;
+    if (!confirm(ask)) return;
     setBusy(true);
     setNote(null);
     try {
-      const res = await fetch(apiPath(`/api/social/publish?force=1&day=${day}`), { method: "POST" });
+      const only = site ? `&site=${encodeURIComponent(site.site)}&slot=morning` : "";
+      const res = await fetch(apiPath(`/api/social/publish?force=1&day=${day}${only}`), { method: "POST" });
       const r = (await res.json()) as Report & { error?: string };
       if (!res.ok) throw new Error(r.error ?? `HTTP ${res.status}`);
       setNote(
@@ -82,6 +85,14 @@ export default function SocialSites({ sites, day, slotNow, notice }: { sites: Si
             ) : (
               "connected, nothing posted yet"
             )}
+            {s.connected && (
+              <>
+                {" · "}
+                <button type="button" onClick={() => postNow(s)} disabled={busy} className="text-brand-300 hover:underline disabled:opacity-40">
+                  post
+                </button>
+              </>
+            )}
           </span>
         </span>
       ))}
@@ -89,7 +100,7 @@ export default function SocialSites({ sites, day, slotNow, notice }: { sites: Si
         <span className="text-xs text-zinc-500">{slotNow ? `In the ${slotNow} window now.` : "Posts 7am / 1pm / 7pm ET on their own."}</span>
         <button
           type="button"
-          onClick={postNow}
+          onClick={() => postNow()}
           disabled={busy || !anyConnected}
           className="rounded-full bg-brand-500 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40"
         >
