@@ -99,5 +99,24 @@ check("every OPEN real item carries an owner tag", real.flatMap((x) => x.items).
   check("images: null body", images(null), []);
 }
 
+// 09-26: a 1516-char row in docs/BOARD.md failed the 1000-char cap on every
+// load, so the console reseeded from the file each time (done rows stuck in
+// their live section, live edits wiped). The real file must always validate.
+{
+  const { ITEM_TEXT_MAX, normalizeBoard } = await import(new URL("../src/lib/server/board.ts", import.meta.url).href);
+  const real = parseBoard(readFileSync(new URL("../docs/BOARD.md", import.meta.url), "utf8"));
+  const rv = validateBoard(real);
+  check("docs/BOARD.md validates (every row under the cap)", rv.ok ? true : rv.error, true);
+  const longest = Math.max(...real.flatMap((s) => s.items.map((i) => i.text.length)));
+  check("longest BOARD.md row fits with headroom", longest <= ITEM_TEXT_MAX - 500, true);
+  const item = (n) => [{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: null, text: "x".repeat(n) }] }];
+  check("1516-char row passes", validateBoard(item(1516)).ok, true);
+  check("over-cap row is refused", validateBoard(item(ITEM_TEXT_MAX + 1)).ok, false);
+  // Done rows in a live section are swept into Completed, which sits last.
+  const swept = normalizeBoard(rv.ok ? rv.sections : real).sections;
+  check("no done rows outside Completed after normalize", swept.filter((s) => !/^completed$/i.test(s.title)).flatMap((s) => s.items).some((i) => i.done), false);
+  check("Completed is the last section", /^completed$/i.test(swept[swept.length - 1].title), true);
+}
+
 console.log(failures === 0 ? "\nAll board checks passed." : `\n${failures} board check(s) FAILED.`);
 process.exitCode = failures === 0 ? 0 : 1;

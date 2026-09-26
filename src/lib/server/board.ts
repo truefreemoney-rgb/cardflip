@@ -17,6 +17,13 @@ import { helperName } from "@/lib/adminAuth";
  */
 export const BOARD_KEY = "board";
 export const BOARD_MAX_BYTES = 200_000;
+/**
+ * Longest item text. Was 1000 — a 1516-char "MAGIC LOCKDOWN" row in
+ * docs/BOARD.md failed validation on EVERY load, so loadBoard reseeded from
+ * the file each time: done rows never left their live section, and Chris's
+ * live edits were wiped on the next page load (found 09-26).
+ */
+export const ITEM_TEXT_MAX = 4000;
 
 export type BoardOwner = "Chris" | "Claude" | "both" | null;
 export interface BoardItem {
@@ -124,7 +131,7 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
       const { id: iid, done, owner, text, images, completedAt, from } = it as Record<string, unknown>;
       if (typeof iid !== "string" || !ID_RE.test(iid) || seen.has(iid)) return { ok: false, error: "Bad item id" };
       seen.add(iid);
-      if (typeof text !== "string" || text.length > 1000) return { ok: false, error: "Item text too long (max 1000)" };
+      if (typeof text !== "string" || text.length > ITEM_TEXT_MAX) return { ok: false, error: `Item text too long (max ${ITEM_TEXT_MAX})` };
       if (owner != null && (typeof owner !== "string" || !OWNERS.has(owner))) return { ok: false, error: "Bad owner tag" };
       let imgs: string[] | undefined;
       if (images != null) {
@@ -238,19 +245,27 @@ async function seedFromFile(): Promise<BoardSection[]> {
 export async function loadBoard(): Promise<{ sections: BoardSection[]; updatedAt: number | null }> {
   const stored = await getSetting(BOARD_KEY);
   if (stored) {
+    // The stored board is the truth. It is only ever replaced by the file
+    // when nothing is stored (first load) or the row is not JSON at all —
+    // NEVER because it failed validation: that reseeded on every load for
+    // two weeks (09-10 → 09-26, an over-long row) and threw away live edits.
+    let parsed: unknown;
     try {
-      const v = validateBoard(JSON.parse(stored));
-      if (v.ok) {
-        const n = normalizeBoard(v.sections);
-        if (n.changed) {
-          await saveBoard(n.sections);
-          return { sections: n.sections, updatedAt: Date.now() };
-        }
-        const row = (await db.prepare("SELECT updated_at FROM settings WHERE key = ?").get(BOARD_KEY)) as { updated_at: number } | undefined;
-        return { sections: n.sections, updatedAt: row?.updated_at ?? null };
+      parsed = JSON.parse(stored);
+    } catch (err) {
+      console.error("board: stored board is not JSON, reseeding from docs/BOARD.md:", err);
+      parsed = null;
+    }
+    if (Array.isArray(parsed)) {
+      const v = validateBoard(parsed);
+      if (!v.ok) console.error("board: stored board failed validation, serving it as-is:", v.error);
+      const n = normalizeBoard(v.ok ? v.sections : (parsed as BoardSection[]));
+      if (n.changed) {
+        await saveBoard(n.sections);
+        return { sections: n.sections, updatedAt: Date.now() };
       }
-    } catch {
-      /* fall through: reseed */
+      const row = (await db.prepare("SELECT updated_at FROM settings WHERE key = ?").get(BOARD_KEY)) as { updated_at: number } | undefined;
+      return { sections: n.sections, updatedAt: row?.updated_at ?? null };
     }
   }
   const sections = await seedFromFile();

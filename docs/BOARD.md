@@ -93,6 +93,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
 
+- [x] 09-26 BOARD RESEEDED ON EVERY LOAD for two weeks: a 1516-char row (MAGIC LOCKDOWN) failed the 1000-char cap, loadBoard fell through to docs/BOARD.md on each request — done rows never left their live section ("Completed · 25" while the DB had 35), and any live edit was wiped on the next page load. Fix: cap 4000 (ITEM_TEXT_MAX), the stored board is never replaced because of validation (only when nothing is stored or the row is not JSON), test:board now validates the real file with headroom.
 - [x] 09-16 ADMIN SIGN-IN HUNG on "Signing in…": login returned 200 but GET /admin returned status 0 — the overview's catalog memo (card_cache admin:catalog:v1, 6h TTL) rebuilds with ~10-15s of Turso COUNT(*)s (mtg_cards 4.4s, price_series 3.9s) and blew the 15s function timeout; the login page never navigated. Fix: cachedListSwr (stale-while-revalidate via next/server after()), page maxDuration 60, test:listcache; prod memo pre-warmed by hand
 - [x] 09-10 Magic phone batch re-run after the ledger fixes: 42/42 = 100% exact printing on Chris's real phone photos (npm run mtg:phone -- --pull)
 - [x] 09-10 Lorcana real-photo gate 100% (38/38 eBay seller photos, npm run lorcana:phone); panel 100% after the set-total fix (mirror stored /245 for a /207 set — sync-lorcana now uses the printed denominator, pushed to prod)
