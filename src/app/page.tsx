@@ -4,6 +4,7 @@ import TrialCta from "@/components/TrialCta";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
+import DemoInventory from "@/components/DemoInventory";
 import PlanCard from "@/components/PlanCard";
 import { PRICE, SCANS } from "@/lib/pricing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
@@ -403,19 +404,7 @@ export default async function Home() {
                 draft, what&apos;s live on eBay, and what sold.
               </p>
               <CardWall cards={showcase} />
-              {showcase.length >= 4 && (
-                <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {showcase.slice(0, 4).map((c) => {
-                    const m = marketOf(c);
-                    return (
-                      <li key={c.id} className="flex items-baseline justify-between gap-2 rounded-lg bg-black/30 px-3 py-2 text-xs">
-                        <span className="truncate text-zinc-300">{c.name}</span>
-                        {m !== null && <span className="shrink-0 font-display font-semibold text-white">{money(m)}</span>}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              <DemoInventory cards={showcase} priceOf={marketOf} />
             </div>
 
             {/* Price history */}
