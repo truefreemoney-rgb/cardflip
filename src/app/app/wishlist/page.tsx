@@ -290,6 +290,17 @@ export default function WishlistPage() {
   const [busy, setBusy] = useState<"search" | "identify" | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [results, setResults] = useState<PokemonCard[]>([]);
+  // Sorting the search results (Chris 09-26: 172 Pikachus need an order).
+  const [resultSort, setResultSort] = useState<"match" | "price-high" | "price-low" | "set">("match");
+  const sortedResults = useMemo(() => {
+    if (resultSort === "match") return results;
+    const priceOf = (c: PokemonCard) => pickPrice(c)?.market ?? null;
+    const sorted = [...results];
+    if (resultSort === "price-high") sorted.sort((a, b) => (priceOf(b) ?? -1) - (priceOf(a) ?? -1));
+    else if (resultSort === "price-low") sorted.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
+    else sorted.sort((a, b) => a.setName.localeCompare(b.setName) || a.number.localeCompare(b.number, undefined, { numeric: true }));
+    return sorted;
+  }, [results, resultSort]);
   // Add by name/photo, or open a whole set (Search cards' set browser,
   // shared — Chris, 09-04: "push that set view into watchlist").
   const [addMode, setAddMode] = useState<"search" | "browse">("search");
@@ -658,26 +669,42 @@ export default function WishlistPage() {
 
         {results.length > 0 && (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-zinc-400">
                 <span className="font-medium text-zinc-200">
                   {results.length} result{results.length === 1 ? "" : "s"}
                 </span>
                 <span className="text-zinc-600"> · tap one to add it</span>
               </p>
-              <button
-                onClick={() => {
-                  setResults([]);
-                  setAddError(null);
-                  setQuery("");
-                }}
-                className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
-              >
-                ✕ Clear
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <select
+                    value={resultSort}
+                    onChange={(e) => setResultSort(e.target.value as typeof resultSort)}
+                    aria-label="Sort results"
+                    className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
+                  >
+                    <option value="match">Best match</option>
+                    <option value="price-high">Price: high to low</option>
+                    <option value="price-low">Price: low to high</option>
+                    <option value="set">Set A–Z</option>
+                  </select>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">▾</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setResults([]);
+                    setAddError(null);
+                    setQuery("");
+                  }}
+                  className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+                >
+                  ✕ Close results
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-              {results.map((card) => {
+              {sortedResults.map((card) => {
                 const added = addedIds.has(card.id);
                 const price = pickPrice(card)?.market ?? null;
                 return (
