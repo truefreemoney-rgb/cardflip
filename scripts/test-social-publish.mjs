@@ -23,9 +23,9 @@ process.env.CRON_SECRET = "cron-test";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
-const { publishSocial, fitText, slotAt, eastern, LAST_POST_PREFIX, SLOT_PREFIX } = await import(at("lib/server/socialPublish.ts"));
+const { publishSocial, fitText, slotAt, eastern, LAST_POST_PREFIX, SLOT_PREFIX, KIND_PREFIX, SLOTS } = await import(at("lib/server/socialPublish.ts"));
 const { blueskyFacets, BLUESKY_MAX_CHARS } = await import(at("lib/server/sites/bluesky.ts"));
-const { getSetting } = await import(at("lib/server/settings.ts"));
+const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 const { loadBoard, isCompletedSection } = await import(at("lib/server/board.ts"));
 const { addDays } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
@@ -76,6 +76,9 @@ check("7pm ET → evening", slotAt(clock(23)), "evening");
 check("11am ET → no slot", slotAt(clock(15)), null);
 check("Eastern day rolls at midnight ET, not UTC", eastern(Date.UTC(2026, 8, 11, 2)).day, THU);
 
+console.log("slot → kind mapping (09-26: morning switched from set spotlight to movers, so the video has a countdown to rank)");
+check("morning=movers (video), midday=set, evening=dips", [SLOTS.morning.kind, SLOTS.midday.kind, SLOTS.evening.kind], ["movers", "set", "dips"]);
+
 console.log("publish");
 const off = fakeSite("off", { connected: false });
 let r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [off], fetchImage });
@@ -92,18 +95,18 @@ check("dry run posts nothing", bsky.posts.length, 0);
 check("dry run marks nothing", await getSetting(`${SLOT_PREFIX}bsky:morning`), null);
 
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [bsky], fetchImage });
-check("7am: set spotlight posted", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
-check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=set&game=pokemon&day=${THU}&size=square&key=cron-test`);
-check("alt text set", bsky.posts[0].alt.startsWith("Set spotlight:"));
+check("7am: movers posted (morning switched from set spotlight 09-26)", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
+check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=movers&game=pokemon&day=${THU}&size=square&key=cron-test`);
+check("alt text set", bsky.posts[0].alt.startsWith("Pokémon movers of the week."));
 check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:morning`), THU);
 check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
 check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1"]);
+check("no-repeat: the landed gains post's cards are remembered for the kind", Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).sort(), ["sv1-2", "sv1-4", "sv1-7"]);
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
 r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", sites: [bsky], fetchImage });
-check("1pm: movers posted", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
-check("no-repeat: the landed gains post's cards are remembered for the kind", Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).sort(), ["sv1-2", "sv1-4", "sv1-7"]);
+check("1pm: set spotlight posted (midday switched from movers 09-26)", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Set spotlight:")], ["midday", 2, true]);
 r = await publishSocial({ day: THU, now: clock(23), origin: "http://x", sites: [bsky], fetchImage });
 check("7pm: one drop only → no dips post, stays quiet rather than repeat", [r.slot, r.sites[0].status, r.sites[0].reason, bsky.posts.length], ["evening", "skipped", "nothing to post for the evening slot", 2]);
 r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true });
@@ -112,7 +115,7 @@ check("one image fetch per posting run", fetched.length, 3);
 
 const late = fakeSite("late");
 r = await publishSocial({ day: THU, now: clock(19), origin: "http://x", sites: [bsky, late], fetchImage });
-check("a site connected at 3pm catches up on the 7am and 1pm posts in one run", [r.sites[1].status, r.sites[1].posts.map((p) => p.title.split(":")[0])], ["posted", ["Set spotlight", "Pokémon movers of the week"]]);
+check("a site connected at 3pm catches up on the 7am and 1pm posts in one run", [r.sites[1].status, r.sites[1].posts.map((p) => p.title.split(":")[0])], ["posted", ["Pokémon movers of the week", "Set spotlight"]]);
 check("both slots marked for it", [await getSetting(`${SLOT_PREFIX}late:morning`), await getSetting(`${SLOT_PREFIX}late:midday`)], [THU, THU]);
 check("the site that already had them is left alone", [r.sites[0].status, bsky.posts.length], ["skipped", 3]);
 
@@ -126,8 +129,30 @@ const { sections } = await loadBoard();
 const completed = sections.find(isCompletedSection);
 const notes = completed.items.filter((i) => i.text.startsWith("Social autopilot"));
 check("one Completed line per run that posted or failed", notes.length, 5);
-check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am set spotlight")], [true, "Claude", true, true]);
+check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am movers of the week")], [true, "Claude", true, true]);
 check("posted line carries the uri", notes[1].text.includes("https://late/2"));
+
+console.log("same-day dedupe by kind (09-26)");
+const ded = fakeSite("dedupe");
+// Simulate "movers" already went out today for this site (e.g. under the
+// old mapping, or an earlier run this day): the morning slot's own kind
+// (movers) collides, so it must rotate to the next kind in the rotation
+// that has a draft and has not posted today — set.
+await setSetting(`${KIND_PREFIX}dedupe:movers`, THU);
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [ded], fetchImage, force: true });
+check("movers already posted today → the morning slot posts the next kind (set) instead", [r.sites[0].status, ded.posts[0].alt.startsWith("Set spotlight:")], ["posted", true]);
+check("the slot is still marked done (a slot always posts something)", await getSetting(`${SLOT_PREFIX}dedupe:morning`), THU);
+check("the kind actually posted (set) is recorded, alongside the earlier movers record", [await getSetting(`${KIND_PREFIX}dedupe:set`), await getSetting(`${KIND_PREFIX}dedupe:movers`)], [THU, THU]);
+
+const ded2 = fakeSite("dedupe2");
+// Both movers and set already posted today for this site, and this
+// fixture has no dips draft (only one drop card; dips needs 3): every
+// rotation candidate is exhausted, so the slot must still post — its own
+// kind repeats rather than the slot being skipped.
+await setSetting(`${KIND_PREFIX}dedupe2:movers`, THU);
+await setSetting(`${KIND_PREFIX}dedupe2:set`, THU);
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [ded2], fetchImage, force: true });
+check("every rotation candidate already posted or unavailable → the slot still posts, never skipped", [r.sites[0].status, ded2.posts[0].alt.startsWith("Pokémon movers of the week.")], ["posted", true]);
 
 console.log("text fitting");
 const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };

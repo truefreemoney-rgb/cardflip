@@ -28,6 +28,7 @@ process.env.CRON_SECRET = "cron-test";
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { TIMELINE, videoSeconds, beatStart, videoKey, parseVideoSpec, VIDEO_W, VIDEO_H } = await import(at("lib/socialVideo.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
+const { topMovers } = await import(at("lib/server/social.ts"));
 const { publishSocial, videoFor, SLOT_PREFIX } = await import(at("lib/server/socialPublish.ts"));
 const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 const { addDays } = await import(at("lib/priceSeries.ts"));
@@ -51,6 +52,16 @@ console.log("registry");
 check("key", videoKey("pokemon", "set", "2026-09-26"), "social_video:pokemon:set:2026-09-26");
 check("parser fills defaults", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 12 })), { url: "https://blob/x.mp4", bytes: 12, mime: "video/mp4", width: 1080, height: 1920, seconds: 0, renderedAt: 0 });
 check("parser refuses junk", [parseVideoSpec(null), parseVideoSpec("nope"), parseVideoSpec(JSON.stringify({ url: "http://insecure", bytes: 1 }))], [null, null, null]);
+
+// 09-26: the render job freezes the exact cards it drew (+ kind) into the
+// row, so the publisher can build the post text from THEM instead of a
+// fresh computation — the fix for text and video disagreeing.
+const oneCard = { cardId: "sv1-2", name: "Miraidon ex", number: "81", setName: "Scarlet & Violet", variant: "normal", from: 10, to: 15, pct: 50 };
+check("parser carries kind and cards when present", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 12, kind: "movers", cards: [oneCard] })), {
+  url: "https://blob/x.mp4", bytes: 12, mime: "video/mp4", width: 1080, height: 1920, seconds: 0, renderedAt: 0, kind: "movers", cards: [oneCard],
+});
+check("parser is fine with no cards or kind at all (older rows)", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 12 })), { url: "https://blob/x.mp4", bytes: 12, mime: "video/mp4", width: 1080, height: 1920, seconds: 0, renderedAt: 0 });
+check("a malformed cards array is dropped, the rest of the row still parses", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 12, cards: [{ cardId: "sv1-2" }] })), { url: "https://blob/x.mp4", bytes: 12, mime: "video/mp4", width: 1080, height: 1920, seconds: 0, renderedAt: 0 });
 
 console.log("publisher");
 const THU = "2026-09-10";
@@ -89,9 +100,10 @@ const vid = fakeSite("vid", { postsVideo: true });
 let r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [pic, vid], fetchImage, fetchVideo });
 check("no video registered → both sites post the picture, nothing fetched", [pic.posts[0].video ?? null, vid.posts[0].video ?? null, videoFetches.length, r.sites.map((s) => s.posts[0].video ?? null)], [null, null, 0, [null, null]]);
 
-await setSetting(videoKey("pokemon", "set", THU), JSON.stringify({ url: "https://blob/pokemon-set.mp4", bytes: 9, mime: "video/mp4", width: 1080, height: 1920, seconds: 15.3, renderedAt: 1 }));
-check("videoFor reads the row", (await videoFor({ game: "pokemon", kind: "set", day: THU }))?.url, "https://blob/pokemon-set.mp4");
-check("nothing for movers", await videoFor({ game: "pokemon", kind: "movers", day: THU }), null);
+// Morning's kind is "movers" since 09-26 (SLOTS in socialPublish.ts).
+await setSetting(videoKey("pokemon", "movers", THU), JSON.stringify({ url: "https://blob/pokemon-movers.mp4", bytes: 9, mime: "video/mp4", width: 1080, height: 1920, seconds: 15.3, renderedAt: 1 }));
+check("videoFor reads the row", (await videoFor({ game: "pokemon", kind: "movers", day: THU }))?.url, "https://blob/pokemon-movers.mp4");
+check("nothing for a kind with no registered video", await videoFor({ game: "pokemon", kind: "dips", day: THU }), null);
 
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vid], fetchImage, fetchVideo, dry: true });
 check("dry run flags video for the video site only, fetches nothing", [r.sites[0].posts[0].video ?? null, r.sites[1].posts[0].video ?? null, videoFetches.length], [null, "yes", 0]);
@@ -100,11 +112,30 @@ const vid2 = fakeSite("vid2", { postsVideo: true });
 const broken = fakeSite("broken", { postsVideo: true, failVideo: true });
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vid, vid2, broken], fetchImage, fetchVideo });
 check("picture site still gets the picture", [pic.posts.at(-1).video ?? null, r.sites[0].posts[0].video ?? null], [null, null]);
-check("video sites get the MP4 with its url and bytes", [vid.posts.at(-1).video.url, vid.posts.at(-1).video.bytes.toString(), vid.posts.at(-1).video.seconds, r.sites[1].posts[0].video], ["https://blob/pokemon-set.mp4", "mp4-bytes", 15.3, "yes"]);
+check("video sites get the MP4 with its url and bytes", [vid.posts.at(-1).video.url, vid.posts.at(-1).video.bytes.toString(), vid.posts.at(-1).video.seconds, r.sites[1].posts[0].video], ["https://blob/pokemon-movers.mp4", "mp4-bytes", 15.3, "yes"]);
 check("the picture rides along for the adapter's own fallback", vid.posts.at(-1).image.toString(), "png");
-check("one video fetch for three video sites", videoFetches, ["https://blob/pokemon-set.mp4"]);
+check("one video fetch for three video sites", videoFetches, ["https://blob/pokemon-movers.mp4"]);
 check("video upload failure → picture posted, slot marked, report says fallback", [broken.posts.length, broken.posts[0].video ?? null, r.sites[3].status, r.sites[3].posts[0].video, r.sites[3].posts[0].error, await getSetting(`${SLOT_PREFIX}broken:morning`)], [1, null, "posted", "fallback", "video failed, picture posted: video upload boom", THU]);
 check("sites reported in order", r.sites.map((s) => s.site), ["pic", "vid", "vid2", "broken"]);
+
+console.log("text matches a registered video's frozen cards (09-26)");
+// A fresh computation right now would show Miraidon at $15 (its real
+// price in this fixture). Register the video with a deliberately
+// different frozen price, the way an earlier render would if the price
+// moved after it ran — the posted TEXT must use the frozen number, not
+// recompute, or the caption and video can disagree again.
+const freshTop = await topMovers("pokemon", THU, { direction: "up" });
+check("sanity: a fresh computation reads $15 for Miraidon", freshTop.find((m) => m.cardId === "sv1-2")?.to, 15);
+const frozenCards = [
+  { cardId: "sv1-2", name: "Miraidon ex", number: "81", setName: "Scarlet & Violet", variant: "normal", from: 10, to: 999, pct: 9890 },
+  { cardId: "sv1-7", name: "Pawmi", number: "74", setName: "Scarlet & Violet", variant: "normal", from: 12, to: 16, pct: 33.33 },
+  { cardId: "sv1-4", name: "Gardevoir ex", number: "86", setName: "Scarlet & Violet", variant: "normal", from: 20, to: 24, pct: 20 },
+];
+await setSetting(videoKey("pokemon", "movers", THU), JSON.stringify({ url: "https://blob/pokemon-movers-2.mp4", bytes: 9, mime: "video/mp4", width: 1080, height: 1920, seconds: 15.3, renderedAt: 2, kind: "movers", cards: frozenCards }));
+const textSite = fakeSite("textsite");
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [textSite], fetchImage, fetchVideo });
+check("posted caption uses the frozen $999, not the fresh $15", textSite.posts[0].text.includes("$999"), true);
+check("posted caption never mentions the fresh price", textSite.posts[0].text.includes("$15.00"), false);
 
 console.log("adapters (fetch stubbed)");
 const realFetch = globalThis.fetch;
@@ -299,7 +330,7 @@ vbroken.videoOnly = true;
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "midday", force: true, sites: [pic, vonly], fetchImage, fetchVideo });
 check("video-only site skips a slot with no rendered video, picture site posts", [r.sites[0].status, r.sites[1].status, r.sites[1].reason, vonly.posts.length], ["posted", "skipped", "video only, nothing rendered for this slot", 0]);
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [vonly, vbroken], fetchImage, fetchVideo });
-check("video-only site posts the 7am video; a failed upload is a failure, not a picture", [r.sites[0].status, r.sites[0].posts[0].video, vonly.posts[0].video.url, r.sites[1].status, r.sites[1].posts[0].error, vbroken.posts.length, await getSetting(`${SLOT_PREFIX}vbroken:morning`)], ["posted", "yes", "https://blob/pokemon-set.mp4", "failed", "video upload boom", 0, null]);
+check("video-only site posts the 7am video; a failed upload is a failure, not a picture", [r.sites[0].status, r.sites[0].posts[0].video, vonly.posts[0].video.url, r.sites[1].status, r.sites[1].posts[0].error, vbroken.posts.length, await getSetting(`${SLOT_PREFIX}vbroken:morning`)], ["posted", "yes", "https://blob/pokemon-movers-2.mp4", "failed", "video upload boom", 0, null]);
 const gated = { ...fakeSite("gated"), authorized: async () => false };
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [gated], fetchImage, fetchVideo });
 check("an OAuth site that is not authorized reads as not connected", [r.sites[0].status, r.sites[0].reason], ["skipped", "not connected"]);

@@ -1,17 +1,24 @@
-// Set-spotlight video prototype (09-25, Chris: "i would really like to see
-// a prototype"). No footage: the same setSpotlight() data the 7am picture
-// uses, drawn as a 1080x1920 HTML scene, stepped one frame at a time by
-// headless Chromium (render(t) is pure: every frame is a function of time,
-// so the output is deterministic), then stitched to an H.264 MP4 by ffmpeg.
+// Morning-slot video (09-25, Chris: "i would really like to see a
+// prototype"; 09-26: "pick cards that are the biggest movers and shakers" —
+// switched from the set spotlight to the week's movers, ranked No.5 → No.1
+// by % gain, same quality rules the movers post uses). No footage: drawn as
+// a 1080x1920 HTML scene, stepped one frame at a time by headless Chromium
+// (render(t) is pure: every frame is a function of time, so the output is
+// deterministic), then stitched to an H.264 MP4 by ffmpeg.
 //
 //   node --experimental-strip-types --no-warnings --conditions=react-server \
 //     --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs [--day YYYY-MM-DD] [--out path.mp4] [--fps 24]
 //     [--audio path|none] [--register] [--skip-if-done]
 //
 // --register: the GitHub Actions 7am job (social-post.yml, video job). Parks
-// the MP4 on Vercel Blob (social/video/<game>-set-<day>.mp4) and writes the
-// settings row the publisher reads (lib/socialVideo.ts videoKey), so the
-// set-spotlight post goes out as video on every site that takes one.
+// the MP4 on Vercel Blob (social/video/<game>-<kind>-<day>.mp4) and writes
+// the settings row the publisher reads (lib/socialVideo.ts videoKey), so
+// the morning post goes out as video on every site that takes one. The
+// EXACT cards drawn are frozen into that row too (`cards`), so the
+// publisher builds the post text from them instead of a fresh computation
+// — text and video can no longer disagree (09-26: a caption once said
+// "Mysterious Treasures" over Base Set 2 art because each was computed at
+// a different moment).
 // --skip-if-done: exit 0 without rendering when that row already exists
 // (the schedule pings twice, EDT and EST).
 import fs from "node:fs";
@@ -28,16 +35,20 @@ const REGISTER = has("--register");
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { setSpotlight, money } = await import(at("lib/server/social.ts"));
+const { topMovers, recentlyFeatured, money } = await import(at("lib/server/social.ts"));
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
-const { eastern } = await import(at("lib/server/socialPublish.ts"));
+const { eastern, SLOTS } = await import(at("lib/server/socialPublish.ts"));
 const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 
 // Same day the publisher keys on (Eastern), so a 6:30am ET render lands on the right row.
 const day = arg("--day", eastern().day);
 const game = "pokemon";
-const KEY = videoKey(game, "set", day);
+// The kind rendered here follows the morning slot's mapping (SLOTS in
+// socialPublish.ts), so a future re-mapping does not silently orphan this
+// script or the row the publisher looks for.
+const KIND = SLOTS.morning.kind;
+const KEY = videoKey(game, KIND, day);
 if (has("--skip-if-done") && (await getSetting(KEY))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
 
 // Backing track: royalty-free MP3s Chris drops into public/social/audio
@@ -53,9 +64,14 @@ const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
 if (AUDIO !== "none" && !withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
 console.log(withAudio ? `audio: ${path.basename(AUDIO)} (${tracks.length} in rotation)` : "audio: silent (drop MP3s into public/social/audio)");
 
-const spot = await setSpotlight(game, day);
-if (!spot) { console.error("no set for", day); process.exit(1); }
-console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards`);
+// Same pipeline the 1pm movers post used to use for the morning slot
+// (topMovers gainers only, same MOVER_MIN_PRICE/HELD_DAYS quality floors,
+// same no-repeat exclusion) so the video never shows a junk mover and never
+// repeats a card the movers post already featured this week.
+const exclude = await recentlyFeatured(game, "movers", day);
+const movers = await topMovers(game, day, { direction: "up", exclude });
+if (movers.length < 3) { console.error("not enough movers for", day); process.exit(1); }
+console.log(`movers: ${movers.length} cards, top gain ${movers[0].name} +${movers[0].pct.toFixed(1)}%`);
 
 async function artDataUri(url) {
   const grab = async (u) => {
@@ -68,9 +84,9 @@ async function artDataUri(url) {
   const a = (await grab(url)) ?? (fallbackArtUrl(url) ? await grab(fallbackArtUrl(url)) : null);
   return a ? `data:${a.type};base64,${a.bytes.toString("base64")}` : "";
 }
-// Countdown: least valuable first, the set's top card last (No. 1).
+// Countdown: smallest gain first, the week's biggest mover last (No. 1).
 const cards = [];
-for (const c of [...spot.cards].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
+for (const c of [...movers].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
 const logo = `data:image/png;base64,${fs.readFileSync(path.join(root, "public/brand/cardflip-logo.png")).toString("base64")}`;
 
 // Timeline (seconds): intro → one beat per card → outro (lib/socialVideo.ts
@@ -138,9 +154,9 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
   #bar i { display:block; height:100%; width:0; }
 </style></head><body>
 <div id="intro" class="abs">
-  <div class="kicker">Pokémon · set spotlight</div>
-  <div class="title display holo-text">${esc(spot.setName)}</div>
-  <div class="sub muted">The five most valuable cards, market price today</div>
+  <div class="kicker">Pokémon · movers of the week</div>
+  <div class="title display holo-text">Biggest movers</div>
+  <div class="sub muted">This week's top gainers, No. 5 to No. 1</div>
 </div>
 ${cards.map((c, i) => `
 <div class="abs beat" id="beat${i}">
@@ -257,10 +273,15 @@ console.log(`wrote ${OUT} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)
 if (REGISTER) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) { console.error("--register needs BLOB_READ_WRITE_TOKEN"); process.exit(1); }
   const { put, del } = await import("@vercel/blob");
-  const blob = await put(`social/video/${game}-set-${day}.mp4`, fs.readFileSync(OUT), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
+  const blob = await put(`social/video/${game}-${KIND}-${day}.mp4`, fs.readFileSync(OUT), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
   // A re-render on the same day replaces the row; the old file only differs by path when the naming changes.
   const prev = await getSetting(KEY);
   if (prev) { try { const p = JSON.parse(prev); if (p.url && p.url !== blob.url) await del(p.url); } catch { /* old row, ignore */ } }
-  await setSetting(KEY, JSON.stringify({ url: blob.url, bytes, mime: "video/mp4", width: W, height: H, seconds: TOTAL, renderedAt: Date.now() }));
+  // Freeze the exact cards drawn (name/number/set/variant/from/to/pct) so
+  // the publisher builds the post text from THIS list, never a fresh one
+  // computed at post time — that gap is what let the text and video
+  // disagree on 09-26.
+  const specCards = movers.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct }));
+  await setSetting(KEY, JSON.stringify({ url: blob.url, bytes, mime: "video/mp4", width: W, height: H, seconds: TOTAL, renderedAt: Date.now(), kind: KIND, cards: specCards }));
   console.log(`registered ${KEY} → ${blob.url}`);
 }

@@ -25,8 +25,9 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 - A site is **connected** when its env vars exist on Vercel. Nothing else
   switches it on; `/admin/social` shows the rest as "not connected".
-- Three posts a day, Eastern (Chris 09-25, hands off): 7am card of the
-  day, 1pm movers of the week, 7pm price drops (`SLOTS` in
+- Three posts a day, Eastern (Chris 09-25, hands off; 09-26, morning
+  switched to movers so the video has something to rank): 7am movers of
+  the week (video), 1pm set spotlight, 7pm price drops (`SLOTS` in
   socialPublish.ts). `.github/workflows/social-post.yml` pings
   `POST /api/social/publish?slot=` at each slot's EDT and EST hour with
   the `SOCIAL_POST_KEY` secret (also on Vercel); the publisher picks the
@@ -41,6 +42,13 @@ sentence case, no exclamation marks, ends on cardflip.io).
   `social_slot:<site>:<slot>` = the ET day; `social_last_post:<site>` and
   `…:uris` keep the strip on /admin/social current. `force=1` posts the
   next unposted slot (the Post now button).
+- Same-day dedupe BY KIND (09-26, the day the slot→kind mapping changed):
+  `settings` key `social_kind:<site>:<kind>` = the ET day, written
+  alongside the slot key. If a slot's kind already went out today for a
+  site (under its old slot, or a re-post), the next kind in the rotation
+  movers → set → dips → movers that the site has not posted today runs
+  instead. A slot never skips for this reason — if every kind is already
+  posted today (or has no draft), the slot's own kind repeats.
 - Text is fitted to the site's limit: caption + hashtags → caption alone →
   `shortCaption` (name + % only) → cut on a line with `cardflip.io` kept.
 - Picture: the square PNG from `/api/social/image` (fetched from the same
@@ -57,11 +65,12 @@ sentence case, no exclamation marks, ends on cardflip.io).
   on either end; series must have been updated in the last 3 days; the
   preferred variant per card (normal → holofoil → reverse). Fewer than 3
   movers = no post that day.
-- **Set spotlight** (7am, replaced card of the day 09-25, Chris: no
-  single-card posts, more informative multi-card ones): the five most
-  valuable cards of one set with their 7-day move. The set is chosen by a
-  hash of the date over every set with ≥ 5 cards worth ≥ $10, so sets cycle
-  and every run agrees. Pokémon only (set = card id prefix).
+- **Set spotlight** (1pm since 09-26, replaced card of the day 09-25, Chris:
+  no single-card posts, more informative multi-card ones; moved off 7am so
+  the morning video could show movers instead): the five most valuable
+  cards of one set with their 7-day move. The set is chosen by a hash of the
+  date over every set with ≥ 5 cards worth ≥ $10, so sets cycle and every
+  run agrees. Pokémon only (set = card id prefix).
 - **QUALITY RULES (Chris 09-25, "highest quality possible", pictures AND
   words)**: (a) a price is only shown as today's when it has held 3 of the
   last 7 days (carry-forward across ≤ 3 missing days); otherwise the week's
@@ -93,24 +102,41 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 Owner cookie (the preview page) or `?key=CRON_SECRET` (the publisher).
 
-## Video (09-25, Chris reversed the no-video rule)
+## Video (09-25, Chris reversed the no-video rule; 09-26, morning switched
+## to movers)
 
-The 7am set spotlight goes out as a 15.3s 9:16 MP4 on every connected site;
-1pm movers and 7pm drops stay pictures for now (variety).
+The 7am slot goes out as a 9:16 MP4 on every connected site; 1pm set
+spotlight and 7pm drops stay pictures for now (variety). The video follows
+`SLOTS.morning.kind` (movers since 09-26, Chris: "pick cards that are the
+biggest movers and shakers"), ranked No.5 → No.1 by % gain, gainers only,
+same `topMovers` quality floors (MOVER_MIN_PRICE, HELD_DAYS) and no-repeat
+exclusion the movers post uses — never a junk mover.
 
-- **Render**: `scripts/social-video.mjs` draws the same `setSpotlight()` data
-  as a 1080x1920 HTML scene, steps it frame by frame in headless Chromium,
-  ffmpeg stitches H.264 + the backing track (`public/social/audio`, ours,
-  synthesized by `scripts/social-audio.mjs`, 0.5s fade-out). Timeline math
-  lives in `lib/socialVideo.ts` (`test:socialvideo`).
+- **Render**: `scripts/social-video.mjs` draws the same `topMovers()` gainers
+  the movers post would show, as a 1080x1920 HTML scene, steps it frame by
+  frame in headless Chromium, ffmpeg stitches H.264 + the backing track
+  (`public/social/audio`, ours, synthesized by `scripts/social-audio.mjs`,
+  0.5s fade-out). Timeline math lives in `lib/socialVideo.ts`
+  (`test:socialvideo`).
+- **Text always matches the video** (09-26: a caption once said "Mysterious
+  Treasures" over Base Set 2 art, because the picture and the video each
+  computed their own card list at a different moment — the render runs
+  hours before the post, and the eligible-set/mover list can shift between
+  the two). The render job freezes the EXACT cards it drew into the
+  registered row (`VideoSpec.cards`, cardId/name/number/setName/variant/
+  from/to/pct) and `kind`. `parseVideoSpec` accepts rows with or without
+  `cards` (older rows). The publisher rebuilds the post caption from
+  `spec.cards` when a video is registered for that draft, instead of
+  computing fresh; with no registered video it computes at post time as
+  before, so the picture and its caption still agree.
 - **Where**: the `video` job in `.github/workflows/social-post.yml`, 6:50am
   ET (Chromium + ffmpeg do not fit a Vercel function). Secrets
   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BLOB_READ_WRITE_TOKEN` are on
   the repo. `--register` parks the MP4 on Vercel Blob
-  (`social/video/<game>-set-<day>.mp4`) and writes settings row
-  `social_video:<game>:set:<day>`; `--skip-if-done` makes the second cron
-  ping and the 7am fallback render a no-op. Run workflow with `video=1`
-  re-renders today's.
+  (`social/video/<game>-<kind>-<day>.mp4`) and writes settings row
+  `social_video:<game>:<kind>:<day>` (`videoKey`, kind = `SLOTS.morning.kind`);
+  `--skip-if-done` makes the second cron ping and the 7am fallback render a
+  no-op. Run workflow with `video=1` re-renders today's.
 - **Publish**: `publishSocial()` reads that row for each draft, fetches the
   MP4 once, hands it to every site with `postsVideo`, sites run in parallel
   (Meta polls for minutes; route `maxDuration` 300). A video upload that

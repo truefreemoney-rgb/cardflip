@@ -35,6 +35,39 @@ export function videoKey(game: GameId, kind: PostKind, day: string): string {
   return `${VIDEO_PREFIX}${game}:${kind}:${day}`;
 }
 
+/**
+ * One card as the video showed it (09-26: the exact list the render job
+ * drew, frozen at register time, so the publisher's text can never drift
+ * from the video — the "Mysterious Treasures" caption over Base Set 2 art
+ * bug). Same shape as social.ts's Mover, minus imageUrl/unsettled (the
+ * caption builders never need them).
+ */
+export interface VideoCard {
+  cardId: string;
+  name: string;
+  number: string;
+  setName: string;
+  variant: string;
+  from: number;
+  to: number;
+  pct: number;
+}
+
+function isVideoCard(v: unknown): v is VideoCard {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return (
+    typeof c.cardId === "string" &&
+    typeof c.name === "string" &&
+    typeof c.number === "string" &&
+    typeof c.setName === "string" &&
+    typeof c.variant === "string" &&
+    typeof c.from === "number" &&
+    typeof c.to === "number" &&
+    typeof c.pct === "number"
+  );
+}
+
 /** What the render job registers; what the publisher hands the site adapters (bytes added). */
 export interface VideoSpec {
   url: string;
@@ -44,6 +77,10 @@ export interface VideoSpec {
   height: number;
   seconds: number;
   renderedAt: number;
+  /** The draft kind this video was rendered for (09-26; older rows have none — the caller already knows the kind from the settings key). */
+  kind?: PostKind;
+  /** The exact cards the video drew, in the same order (09-26). Older rows have none: the publisher computes text fresh for those. */
+  cards?: VideoCard[];
 }
 
 export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null {
@@ -51,7 +88,18 @@ export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null
   try {
     const v = JSON.parse(raw) as Partial<VideoSpec>;
     if (typeof v.url !== "string" || !/^https:\/\//.test(v.url) || typeof v.bytes !== "number") return null;
-    return { url: v.url, bytes: v.bytes, mime: "video/mp4", width: v.width ?? VIDEO_W, height: v.height ?? VIDEO_H, seconds: v.seconds ?? 0, renderedAt: v.renderedAt ?? 0 };
+    const cards = Array.isArray(v.cards) && v.cards.every(isVideoCard) ? v.cards : undefined;
+    return {
+      url: v.url,
+      bytes: v.bytes,
+      mime: "video/mp4",
+      width: v.width ?? VIDEO_W,
+      height: v.height ?? VIDEO_H,
+      seconds: v.seconds ?? 0,
+      renderedAt: v.renderedAt ?? 0,
+      kind: typeof v.kind === "string" ? (v.kind as PostKind) : undefined,
+      cards,
+    };
   } catch {
     return null;
   }

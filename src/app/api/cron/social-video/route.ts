@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { getSetting } from "@/lib/server/settings";
-import { eastern } from "@/lib/server/socialPublish";
+import { eastern, SLOTS } from "@/lib/server/socialPublish";
 import { parseVideoSpec, videoKey } from "@/lib/socialVideo";
 import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
 
 /**
  * Safety net for the 7am social video (Chris 09-26, the 6:50 GitHub cron
  * was two hours late: "this cannot happen again"). Vercel Cron pings this
- * at 6:40 Eastern (vercel.json, both DST hours). If today's set-spotlight
- * video is already registered it says so and stops. If not, it dispatches
+ * at 6:40 Eastern (vercel.json, both DST hours). If today's video (the
+ * morning slot's kind — movers since 09-26) is already registered it says
+ * so and stops. If not, it dispatches
  * the social-post workflow render-only, so the MP4 is on Blob before the
  * 7:05 publish cron; the publisher still falls back to the picture if the
  * render is not done by then.
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   }
   const q = req.nextUrl.searchParams;
   const { day } = eastern();
-  const key = videoKey("pokemon", "set", day);
+  const key = videoKey("pokemon", SLOTS.morning.kind, day);
   const spec = parseVideoSpec(await getSetting(key));
   if (spec && q.get("force") !== "1") return NextResponse.json({ day, registered: true, url: spec.url, renderedAt: spec.renderedAt });
   if (q.get("dry") === "1") return NextResponse.json({ day, registered: Boolean(spec), dispatched: false, dry: true });

@@ -7,16 +7,17 @@ name: social-post
 # The pings here are only a backstop: the publisher keys each slot to the
 # Eastern day, so a late duplicate is a no-op.
 #
-# The 7am set spotlight goes out as a VIDEO (Chris 09-25): the `video` job
-# renders it here (headless Chromium + ffmpeg do not fit a Vercel function),
-# parks it on Vercel Blob and registers it in the settings table; the
-# publisher then posts the MP4 on every site that takes one, picture as the
-# fallback. The render is pinged from 4:30am Eastern on, three times, so a
-# two-hour delay still lands before 7; /api/cron/social-video (Vercel, 6:40)
-# dispatches a render-only run if nothing is registered by then.
+# The 7am slot goes out as a VIDEO (Chris 09-25; 09-26: switched from the
+# set spotlight to the week's biggest movers): the `video` job renders it
+# here (headless Chromium + ffmpeg do not fit a Vercel function), parks it
+# on Vercel Blob and registers it in the settings table; the publisher then
+# posts the MP4 on every site that takes one, picture as the fallback. The
+# render is pinged from 4:30am Eastern on, three times, so a two-hour delay
+# still lands before 7; /api/cron/social-video (Vercel, 6:40) dispatches a
+# render-only run if nothing is registered by then.
 on:
   schedule:
-    - cron: "30 8 * * *"  # 4:30am EDT: render the set-spotlight video
+    - cron: "30 8 * * *"  # 4:30am EDT: render the morning video
     - cron: "30 9 * * *"  # 5:30am EDT / 4:30am EST
     - cron: "15 10 * * *" # 6:15am EDT
     - cron: "30 10 * * *" # 5:30am EST
@@ -42,7 +43,7 @@ on:
         required: false
         default: ""
       video:
-        description: "1 = render the set-spotlight video first (re-renders today's)"
+        description: "1 = render the morning video first (re-renders today's)"
         required: false
         default: ""
 
@@ -74,13 +75,13 @@ jobs:
           skip="--skip-if-done"; if [ "$FORCE_RENDER" = "1" ]; then skip=""; fi
           node --experimental-strip-types --no-warnings --conditions=react-server \
             --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs \
-            --out set-spotlight.mp4 --register $skip
+            --out morning-video.mp4 --register $skip
       - name: Keep the MP4 for a look
-        if: hashFiles('set-spotlight.mp4') != ''
+        if: hashFiles('morning-video.mp4') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: set-spotlight
-          path: set-spotlight.mp4
+          name: morning-video
+          path: morning-video.mp4
           retention-days: 3
 
   post:

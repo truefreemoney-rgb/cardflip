@@ -1,9 +1,22 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
-import { markFeatured, socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
+import {
+  markFeatured,
+  socialDrafts,
+  POST_SIZES,
+  moversCaption,
+  moversShortCaption,
+  dipsCaption,
+  dipsShortCaption,
+  setCaption,
+  setShortCaption,
+  type Mover,
+  type PostKind,
+  type SocialPost,
+} from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
-import { parseVideoSpec, videoKey, type VideoSpec } from "@/lib/socialVideo";
+import { parseVideoSpec, videoKey, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -30,14 +43,35 @@ export const LAST_POST_PREFIX = "social_last_post:";
  * ping a no-op.
  */
 export type Slot = "morning" | "midday" | "evening";
+/**
+ * Morning goes out as VIDEO (Chris 09-26: "pick cards that are the biggest
+ * movers and shakers" — the 7am slot switched from the set spotlight to the
+ * week's movers so the video has something worth ranking No.5 → No.1).
+ * Midday took the set spotlight picture, evening keeps the drops picture.
+ */
 export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
-  morning: { hour: 7, kind: "set", label: "7am set spotlight" },
-  midday: { hour: 13, kind: "movers", label: "1pm movers of the week" },
+  morning: { hour: 7, kind: "movers", label: "7am movers of the week" },
+  midday: { hour: 13, kind: "set", label: "1pm set spotlight" },
   evening: { hour: 19, kind: "dips", label: "7pm price drops" },
 };
 export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
 export const SLOT_PREFIX = "social_slot:";
 export const ET_ZONE = "America/New_York";
+
+/**
+ * Same-day dedupe BY KIND (09-26): the day the slot→kind mapping changes,
+ * a kind already posted this Eastern day under its old slot must not post
+ * again under its new slot. settings key social_kind:<site>:<kind> = the
+ * ET day, written alongside the slot key. When a slot's kind was already
+ * posted today, the next kind in this rotation not yet posted today runs
+ * instead — a slot always posts something; dedupe only picks WHAT.
+ */
+export const KIND_PREFIX = "social_kind:";
+export const KIND_ROTATION: PostKind[] = ["movers", "set", "dips"];
+function nextKindInRotation(kind: PostKind): PostKind {
+  const i = KIND_ROTATION.indexOf(kind);
+  return KIND_ROTATION[(i + 1) % KIND_ROTATION.length];
+}
 
 /** Eastern day (YYYY-MM-DD) and hour for a timestamp. */
 export function eastern(now = Date.now()): { day: string; hour: number } {
@@ -194,6 +228,30 @@ export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Pr
   return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
 }
 
+/**
+ * Rebuild a draft's caption from the EXACT cards a registered video drew
+ * (09-26: text and video must always agree — the "Mysterious Treasures"
+ * caption over Base Set 2 art bug came from the picture and the video
+ * computing their own card lists at different times). VideoCard drops
+ * imageUrl/unsettled; the caption builders never read either.
+ */
+export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
+  const movers: Mover[] = cards.map((c) => ({ ...c, imageUrl: "", unsettled: false }));
+  if (movers.length === 0) return d;
+  if (d.kind === "movers") {
+    return { ...d, caption: moversCaption(d.game, movers), shortCaption: moversShortCaption(d.game, movers), cardIds: movers.map((m) => m.cardId) };
+  }
+  if (d.kind === "dips") {
+    return { ...d, caption: dipsCaption(d.game, movers), shortCaption: dipsShortCaption(d.game, movers), cardIds: movers.map((m) => m.cardId) };
+  }
+  if (d.kind === "set") {
+    const setName = movers[0].setName;
+    const spot = { setId: "", setName, cards: movers };
+    return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot), shortCaption: setShortCaption(d.game, spot), cardIds: movers.map((m) => m.cardId) };
+  }
+  return d;
+}
+
 /** Sites that can post right now: env vars present and, for OAuth sites, the account connected. */
 export async function connectedSites(sites: SocialSite[]): Promise<SocialSite[]> {
   const out: SocialSite[] = [];
@@ -212,6 +270,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const day = opts.day ?? etDay;
   const connected = await connectedSites(opts.sites);
   const slotKey = (site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
+  const kindKey = (site: SocialSite, kind: PostKind) => `${KIND_PREFIX}${site.id}:${kind}`;
   // Slots due now: the named one, else every slot whose hour has passed
   // today. That is the catch-up rule (Chris 09-25: every platform gets the
   // same posts): a site connected at 3pm still gets the 7am and 1pm posts,
@@ -227,13 +286,26 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "before the 7am window", posts: [] });
     return report;
   }
-  const all = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
+  const rawDrafts = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
+  // Text must always match a registered video (09-26: a caption once named
+  // "Mysterious Treasures" over Base Set 2 art, because the picture and the
+  // video each computed the card list at a different moment). When a video
+  // is registered for a draft, rebuild its caption from the EXACT cards the
+  // video drew, frozen at render time; a draft with no video is computed
+  // fresh, same as always.
+  const all = await Promise.all(
+    rawDrafts.map(async (d) => {
+      const spec = await videoFor(d);
+      return spec?.cards?.length ? applyVideoCards(d, spec.cards) : d;
+    }),
+  );
   const games = [...new Set(all.map((d) => d.game))];
+  function draftsForKind(kind: PostKind): SocialPost[] {
+    return games.map((g) => all.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
+  }
   // One draft per game per slot, of that slot's kind only: repeating the
   // midday picture at 7pm is worse than staying quiet on a thin day.
-  const plan = due
-    .map((s) => ({ slot: s, drafts: games.map((g) => all.find((d) => d.game === g && d.kind === SLOTS[s].kind)).filter((d): d is SocialPost => Boolean(d)) }))
-    .filter((p) => p.drafts.length > 0);
+  const plan = due.map((s) => ({ slot: s, drafts: draftsForKind(SLOTS[s].kind) })).filter((p) => p.drafts.length > 0);
   report.drafts = plan.reduce((n, p) => n + p.drafts.length, 0);
   if (report.drafts === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
@@ -316,7 +388,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
     }
     if (site.videoOnly) {
-      // A video-only site owes nothing on a slot with no rendered MP4 (only the 7am set spotlight is rendered today).
+      // A video-only site owes nothing on a slot with no rendered MP4 (only the 7am movers video is rendered today).
       const withVideo: typeof plan = [];
       for (const p of todo) {
         const drafts: SocialPost[] = [];
@@ -328,8 +400,34 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
     for (const p of todo) {
+      // Same-day dedupe BY KIND (09-26): only when this SITE has not posted
+      // THIS SLOT yet today (a force re-post of an already-done slot must
+      // repeat its own kind, not reroute) and that kind already went out
+      // today under a DIFFERENT slot (the day the mapping changes, or a
+      // late-connecting site catching up) — swap to the next kind in
+      // KIND_ROTATION this site has not posted today. Never for a
+      // video-only site: only one kind is rendered as video, so there is
+      // nothing to rotate to.
+      let kind = SLOTS[p.slot].kind;
+      let drafts = p.drafts;
+      const slotAlreadyDone = (await getSetting(slotKey(site, p.slot))) === etDay;
+      if (!site.videoOnly && !slotAlreadyDone && (await getSetting(kindKey(site, kind))) === etDay) {
+        let k = kind;
+        for (let i = 1; i < KIND_ROTATION.length; i++) {
+          k = nextKindInRotation(k);
+          const done = (await getSetting(kindKey(site, k))) === etDay;
+          const cand = draftsForKind(k);
+          if (!done && cand.length > 0) {
+            kind = k;
+            drafts = cand;
+            break;
+          }
+        }
+        // Every kind already posted today, or has no draft: keep the
+        // slot's own kind and repeat it rather than skip the slot.
+      }
       let landed = 0;
-      for (const d of p.drafts) {
+      for (const d of drafts) {
         const text = fitText(d, site.maxChars);
         if (opts.dry) {
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await videoFor(d)) ? "yes" : undefined });
@@ -343,7 +441,10 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
           entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
         }
       }
-      if (!opts.dry && landed > 0) await setSetting(slotKey(site, p.slot), etDay);
+      if (!opts.dry && landed > 0) {
+        await setSetting(slotKey(site, p.slot), etDay);
+        await setSetting(kindKey(site, kind), etDay);
+      }
     }
     if (!opts.dry) {
       const posted = entry.posts.filter((p) => p.uri);
