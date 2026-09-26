@@ -15,7 +15,7 @@ it starts mid-phrase.
 
 | file | Pixabay URL |
 | ---- | ----------- |
-| the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) | https://pixabay.com/music/upbeat-upbeat-music-567448/ |
+| the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) | https://pixabay.com/music/old-school-rnb-upbeat-upbeat-music-567448/ (Pixabay Content License, verified 09-26) |
 
 The cut follows the track: `scripts/lib/beat.mjs` finds the tempo, the
 downbeat and where the track gets loud; each card holds one bar, the price
