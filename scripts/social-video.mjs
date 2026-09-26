@@ -173,10 +173,15 @@ for (let i = 0; i < frames; i++) {
 }
 await browser.close();
 
+// Backing track (scripts/social-audio.mjs, ours): trimmed to the video, fades out over the last 0.5s.
+const AUDIO = arg("--audio", path.join(root, "public/social/audio/spotlight-114bpm.mp3"));
+const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
+if (!withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
 const ffmpeg = (await import("ffmpeg-static")).default;
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const r = spawnSync(ffmpeg, [
   "-y", "-framerate", String(FPS), "-i", path.join(work, "f%04d.png"),
+  ...(withAudio ? ["-i", AUDIO, "-af", `afade=t=out:st=${(TOTAL - 0.5).toFixed(2)}:d=0.5`, "-c:a", "aac", "-b:a", "128k", "-shortest"] : []),
   "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "19", "-preset", "medium", "-movflags", "+faststart", OUT,
 ], { stdio: ["ignore", "ignore", "pipe"] });
 if (r.status !== 0) { console.error(r.stderr.toString().slice(-2000)); process.exit(1); }
