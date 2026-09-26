@@ -31,7 +31,7 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 
 export interface Series {
-  /** Bucket keys, oldest first: "YYYY-MM-DD" or (hourly) "YYYY-MM-DDTHH", UTC. */
+  /** Bucket keys, oldest first: "YYYY-MM-DD" or (hourly) "YYYY-MM-DDTHH", Eastern time (Chris 09-26: "this should be on EST time"). */
   keys: string[];
   values: number[];
   hourly: boolean;
@@ -115,22 +115,38 @@ async function scalar(sql: string, ...args: (string | number)[]): Promise<number
   }
 }
 
-function keyOf(ts: number, hourly: boolean): string {
-  const iso = new Date(ts).toISOString();
+/**
+ * Eastern offset (ms) at `ts`: -4h in summer, -5h in winter. One offset
+ * per request (taken at `now`) shifts every timestamp before bucketing, so
+ * SQLite's strftime/date, which only know UTC, land on Eastern hours/days.
+ */
+export function etOffsetMs(ts: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(new Date(ts));
+  const g = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const asUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second"));
+  return asUtc - Math.floor(ts / 1000) * 1000;
+}
+
+function keyOf(ts: number, hourly: boolean, offset: number): string {
+  const iso = new Date(ts + offset).toISOString();
   return hourly ? iso.slice(0, 13) : iso.slice(0, 10);
 }
 
 /** Fill every bucket of the window from sparse {k, n} rows. */
-function fill(sparse: { k: string; n: number }[], since: number, now: number, hourly: boolean): Series {
+function fill(sparse: { k: string; n: number }[], since: number, now: number, hourly: boolean, offset: number): Series {
   const map = new Map(sparse.map((r) => [r.k, Number(r.n ?? 0)]));
   const step = hourly ? HOUR_MS : DAY_MS;
   const keys: string[] = [];
   const values: number[] = [];
-  // Walk from the window's start bucket to now's bucket, inclusive.
-  const start = hourly ? Math.floor(since / HOUR_MS) * HOUR_MS : Date.UTC(
-    new Date(since).getUTCFullYear(), new Date(since).getUTCMonth(), new Date(since).getUTCDate());
+  // Walk from the window's start bucket to now's bucket, inclusive (Eastern-shifted clock).
+  const s = since + offset;
+  const start = (hourly ? Math.floor(s / HOUR_MS) * HOUR_MS : Date.UTC(
+    new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate())) - offset;
   for (let t = start; t <= now; t += step) {
-    const k = keyOf(t, hourly);
+    const k = keyOf(t, hourly, offset);
     keys.push(k);
     values.push(map.get(k) ?? 0);
   }
@@ -146,9 +162,11 @@ interface Spec {
 }
 
 async function metric(spec: Spec, since: number, now: number, hourly: boolean): Promise<Metric> {
+  const offset = etOffsetMs(now);
+  const shifted = `(${spec.ts} + ${offset}) / 1000`;
   const bucket = hourly
-    ? `strftime('%Y-%m-%dT%H', ${spec.ts} / 1000, 'unixepoch')`
-    : `date(${spec.ts} / 1000, 'unixepoch')`;
+    ? `strftime('%Y-%m-%dT%H', ${shifted}, 'unixepoch')`
+    : `date(${shifted}, 'unixepoch')`;
   const where = spec.where ? `AND ${spec.where}` : "";
   const len = now - since;
   const [sparse, total, prior] = await Promise.all([
@@ -159,7 +177,7 @@ async function metric(spec: Spec, since: number, now: number, hourly: boolean): 
     scalar(`SELECT ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where}`, since, now + 1),
     scalar(`SELECT ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where}`, since - len, since),
   ]);
-  return { total, prior, series: fill(sparse, since, now, hourly) };
+  return { total, prior, series: fill(sparse, since, now, hourly, offset) };
 }
 
 async function funnel(since: number | null): Promise<FunnelSteps> {

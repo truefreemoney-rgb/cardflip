@@ -19,7 +19,7 @@ export default function ActivityBars({
   values: number[];
   height?: number;
   color?: string;
-  /** Keys are "YYYY-MM-DDTHH" (UTC hours) instead of days — Analytics "today". */
+  /** Keys are "YYYY-MM-DDTHH" (Eastern hours) instead of days — Analytics "today". */
   hourly?: boolean;
   /** "usd" shows a hovered value as $1.20 (a string, since this is a client component). */
   unit?: "usd";
@@ -33,7 +33,7 @@ export default function ActivityBars({
   const bw = (W - gap * (n - 1)) / n;
   const label = (d: string) =>
     hourly
-      ? new Date(`${d}:00:00Z`).toLocaleTimeString(undefined, { hour: "numeric", timeZone: "UTC" }) + " UTC"
+      ? new Date(`${d}:00:00Z`).toLocaleTimeString("en-US", { hour: "numeric", timeZone: "UTC" }) + " ET"
       : new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
   const show = (v: number) =>
     unit === "usd"

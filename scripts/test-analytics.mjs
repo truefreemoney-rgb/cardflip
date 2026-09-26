@@ -1,8 +1,8 @@
-/**
+﻿/**
  * /admin/analytics data + the visitor ping's new columns.
  * Run: npm run test:analytics
  *
- * Pins: referrerHost keeps only an outside host (own site, junk, paths →
+ * Pins: referrerHost keeps only an outside host (own site, junk, paths â†’
  * ""); deviceClass reads phone/tablet/desktop; /api/visit stores ref,
  * device and country on the row; getAnalytics buckets a 7d window by day
  * and a 24h window by hour, compares against the prior period, computes
@@ -23,7 +23,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { referrerHost, deviceClass } = await import(at("lib/visit.ts"));
 const visit = await import(at("app/api/visit/route.ts"));
-const { getAnalytics, deltaPct, parseRange } = await import(at("lib/server/analytics.ts"));
+const { getAnalytics, deltaPct, parseRange, etOffsetMs } = await import(at("lib/server/analytics.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
 const { setSetting } = await import(at("lib/server/settings.ts"));
@@ -128,7 +128,11 @@ check("social", a.social, [
 
 const h = await getAnalytics("24h", now);
 check("25 hourly buckets", [h.metrics.pageViews.series.keys.length, h.metrics.pageViews.series.hourly], [25, true]);
-check("hour keys shaped YYYY-MM-DDTHH", h.metrics.pageViews.series.keys[0], "2026-09-25T15");
+check("hour keys are Eastern (15:00Z = 11am EDT)", h.metrics.pageViews.series.keys[0], "2026-09-25T11");
+check("last hour key is now in Eastern", h.metrics.pageViews.series.keys.at(-1), "2026-09-26T11");
+check("14:00Z page view lands in the 10am ET bucket", h.metrics.pageViews.series.values[h.metrics.pageViews.series.keys.indexOf("2026-09-26T10")], 2);
+check("etOffsetMs: EDT -4h, EST -5h", [etOffsetMs(now), etOffsetMs(Date.UTC(2026, 0, 15))], [-4 * H, -5 * H]);
+check("daily keys are Eastern days", a.metrics.pageViews.series.keys.at(-1), "2026-09-26");
 check("24h page views", h.metrics.pageViews.total, 2);
 check("24h prior page views", h.metrics.pageViews.prior, 1);
 

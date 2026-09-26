@@ -64,7 +64,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <div>
           <h1 className="text-2xl font-semibold text-white">Analytics</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Last {rangeLabel}, each number against {priorLabel}. UTC days.
+            Last {rangeLabel}, each number against {priorLabel}. Eastern time.
           </p>
         </div>
         <RangePicker range={range} className="hidden sm:flex" />
