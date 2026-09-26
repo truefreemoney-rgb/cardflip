@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
  * both games, made from our own price history. No account is needed to
  * look; the publisher routine posts the same drafts once the tokens exist.
  */
-export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string }> }) {
+export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string }> }) {
   await requireOwnerPage();
-  const { day: raw } = await searchParams;
+  const { day: raw, tiktok } = await searchParams;
+  // api/social/tiktok/callback lands here with ?tiktok=connected or ?tiktok=error:<why>.
+  const notice = tiktok === "connected" ? "TikTok connected. It posts the 7am video, private until the app audit passes." : tiktok?.startsWith("error:") ? `TikTok connect failed: ${tiktok.slice(6)}` : null;
   // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : eastern().day;
   const games = await socialGames();
@@ -40,7 +42,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>
       </div>
-      <SocialSites sites={sites} day={day} slotNow={slotAt()} />
+      <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} />
       <SocialPreview drafts={drafts} videos={videos} />
     </section>
   );

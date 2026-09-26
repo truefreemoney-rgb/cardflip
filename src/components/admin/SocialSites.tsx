@@ -12,6 +12,8 @@ export interface SiteView {
   site: string;
   label: string;
   connected: boolean;
+  /** OAuth sites only: the route that starts the connect flow, shown while the app keys exist but no account is connected. */
+  connectPath: string | null;
   lastDay: string | null;
   uris: string[];
 }
@@ -20,9 +22,9 @@ interface Report {
   sites: Array<{ label: string; status: string; reason?: string; posts: Array<{ title: string; uri?: string; error?: string }> }>;
 }
 
-export default function SocialSites({ sites, day, slotNow }: { sites: SiteView[]; day: string; slotNow: string | null }) {
+export default function SocialSites({ sites, day, slotNow, notice }: { sites: SiteView[]; day: string; slotNow: string | null; notice?: string | null }) {
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(notice ?? null);
   const anyConnected = sites.some((s) => s.connected);
 
   async function postNow() {
@@ -57,7 +59,15 @@ export default function SocialSites({ sites, day, slotNow }: { sites: SiteView[]
           <span className={`inline-block h-2 w-2 rounded-full ${s.connected ? "bg-emerald-400" : "bg-zinc-600"}`} aria-hidden />
           <span className="text-white">{s.label}</span>
           <span className="text-zinc-500">
-            {!s.connected ? "not connected" : s.lastDay ? (
+            {!s.connected ? (
+              s.connectPath ? (
+                <a href={apiPath(s.connectPath)} className="text-brand-300 hover:underline">
+                  connect
+                </a>
+              ) : (
+                "not connected"
+              )
+            ) : s.lastDay ? (
               <>
                 last post {s.lastDay}
                 {s.uris[0] && (

@@ -125,8 +125,18 @@ The 7am set spotlight goes out as a 15.3s 9:16 MP4 on every connected site;
   nothing is parked for video.
 - **Admin**: `/admin/social` shows the registered MP4 in a `<video>` on the
   draft (Video tab, default when one exists).
-- **TikTok**: next. Chris creates the account + developer app (Content
-  Posting API); unaudited apps post private until the audit; the same MP4.
+- **TikTok** (09-26, `lib/server/sites/tiktok.ts`): video only, so the
+  publisher skips it on slots with no rendered MP4 (`videoOnly`) and a failed
+  upload is a failure, never a picture. Real OAuth2, not a pasted token:
+  Vercel env `TIKTOK_CLIENT_KEY` + `TIKTOK_CLIENT_SECRET` from the developer
+  app (redirect URI `https://cardflip.io/api/social/tiktok/callback`, scopes
+  user.info.basic, video.upload, video.publish), then the owner clicks
+  "connect" on `/admin/social` (`api/social/tiktok/connect` → consent →
+  `callback`). Tokens live in settings `social_token:tiktok` and refresh
+  themselves (access 24h, refresh 365d). Post = creator_info/query →
+  video/init FILE_UPLOAD one chunk → PUT bytes → poll status/fetch. Unaudited
+  apps may only post SELF_ONLY (private); set `TIKTOK_PRIVACY=PUBLIC_TO_EVERYONE`
+  after the audit passes. `TIKTOK_HANDLE` defaults to cardflipio.
 
 ## Plan, image sites only
 

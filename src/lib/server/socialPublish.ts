@@ -96,7 +96,14 @@ export interface SocialSite {
   maxImageBytes: number;
   /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
   postsVideo?: boolean;
+  /** True when the site has no picture post (TikTok): slots without a rendered MP4 are skipped, and a failed video upload is a failure, not a picture. */
+  videoOnly?: boolean;
+  /** Env vars exist (Chris pasted the app or token). */
   connected(): boolean;
+  /** OAuth sites: the account has been connected in the browser (tokens in settings). Missing = connected() is enough. */
+  authorized?(): Promise<boolean>;
+  /** OAuth sites: where /admin/social sends the owner to connect the account. */
+  connectPath?: string;
   post(p: SitePost): Promise<{ uri: string }>;
 }
 
@@ -187,12 +194,23 @@ export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Pr
   return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
 }
 
+/** Sites that can post right now: env vars present and, for OAuth sites, the account connected. */
+export async function connectedSites(sites: SocialSite[]): Promise<SocialSite[]> {
+  const out: SocialSite[] = [];
+  for (const s of sites) {
+    if (!s.connected()) continue;
+    if (s.authorized && !(await s.authorized().catch(() => false))) continue;
+    out.push(s);
+  }
+  return out;
+}
+
 export async function publishSocial(opts: PublishOptions): Promise<PublishReport> {
   const now = opts.now ?? Date.now();
   const force = Boolean(opts.force);
   const { day: etDay, hour } = eastern(now);
   const day = opts.day ?? etDay;
-  const connected = opts.sites.filter((s) => s.connected());
+  const connected = await connectedSites(opts.sites);
   const slotKey = (site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
   // Slots due now: the named one, else every slot whose hour has passed
   // today. That is the catch-up rule (Chris 09-25: every platform gets the
@@ -268,12 +286,16 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       alt: `${d.title}. ${d.caption.split("\n")[0]}`,
     };
     const video = site.postsVideo ? await videoOf(d) : null;
-    if (!video) return site.post(base);
+    if (!video) {
+      if (site.videoOnly) throw new Error("no video rendered for this post");
+      return site.post(base);
+    }
     try {
       const { uri } = await site.post({ ...base, video });
       return { uri, video: "yes" };
     } catch (err) {
       // Video is the upgrade, the picture is the post: never lose the slot to a video upload.
+      if (site.videoOnly) throw err;
       const reason = err instanceof Error ? err.message : String(err);
       const { uri } = await site.post(base);
       return { uri, video: "fallback", error: `video failed, picture posted: ${reason}` };
@@ -292,6 +314,17 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     if (todo.length === 0) {
       const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
+    }
+    if (site.videoOnly) {
+      // A video-only site owes nothing on a slot with no rendered MP4 (only the 7am set spotlight is rendered today).
+      const withVideo: typeof plan = [];
+      for (const p of todo) {
+        const drafts: SocialPost[] = [];
+        for (const d of p.drafts) if (await videoFor(d)) drafts.push(d);
+        if (drafts.length) withVideo.push({ slot: p.slot, drafts });
+      }
+      todo = withVideo;
+      if (todo.length === 0) return { site: site.id, label: site.label, status: "skipped", reason: "video only, nothing rendered for this slot", posts: [] };
     }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
     for (const p of todo) {
@@ -371,7 +404,7 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
 }
 
 /** For /admin/social: which sites are connected and when each last posted. */
-export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: string; label: string; connected: boolean; lastDay: string | null; uris: string[] }>> {
+export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: string; label: string; connected: boolean; connectPath: string | null; lastDay: string | null; uris: string[] }>> {
   return Promise.all(
     sites.map(async (s) => {
       const lastDay = await getSetting(`${LAST_POST_PREFIX}${s.id}`);
@@ -381,7 +414,10 @@ export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: str
       } catch {
         /* older value */
       }
-      return { site: s.id, label: s.label, connected: s.connected(), lastDay, uris };
+      const connected = s.connected() && (!s.authorized || (await s.authorized().catch(() => false)));
+      // The connect link shows once the app keys are on Vercel and the account is not yet connected.
+      const connectPath = s.connectPath && s.connected() && !connected ? s.connectPath : null;
+      return { site: s.id, label: s.label, connected, connectPath, lastDay, uris };
     }),
   );
 }
