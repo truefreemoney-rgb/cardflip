@@ -13,7 +13,7 @@ import { apiPath } from "@/lib/client/basePath";
  */
 export interface DraftView {
   id: string;
-  kind: "movers" | "card" | "dips";
+  kind: "movers" | "card" | "dips" | "set";
   game: GameId;
   day: string;
   title: string;
@@ -67,7 +67,7 @@ function Draft({ draft }: { draft: DraftView }) {
         <div>
           <h2 className="font-semibold text-white">{draft.title}</h2>
           <p className="text-xs text-zinc-500">
-            {draft.game === "mtg" ? "Magic" : "Pokémon"} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : "card of the day"} · {draft.day}
+            {draft.game === "mtg" ? "Magic" : "Pokémon"} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : "card of the day"} · {draft.day}
           </p>
         </div>
         <div className="flex gap-1">

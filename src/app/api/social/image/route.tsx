@@ -6,6 +6,7 @@ import {
   cardOfTheDay,
   money,
   pctLabel,
+  setSpotlight,
   topMovers,
   type Mover,
   type PostSize,
@@ -87,7 +88,7 @@ async function allowed(req: NextRequest): Promise<boolean> {
 export async function GET(req: NextRequest) {
   if (!(await allowed(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = req.nextUrl.searchParams;
-  const kind = q.get("kind") === "card" ? "card" : q.get("kind") === "dips" ? "dips" : "movers";
+  const kind = q.get("kind") === "card" ? "card" : q.get("kind") === "dips" ? "dips" : q.get("kind") === "set" ? "set" : "movers";
   const game: GameId = q.get("game") === "mtg" ? "mtg" : "pokemon";
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
@@ -100,6 +101,14 @@ export async function GET(req: NextRequest) {
     const card = await cardOfTheDay(game, day);
     if (!card) return NextResponse.json({ error: "No card today" }, { status: 404 });
     return new ImageResponse(<CardOfTheDay card={await withArt(card)} label={label} tall={tall} wide={wide} />, size);
+  }
+  if (kind === "set") {
+    const spot = await setSpotlight(game, day);
+    if (!spot) return NextResponse.json({ error: "No set today" }, { status: 404 });
+    return new ImageResponse(
+      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={`${spot.setName}: most valuable cards`} mode="price" />,
+      size,
+    );
   }
   const movers = await topMovers(game, day, kind === "dips" ? { direction: "down" } : {});
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
@@ -142,17 +151,19 @@ function Pct({ pct, size }: { pct: number; size: number }) {
   );
 }
 
-function Movers({ movers, label, tall, wide, heading }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string }) {
+/** mode "move" = from → to with the % (movers, dips); "price" = today's price with the week's % as a footnote (set spotlight). */
+function Movers({ movers, label, tall, wide, heading, mode = "move" }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price" }) {
   const rows = wide ? movers.slice(0, 3) : movers;
   const art = wide ? 92 : tall ? 190 : 108;
   const fs = wide ? 24 : tall ? 38 : 27;
+  const price = mode === "price";
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 38 : tall ? 64 : 50, fontWeight: 700, letterSpacing: -1 }}>
-        {label} {heading}
+        {price ? heading : `${label} ${heading}`}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
-        Market price, last 7 days, from CardFlip&apos;s price history
+        {price ? `${label} market price today, from CardFlip's price history` : "Market price, last 7 days, from CardFlip's price history"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : 12, marginTop: wide ? 14 : tall ? 40 : 24 }}>
         {rows.map((m) => (
@@ -181,11 +192,18 @@ function Movers({ movers, label, tall, wide, heading }: { movers: Mover[]; label
               <div style={{ display: "flex", fontSize: fs * 0.72, color: MUTED }}>
                 {m.setName} · {m.number}
               </div>
-              <div style={{ display: "flex", fontSize: fs * 0.85, marginTop: 4 }}>
-                {money(m.from)} → {money(m.to)}
-              </div>
+              {price ? (
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, fontSize: fs * 0.8, marginTop: 4, color: MUTED }}>
+                  <Pct pct={m.pct} size={fs * 0.8} />
+                  <div style={{ display: "flex" }}>this week</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", fontSize: fs * 0.85, marginTop: 4 }}>
+                  {money(m.from)} → {money(m.to)}
+                </div>
+              )}
             </div>
-            <Pct pct={m.pct} size={fs * 1.3} />
+            {price ? <div style={{ display: "flex", fontSize: fs * 1.3, fontWeight: 700 }}>{money(m.to)}</div> : <Pct pct={m.pct} size={fs * 1.3} />}
           </div>
         ))}
       </div>

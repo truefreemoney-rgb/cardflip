@@ -10,7 +10,7 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 | Piece | Where | Status |
 |---|---|---|
-| Content engine: movers of the week + card of the day, per game, from `price_series` | `src/lib/server/social.ts` | shipped |
+| Content engine: set spotlight + movers of the week + price drops, per game, from `price_series` | `src/lib/server/social.ts` | shipped |
 | Post image, every site size (1080², 1080×1920, 1200×628) | `GET /api/social/image?kind=movers\|card&game=pokemon\|mtg&day=&size=` | shipped |
 | Preview page: today's drafts, image at each size, caption + Copy | `/admin/social` (owner only; nav "Social") | shipped |
 | Test | `npm run test:social` (in the `npm test` chain) | green |
@@ -57,9 +57,13 @@ sentence case, no exclamation marks, ends on cardflip.io).
   on either end; series must have been updated in the last 3 days; the
   preferred variant per card (normal → holofoil → reverse). Fewer than 3
   movers = no post that day.
-- **Card of the day**: one card worth ≥ $15, chosen by a hash of the date
-  over the fresh pool — same pick for every viewer and every run, cycles
-  instead of repeating the top card.
+- **Set spotlight** (7am, replaced card of the day 09-25, Chris: no
+  single-card posts, more informative multi-card ones): the five most
+  valuable cards of one set with their 7-day move. The set is chosen by a
+  hash of the date over every set with ≥ 5 cards worth ≥ $2, so sets cycle
+  and every run agrees. Pokémon only (set = card id prefix).
+- Card of the day (one card ≥ $15 by date hash) still exists in code
+  (`cardOfTheDay`, `?kind=card`) but no slot posts it.
 - Art: TCGdex WebP → PNG through sharp, pokemontcg.io PNG twin as the
   fallback (lib/cardArt.ts). Scryfall JPG passes through.
 - One Turso read per call, capped at 6,000 series rows per game.

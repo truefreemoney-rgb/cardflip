@@ -20,7 +20,7 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
-const { topMovers, cardOfTheDay, socialDrafts, moversCaption } = await import(at("lib/server/social.ts"));
+const { topMovers, cardOfTheDay, socialDrafts, moversCaption, setSpotlight, setCaption } = await import(at("lib/server/social.ts"));
 const { addDays } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -77,14 +77,22 @@ check("card with no 7d point is flat, not NaN", Number.isFinite((await cardOfThe
 
 console.log("captions / drafts");
 const drafts = await socialDrafts("pokemon", TODAY);
-check("two drafts: movers + card", drafts.map((d) => d.kind), ["movers", "card"]);
+check("two drafts: movers + set spotlight", drafts.map((d) => d.kind), ["movers", "set"]);
+
+console.log("setSpotlight");
+const spot = await setSpotlight("pokemon", TODAY);
+check("one set, its five priciest fresh cards, dearest first", [spot?.setName, spot?.cards.map((c) => c.cardId)], ["Scarlet & Violet", ["sv1-7", "sv1-8", "sv1-5", "sv1-4", "sv1-3"]]);
+check("same day, same set", (await setSpotlight("pokemon", TODAY))?.setId, spot?.setId);
+check("caption names the set and every card, no exclamation marks", [spot && setCaption("pokemon", spot).includes("Scarlet & Violet"), spot?.cards.every((c) => setCaption("pokemon", spot).includes(c.name)), spot && setCaption("pokemon", spot).includes("!")], [true, true, false]);
+check("a set short of five priced cards is never picked", await setSpotlight("pokemon", TODAY, { minCards: 7 }), null);
+check("Magic has no set spotlight", await setSpotlight("mtg", TODAY), null);
 for (const d of drafts) {
   check(`${d.kind}: no exclamation marks`, d.caption.includes("!"), false);
   check(`${d.kind}: ends on cardflip.io`, d.caption.trimEnd().endsWith("cardflip.io"));
   check(`${d.kind}: image path carries day`, d.imagePath.includes(`day=${TODAY}`));
 }
 check("movers caption lists every mover", movers.every((m) => moversCaption("pokemon", movers).includes(m.name)));
-check("thin data → no movers draft", (await socialDrafts("mtg", TODAY)).map((d) => d.kind), ["card"]);
+check("thin data → no drafts at all (no movers, no set)", (await socialDrafts("mtg", TODAY)).map((d) => d.kind), []);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

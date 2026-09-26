@@ -30,7 +30,7 @@ export const LAST_POST_PREFIX = "social_last_post:";
  */
 export type Slot = "morning" | "midday" | "evening";
 export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
-  morning: { hour: 7, kind: "card", label: "7am card of the day" },
+  morning: { hour: 7, kind: "set", label: "7am set spotlight" },
   midday: { hour: 13, kind: "movers", label: "1pm movers of the week" },
   evening: { hour: 19, kind: "dips", label: "7pm price drops" },
 };

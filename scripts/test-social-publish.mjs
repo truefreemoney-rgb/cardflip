@@ -52,6 +52,8 @@ async function series(id, from, to) {
 await catalog("sv1-2", "Miraidon ex", "81"); await series("sv1-2", 10, 15);
 await catalog("sv1-3", "Koraidon ex", "125"); await series("sv1-3", 40, 20);
 await catalog("sv1-4", "Gardevoir ex", "86"); await series("sv1-4", 20, 24);
+await catalog("sv1-5", "Arcanine ex", "32"); await series("sv1-5", 30, 30); // flat: set spotlight only
+await catalog("sv1-6", "Pawmot", "76"); await series("sv1-6", 5, 5); // flat: set spotlight only
 
 const fetched = [];
 const fetchImage = async (url) => { fetched.push(url); return Buffer.from("png"); };
@@ -89,9 +91,9 @@ check("dry run posts nothing", bsky.posts.length, 0);
 check("dry run marks nothing", await getSetting(`${SLOT_PREFIX}bsky:morning`), null);
 
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [bsky], fetchImage });
-check("7am: card of the day posted", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
-check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=card&game=pokemon&day=${THU}&size=square&key=cron-test`);
-check("alt text set", bsky.posts[0].alt.startsWith("Card of the day:"));
+check("7am: set spotlight posted", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
+check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=set&game=pokemon&day=${THU}&size=square&key=cron-test`);
+check("alt text set", bsky.posts[0].alt.startsWith("Set spotlight:"));
 check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:morning`), THU);
 check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
 check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1"]);
@@ -108,7 +110,7 @@ check("one image fetch per posting run", fetched.length, 3);
 
 const late = fakeSite("late");
 r = await publishSocial({ day: THU, now: clock(19), origin: "http://x", sites: [bsky, late], fetchImage });
-check("a site connected at 3pm catches up on the 7am and 1pm posts in one run", [r.sites[1].status, r.sites[1].posts.map((p) => p.title.split(":")[0])], ["posted", ["Card of the day", "Pokémon movers of the week"]]);
+check("a site connected at 3pm catches up on the 7am and 1pm posts in one run", [r.sites[1].status, r.sites[1].posts.map((p) => p.title.split(":")[0])], ["posted", ["Set spotlight", "Pokémon movers of the week"]]);
 check("both slots marked for it", [await getSetting(`${SLOT_PREFIX}late:morning`), await getSetting(`${SLOT_PREFIX}late:midday`)], [THU, THU]);
 check("the site that already had them is left alone", [r.sites[0].status, bsky.posts.length], ["skipped", 3]);
 
@@ -122,7 +124,7 @@ const { sections } = await loadBoard();
 const completed = sections.find(isCompletedSection);
 const notes = completed.items.filter((i) => i.text.startsWith("Social autopilot"));
 check("one Completed line per run that posted or failed", notes.length, 5);
-check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am card of the day")], [true, "Claude", true, true]);
+check("newest first, done, Claude's, names the slot", [notes[0].done, notes[0].owner, notes[0].text.includes("broken: nothing went out"), notes[0].text.includes("7am set spotlight")], [true, "Claude", true, true]);
 check("posted line carries the uri", notes[1].text.includes("https://late/2"));
 
 console.log("text fitting");
