@@ -56,7 +56,7 @@ const billing = [
   },
   {
     q: "What's the difference between CardFlip and Pro?",
-    a: "Only the scan cap: 500 a month on CardFlip, 2,000 on Pro. Pricing, eBay publishing, inventory and the watchlist are identical. Switch between them any time from Manage billing; the change takes effect on your next invoice.",
+    a: `Only the scan cap: ${SCANS.standard} a month on CardFlip, ${SCANS.pro} on Pro. Pricing, eBay publishing, inventory and the watchlist are identical. Switch between them any time from Manage billing; the change takes effect on your next invoice.`,
   },
 ];
 
@@ -86,7 +86,7 @@ export default function PricingPage() {
         <section className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-12">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">What a scan is</p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">500 goes a long way.</h2>
+            <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{PLAN.scans} goes a long way.</h2>
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {covers.map((c) => (

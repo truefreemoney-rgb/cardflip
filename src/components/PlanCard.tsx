@@ -89,7 +89,7 @@ function Card({
 }) {
   return (
     <div
-      className={`relative flex flex-col overflow-hidden rounded-3xl p-7 sm:p-8 xl:p-6 ${
+      className={`relative flex flex-col overflow-hidden rounded-3xl p-7 sm:p-8 ${
         primary ? "foil-edge [--foil-fill:#0b0d13]" : "border border-edge bg-surface-1"
       }`}
     >
@@ -99,11 +99,11 @@ function Card({
       <div className="relative flex flex-1 flex-col">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="whitespace-nowrap font-display text-lg font-semibold text-white">{name}</p>
+            <p className="font-display text-lg font-semibold text-white">{name}</p>
             <p className="mt-1 text-sm text-zinc-500">{sub}</p>
           </div>
           <p className="text-right">
-            <span className="font-display text-5xl font-bold tracking-tight text-white xl:text-4xl">{price}</span>
+            <span className="font-display text-5xl font-bold tracking-tight text-white">{price}</span>
             <span className="text-sm text-zinc-500">{per}</span>
           </p>
         </div>
@@ -118,7 +118,7 @@ function Card({
         </ul>
 
         <PlanCta plan={plan} cta={cta} primary={primary} />
-        <p className="mt-3 text-center text-xs text-zinc-500">{note}</p>
+        <p className="mt-3 min-h-8 text-center text-xs text-zinc-500">{note}</p>
       </div>
     </div>
   );
@@ -126,7 +126,8 @@ function Card({
 
 export default function PlanCard({ className = "" }: { className?: string }) {
   return (
-    <div className={`grid gap-3 md:grid-cols-2 xl:grid-cols-4 ${className}`}>
+    <div className={className}>
+    <div className="grid gap-3 md:grid-cols-3">
       <Card
         plan="trial"
         name="Free trial"
@@ -136,17 +137,6 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         lines={TRIAL.lines}
         cta={`Try ${SCANS.trial} Scans Free`}
         note="No card needed. Takes a minute to set up."
-        primary={false}
-      />
-      <Card
-        plan="pack"
-        name="Scan Pack"
-        sub={`${SCANS.pack} scans, one time`}
-        price={PACK.price}
-        per=" one time"
-        lines={PACK.lines}
-        cta={`Buy ${SCANS.pack} Scans · ${PRICE.pack}`}
-        note="Pay once. Scans never expire."
         primary={false}
       />
       <Card
@@ -171,6 +161,40 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         note="For volume sellers. Cancel any time."
         primary={false}
       />
+    </div>
+    <PackStrip />
+    </div>
+  );
+}
+
+/**
+ * The one-time Scan Pack as a wide strip under the three plans (Chris,
+ * 09-26: four cards side by side was "smashed together"). Same border and
+ * type as the cards; the bullets run in two columns; the button at the right.
+ */
+function PackStrip() {
+  return (
+    <div className="mt-3 flex flex-col gap-6 rounded-3xl border border-edge bg-surface-1 p-7 sm:p-8 md:flex-row md:items-center md:gap-8">
+      <div className="md:w-52 md:shrink-0">
+        <p className="font-display text-lg font-semibold text-white">Scan Pack</p>
+        <p className="mt-1 text-sm text-zinc-500">{SCANS.pack} scans, no subscription</p>
+        <p className="mt-3">
+          <span className="font-display text-5xl font-bold tracking-tight text-white">{PACK.price}</span>
+          <span className="ml-1.5 text-sm text-zinc-500">one time</span>
+        </p>
+      </div>
+      <ul className="grid flex-1 gap-x-6 gap-y-3 text-sm text-zinc-300 sm:grid-cols-2">
+        {PACK.lines.map((line) => (
+          <li key={line} className="flex items-start gap-2.5">
+            <Check />
+            {line}
+          </li>
+        ))}
+      </ul>
+      <div className="-mt-7 md:w-60 md:shrink-0">
+        <PlanCta plan="pack" cta={`Buy ${SCANS.pack} Scans · ${PRICE.pack}`} primary={false} />
+        <p className="mt-3 text-center text-xs text-zinc-500">Pay once. Scans never expire.</p>
+      </div>
     </div>
   );
 }
