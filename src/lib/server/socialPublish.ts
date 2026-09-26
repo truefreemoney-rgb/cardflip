@@ -450,8 +450,19 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       const posted = entry.posts.filter((p) => p.uri);
       if (posted.length === 0) entry.status = "failed";
       else {
+        // Same Eastern day = the 7am/1pm/7pm slots add up (Chris 09-26: the
+        // analytics tile said "1 post" after three); a new day starts over.
+        let uris: string[] = [];
+        if ((await getSetting(`${LAST_POST_PREFIX}${site.id}`)) === etDay) {
+          try {
+            uris = JSON.parse((await getSetting(`${LAST_POST_PREFIX}${site.id}:uris`)) ?? "[]") as string[];
+          } catch {
+            uris = [];
+          }
+        }
+        for (const p of posted) if (p.uri && !uris.includes(p.uri)) uris.push(p.uri);
         await setSetting(`${LAST_POST_PREFIX}${site.id}`, etDay);
-        await setSetting(`${LAST_POST_PREFIX}${site.id}:uris`, JSON.stringify(posted.map((p) => p.uri)));
+        await setSetting(`${LAST_POST_PREFIX}${site.id}:uris`, JSON.stringify(uris));
       }
     }
     return entry;
