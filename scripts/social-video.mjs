@@ -190,12 +190,18 @@ for (let i = 0; i < frames; i++) {
 }
 await browser.close();
 
-// Backing track: SILENT by default (Chris 09-25: "i hate the audio" on the
-// synthesized loop). --audio <mp3> muxes one in, trimmed to the video with a
-// 0.5s fade-out, once a track he likes exists.
-const AUDIO = arg("--audio", "none");
+// Backing track: royalty-free MP3s Chris drops into public/social/audio
+// (Pixabay Content License, no attribution needed; see the README there).
+// One is picked per day, rotating through the folder by name; none = silent.
+// --audio <mp3> forces one, --audio none forces silent. Trimmed to the video,
+// 0.5s fade-out. (A synthesized loop was tried 09-25: "i hate the audio".)
+const AUDIO_DIR = path.join(root, "public/social/audio");
+const tracks = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR).filter((f) => /\.mp3$/i.test(f)).sort() : [];
+const dayIndex = Math.round(Date.parse(day) / 86_400_000);
+const AUDIO = arg("--audio", tracks.length ? path.join(AUDIO_DIR, tracks[dayIndex % tracks.length]) : "none");
 const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
 if (AUDIO !== "none" && !withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
+console.log(withAudio ? `audio: ${path.basename(AUDIO)} (${tracks.length} in rotation)` : "audio: silent (drop MP3s into public/social/audio)");
 const ffmpeg = (await import("ffmpeg-static")).default;
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const r = spawnSync(ffmpeg, [

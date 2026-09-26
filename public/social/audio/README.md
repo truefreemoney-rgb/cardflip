@@ -1,12 +1,17 @@
-# Social video audio
+# Social video backing tracks
 
-`spotlight-114bpm.mp3` is synthesized by `scripts/social-audio.mjs` (ffmpeg
-`aevalsrc`, no samples or third-party recordings). It is CardFlip's own work
-and may be used in any CardFlip post on any platform. Regenerate with:
+Drop royalty-free MP3s in this folder. `scripts/social-video.mjs` rotates
+through them one per day (sorted by file name) and mixes the day's track
+into the set-spotlight video, trimmed to length with a 0.5s fade-out. No
+files here = silent video.
 
-```
-node scripts/social-audio.mjs
-```
+Source: Pixabay Music (https://pixabay.com/music/). Its Content License
+allows commercial use in videos with no attribution, which matters because
+the posts go out by API with no room for credits. Note the track's Pixabay
+URL next to its file name below so the license trail exists.
 
-Used by `scripts/social-video.mjs` (`--audio <path>` to swap, `--audio none`
-for silent). Chord changes every 2.1s, matching the per-card beat.
+Picks: 15s videos, upbeat, no vocals, something that still sounds right when
+it starts mid-phrase.
+
+| file | Pixabay URL |
+| ---- | ----------- |
