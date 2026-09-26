@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
+import { PRICE, PRICE_SHORT, SCANS } from "@/lib/pricing";
 import { requestTourReplay } from "@/lib/client/tour";
 import {
   changePassword,
@@ -431,7 +432,7 @@ function AccountSettings({
               subscribed ? "bg-emerald-400/15 text-emerald-300" : "bg-holo-violet/15 text-holo-violet"
             }`}
           >
-            {subscribed ? "CardFlip · $9.99/mo" : "Free trial"}
+            {subscribed ? `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${user.plan === "pro" ? PRICE_SHORT.pro : PRICE_SHORT.standard}` : user.tier === "pack" ? "Scan Pack" : "Free trial"}
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
@@ -923,9 +924,9 @@ function PlanSection({
       <Dot on />
       {user.subStatus === "past_due"
         ? "Last payment failed — update your card."
-        : `${user.plan === "pro" ? "Pro · 2,000" : "500"} scans a month${user.subPeriodEnd ? ` · renews ${formatDate(user.subPeriodEnd)}` : ""}.${
-            user.plan === "pro" ? "" : " Pro is 2,000 for $24.99 — switch in Manage billing."
-          }`}
+        : `${user.plan === "pro" ? `Pro · ${SCANS.pro}` : SCANS.standard} scans a month${user.subPeriodEnd ? ` · renews ${formatDate(user.subPeriodEnd)}` : ""}.${
+            user.packScans ? ` ${user.packScans.toLocaleString("en-US")} Scan Pack scans banked for after that.` : ""
+          }${user.plan === "pro" ? "" : ` Pro is ${SCANS.pro} for ${PRICE.pro} — switch in Manage billing.`}`}
     </>
   ) : user.tier === "owner" ? (
     <>
@@ -935,12 +936,17 @@ function PlanSection({
   ) : user.tier === "legacy" ? (
     <>
       <Dot on />
-      {`Early account · ${Math.max(0, 100 - (quota?.used ?? 0))} of 100 scans left today. Subscribe for a monthly allowance: 500 at $9.99 or 2,000 at $24.99.`}
+      {`Early account · ${Math.max(0, 100 - (quota?.used ?? 0))} of 100 scans left today. Subscribe for a monthly allowance: ${SCANS.standard} at ${PRICE.standard} or ${SCANS.pro} at ${PRICE.pro}.`}
+    </>
+  ) : user.tier === "pack" ? (
+    <>
+      <Dot on />
+      {`Scan Pack · ${(user.packScans ?? 0).toLocaleString("en-US")} scans left, they never expire. Another pack is ${PRICE.pack}; a subscription is ${SCANS.standard} a month at ${PRICE.standard}.`}
     </>
   ) : user.subStatus === "canceled" ? (
-    "Your subscription has ended. Resubscribe to keep scanning."
+    `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Scan Pack, to keep scanning.`
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of 5 scans left. Subscribe for 500 a month at $9.99, or Pro at 2,000 for $24.99.`
+    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.`
   );
   const showBody = billingReturn !== null || (subscribed && !!quota) || !!msg;
 
@@ -954,9 +960,14 @@ function PlanSection({
             {busy ? "Opening…" : "Manage Billing"}
           </button>
         ) : (
-          <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy}>
-            {busy ? "Opening…" : "Subscribe · $9.99/mo"}
-          </button>
+          <span className="flex flex-wrap items-center justify-end gap-2">
+            <button type="button" className={rowBtn} onClick={() => go(() => startCheckout("pack"))} disabled={busy}>
+              {busy ? "Opening…" : `Scan Pack · ${PRICE.pack}`}
+            </button>
+            <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy}>
+              {busy ? "Opening…" : `Subscribe · ${PRICE_SHORT.standard}`}
+            </button>
+          </span>
         )
       }
       open={showBody}

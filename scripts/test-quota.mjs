@@ -27,7 +27,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { MONTHLY_SCANS, recordScan, scanQuota, scanQuotaExhausted } = await import(at("lib/server/scanQuota.ts"));
 const { cronAuthError } = await import(at("lib/server/cronAuth.ts"));
-const { createUser, findUserById, LEGACY_DAILY_SCANS, OWNER_EMAIL, PAID_SWITCH_AT, TRIAL_SCANS, toPublicUser } = await import(at("lib/server/users.ts"));
+const { createUser, findUserById, LEGACY_DAILY_SCANS, OWNER_EMAIL, PAID_SWITCH_AT, PLAN_SCANS, TRIAL_SCANS, toPublicUser } = await import(at("lib/server/users.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { NextRequest } = await import("next/server");
 
@@ -68,11 +68,11 @@ check("active subscriber: remaining math",
 check("trialing and past_due count as subscribed",
   ["trialing", "past_due"].map((st) => scanQuota(sub({ subStatus: st, scansUsed: 1 })).remaining),
   [MONTHLY_SCANS - 1, MONTHLY_SCANS - 1]);
-check("pro subscriber: 2,000 cap",
-  scanQuota(sub({ plan: "pro", scansUsed: 10 })).remaining, 2000 - 10);
+check("pro subscriber: Pro cap",
+  scanQuota(sub({ plan: "pro", scansUsed: 10 })).remaining, PLAN_SCANS.pro - 10);
 check("stale month reads as zero used",
   scanQuota(sub({ scanMonth: "2020-01", scansUsed: 499 })),
-  { used: 0, included: MONTHLY_SCANS, remaining: MONTHLY_SCANS, bonus: 0 });
+  { used: 0, included: MONTHLY_SCANS, remaining: MONTHLY_SCANS, bonus: 0, pack: 0 });
 check("null month (never scanned) reads as zero",
   scanQuota(sub({ scanMonth: null, scansUsed: 7 })).used, 0);
 check("remaining clamps at zero past the cap",
@@ -84,12 +84,12 @@ const { sellingGate, subscriptionGate } = await import(at("lib/server/auth.ts"))
 check("override: unlimited reads as owner, never enforced",
   [scanTier(fresh({ accessOverride: "unlimited" })), scanQuota(fresh({ accessOverride: "unlimited", scansUsed: 9999 })).remaining],
   ["owner", null]);
-check("override: comp_standard = subscribed at 500 with no Stripe status",
+check("override: comp_standard = subscribed at the plan cap with no Stripe status",
   [scanTier(fresh({ accessOverride: "comp_standard" })), scanQuota(fresh({ accessOverride: "comp_standard", scansUsed: 20 })).remaining],
   ["subscribed", MONTHLY_SCANS - 20]);
 check("override: comp_pro = Pro cap, planOf pro even with plan null",
   [planOf(fresh({ accessOverride: "comp_pro", plan: null })), scanQuota(fresh({ accessOverride: "comp_pro", scansUsed: 1 })).remaining],
-  ["pro", 2000 - 1]);
+  ["pro", PLAN_SCANS.pro - 1]);
 check("override: isComped only for the comp values",
   ["comp_standard", "comp_pro", "unlimited", "legacy", "trial", null].map((v) => isComped(fresh({ accessOverride: v }))),
   [true, true, false, false, false, false]);
@@ -157,6 +157,50 @@ check("trial: lifetime counter increments", t, { used: 3, included: TRIAL_SCANS,
   const u = await findUserById(base.id);
   check("toPublicUser.scans = scanQuota(user)", toPublicUser(u).scans, scanQuota(u));
   check("trial snapshot after 3 scans", toPublicUser(u).scans, { used: 3, included: TRIAL_SCANS, remaining: TRIAL_SCANS - 3 });
+}
+
+// --- Scan Pack (09-25): one-time buys banked in extra_scans ------------------
+{
+  const { creditScanPack, packScans } = await import(at("lib/server/users.ts"));
+  const { PRICING } = await import(at("lib/pricing.ts"));
+  check("pack: scanTier = pack once a balance exists (no subscription)",
+    [scanTier(fresh({ extraScans: 0, trialScansUsed: TRIAL_SCANS })), scanTier(fresh({ extraScans: 3, trialScansUsed: TRIAL_SCANS }))],
+    ["trial", "pack"]);
+  check("pack: the app stays open with a balance after the trial is gone",
+    [canUseApp(fresh({ extraScans: 0, trialScansUsed: TRIAL_SCANS })), canUseApp(fresh({ extraScans: 1, trialScansUsed: TRIAL_SCANS }))],
+    [false, true]);
+  check("pack: quota = the balance", scanQuota(fresh({ extraScans: 42 })), { used: 0, included: 42, remaining: 42, pack: 42 });
+  check("pack: subscription first, then bonus, then pack, all counted in remaining",
+    scanQuota(sub({ scansUsed: 10, bonusScans: 5, extraScans: 7 })).remaining, PLAN_SCANS.standard - 10 + 5 + 7);
+  check("pack: a subscriber is still the subscribed tier", scanTier(sub({ extraScans: 7 })), "subscribed");
+  check("pack: legacy accounts stay legacy", scanTier(legacy({ extraScans: 7 })), "legacy");
+
+  // creditScanPack is idempotent per Stripe session.
+  check("credit: first time credits", await creditScanPack(base.id, "cs_test_1", PRICING.pack.scans), true);
+  check("credit: same session again is a no-op", await creditScanPack(base.id, "cs_test_1", PRICING.pack.scans), false);
+  check("credit: a second session stacks", await creditScanPack(base.id, "cs_test_2", PRICING.pack.scans), true);
+  check("credit: balance = two packs", packScans(await findUserById(base.id)), PRICING.pack.scans * 2);
+
+  // Trial exhausted + pack: recordScan spends the pack.
+  await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, base.id);
+  const p1 = await recordScan(await findUserById(base.id));
+  check("recordScan (pack tier): spends one pack scan", p1, { used: 0, included: PRICING.pack.scans * 2, remaining: PRICING.pack.scans * 2 - 1, pack: PRICING.pack.scans * 2 - 1 });
+  check("recordScan (pack tier): trial counter untouched", (await findUserById(base.id)).trialScansUsed, TRIAL_SCANS);
+  check("header snapshot matches", toPublicUser(await findUserById(base.id)).scans, scanQuota(await findUserById(base.id)));
+
+  // Subscriber at the cap: bonus goes before pack, pack goes last.
+  await db.prepare("UPDATE users SET sub_status = 'active', scan_month = ?, scans_used = ?, bonus_scans = 1, extra_scans = 2 WHERE id = ?").run(thisMonth, PLAN_SCANS.standard, base.id);
+  const s1 = await recordScan(await findUserById(base.id));
+  check("recordScan (subscribed, at cap): bonus spent first", [s1.bonus, s1.pack, s1.remaining], [0, 2, 2]);
+  const s2 = await recordScan(await findUserById(base.id));
+  check("recordScan (subscribed, at cap, no bonus): pack spent", [s2.bonus, s2.pack, s2.remaining], [0, 1, 1]);
+  const s3 = await recordScan(await findUserById(base.id));
+  check("recordScan: last pack scan", [s3.pack, s3.remaining, scanQuotaExhausted(await findUserById(base.id))], [0, 0, true]);
+
+  // Balance gone, subscription gone: back to the trial tier and the wall.
+  await db.prepare("UPDATE users SET sub_status = NULL WHERE id = ?").run(base.id);
+  check("pack: empty balance falls back to trial + wall", [scanTier(await findUserById(base.id)), canUseApp(await findUserById(base.id))], ["trial", false]);
+  await db.prepare("UPDATE users SET trial_scans_used = 3, extra_scans = 0, bonus_scans = 0 WHERE id = ?").run(base.id);
 }
 
 // --- cronAuthError ----------------------------------------------------------

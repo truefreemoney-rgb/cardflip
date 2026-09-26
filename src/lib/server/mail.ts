@@ -1,5 +1,6 @@
 import "server-only";
 import nodemailer from "nodemailer";
+import { PRICE, SCANS } from "@/lib/pricing";
 
 /**
  * Outbound mail — the password-reset link and the subscription welcome.
@@ -123,10 +124,10 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string): Pro
   const text = [
     hi,
     "",
-    "Your first 5 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:",
+    `Your first ${SCANS.trial} scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:`,
     scanUrl,
     "",
-    `Want more? 500 scans a month for $9.99: ${pricingUrl}`,
+    `Want more? A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}: ${pricingUrl}`,
     "",
     "Questions? Reply to this email.",
     "",
@@ -134,9 +135,9 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string): Pro
   ].join("\n");
   const html = `
     <p>${hi}</p>
-    <p>Your first 5 scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
+    <p>Your first ${SCANS.trial} scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
     <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
-    <p style="color:#666;font-size:13px">Want more? <a href="${pricingUrl}">500 scans a month for $9.99</a>.</p>
+    <p style="color:#666;font-size:13px">Want more? <a href="${pricingUrl}">A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}</a>.</p>
     <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({
@@ -152,7 +153,8 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string): Pro
  * Sent once, from the Stripe webhook, when a checkout completes. The webhook
  * swallows failures — a missed welcome must never make Stripe retry the event.
  */
-export async function sendWelcomeEmail(to: string): Promise<void> {
+export async function sendWelcomeEmail(to: string, plan: "standard" | "pro" = "standard"): Promise<void> {
+  const included = plan === "pro" ? SCANS.pro : SCANS.standard;
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const scanUrl = `${site}/app`;
@@ -160,7 +162,7 @@ export async function sendWelcomeEmail(to: string): Promise<void> {
   const text = [
     "Your CardFlip subscription is active.",
     "",
-    "You have 500 scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing:",
+    `You have ${included} scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing:`,
     scanUrl,
     "",
     `Scans reset each billing month. Manage or cancel any time: ${accountUrl}`,
@@ -171,7 +173,7 @@ export async function sendWelcomeEmail(to: string): Promise<void> {
   ].join("\n");
   const html = `
     <p>Your CardFlip subscription is active.</p>
-    <p>You have 500 scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing.</p>
+    <p>You have ${included} scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing.</p>
     <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
     <p style="color:#666;font-size:13px">Scans reset each billing month. Manage or cancel any time from <a href="${accountUrl}">your account</a>.</p>
     <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>

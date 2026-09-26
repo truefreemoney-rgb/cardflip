@@ -8,6 +8,7 @@ import RoleToggle from "@/components/admin/RoleToggle";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
+import { SCANS } from "@/lib/pricing";
 
 export interface AdminUserRow {
   id: string;
@@ -21,6 +22,7 @@ export interface AdminUserRow {
   scansUsed: number;
   monthlyScans: number;
   trialScansUsed: number;
+  packScans: number;
   accessOverride: AccessOverride | null;
   subStatus: string | null;
 }
@@ -46,23 +48,24 @@ const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-holo-gold/15 text-holo-gold" },
   subscribed: { label: "Subscribed", cls: "bg-emerald-400/10 text-emerald-300" },
   legacy: { label: "Legacy", cls: "bg-sky-400/10 text-sky-300" },
+  pack: { label: "Scan Pack", cls: "bg-amber-400/10 text-amber-300" },
   trial: { label: "Trial", cls: "bg-white/5 text-zinc-400" },
 };
 
 const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
   { value: "", label: "Automatic" },
   { value: "unlimited", label: "Owner (unlimited)" },
-  { value: "comp_standard", label: "Subscribed, comped (500/mo)" },
-  { value: "comp_pro", label: "Pro, comped (2,000/mo)" },
+  { value: "comp_standard", label: `Subscribed, comped (${SCANS.standard}/mo)` },
+  { value: "comp_pro", label: `Pro, comped (${SCANS.pro}/mo)` },
   { value: "legacy", label: "Legacy (100/day)" },
-  { value: "trial", label: "Trial (5 scans, no selling)" },
+  { value: "trial", label: `Trial (${SCANS.trial} scans, no selling)` },
 ];
 
 /** What "Automatic" resolves to for this account, so the admin knows what clearing does. */
 function automaticLabel(u: AdminUserRow): string {
   if (u.role === "admin") return "Owner (admin)";
   if (u.subStatus === "active" || u.subStatus === "trialing" || u.subStatus === "past_due") return u.plan === "pro" ? "Pro via Stripe" : "Subscribed via Stripe";
-  return u.tier === "legacy" ? "Legacy" : "Trial";
+  return u.tier === "legacy" ? "Legacy" : u.tier === "pack" ? "Scan Pack" : "Trial";
 }
 
 function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) {
@@ -249,12 +252,14 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
             const tier = TIER_STYLE[u.tier];
             const scansLabel =
               u.tier === "trial"
-                ? `${u.trialScansUsed}/5 trial scans`
+                ? `${u.trialScansUsed}/${SCANS.trial} trial scans`
+                : u.tier === "pack"
+                  ? `${u.packScans} pack scans left`
                 : u.tier === "legacy"
                   ? `${u.scansUsed}/100 today`
                   : u.tier === "owner"
                     ? "unlimited"
-                    : `${u.scansUsed}/${u.monthlyScans} this month`;
+                    : `${u.scansUsed}/${u.monthlyScans} this month${u.packScans ? ` +${u.packScans} pack` : ""}`;
             return (
               <li key={u.id} className={open ? "bg-white/[0.03]" : ""}>
                 <div
@@ -461,7 +466,7 @@ function AddAccountForm({ onDone }: { onDone: () => void }) {
           </button>
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-zinc-600">New accounts start on the 5-scan trial like a public signup. No email is sent; you hand over the password.</p>
+      <p className="mt-2 text-[11px] text-zinc-600">New accounts start on the {SCANS.trial}-scan trial like a public signup. No email is sent; you hand over the password.</p>
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
     </form>
   );

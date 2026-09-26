@@ -3,6 +3,7 @@ import ActivityBars from "@/components/admin/ActivityBars";
 import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseRange, RANGES, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
+import { PRICE } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 // ~45 small Turso queries in parallel; room for a slow one.
@@ -195,7 +196,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <Tile>
           <Big className="text-emerald-400">{usd(sub.mrrUsd)}</Big>
           <Label>Monthly recurring</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">$9.99 × {sub.activeStandard} · $24.99 × {sub.activePro}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{PRICE.standard} × {sub.activeStandard} · {PRICE.pro} × {sub.activePro}</p>
         </Tile>
         <Tile>
           <Big>{num(sub.activeStandard + sub.activePro)}</Big>

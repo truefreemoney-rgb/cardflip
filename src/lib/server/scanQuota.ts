@@ -1,25 +1,22 @@
 import "server-only";
 import { monthlyScans, scanQuota, type ScanQuota } from "@/lib/server/users";
 import { db } from "@/lib/db";
-import { LEGACY_DAILY_SCANS, TRIAL_SCANS, scanTier, type User } from "@/lib/server/users";
+import { LEGACY_DAILY_SCANS, PLAN_SCANS, TRIAL_SCANS, scanTier, type User } from "@/lib/server/users";
 
 // scanQuota itself lives in users.ts now (toPublicUser ships it to the
 // header counter); this module keeps the writes and the exhaustion check.
 export { scanQuota, type ScanQuota };
 
 /**
- * Scan metering. The subscription includes MONTHLY_SCANS per calendar month
- * (UTC); the counter resets lazily on month rollover. Chris scrapped the
- * extra-scan packs (09-01) — one plan, one allowance; the users.extra_scans
- * column stays in the schema, dormant, in case packs ever return.
- *
- * The cap is enforced only for subscribers today: early access is free and
- * ungated (rate limits in rateLimit.ts still bound abuse), and how free
- * accounts get limited at launch is an open product decision. Usage is
- * metered for everyone so that decision can be made with data.
+ * Scan metering. A subscription includes the plan's monthly cap (calendar
+ * month, UTC; the counter resets lazily on rollover), then invite-a-friend
+ * bonus scans, then Scan Pack scans (users.extra_scans, one-time buys that
+ * never expire). An account with no subscription and a pack balance is the
+ * "pack" tier: the balance is its whole allowance. Numbers: lib/pricing.ts.
  */
 
-export const MONTHLY_SCANS = 500;
+/** @deprecated read PLAN_SCANS.standard (lib/pricing.ts is the source). */
+export const MONTHLY_SCANS = PLAN_SCANS.standard;
 
 const month = () => new Date().toISOString().slice(0, 7);
 // Legacy accounts are metered per DAY; the day key shares the scan_month
@@ -53,23 +50,36 @@ export async function recordScan(user: User): Promise<ScanQuota> {
     await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
     return { used, included: 0, remaining: null };
   }
+  if (tier === "pack") {
+    const pack = Math.max(0, (user.extraScans ?? 0) - 1);
+    await db.prepare("UPDATE users SET extra_scans = ? WHERE id = ?").run(pack, user.id);
+    return { used: 0, included: pack + 1, remaining: pack, pack };
+  }
   const m = month();
   const cap = monthlyScans(user);
   const before = user.scanMonth === m ? user.scansUsed : 0;
   let bonus = user.bonusScans ?? 0;
+  let pack = user.extraScans ?? 0;
   // The month's allowance goes first; invite-a-friend scans are spent only
-  // once it is gone, so they never evaporate at the month rollover.
+  // once it is gone, so they never evaporate at the month rollover; Scan
+  // Pack scans (never expire) go last.
   if (before >= cap && bonus > 0) {
     bonus -= 1;
     await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = ? WHERE id = ?").run(m, before, bonus, user.id);
-    return { used: before, included: cap, remaining: bonus, bonus };
+    return { used: before, included: cap, remaining: bonus + pack, bonus, pack };
+  }
+  if (before >= cap && pack > 0) {
+    pack -= 1;
+    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, extra_scans = ? WHERE id = ?").run(m, before, pack, user.id);
+    return { used: before, included: cap, remaining: pack, bonus, pack };
   }
   const used = before + 1;
   await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
   return {
     used,
     included: cap,
-    remaining: Math.max(0, cap - used) + bonus,
+    remaining: Math.max(0, cap - used) + bonus + pack,
     bonus,
+    pack,
   };
 }

@@ -3,42 +3,44 @@ import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
+import { LADDER_SENTENCE, PRICE, PRICE_LINE, SCANS } from "@/lib/pricing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbGraph } from "@/lib/structuredData";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "CardFlip is $9.99 a month: 500 scans, live pricing for the exact printing, and eBay listings written and published for you. Cancel any time.",
+  description: `${LADDER_SENTENCE} Live pricing for the exact printing and eBay listings written and published for you. Cancel any time.`,
   alternates: { canonical: "/pricing" },
-  openGraph: { url: "/pricing", title: "CardFlip pricing — $9.99 a month" },
+  openGraph: { url: "/pricing", title: `CardFlip pricing — ${PRICE_LINE.standard}, or a ${PRICE.pack} Scan Pack` },
 };
 
 /**
- * /pricing — the one plan, spelled out. Same PlanCard as the landing page;
+ * /pricing — the ladder, spelled out. Same PlanCard as the landing page;
  * the extra here is what a scan is, what the month's allowance covers, and
- * the billing questions a paying seller actually asks. No tiers, no
- * comparison table, because there is nothing to compare.
+ * the billing questions a paying seller actually asks. Numbers come from
+ * lib/pricing.ts, never typed here.
  */
 
 const covers = [
   { n: "1", label: "scan", body: "One photo, one card. Camera or upload. A re-scan of the same card counts again; searching by name or number is free." },
-  { n: String(PLAN.scans), label: "scans a month", body: "That's 55 nine-pocket binder pages a month, or a few dozen cards a week with room to spare." },
+  { n: String(PLAN.scans), label: "scans a month", body: `That's ${Math.floor(PLAN.scans / 9)} nine-pocket binder pages a month, or a few dozen cards a week with room to spare.` },
   { n: "1st", label: "of the month", body: "The allowance resets on the first of each month. Unused scans don't roll over." },
+  { n: SCANS.pack, label: "in a Scan Pack", body: `${PRICE.pack} once, no subscription. Pack scans never expire, and on a subscription they are spent only after the month's allowance.` },
 ];
 
 const billing = [
   {
     q: "How does billing work?",
-    a: "Stripe charges the card on file $9.99 each month from the day you subscribe. Invoices, card changes and cancellation are in Manage billing on your Account page.",
+    a: `Stripe charges the card on file ${PRICE.standard} (Pro: ${PRICE.pro}) each month from the day you subscribe. Invoices, card changes and cancellation are in Manage billing on your Account page. A Scan Pack is a single ${PRICE.pack} charge with nothing recurring.`,
   },
   {
     q: "Can I cancel any time?",
     a: "Yes. Cancel from Manage billing and the plan runs to the end of the period you've paid for. Your cards, categories and watchlist stay on the account, and the app opens again the moment you resubscribe.",
   },
   {
-    q: "What happens if I hit 500 scans?",
-    a: "The scanner pauses until the first of the next month. Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.",
+    q: `What happens if I hit ${SCANS.standard} scans?`,
+    a: `The scanner pauses until the first of the next month, unless you have Scan Pack scans banked or switch to Pro (${SCANS.pro} a month). Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.`,
   },
   {
     q: "Does CardFlip take a cut of sales?",
@@ -74,7 +76,7 @@ export default function PricingPage() {
                 Start free. Pay for the volume you need.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
-                Five scans free to start. Then {PLAN.price} a month, or Pro at {PRO.price} when the binder outgrows it. Same product on both.
+                {SCANS.trial} scans free to start. Then a {PRICE.pack} Scan Pack with no subscription, {PLAN.price} a month, or Pro at {PRO.price} when the binder outgrows it. Same product on all three.
               </p>
             </div>
             <PlanCard className="mx-auto mt-6 max-w-6xl" />

@@ -119,7 +119,8 @@ check("details collected", a.detailsCollected, true);
 check("scans by game", a.scansByGame, [{ game: "pokemon", scans: 2 }, { game: "mtg", scans: 1 }]);
 check("cohort funnel", a.funnel.cohort, { signedUp: 2, scanned: 2, listed: 1, sold: 1, paying: 1 });
 check("all-time funnel", a.funnel.allTime, { signedUp: 3, scanned: 3, listed: 1, sold: 1, paying: 2 });
-check("mrr", [a.subscriptions.activeStandard, a.subscriptions.activePro, a.subscriptions.mrrUsd.toFixed(2)], [1, 1, "34.98"]);
+const { PRICING } = await import(at("lib/pricing.ts"));
+check("mrr", [a.subscriptions.activeStandard, a.subscriptions.activePro, a.subscriptions.mrrUsd.toFixed(2)], [1, 1, (PRICING.standard.price + PRICING.pro.price).toFixed(2)]);
 check("social", a.social, [
   { site: "bluesky", lastDay: "2026-09-26", postsThatDay: 2 },
   { site: "x", lastDay: "2026-09-20", postsThatDay: 0 },

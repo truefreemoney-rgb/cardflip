@@ -106,7 +106,7 @@ export async function deleteAccount(password: string): Promise<void> {
 // --- Billing (Stripe) -------------------------------------------------------
 
 /** Answers the Stripe Checkout URL to redirect to. */
-export async function startCheckout(plan: "standard" | "pro" = "standard"): Promise<string> {
+export async function startCheckout(plan: "standard" | "pro" | "pack" = "standard"): Promise<string> {
   const res = await apiFetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

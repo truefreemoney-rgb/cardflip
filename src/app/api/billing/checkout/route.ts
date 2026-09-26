@@ -2,9 +2,13 @@
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { isSubscribed, setStripeCustomer } from "@/lib/server/users";
-import { createCheckoutSession, createCustomer, proConfigured, stripeConfigured } from "@/lib/server/stripe";
+import { createCheckoutSession, createCustomer, createPackCheckoutSession, packConfigured, proConfigured, stripeConfigured } from "@/lib/server/stripe";
 
-/** POST — start a $9.99/mo subscription: answers { url } to Stripe Checkout. */
+/**
+ * POST { plan: "standard" | "pro" | "pack" } — answers { url } to Stripe
+ * Checkout. "pack" is the one-time Scan Pack (09-25): allowed for anyone,
+ * subscribed or not (a subscriber's pack scans are spent after the month).
+ */
 export async function POST(req: NextRequest) {
   const limited = limitOrRespond(`billing:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
@@ -12,6 +16,18 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!stripeConfigured()) {
       return NextResponse.json({ error: "Billing isn't available yet" }, { status: 503 });
+    }
+    const body = (await req.json().catch(() => null)) as { plan?: unknown } | null;
+    if (body?.plan === "pack") {
+      if (!packConfigured()) {
+        return NextResponse.json({ error: "Scan Packs aren't available yet" }, { status: 503 });
+      }
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        customerId = await createCustomer(user.email, user.id);
+        await setStripeCustomer(user.id, customerId);
+      }
+      return NextResponse.json({ url: await createPackCheckoutSession(customerId, user.id) });
     }
     if (isSubscribed(user)) {
       return NextResponse.json({ error: "You already have an active subscription" }, { status: 409 });
@@ -21,7 +37,6 @@ export async function POST(req: NextRequest) {
       customerId = await createCustomer(user.email, user.id);
       await setStripeCustomer(user.id, customerId);
     }
-    const body = (await req.json().catch(() => null)) as { plan?: unknown } | null;
     const plan = body?.plan === "pro" ? "pro" : "standard";
     if (plan === "pro" && !proConfigured()) {
       return NextResponse.json({ error: "The Pro plan isn't available yet" }, { status: 503 });

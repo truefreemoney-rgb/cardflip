@@ -19,8 +19,10 @@ export interface SessionUser {
   plan?: "standard" | "pro" | null;
   /** Scans included per month on the current plan. */
   monthlyScans?: number;
-  /** owner | subscribed | legacy | trial. */
-  tier?: "owner" | "subscribed" | "legacy" | "trial";
+  /** owner | subscribed | legacy | pack | trial. */
+  tier?: "owner" | "subscribed" | "legacy" | "pack" | "trial";
+  /** Scan Pack scans banked (one-time buys, never expire). */
+  packScans?: number;
   /** Server truth: is the app open to this account right now. */
   appAccess?: boolean;
   /** First-login tutorial done; null/absent = show it on the scanner. */
@@ -31,7 +33,7 @@ export interface SessionUser {
   /** Unused two-step backup codes left. */
   totpBackupCodesLeft?: number;
   /** Scans used / included / left right now (header counter); remaining null = unlimited. */
-  scans?: { used: number; included: number; remaining: number | null; bonus?: number };
+  scans?: { used: number; included: number; remaining: number | null; bonus?: number; pack?: number };
   /** Has this user scanned at least one card yet? Only set by /api/auth/me; drives the logo link. */
   hasCards?: boolean;
 }

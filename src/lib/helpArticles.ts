@@ -1,3 +1,4 @@
+import { PRICE, SCANS } from "@/lib/pricing";
 /**
  * The help articles — rendered on /help and fed to the help robot as its
  * only source of product truth (lib/server/helpChat.ts). Edit here, both
@@ -35,7 +36,7 @@ export const helpArticles: HelpArticle[] = [
     id: "scan-limits",
     heading: "Scan limits",
     paragraphs: [
-      "A subscription includes 500 scans per calendar month (2,000 on Pro); the counter resets at the start of each month (UTC). Failed scans don't count against your allowance. New accounts get 5 free scans before subscribing — scanning and pricing only; publishing to eBay starts with a subscription.",
+      `A subscription includes ${SCANS.standard} scans per calendar month (${SCANS.pro} on Pro); the counter resets at the start of each month (UTC). A Scan Pack adds ${SCANS.pack} scans that never expire; on a subscription they are used after the month's allowance. Failed scans don't count against your allowance. New accounts get ${SCANS.trial} free scans first — scanning and pricing only; publishing to eBay starts with a Scan Pack or a subscription.`,
       "There are also daily and per-minute caps that protect the service from abuse. If you hit one, wait and try again — a normal scanning session never gets near them.",
     ],
   },
@@ -117,7 +118,7 @@ export const helpArticles: HelpArticle[] = [
     id: "billing",
     heading: "Billing",
     paragraphs: [
-      "CardFlip is $9.99 per month with 500 scans, or Pro at $24.99 per month with 2,000. Payment runs through Stripe; CardFlip never sees your card number.",
+      `CardFlip is ${PRICE.standard} per month with ${SCANS.standard} scans, or Pro at ${PRICE.pro} per month with ${SCANS.pro}. Don't want a subscription? A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack}, paid once. Payment runs through Stripe; CardFlip never sees your card number.`,
       "Cancel any time from the billing portal in your account page — you keep access until the end of the period you've paid for.",
     ],
   },

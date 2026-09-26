@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
 import CardWall from "@/components/CardWall";
 import PlanCard from "@/components/PlanCard";
+import { PRICE, SCANS } from "@/lib/pricing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { magicPublic } from "@/lib/server/settings";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
@@ -51,7 +52,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "Your first 5 scans are free, no card needed: scan, price, build your inventory. Publishing to eBay starts with a subscription, $9.99 a month for 500 scans, live pricing, eBay publishing, inventory and the watchlist. Cancel any time. You keep 100% of every eBay payout.",
+    a: `Your first ${SCANS.trial} scans are free, no card needed: scan, price, build your inventory. Then a ${PRICE.pack} Scan Pack buys ${SCANS.pack} scans with no subscription, or ${PRICE.standard} a month gets ${SCANS.standard} scans, live pricing, eBay publishing, inventory and the watchlist (Pro: ${SCANS.pro} scans for ${PRICE.pro}). Cancel any time. You keep 100% of every eBay payout.`,
   },
 ];
 

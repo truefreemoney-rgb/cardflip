@@ -446,6 +446,24 @@ const SCHEMA = `
     updated_at INTEGER NOT NULL
   );
 
+  -- Scan Pack purchases (09-25): one row per Stripe Checkout session so a
+  -- retried webhook never credits twice. users.extra_scans is the balance.
+  CREATE TABLE IF NOT EXISTS scan_pack_purchases (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    scans INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Scan Pack purchases (09-25): one row per Stripe Checkout session so a
+  -- retried webhook never credits twice. users.extra_scans is the balance.
+  CREATE TABLE IF NOT EXISTS scan_pack_purchases (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    scans INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
   -- Categories a seller created on purpose (09-08: "add category"). Cards
   -- still carry the name in cards.category; this table only keeps EMPTY
   -- categories alive. The list a user sees is the union of both.
@@ -609,7 +627,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "stripe_subscription_id TEXT",
     // Scan metering (lib/server/scanQuota.ts): scan_month is the yyyy-mm the
     // counter belongs to (reset lazily on rollover); extra_scans is the bank
-    // of purchased pack scans, consumed after the monthly allowance.
+    // of Scan Pack scans (one-time buys, 09-25), never expire, spent last.
     "scan_month TEXT",
     "scans_used INTEGER NOT NULL DEFAULT 0",
     "extra_scans INTEGER NOT NULL DEFAULT 0",

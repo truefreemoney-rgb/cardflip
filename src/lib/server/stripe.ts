@@ -1,6 +1,7 @@
 ﻿import "server-only";
 import crypto from "node:crypto";
 import { SITE_URL } from "@/lib/siteUrl";
+import { PRICING } from "@/lib/pricing";
 
 /**
  * Stripe billing, no SDK — the three calls we make (create customer, create
@@ -13,8 +14,10 @@ import { SITE_URL } from "@/lib/siteUrl";
 const env = () => ({
   secretKey: process.env.STRIPE_SECRET_KEY,
   priceId: process.env.STRIPE_PRICE_ID,
-  /** Pro ($24.99/mo, 2,000 scans). Unset = Pro isn't offered yet. */
+  /** Pro (lib/pricing.ts). Unset = Pro isn't offered yet. */
   proPriceId: process.env.STRIPE_PRO_PRICE_ID,
+  /** One-time Scan Pack (lib/pricing.ts). Unset = packs aren't offered yet. */
+  packPriceId: process.env.STRIPE_SCAN_PACK_PRICE_ID,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 });
 
@@ -22,6 +25,10 @@ export type StripePlan = "standard" | "pro";
 
 export function proConfigured(): boolean {
   return Boolean(env().proPriceId);
+}
+
+export function packConfigured(): boolean {
+  return Boolean(env().packPriceId);
 }
 
 /** Which plan a Stripe price id belongs to. */
@@ -85,6 +92,30 @@ export async function createCheckoutSession(customerId: string, userId: string, 
     // A fresh subscriber lands on one screen with one job (scan), not on
     // the Profile page (Chris, 09-25).
     success_url: `${SITE_URL}/app/account/welcome?billing=success`,
+    cancel_url: `${SITE_URL}/app/account?billing=canceled`,
+  });
+  return s.url;
+}
+
+/**
+ * Hosted Checkout for a one-time Scan Pack (09-25): mode=payment, no
+ * subscription. The webhook credits users.extra_scans from
+ * metadata.packScans (the credit follows what was sold, not what the code
+ * says today), keyed by the session id so a retry never credits twice.
+ */
+export async function createPackCheckoutSession(customerId: string, userId: string): Promise<string> {
+  const { packPriceId } = env();
+  if (!packPriceId) throw new Error("stripe: STRIPE_SCAN_PACK_PRICE_ID not set");
+  const s = await stripeRequest<{ url: string }>("checkout/sessions", {
+    mode: "payment",
+    customer: customerId,
+    client_reference_id: userId,
+    "line_items[0][price]": packPriceId,
+    "line_items[0][quantity]": "1",
+    allow_promotion_codes: "true",
+    "metadata[pack]": "1",
+    "metadata[packScans]": String(PRICING.pack.scans),
+    success_url: `${SITE_URL}/app/account/welcome?billing=pack`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
   });
   return s.url;

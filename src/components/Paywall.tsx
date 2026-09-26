@@ -8,6 +8,7 @@ import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
 import { logout } from "@/lib/client/auth";
 import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
+import { PRICE, PRICE_LINE, SCANS } from "@/lib/pricing";
 
 /**
  * What a signed-in seller without an active subscription sees on every app
@@ -20,13 +21,13 @@ import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
 export default function Paywall() {
   const router = useRouter();
   const { user, refresh } = useSession();
-  const [busy, setBusy] = useState<"checkout" | "pro" | "portal" | "refresh" | null>(null);
+  const [busy, setBusy] = useState<"checkout" | "pro" | "pack" | "portal" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "Ended" only when Stripe says the plan is gone. A trial override on a
   // subscribed account is still a trial, so it gets the trial copy.
   const lapsed = Boolean(user?.subStatus) && user?.tier !== "trial";
 
-  async function go(kind: "checkout" | "pro" | "portal", fn: () => Promise<string>) {
+  async function go(kind: "checkout" | "pro" | "pack" | "portal", fn: () => Promise<string>) {
     setBusy(kind);
     setError(null);
     try {
@@ -44,10 +45,10 @@ export default function Paywall() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <Logo />
       <h1 className="mt-8 font-display text-3xl font-bold text-white sm:text-4xl">
-        {lapsed ? "Your subscription ended." : "Your 5 free scans are used."}
+        {lapsed ? "Your subscription ended." : "You're out of scans."}
       </h1>
       <p className="mt-3 text-lg text-zinc-300">
-        {lapsed ? "Everything is still here. Pick it back up for $9.99 a month." : "Keep going for $9.99 a month."}
+        {lapsed ? `Everything is still here. Pick it back up for ${PRICE_LINE.standard}.` : `Keep going for ${PRICE_LINE.standard}.`}
       </p>
 
       <button
@@ -59,7 +60,7 @@ export default function Paywall() {
         {busy === "checkout" ? <Spinner className="h-4 w-4" /> : null}
         {busy === "checkout" ? "Opening checkout…" : lapsed ? "Resubscribe" : "Subscribe"}
       </button>
-      <p className="mt-2 text-xs text-zinc-500">500 scans a month. Cancel any time.</p>
+      <p className="mt-2 text-xs text-zinc-500">{SCANS.standard} scans a month. Cancel any time.</p>
 
       {error && (
         <p role="alert" className="mt-4 w-full rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -68,8 +69,11 @@ export default function Paywall() {
       )}
 
       <div className="mt-8 flex flex-col items-center gap-2">
+        <button type="button" onClick={() => go("pack", () => startCheckout("pack"))} disabled={busy !== null} className={quiet}>
+          {busy === "pack" ? "Opening Checkout…" : `No subscription? A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack}, one time.`}
+        </button>
         <button type="button" onClick={() => go("pro", () => startCheckout("pro"))} disabled={busy !== null} className={quiet}>
-          {busy === "pro" ? "Opening Checkout…" : "Need more? Pro is 2,000 scans for $24.99 a month."}
+          {busy === "pro" ? "Opening Checkout…" : `Need more? Pro is ${SCANS.pro} scans for ${PRICE_LINE.pro}.`}
         </button>
         {lapsed && (
           <button type="button" onClick={() => go("portal", openBillingPortal)} disabled={busy !== null} className={quiet}>

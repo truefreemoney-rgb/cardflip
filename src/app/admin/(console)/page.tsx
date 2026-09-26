@@ -28,7 +28,7 @@ export default async function AdminOverviewPage() {
     { label: "Watchlist items", value: num(s.wishlistItems) },
     { label: "Price checks", value: `${num(s.priceChecks7d)}`, sub: "this week" },
     // The measured Anthropic bill (scan_usage), not an estimate — the number
-    // the $9.99/500 margin actually rests on. Per-scan is the headline.
+    // the subscription margin (lib/pricing.ts) actually rests on. Per-scan is the headline.
     {
       label: "Vision cost / scan",
       value: spend30d.scans ? `$${(spend30d.usd / spend30d.scans).toFixed(4)}` : "—",

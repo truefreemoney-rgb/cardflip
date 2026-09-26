@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // 500 (Pro: 2,000) scans a month per subscriber; 5 lifetime on the free trial.
+    // Plan cap a month per subscriber (lib/pricing.ts); the trial allowance lifetime; a Scan Pack balance until it is gone.
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
               ? "You've used today's 100 scans — the counter resets at midnight UTC, or subscribe for a monthly allowance"
               : isSubscribed(user)
                 ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
-                : "Your 5 free scans are used — subscribe to keep scanning",
+                : "You're out of scans — subscribe or buy a Scan Pack to keep scanning",
           quota: true,
           usage: scanQuota(user),
         },

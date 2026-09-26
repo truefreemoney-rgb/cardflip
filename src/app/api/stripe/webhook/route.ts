@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
 import { rewardReferrerIfDue } from "@/lib/server/referrals";
 import { fetchSubscription, verifyWebhook, planForPrice } from "@/lib/server/stripe";
+import { PRICING } from "@/lib/pricing";
 import {
+  creditScanPack,
   findUserById,
   findUserByStripeCustomer,
   isSubscribed,
@@ -48,7 +50,21 @@ export async function POST(req: NextRequest) {
       const customerId = typeof obj.customer === "string" ? obj.customer : null;
       const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
       const user = userId ? await findUserById(userId) : customerId ? await findUserByStripeCustomer(customerId) : null;
-      if (user && subscriptionId) {
+      const meta = (obj.metadata ?? {}) as Record<string, unknown>;
+      if (user && obj.mode === "payment" && meta.pack === "1") {
+        // Scan Pack (09-25): a one-time payment, no subscription. Credit the
+        // scans the session was sold with; the session id keys the credit.
+        if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
+        const paid = obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
+        const scans = Number(meta.packScans) > 0 ? Number(meta.packScans) : PRICING.pack.scans;
+        const sessionId = typeof obj.id === "string" ? obj.id : null;
+        if (paid && sessionId) {
+          const credited = await creditScanPack(user.id, sessionId, scans);
+          console.info(`stripe: ${user.email} scan pack ${credited ? `+${scans}` : "already credited"} (${sessionId})`);
+        } else {
+          console.info(`stripe: ${user.email} scan pack session ${sessionId} not paid (${String(obj.payment_status)}), ignored`);
+        }
+      } else if (user && subscriptionId) {
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const sub = await fetchSubscription(subscriptionId);
         await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan);
@@ -68,7 +84,7 @@ export async function POST(req: NextRequest) {
           }
           if (isMailConfigured()) {
             try {
-              await sendWelcomeEmail(user.email);
+              await sendWelcomeEmail(user.email, sub.plan);
             } catch (err) {
               console.error(`stripe: welcome email to ${user.email} failed:`, err);
             }

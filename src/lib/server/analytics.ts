@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { PRICING } from "@/lib/pricing";
 
 /** Same key the publisher writes (lib/server/socialPublish.ts) — not imported so this stays a light module. */
 const LAST_POST_PREFIX = "social_last_post:";
@@ -96,7 +97,7 @@ export interface FunnelSteps {
   paying: number;
 }
 
-const PLAN_USD: Record<string, number> = { standard: 9.99, pro: 24.99 };
+const PLAN_USD: Record<string, number> = { standard: PRICING.standard.price, pro: PRICING.pro.price };
 
 async function rows<T>(sql: string, ...args: (string | number)[]): Promise<T[]> {
   try {

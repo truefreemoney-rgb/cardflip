@@ -159,6 +159,29 @@ check("a live subscription.created for another subscription adopts it", [await s
 await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_third", customer: "cus_re", status: "canceled" } } });
 check("deleting the pinned subscription cancels", (await state(resub.id)).status, "canceled");
 
+// --- Scan Pack (09-25): checkout.session.completed with mode=payment -------
+{
+  const { PRICING } = await import(at("lib/pricing.ts"));
+  const buyer = await createUser("Pack", "pack@example.com", "hunter22");
+  const packSession = (id, extra = {}) => ({
+    type: "checkout.session.completed",
+    data: { object: { id, mode: "payment", payment_status: "paid", client_reference_id: buyer.id, customer: "cus_pack", metadata: { pack: "1", packScans: String(PRICING.pack.scans) }, ...extra } },
+  });
+  const balance = async () => (await findUserById(buyer.id)).extraScans;
+  const callsBefore = stripeCalls.length;
+  check("pack: credits extra_scans, stores the customer, no subscription fetch",
+    [(await send(packSession("cs_pack_1"))).status, await balance(), (await findUserById(buyer.id)).stripeCustomerId, stripeCalls.length - callsBefore, (await state(buyer.id)).status],
+    [200, PRICING.pack.scans, "cus_pack", 0, null]);
+  check("pack: retried event is idempotent", [(await send(packSession("cs_pack_1"))).status, await balance()], [200, PRICING.pack.scans]);
+  check("pack: a second purchase stacks", [(await send(packSession("cs_pack_2"))).status, await balance()], [200, PRICING.pack.scans * 2]);
+  check("pack: credit follows the session's metadata, not today's constant",
+    [(await send(packSession("cs_pack_3", { metadata: { pack: "1", packScans: "150" } }))).status, await balance()], [200, PRICING.pack.scans * 2 + 150]);
+  check("pack: unpaid session → 200, nothing credited",
+    [(await send(packSession("cs_pack_4", { payment_status: "unpaid" }))).status, await balance()], [200, PRICING.pack.scans * 2 + 150]);
+  check("pack: payment-mode session without the pack flag → ignored",
+    [(await send(packSession("cs_other", { metadata: {} }))).status, await balance()], [200, PRICING.pack.scans * 2 + 150]);
+}
+
 check("updated for an unknown customer → 200", (await send({ type: "customer.subscription.updated", data: { object: { customer: "cus_ghost", status: "active" } } })).status, 200);
 check("unregistered event → 200 received", (await send({ type: "invoice.paid", data: { object: {} } })).json, { received: true });
 

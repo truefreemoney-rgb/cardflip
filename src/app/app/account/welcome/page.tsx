@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import Spinner from "@/components/Spinner";
 import { fetchAccount } from "@/lib/client/accountApi";
+import { SCANS } from "@/lib/pricing";
 
 /**
  * Where Stripe Checkout lands a new subscriber (Chris, 09-25: dropping them
@@ -19,6 +20,11 @@ import { fetchAccount } from "@/lib/client/accountApi";
 export default function SubscribedPage() {
   const { user, refresh } = useSession();
   const [phase, setPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
+  // ?billing=pack = a one-time Scan Pack just paid (09-25); anything else is
+  // a new subscription. Read before the URL is cleaned below.
+  const [kind] = useState<"sub" | "pack">(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("billing") === "pack" ? "pack" : "sub",
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search) {
@@ -33,7 +39,8 @@ export default function SubscribedPage() {
       tries += 1;
       const o = await fetchAccount();
       if (cancelled) return true;
-      if (o && (o.user.subStatus === "active" || o.user.subStatus === "trialing")) {
+      const ok = kind === "pack" ? (o?.user.packScans ?? 0) > 0 : o?.user.subStatus === "active" || o?.user.subStatus === "trialing";
+      if (o && ok) {
         setPhase("confirmed");
         void refresh();
         return true;
@@ -54,10 +61,10 @@ export default function SubscribedPage() {
     return () => {
       cancelled = true;
     };
-  }, [refresh]);
+  }, [refresh, kind]);
 
   const first = user?.name?.split(" ")[0];
-  const scans = user?.plan === "pro" ? "2,000" : "500";
+  const scans = user?.plan === "pro" ? SCANS.pro : SCANS.standard;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-10">
@@ -71,13 +78,15 @@ export default function SubscribedPage() {
 
         <h1 className="mt-5 text-xl font-semibold text-white">
           {phase === "waiting"
-            ? "Confirming your subscription…"
+            ? kind === "pack" ? "Confirming your Scan Pack…" : "Confirming your subscription…"
             : `You're all set${first ? `, ${first}` : ""}`}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400" role="status">
           {phase === "stalled"
-            ? "Payment received. Stripe is taking a moment to confirm — your plan will show as active shortly."
-            : `${scans} scans a month, unlocked. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
+            ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan will show as active"} shortly.`
+            : kind === "pack"
+              ? `${SCANS.pack} scans added, they never expire. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`
+              : `${scans} scans a month, unlocked. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
         </p>
 
         <Link
@@ -96,7 +105,7 @@ export default function SubscribedPage() {
         <p className="mt-5 text-xs text-zinc-500">
           A receipt is in your inbox.{" "}
           <Link href="/app/account" className="font-medium text-brand-300 transition hover:text-brand-200">
-            Manage billing
+            {kind === "pack" ? "Your account" : "Manage billing"}
           </Link>
         </p>
       </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
+import { PRICE_SHORT } from "@/lib/pricing";
 import PageSkeleton from "@/components/PageSkeleton";
 import { fetchInvite, startCheckout, type InviteInfo } from "@/lib/client/accountApi";
 
@@ -133,7 +134,7 @@ export default function RewardsPage() {
               disabled={busy || status !== "ready"}
               className="mt-3 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
             >
-              {busy ? "Opening…" : "Subscribe · $9.99/mo"}
+              {busy ? "Opening…" : `Subscribe · ${PRICE_SHORT.standard}`}
             </button>
           </>
         )}

@@ -20,7 +20,7 @@ export default function PlanCta({
   cta,
   primary,
 }: {
-  plan: "trial" | "standard" | "pro";
+  plan: "trial" | "pack" | "standard" | "pro";
   cta: string;
   primary: boolean;
 }) {
@@ -91,6 +91,24 @@ export default function PlanCta({
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setBusy(false);
     }
+  }
+
+  // The Scan Pack is a one-time buy for anyone signed in, subscribed or not
+  // (a subscriber's pack scans are spent after the month's allowance).
+  if (plan === "pack") {
+    return (
+      <>
+        <button type="button" onClick={() => go(() => startCheckout("pack"))} disabled={busy} className={cls}>
+          {busy ? <Spinner className="h-4 w-4" /> : null}
+          {busy ? "Opening Checkout…" : cta}
+        </button>
+        {error && (
+          <p role="alert" className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {error}
+          </p>
+        )}
+      </>
+    );
   }
 
   return (

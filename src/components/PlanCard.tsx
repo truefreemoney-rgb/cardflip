@@ -1,15 +1,16 @@
 import PlanCta from "@/components/PlanCta";
+import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
 
 /**
- * Free trial · CardFlip · Pro, as matching cards (Chris, 09-04). Shared by
- * the landing page and /pricing so prices, scan counts and bullets can't
- * drift apart. Only the scan cap separates the paid tiers — on purpose.
+ * Free trial · Scan Pack · CardFlip · Pro, as matching cards (Chris, 09-04,
+ * pack added 09-25). Shared by the landing page and /pricing. Every number
+ * comes from lib/pricing.ts so prices and scan counts can't drift apart.
  */
 export const PLAN = {
-  price: "$9.99",
-  scans: 500,
+  price: PRICE.standard,
+  scans: PRICING.standard.scans,
   lines: [
-    "500 card scans a month, camera or photos",
+    `${SCANS.standard} card scans a month, camera or photos`,
     "Card reading with condition and 1st Edition detection",
     "Live TCGplayer market price for the exact printing and variant",
     "eBay listings written, published and repriced from CardFlip",
@@ -19,10 +20,10 @@ export const PLAN = {
 };
 
 export const PRO = {
-  price: "$24.99",
-  scans: 2000,
+  price: PRICE.pro,
+  scans: PRICING.pro.scans,
   lines: [
-    "2,000 card scans a month, camera or photos",
+    `${SCANS.pro} card scans a month, camera or photos`,
     "Everything in CardFlip",
     "Built for a few hundred cards a week",
     "Same live pricing, same eBay publishing",
@@ -31,15 +32,29 @@ export const PRO = {
   ],
 };
 
-export const TRIAL = {
-  scans: 5,
+/** One-time Scan Pack (Chris, 09-25): no subscription, never expires, stacks. */
+export const PACK = {
+  price: PRICE.pack,
+  scans: PRICING.pack.scans,
   lines: [
-    "5 card scans, camera or photos",
+    `${SCANS.pack} card scans, camera or photos`,
+    "One-time payment, no subscription",
+    "Scans never expire",
+    "Everything in CardFlip while you have scans left",
+    "Buy another pack any time, they stack",
+    "Works alongside a subscription as a top-up",
+  ],
+};
+
+export const TRIAL = {
+  scans: PRICING.trial.scans,
+  lines: [
+    `${SCANS.trial} card scans, camera or photos`,
     "Live pricing for the exact printing",
     "Inventory and watchlist",
     "No card on file",
     "Everything you scan stays on the account",
-    "Subscribe to publish on eBay",
+    "Subscribe or buy a Scan Pack to publish on eBay",
   ],
 };
 
@@ -62,7 +77,7 @@ function Card({
   primary,
   plan,
 }: {
-  plan: "trial" | "standard" | "pro";
+  plan: "trial" | "pack" | "standard" | "pro";
   name: string;
   sub: string;
   price: string;
@@ -74,7 +89,7 @@ function Card({
 }) {
   return (
     <div
-      className={`relative flex flex-col overflow-hidden rounded-3xl p-7 sm:p-8 ${
+      className={`relative flex flex-col overflow-hidden rounded-3xl p-7 sm:p-8 xl:p-6 ${
         primary ? "foil-edge [--foil-fill:#0b0d13]" : "border border-edge bg-surface-1"
       }`}
     >
@@ -84,11 +99,11 @@ function Card({
       <div className="relative flex flex-1 flex-col">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="font-display text-lg font-semibold text-white">{name}</p>
+            <p className="whitespace-nowrap font-display text-lg font-semibold text-white">{name}</p>
             <p className="mt-1 text-sm text-zinc-500">{sub}</p>
           </div>
           <p className="text-right">
-            <span className="font-display text-5xl font-bold tracking-tight text-white">{price}</span>
+            <span className="font-display text-5xl font-bold tracking-tight text-white xl:text-4xl">{price}</span>
             <span className="text-sm text-zinc-500">{per}</span>
           </p>
         </div>
@@ -111,7 +126,7 @@ function Card({
 
 export default function PlanCard({ className = "" }: { className?: string }) {
   return (
-    <div className={`grid gap-3 md:grid-cols-3 ${className}`}>
+    <div className={`grid gap-3 md:grid-cols-2 xl:grid-cols-4 ${className}`}>
       <Card
         plan="trial"
         name="Free trial"
@@ -119,8 +134,19 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price="$0"
         per=""
         lines={TRIAL.lines}
-        cta="Try 5 scans free"
+        cta={`Try ${SCANS.trial} Scans Free`}
         note="No card needed. Takes a minute to set up."
+        primary={false}
+      />
+      <Card
+        plan="pack"
+        name="Scan Pack"
+        sub={`${SCANS.pack} scans, one time`}
+        price={PACK.price}
+        per=" one time"
+        lines={PACK.lines}
+        cta={`Buy ${SCANS.pack} Scans · ${PRICE.pack}`}
+        note="Pay once. Scans never expire."
         primary={false}
       />
       <Card
@@ -130,7 +156,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price={PLAN.price}
         per="/month"
         lines={PLAN.lines}
-        cta="Subscribe · $9.99/mo"
+        cta={`Subscribe · ${PRICE_SHORT.standard}`}
         note="Cancel any time. You keep 100% of every eBay payout."
         primary
       />
@@ -141,7 +167,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price={PRO.price}
         per="/month"
         lines={PRO.lines}
-        cta="Go Pro · $24.99/mo"
+        cta={`Go Pro · ${PRICE_SHORT.pro}`}
         note="For volume sellers. Cancel any time."
         primary={false}
       />

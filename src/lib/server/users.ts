@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
+import { PRICE, PRICING } from "@/lib/pricing";
 
 export type Role = "user" | "admin";
 
@@ -141,10 +142,12 @@ export function isComped(user: Pick<User, "accessOverride">): boolean {
   return user.accessOverride === "comp_standard" || user.accessOverride === "comp_pro";
 }
 
-/** The two paid tiers (09-04). Scan caps per calendar month. */
+/** The two paid tiers (09-04). Scan caps per calendar month, from lib/pricing.ts. */
 export type Plan = "standard" | "pro";
-export const PLAN_SCANS: Record<Plan, number> = { standard: 500, pro: 2000 };
-export const PLAN_PRICE_USD: Record<Plan, string> = { standard: "$9.99", pro: "$24.99" };
+export const PLAN_SCANS: Record<Plan, number> = { standard: PRICING.standard.scans, pro: PRICING.pro.scans };
+export const PLAN_PRICE_USD: Record<Plan, string> = { standard: PRICE.standard, pro: PRICE.pro };
+/** One-time Scan Pack (09-25): banked in users.extra_scans, never expires. */
+export const PACK_SCANS = PRICING.pack.scans;
 export function planOf(user: Pick<User, "plan" | "accessOverride">): Plan {
   if (user.accessOverride === "comp_pro") return "pro";
   if (user.accessOverride === "comp_standard") return "standard";
@@ -155,10 +158,10 @@ export function monthlyScans(user: Pick<User, "plan" | "accessOverride">): numbe
 }
 
 /** Free trial (09-04, cut to five 09-25): five scans on a fresh account, no card. */
-export const TRIAL_SCANS = 5;
+export const TRIAL_SCANS = PRICING.trial.scans;
 
 export function trialScansLeft(
-  user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "trialScansUsed">,
+  user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "trialScansUsed" | "extraScans">,
 ): number {
   // The TIER decides, not the raw Stripe status: an admin "trial" override on
   // a still-subscribed account must behave like a fresh trial (09-06: it
@@ -171,12 +174,14 @@ export function trialScansLeft(
 /**
  * Access tiers (Chris, 09-04, the paid switch):
  *  - owner: Chris's own account, unlimited.
- *  - subscribed: 500 (Pro 2,000) a month.
+ *  - subscribed: the plan's monthly cap (lib/pricing.ts), then bonus, then pack scans.
  *  - legacy: accounts that existed before the switch get 100 scans a DAY,
  *    no subscription, no wall.
- *  - trial: new accounts, 5 scans lifetime, then the wall.
+ *  - pack: no subscription but a Scan Pack balance (users.extra_scans > 0):
+ *    every feature open, no wall, until the balance is gone (09-25).
+ *  - trial: new accounts, PRICING.trial.scans lifetime, then the wall.
  */
-export type ScanTier = "owner" | "subscribed" | "legacy" | "trial";
+export type ScanTier = "owner" | "subscribed" | "legacy" | "pack" | "trial";
 export const OWNER_EMAIL = "truefreemoney@gmail.com";
 /** Accounts created before this instant are legacy (the paid switch, 09-04 ~13:25 UTC). */
 export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
@@ -196,6 +201,8 @@ export interface ScanQuota {
   remaining: number | null;
   /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
   bonus?: number;
+  /** Scan Pack scans still banked (never expire); counted in remaining. */
+  pack?: number;
 }
 
 const quotaMonth = () => new Date().toISOString().slice(0, 7);
@@ -215,13 +222,26 @@ export function scanQuota(user: User): ScanQuota {
     const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
     return { used, included: 0, remaining: null };
   }
+  if (tier === "pack") {
+    // No subscription: the pack balance is the whole allowance. `used` is
+    // what the trial burned before they bought, so the counter reads
+    // "100 / 100" the moment a pack lands.
+    const pack = user.extraScans ?? 0;
+    return { used: 0, included: pack, remaining: pack, pack };
+  }
   const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
   const cap = monthlyScans(user);
   const bonus = user.bonusScans ?? 0;
-  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus, bonus };
+  const pack = user.extraScans ?? 0;
+  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus + pack, bonus, pack };
 }
 
-export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride">): ScanTier {
+/** Scan Pack scans banked on the account (one-time buys, never expire). */
+export function packScans(user: Pick<User, "extraScans">): number {
+  return Math.max(0, user.extraScans ?? 0);
+}
+
+export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "extraScans">): ScanTier {
   switch (user.accessOverride) {
     case "unlimited":
       return "owner";
@@ -236,16 +256,31 @@ export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "crea
   if (user.email.toLowerCase() === OWNER_EMAIL || user.role === "admin") return "owner";
   if (isSubscribed(user)) return "subscribed";
   if (user.createdAt < PAID_SWITCH_AT) return "legacy";
+  if ((user.extraScans ?? 0) > 0) return "pack";
   return "trial";
 }
 
-export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt" | "accessOverride">): boolean {
+export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt" | "accessOverride" | "extraScans">): boolean {
   const tier = scanTier(user);
   return tier !== "trial" || trialScansLeft(user) > 0;
 }
 
 export async function setAccessOverride(userId: string, override: AccessOverride | null): Promise<void> {
   await db.prepare("UPDATE users SET access_override = ? WHERE id = ?").run(override, userId);
+}
+
+/**
+ * Credit a Scan Pack (09-25). Keyed by the Stripe Checkout session so a
+ * retried webhook credits once; answers false when that session was
+ * already applied.
+ */
+export async function creditScanPack(userId: string, sessionId: string, scans: number): Promise<boolean> {
+  const ins = await db
+    .prepare("INSERT OR IGNORE INTO scan_pack_purchases (session_id, user_id, scans, created_at) VALUES (?, ?, ?, ?)")
+    .run(sessionId, userId, scans, Date.now());
+  if (!ins.changes) return false;
+  await db.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(scans, userId);
+  return true;
 }
 
 export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
@@ -520,6 +555,8 @@ export interface PublicUser {
   totpBackupCodesLeft: number;
   /** Invite-a-friend scans banked, spent after the monthly allowance. */
   bonusScans: number;
+  /** Scan Pack scans banked (one-time buys, never expire), spent last. */
+  packScans: number;
   /** Scans used / included / left right now — the header counter (09-07). */
   scans: ScanQuota;
 }
@@ -537,6 +574,7 @@ export function toPublicUser(user: User): PublicUser {
     tourSeenAt: user.tourSeenAt ?? null,
     totpBackupCodesLeft: totpEnabled(user) ? user.totpBackupCodes.length : 0,
     bonusScans: user.bonusScans ?? 0,
+    packScans: packScans(user),
     scans: scanQuota(user),
   };
 }

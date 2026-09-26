@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { helpArticlesFor } from "@/lib/helpArticles";
 import { GUIDES, HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { magicVisibleFor } from "@/lib/server/settings";
-import { monthlyScans, scanTier, type User } from "@/lib/server/users";
+import { monthlyScans, packScans, scanTier, type User } from "@/lib/server/users";
+import { LADDER_SENTENCE, PRICING } from "@/lib/pricing";
 
 /**
  * The help robot's brain. One rolling conversation per user (help_messages),
@@ -101,7 +102,9 @@ function accountFacts(user: User): string {
     `Access tier: ${tier}`,
     `Plan: ${user.plan ?? "none"}; scans included per month: ${monthlyScans(user)}`,
     `Scans used this period: ${user.scansUsed}`,
-    tier === "trial" ? `Free-trial scans used (of 5): ${user.trialScansUsed}` : null,
+    tier === "trial" ? `Free-trial scans used (of ${PRICING.trial.scans}): ${user.trialScansUsed}` : null,
+    packScans(user) > 0 ? `Scan Pack scans banked (never expire): ${packScans(user)}` : null,
+    `Pricing today: ${LADDER_SENTENCE}`,
     `eBay connected: ${user.ebayConnected ? "yes" : "no"}`,
     `Two-step verification: ${user.totpEnabledAt ? "on" : "off"}`,
   ].filter(Boolean);

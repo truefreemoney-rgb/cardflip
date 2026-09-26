@@ -8,9 +8,9 @@ import type { SessionUser } from "@/lib/client/auth";
  * scans left for users to easily keep track of scans, also if you click on
  * it, should lead to buying more scans"). Reads the session's scan snapshot
  * (server truth from /api/auth/me, patched after every scan by the scanner)
- * and links to /pricing — there are no scan packs (Chris, 09-01), so "more
- * scans" means the next plan up. Owner/unlimited accounts see their count
- * with no link. Turns amber at 10% left, red at zero.
+ * and links to /pricing (the next plan up, or a Scan Pack since 09-25).
+ * Owner/unlimited accounts see their count with no link. Turns amber at
+ * 10% left, red at zero.
  */
 export default function ScanCounter({ user }: { user: SessionUser }) {
   const scans = user.scans;
@@ -30,7 +30,7 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
     );
   }
 
-  const period = user.tier === "trial" ? "free scans" : user.tier === "legacy" ? "today" : "this month";
+  const period = user.tier === "trial" ? "free scans" : user.tier === "legacy" ? "today" : user.tier === "pack" ? "in your pack" : "this month";
   const low = scans.remaining <= Math.max(1, Math.round(scans.included * 0.1));
   const out = scans.remaining <= 0;
   const tone = out
@@ -40,7 +40,7 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
       : "border-edge bg-black/25 text-zinc-300 hover:border-edge-strong hover:text-white";
   const title = out
     ? `No scans left ${period === "free scans" ? "on the free trial" : period} — get more`
-    : `${fmt(scans.remaining)} of ${fmt(scans.included)} ${period} left${scans.bonus ? ` (includes ${fmt(scans.bonus)} bonus)` : ""} — tap for more scans`;
+    : `${fmt(scans.remaining)} of ${fmt(scans.included)} ${period} left${scans.bonus ? ` (includes ${fmt(scans.bonus)} bonus)` : ""}${scans.pack && user.tier !== "pack" ? ` (includes ${fmt(scans.pack)} pack scans)` : ""} — tap for more scans`;
 
   return (
     <Link
