@@ -229,3 +229,120 @@ export async function sendErrorDigestEmail(to: string, total: number, groups: Er
     html,
   });
 }
+
+/* ---------------------------------------------------------------------------
+ * Support tickets (supportTickets.ts, 09-26). Three mails: the working copy
+ * to the support inbox, a receipt to the seller, and "closed" to the seller.
+ * The types are structural so mail.ts stays import-free of the ticket module.
+ * ------------------------------------------------------------------------- */
+
+interface TicketMail {
+  number: number;
+  subject: string;
+  body: string;
+  createdAt: number;
+}
+interface TicketUser {
+  id: string;
+  name: string;
+  email: string;
+  plan: string | null;
+  ebayConnected: boolean;
+}
+
+const escHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+
+/**
+ * To support@: "SUPPORT TICKET #12 · subject". Reply-To is the seller, so a
+ * plain Reply in Fastmail answers them. Account facts + the recent robot
+ * transcript ride along so the human sees what the robot already tried.
+ */
+export async function sendSupportTicketEmail(
+  to: string,
+  ticket: TicketMail,
+  user: TicketUser,
+  transcript: { role: "user" | "assistant"; content: string }[],
+): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const adminUrl = `${site}/admin/support`;
+  const tag = `SUPPORT TICKET #${ticket.number}`;
+  const facts = [
+    `From: ${user.name} <${user.email}>`,
+    `Plan: ${user.plan ?? "none (trial or pack)"}`,
+    `eBay connected: ${user.ebayConnected ? "yes" : "no"}`,
+    `User id: ${user.id}`,
+  ];
+  const chat = transcript.slice(-8).map((m) => `${m.role === "user" ? "Seller" : "Robot"}: ${m.content}`);
+  const text = [
+    `${tag} · ${ticket.subject}`,
+    "",
+    ticket.body,
+    "",
+    "— Account —",
+    ...facts,
+    ...(chat.length ? ["", "— Recent robot chat —", ...chat] : []),
+    "",
+    `Close it: ${adminUrl}`,
+  ].join("\n");
+  const html = `
+    <p style="color:#666;font-size:12px">${escHtml(tag)}</p>
+    <h2 style="margin:0 0 12px">${escHtml(ticket.subject)}</h2>
+    <p style="white-space:pre-wrap">${escHtml(ticket.body)}</p>
+    <hr style="border:none;border-top:1px solid #ddd;margin:16px 0">
+    <p style="font-size:13px;color:#666">${facts.map(escHtml).join("<br>")}</p>
+    ${chat.length ? `<p style="font-size:12px;color:#999;margin-bottom:4px">Recent robot chat</p><div style="font-size:13px;color:#555;white-space:pre-wrap">${chat.map(escHtml).join("\n")}</div>` : ""}
+    <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open support tickets</a></p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    replyTo: `${user.name} <${user.email}>`,
+    subject: `${tag} · ${ticket.subject}`,
+    text,
+    html,
+  });
+}
+
+/** To the seller: we have it, here is your number. */
+export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMail): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const tag = `SUPPORT TICKET #${ticket.number}`;
+  const text = [
+    `We got your support ticket. It's #${ticket.number}.`,
+    "",
+    `Subject: ${ticket.subject}`,
+    "",
+    "A human reads every one and replies to this address. Reply to this email to add anything.",
+    "You can see the status any time from the robot in the app: tap Help, then My tickets.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>We got your support ticket. It's <strong>#${ticket.number}</strong>.</p>
+    <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
+    <p>A human reads every one and replies to this address. Reply to this email to add anything.</p>
+    <p style="color:#666;font-size:13px">You can see the status any time from the robot in the app: tap Help, then My tickets.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · we got it`, text, html });
+}
+
+/** To the seller: closed. */
+export async function sendSupportTicketClosedEmail(to: string, ticket: TicketMail): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const tag = `SUPPORT TICKET #${ticket.number}`;
+  const text = [
+    `Your support ticket #${ticket.number} is closed.`,
+    "",
+    `Subject: ${ticket.subject}`,
+    "",
+    "If it's not actually sorted, reply to this email or open a new ticket from the robot in the app.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>Your support ticket <strong>#${ticket.number}</strong> is closed.</p>
+    <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
+    <p style="color:#666;font-size:13px">If it's not actually sorted, reply to this email or open a new ticket from the robot in the app.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · closed`, text, html });
+}

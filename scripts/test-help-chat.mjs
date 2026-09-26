@@ -97,7 +97,8 @@ check("second ask replays the raw history (tags intact) before the new message",
 
 nextReply = "   ";
 const blank = await askHelp(seller, "say nothing");
-check("blank model reply gets the fallback line", blank.content.includes("support@cardflip.io"));
+check("blank model reply gets the fallback line + ticket offer", [blank.content.includes("A human might"), blank.actions], [true, [{ type: "ticket", value: "" }]]);
+check("ticket tag becomes an action, once", splitReply("Not sure. {{ticket}} {{ticket}}"), { content: "Not sure.", actions: [{ type: "ticket", value: "" }] });
 
 nextReply = "Long one.";
 await askHelp(seller, "x".repeat(900));

@@ -27,8 +27,21 @@ interface Msg {
   id: string;
   role: "user" | "assistant";
   content: string;
-  actions?: { type: "guide" | "link"; value: string }[];
+  actions?: { type: "guide" | "link" | "ticket"; value: string }[];
 }
+
+interface Ticket {
+  id: string;
+  number: number;
+  subject: string;
+  status: "open" | "closed";
+  statusLabel: string;
+  createdAt: number;
+  closedAt: number | null;
+}
+
+/** What the panel shows: the chat, the ticket form, or the seller's tickets. */
+type View = "chat" | "ticket" | "tickets";
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
 
@@ -43,19 +56,21 @@ const STARTERS = [
 ];
 
 /** Split a reply into its text and the actions the robot tagged. */
-function parseReply(content: string): { text: string; guide: string | null; link: string | null } {
+function parseReply(content: string): { text: string; guide: string | null; link: string | null; ticket: boolean } {
   let guide: string | null = null;
   let link: string | null = null;
+  let ticket = false;
   const text = content
-    .replace(TAG_RE, (_, kind: string, value: string) => {
-      const v = value.trim();
+    .replace(TAG_RE, (_, kind: string, value: string | undefined) => {
+      const v = (value ?? "").trim();
       if (kind === "guide" && guideById(v)) guide = v;
       if (kind === "link" && v in HELP_LINKS) link = v;
+      if (kind === "ticket") ticket = true;
       return "";
     })
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  return { text, guide, link };
+  return { text, guide, link, ticket };
 }
 
 export default function NavRobot() {
@@ -66,6 +81,13 @@ export default function NavRobot() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Support tickets (Chris 09-26): the robot accepts and manages them.
+  const [view, setView] = useState<View>("chat");
+  const [tickets, setTickets] = useState<Ticket[] | null>(null);
+  const [tSubject, setTSubject] = useState("");
+  const [tBody, setTBody] = useState("");
+  const [tBusy, setTBusy] = useState(false);
+  const [tError, setTError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -136,12 +158,29 @@ export default function NavRobot() {
     };
   }, [open, messages]);
 
+  // Tickets load on first open too (the footer shows the open count).
+  useEffect(() => {
+    if (!open || tickets !== null) return;
+    let cancelled = false;
+    fetch(apiPath("/api/help/tickets"))
+      .then((r) => (r.ok ? r.json() : { tickets: [] }))
+      .then((data) => {
+        if (!cancelled) setTickets(data.tickets ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setTickets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, tickets]);
+
   // Newest message in view; focus the box when the panel opens.
   useEffect(() => {
-    if (!open) return;
+    if (!open || view !== "chat") return;
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
     if (!busy) inputRef.current?.focus();
-  }, [open, messages, busy]);
+  }, [open, messages, busy, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -193,6 +232,49 @@ export default function NavRobot() {
       void sendText(draft);
     },
     [sendText, draft],
+  );
+
+  const openCount = tickets?.filter((t) => t.status === "open").length ?? 0;
+
+  // Open a ticket: the row + mail happen server-side; the chat gets a
+  // confirmation bubble so the number is right there in the thread.
+  const submitTicket = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (tBusy || !tBody.trim()) return;
+      setTBusy(true);
+      setTError(null);
+      try {
+        const res = await fetch(apiPath("/api/help/tickets"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject: tSubject, message: tBody }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setTError(data.error || "Couldn't open the ticket. Try again.");
+          return;
+        }
+        const t = data.ticket as Ticket;
+        setTickets((prev) => [t, ...(prev ?? [])]);
+        setTSubject("");
+        setTBody("");
+        setMessages((m) => [
+          ...(m ?? []),
+          {
+            id: `local-ticket-${t.id}`,
+            role: "assistant",
+            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email. Tap My tickets below any time to check on it.`,
+          },
+        ]);
+        setView("chat");
+      } catch {
+        setTError("No connection. Try again in a moment.");
+      } finally {
+        setTBusy(false);
+      }
+    },
+    [tBusy, tBody, tSubject],
   );
 
   const clear = useCallback(async () => {
@@ -249,10 +331,17 @@ export default function NavRobot() {
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-white">The robot</p>
-                <p className="truncate text-[11px] text-zinc-500">Help, tours, moral support</p>
+                <p className="text-sm font-semibold text-white">{view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "My tickets"}</p>
+                <p className="truncate text-[11px] text-zinc-500">
+                  {view === "chat" ? "Help, tours, moral support" : view === "ticket" ? "A human reads it and emails you back" : "Number and status. A human replies by email."}
+                </p>
               </div>
-              {messages && messages.length > 0 && (
+              {view !== "chat" && (
+                <button onClick={() => setView("chat")} className="text-[11px] text-zinc-400 transition hover:text-white">
+                  Back
+                </button>
+              )}
+              {view === "chat" && messages && messages.length > 0 && (
                 <button onClick={clear} className="text-[11px] text-zinc-500 transition hover:text-zinc-300">
                   Clear
                 </button>
@@ -266,7 +355,71 @@ export default function NavRobot() {
               </button>
             </div>
 
-            <div ref={listRef} className="flex-1 space-y-2.5 overflow-y-auto px-4 py-3">
+            {view === "ticket" && (
+              <form onSubmit={submitTicket} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+                <p className="text-sm text-zinc-300">Say what went wrong and what you expected. Include the card or listing if there is one.</p>
+                <input
+                  value={tSubject}
+                  onChange={(e) => setTSubject(e.target.value)}
+                  maxLength={80}
+                  placeholder="Subject (optional)"
+                  aria-label="Subject"
+                  className="rounded-xl border border-edge bg-black/40 px-3.5 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm"
+                />
+                <textarea
+                  value={tBody}
+                  onChange={(e) => setTBody(e.target.value)}
+                  maxLength={2000}
+                  rows={6}
+                  autoFocus
+                  placeholder="What's wrong?"
+                  aria-label="What's wrong"
+                  className="min-h-[9rem] flex-1 resize-none rounded-xl border border-edge bg-black/40 px-3.5 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm"
+                />
+                {tError && <p className="text-xs text-amber-300">{tError}</p>}
+                <button
+                  type="submit"
+                  disabled={tBusy || !tBody.trim()}
+                  className="rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {tBusy ? "Sending…" : "Send ticket"}
+                </button>
+                <p className="text-center text-[11px] text-zinc-600">You get a copy by email with the ticket number.</p>
+              </form>
+            )}
+
+            {view === "tickets" && (
+              <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3">
+                {tickets === null && (
+                  <p className="text-center text-[11px] text-zinc-600">
+                    <Spinner className="mr-1 inline h-3 w-3" /> looking…
+                  </p>
+                )}
+                {tickets && tickets.length === 0 && (
+                  <p className="py-4 text-center text-sm text-zinc-500">No tickets. Nothing is broken, or nobody told us.</p>
+                )}
+                {tickets?.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-zinc-400">#{t.number}</span>
+                      <span className={`rounded-full px-2 py-px text-[11px] font-semibold ${t.status === "open" ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-zinc-500"}`}>
+                        {t.statusLabel}
+                      </span>
+                      <span className="ml-auto text-[11px] text-zinc-600">{new Date(t.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-zinc-200">{t.subject}</p>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setView("ticket")}
+                  className="mt-1 rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
+                >
+                  Open a support ticket
+                </button>
+              </div>
+            )}
+
+            <div ref={listRef} className={`flex-1 space-y-2.5 overflow-y-auto px-4 py-3 ${view === "chat" ? "" : "hidden"}`}>
               <Bubble role="assistant">{OPENER}</Bubble>
               {messages === null && (
                 <p className="text-center text-[11px] text-zinc-600">
@@ -300,12 +453,21 @@ export default function NavRobot() {
                 const text = parsed.text;
                 const guideId = m.actions?.find((a) => a.type === "guide")?.value ?? parsed.guide;
                 const link = m.actions?.find((a) => a.type === "link")?.value ?? parsed.link;
+                const ticket = m.actions?.some((a) => a.type === "ticket") || parsed.ticket;
                 const g = guideId ? guideById(guideId) : null;
                 return (
                   <div key={m.id} className="flex flex-col items-start gap-1.5">
                     <Bubble role="assistant">{text}</Bubble>
-                    {(g || link) && (
+                    {(g || link || ticket) && (
                       <div className="flex flex-wrap gap-1.5 pl-1">
+                        {ticket && (
+                          <button
+                            onClick={() => setView("ticket")}
+                            className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400"
+                          >
+                            Open a support ticket
+                          </button>
+                        )}
                         {g && (
                           <button
                             onClick={() => runGuide(g.id)}
@@ -338,6 +500,7 @@ export default function NavRobot() {
               {error && <p className="text-xs text-amber-300">{error}</p>}
             </div>
 
+            {view === "chat" && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-1 text-[11px] text-zinc-500">
               <button
                 onClick={() => {
@@ -349,14 +512,18 @@ export default function NavRobot() {
               >
                 Replay the tour
               </button>
-              <a href="mailto:support@cardflip.io" className="transition hover:text-zinc-300">
-                Email a Human
-              </a>
+              <button onClick={() => setView("ticket")} className="transition hover:text-zinc-300">
+                Open a support ticket
+              </button>
+              <button onClick={() => setView("tickets")} className="transition hover:text-zinc-300">
+                My tickets{openCount > 0 ? ` (${openCount} in progress)` : ""}
+              </button>
             </div>
+            )}
 
             <form
               onSubmit={send}
-              className="flex items-center gap-2 border-t border-edge px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
+              className={`flex items-center gap-2 border-t border-edge px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] ${view === "chat" ? "" : "hidden"}`}
             >
               <input
                 ref={inputRef}

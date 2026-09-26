@@ -499,6 +499,7 @@ export async function deleteUser(userId: string): Promise<void> {
       "DELETE FROM wishlist_items WHERE user_id = ?",
       "DELETE FROM price_checks WHERE user_id = ?",
       "DELETE FROM help_messages WHERE user_id = ?",
+      "DELETE FROM support_tickets WHERE user_id = ?",
       "DELETE FROM password_resets WHERE user_id = ?",
       "DELETE FROM categories WHERE user_id = ?",
       // scan_usage is kept on purpose: it is the cost ledger behind scan

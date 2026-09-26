@@ -115,5 +115,8 @@ export const HELP_LINKS: Record<string, string> = {
   "/pricing": "Pricing",
 };
 
-/** Tags the model writes: {{guide:id}} and {{link:/path}}. Parsed by the chat. */
-export const TAG_RE = /\{\{(guide|link):([^}]+)\}\}/g;
+/**
+ * Tags the model writes: {{guide:id}}, {{link:/path}} and {{ticket}} (offer
+ * to open a support ticket, 09-26). Parsed by the chat.
+ */
+export const TAG_RE = /\{\{(guide|link|ticket)(?::([^}]*))?\}\}/g;

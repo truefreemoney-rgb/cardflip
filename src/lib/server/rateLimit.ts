@@ -135,6 +135,8 @@ export const LIMITS = {
   authAccount: [{ limit: 10, windowMs: 15 * MINUTE }] as RateLimitRule[],
   /** Help robot: per-IP burst guard; the per-account daily cap lives in helpChat.ts. */
   helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
+  /** Support tickets: a person opens one, not twenty. Per IP. */
+  supportTicket: [{ limit: 3, windowMs: 10 * MINUTE }, { limit: 10, windowMs: DAY }] as RateLimitRule[],
 };
 
 /** Reset all windows — for tests only. */

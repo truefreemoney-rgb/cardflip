@@ -483,6 +483,23 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS help_messages_user ON help_messages(user_id, created_at);
 
+  -- Support tickets opened from the help robot (Chris 09-26). number is the
+  -- human id ("SUPPORT TICKET #12"); status is open | closed. The mail to
+  -- support@cardflip.io is the working copy; this row is what the seller sees.
+  CREATE TABLE IF NOT EXISTS support_tickets (
+    id TEXT PRIMARY KEY,
+    number INTEGER NOT NULL UNIQUE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    closed_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS support_tickets_user ON support_tickets(user_id, created_at);
+  CREATE INDEX IF NOT EXISTS support_tickets_status ON support_tickets(status, created_at);
+
   CREATE TABLE IF NOT EXISTS tcgplayer_products (
     product_id INTEGER PRIMARY KEY,
     group_id INTEGER NOT NULL,
