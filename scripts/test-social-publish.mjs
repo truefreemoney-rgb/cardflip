@@ -53,7 +53,8 @@ await catalog("sv1-2", "Miraidon ex", "81"); await series("sv1-2", 10, 15);
 await catalog("sv1-3", "Koraidon ex", "125"); await series("sv1-3", 40, 20);
 await catalog("sv1-4", "Gardevoir ex", "86"); await series("sv1-4", 20, 24);
 await catalog("sv1-5", "Arcanine ex", "32"); await series("sv1-5", 30, 30); // flat: set spotlight only
-await catalog("sv1-6", "Pawmot", "76"); await series("sv1-6", 5, 5); // flat: set spotlight only
+await catalog("sv1-6", "Pawmot", "76"); await series("sv1-6", 12, 12); // flat: set spotlight only
+await catalog("sv1-7", "Pawmi", "74"); await series("sv1-7", 12, 16); // +33%: third gainer
 
 const fetched = [];
 const fetchImage = async (url) => { fetched.push(url); return Buffer.from("png"); };

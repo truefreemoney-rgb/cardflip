@@ -20,8 +20,8 @@ import type { GameId } from "@/lib/types";
 
 export const MOVER_DAYS = 7;
 export const MOVER_LIMIT = 5;
-/** Below this the % swing is noise (a 40¢ common doubling). */
-export const MOVER_MIN_PRICE = 3;
+/** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
+export const MOVER_MIN_PRICE = 10;
 /** A move counts once the new price has held this many of the last MOVER_DAYS days (one odd sale is not a move; Grass Energy +650%, 09-25). */
 export const HELD_DAYS = 3;
 /** Card of the day comes from the cards worth talking about. */
@@ -32,7 +32,7 @@ const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
 
 /** Set spotlight (7am): the priciest cards of one set; a set needs this many cards worth at least SET_MIN_PRICE to be picked. */
 export const SET_MIN_CARDS = 5;
-export const SET_MIN_PRICE = 2;
+export const SET_MIN_PRICE = 10;
 
 export type PostKind = "movers" | "card" | "dips" | "set";
 export type PostSize = "square" | "story" | "landscape";
@@ -52,6 +52,8 @@ export interface Mover {
   from: number;
   to: number;
   pct: number;
+  /** Today's point has not held HELD_DAYS days: `to` is the week's median and the % is not worth showing. */
+  unsettled?: boolean;
 }
 
 export interface SocialPost {
@@ -87,13 +89,17 @@ function rank(variant: string): number {
   return VARIANT_ORDER.indexOf(variant) + 1 || 99;
 }
 
-/** Last non-null price at or before index `at` (−1 = the last point). */
-function priceAt(prices: (number | null)[], at: number): number | null {
-  for (let i = Math.min(at < 0 ? prices.length - 1 : at, prices.length - 1); i >= 0; i--) {
+/** Last non-null price at or before index `at` (−1 = the last point), looking back at most `maxBack` days. */
+function priceAt(prices: (number | null)[], at: number, maxBack = Infinity): number | null {
+  const start = Math.min(at < 0 ? prices.length - 1 : at, prices.length - 1);
+  for (let i = start; i >= 0 && start - i <= maxBack; i--) {
     if (prices[i] != null) return prices[i];
   }
   return null;
 }
+
+/** A price may stand in for up to this many later days with no point; beyond that it is not "last week's price". */
+const CARRY_DAYS = 3;
 
 function dayDiff(fromDay: string, toDay: string): number {
   return Math.round((Date.parse(toDay + "T00:00:00Z") - Date.parse(fromDay + "T00:00:00Z")) / 86_400_000);
@@ -113,23 +119,48 @@ async function freshSeries(game: GameId, day: string, days: number) {
         LIMIT ${ROW_CAP}`,
     )
     .all(game, since)) as unknown as SeriesRow[];
-  const out = new Map<string, { variant: string; from: number | null; to: number; held: number }>();
+  const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
     const to = priceAt(prices, todayIdx);
     if (to == null) continue;
-    const from = todayIdx - days >= 0 ? priceAt(prices, todayIdx - days) : null;
+    const from = todayIdx - days >= 0 ? priceAt(prices, todayIdx - days, CARRY_DAYS) : null;
     // Days in the window whose price sits within 15% of today's: a real move holds, a stray sale does not.
     let held = 0;
-    for (let i = Math.max(0, todayIdx - days + 1); i <= Math.min(todayIdx, prices.length - 1); i++) {
-      const v = prices[i];
-      if (v != null && Math.abs(v - to) / to <= 0.15) held++;
+    const window: number[] = [];
+    // Carry the last known price across a few days with no point, so a card priced twice a week still "holds".
+    for (let i = Math.max(0, todayIdx - days + 1); i <= todayIdx; i++) {
+      const v = priceAt(prices, i, CARRY_DAYS);
+      if (v == null) continue;
+      window.push(v);
+      if (Math.abs(v - to) / to <= 0.15) held++;
     }
+    // Median of the window: the price to show when today's point has not held (Pikachu Star $3,217 → $900 in a day, 09-25).
+    window.sort((a, b) => a - b);
+    const median = window.length ? window[Math.floor((window.length - 1) / 2)] : to;
     const have = out.get(r.card_id);
-    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held });
+    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held, median });
   }
   return out;
+}
+
+/**
+ * Card names as the post shows them. Satori has no glyph for ☆/★ (the
+ * Gold Star cards), so they draw as a box; write the word instead, the
+ * way collectors say it ("Gyarados Star δ").
+ */
+export function displayName(name: string): string {
+  return name.replace(/\s*[☆★]\s*/g, " Star ").replace(/\s+/g, " ").trim();
+}
+
+/** Variant as a collector says it; "" for the plain print. */
+export function variantLabel(variant: string): string {
+  if (variant === "holofoil") return "Holo";
+  if (variant === "reverseHolofoil") return "Reverse Holo";
+  if (variant === "1stEditionHolofoil") return "1st Ed. Holo";
+  if (variant === "1stEdition") return "1st Ed.";
+  return "";
 }
 
 async function catalogRows(game: GameId, ids: string[]): Promise<Map<string, CatalogRow>> {
@@ -158,7 +189,7 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 export async function topMovers(
   game: GameId,
   day = todayUtc(),
-  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "down" } = {},
+  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down" } = {},
 ): Promise<Mover[]> {
   const series = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
@@ -169,6 +200,7 @@ export async function topMovers(
     if (Math.abs(pct) < 1) continue;
     if (s.held < HELD_DAYS) continue;
     if (direction === "down" && pct >= 0) continue;
+    if (direction === "up" && pct <= 0) continue;
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
@@ -178,7 +210,7 @@ export async function topMovers(
   for (const m of top) {
     const c = cat.get(m.cardId);
     if (!c) continue;
-    out.push({ ...m, name: c.name, setName: c.set_name, number: c.number, imageUrl: postArtUrl(game, c.image_url) });
+    out.push({ ...m, name: displayName(c.name), setName: c.set_name, number: c.number, imageUrl: postArtUrl(game, c.image_url) });
     if (out.length >= limit) break;
   }
   return out;
@@ -207,7 +239,7 @@ export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = CO
   const from = s.from ?? s.to;
   return {
     cardId: pick,
-    name: c.name,
+    name: displayName(c.name),
     setName: c.set_name,
     number: c.number,
     imageUrl: postArtUrl(game, c.image_url),
@@ -246,15 +278,33 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   const sets = [...bySet.entries()].filter(([, ids]) => ids.length >= minCards).map(([setId]) => setId).sort();
   if (sets.length === 0) return null;
   const setId = sets[hashDay(day, `${game}:set`) % sets.length];
-  const top = (bySet.get(setId) ?? []).sort((a, b) => series.get(b)!.to - series.get(a)!.to || a.localeCompare(b)).slice(0, minCards * 2);
+  // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
+  const settled = (id: string) => {
+    const s = series.get(id)!;
+    return s.held >= HELD_DAYS ? s.to : s.median;
+  };
+  const top = (bySet.get(setId) ?? []).sort((a, b) => settled(b) - settled(a) || a.localeCompare(b)).slice(0, minCards * 2);
   const cat = await catalogRows(game, top);
   const cards: Mover[] = [];
   for (const id of top) {
     const c = cat.get(id);
     if (!c) continue;
     const s = series.get(id)!;
-    const from = s.from ?? s.to;
-    cards.push({ cardId: id, name: c.name, setName: c.set_name, number: c.number, imageUrl: postArtUrl(game, c.image_url), variant: s.variant, from, to: s.to, pct: from > 0 ? ((s.to - from) / from) * 100 : 0 });
+    const unsettled = s.held < HELD_DAYS;
+    const to = unsettled ? s.median : s.to;
+    const from = s.from ?? to;
+    cards.push({
+      cardId: id,
+      name: displayName(c.name),
+      setName: c.set_name,
+      number: c.number,
+      imageUrl: postArtUrl(game, c.image_url),
+      variant: s.variant,
+      from,
+      to,
+      pct: !unsettled && from > 0 ? ((to - from) / from) * 100 : 0,
+      unsettled,
+    });
     if (cards.length >= minCards) break;
   }
   if (cards.length < minCards) return null;
@@ -282,7 +332,7 @@ const GAME_TAGS: Record<GameId, string[]> = {
 export function moversCaption(game: GameId, movers: Mover[]): string {
   const lines = movers.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
-    `${GAME_LABEL[game]} price moves this week, from CardFlip's own price history.`,
+    `${GAME_LABEL[game]} price gains this week, from CardFlip's own price history.`,
     "",
     ...lines,
     "",
@@ -293,7 +343,7 @@ export function moversCaption(game: GameId, movers: Mover[]): string {
 /** The movers post in under 300 characters: name and % only. */
 export function moversShortCaption(game: GameId, movers: Mover[]): string {
   return [
-    `${GAME_LABEL[game]} price moves this week`,
+    `${GAME_LABEL[game]} price gains this week`,
     ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
     "",
     "Scan a card, see what it's worth. cardflip.io",
@@ -331,17 +381,22 @@ export function cardCaption(game: GameId, card: Mover): string {
 
 /** Caption for the set spotlight (morning slot): the set's priciest cards and their week. */
 export function setCaption(game: GameId, spot: SetSpotlight): string {
-  const lines = spot.cards.map((m) => `${m.name} (${m.number}) ${money(m.to)}, ${Math.abs(m.pct) >= 1 ? `${pctLabel(m.pct)} this week` : "flat this week"}`);
-  return [`Most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, from CardFlip's own price history.`, "", ...lines, "", "Scan a card, see what it's worth. cardflip.io"].join("\n");
+  const lines = spot.cards.map((m) => {
+    const v = variantLabel(m.variant);
+    const week = m.unsettled ? "" : Math.abs(m.pct) >= 1 ? `, ${pctLabel(m.pct)} this week` : ", steady this week";
+    return `${m.name} #${m.number}${v ? ` ${v}` : ""}: ${money(m.to)}${week}`;
+  });
+  return [`The five most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", "Scan a card, see what it's worth. cardflip.io"].join("\n");
 }
 
 export function setShortCaption(game: GameId, spot: SetSpotlight): string {
-  return [`${spot.setName}: most valuable cards`, ...spot.cards.map((m) => `${m.name} ${money(m.to)}`), "", "Scan a card, see what it's worth. cardflip.io"].join("\n");
+  return [`${spot.setName}: the five most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", "Scan a card, see what it's worth. cardflip.io"].join("\n");
 }
 
 /** Today's drafts for a game, in posting order. Empty when the data is thin. */
 export async function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
-  const [movers, spot, dips] = await Promise.all([topMovers(game, day), setSpotlight(game, day), topMovers(game, day, { direction: "down" })]);
+  // Gainers at 1pm, drops at 7pm: no card appears in both posts on the same day.
+  const [movers, spot, dips] = await Promise.all([topMovers(game, day, { direction: "up" }), setSpotlight(game, day), topMovers(game, day, { direction: "down" })]);
   const posts: SocialPost[] = [];
   if (movers.length >= 3) {
     posts.push({

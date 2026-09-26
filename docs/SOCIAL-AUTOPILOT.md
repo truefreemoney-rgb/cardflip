@@ -60,8 +60,24 @@ sentence case, no exclamation marks, ends on cardflip.io).
 - **Set spotlight** (7am, replaced card of the day 09-25, Chris: no
   single-card posts, more informative multi-card ones): the five most
   valuable cards of one set with their 7-day move. The set is chosen by a
-  hash of the date over every set with ≥ 5 cards worth ≥ $2, so sets cycle
+  hash of the date over every set with ≥ 5 cards worth ≥ $10, so sets cycle
   and every run agrees. Pokémon only (set = card id prefix).
+- **QUALITY RULES (Chris 09-25, "highest quality possible", pictures AND
+  words)**: (a) a price is only shown as today's when it has held 3 of the
+  last 7 days (carry-forward across ≤ 3 missing days); otherwise the week's
+  median is shown and NO % is claimed (`Mover.unsettled`; Pikachu Star
+  $3,217 → $900 in one day was the trigger). (b) A week-ago price must be a
+  real point within 3 days of a week ago, never a month-old one. (c)
+  MOVER_MIN_PRICE is $10 (was $3; "$1.83 → $3.10, +69%" is not news).
+  (d) 1pm = gainers only, 7pm = drops only, so no card is in both posts.
+  (e) ☆/★ in names become the word "Star" (Satori has no glyph; drew a box).
+  (f) Set spotlight rows read "#131 · Holo", the heading is the set name on
+  one line (long names shrink), art is 126 px. Before changing the engine
+  again: render real pictures (local dev: CRON_SECRET=local-dev-only in
+  .env.local, `/api/social/image?kind=set&day=…&key=local-dev-only`) and
+  read them as a collector would; local price_series has ONE point per card
+  (synced once), so locally every card reads "unsettled" and the movers
+  posts are empty — that is the local mirror, not prod.
 - Card of the day (one card ≥ $15 by date hash) still exists in code
   (`cardOfTheDay`, `?kind=card`) but no slot posts it.
 - Art: TCGdex WebP → PNG through sharp, pokemontcg.io PNG twin as the

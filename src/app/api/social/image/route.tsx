@@ -8,6 +8,7 @@ import {
   pctLabel,
   setSpotlight,
   topMovers,
+  variantLabel,
   type Mover,
   type PostSize,
 } from "@/lib/server/social";
@@ -106,13 +107,13 @@ export async function GET(req: NextRequest) {
     const spot = await setSpotlight(game, day);
     if (!spot) return NextResponse.json({ error: "No set today" }, { status: 404 });
     return new ImageResponse(
-      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={`${spot.setName}: most valuable cards`} mode="price" />,
+      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" />,
       size,
     );
   }
-  const movers = await topMovers(game, day, kind === "dips" ? { direction: "down" } : {});
+  const movers = await topMovers(game, day, { direction: kind === "dips" ? "down" : "up" });
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
-  return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price moves this week"} />, size);
+  return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price gains this week"} />, size);
 }
 
 function Frame({ children, tall, wide }: { children: React.ReactNode; tall: boolean; wide: boolean }) {
@@ -146,7 +147,7 @@ function Pct({ pct, size }: { pct: number; size: number }) {
   const flat = Math.abs(pct) < 1;
   return (
     <div style={{ display: "flex", fontSize: size, fontWeight: 700, color: flat ? MUTED : pct > 0 ? UP : DOWN }}>
-      {flat ? "flat" : pctLabel(pct)}
+      {flat ? "steady" : pctLabel(pct)}
     </div>
   );
 }
@@ -154,16 +155,17 @@ function Pct({ pct, size }: { pct: number; size: number }) {
 /** mode "move" = from → to with the % (movers, dips); "price" = today's price with the week's % as a footnote (set spotlight). */
 function Movers({ movers, label, tall, wide, heading, mode = "move" }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price" }) {
   const rows = wide ? movers.slice(0, 3) : movers;
-  const art = wide ? 92 : tall ? 190 : 108;
-  const fs = wide ? 24 : tall ? 38 : 27;
+  const art = wide ? 92 : tall ? 200 : 126;
+  const fs = wide ? 24 : tall ? 38 : 28;
   const price = mode === "price";
   return (
     <Frame tall={tall} wide={wide}>
-      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 38 : tall ? 64 : 50, fontWeight: 700, letterSpacing: -1 }}>
+      {/* One line, always: a long set name ("Mysterious Treasures") shrinks instead of wrapping and pushing the footer off the picture. */}
+      <div style={{ display: "flex", flexShrink: 0, fontSize: (wide ? 38 : tall ? 64 : 50) * (heading.length > 26 ? 0.72 : heading.length > 20 ? 0.86 : 1), fontWeight: 700, letterSpacing: -1, whiteSpace: "nowrap" }}>
         {price ? heading : `${label} ${heading}`}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
-        {price ? `${label} market price today, from CardFlip's price history` : "Market price, last 7 days, from CardFlip's price history"}
+        {price ? `The five most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : 12, marginTop: wide ? 14 : tall ? 40 : 24 }}>
         {rows.map((m) => (
@@ -190,13 +192,15 @@ function Movers({ movers, label, tall, wide, heading, mode = "move" }: { movers:
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", fontSize: fs, fontWeight: 600 }}>{m.name}</div>
               <div style={{ display: "flex", fontSize: fs * 0.72, color: MUTED }}>
-                {m.setName} · {m.number}
+                {price ? `#${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}` : `${m.setName} · ${m.number}`}
               </div>
               {price ? (
-                <div style={{ display: "flex", alignItems: "baseline", gap: 10, fontSize: fs * 0.8, marginTop: 4, color: MUTED }}>
-                  <Pct pct={m.pct} size={fs * 0.8} />
-                  <div style={{ display: "flex" }}>this week</div>
-                </div>
+                m.unsettled ? null : (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, fontSize: fs * 0.8, marginTop: 4, color: MUTED }}>
+                    <Pct pct={m.pct} size={fs * 0.8} />
+                    <div style={{ display: "flex" }}>this week</div>
+                  </div>
+                )
               ) : (
                 <div style={{ display: "flex", fontSize: fs * 0.85, marginTop: 4 }}>
                   {money(m.from)} → {money(m.to)}
