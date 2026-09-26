@@ -1,11 +1,11 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
-import { siteStatus, slotAt, socialGames } from "@/lib/server/socialPublish";
+import { eastern, siteStatus, slotAt, socialGames } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
-import { addDays, todayUtc } from "@/lib/priceSeries";
+import { addDays } from "@/lib/priceSeries";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string }> }) {
   await requireOwnerPage();
   const { day: raw } = await searchParams;
-  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayUtc();
+  // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
+  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : eastern().day;
   const games = await socialGames();
   const [perGame, sites] = await Promise.all([Promise.all(games.map((g) => socialDrafts(g, day))), siteStatus(SOCIAL_SITES)]);
   const drafts = perGame.flat();
