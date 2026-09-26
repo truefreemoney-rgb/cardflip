@@ -28,7 +28,8 @@ const SIZES = [
   ["landscape", "Landscape", "aspect-[1200/628]"],
 ] as const;
 
-export default function SocialPreview({ drafts }: { drafts: DraftView[] }) {
+/** videos: draft id → public MP4 URL, for drafts the render job registered (the 7am set spotlight goes out as video). */
+export default function SocialPreview({ drafts, videos = {} }: { drafts: DraftView[]; videos?: Record<string, string> }) {
   if (drafts.length === 0) {
     return (
       <p className="rounded-2xl border border-edge bg-surface-1 p-4 text-sm text-zinc-400">
@@ -39,16 +40,19 @@ export default function SocialPreview({ drafts }: { drafts: DraftView[] }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {drafts.map((d) => (
-        <Draft key={d.id} draft={d} />
+        <Draft key={d.id} draft={d} video={videos[d.id]} />
       ))}
     </div>
   );
 }
 
-function Draft({ draft }: { draft: DraftView }) {
-  const [size, setSize] = useState<(typeof SIZES)[number][0]>("square");
+type Size = (typeof SIZES)[number][0] | "video";
+
+function Draft({ draft, video }: { draft: DraftView; video?: string }) {
+  const [size, setSize] = useState<Size>(video ? "video" : "square");
   const [copied, setCopied] = useState(false);
-  const aspect = SIZES.find((s) => s[0] === size)![2];
+  const aspect = size === "video" ? "aspect-[9/16]" : SIZES.find((s) => s[0] === size)![2];
+  const imageSize = size === "video" ? "story" : size;
   const text = `${draft.caption}\n\n${draft.hashtags.map((h) => `#${h}`).join(" ")}`;
 
   async function copy() {
@@ -70,7 +74,16 @@ function Draft({ draft }: { draft: DraftView }) {
             {draft.game === "mtg" ? "Magic" : "Pokémon"} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : "card of the day"} · {draft.day}
           </p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap justify-end gap-1">
+          {video && (
+            <button
+              type="button"
+              onClick={() => setSize("video")}
+              className={`rounded-full px-2.5 py-1 text-xs ${size === "video" ? "bg-brand-500/20 text-brand-300" : "text-zinc-400 hover:text-white"}`}
+            >
+              Video
+            </button>
+          )}
           {SIZES.map(([key, label]) => (
             <button
               key={key}
@@ -83,19 +96,23 @@ function Draft({ draft }: { draft: DraftView }) {
           ))}
         </div>
       </header>
-      <div className={`mx-auto w-full ${size === "story" ? "max-w-[260px]" : ""} ${aspect} overflow-hidden rounded-xl border border-edge bg-black`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={size}
-          src={apiPath(`${draft.imagePath}&size=${size}`)}
-          alt={draft.title}
-          className="h-full w-full object-contain"
-        />
+      <div className={`mx-auto w-full ${size === "story" || size === "video" ? "max-w-[260px]" : ""} ${aspect} overflow-hidden rounded-xl border border-edge bg-black`}>
+        {size === "video" && video ? (
+          <video src={video} controls playsInline muted loop preload="metadata" className="h-full w-full object-contain" />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            key={size}
+            src={apiPath(`${draft.imagePath}&size=${imageSize}`)}
+            alt={draft.title}
+            className="h-full w-full object-contain"
+          />
+        )}
       </div>
       <textarea readOnly value={text} rows={6} className="w-full rounded-xl border border-edge bg-surface-2 p-3 text-sm text-zinc-200" />
       <div className="flex items-center justify-between">
-        <a href={apiPath(`${draft.imagePath}&size=${size}`)} target="_blank" rel="noreferrer" className="text-xs text-brand-300 hover:underline">
-          Open image
+        <a href={size === "video" && video ? video : apiPath(`${draft.imagePath}&size=${imageSize}`)} target="_blank" rel="noreferrer" className="text-xs text-brand-300 hover:underline">
+          {size === "video" ? "Open video" : "Open image"}
         </a>
         <button type="button" onClick={copy} className="rounded-full bg-brand-500 px-4 py-1.5 text-sm font-medium text-white">
           {copied ? "Copied" : "Copy caption"}

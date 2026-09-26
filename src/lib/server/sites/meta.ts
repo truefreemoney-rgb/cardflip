@@ -75,9 +75,9 @@ async function parkImage(site: string, jpeg: Buffer): Promise<{ url: string; don
   };
 }
 
-/** Meta media containers are async; poll until FINISHED (or give up after ~1 min). */
-async function waitForContainer(url: string, step: string): Promise<void> {
-  for (let i = 0; i < 12; i++) {
+/** Meta media containers are async; poll until FINISHED (~1 min for a picture, up to ~4 min for a video). */
+async function waitForContainer(url: string, step: string, tries = 12): Promise<void> {
+  for (let i = 0; i < tries; i++) {
     const j = await graph<{ status_code?: string; status?: string }>(url, {}, `${step} status`);
     const status = j.status_code ?? j.status ?? "FINISHED";
     if (status === "FINISHED") return;
@@ -222,11 +222,22 @@ export const facebook: SocialSite = {
   label: "Facebook",
   maxChars: FACEBOOK_MAX_CHARS,
   maxImageBytes: META_MAX_IMAGE_BYTES,
+  postsVideo: true,
   connected: () => fbCreds() !== null,
   async post(p: SitePost): Promise<{ uri: string }> {
     const creds = fbCreds();
     if (!creds) throw new Error("facebook: not connected");
     const c = await resolvePage(creds);
+    if (p.video) {
+      // The Page pulls the MP4 from its public Blob URL; no upload from here.
+      const j = await graph<{ id?: string }>(
+        `${GRAPH}/${c.pageId}/videos`,
+        { method: "POST", headers: FORM, body: form({ file_url: p.video.url, description: p.text, access_token: c.token }) },
+        "facebook videos",
+      );
+      if (!j.id) throw new Error("facebook videos: no id in response");
+      return { uri: `https://www.facebook.com/${c.pageId}/videos/${j.id}` };
+    }
     const fd = new FormData();
     fd.append("access_token", c.token);
     fd.append("message", p.text);
@@ -261,20 +272,25 @@ export const instagram: SocialSite = {
   label: "Instagram",
   maxChars: INSTAGRAM_MAX_CHARS,
   maxImageBytes: META_MAX_IMAGE_BYTES,
+  postsVideo: true,
   connected: () => igCreds() !== null,
   async post(p: SitePost): Promise<{ uri: string }> {
     const c = igCreds();
     if (!c) throw new Error("instagram: not connected");
     if (c.base === IG_LOGIN) c.token = (await liveToken("instagram")) ?? c.token;
-    const parked = await parkImage("instagram", await asJpeg(p));
+    // Video = a Reel (9:16 MP4, shared to the feed too), pulled from its public Blob URL; nothing to park.
+    const parked = p.video ? { url: p.video.url, done: async () => {} } : await parkImage("instagram", await asJpeg(p));
     try {
+      const media: Record<string, string> = p.video
+        ? { media_type: "REELS", video_url: parked.url, share_to_feed: "true", caption: p.text }
+        : { image_url: parked.url, caption: p.text, alt_text: p.alt.slice(0, 1000) };
       const container = await graph<{ id?: string }>(
         `${c.base}/${c.userId}/media`,
-        { method: "POST", headers: FORM, body: form({ image_url: parked.url, caption: p.text, alt_text: p.alt.slice(0, 1000), access_token: c.token }) },
+        { method: "POST", headers: FORM, body: form({ ...media, access_token: c.token }) },
         "instagram media",
       );
       if (!container.id) throw new Error("instagram media: no container id");
-      await waitForContainer(`${c.base}/${container.id}?fields=status_code&access_token=${encodeURIComponent(c.token)}`, "instagram media");
+      await waitForContainer(`${c.base}/${container.id}?fields=status_code&access_token=${encodeURIComponent(c.token)}`, "instagram media", p.video ? 48 : 12);
       const published = await graph<{ id?: string }>(
         `${c.base}/${c.userId}/media_publish`,
         { method: "POST", headers: FORM, body: form({ creation_id: container.id, access_token: c.token }) },
@@ -306,20 +322,24 @@ export const threads: SocialSite = {
   label: "Threads",
   maxChars: THREADS_MAX_CHARS,
   maxImageBytes: META_MAX_IMAGE_BYTES,
+  postsVideo: true,
   connected: () => threadsCreds() !== null,
   async post(p: SitePost): Promise<{ uri: string }> {
     const c = threadsCreds();
     if (!c) throw new Error("threads: not connected");
     c.token = (await liveToken("threads")) ?? c.token;
-    const parked = await parkImage("threads", await asJpeg(p));
+    const parked = p.video ? { url: p.video.url, done: async () => {} } : await parkImage("threads", await asJpeg(p));
     try {
+      const media: Record<string, string> = p.video
+        ? { media_type: "VIDEO", video_url: parked.url, text: p.text, alt_text: p.alt.slice(0, 1000) }
+        : { media_type: "IMAGE", image_url: parked.url, text: p.text, alt_text: p.alt.slice(0, 1000) };
       const container = await graph<{ id?: string }>(
         `${THREADS}/${c.userId}/threads`,
-        { method: "POST", headers: FORM, body: form({ media_type: "IMAGE", image_url: parked.url, text: p.text, alt_text: p.alt.slice(0, 1000), access_token: c.token }) },
+        { method: "POST", headers: FORM, body: form({ ...media, access_token: c.token }) },
         "threads container",
       );
       if (!container.id) throw new Error("threads: no container id");
-      await waitForContainer(`${THREADS}/${container.id}?fields=status&access_token=${encodeURIComponent(c.token)}`, "threads container");
+      await waitForContainer(`${THREADS}/${container.id}?fields=status&access_token=${encodeURIComponent(c.token)}`, "threads container", p.video ? 48 : 12);
       const published = await graph<{ id?: string }>(
         `${THREADS}/${c.userId}/threads_publish`,
         { method: "POST", headers: FORM, body: form({ creation_id: container.id, access_token: c.token }) },

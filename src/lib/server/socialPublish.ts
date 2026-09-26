@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import { markFeatured, socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
+import { parseVideoSpec, videoKey, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -67,6 +68,16 @@ export async function socialGames(): Promise<GameId[]> {
   return out;
 }
 
+/** A rendered MP4 for the post (lib/socialVideo.ts). Sites that take video post it and use the picture only as the fallback. */
+export interface SitePostVideo {
+  url: string;
+  bytes: Buffer;
+  mime: "video/mp4";
+  width: number;
+  height: number;
+  seconds: number;
+}
+
 export interface SitePost {
   text: string;
   image: Buffer;
@@ -74,6 +85,7 @@ export interface SitePost {
   width: number;
   height: number;
   alt: string;
+  video?: SitePostVideo;
 }
 
 export interface SocialSite {
@@ -82,6 +94,8 @@ export interface SocialSite {
   /** Post length the site allows; captions are fitted to it. */
   maxChars: number;
   maxImageBytes: number;
+  /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
+  postsVideo?: boolean;
   connected(): boolean;
   post(p: SitePost): Promise<{ uri: string }>;
 }
@@ -91,7 +105,8 @@ export interface SiteReport {
   label: string;
   status: "posted" | "skipped" | "dry" | "failed";
   reason?: string;
-  posts: Array<{ id: string; title: string; uri?: string; error?: string }>;
+  /** video: "yes" = the MP4 went out; "fallback" = the video upload failed and the picture went instead (error says why). */
+  posts: Array<{ id: string; title: string; uri?: string; error?: string; video?: "yes" | "fallback" }>;
 }
 
 export interface PublishReport {
@@ -151,6 +166,8 @@ export interface PublishOptions {
   origin: string;
   sites: SocialSite[];
   fetchImage?: (url: string) => Promise<Buffer>;
+  /** Fetches a registered MP4 from Blob (test hook). */
+  fetchVideo?: (url: string) => Promise<Buffer>;
   now?: number;
 }
 
@@ -158,6 +175,16 @@ async function defaultFetchImage(url: string): Promise<Buffer> {
   const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(25_000) });
   if (!res.ok) throw new Error(`image ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
+}
+async function defaultFetchVideo(url: string): Promise<Buffer> {
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(40_000) });
+  if (!res.ok) throw new Error(`video ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/** The MP4 registered for a draft by the render job, or null (picture post). */
+export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
+  return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
 }
 
 export async function publishSocial(opts: PublishOptions): Promise<PublishReport> {
@@ -195,17 +222,65 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     return report;
   }
   const fetchImage = opts.fetchImage ?? defaultFetchImage;
+  const fetchVideo = opts.fetchVideo ?? defaultFetchVideo;
   const key = process.env.CRON_SECRET ?? "";
-  const images = new Map<string, Buffer>();
-  async function pngFor(d: SocialPost): Promise<Buffer> {
-    const hit = images.get(d.id);
-    if (hit) return hit;
-    const bytes = await fetchImage(`${opts.origin}${d.imagePath}&size=square&key=${encodeURIComponent(key)}`);
-    images.set(d.id, bytes);
-    return bytes;
+  // Sites post in parallel (video polling on Meta takes minutes), so the
+  // per-draft fetches are memoized as promises: one image and one video
+  // fetch per draft per run, whoever asks first.
+  const images = new Map<string, Promise<Buffer>>();
+  function pngFor(d: SocialPost): Promise<Buffer> {
+    let p = images.get(d.id);
+    if (!p) {
+      p = fetchImage(`${opts.origin}${d.imagePath}&size=square&key=${encodeURIComponent(key)}`);
+      images.set(d.id, p);
+    }
+    return p;
+  }
+  const videos = new Map<string, Promise<SitePostVideo | null>>();
+  function videoOf(d: SocialPost): Promise<SitePostVideo | null> {
+    let p = videos.get(d.id);
+    if (!p) {
+      p = (async () => {
+        const spec = await videoFor(d);
+        if (!spec) return null;
+        try {
+          const bytes = await fetchVideo(spec.url);
+          return { url: spec.url, bytes, mime: "video/mp4", width: spec.width, height: spec.height, seconds: spec.seconds };
+        } catch (err) {
+          console.warn("social: video fetch failed, posting the picture", err instanceof Error ? err.message : err);
+          return null;
+        }
+      })();
+      videos.set(d.id, p);
+    }
+    return p;
   }
 
-  for (const site of connected) {
+  async function postOne(site: SocialSite, d: SocialPost, text: string): Promise<{ uri: string; video?: "yes" | "fallback"; error?: string }> {
+    const png = await pngFor(d);
+    const img = await fitImage(png, site.maxImageBytes);
+    const base: SitePost = {
+      text,
+      image: img.bytes,
+      mime: img.mime,
+      width: POST_SIZES.square.width,
+      height: POST_SIZES.square.height,
+      alt: `${d.title}. ${d.caption.split("\n")[0]}`,
+    };
+    const video = site.postsVideo ? await videoOf(d) : null;
+    if (!video) return site.post(base);
+    try {
+      const { uri } = await site.post({ ...base, video });
+      return { uri, video: "yes" };
+    } catch (err) {
+      // Video is the upgrade, the picture is the post: never lose the slot to a video upload.
+      const reason = err instanceof Error ? err.message : String(err);
+      const { uri } = await site.post(base);
+      return { uri, video: "fallback", error: `video failed, picture posted: ${reason}` };
+    }
+  }
+
+  async function postSite(site: SocialSite): Promise<SiteReport> {
     // What this site still owes today. A named slot with force re-posts it;
     // Post now (force, no slot) re-does the latest due slot when nothing is owed.
     let todo: typeof plan = [];
@@ -216,8 +291,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     if (todo.length === 0 && force) todo = plan.slice(-1);
     if (todo.length === 0) {
       const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
-      report.sites.push({ site: site.id, label: site.label, status: "skipped", reason, posts: [] });
-      continue;
+      return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
     }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
     for (const p of todo) {
@@ -225,21 +299,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       for (const d of p.drafts) {
         const text = fitText(d, site.maxChars);
         if (opts.dry) {
-          entry.posts.push({ id: d.id, title: d.title });
+          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await videoFor(d)) ? "yes" : undefined });
           continue;
         }
         try {
-          const png = await pngFor(d);
-          const img = await fitImage(png, site.maxImageBytes);
-          const { uri } = await site.post({
-            text,
-            image: img.bytes,
-            mime: img.mime,
-            width: POST_SIZES.square.width,
-            height: POST_SIZES.square.height,
-            alt: `${d.title}. ${d.caption.split("\n")[0]}`,
-          });
-          entry.posts.push({ id: d.id, title: d.title, uri });
+          const r = await postOne(site, d, text);
+          entry.posts.push({ id: d.id, title: d.title, uri: r.uri, ...(r.video ? { video: r.video } : {}), ...(r.error ? { error: r.error } : {}) });
           landed++;
         } catch (err) {
           entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
@@ -255,8 +320,11 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         await setSetting(`${LAST_POST_PREFIX}${site.id}:uris`, JSON.stringify(posted.map((p) => p.uri)));
       }
     }
-    report.sites.push(entry);
+    return entry;
   }
+
+  // Every connected site at once; the report keeps the sites' order.
+  report.sites.push(...(await Promise.all(connected.map(postSite))));
   if (!opts.dry) {
     // No-repeat rule: every gains/drops draft that landed anywhere keeps its cards out of that kind for FEATURED_DAYS.
     const landedIds = new Set(report.sites.flatMap((s) => s.posts.filter((p) => p.uri).map((p) => p.id)));
@@ -275,8 +343,8 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
   const text = active
     .map((s) => {
       const ok = s.posts.filter((p) => p.uri);
-      const bad = s.posts.filter((p) => p.error);
-      const parts = [`${s.label}: ${ok.length ? ok.map((p) => `${p.title} → ${p.uri}`).join(", ") : "nothing went out"}`];
+      const bad = s.posts.filter((p) => p.error && !p.uri);
+      const parts = [`${s.label}: ${ok.length ? ok.map((p) => `${p.title}${p.video === "yes" ? " (video)" : p.video === "fallback" ? " (picture, video failed)" : ""} → ${p.uri}`).join(", ") : "nothing went out"}`];
       if (bad.length) parts.push(`failed: ${bad.map((p) => `${p.title} (${p.error})`).join("; ")}`);
       return parts.join(" — ");
     })

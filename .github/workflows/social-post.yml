@@ -4,8 +4,16 @@ name: social-post
 # Eastern, hands off). GitHub cron is UTC and best-effort, so each slot is
 # pinged at both its EDT and EST hour; the publisher keys each slot to the
 # Eastern day and the second ping is a no-op. Manual: Run workflow.
+#
+# The 7am set spotlight goes out as a VIDEO (Chris 09-25): the `video` job
+# renders it here (headless Chromium + ffmpeg do not fit a Vercel function),
+# parks it on Vercel Blob and registers it in the settings table; the
+# publisher then posts the MP4 on every site that takes one, picture as the
+# fallback. The `post` job runs whether or not the render succeeded.
 on:
   schedule:
+    - cron: "50 10 * * *" # 6:50am EDT: render the set-spotlight video
+    - cron: "50 11 * * *" # 6:50am EST
     - cron: "5 11 * * *"  # 7am EDT
     - cron: "5 12 * * *"  # 7am EST
     - cron: "5 17 * * *"  # 1pm EDT
@@ -22,11 +30,56 @@ on:
         description: "1 = post even if this slot already went out today"
         required: false
         default: ""
+      video:
+        description: "1 = render the set-spotlight video first (re-renders today's)"
+        required: false
+        default: ""
 
 jobs:
-  post:
+  video:
+    # The 6:50 pings and any dispatch that asks for it. Morning pings render
+    # too when the 6:50 one was skipped (GitHub cron is best-effort); the
+    # script exits at once when today's video is already registered.
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.video == '1' || inputs.slot == 'morning' || inputs.slot == '')
+      || contains(fromJSON('["50 10 * * *","50 11 * * *","5 11 * * *","5 12 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Render, park on Blob, register
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          FORCE_RENDER: ${{ inputs.video }}
+        run: |
+          skip="--skip-if-done"; if [ "$FORCE_RENDER" = "1" ]; then skip=""; fi
+          node --experimental-strip-types --no-warnings --conditions=react-server \
+            --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs \
+            --out set-spotlight.mp4 --register $skip
+      - name: Keep the MP4 for a look
+        if: hashFiles('set-spotlight.mp4') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: set-spotlight
+          path: set-spotlight.mp4
+          retention-days: 3
+
+  post:
+    needs: [video]
+    # Not on the 6:50 render-only pings; on every other ping, even when the render failed.
+    if: >-
+      always()
+      && !contains(fromJSON('["50 10 * * *","50 11 * * *"]'), github.event.schedule)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - name: Ping the publisher
         env:
@@ -35,7 +88,7 @@ jobs:
           FORCE: ${{ inputs.force }}
         run: |
           url="https://cardflip.io/api/social/publish?slot=${SLOT}&force=${FORCE}"
-          code=$(curl -sS -o report.json -w '%{http_code}' -X POST -H "Authorization: Bearer ${KEY}" "$url")
+          code=$(curl -sS --max-time 330 -o report.json -w '%{http_code}' -X POST -H "Authorization: Bearer ${KEY}" "$url")
           echo "HTTP $code"
           cat report.json | head -c 4000; echo
           test "$code" = "200"

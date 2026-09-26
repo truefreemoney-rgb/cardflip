@@ -18,7 +18,8 @@ import { refreshMetaTokens } from "@/lib/server/sites/meta";
  * /api/social/image and /api/social/drafts.
  */
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// Video posts poll Meta/Bluesky/X processing for up to a few minutes; sites run in parallel.
+export const maxDuration = 300;
 
 /** The schedule's own key (GitHub secret SOCIAL_POST_KEY), so CRON_SECRET never leaves Vercel. */
 function postKeyOk(req: NextRequest): boolean {

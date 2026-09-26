@@ -131,6 +131,79 @@ async function uploadMedia(c: XCreds, p: SitePost): Promise<string> {
   return j.media_id_string;
 }
 
+/**
+ * Chunked video upload (v2 initialize → append → finalize → poll STATUS;
+ * the v1.1 command=INIT/APPEND/FINALIZE/STATUS form if v2 is not there).
+ * X takes tweet_video up to 512 MB / 140 s; ours is ~4 MB, 15 s, one chunk
+ * per 4 MB. Returns the media id once processing succeeds.
+ */
+const CHUNK = 4 * 1024 * 1024;
+type Processing = { state?: string; check_after_secs?: number; error?: { message?: string; name?: string } };
+
+async function uploadVideo(c: XCreds, v: NonNullable<SitePost["video"]>): Promise<string> {
+  const total = v.bytes.length;
+  const chunks: Buffer[] = [];
+  for (let off = 0; off < total; off += CHUNK) chunks.push(v.bytes.subarray(off, Math.min(off + CHUNK, total)));
+  const sleep = (s: number) => new Promise((r) => setTimeout(r, Math.min(Math.max(s, 1), 15) * 1000));
+
+  const init = await signedFetch(c, "POST", `${API}/2/media/upload/initialize`, {
+    json: { media_type: v.mime, total_bytes: total, media_category: "tweet_video" },
+  });
+  if (init.ok) {
+    const j = (await init.json()) as { data?: { id?: string } };
+    const id = j.data?.id;
+    if (!id) throw new Error("x media/upload initialize: no id in response");
+    for (let i = 0; i < chunks.length; i++) {
+      const fd = new FormData();
+      fd.append("segment_index", String(i));
+      fd.append("media", new Blob([new Uint8Array(chunks[i])], { type: v.mime }), "cardflip.mp4");
+      const ap = await signedFetch(c, "POST", `${API}/2/media/upload/${id}/append`, { multipart: fd });
+      if (!ap.ok) await fail(`media/upload append ${i}`, ap);
+    }
+    const fin = await signedFetch(c, "POST", `${API}/2/media/upload/${id}/finalize`, { json: {} });
+    if (!fin.ok) await fail("media/upload finalize", fin);
+    let info = ((await fin.json()) as { data?: { processing_info?: Processing } }).data?.processing_info;
+    for (let i = 0; i < 40 && info && info.state !== "succeeded"; i++) {
+      if (info.state === "failed") throw new Error(`x video processing failed: ${info.error?.message ?? info.error?.name ?? "unknown"}`);
+      await sleep(info.check_after_secs ?? 3);
+      const st = await signedFetch(c, "GET", `${API}/2/media/upload`, { query: { command: "STATUS", media_id: id } });
+      if (!st.ok) await fail("media/upload status", st);
+      info = ((await st.json()) as { data?: { processing_info?: Processing } }).data?.processing_info;
+    }
+    if (info && info.state !== "succeeded") throw new Error("x video processing never finished");
+    return id;
+  }
+  if (init.status !== 404 && init.status !== 410) await fail("media/upload initialize", init);
+
+  // v1.1 chunked form.
+  const v1 = `${UPLOAD_V1}/1.1/media/upload.json`;
+  const i1 = await signedFetch(c, "POST", v1, { form: { command: "INIT", media_type: v.mime, total_bytes: String(total), media_category: "tweet_video" } });
+  if (!i1.ok) await fail("media/upload INIT", i1);
+  const id = ((await i1.json()) as { media_id_string?: string }).media_id_string;
+  if (!id) throw new Error("x media/upload INIT: no media id in response");
+  for (let i = 0; i < chunks.length; i++) {
+    const fd = new FormData();
+    fd.append("command", "APPEND");
+    fd.append("media_id", id);
+    fd.append("segment_index", String(i));
+    fd.append("media", new Blob([new Uint8Array(chunks[i])], { type: v.mime }), "cardflip.mp4");
+    const ap = await signedFetch(c, "POST", v1, { multipart: fd });
+    if (!ap.ok) await fail(`media/upload APPEND ${i}`, ap);
+  }
+  const f1 = await signedFetch(c, "POST", v1, { form: { command: "FINALIZE", media_id: id } });
+  if (!f1.ok) await fail("media/upload FINALIZE", f1);
+  let info = ((await f1.json()) as { processing_info?: Processing }).processing_info;
+  for (let i = 0; i < 40 && info && info.state !== "succeeded"; i++) {
+    if (info.state === "failed") throw new Error(`x video processing failed: ${info.error?.message ?? info.error?.name ?? "unknown"}`);
+    await sleep(info.check_after_secs ?? 3);
+    const st = await signedFetch(c, "GET", v1, { query: { command: "STATUS", media_id: id } });
+    if (!st.ok) await fail("media/upload STATUS", st);
+    info = ((await st.json()) as { processing_info?: Processing }).processing_info;
+  }
+  if (info && info.state !== "succeeded") throw new Error("x video processing never finished");
+  return id;
+}
+
 /** Alt text is best-effort: a failure here must not lose the post. */
 async function setAltText(c: XCreds, mediaId: string, alt: string): Promise<void> {
   const text = alt.slice(0, 1000);
@@ -152,12 +225,13 @@ export const x: SocialSite = {
   label: "X",
   maxChars: X_MAX_CHARS,
   maxImageBytes: X_MAX_IMAGE_BYTES,
+  postsVideo: true,
   connected: () => creds() !== null,
   async post(p: SitePost): Promise<{ uri: string }> {
     const c = creds();
     if (!c) throw new Error("x: not connected");
-    const mediaId = await uploadMedia(c, p);
-    await setAltText(c, mediaId, p.alt);
+    const mediaId = p.video ? await uploadVideo(c, p.video) : await uploadMedia(c, p);
+    if (!p.video) await setAltText(c, mediaId, p.alt);
     const res = await signedFetch(c, "POST", `${API}/2/tweets`, {
       json: { text: p.text, media: { media_ids: [mediaId] } },
     });

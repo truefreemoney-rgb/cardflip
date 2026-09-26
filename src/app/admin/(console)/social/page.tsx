@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
-import { eastern, siteStatus, slotAt, socialGames } from "@/lib/server/socialPublish";
+import { eastern, siteStatus, slotAt, socialGames, videoFor } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
@@ -22,6 +22,12 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   const games = await socialGames();
   const [perGame, sites] = await Promise.all([Promise.all(games.map((g) => socialDrafts(g, day))), siteStatus(SOCIAL_SITES)]);
   const drafts = perGame.flat();
+  // The rendered MP4 for any draft the 6:50am job registered (set spotlight), shown before it posts.
+  const videos: Record<string, string> = {};
+  for (const d of drafts) {
+    const v = await videoFor(d);
+    if (v) videos[d.id] = v.url;
+  }
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -35,7 +41,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
         </nav>
       </div>
       <SocialSites sites={sites} day={day} slotNow={slotAt()} />
-      <SocialPreview drafts={drafts} />
+      <SocialPreview drafts={drafts} videos={videos} />
     </section>
   );
 }

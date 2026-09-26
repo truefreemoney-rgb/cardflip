@@ -6,6 +6,14 @@
 //
 //   node --experimental-strip-types --no-warnings --conditions=react-server \
 //     --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs [--day YYYY-MM-DD] [--out path.mp4] [--fps 24]
+//     [--audio path|none] [--register] [--skip-if-done]
+//
+// --register: the GitHub Actions 7am job (social-post.yml, video job). Parks
+// the MP4 on Vercel Blob (social/video/<game>-set-<day>.mp4) and writes the
+// settings row the publisher reads (lib/socialVideo.ts videoKey), so the
+// set-spotlight post goes out as video on every site that takes one.
+// --skip-if-done: exit 0 without rendering when that row already exists
+// (the schedule pings twice, EDT and EST).
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,17 +21,26 @@ import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
+const has = (k) => process.argv.includes(k);
 const FPS = Number(arg("--fps", 24));
 const OUT = path.resolve(arg("--out", "social-video.mp4"));
-const day = arg("--day", new Date().toISOString().slice(0, 10));
-const W = 1080, H = 1920;
+const REGISTER = has("--register");
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { setSpotlight, money } = await import(at("lib/server/social.ts"));
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
+const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
+const { eastern } = await import(at("lib/server/socialPublish.ts"));
+const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 
-const spot = await setSpotlight("pokemon", day);
+// Same day the publisher keys on (Eastern), so a 6:30am ET render lands on the right row.
+const day = arg("--day", eastern().day);
+const game = "pokemon";
+const KEY = videoKey(game, "set", day);
+if (has("--skip-if-done") && (await getSetting(KEY))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
+
+const spot = await setSpotlight(game, day);
 if (!spot) { console.error("no set for", day); process.exit(1); }
 console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards`);
 
@@ -43,9 +60,9 @@ const cards = [];
 for (const c of [...spot.cards].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
 const logo = `data:image/png;base64,${fs.readFileSync(path.join(root, "public/brand/cardflip-logo.png")).toString("base64")}`;
 
-// Timeline (seconds): intro → one beat per card → outro.
-const INTRO = 2.2, BEAT = 2.1, OUTRO = 2.6;
-const TOTAL = INTRO + BEAT * cards.length + OUTRO;
+// Timeline (seconds): intro → one beat per card → outro (lib/socialVideo.ts).
+const { intro: INTRO, beat: BEAT, outro: OUTRO } = TIMELINE;
+const TOTAL = videoSeconds(cards.length);
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -186,4 +203,16 @@ const r = spawnSync(ffmpeg, [
 ], { stdio: ["ignore", "ignore", "pipe"] });
 if (r.status !== 0) { console.error(r.stderr.toString().slice(-2000)); process.exit(1); }
 fs.rmSync(work, { recursive: true, force: true });
-console.log(`wrote ${OUT} (${(fs.statSync(OUT).size / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
+const bytes = fs.statSync(OUT).size;
+console.log(`wrote ${OUT} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
+
+if (REGISTER) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) { console.error("--register needs BLOB_READ_WRITE_TOKEN"); process.exit(1); }
+  const { put, del } = await import("@vercel/blob");
+  const blob = await put(`social/video/${game}-set-${day}.mp4`, fs.readFileSync(OUT), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
+  // A re-render on the same day replaces the row; the old file only differs by path when the naming changes.
+  const prev = await getSetting(KEY);
+  if (prev) { try { const p = JSON.parse(prev); if (p.url && p.url !== blob.url) await del(p.url); } catch { /* old row, ignore */ } }
+  await setSetting(KEY, JSON.stringify({ url: blob.url, bytes, mime: "video/mp4", width: W, height: H, seconds: TOTAL, renderedAt: Date.now() }));
+  console.log(`registered ${KEY} → ${blob.url}`);
+}

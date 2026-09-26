@@ -93,6 +93,41 @@ sentence case, no exclamation marks, ends on cardflip.io).
 
 Owner cookie (the preview page) or `?key=CRON_SECRET` (the publisher).
 
+## Video (09-25, Chris reversed the no-video rule)
+
+The 7am set spotlight goes out as a 15.3s 9:16 MP4 on every connected site;
+1pm movers and 7pm drops stay pictures for now (variety).
+
+- **Render**: `scripts/social-video.mjs` draws the same `setSpotlight()` data
+  as a 1080x1920 HTML scene, steps it frame by frame in headless Chromium,
+  ffmpeg stitches H.264 + the backing track (`public/social/audio`, ours,
+  synthesized by `scripts/social-audio.mjs`, 0.5s fade-out). Timeline math
+  lives in `lib/socialVideo.ts` (`test:socialvideo`).
+- **Where**: the `video` job in `.github/workflows/social-post.yml`, 6:50am
+  ET (Chromium + ffmpeg do not fit a Vercel function). Secrets
+  `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BLOB_READ_WRITE_TOKEN` are on
+  the repo. `--register` parks the MP4 on Vercel Blob
+  (`social/video/<game>-set-<day>.mp4`) and writes settings row
+  `social_video:<game>:set:<day>`; `--skip-if-done` makes the second cron
+  ping and the 7am fallback render a no-op. Run workflow with `video=1`
+  re-renders today's.
+- **Publish**: `publishSocial()` reads that row for each draft, fetches the
+  MP4 once, hands it to every site with `postsVideo`, sites run in parallel
+  (Meta polls for minutes; route `maxDuration` 300). A video upload that
+  throws falls back to the picture in the same run: the slot still counts,
+  the report and the board line say `(picture, video failed)`.
+- **Adapters**: Bluesky `getServiceAuth` (aud = the account's own PDS) →
+  `video.bsky.app uploadVideo` → poll `getJobStatus` → `app.bsky.embed.video`.
+  X v2 chunked `initialize → append → finalize → STATUS` (v1.1 command form
+  as the fallback), `tweet_video`. Facebook `/{page}/videos file_url=`.
+  Instagram `media_type=REELS video_url=` + `share_to_feed`. Threads
+  `media_type=VIDEO video_url=`. Meta pulls straight from the Blob URL, so
+  nothing is parked for video.
+- **Admin**: `/admin/social` shows the registered MP4 in a `<video>` on the
+  draft (Video tab, default when one exists).
+- **TikTok**: next. Chris creates the account + developer app (Content
+  Posting API); unaudited apps post private until the audit; the same MP4.
+
 ## Plan, image sites only
 
 Chris (09-10): "we are not video content creators." Every post is a
