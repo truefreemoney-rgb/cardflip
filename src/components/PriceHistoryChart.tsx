@@ -122,8 +122,9 @@ export function loadSeries(cardId: string): Promise<Series[]> {
 
 export function pickSeries(all: Series[], prefer: string | null | undefined): Series | null {
   if (all.length === 0) return null;
-  const usd = all.filter((s) => s.currency === "USD");
-  const pool = usd.length ? usd : all;
+  // USD only (Chris 09-26): no EUR fallback, the chart just waits for a dollar series.
+  const pool = all.filter((s) => s.currency === "USD");
+  if (pool.length === 0) return null;
   const byPref = prefer ? pool.filter((s) => s.variant === prefer) : [];
   const ranked = (byPref.length ? byPref : pool)
     .slice()

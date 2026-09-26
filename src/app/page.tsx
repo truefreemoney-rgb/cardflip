@@ -159,7 +159,8 @@ export default async function Home() {
   const quick = heroCard ? quotePrice(heroCard, "Near Mint", "quick") : null;
   const listing =
     featured && quick ? buildListing(featured, quick.suggested, "Near Mint", quick.price.label) : null;
-  const variants = featured ? plausiblePrices(featured.prices).filter((p) => p.market).slice(0, 4) : [];
+  // USD only (Chris 09-26: the site is American dollars, never a EUR row).
+  const variants = featured ? plausiblePrices(featured.prices).filter((p) => p.market && p.currency === "USD").slice(0, 4) : [];
 
   // Our own recorded history for the hero card — the last 90 points of the
   // variant the quote is based on (falls back to the longest USD series).
