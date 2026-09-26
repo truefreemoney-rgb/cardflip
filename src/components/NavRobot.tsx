@@ -222,13 +222,14 @@ export default function NavRobot() {
         data-tour="help"
         aria-expanded={open}
         title="Help"
-        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-1 text-xs font-medium text-zinc-400 transition hover:bg-surface-2 hover:text-zinc-200 sm:pr-3"
+        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-2.5 text-xs font-medium text-zinc-300 transition hover:bg-surface-2 hover:text-white"
       >
         <RobotBuddy pose={headerPose} size={30} float={false} />
-        {/* Label from sm up — on phones the strip has ~330px for Help · pill ·
-            eBay · Sign out and the word wrapped Sign out onto a third header
-            line (mobile QA 09-06). The tour still points at the robot. */}
-        <span className="hidden sm:inline">Help</span>
+        {/* The word is always on (Chris 09-26: on phones "the reason for it
+            is kind of unknown to the user"). It was sm-only while Sign out
+            lived in the strip (mobile QA 09-06); the account menu freed that
+            room, so Help · pill · Subscribe fits on one 375px line. */}
+        <span>Help</span>
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
