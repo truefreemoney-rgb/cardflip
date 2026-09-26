@@ -86,9 +86,13 @@ if (withAudio) {
   const b = await analyzeBeat(AUDIO, { clipSeconds: 18 });
   PERIOD = b.period;
   const bar = 4 * PERIOD;
-  BEAT = bar < 1.5 ? 2 * bar : bar > 2.9 ? bar / 2 : bar;
-  INTRO = BEAT;
-  OUTRO = BEAT + 0.6;
+  const oneBar = bar < 1.5 ? 2 * bar : bar > 2.9 ? bar / 2 : bar;
+  // Two bars per card (Chris 09-26: "flipping through the cards so fast, the
+  // user barely has time to read anything, make it slower"): ~5.2s a card
+  // with the 92.5 bpm track, ~31s for five. Intro and outro stay one bar.
+  BEAT = 2 * oneBar;
+  INTRO = oneBar;
+  OUTRO = oneBar + 0.6;
   AUDIO_START = b.start;
   console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, audio from ${AUDIO_START.toFixed(2)}s`);
 }
