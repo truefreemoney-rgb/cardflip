@@ -20,7 +20,7 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
-const { topMovers, cardOfTheDay, socialDrafts, moversCaption, setSpotlight, setCaption } = await import(at("lib/server/social.ts"));
+const { topMovers, cardOfTheDay, socialDrafts, moversCaption, setSpotlight, setCaption, markFeatured, recentlyFeatured } = await import(at("lib/server/social.ts"));
 const { addDays } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -104,6 +104,16 @@ for (const d of drafts) {
 }
 check("movers caption lists every mover", movers.every((m) => moversCaption("pokemon", movers).includes(m.name)));
 check("thin data → no drafts at all (no movers, no set)", (await socialDrafts("mtg", TODAY)).map((d) => d.kind), []);
+
+console.log("no-repeat rule (gains/drops)");
+await markFeatured("pokemon", "movers", day(1), ["sv1-2"]);
+check("a card in yesterday's gains post sits out today's", (await socialDrafts("pokemon", TODAY)).find((d) => d.kind === "movers")?.cardIds, ["sv1-10", "sv1-9", "sv1-4"]);
+check("per kind: the drops post is not affected", (await recentlyFeatured("pokemon", "dips", TODAY)).size, 0);
+await markFeatured("pokemon", "movers", TODAY, ["sv1-9"]);
+check("a same-day entry does not count (re-render today stays stable)", (await recentlyFeatured("pokemon", "movers", TODAY)).has("sv1-9"), false);
+await markFeatured("pokemon", "movers", day(8), ["sv1-4"]);
+check("falls off after 7 days", (await recentlyFeatured("pokemon", "movers", TODAY)).has("sv1-4"), false);
+check("the picture reads the same exclusion", (await topMovers("pokemon", TODAY, { direction: "up", exclude: await recentlyFeatured("pokemon", "movers", TODAY) })).map((m) => m.cardId), ["sv1-10", "sv1-9", "sv1-4"]);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

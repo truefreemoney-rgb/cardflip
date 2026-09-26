@@ -70,6 +70,11 @@ sentence case, no exclamation marks, ends on cardflip.io).
   real point within 3 days of a week ago, never a month-old one. (c)
   MOVER_MIN_PRICE is $10 (was $3; "$1.83 → $3.10, +69%" is not news).
   (d) 1pm = gainers only, 7pm = drops only, so no card is in both posts.
+  (d2) NO-REPEAT: a card in a landed gains/drops post sits out that kind for
+  7 days (settings social_featured:<game>:<kind> = {cardId: day}, written by
+  the publisher after the post lands; drafts and pictures both read it;
+  same-day entries do not count so a re-render stays stable). Chris 09-25
+  chose to keep 3/day for volume; this keeps the daily posts fresh.
   (e) ☆/★ in names become the word "Star" (Satori has no glyph; drew a box).
   (f) Set spotlight rows read "#131 · Holo", the heading is the set name on
   one line (long names shrink), art is 126 px. Before changing the engine

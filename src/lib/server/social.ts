@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { decodePrices, todayUtc } from "@/lib/priceSeries";
+import { getSetting, setSetting } from "@/lib/server/settings";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -29,6 +30,16 @@ export const COTD_MIN_PRICE = 15;
 /** How many series rows one call may read (Turso rows-read, 09-06). */
 const ROW_CAP = 6000;
 const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
+
+/**
+ * No-repeat rule (Chris 09-25, three posts a day but never the same five
+ * names day after day): a card featured in a gains/drops post is left out
+ * of that kind for the next FEATURED_DAYS days. settings key
+ * social_featured:<game>:<kind> = { cardId: day }, written by the publisher
+ * after the post lands; drafts and pictures both read it, so they agree.
+ */
+export const FEATURED_PREFIX = "social_featured:";
+export const FEATURED_DAYS = 7;
 
 /** Set spotlight (7am): the priciest cards of one set; a set needs this many cards worth at least SET_MIN_PRICE to be picked. */
 export const SET_MIN_CARDS = 5;
@@ -68,6 +79,8 @@ export interface SocialPost {
   shortCaption: string;
   /** Relative path; add ?size=square|story|landscape. */
   imagePath: string;
+  /** Cards in the post, for the no-repeat rule. */
+  cardIds: string[];
 }
 
 interface SeriesRow {
@@ -189,11 +202,12 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 export async function topMovers(
   game: GameId,
   day = todayUtc(),
-  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down" } = {},
+  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down", exclude = new Set<string>() } = {},
 ): Promise<Mover[]> {
   const series = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   for (const [cardId, s] of series) {
+    if (exclude.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
     if (Math.max(s.from, s.to) < minPrice) continue;
     const pct = ((s.to - s.from) / s.from) * 100;
@@ -214,6 +228,35 @@ export async function topMovers(
     if (out.length >= limit) break;
   }
   return out;
+}
+
+type FeaturedKind = "movers" | "dips";
+
+async function featuredMap(game: GameId, kind: FeaturedKind): Promise<Record<string, string>> {
+  try {
+    const raw = await getSetting(`${FEATURED_PREFIX}${game}:${kind}`);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Cards this kind featured on an EARLIER day within FEATURED_DAYS (same-day entries do not count, so a re-render today stays stable). */
+export async function recentlyFeatured(game: GameId, kind: FeaturedKind, day = todayUtc()): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const [id, d] of Object.entries(await featuredMap(game, kind))) {
+    const back = dayDiff(d, day);
+    if (back >= 1 && back <= FEATURED_DAYS) out.add(id);
+  }
+  return out;
+}
+
+/** Record a landed post's cards; entries older than FEATURED_DAYS fall off. */
+export async function markFeatured(game: GameId, kind: FeaturedKind, day: string, cardIds: string[]): Promise<void> {
+  const map = await featuredMap(game, kind);
+  for (const id of cardIds) map[id] = day;
+  for (const [id, d] of Object.entries(map)) if (dayDiff(d, day) > FEATURED_DAYS) delete map[id];
+  await setSetting(`${FEATURED_PREFIX}${game}:${kind}`, JSON.stringify(map));
 }
 
 /** Small stable hash so the same day always picks the same card. */
@@ -396,7 +439,11 @@ export function setShortCaption(game: GameId, spot: SetSpotlight): string {
 /** Today's drafts for a game, in posting order. Empty when the data is thin. */
 export async function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
   // Gainers at 1pm, drops at 7pm: no card appears in both posts on the same day.
-  const [movers, spot, dips] = await Promise.all([topMovers(game, day, { direction: "up" }), setSpotlight(game, day), topMovers(game, day, { direction: "down" })]);
+  const [movers, spot, dips] = await Promise.all([
+    recentlyFeatured(game, "movers", day).then((exclude) => topMovers(game, day, { direction: "up", exclude })),
+    setSpotlight(game, day),
+    recentlyFeatured(game, "dips", day).then((exclude) => topMovers(game, day, { direction: "down", exclude })),
+  ]);
   const posts: SocialPost[] = [];
   if (movers.length >= 3) {
     posts.push({
@@ -409,6 +456,7 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       shortCaption: moversShortCaption(game, movers),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
+      cardIds: movers.map((m) => m.cardId),
     });
   }
   if (spot) {
@@ -422,6 +470,7 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       shortCaption: setShortCaption(game, spot),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=set&game=${game}&day=${day}`,
+      cardIds: spot.cards.map((m) => m.cardId),
     });
   }
   if (dips.length >= 3) {
@@ -435,6 +484,7 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       shortCaption: dipsShortCaption(game, dips),
       hashtags: GAME_TAGS[game],
       imagePath: `/api/social/image?kind=dips&game=${game}&day=${day}`,
+      cardIds: dips.map((m) => m.cardId),
     });
   }
   return posts;

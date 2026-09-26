@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
-import { socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
+import { markFeatured, socialDrafts, POST_SIZES, type PostKind, type SocialPost } from "@/lib/server/social";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import type { GameId } from "@/lib/types";
 
@@ -257,7 +257,14 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     }
     report.sites.push(entry);
   }
-  if (!opts.dry) await noteOnBoard(report, now);
+  if (!opts.dry) {
+    // No-repeat rule: every gains/drops draft that landed anywhere keeps its cards out of that kind for FEATURED_DAYS.
+    const landedIds = new Set(report.sites.flatMap((s) => s.posts.filter((p) => p.uri).map((p) => p.id)));
+    for (const d of all) {
+      if ((d.kind === "movers" || d.kind === "dips") && landedIds.has(d.id)) await markFeatured(d.game, d.kind, day, d.cardIds);
+    }
+    await noteOnBoard(report, now);
+  }
   return report;
 }
 

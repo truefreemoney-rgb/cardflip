@@ -103,6 +103,7 @@ r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
 r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", sites: [bsky], fetchImage });
 check("1pm: movers posted", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
+check("no-repeat: the landed gains post's cards are remembered for the kind", Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).sort(), ["sv1-2", "sv1-4", "sv1-7"]);
 r = await publishSocial({ day: THU, now: clock(23), origin: "http://x", sites: [bsky], fetchImage });
 check("7pm: one drop only → no dips post, stays quiet rather than repeat", [r.slot, r.sites[0].status, r.sites[0].reason, bsky.posts.length], ["evening", "skipped", "nothing to post for the evening slot", 2]);
 r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true });

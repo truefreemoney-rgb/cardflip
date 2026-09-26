@@ -6,6 +6,7 @@ import {
   cardOfTheDay,
   money,
   pctLabel,
+  recentlyFeatured,
   setSpotlight,
   topMovers,
   variantLabel,
@@ -111,7 +112,8 @@ export async function GET(req: NextRequest) {
       size,
     );
   }
-  const movers = await topMovers(game, day, { direction: kind === "dips" ? "down" : "up" });
+  const featuredKind = kind === "dips" ? "dips" : "movers";
+  const movers = await topMovers(game, day, { direction: kind === "dips" ? "down" : "up", exclude: await recentlyFeatured(game, featuredKind, day) });
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
   return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price gains this week"} />, size);
 }
