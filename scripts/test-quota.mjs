@@ -58,7 +58,7 @@ check("legacy account: yesterday's count reads as zero",
   scanQuota(legacy({ subStatus: null, scanMonth: "2020-01-01", scansUsed: 99 })).used, 0);
 check("legacy canceled subscriber falls back to the daily cap",
   scanQuota(legacy({ subStatus: "canceled", scansUsed: 1 })).remaining, LEGACY_DAILY_SCANS - 1);
-check("fresh account: 10-scan trial, lifetime",
+check("fresh account: 5-scan trial, lifetime",
   scanQuota(fresh({ subStatus: null, trialScansUsed: 4 })),
   { used: 4, included: TRIAL_SCANS, remaining: TRIAL_SCANS - 4 });
 check("owner: never enforced",

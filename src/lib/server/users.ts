@@ -131,7 +131,7 @@ export function isSubscribed(user: Pick<User, "subStatus">): boolean {
  *  - unlimited: like the owner, no cap, no wall.
  *  - comp_standard / comp_pro: a subscription's allowance without Stripe.
  *  - legacy: 100 scans a day, no wall.
- *  - trial: back to the 10-scan trial (and the wall after it).
+ *  - trial: back to the 5-scan trial (and the wall after it).
  */
 export const ACCESS_OVERRIDES = ["unlimited", "comp_standard", "comp_pro", "legacy", "trial"] as const;
 export type AccessOverride = (typeof ACCESS_OVERRIDES)[number];

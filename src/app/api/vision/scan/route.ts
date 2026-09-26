@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // 500 (Pro: 2,000) scans a month per subscriber; 10 lifetime on the free trial.
+    // 500 (Pro: 2,000) scans a month per subscriber; 5 lifetime on the free trial.
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
         {

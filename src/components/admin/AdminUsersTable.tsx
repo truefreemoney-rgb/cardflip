@@ -249,7 +249,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
             const tier = TIER_STYLE[u.tier];
             const scansLabel =
               u.tier === "trial"
-                ? `${u.trialScansUsed}/10 trial scans`
+                ? `${u.trialScansUsed}/5 trial scans`
                 : u.tier === "legacy"
                   ? `${u.scansUsed}/100 today`
                   : u.tier === "owner"
@@ -461,7 +461,7 @@ function AddAccountForm({ onDone }: { onDone: () => void }) {
           </button>
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-zinc-600">New accounts start on the 10-scan trial like a public signup. No email is sent; you hand over the password.</p>
+      <p className="mt-2 text-[11px] text-zinc-600">New accounts start on the 5-scan trial like a public signup. No email is sent; you hand over the password.</p>
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
     </form>
   );

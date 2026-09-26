@@ -32,9 +32,9 @@ export const PRO = {
 };
 
 export const TRIAL = {
-  scans: 10,
+  scans: 5,
   lines: [
-    "10 card scans, camera or photos",
+    "5 card scans, camera or photos",
     "Live pricing for the exact printing",
     "Inventory and watchlist",
     "No card on file",
