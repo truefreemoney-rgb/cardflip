@@ -30,11 +30,11 @@ export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]
           const stage = STAGES[i];
           const price = priceOf(c);
           return (
-            <li key={c.id} className="flex items-center gap-3 px-3 py-2">
-              <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50">
+            <li key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+              <div className="relative h-[5.6rem] w-16 shrink-0 overflow-hidden rounded-lg bg-black/50 sm:h-28 sm:w-20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.imageSmall} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
-                <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center whitespace-nowrap text-[7px] font-semibold uppercase leading-3 text-zinc-200">
+                <span className="absolute inset-x-0 bottom-0 bg-black/70 text-center whitespace-nowrap py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-200">
                   Example
                 </span>
               </div>
