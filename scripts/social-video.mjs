@@ -118,7 +118,10 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
     box-shadow:0 40px 120px rgba(0,0,0,.6), 0 0 0 2px rgba(255,255,255,.12); background:#1c1d27; }
   .beat .name { font-size:72px; line-height:1.05; margin-top:52px; text-align:center; }
   .beat .meta { font-size:36px; margin-top:12px; }
-  .beat .price { font-size:150px; line-height:1; margin-top:26px; font-variant-numeric:tabular-nums; }
+  .beat .price { font-size:164px; line-height:1; margin-top:22px; font-variant-numeric:tabular-nums; padding:0 20px;
+    background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(74,222,128,.45)); }
   .beat .pct { font-size:40px; font-weight:600; margin-top:18px; }
   .up { color:#4ade80; } .down { color:#f87171; }
   #outro { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 90px; text-align:center; }
@@ -199,8 +202,12 @@ ${cards.map((c, i) => `
       const pp=easeInOut(clamp((lt-P)/(2*P)));
       price.style.opacity=clamp((lt-P*.9)/.15);
       price.textContent=money(to*pp);
+      // Pop on beat 3: scale, glow flare, and a shine sweeping left→right across the green number.
       const pop = lt>=3*P ? Math.exp(-(lt-3*P)*9) : 0;
-      price.style.transform="scale("+(1+.09*pop)+")";
+      const sweep = lt>=3*P ? clamp((lt-3*P)/(P*1.2)) : 0;
+      price.style.transform="scale("+(1+.12*pop)+")";
+      price.style.backgroundPosition=((1-sweep)*100)+"% 0";
+      price.style.filter="drop-shadow(0 0 "+(18+40*pop)+"px rgba(74,222,128,"+(.45+.5*pop)+")) brightness("+(1+.35*pop)+")";
       fadeIn(el.querySelector(".pct"), lt-3*P, .3, 20);
     }
     const ot=t-(INTRO+N*BEAT);
