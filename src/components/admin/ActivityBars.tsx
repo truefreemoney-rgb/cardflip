@@ -12,11 +12,17 @@ export default function ActivityBars({
   values,
   height = 64,
   color = "var(--color-brand-400)",
+  hourly = false,
+  unit,
 }: {
   days: string[];
   values: number[];
   height?: number;
   color?: string;
+  /** Keys are "YYYY-MM-DDTHH" (UTC hours) instead of days — Analytics "today". */
+  hourly?: boolean;
+  /** "usd" shows a hovered value as $1.20 (a string, since this is a client component). */
+  unit?: "usd";
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 300;
@@ -26,7 +32,10 @@ export default function ActivityBars({
   const gap = 2;
   const bw = (W - gap * (n - 1)) / n;
   const label = (d: string) =>
-    new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    hourly
+      ? new Date(`${d}:00:00Z`).toLocaleTimeString(undefined, { hour: "numeric", timeZone: "UTC" }) + " UTC"
+      : new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const show = (v: number) => (unit === "usd" ? `$${v.toFixed(2)}` : String(v));
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H + 14}`} className="block w-full" style={{ height: H + 14 }} role="img"
@@ -47,7 +56,7 @@ export default function ActivityBars({
         <text x={W} y={H + 11} fontSize="8" fill="rgb(113 113 122)" textAnchor="end">{label(days[days.length - 1] ?? "")}</text>
       </svg>
       <div className="mt-1 h-4 text-[11px] text-zinc-400 tabular-nums" aria-live="polite">
-        {hover !== null ? `${label(days[hover])} · ${values[hover]}` : ""}
+        {hover !== null ? `${label(days[hover])} · ${show(values[hover])}` : ""}
       </div>
     </div>
   );

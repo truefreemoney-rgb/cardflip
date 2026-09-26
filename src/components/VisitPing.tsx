@@ -9,11 +9,18 @@ import { usePathname } from "next/navigation";
  * keeps one anonymous row per visitor per day. Admin pages never ping.
  * sendBeacon so a closing tab still delivers it; fetch keepalive otherwise.
  */
+// document.referrer is the page that brought this tab here and stays fixed
+// across client-side navigations, so it is sent with the FIRST ping only —
+// otherwise every later path would look like it came from that site too.
+let referrerSent = false;
+
 export default function VisitPing() {
   const pathname = usePathname();
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin")) return;
-    const body = JSON.stringify({ path: pathname });
+    const ref = referrerSent ? "" : document.referrer;
+    referrerSent = true;
+    const body = JSON.stringify(ref ? { path: pathname, ref } : { path: pathname });
     try {
       if (
         !navigator.sendBeacon?.(

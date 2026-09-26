@@ -587,6 +587,13 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // trace of a scan that matched nothing, since those leave no card row or
   // photo (09-03: an art card kept missing and there was nothing to replay).
   ["scan_usage", ["read TEXT"]],
+  // Analytics tab (09-26): where a visit came from, on what, from where.
+  // ref = referrer HOST only (external sites, never our own paths or
+  // query strings); device = phone | tablet | desktop, classed from the
+  // user agent at insert (the UA itself is never stored); country = the
+  // two-letter code Vercel stamps on the request. All three are aggregate
+  // columns — still no cookie, no user id, no IP.
+  ["page_views", ["ref TEXT", "device TEXT", "country TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",
