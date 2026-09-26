@@ -163,7 +163,7 @@ async function build(magic: boolean): Promise<StageCard[]> {
     return finish(mixed, true, leadId);
   }
   // No mirror here (fresh dev DB): the old upstream path.
-  const [featured, showcase] = await Promise.all([getFeaturedCard(), getShowcaseCards()]);
+  const [featured, showcase] = await Promise.all([getFeaturedCard(), getShowcaseCards(magic)]);
   return finish([featured, ...showcase].filter((c): c is PokemonCard => !!c), magic);
 }
 

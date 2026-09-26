@@ -150,7 +150,7 @@ export default async function Home() {
   const magic = await magicPublic();
   const [featured, showcase, catalogLabel] = await Promise.all([
     getFeaturedCard(),
-    getShowcaseCards(),
+    getShowcaseCards(magic),
     catalogSizeLabel(),
   ]);
 

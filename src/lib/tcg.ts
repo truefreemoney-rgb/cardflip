@@ -191,8 +191,11 @@ export async function queryCards(
  * card wall. Same contract as getFeaturedCard: real cards, real prices,
  * day-long cache, empty array on any failure so the sections just skip.
  */
-export async function getShowcaseCards(): Promise<PokemonCard[]> {
+export async function getShowcaseCards(includeMagic = false): Promise<PokemonCard[]> {
   const pokemon = await pokemonShowcase();
+  // Magic joins only once its switch is public (Chris 09-26: the admin beta
+  // must never leak onto a public page).
+  if (!includeMagic) return pokemon;
   // Magic joins the ticker from its own mirror (prices come with it) —
   // interleaved so the strip reads as one market, not two lists.
   const magic = await mtgShowcaseSafe();
