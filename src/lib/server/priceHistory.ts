@@ -227,7 +227,7 @@ export async function sweepDue(now = Date.now()): Promise<boolean> {
  * lib/server/dailyJobs.ts once a day; capped so it can't hammer
  * pokemontcg.io. Magic is refreshed wholesale from Scryfall's bulk file.
  */
-export async function sweepPriceHistory(now = Date.now()): Promise<number> {
+export async function sweepPriceHistory(now = Date.now(), deadline = Infinity): Promise<number> {
   if (sweeping || !(await hasEnglishMirror())) return 0;
   sweeping = true;
   await metaSet(SWEEP_KEY, String(now));
@@ -245,6 +245,8 @@ export async function sweepPriceHistory(now = Date.now()): Promise<number> {
       .all(now - 30 * 86_400_000)) as unknown as { name: string; number: string }[];
     let recorded = 0;
     for (const row of rows) {
+      // Time budget (09-26): the daily cron was killed at maxDuration in here.
+      if (Date.now() > deadline) break;
       const printed = row.number
         ? { number: normalizeNumber(row.number), setTotal: null, setCode: null, isSecretRare: false }
         : null;

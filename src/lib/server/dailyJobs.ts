@@ -118,8 +118,19 @@ export async function runPokemonSteps(
     result.pokemonTcgcsv = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: Pokémon TCGCSV refresh failed:", err);
   }
+  // Wishlist alerts go right after the bulk refresh (prices are fresh) and
+  // BEFORE the slow steps: on 09-26 the run was killed at maxDuration inside
+  // the held-card sweep and the dip email never went out.
   try {
-    const recorded = await sweepPriceHistory(now);
+    result.wishlistAlerts = await sweepWishlistAlerts(now);
+  } catch (err) {
+    result.wishlistAlerts = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: wishlist alert sweep failed:", err);
+  }
+  try {
+    // Stop re-pricing held cards ~200s after the step started so the eBay
+    // sync and the result write still fit inside the 300s function limit.
+    const recorded = await sweepPriceHistory(now, now + 200_000);
     result.pokemon = { recorded };
   } catch (err) {
     result.pokemon = { error: err instanceof Error ? err.message : String(err) };
@@ -164,13 +175,6 @@ export async function runPokemonSteps(
   } catch (err) {
     result.ebayFees = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: eBay fee sweep failed:", err);
-  }
-  try {
-    // After the price refreshes above, so alerts judge today's numbers.
-    result.wishlistAlerts = await sweepWishlistAlerts(now);
-  } catch (err) {
-    result.wishlistAlerts = { error: err instanceof Error ? err.message : String(err) };
-    console.error("daily: wishlist alert sweep failed:", err);
   }
   try {
     // Watcher offers for sellers who opted in on the collection page
