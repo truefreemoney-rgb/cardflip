@@ -58,7 +58,7 @@
     "test:compscache": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-comps-cache.mjs",
     "test:adminroutes": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-admin-routes.mjs",
     "test:analytics": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-analytics.mjs",
-    "test:admingeo":"node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-admin-geo.mjs",
+    "test:admingeo": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-admin-geo.mjs",
     "test:ebaysync": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sync.mjs",
     "test:ebaysweeps": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sweeps.mjs",
     "test:ebaysell": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-ebay-sell.mjs",
@@ -101,6 +101,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "ffmpeg-static": "^5.3.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
