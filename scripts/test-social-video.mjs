@@ -305,5 +305,18 @@ r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "m
 check("an OAuth site that is not authorized reads as not connected", [r.sites[0].status, r.sites[0].reason], ["skipped", "not connected"]);
 globalThis.fetch = realFetch;
 
+// 09-26: GitHub cron was two hours late and the 7am post never went out.
+// The posts fire from Vercel Cron now; pin the schedule so nobody trims it.
+{
+  const { readFileSync } = await import("node:fs");
+  const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
+  const at = (path) => vercel.crons.filter((c) => c.path === path).map((c) => c.schedule).sort();
+  check("Vercel posts at 7am/1pm/7pm Eastern, both DST hours", at("/api/social/publish"), ["5 0 * * *", "5 11 * * *", "5 12 * * *", "5 17 * * *", "5 18 * * *", "5 23 * * *"]);
+  check("Vercel checks the video at 6:40 Eastern, both DST hours", at("/api/cron/social-video"), ["40 10 * * *", "40 11 * * *"]);
+  const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
+  check("workflow renders from 4:30am Eastern", wf.includes('cron: "30 8 * * *"'), true);
+  check("workflow has a render-only dispatch input", wf.includes("render_only:") && wf.includes("inputs.render_only != '1'"), true);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

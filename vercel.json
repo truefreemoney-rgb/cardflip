@@ -7,6 +7,14 @@
   },
   "crons": [
     { "path": "/api/cron/mtg-prices", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/pokemon-prices", "schedule": "45 9 * * *" }
+    { "path": "/api/cron/pokemon-prices", "schedule": "45 9 * * *" },
+    { "path": "/api/cron/social-video", "schedule": "40 10 * * *" },
+    { "path": "/api/cron/social-video", "schedule": "40 11 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 11 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 12 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 17 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 18 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 23 * * *" },
+    { "path": "/api/social/publish", "schedule": "5 0 * * *" }
   ]
 }

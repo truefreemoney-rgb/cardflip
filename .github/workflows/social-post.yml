@@ -1,20 +1,27 @@
 name: social-post
 
 # Social autopilot schedule (Chris 09-25: three posts a day, 7am / 1pm / 7pm
-# Eastern, hands off). GitHub cron is UTC and best-effort, so each slot is
-# pinged at both its EDT and EST hour; the publisher keys each slot to the
-# Eastern day and the second ping is a no-op. Manual: Run workflow.
+# Eastern, hands off). 09-26: GitHub cron ran TWO HOURS late and the 7am
+# post did not go out ("this cannot happen again") — the POSTS now fire from
+# Vercel Cron (vercel.json → /api/social/publish, Pro plan, on the minute).
+# The pings here are only a backstop: the publisher keys each slot to the
+# Eastern day, so a late duplicate is a no-op.
 #
 # The 7am set spotlight goes out as a VIDEO (Chris 09-25): the `video` job
 # renders it here (headless Chromium + ffmpeg do not fit a Vercel function),
 # parks it on Vercel Blob and registers it in the settings table; the
 # publisher then posts the MP4 on every site that takes one, picture as the
-# fallback. The `post` job runs whether or not the render succeeded.
+# fallback. The render is pinged from 4:30am Eastern on, three times, so a
+# two-hour delay still lands before 7; /api/cron/social-video (Vercel, 6:40)
+# dispatches a render-only run if nothing is registered by then.
 on:
   schedule:
-    - cron: "50 10 * * *" # 6:50am EDT: render the set-spotlight video
-    - cron: "50 11 * * *" # 6:50am EST
-    - cron: "5 11 * * *"  # 7am EDT
+    - cron: "30 8 * * *"  # 4:30am EDT: render the set-spotlight video
+    - cron: "30 9 * * *"  # 5:30am EDT / 4:30am EST
+    - cron: "15 10 * * *" # 6:15am EDT
+    - cron: "30 10 * * *" # 5:30am EST
+    - cron: "15 11 * * *" # 6:15am EST
+    - cron: "5 11 * * *"  # 7am EDT (backstop; Vercel posts first)
     - cron: "5 12 * * *"  # 7am EST
     - cron: "5 17 * * *"  # 1pm EDT
     - cron: "5 18 * * *"  # 1pm EST
@@ -22,6 +29,10 @@ on:
     - cron: "5 0 * * *"   # 7pm EST
   workflow_dispatch:
     inputs:
+      render_only:
+        description: "1 = render the video and stop (no post); what /api/cron/social-video sends"
+        required: false
+        default: ""
       slot:
         description: "morning | midday | evening (blank = by the clock)"
         required: false
@@ -41,8 +52,8 @@ jobs:
     # too when the 6:50 one was skipped (GitHub cron is best-effort); the
     # script exits at once when today's video is already registered.
     if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.video == '1' || inputs.slot == 'morning' || inputs.slot == '')
-      || contains(fromJSON('["50 10 * * *","50 11 * * *","5 11 * * *","5 12 * * *"]'), github.event.schedule)
+      github.event_name == 'workflow_dispatch' && (inputs.video == '1' || inputs.render_only == '1' || inputs.slot == 'morning' || inputs.slot == '')
+      || contains(fromJSON('["30 8 * * *","30 9 * * *","15 10 * * *","30 10 * * *","15 11 * * *","5 11 * * *","5 12 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -74,10 +85,11 @@ jobs:
 
   post:
     needs: [video]
-    # Not on the 6:50 render-only pings; on every other ping, even when the render failed.
+    # Not on the render-only pings or a render_only dispatch; on every other ping, even when the render failed.
     if: >-
       always()
-      && !contains(fromJSON('["50 10 * * *","50 11 * * *"]'), github.event.schedule)
+      && inputs.render_only != '1'
+      && !contains(fromJSON('["30 8 * * *","30 9 * * *","15 10 * * *","30 10 * * *","15 11 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
