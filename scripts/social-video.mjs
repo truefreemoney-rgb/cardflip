@@ -40,6 +40,19 @@ const game = "pokemon";
 const KEY = videoKey(game, "set", day);
 if (has("--skip-if-done") && (await getSetting(KEY))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
 
+// Backing track: royalty-free MP3s Chris drops into public/social/audio
+// (Pixabay Content License, no attribution needed; see the README there).
+// One is picked per day, rotating through the folder by name; none = silent.
+// --audio <mp3> forces one, --audio none forces silent. Trimmed to the video,
+// fade-out at the end. (A synthesized loop was tried 09-25: "i hate the audio".)
+const AUDIO_DIR = path.join(root, "public/social/audio");
+const tracks = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR).filter((f) => /\.mp3$/i.test(f)).sort() : [];
+const dayIndex = Math.round(Date.parse(day) / 86_400_000);
+const AUDIO = arg("--audio", tracks.length ? path.join(AUDIO_DIR, tracks[dayIndex % tracks.length]) : "none");
+const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
+if (AUDIO !== "none" && !withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
+console.log(withAudio ? `audio: ${path.basename(AUDIO)} (${tracks.length} in rotation)` : "audio: silent (drop MP3s into public/social/audio)");
+
 const spot = await setSpotlight(game, day);
 if (!spot) { console.error("no set for", day); process.exit(1); }
 console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards`);
@@ -60,9 +73,26 @@ const cards = [];
 for (const c of [...spot.cards].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
 const logo = `data:image/png;base64,${fs.readFileSync(path.join(root, "public/brand/cardflip-logo.png")).toString("base64")}`;
 
-// Timeline (seconds): intro → one beat per card → outro (lib/socialVideo.ts).
-const { intro: INTRO, beat: BEAT, outro: OUTRO } = TIMELINE;
-const TOTAL = videoSeconds(cards.length);
+// Timeline (seconds): intro → one beat per card → outro (lib/socialVideo.ts
+// defaults). With a track, the cut follows the music (Chris 09-25: "make the
+// video somewhat match the feel of the beat"): scripts/lib/beat.mjs finds the
+// tempo, the downbeat and where the track gets going; every card then holds
+// for one bar (4 beats), the intro is one bar, card changes land on
+// downbeats, the price pops on beat 3, and the art pulses on every beat.
+let { intro: INTRO, beat: BEAT, outro: OUTRO } = TIMELINE;
+let PERIOD = 0, AUDIO_START = 0;
+if (withAudio) {
+  const { analyzeBeat } = await import("./lib/beat.mjs");
+  const b = await analyzeBeat(AUDIO, { clipSeconds: 18 });
+  PERIOD = b.period;
+  const bar = 4 * PERIOD;
+  BEAT = bar < 1.5 ? 2 * bar : bar > 2.9 ? bar / 2 : bar;
+  INTRO = BEAT;
+  OUTRO = BEAT + 0.6;
+  AUDIO_START = b.start;
+  console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, audio from ${AUDIO_START.toFixed(2)}s`);
+}
+const TOTAL = withAudio ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -123,6 +153,8 @@ ${cards.map((c, i) => `
 <div id="bar"><i class="holo"></i></div>
 <script>
   const INTRO=${INTRO}, BEAT=${BEAT}, OUTRO=${OUTRO}, N=${cards.length}, TOTAL=${TOTAL};
+  // P = one musical beat (a quarter of a card's hold); with no track it is the same fraction, so the cut feels alike.
+  const P=${PERIOD > 0 ? PERIOD : BEAT / 4}, MUSIC=${withAudio ? "true" : "false"};
   const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
   const easeOut=(x)=>1-Math.pow(1-x,3);
   const easeInOut=(x)=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
@@ -130,17 +162,24 @@ ${cards.map((c, i) => `
   function fadeIn(el, t, d=.45, dy=40){ const p=easeOut(clamp(t/d)); el.style.opacity=p; el.style.transform="translateY("+((1-p)*dy)+"px)"; }
   function show(el, on){ el.style.display = on ? "" : "none"; }
   window.render = function(t){
-    document.querySelector("#bar i").style.width=(clamp(t/TOTAL)*100)+"%";
+    // Beat pulse: a quick swell on every beat (t=0 is a downbeat; the audio is cut to start on one).
+    const pulse = MUSIC ? Math.exp(-((t % P)/P)*7) : 0;
+    const bar=document.querySelector("#bar i");
+    bar.style.width=(clamp(t/TOTAL)*100)+"%";
+    bar.style.filter="brightness("+(1+.6*pulse)+")";
+    const dot=document.querySelector("#footer .dot");
+    dot.style.transform="scale("+(1+.5*pulse)+")";
+    dot.style.boxShadow="0 0 "+(24*pulse)+"px rgba(99,102,241,"+(.9*pulse)+")";
     const intro=document.getElementById("intro"), outro=document.getElementById("outro");
     // intro
     show(intro, t<INTRO);
     if(t<INTRO){
-      const out = clamp((t-(INTRO-.35))/.35);
+      const out = clamp((t-(INTRO-.3))/.3);
       intro.style.opacity = 1-out;
       fadeIn(intro.querySelector(".kicker"), t, .4);
-      fadeIn(intro.querySelector(".title"), t-.15, .6, 60);
-      fadeIn(intro.querySelector(".sub"), t-.45, .5);
-      intro.querySelector(".title").style.transform += " scale("+(1+.04*easeOut(clamp(t/INTRO)))+")";
+      fadeIn(intro.querySelector(".title"), t-P*.5, .6, 60);
+      fadeIn(intro.querySelector(".sub"), t-P*1.5, .5);
+      intro.querySelector(".title").style.transform += " scale("+(1+.04*easeOut(clamp(t/INTRO))+.02*pulse)+")";
     }
     for(let i=0;i<N;i++){
       const el=document.getElementById("beat"+i);
@@ -148,19 +187,21 @@ ${cards.map((c, i) => `
       const on = lt>=0 && lt<BEAT;
       show(el,on);
       if(!on) continue;
-      const out = clamp((lt-(BEAT-.25))/.25);
+      // Beat 0: art slams in. Beat 1: name. Beats 1→3: price counts up, pops on beat 3. Then the week's move.
+      const out = clamp((lt-(BEAT-.2))/.2);
       el.style.opacity = 1-out;
       fadeIn(el.querySelector(".rank"), lt, .3);
-      const art=el.querySelector(".art"); const ap=easeOut(clamp(lt/.55));
-      art.style.opacity=ap; art.style.transform="translateY("+((1-ap)*120)+"px) rotate("+((1-ap)*-6)+"deg) scale("+(0.92+.08*ap)+")";
-      fadeIn(el.querySelector(".name"), lt-.35, .4);
-      fadeIn(el.querySelector(".meta"), lt-.45, .4);
+      const art=el.querySelector(".art"); const ap=easeOut(clamp(lt/Math.min(.55,P)));
+      art.style.opacity=ap; art.style.transform="translateY("+((1-ap)*120)+"px) rotate("+((1-ap)*-6)+"deg) scale("+(0.92+.08*ap+.015*pulse*ap)+")";
+      fadeIn(el.querySelector(".name"), lt-P*.8, .35);
+      fadeIn(el.querySelector(".meta"), lt-P*.95, .35);
       const price=el.querySelector(".price"); const to=Number(price.dataset.to);
-      const pp=easeInOut(clamp((lt-.55)/.8));
-      price.style.opacity=clamp((lt-.5)/.2);
+      const pp=easeInOut(clamp((lt-P)/(2*P)));
+      price.style.opacity=clamp((lt-P*.9)/.15);
       price.textContent=money(to*pp);
-      price.style.transform="scale("+(1+.06*Math.sin(Math.PI*clamp((lt-1.3)/.3)))+")";
-      fadeIn(el.querySelector(".pct"), lt-1.35, .35, 20);
+      const pop = lt>=3*P ? Math.exp(-(lt-3*P)*9) : 0;
+      price.style.transform="scale("+(1+.09*pop)+")";
+      fadeIn(el.querySelector(".pct"), lt-3*P, .3, 20);
     }
     const ot=t-(INTRO+N*BEAT);
     show(outro, ot>=0);
@@ -190,23 +231,11 @@ for (let i = 0; i < frames; i++) {
 }
 await browser.close();
 
-// Backing track: royalty-free MP3s Chris drops into public/social/audio
-// (Pixabay Content License, no attribution needed; see the README there).
-// One is picked per day, rotating through the folder by name; none = silent.
-// --audio <mp3> forces one, --audio none forces silent. Trimmed to the video,
-// 0.5s fade-out. (A synthesized loop was tried 09-25: "i hate the audio".)
-const AUDIO_DIR = path.join(root, "public/social/audio");
-const tracks = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR).filter((f) => /\.mp3$/i.test(f)).sort() : [];
-const dayIndex = Math.round(Date.parse(day) / 86_400_000);
-const AUDIO = arg("--audio", tracks.length ? path.join(AUDIO_DIR, tracks[dayIndex % tracks.length]) : "none");
-const withAudio = AUDIO !== "none" && fs.existsSync(AUDIO);
-if (AUDIO !== "none" && !withAudio) console.warn(`no backing track at ${AUDIO}, rendering silent`);
-console.log(withAudio ? `audio: ${path.basename(AUDIO)} (${tracks.length} in rotation)` : "audio: silent (drop MP3s into public/social/audio)");
 const ffmpeg = (await import("ffmpeg-static")).default;
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const r = spawnSync(ffmpeg, [
   "-y", "-framerate", String(FPS), "-i", path.join(work, "f%04d.png"),
-  ...(withAudio ? ["-i", AUDIO, "-af", `afade=t=out:st=${(TOTAL - 0.5).toFixed(2)}:d=0.5`, "-c:a", "aac", "-b:a", "128k", "-shortest"] : []),
+  ...(withAudio ? ["-ss", AUDIO_START.toFixed(3), "-i", AUDIO, "-af", `afade=t=in:d=0.15,afade=t=out:st=${(TOTAL - 0.6).toFixed(2)}:d=0.6`, "-c:a", "aac", "-b:a", "128k", "-shortest"] : []),
   "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "19", "-preset", "medium", "-movflags", "+faststart", OUT,
 ], { stdio: ["ignore", "ignore", "pipe"] });
 if (r.status !== 0) { console.error(r.stderr.toString().slice(-2000)); process.exit(1); }
