@@ -7,6 +7,16 @@ const REPO = "truefreemoney-rgb/cardflip";
 const LABEL = "board-run";
 
 /**
+ * A photo on the issue: the image for GitHub, plus the fetch line for the
+ * runner, whose cloud box cannot reach the Blob host (run #19 read its task
+ * from the text alone). /api/runner/photo hands it through cardflip.io.
+ */
+function photoBlock(u: string): string {
+  const via = `https://cardflip.io/api/runner/photo?u=${encodeURIComponent(u)}`;
+  return `\n\n![photo](${u})\n_Runner: your box cannot open that host; fetch it with_ \`curl -sS -H "Authorization: Bearer $RUNNER_TOKEN" -o photo.jpg "${via}"\` _and look at the file._`;
+}
+
+/**
  * Run button on a board task (Chris, 09-09: "click a task, click Run, it
  * should push it to Claude and do the task"). Opens a GitHub issue labelled
  * `board-run`; the "CardFlip board runner" cloud routine picks it up, does
@@ -46,7 +56,7 @@ export async function POST(req: Request) {
     const gh = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json", "User-Agent": "cardflip-board" },
-      body: JSON.stringify({ title, labels: [LABEL], body: `Board task from the admin console.\n\n${text}${(item.images ?? []).map((u) => `\n\n![photo](${u})`).join("")}\n\n_Opened by the Run button; the board runner routine picks this up._` }),
+      body: JSON.stringify({ title, labels: [LABEL], body: `Board task from the admin console.\n\n${text}${(item.images ?? []).map(photoBlock).join("")}\n\n_Opened by the Run button; the board runner routine picks this up._` }),
       signal: AbortSignal.timeout(10_000),
     });
     const data = (await gh.json().catch(() => ({}))) as { number?: number; html_url?: string; message?: string };
