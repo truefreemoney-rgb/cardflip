@@ -12,7 +12,7 @@ import {
   type EbayPushSuccess,
 } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { itemFirstEdition, mtgFinishOf } from "@/lib/listing";
+import { formatMoney, itemFirstEdition, mtgFinishOf } from "@/lib/listing";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 
 interface Props {
@@ -441,7 +441,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                 <h2 className="text-lg font-semibold text-white">Put this card live on eBay?</h2>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                   <span className="font-medium text-zinc-200">{listing.title.slice(0, 60)}</span>
-                  {" — "}${price.toFixed(2)}
+                  {" — "}{formatMoney(price)}
                   {(item.quantity ?? 1) > 1 ? ` × ${item.quantity} copies` : ""}.
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">

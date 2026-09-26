@@ -3,7 +3,7 @@
 import { displayCardNumber } from "@/lib/games";
 import CardImage from "@/components/CardImage";
 import StatusChip from "@/components/StatusChip";
-import { currentPrice } from "@/lib/listing";
+import { currentPrice, formatMoney } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
 
 interface Props {
@@ -61,7 +61,7 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         <span className="flex shrink-0 flex-col items-end gap-1">
           {price != null && (
             <span className="text-sm font-semibold text-emerald-400">
-              ${price.toFixed(2)}
+              {formatMoney(price)}
             </span>
           )}
           <StatusChip status={item.status} verified={Boolean(item.verifiedAt)} />

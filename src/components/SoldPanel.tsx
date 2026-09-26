@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatMoney } from "@/lib/listing";
 import CardImage from "@/components/CardImage";
 import type { ScanItem } from "@/lib/types";
 // Always the estimate here: this receipt renders the moment a sale is marked,
@@ -113,7 +114,7 @@ export default function SoldPanel({ item, onChange, onNext }: Props) {
           ) : (
             <span className="flex items-baseline gap-2">
               <span className="text-sm font-medium text-white">
-                ${salePrice.toFixed(2)}
+                {formatMoney(salePrice)}
               </span>
               {onChange && (
                 <button
@@ -132,18 +133,18 @@ export default function SoldPanel({ item, onChange, onNext }: Props) {
         <div className="mt-1.5 flex items-baseline justify-between">
           <span className="text-sm text-zinc-400">Est. eBay fees</span>
           <span className="text-sm font-medium text-red-400">
-            −${fees.toFixed(2)}
+            −{formatMoney(fees)}
           </span>
         </div>
         <div className="mt-3 flex items-baseline justify-between border-t border-white/5 pt-3">
           <span className="text-sm font-semibold text-white">You keep</span>
           <span className="text-lg font-bold text-emerald-400">
-            ${net.toFixed(2)}
+            {formatMoney(net)}
           </span>
         </div>
         <p className="mt-3 text-[11px] leading-snug text-zinc-600">
           Estimated at a {(EBAY_FEE_RATE * 100).toFixed(2)}% final value fee +
-          ${EBAY_FLAT_FEE.toFixed(2)} per order. Your actual fees depend on
+          {formatMoney(EBAY_FLAT_FEE)} per order. Your actual fees depend on
           your eBay store tier and category.
         </p>
       </div>

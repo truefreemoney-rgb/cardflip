@@ -9,6 +9,7 @@ import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 import { SCANS } from "@/lib/pricing";
+import { formatMoney } from "@/lib/listing";
 
 export interface AdminUserRow {
   id: string;
@@ -284,7 +285,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-zinc-500 md:hidden">
                         <span>{r?.cards ?? 0} cards</span>
                         <span>{r?.sold ?? 0} sold</span>
-                        <span className="text-emerald-400">${(r?.revenue ?? 0).toFixed(2)}</span>
+                        <span className="text-emerald-400">{formatMoney(r?.revenue ?? 0)}</span>
                       </span>
                       <span className="mt-1 block md:hidden">
                         <PlanSelect user={u} tierCls={tier.cls} />
@@ -294,7 +295,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.cards ?? 0}</span>
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.listed ?? 0}</span>
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.sold ?? 0}</span>
-                  <span className={`hidden text-right tabular-nums md:block ${r?.revenue ? "text-emerald-400" : "text-zinc-600"}`}>${(r?.revenue ?? 0).toFixed(2)}</span>
+                  <span className={`hidden text-right tabular-nums md:block ${r?.revenue ? "text-emerald-400" : "text-zinc-600"}`}>{formatMoney(r?.revenue ?? 0)}</span>
                   <span className="hidden min-w-0 md:block">
                     <PlanSelect user={u} tierCls={tier.cls} />
                     <span className="mt-0.5 block truncate text-[11px] text-zinc-600">{scansLabel}</span>

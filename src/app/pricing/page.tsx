@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
 import { LADDER_SENTENCE, PRICE, PRICE_LINE, SCANS } from "@/lib/pricing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
+import { formatMoney } from "@/lib/listing";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbGraph } from "@/lib/structuredData";
 
@@ -105,14 +106,14 @@ export default function PricingPage() {
             <div>
               <h2 className="font-display text-2xl font-semibold text-white">The only other fees are eBay&apos;s.</h2>
               <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
-                CardFlip doesn&apos;t take a cut. Every suggested price already accounts for eBay&apos;s {feePct} final value fee, the {`$${EBAY_FLAT_FEE.toFixed(2)}`} per-order charge and {`$${POSTAGE_USD.toFixed(2)}`} postage, so a cheap card never lists at a loss and you can see what you&apos;ll keep before you post.
+                CardFlip doesn&apos;t take a cut. Every suggested price already accounts for eBay&apos;s {feePct} final value fee, the {formatMoney(EBAY_FLAT_FEE)} per-order charge and {formatMoney(POSTAGE_USD)} postage, so a cheap card never lists at a loss and you can see what you&apos;ll keep before you post.
               </p>
             </div>
             <dl className="grid grid-cols-3 gap-2 text-center sm:w-72">
               {[
                 [feePct, "eBay fee"],
-                [`$${EBAY_FLAT_FEE.toFixed(2)}`, "per order"],
-                [`$${POSTAGE_USD.toFixed(2)}`, "postage"],
+                [formatMoney(EBAY_FLAT_FEE), "per order"],
+                [formatMoney(POSTAGE_USD), "postage"],
               ].map(([v, l]) => (
                 <div key={l} className="rounded-xl bg-black/30 px-2 py-3">
                   <dd className="font-display text-lg font-semibold text-white">{v}</dd>

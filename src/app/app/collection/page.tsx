@@ -38,6 +38,7 @@ import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, 
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { formatMoney } from "@/lib/listing";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -148,7 +149,7 @@ function Breakdown({ rows, muted = false }: { rows: [string, number][]; muted?: 
         <div key={label} className="flex items-baseline justify-between gap-3">
           <dt className="truncate text-zinc-500">{label}</dt>
           <dd className={`shrink-0 tabular-nums ${amount < 0 ? "text-zinc-400" : "text-zinc-300"}`}>
-            {amount < 0 ? "−" : ""}${Math.abs(amount).toFixed(2)}
+            {amount < 0 ? "−" : ""}{formatMoney(Math.abs(amount))}
           </dd>
         </div>
       ))}
@@ -235,7 +236,7 @@ function RepriceSheet({
               {card.cardNumber ? ` · ${card.cardNumber}` : ""}
             </p>
             <p className="mt-1 text-xs text-zinc-400">
-              Listed on eBay at <span className="font-semibold text-zinc-200">${card.price.toFixed(2)}</span>
+              Listed on eBay at <span className="font-semibold text-zinc-200">{formatMoney(card.price)}</span>
             </p>
           </div>
           <button
@@ -279,7 +280,7 @@ function RepriceSheet({
               className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition hover:border-amber-400/50"
               title="TCGplayer market today"
             >
-              Market ${nudge.market.toFixed(2)}
+              Market {formatMoney(nudge.market)}
             </button>
           )}
         </div>
@@ -288,7 +289,7 @@ function RepriceSheet({
           <p className="mt-4 text-xs font-medium text-red-300">{floorRefusal()}</p>
         ) : (
           <p className="mt-4 text-xs text-zinc-500">
-            You&apos;d net about <span className="font-semibold text-emerald-400">${net.toFixed(2)}</span> after eBay fees and postage.
+            You&apos;d net about <span className="font-semibold text-emerald-400">{formatMoney(net)}</span> after eBay fees and postage.
           </p>
         )}
 
@@ -450,11 +451,11 @@ export default function CollectionPage() {
           <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className={`font-display text-3xl font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
-              ${priceValue.toFixed(2)}
+              {formatMoney(priceValue)}
             </span>
             {sold && card.soldPrice != null && (
               <span className="text-sm text-zinc-400">
-                net <span className="font-semibold text-emerald-400">${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}</span>
+                net <span className="font-semibold text-emerald-400">{formatMoney(netAfterFees(card.soldPrice, card.soldFees))}</span>
                 {card.soldFees != null ? " after eBay fees" : " after estimated fees"}
               </span>
             )}
@@ -480,7 +481,7 @@ export default function CollectionPage() {
             if (sold || scanned == null || !(scanned > 0)) return null;
             const delta = priceValue - scanned;
             if (Math.abs(delta) < 0.01) {
-              return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was scanned at ${scanned.toFixed(2)}.</p>;
+              return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was scanned at {formatMoney(scanned)}.</p>;
             }
             const up = delta > 0;
             const pct = (Math.abs(delta) / scanned) * 100;
@@ -488,16 +489,16 @@ export default function CollectionPage() {
               <dl className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-edge bg-edge text-sm">
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Scanned at</dt>
-                  <dd className="font-display font-semibold text-zinc-300">${scanned.toFixed(2)}</dd>
+                  <dd className="font-display font-semibold text-zinc-300">{formatMoney(scanned)}</dd>
                 </div>
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Now</dt>
-                  <dd className="font-display font-semibold text-white">${priceValue.toFixed(2)}</dd>
+                  <dd className="font-display font-semibold text-white">{formatMoney(priceValue)}</dd>
                 </div>
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Change</dt>
                   <dd className={`font-display font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                    <span aria-hidden>{up ? "↑" : "↓"}</span> ${Math.abs(delta).toFixed(2)}
+                    <span aria-hidden>{up ? "↑" : "↓"}</span> {formatMoney(Math.abs(delta))}
                     <span className="ml-1 text-xs font-medium opacity-80">({pct.toFixed(1)}%)</span>
                   </dd>
                 </div>
@@ -721,7 +722,7 @@ export default function CollectionPage() {
     if (Math.abs(price - card.price) < 0.005) return;
     if (!card.ebayOfferId) {
       await applyPatch(card, { price, priceLocked: true });
-      toast(`${card.cardName} is now ${price.toFixed(2)}`);
+      toast(`${card.cardName} is now ${formatMoney(price)}`);
       return;
     }
     setRepricing(card.id);
@@ -737,7 +738,7 @@ export default function CollectionPage() {
       return;
     }
     patchCard(card.id, { price });
-    toast(`${card.cardName} repriced to ${price.toFixed(2)}${result.ebayUpdated ? " — eBay listing updated" : ""}`);
+    toast(`${card.cardName} repriced to ${formatMoney(price)}${result.ebayUpdated ? " — eBay listing updated" : ""}`);
     setNudges((prev) => {
       const next = { ...prev };
       delete next[card.id];
@@ -745,7 +746,7 @@ export default function CollectionPage() {
     });
     if (card.ebayListingUrl && !result.ebayUpdated) {
       setSyncError(
-        `${card.cardName} is ${price.toFixed(2)} here now, but eBay didn't take the change${result.ebayError ? ` (${result.ebayError})` : ""} — update the live listing on eBay.`,
+        `${card.cardName} is ${formatMoney(price)} here now, but eBay didn't take the change${result.ebayError ? ` (${result.ebayError})` : ""} — update the live listing on eBay.`,
       );
     }
   }
@@ -783,7 +784,7 @@ export default function CollectionPage() {
       void applyPatch(card, soldNowPatch(price));
     }
     setSoldForm(null);
-    toast(`${card.cardName} sold — $${price.toFixed(2)}`);
+    toast(`${card.cardName} sold — ${formatMoney(price)}`);
   }
 
   async function openOfferPanel() {
@@ -821,7 +822,7 @@ export default function CollectionPage() {
     const discounted = card.price * (1 - pct / 100);
     if (
       !(await confirmAction({
-        message: `Send ${pct}% off ${card.cardName} ($${card.price.toFixed(2)} → $${discounted.toFixed(2)}) to everyone watching it? This emails real buyers and can't be recalled.`,
+        message: `Send ${pct}% off ${card.cardName} (${formatMoney(card.price)} → ${formatMoney(discounted)}) to everyone watching it? This emails real buyers and can't be recalled.`,
         confirmLabel: "Send offer",
         danger: false,
       }))
@@ -1183,14 +1184,14 @@ export default function CollectionPage() {
           <div className="p-5">
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
             <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-white">
-              ${stats.inPlay.toFixed(2)}
+              {formatMoney(stats.inPlay)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             <Breakdown
               rows={[
                 ["Asking", stats.inPlayGross],
                 ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
-                [`Postage · ${stats.inPlayCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.inPlayCopies * POSTAGE_USD)],
+                [`Postage · ${stats.inPlayCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.inPlayCopies * POSTAGE_USD)],
               ]}
             />
           </div>
@@ -1201,7 +1202,7 @@ export default function CollectionPage() {
                 does). */}
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
             <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-emerald-400">
-              ${stats.net.toFixed(2)}
+              {formatMoney(stats.net)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               {stats.sold.length === 0
@@ -1215,7 +1216,7 @@ export default function CollectionPage() {
                 rows={[
                   ["Sold for", stats.earned],
                   [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
-                  [`Postage · ${stats.soldCopies} × $${POSTAGE_USD.toFixed(2)}`, -(stats.soldCopies * POSTAGE_USD)],
+                  [`Postage · ${stats.soldCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.soldCopies * POSTAGE_USD)],
                 ]}
               />
             ) : (
@@ -1474,9 +1475,9 @@ export default function CollectionPage() {
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-white">{card.cardName}</p>
                               <p className="text-xs text-zinc-500">
-                                {card.setName} · ${card.price.toFixed(2)} →{" "}
+                                {card.setName} · {formatMoney(card.price)} →{" "}
                                 <span className="text-emerald-400">
-                                  ${(card.price * (1 - pct / 100)).toFixed(2)}
+                                  {formatMoney(card.price * (1 - pct / 100))}
                                 </span>
                               </p>
                             </div>
@@ -1742,8 +1743,8 @@ export default function CollectionPage() {
                   </span>
                   <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
                     {sold && card.soldPrice != null
-                      ? `$${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}`
-                      : `$${card.price.toFixed(2)}`}
+                      ? formatMoney(netAfterFees(card.soldPrice, card.soldFees))
+                      : formatMoney(card.price)}
                   </span>
                 </span>
               </>
@@ -1836,7 +1837,7 @@ export default function CollectionPage() {
                 <div className="flex items-center justify-between gap-2 px-2.5 py-2">
                   <span className="truncate text-[11px] text-zinc-500">
                     {sold && card.soldPrice != null
-                      ? `sold ${card.soldPrice.toFixed(2)} · net`
+                      ? `sold ${formatMoney(card.soldPrice)} · net`
                       : live
                         ? "Awaiting sale"
                         : ended
@@ -1862,10 +1863,10 @@ export default function CollectionPage() {
                         <button
                           onClick={() => void applyReprice(card, nudges[card.id])}
                           disabled={repricing === card.id}
-                          title={`Market moved ${nudges[card.id].drift > 0 ? "up" : "down"} — reprice to ${nudges[card.id].market.toFixed(2)} here and on eBay`}
+                          title={`Market moved ${nudges[card.id].drift > 0 ? "up" : "down"} — reprice to ${formatMoney(nudges[card.id].market)} here and on eBay`}
                           className="rounded-full bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
                         >
-                          {nudges[card.id].drift > 0 ? "↑" : "↓"} ${nudges[card.id].market.toFixed(2)}
+                          {nudges[card.id].drift > 0 ? "↑" : "↓"} {formatMoney(nudges[card.id].market)}
                         </button>
                       )}
                       <button
@@ -2066,14 +2067,14 @@ export default function CollectionPage() {
                           Sold
                         </span>
                         <p className="font-display text-lg font-bold tabular-nums tracking-tight text-emerald-400">
-                          ${card.soldPrice.toFixed(2)}
+                          {formatMoney(card.soldPrice)}
                         </p>
                         <button
                           onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
-                          title={`${card.soldFees != null ? `eBay fees $${card.soldFees.toFixed(2)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
+                          title={`${card.soldFees != null ? `eBay fees ${formatMoney(card.soldFees)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
                           className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
                         >
-                          you keep ${netAfterFees(card.soldPrice, card.soldFees).toFixed(2)}
+                          you keep {formatMoney(netAfterFees(card.soldPrice, card.soldFees))}
                         </button>
                       </>
                     ) : (
@@ -2086,17 +2087,17 @@ export default function CollectionPage() {
                           <button
                             onClick={() => setPriceSheet(card.id)}
                             title="Change price — here and on the live eBay listing"
-                            aria-label={`Change price, currently $${card.price.toFixed(2)}`}
+                            aria-label={`Change price, currently ${formatMoney(card.price)}`}
                             className="group inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -mr-1.5 font-display text-lg font-bold tabular-nums tracking-tight text-white transition hover:bg-white/5"
                           >
-                            ${card.price.toFixed(2)}
+                            {formatMoney(card.price)}
                             <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-zinc-500 transition group-hover:text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                               <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
                             </svg>
                           </button>
                         ) : (
                           <p className="font-display text-lg font-bold tabular-nums tracking-tight text-white">
-                            {repricing === card.id ? "Saving…" : `$${card.price.toFixed(2)}`}
+                            {repricing === card.id ? "Saving…" : formatMoney(card.price)}
                           </p>
                         )}
                         {/* The move since this card was scanned, as a pill: direction, %, and the scan price. */}
@@ -2105,14 +2106,14 @@ export default function CollectionPage() {
                           const pct = (Math.abs(card.price - scannedAt!) / scannedAt!) * 100;
                           return (
                             <span
-                              title={`Scanned at $${scannedAt!.toFixed(2)} — today's market moved it ${up ? "up" : "down"} $${Math.abs(card.price - scannedAt!).toFixed(2)}`}
+                              title={`Scanned at ${formatMoney(scannedAt!)} — today's market moved it ${up ? "up" : "down"} ${formatMoney(Math.abs(card.price - scannedAt!))}`}
                               className={`mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
                                 up ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
                               }`}
                             >
                               <span aria-hidden>{up ? "▲" : "▼"}</span>
                               {pct >= 100 ? Math.round(pct) : pct.toFixed(pct >= 10 ? 0 : 1)}%
-                              <span className="font-normal opacity-70">was ${scannedAt!.toFixed(2)}</span>
+                              <span className="font-normal opacity-70">was {formatMoney(scannedAt!)}</span>
                             </span>
                           );
                         })()}
@@ -2128,7 +2129,7 @@ export default function CollectionPage() {
                             ) : (
                               <>
                                 <span aria-hidden>{nudges[card.id].drift > 0 ? "↑" : "↓"}</span>
-                                Reprice to ${nudges[card.id].market.toFixed(2)}
+                                Reprice to {formatMoney(nudges[card.id].market)}
                               </>
                             )}
                           </button>

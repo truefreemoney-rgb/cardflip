@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/client/basePath";
 import type { GameId } from "@/lib/types";
+import { formatMoney } from "@/lib/listing";
 
 /**
  * Inventory value over time — the strip under the In play / Earned panel
@@ -30,7 +31,7 @@ const RANGES: { days: number; label: string }[] = [
 ];
 
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
-const money = (n: number) => `$${n.toFixed(2)}`;
+const money = (n: number) => formatMoney(n);
 
 export default function InventoryValueChart({ game, version = 0, className = "" }: Props) {
   const [days, setDays] = useState(90);

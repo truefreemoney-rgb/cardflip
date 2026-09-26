@@ -185,7 +185,7 @@ function axisMoney(v: number, currency: Currency): string {
   const sym = currency === "EUR" ? "€" : "$";
   if (v >= 1000) return `${sym}${(v / 1000).toFixed(v >= 10_000 ? 0 : 1)}k`;
   if (v >= 100) return `${sym}${Math.round(v)}`;
-  return `${sym}${v.toFixed(2)}`;
+  return `${sym}${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 /** "Nice" tick step so axis labels land on round numbers. */
 function niceStep(range: number, target = 4): number {

@@ -18,7 +18,7 @@ import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
-import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
+import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
@@ -1333,7 +1333,7 @@ export default function AppPage() {
               </div>
               <div>
                 <p className="text-lg font-semibold text-white">
-                  ${pendingValue.toFixed(2)}
+                  {formatMoney(pendingValue)}
                 </p>
                 <p className="text-xs text-zinc-500">In progress</p>
               </div>
@@ -1356,7 +1356,7 @@ export default function AppPage() {
               {soldItems.length > 0 && (
                 <div className="animate-fade-up">
                   <p className="text-lg font-semibold text-emerald-400">
-                    ${totalEarned.toFixed(2)}
+                    {formatMoney(totalEarned)}
                   </p>
                   <p className="text-xs text-zinc-500">
                     Sold ({soldItems.length})

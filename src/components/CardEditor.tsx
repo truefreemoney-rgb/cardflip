@@ -1185,7 +1185,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   <>
                     <span className="block text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</span>
                     <span className="font-display mt-0.5 block text-xl font-semibold text-white">
-                      ${amount.toFixed(2)}
+                      {formatMoney(amount)}
                     </span>
                     <span className="mt-1 block text-[11px] leading-snug text-zinc-500">{hint}</span>
                   </>
@@ -1196,7 +1196,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                       <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{hint}</span>
                     </span>
                     <span className="font-display shrink-0 text-2xl font-semibold text-white">
-                      ${amount.toFixed(2)}
+                      {formatMoney(amount)}
                     </span>
                   </>
                 )}

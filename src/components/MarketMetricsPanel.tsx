@@ -128,7 +128,7 @@ function ListingRows({ listings }: { listings: EbayListing[] }) {
                 </span>
               </span>
               <span className="shrink-0 text-sm font-semibold text-emerald-400">
-                ${listing.price.toFixed(2)}
+                {formatMoney(listing.price)}
               </span>
             </a>
           </li>

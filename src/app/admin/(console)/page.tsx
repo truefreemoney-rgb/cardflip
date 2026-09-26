@@ -33,12 +33,12 @@ export default async function AdminOverviewPage() {
       label: "Vision cost / scan",
       value: spend30d.scans ? `$${(spend30d.usd / spend30d.scans).toFixed(4)}` : "—",
       sub: spend30d.scans
-        ? `${num(spend30d.scans)} scans / 30d · $${spend30d.usd.toFixed(2)} · ~${num(spend30d.avgInputTokens)} in / ${num(spend30d.avgOutputTokens)} out tokens`
+        ? `${num(spend30d.scans)} scans / 30d · ${money(spend30d.usd)} · ~${num(spend30d.avgInputTokens)} in / ${num(spend30d.avgOutputTokens)} out tokens`
         : "no scans recorded yet",
     },
     {
       label: "Vision spend 24h",
-      value: `$${spend24h.usd.toFixed(2)}`,
+      value: money(spend24h.usd),
       sub: `${num(spend24h.scans)} scans`,
     },
   ];

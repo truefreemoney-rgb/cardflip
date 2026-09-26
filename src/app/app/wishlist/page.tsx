@@ -19,7 +19,7 @@ import {
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice } from "@/lib/listing";
 import {
   filterByPrintedNumber,
   normalizeNumber,
@@ -61,7 +61,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
     }
     onSaved(saved);
     setEditing(false);
-    toast(target != null ? `Alert set — email at $${target.toFixed(2)}` : "Alert removed");
+    toast(target != null ? `Alert set — email at ${formatMoney(target)}` : "Alert removed");
   }
 
   if (editing) {
@@ -126,7 +126,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
       }`}
     >
       {item.alertPrice != null
-        ? `🔔 Alert at $${item.alertPrice.toFixed(2)}${item.alertedAt ? " · sent" : ""}`
+        ? `🔔 Alert at ${formatMoney(item.alertPrice)}${item.alertedAt ? " · sent" : ""}`
         : "🔔 Price alert"}
     </button>
   );
@@ -248,7 +248,7 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
       className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
         up ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
       }`}
-      title={`${up ? "Up" : "Down"} $${Math.abs(delta).toFixed(2)} since you saved it at $${saved.toFixed(2)}`}
+      title={`${up ? "Up" : "Down"} ${formatMoney(Math.abs(delta))} since you saved it at ${formatMoney(saved)}`}
     >
       {up ? "▲" : "▼"} {Math.abs(pct) >= 10 ? Math.abs(pct).toFixed(0) : Math.abs(pct).toFixed(1)}%
     </span>
@@ -542,7 +542,7 @@ export default function WishlistPage() {
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</dt>
               <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
                 <span className="font-display text-2xl font-semibold tabular-nums tracking-tight text-emerald-400">
-                  ${nowTotal.toFixed(2)}
+                  {formatMoney(nowTotal)}
                 </span>
                 {Math.abs(nowTotal - total) >= 1 && (
                   <PriceDelta saved={total} now={nowTotal} />
@@ -729,7 +729,7 @@ export default function WishlistPage() {
                       </span>
                       <span className="flex items-center justify-between gap-2">
                         <span className={`font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
-                          {price != null ? `$${price.toFixed(2)}` : "—"}
+                          {formatMoney(price)}
                         </span>
                         <span className={`text-[11px] font-semibold ${added ? "text-emerald-400" : "text-brand-300"}`}>
                           {added ? "★ Saved" : "☆ Add"}
@@ -851,7 +851,7 @@ export default function WishlistPage() {
                       />
                       {item.alertPrice != null && (
                         <span className="absolute left-2 top-2 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">
-                          🔔 ${item.alertPrice.toFixed(2)}
+                          🔔 {formatMoney(item.alertPrice)}
                         </span>
                       )}
                       {detailOpeningId === item.id && (
@@ -878,13 +878,13 @@ export default function WishlistPage() {
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
-                          {shownPrice != null ? `$${shownPrice.toFixed(2)}` : "—"}
+                          {formatMoney(shownPrice)}
                         </p>
                         {item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
                       </div>
                       <p className="mt-1 truncate text-[11px] text-zinc-500">
                         {now != null && item.price != null
-                          ? `Saved $${item.price.toFixed(2)} · ${formatShortDate(item.addedAt)}`
+                          ? `Saved ${formatMoney(item.price)} · ${formatShortDate(item.addedAt)}`
                           : `Saved ${formatShortDate(item.addedAt)}`}
                       </p>
                     </div>

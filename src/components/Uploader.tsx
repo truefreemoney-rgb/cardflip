@@ -1,6 +1,7 @@
 "use client";
 
 import HoloCard from "@/components/HoloCard";
+import { formatMoney } from "@/lib/listing";
 import { useRef, useState } from "react";
 
 interface Props {
@@ -189,7 +190,7 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
                 </span>
               </span>
               {card.price != null && (
-                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">${card.price.toFixed(2)}</span>
+                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">{formatMoney(card.price)}</span>
               )}
             </div>
           </div>

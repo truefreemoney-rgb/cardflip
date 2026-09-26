@@ -13,7 +13,7 @@ import { useSession } from "@/components/SessionProvider";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
-import { pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice } from "@/lib/listing";
 import {
   clearPriceChecks,
   deletePriceCheck,
@@ -629,9 +629,7 @@ export default function PriceCheckPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <div className="text-right">
                     <span className="block font-display font-medium text-emerald-400">
-                      {entry.representativePrice != null
-                        ? `$${entry.representativePrice.toFixed(2)}`
-                        : "—"}
+                      {formatMoney(entry.representativePrice)}
                     </span>
                     <span className="block text-[11px] text-zinc-600">
                       {formatDate(entry.checkedAt)}

@@ -3,6 +3,7 @@
 import CardImage from "@/components/CardImage";
 import PriceSparkline from "@/components/PriceSparkline";
 import Spinner from "@/components/Spinner";
+import { formatMoney } from "@/lib/listing";
 
 /**
  * The Watchlist's card tile, shared (Chris, 09-04: "I love the card view,
@@ -79,7 +80,7 @@ export default function CardTile({
       <div className="flex items-end justify-between gap-2">
         <div className="min-w-0">
           <p className={`font-display text-lg font-semibold leading-tight ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
-            {price != null ? `$${price.toFixed(2)}` : "—"}
+            {formatMoney(price)}
           </p>
           {priceNote && <p className="text-[11px] text-zinc-600">{priceNote}</p>}
         </div>

@@ -43,7 +43,7 @@ export default function HeroShowcase({ card }: { card: PokemonCard | null }) {
         <div className="mt-4 flex items-end justify-between gap-4 border-t border-white/5 pt-4">
           <div>
             <p className="text-2xl font-semibold text-emerald-400">
-              ${price.toFixed(2)}
+              {formatMoney(price)}
             </p>
             <p className="text-xs text-zinc-500">
               {quote

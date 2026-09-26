@@ -35,7 +35,10 @@ export default function ActivityBars({
     hourly
       ? new Date(`${d}:00:00Z`).toLocaleTimeString(undefined, { hour: "numeric", timeZone: "UTC" }) + " UTC"
       : new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
-  const show = (v: number) => (unit === "usd" ? `$${v.toFixed(2)}` : String(v));
+  const show = (v: number) =>
+    unit === "usd"
+      ? `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : String(v);
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H + 14}`} className="block w-full" style={{ height: H + 14 }} role="img"

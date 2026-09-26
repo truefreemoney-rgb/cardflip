@@ -4,6 +4,7 @@ import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import { netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { displayCardNumber } from "@/lib/games";
+import { formatMoney } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
 
 interface Props {
@@ -57,12 +58,12 @@ export default function ListedPanel({ item, onNext }: Props) {
       <dl className="grid w-full max-w-xs grid-cols-2 divide-x divide-white/10 overflow-hidden rounded-xl border border-edge bg-surface-1">
         <div className="px-4 py-3">
           <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Listed at</dt>
-          <dd className="mt-0.5 font-display text-xl font-semibold text-white">${listedPrice.toFixed(2)}</dd>
+          <dd className="mt-0.5 font-display text-xl font-semibold text-white">{formatMoney(listedPrice)}</dd>
         </div>
         <div className="px-4 py-3">
           <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">You&apos;ll net</dt>
           <dd className="mt-0.5 font-display text-xl font-semibold text-emerald-400" title="After eBay fees and postage">
-            ${net.toFixed(2)}
+            {formatMoney(net)}
           </dd>
         </div>
       </dl>

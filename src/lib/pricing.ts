@@ -27,7 +27,7 @@ export const PRICING = {
 
 export type PaidPlan = "standard" | "pro";
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const num = (n: number) => n.toLocaleString("en-US");
 
 /** "$9.99" */

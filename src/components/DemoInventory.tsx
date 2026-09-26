@@ -1,4 +1,5 @@
 import type { PokemonCard } from "@/lib/types";
+import { formatMoney } from "@/lib/listing";
 
 /**
  * Homepage demo frame (mockup approved 09-08): the Inventory with one real
@@ -48,7 +49,7 @@ export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]
                 {i === 0 ? (
                   "pricing…"
                 ) : price !== null ? (
-                  <span className="font-display text-sm font-semibold text-white">${price.toFixed(2)}</span>
+                  <span className="font-display text-sm font-semibold text-white">{formatMoney(price)}</span>
                 ) : (
                   stage.hint
                 )}
