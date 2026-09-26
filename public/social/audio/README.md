@@ -15,9 +15,7 @@ it starts mid-phrase.
 
 | file | Pixabay URL |
 | ---- | ----------- |
-| prettyjohn1-upbeat-upbeat-music-540858.mp3 (129 bpm, 23s) | https://pixabay.com/music/upbeat-upbeat-music-540858/ |
 | the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) | https://pixabay.com/music/upbeat-upbeat-music-567448/ |
-| vaitsez-fitness-fitness-workout-beat-582771.mp3 (107.5 bpm, 2:39) | https://pixabay.com/music/fitness-workout-beat-582771/ |
 
 The cut follows the track: `scripts/lib/beat.mjs` finds the tempo, the
 downbeat and where the track gets loud; each card holds one bar, the price
