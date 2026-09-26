@@ -325,7 +325,7 @@ export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMa
     <p>Reply to this email to add anything.</p>
     <p style="color:#666;font-size:13px">You can see the status any time from the robot in the app: tap Help, then My tickets.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
-  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · received`, text, html });
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Received`, text, html });
 }
 
 /** To the seller: closed. */
@@ -346,5 +346,5 @@ export async function sendSupportTicketClosedEmail(to: string, ticket: TicketMai
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
     <p style="color:#666;font-size:13px">If you still need help, reply to this email or open a new ticket from the robot in the app.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
-  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · closed`, text, html });
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Closed`, text, html });
 }
