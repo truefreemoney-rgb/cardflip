@@ -304,14 +304,15 @@ export default function NavRobot() {
         data-tour="help"
         aria-expanded={open}
         title="Help"
-        className="flex h-9 items-center gap-1 rounded-full py-1 pl-1 pr-2.5 text-xs font-medium text-zinc-300 transition hover:bg-surface-2 hover:text-white"
+        className="flex h-9 flex-col items-center justify-center rounded-full px-1 py-0.5 text-xs font-medium text-zinc-300 transition hover:bg-surface-2 hover:text-white sm:flex-row sm:gap-1 sm:py-1 sm:pr-2.5"
       >
-        <RobotBuddy pose={headerPose} size={30} float={false} />
+        <RobotBuddy pose={headerPose} size={26} float={false} />
         {/* The word is always on (Chris 09-26: on phones "the reason for it
-            is kind of unknown to the user"). It was sm-only while Sign out
-            lived in the strip (mobile QA 09-06); the account menu freed that
-            room, so Help · pill · Subscribe fits on one 375px line. */}
-        <span>Help</span>
+            is kind of unknown to the user"). On phones it sits UNDER the
+            robot as a caption: beside him it made the strip wrap under the
+            logo on an owner's phone (Help · 100/100 · eBay, 09-26 evening).
+            From sm it rides beside him as before. */}
+        <span className="text-[9px] leading-none sm:text-xs sm:leading-normal">Help</span>
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
