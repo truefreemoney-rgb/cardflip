@@ -286,7 +286,7 @@ stub((u) => {
   if (u.endsWith("/creator_info/query/")) return { status: 401, body: { error: { code: "access_token_invalid", message: "The access token is invalid" } } };
   return { status: 500, body: {} };
 });
-check("tiktok: api error surfaces the message", await tiktok.post(POST).then(() => "posted", (e) => e.message), "tiktok creator info 401: The access token is invalid");
+check("tiktok: api error surfaces the message", await tiktok.post(POST).then(() => "posted", (e) => e.message), "tiktok creator info 401 [access_token_invalid]: The access token is invalid");
 delete process.env.TIKTOK_CLIENT_KEY;
 delete process.env.TIKTOK_CLIENT_SECRET;
 check("tiktok: keys gone → not connected", tiktok.connected(), false);

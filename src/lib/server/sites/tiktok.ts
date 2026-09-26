@@ -168,7 +168,12 @@ async function api<T>(path: string, token: string, body: unknown, step: string):
   } catch {
     /* fall through to the status check */
   }
-  if (!res.ok || (j.error?.code && j.error.code !== "ok")) throw new Error(`tiktok ${step} ${res.status}: ${j.error?.message ?? j.error?.code ?? text.slice(0, 200)}`);
+  if (!res.ok || (j.error?.code && j.error.code !== "ok")) {
+    // TikTok's messages are generic ("review our integration guidelines"); the code says what happened
+    // (e.g. unaudited_client_can_only_post_to_private_accounts = make the TikTok account private until the audit).
+    const code = j.error?.code && j.error.code !== "ok" ? ` [${j.error.code}]` : "";
+    throw new Error(`tiktok ${step} ${res.status}${code}: ${j.error?.message ?? text.slice(0, 200)}`);
+  }
   return (j.data ?? {}) as T;
 }
 
