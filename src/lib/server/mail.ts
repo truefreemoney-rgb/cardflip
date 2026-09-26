@@ -337,14 +337,14 @@ export async function sendSupportTicketClosedEmail(to: string, ticket: TicketMai
     "",
     `Subject: ${ticket.subject}`,
     "",
-    "If it's not actually sorted, reply to this email or open a new ticket from the robot in the app.",
+    "If you still need help, reply to this email or open a new ticket from the robot in the app.",
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
     <p>Your support ticket <strong>#${ticket.number}</strong> is closed.</p>
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
-    <p style="color:#666;font-size:13px">If it's not actually sorted, reply to this email or open a new ticket from the robot in the app.</p>
+    <p style="color:#666;font-size:13px">If you still need help, reply to this email or open a new ticket from the robot in the app.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · closed`, text, html });
 }
