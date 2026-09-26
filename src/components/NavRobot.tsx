@@ -264,7 +264,7 @@ export default function NavRobot() {
           {
             id: `local-ticket-${t.id}`,
             role: "assistant",
-            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email. Tap My tickets below any time to check on it.`,
+            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email. Open the Support tab any time to check on it.`,
           },
         ]);
         setView("chat");
@@ -332,13 +332,13 @@ export default function NavRobot() {
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-white">{view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "My tickets"}</p>
+                <p className="text-sm font-semibold text-white">{view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "Support"}</p>
                 <p className="truncate text-[11px] text-zinc-500">
-                  {view === "chat" ? "Help, tours, moral support" : view === "ticket" ? "A human reads it and emails you back" : "Number and status. A human replies by email."}
+                  {view === "chat" ? "Help, tours, moral support" : view === "ticket" ? "A human reads it and emails you back" : "Your tickets. A human replies by email."}
                 </p>
               </div>
-              {view !== "chat" && (
-                <button onClick={() => setView("chat")} className="text-[11px] text-zinc-400 transition hover:text-white">
+              {view === "ticket" && (
+                <button onClick={() => setView("tickets")} className="text-[11px] text-zinc-400 transition hover:text-white">
                   Back
                 </button>
               )}
@@ -354,6 +354,29 @@ export default function NavRobot() {
               >
                 ✕
               </button>
+            </div>
+
+            {/* Chat / Support tabs (Chris 09-26): tickets live in a tab, not footer links. */}
+            <div role="tablist" aria-label="Chat or support" className="flex border-b border-edge px-2">
+              {(["chat", "tickets"] as const).map((t) => {
+                const selected = t === "chat" ? view === "chat" : view !== "chat";
+                return (
+                  <button
+                    key={t}
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setView(t)}
+                    className={`-mb-px flex-1 border-b-2 px-3 py-2 text-xs font-semibold transition ${
+                      selected ? "border-brand-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+                    }`}
+                  >
+                    {t === "chat" ? "Chat" : "Support"}
+                    {t === "tickets" && openCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] text-amber-300">{openCount}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {view === "ticket" && (
@@ -391,13 +414,20 @@ export default function NavRobot() {
 
             {view === "tickets" && (
               <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3">
+                <button
+                  onClick={() => setView("ticket")}
+                  className="rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
+                >
+                  Open a support ticket
+                </button>
+                <p className="text-center text-[11px] text-zinc-600">A human reads it and replies to your email, usually within 24 hours.</p>
                 {tickets === null && (
                   <p className="text-center text-[11px] text-zinc-600">
-                    <Spinner className="mr-1 inline h-3 w-3" /> looking…
+                    <Spinner className="mr-1 inline h-3 w-3" /> Loading…
                   </p>
                 )}
                 {tickets && tickets.length === 0 && (
-                  <p className="py-4 text-center text-sm text-zinc-500">No tickets. Nothing is broken, or nobody told us.</p>
+                  <p className="py-4 text-center text-sm text-zinc-500">No tickets yet.</p>
                 )}
                 {tickets?.map((t) => (
                   <div key={t.id} className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5">
@@ -411,12 +441,6 @@ export default function NavRobot() {
                     <p className="mt-1 truncate text-sm text-zinc-200">{t.subject}</p>
                   </div>
                 ))}
-                <button
-                  onClick={() => setView("ticket")}
-                  className="mt-1 rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
-                >
-                  Open a support ticket
-                </button>
               </div>
             )}
 
@@ -502,24 +526,18 @@ export default function NavRobot() {
             </div>
 
             {view === "chat" && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-1 text-[11px] text-zinc-500">
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  requestTourReplay();
-                  router.push("/app");
-                }}
-                className="transition hover:text-zinc-300"
-              >
-                Replay the tour
-              </button>
-              <button onClick={() => setView("ticket")} className="transition hover:text-zinc-300">
-                Open a support ticket
-              </button>
-              <button onClick={() => setView("tickets")} className="transition hover:text-zinc-300">
-                My tickets{openCount > 0 ? ` (${openCount} in progress)` : ""}
-              </button>
-            </div>
+              <div className="px-4 pb-1 text-[11px] text-zinc-500">
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    requestTourReplay();
+                    router.push("/app");
+                  }}
+                  className="transition hover:text-zinc-300"
+                >
+                  Replay the tour
+                </button>
+              </div>
             )}
 
             <form
