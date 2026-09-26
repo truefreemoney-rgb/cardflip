@@ -308,22 +308,24 @@ export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMa
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const tag = `SUPPORT TICKET #${ticket.number}`;
   const text = [
-    `We got your support ticket. It's #${ticket.number}.`,
+    `We received your support ticket. It's #${ticket.number}.`,
     "",
     `Subject: ${ticket.subject}`,
     "",
-    "A human reads every one and replies to this address. Reply to this email to add anything.",
+    "It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.",
+    "Reply to this email to add anything.",
     "You can see the status any time from the robot in the app: tap Help, then My tickets.",
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
-    <p>We got your support ticket. It's <strong>#${ticket.number}</strong>.</p>
+    <p>We received your support ticket. It's <strong>#${ticket.number}</strong>.</p>
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
-    <p>A human reads every one and replies to this address. Reply to this email to add anything.</p>
+    <p>It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.</p>
+    <p>Reply to this email to add anything.</p>
     <p style="color:#666;font-size:13px">You can see the status any time from the robot in the app: tap Help, then My tickets.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
-  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · we got it`, text, html });
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · received`, text, html });
 }
 
 /** To the seller: closed. */
