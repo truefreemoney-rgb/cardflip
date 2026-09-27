@@ -298,7 +298,7 @@ export async function sendSupportTicketEmail(
     ...facts,
     ...(chat.length ? ["", "— Recent robot chat —", ...chat] : []),
     "",
-    `Close it: ${adminUrl}`,
+    `Reply on the ticket: ${adminUrl}`,
   ].join("\n");
   const html = `
     <p style="color:#666;font-size:12px">${escHtml(tag)}</p>
@@ -340,7 +340,7 @@ export async function sendSupportTicketNoteEmail(
     ...photosText(note.images),
     "",
     `From: ${user.name} <${user.email}>`,
-    `Close it: ${adminUrl}`,
+    `Reply on the ticket: ${adminUrl}`,
   ].join("\n");
   const html = `
     <p style="color:#666;font-size:12px">${escHtml(tag)} · the seller added more</p>
@@ -364,26 +364,64 @@ export async function sendSupportTicketNoteEmail(
 export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMail): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const helpUrl = `${site}/app/help`;
   const tag = `SUPPORT TICKET #${ticket.number}`;
   const text = [
     `We received your support ticket. It's #${ticket.number}.`,
     "",
     `Subject: ${ticket.subject}`,
     "",
-    "It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.",
-    "Reply to this email to add anything.",
-    `You can see the status any time at ${site}/app/help (Support Tickets tab).`,
+    "A human at CardFlip reads every ticket and replies on it, usually within 24 hours. We email you when they do.",
+    `Open your ticket to add more or send photos: ${helpUrl}`,
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
     <p>We received your support ticket. It's <strong>#${ticket.number}</strong>.</p>
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
-    <p>It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.</p>
-    <p>Reply to this email to add anything.</p>
-    <p style="color:#666;font-size:13px">You can see the status any time at <a href="${site}/app/help" style="color:#6d5dfc">${site}/app/help</a> (Support Tickets tab).</p>
+    <p>A human at CardFlip reads every ticket and replies on it, usually within 24 hours. We email you when they do.</p>
+    <p><a href="${helpUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Your Ticket</a></p>
+    <p style="color:#666;font-size:13px">Add more or send photos any time from your ticket at <a href="${helpUrl}" style="color:#6d5dfc">${site}/app/help</a> (Support Tickets tab).</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Received`, text, html });
+}
+
+/**
+ * To the seller: CardFlip replied on their ticket. The answer rides along so
+ * they can read it without signing in; the button opens the thread to
+ * continue. Subject "SUPPORT TICKET #12 · You Received a Reply" (Chris 09-26).
+ */
+export async function sendSupportTicketReplyEmail(
+  to: string,
+  ticket: TicketMail,
+  reply: { body: string; images: string[]; createdAt: number },
+): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const helpUrl = `${site}/app/help`;
+  const tag = `SUPPORT TICKET #${ticket.number}`;
+  const text = [
+    `CardFlip replied on your support ticket #${ticket.number}.`,
+    "",
+    `Subject: ${ticket.subject}`,
+    "",
+    reply.body || "(photos only)",
+    ...photosText(reply.images),
+    "",
+    `Reply or add photos from your ticket: ${helpUrl}`,
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p style="color:#666;font-size:12px">${escHtml(tag)}</p>
+    <h2 style="margin:0 0 12px">${escHtml(ticket.subject)}</h2>
+    <p style="color:#444">CardFlip replied on your support ticket <strong>#${ticket.number}</strong>:</p>
+    <div style="padding:12px 16px;border-left:3px solid #6d5dfc;background:#f6f5ff;border-radius:8px;white-space:pre-wrap">${escHtml(reply.body || "(photos only)")}</div>
+    ${photosHtml(reply.images)}
+    <p><a href="${helpUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Your Ticket</a></p>
+    <p style="color:#666;font-size:13px">Reply or add photos from your ticket at <a href="${helpUrl}" style="color:#6d5dfc">${site}/app/help</a> (Support Tickets tab).</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · You Received a Reply`, text, html });
 }
 
 /** To the seller: closed. */
@@ -396,14 +434,14 @@ export async function sendSupportTicketClosedEmail(to: string, ticket: TicketMai
     "",
     `Subject: ${ticket.subject}`,
     "",
-    `If you still need help, reply to this email or open a new ticket at ${site}/app/help.`,
+    `If you still need help, open a new ticket at ${site}/app/help.`,
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
     <p>Your support ticket <strong>#${ticket.number}</strong> is closed.</p>
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
-    <p style="color:#666;font-size:13px">If you still need help, reply to this email or open a new ticket at <a href="${site}/app/help" style="color:#6d5dfc">${site}/app/help</a>.</p>
+    <p style="color:#666;font-size:13px">If you still need help, open a new ticket at <a href="${site}/app/help" style="color:#6d5dfc">${site}/app/help</a>.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Closed`, text, html });
 }

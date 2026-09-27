@@ -21,7 +21,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
         closedAt: t.closedAt,
-        notes: t.notes.map((n) => ({ id: n.id, body: n.body, images: n.images, createdAt: n.createdAt })),
+        notes: t.notes.map((n) => ({ id: n.id, author: n.author, body: n.body, images: n.images, createdAt: n.createdAt })),
       },
     });
   } catch (err) {

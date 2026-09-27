@@ -6,9 +6,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * Support tickets (Chris 09-26): everything sellers opened from the robot.
- * The mail in support@cardflip.io is where the conversation happens; this
- * page is where a ticket is closed (which emails the seller) or reopened.
- * Tabs, search and the counter live in the client list so they follow a close.
+ * The conversation happens here: click a ticket, reply in its chat (the
+ * seller sees it in Help and gets a "You Received a Reply" mail), close it
+ * when done (which emails the seller). support@cardflip.io only gets the
+ * alerts. Tabs, search and the counter live in the client list.
  */
 export default async function AdminSupportPage() {
   await requireOwnerPage();
@@ -17,7 +18,7 @@ export default async function AdminSupportPage() {
     <section>
       <h1 className="mb-1 text-2xl font-semibold text-white">Support</h1>
       <p className="mb-3 text-xs text-zinc-500">
-        Each ticket is also an email in support@cardflip.io (subject SUPPORT TICKET #n). Reply there; close here. Closing emails the seller.
+        Click a ticket to read the thread and reply. The seller gets an email for each reply and when you close it. support@cardflip.io only gets the alerts.
       </p>
       <SupportTickets initial={tickets} />
     </section>

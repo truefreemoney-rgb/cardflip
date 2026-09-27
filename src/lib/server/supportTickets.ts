@@ -6,18 +6,20 @@ import {
   sendSupportTicketEmail,
   sendSupportTicketNoteEmail,
   sendSupportTicketReceiptEmail,
+  sendSupportTicketReplyEmail,
 } from "@/lib/server/mail";
 import type { User } from "@/lib/server/users";
 
 /**
- * Support tickets (Chris 09-26): the robot accepts and manages them. Opening
- * one mails support@cardflip.io as "SUPPORT TICKET #12 · subject" with the
- * seller's account facts and their last few chat turns, reply-to set to the
- * seller so Chris answers by hitting Reply in Fastmail. The seller sees the
- * number and status in the robot (Support Tickets tab), can open a ticket to
- * read what they sent, and can add notes and photos while it is open (closed
- * is closed). Chris closes from /admin/support (or tells Claude). Two
- * statuses only: open ("In progress") and closed.
+ * Support tickets (Chris 09-26): the robot accepts and manages them, and the
+ * conversation lives on the site, not in email. Opening one mails
+ * support@cardflip.io as "SUPPORT TICKET #12 · subject" (the alert) and the
+ * seller a receipt. The ticket is then a chat: the seller adds notes and
+ * photos from Help → Support Tickets; Chris opens the same thread on
+ * /admin/support and replies there, which mails the seller "SUPPORT TICKET
+ * #12 · You Received a Reply" with the answer. Closing from the admin page
+ * ends it for both sides (closed is closed). Two statuses only: open ("In
+ * progress") and closed.
  */
 
 export type TicketStatus = "open" | "closed";
@@ -47,10 +49,13 @@ export interface Ticket {
   closedAt: number | null;
 }
 
-/** A follow-up the seller added while the ticket was open. */
+export type NoteAuthor = "seller" | "admin";
+
+/** One turn in the ticket's chat: the seller adding more, or CardFlip replying. */
 export interface TicketNote {
   id: string;
   ticketId: string;
+  author: NoteAuthor;
   body: string;
   images: string[];
   createdAt: number;
@@ -80,6 +85,7 @@ interface Row {
 interface NoteRow {
   id: string;
   ticket_id: string;
+  author?: string | null;
   body: string;
   images: string | null;
   created_at: number;
@@ -110,7 +116,14 @@ function fromRow(r: Row): Ticket {
 }
 
 function noteFromRow(r: NoteRow): TicketNote {
-  return { id: r.id, ticketId: r.ticket_id, body: r.body, images: parseImages(r.images), createdAt: Number(r.created_at) };
+  return {
+    id: r.id,
+    ticketId: r.ticket_id,
+    author: r.author === "admin" ? "admin" : "seller",
+    body: r.body,
+    images: parseImages(r.images),
+    createdAt: Number(r.created_at),
+  };
 }
 
 export class TicketLimitError extends Error {}
@@ -196,9 +209,19 @@ export async function openTicket(
   return ticket;
 }
 
+async function insertNote(ticketId: string, sellerId: string, author: NoteAuthor, body: string, images: string[]): Promise<TicketNote> {
+  const note: TicketNote = { id: randomUUID(), ticketId, author, body, images, createdAt: Date.now() };
+  await db
+    .prepare("INSERT INTO support_ticket_notes (id, ticket_id, user_id, author, body, images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(note.id, ticketId, sellerId, author, body, JSON.stringify(images), note.createdAt);
+  await db.prepare("UPDATE support_tickets SET updated_at = ? WHERE id = ?").run(note.createdAt, ticketId);
+  return note;
+}
+
 /**
  * The seller adds to their own open ticket. Mails support@ as a reply in
- * the thread. Closed tickets refuse (Chris: "closed tickets are closed").
+ * the thread so Chris knows there is something new to read on the site.
+ * Closed tickets refuse (Chris: "closed tickets are closed").
  */
 export async function addTicketNote(
   user: User,
@@ -212,19 +235,46 @@ export async function addTicketNote(
   const body = input.body.trim().slice(0, TICKET_BODY_MAX);
   const images = cleanImages(input.images);
   if (!body && images.length === 0) throw new TicketInputError("Write something or add a photo first.");
-  if (ticket.notes.length >= TICKET_NOTES_MAX) throw new TicketLimitError("This ticket has all the notes it can take. Reply to the email instead.");
+  // The cap is on the seller's side of the chat; replies never lock them out.
+  if (ticket.notes.filter((n) => n.author === "seller").length >= TICKET_NOTES_MAX) {
+    throw new TicketLimitError("This ticket has all the messages it can take. Wait for a reply, or open a new ticket.");
+  }
 
-  const note: TicketNote = { id: randomUUID(), ticketId, body, images, createdAt: Date.now() };
-  await db
-    .prepare("INSERT INTO support_ticket_notes (id, ticket_id, user_id, body, images, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(note.id, ticketId, user.id, body, JSON.stringify(images), note.createdAt);
-  await db.prepare("UPDATE support_tickets SET updated_at = ? WHERE id = ?").run(note.createdAt, ticketId);
-
+  const note = await insertNote(ticketId, user.id, "seller", body, images);
   if (deps.noteMail || isMailConfigured()) {
     try {
       await (deps.noteMail ?? sendSupportTicketNoteEmail)(SUPPORT_INBOX, ticket, user, note);
     } catch (err) {
       console.error(`[tickets] note mail failed for #${ticket.number}:`, err);
+    }
+  }
+  return note;
+}
+
+/**
+ * Chris replies on the ticket from /admin/support. The reply joins the
+ * thread the seller sees in Help, and the seller gets "SUPPORT TICKET #n ·
+ * You Received a Reply" with the answer in it. Closed tickets refuse; reopen
+ * first. Returns null when the ticket does not exist.
+ */
+export async function replyToTicket(
+  ticketId: string,
+  input: { body: string; images?: unknown },
+  deps: { replyMail?: typeof sendSupportTicketReplyEmail } = {},
+): Promise<TicketNote | null> {
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return null;
+  if (ticket.status !== "open") throw new TicketInputError("That ticket is closed. Reopen it to reply.");
+  const body = input.body.trim().slice(0, TICKET_BODY_MAX);
+  const images = cleanImages(input.images);
+  if (!body && images.length === 0) throw new TicketInputError("Write something or add a photo first.");
+
+  const note = await insertNote(ticketId, ticket.userId, "admin", body, images);
+  if (deps.replyMail || isMailConfigured()) {
+    try {
+      await (deps.replyMail ?? sendSupportTicketReplyEmail)(ticket.userEmail, ticket, note);
+    } catch (err) {
+      console.error(`[tickets] reply mail failed for #${ticket.number}:`, err);
     }
   }
   return note;
@@ -291,6 +341,12 @@ export async function getTicket(id: string): Promise<TicketWithUser | null> {
     .prepare("SELECT t.*, u.name AS user_name, u.email AS user_email FROM support_tickets t JOIN users u ON u.id = t.user_id WHERE t.id = ?")
     .get(id)) as Row | undefined;
   return r ? { ...fromRow(r), userName: r.user_name ?? "", userEmail: r.user_email ?? "" } : null;
+}
+
+/** Admin: one ticket with its whole thread. */
+export async function getTicketThread(id: string): Promise<(TicketWithUser & { notes: TicketNote[] }) | null> {
+  const t = await getTicket(id);
+  return t ? { ...t, notes: await listTicketNotes(id) } : null;
 }
 
 /**

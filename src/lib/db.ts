@@ -503,12 +503,15 @@ const SCHEMA = `
 
   -- Follow-ups the seller adds to an open ticket (Chris 09-26: "a field so
   -- they can type in and add more information"). images is a JSON array of
-  -- Blob URLs, same as support_tickets.images. Each one mails support@ as a
-  -- reply in the ticket's thread.
+  -- Blob URLs, same as support_tickets.images. author is 'seller' or 'admin'
+  -- (09-26: the ticket is a chat on the site; Chris replies from
+  -- /admin/support and the seller gets a "You Received a Reply" mail).
+  -- user_id is always the ticket's seller, so deleteUser takes the thread.
   CREATE TABLE IF NOT EXISTS support_ticket_notes (
     id TEXT PRIMARY KEY,
     ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    author TEXT NOT NULL DEFAULT 'seller',
     body TEXT NOT NULL,
     images TEXT NOT NULL DEFAULT '[]',
     created_at INTEGER NOT NULL
@@ -565,6 +568,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // Ticket photos (Chris 09-26): JSON array of Blob URLs. Prod's table
   // predates the column.
   ["support_tickets", ["images TEXT NOT NULL DEFAULT '[]'"]],
+  // Who wrote the note (09-26): prod's notes table predates admin replies.
+  ["support_ticket_notes", ["author TEXT NOT NULL DEFAULT 'seller'"]],
   [
     "en_cards",
     [

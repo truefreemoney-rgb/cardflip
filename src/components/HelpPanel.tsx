@@ -1,19 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RobotBuddy from "@/components/RobotBuddy";
 import Spinner from "@/components/Spinner";
+import { PhotoPicker, ThreadBubble } from "@/components/TicketPhotos";
 import { apiPath } from "@/lib/client/basePath";
-import { shrinkImage } from "@/lib/client/shrinkImage";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { startGuide } from "@/components/TourOverlay";
 
 /**
  * The help robot's body: Chat / Support Tickets tabs, the ticket form, a
- * ticket's detail (what they sent, photos, notes, and a box to add more
+ * ticket's chat (what they sent, CardFlip's replies, and a box to add more
  * while it is open) and the composer. Two homes (Chris 09-26, "popups can
  * be frustrating for mobile users"): the desktop popover under the header
  * button (NavRobot) and the full page at /app/help on phones. Same state
@@ -40,6 +40,7 @@ interface Ticket {
 
 interface Note {
   id: string;
+  author: "seller" | "admin";
   body: string;
   images: string[];
   createdAt: number;
@@ -55,7 +56,6 @@ interface TicketDetail extends Ticket {
 type View = "chat" | "ticket" | "tickets" | "detail";
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
-const IMAGES_MAX = 4;
 
 /** Empty-chat starters (Chris, 09-04: solve 99% the easiest way — nobody should have to type). */
 const STARTERS = [
@@ -348,12 +348,12 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
     view === "chat"
       ? "Help, tours, moral support"
       : view === "ticket"
-        ? "A human reads it and emails you back"
+        ? "A human reads it and replies here"
         : view === "detail"
           ? detail?.status === "open"
-            ? "In progress. Add anything that helps."
+            ? "In progress. Replies show up here and in your email."
             : "Closed."
-          : "Your tickets. A human replies by email.";
+          : "Your tickets. Tap one to read the replies.";
   const field = "rounded-xl border border-edge bg-black/40 px-3.5 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm";
   const primary = "rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -435,7 +435,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           <button type="submit" disabled={tBusy || (!tBody.trim() && tImages.length === 0)} className={primary}>
             {tBusy ? "Sending…" : "Send ticket"}
           </button>
-          <p className="text-center text-[11px] text-zinc-600">You get a copy by email with the ticket number.</p>
+          <p className="text-center text-[11px] text-zinc-600">You get an email with the ticket number, and another when a human replies.</p>
         </form>
       )}
 
@@ -444,7 +444,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           <button onClick={() => setView("ticket")} className={primary}>
             Open a support ticket
           </button>
-          <p className="text-center text-[11px] text-zinc-600">A human reads it and replies to your email, usually within 24 hours.</p>
+          <p className="text-center text-[11px] text-zinc-600">A human reads it and replies on the ticket, usually within 24 hours. You get an email when they do.</p>
           {tickets === null && (
             <p className="text-center text-[11px] text-zinc-600">
               <Spinner className="mr-1 inline h-3 w-3" /> Loading…
@@ -477,23 +477,29 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           )}
           {detail && (
             <>
-              <div className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5">
-                <div className="flex items-center gap-2">
-                  <StatusChip status={detail.status} label={detail.statusLabel} />
-                  <span className="ml-auto text-[11px] text-zinc-600">Opened {fmtWhen(detail.createdAt)}</span>
-                </div>
-                <p className="mt-1.5 text-sm font-medium text-white">{detail.subject}</p>
-                {/* The subject falls back to the first line of the message; don't show it twice. */}
-                {detail.body && detail.body !== detail.subject && <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{detail.body}</p>}
-                <PhotoStrip urls={detail.images} />
+              <div className="flex items-center gap-2">
+                <StatusChip status={detail.status} label={detail.statusLabel} />
+                <span className="truncate text-sm font-medium text-white">{detail.subject}</span>
               </div>
-              {detail.notes.map((n) => (
-                <div key={n.id} className="ml-4 rounded-xl border border-edge bg-surface-2/40 px-3.5 py-2.5">
-                  <p className="text-[11px] text-zinc-600">You added · {fmtWhen(n.createdAt)}</p>
-                  {n.body && <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{n.body}</p>}
-                  <PhotoStrip urls={n.images} />
-                </div>
-              ))}
+              {/* The ticket is a chat (Chris 09-26): what they sent first, then
+                  every turn in order. Theirs on the right, CardFlip's on the left. */}
+              <ThreadBubble
+                mine
+                who="You"
+                when={fmtWhen(detail.createdAt)}
+                body={detail.body}
+                images={detail.images}
+              />
+              {detail.notes.map((n) =>
+                n.author === "admin" ? (
+                  <ThreadBubble key={n.id} mine={false} who="CardFlip Support" when={fmtWhen(n.createdAt)} body={n.body} images={n.images} />
+                ) : (
+                  <ThreadBubble key={n.id} mine who="You" when={fmtWhen(n.createdAt)} body={n.body} images={n.images} />
+                ),
+              )}
+              {detail.notes.every((n) => n.author !== "admin") && detail.status === "open" && (
+                <p className="text-center text-[11px] text-zinc-600">A human replies here, usually within 24 hours. You get an email when they do.</p>
+              )}
               {detail.status === "open" ? (
                 <form onSubmit={submitNote} className="flex flex-col gap-2 rounded-xl border border-brand-400/30 bg-brand-500/5 px-3.5 py-3">
                   <textarea
@@ -501,14 +507,14 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
                     onChange={(e) => setNBody(e.target.value)}
                     maxLength={2000}
                     rows={3}
-                    placeholder="Add more detail"
-                    aria-label="Add more detail"
+                    placeholder="Reply or add more detail"
+                    aria-label="Reply or add more detail"
                     className={`resize-none ${field}`}
                   />
                   <PhotoPicker urls={nImages} onChange={setNImages} disabled={nBusy} />
                   {nError && <p className="text-xs text-amber-300">{nError}</p>}
                   <button type="submit" disabled={nBusy || (!nBody.trim() && nImages.length === 0)} className={primary}>
-                    {nBusy ? "Sending…" : "Add to ticket"}
+                    {nBusy ? "Sending…" : "Send"}
                   </button>
                 </form>
               ) : (
@@ -666,99 +672,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
 
 function StatusChip({ status, label }: { status: "open" | "closed"; label: string }) {
   return (
-    <span className={`rounded-full px-2 py-px text-[11px] font-semibold ${status === "open" ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-zinc-500"}`}>
+    <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-px text-[11px] font-semibold ${status === "open" ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-zinc-500"}`}>
       {label}
     </span>
-  );
-}
-
-/** Thumbnails on a ticket or note; tap opens the full photo. */
-function PhotoStrip({ urls }: { urls: string[] }) {
-  if (urls.length === 0) return null;
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {urls.map((u) => (
-        <a key={u} href={u} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-edge">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={u} alt="Photo" className="h-16 w-16 object-cover" loading="lazy" />
-        </a>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Add photos to a ticket or note: shrink on the client, upload to Blob,
- * keep the URL. Up to four; the server drops anything past that or from
- * anywhere but our store.
- */
-function PhotoPicker({ urls, onChange, disabled }: { urls: string[]; onChange: (urls: string[]) => void; disabled?: boolean }) {
-  const [uploading, setUploading] = useState(0);
-  const [err, setErr] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function pick(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).slice(0, IMAGES_MAX - urls.length);
-    e.target.value = "";
-    if (files.length === 0) return;
-    setErr(null);
-    setUploading((n) => n + files.length);
-    const added: string[] = [];
-    for (const f of files) {
-      try {
-        const blob = await shrinkImage(f);
-        const form = new FormData();
-        form.append("file", blob, f.name.replace(/\.[^.]+$/, "") + (blob.type === "image/jpeg" ? ".jpg" : ""));
-        const res = await fetch(apiPath("/api/help/tickets/image"), { method: "POST", body: form });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || typeof data.url !== "string") throw new Error(data.error || "Upload failed");
-        added.push(data.url);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Couldn't upload that photo");
-      } finally {
-        setUploading((n) => n - 1);
-      }
-    }
-    if (added.length) onChange([...urls, ...added].slice(0, IMAGES_MAX));
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {urls.map((u) => (
-          <div key={u} className="relative h-16 w-16 overflow-hidden rounded-lg border border-edge">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={u} alt="Photo" className="h-full w-full object-cover" />
-            <button
-              type="button"
-              onClick={() => onChange(urls.filter((x) => x !== u))}
-              aria-label="Remove photo"
-              className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-[11px] text-white"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-        {uploading > 0 && (
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-edge bg-surface-2/60">
-            <Spinner className="h-4 w-4" />
-          </div>
-        )}
-        {urls.length + uploading < IMAGES_MAX && (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => inputRef.current?.click()}
-            className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-edge-strong text-zinc-400 transition hover:border-brand-400 hover:text-white disabled:opacity-40"
-          >
-            <span className="text-lg leading-none">+</span>
-            <span className="text-[10px]">Photo</span>
-          </button>
-        )}
-      </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={pick} />
-      {err && <p className="text-xs text-amber-300">{err}</p>}
-    </div>
   );
 }
 

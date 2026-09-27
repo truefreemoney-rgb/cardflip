@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const message = typeof body?.message === "string" ? body.message : "";
     try {
       const note = await addTicketNote(user, id, { body: message, images: body?.images });
-      return NextResponse.json({ note: { id: note.id, body: note.body, images: note.images, createdAt: note.createdAt } }, { status: 201 });
+      return NextResponse.json({ note: { id: note.id, author: note.author, body: note.body, images: note.images, createdAt: note.createdAt } }, { status: 201 });
     } catch (err) {
       if (err instanceof TicketInputError) return NextResponse.json({ error: err.message }, { status: 400 });
       if (err instanceof TicketLimitError) return NextResponse.json({ error: err.message }, { status: 429 });
