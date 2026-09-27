@@ -139,8 +139,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   // trying to stop happening to phone users).
   useEffect(() => {
     if (!active || view !== "chat") return;
+    // An empty chat stays at the top so the opener is the first thing read.
     if (sheet) {
-      listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+      if (messages && messages.length > 0) listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
       if (!busy) inputRef.current?.focus();
     } else if (messages && messages.length > 0) {
       window.scrollTo({ top: document.documentElement.scrollHeight });
