@@ -206,28 +206,43 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
 
       {/* Money */}
       <H2>Money</H2>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Tile>
           <Big className="text-emerald-400">{usd(sub.mrrUsd)}</Big>
-          <Label>Monthly recurring</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{PRICE.standard} × {sub.activeStandard} · {PRICE.pro} × {sub.activePro}</p>
-        </Tile>
-        <Tile>
-          <Big>{num(sub.activeStandard + sub.activePro)}</Big>
-          <Label>Paying now</Label>
+          <Label>Money in every month</Label>
           <p className="mt-0.5 text-[11px] text-zinc-600">
-            {sub.totalUsers ? `${Math.round(((sub.activeStandard + sub.activePro) / sub.totalUsers) * 100)}% of ${num(sub.totalUsers)} users` : "no users yet"}
+            {PRICE.standard} × {sub.activeStandard} Standard · {PRICE.pro} × {sub.activePro} Pro
           </p>
         </Tile>
         <Tile>
-          <Big className={sub.pastDue ? "text-amber-300" : undefined}>{num(sub.pastDue)}</Big>
-          <Label>Past due</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{num(sub.canceled)} canceled</p>
+          <Big className="text-rose-300">{usd(costsMonthly)}</Big>
+          <Label>Money out every month</Label>
+          <p className={`mt-0.5 text-[11px] ${unconfirmedCosts ? "text-amber-300" : "text-zinc-600"}`}>
+            {unconfirmedCosts ? `${unconfirmedCosts} amount${unconfirmedCosts === 1 ? " is a guess" : "s are guesses"}, check below` : "every amount confirmed"}
+          </p>
         </Tile>
         <Tile>
-          <Big>{num(sub.ebayConnected)}</Big>
-          <Label>eBay connected</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{sub.totalUsers ? `${Math.round((sub.ebayConnected / sub.totalUsers) * 100)}% of users` : ""}</p>
+          <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
+          <Label>Left over every month</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">in minus out</p>
+        </Tile>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile>
+          <Big className={upcomingDays !== null && upcomingDays <= 3 ? "text-amber-300" : undefined}>
+            {upcoming ? (upcomingDays === 0 ? "Today" : upcomingDays === 1 ? "Tomorrow" : `${upcomingDays} days`) : "—"}
+          </Big>
+          <Label>Next bill due</Label>
+          <p className="mt-0.5 truncate text-[11px] text-zinc-600">{upcoming ? `${upcoming.e.name} · ${usd(upcoming.e.amountUsd)} · ${upcoming.day}` : "add due dates below"}</p>
+        </Tile>
+        <Tile>
+          <Big className={sub.pastDue ? "text-amber-300" : undefined}>{num(sub.activeStandard + sub.activePro)}</Big>
+          <Label>Paying now</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">
+            {sub.totalUsers ? `${Math.round(((sub.activeStandard + sub.activePro) / sub.totalUsers) * 100)}% of ${num(sub.totalUsers)} users` : "no users yet"}
+            {sub.pastDue ? ` · ${num(sub.pastDue)} past due` : ""}
+            {sub.canceled ? ` · ${num(sub.canceled)} canceled` : ""}
+          </p>
         </Tile>
         <Tile>
           <Big className="text-emerald-400">{usd(m.soldUsd.total)}</Big>
@@ -235,38 +250,9 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           <Delta cur={m.soldUsd.total} prior={m.soldUsd.prior} fmt={usd} />
         </Tile>
         <Tile>
-          <Big>{num(m.listed.total)}</Big>
-          <Label>Listed on eBay</Label>
-          <Delta cur={m.listed.total} prior={m.listed.prior} />
-        </Tile>
-        <Tile>
-          <Big className="text-rose-300">{usd(m.visionCostUsd.total)}</Big>
-          <Label>Anthropic bill</Label>
-          <Delta cur={m.visionCostUsd.total} prior={m.visionCostUsd.prior} fmt={usd} invert />
-        </Tile>
-        <Tile>
-          <Big>{sub.rows.length ? num(sub.rows.reduce((s, r) => s + r.users, 0)) : "0"}</Big>
-          <Label>Ever subscribed</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">
-            {sub.rows.map((r) => `${r.plan} ${r.status} ${r.users}`).join(" · ") || "none yet"}
-          </p>
-        </Tile>
-        <Tile>
-          <Big className="text-rose-300">{usd(costsMonthly)}</Big>
-          <Label>Monthly costs</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} rows, all confirmed`} + scan usage</p>
-        </Tile>
-        <Tile>
-          <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
-          <Label>Net per month</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">recurring minus every cost below</p>
-        </Tile>
-        <Tile>
-          <Big className={upcomingDays !== null && upcomingDays <= 3 ? "text-amber-300" : undefined}>
-            {upcoming ? (upcomingDays === 0 ? "Today" : upcomingDays === 1 ? "Tomorrow" : `${upcomingDays} days`) : "—"}
-          </Big>
-          <Label>Next bill due</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{upcoming ? `${upcoming.e.name} · ${usd(upcoming.e.amountUsd)} · ${upcoming.day}` : "add due dates below"}</p>
+          <Big>{num(sub.ebayConnected)}</Big>
+          <Label>eBay connected</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{num(m.listed.total)} listed in this range</p>
         </Tile>
       </div>
       <Tile className="mt-3">
