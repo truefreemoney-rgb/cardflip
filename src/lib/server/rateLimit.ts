@@ -137,6 +137,10 @@ export const LIMITS = {
   helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
   /** Support tickets: a person opens one, not twenty. Per IP. */
   supportTicket: [{ limit: 3, windowMs: 10 * MINUTE }, { limit: 10, windowMs: DAY }] as RateLimitRule[],
+  /** Notes added to an open ticket. Per IP. */
+  supportNote: [{ limit: 10, windowMs: 10 * MINUTE }, { limit: 40, windowMs: DAY }] as RateLimitRule[],
+  /** Ticket photo uploads. Per IP. */
+  supportImage: [{ limit: 20, windowMs: 10 * MINUTE }, { limit: 60, windowMs: DAY }] as RateLimitRule[],
 };
 
 /** Reset all windows — for tests only. */

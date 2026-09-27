@@ -495,10 +495,25 @@ const SCHEMA = `
     status TEXT NOT NULL DEFAULT 'open',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    closed_at INTEGER
+    closed_at INTEGER,
+    images TEXT NOT NULL DEFAULT '[]'
   );
   CREATE INDEX IF NOT EXISTS support_tickets_user ON support_tickets(user_id, created_at);
   CREATE INDEX IF NOT EXISTS support_tickets_status ON support_tickets(status, created_at);
+
+  -- Follow-ups the seller adds to an open ticket (Chris 09-26: "a field so
+  -- they can type in and add more information"). images is a JSON array of
+  -- Blob URLs, same as support_tickets.images. Each one mails support@ as a
+  -- reply in the ticket's thread.
+  CREATE TABLE IF NOT EXISTS support_ticket_notes (
+    id TEXT PRIMARY KEY,
+    ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    images TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS support_ticket_notes_ticket ON support_ticket_notes(ticket_id, created_at);
 
   CREATE TABLE IF NOT EXISTS tcgplayer_products (
     product_id INTEGER PRIMARY KEY,
@@ -547,6 +562,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "art_hash TEXT NOT NULL DEFAULT ''",
     ],
   ],
+  // Ticket photos (Chris 09-26): JSON array of Blob URLs. Prod's table
+  // predates the column.
+  ["support_tickets", ["images TEXT NOT NULL DEFAULT '[]'"]],
   [
     "en_cards",
     [

@@ -3,16 +3,32 @@
 import { useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 import { fmtDate } from "@/components/admin/format";
-import type { TicketWithUser } from "@/lib/server/supportTickets";
+import type { TicketNote, TicketWithUser } from "@/lib/server/supportTickets";
 
 type Tab = "live" | "closed";
+type Row = TicketWithUser & { notes: TicketNote[] };
+
+/** Photo thumbnails on a ticket or a seller's note; click opens the full image. */
+function Photos({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {urls.map((u) => (
+        <a key={u} href={u} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-edge">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={u} alt="Photo" className="h-20 w-20 object-cover" loading="lazy" />
+        </a>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Admin ticket list (Chris 09-26): Live / Closed tabs, a ticket-number
  * search, Close / Reopen on each row. Closing moves the row to Closed;
  * the counter up top follows.
  */
-export default function SupportTickets({ initial }: { initial: TicketWithUser[] }) {
+export default function SupportTickets({ initial }: { initial: Row[] }) {
   const [tickets, setTickets] = useState(initial);
   const [tab, setTab] = useState<Tab>("live");
   const [q, setQ] = useState("");
@@ -103,6 +119,14 @@ export default function SupportTickets({ initial }: { initial: TicketWithUser[] 
                         <span className="truncate text-sm font-medium text-white">{t.subject}</span>
                       </div>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{t.body}</p>
+                      <Photos urls={t.images} />
+                      {t.notes.map((n) => (
+                        <div key={n.id} className="mt-2 border-l-2 border-edge pl-3">
+                          <p className="text-[11px] text-zinc-500">Seller added · {fmtDate(n.createdAt)}</p>
+                          {n.body && <p className="whitespace-pre-wrap text-sm text-zinc-300">{n.body}</p>}
+                          <Photos urls={n.images} />
+                        </div>
+                      ))}
                       <p className="mt-1 text-[11px] text-zinc-500">
                         {t.userName} · <a href={`mailto:${t.userEmail}?subject=${encodeURIComponent(`Re: SUPPORT TICKET #${t.number} · ${t.subject}`)}`} className="underline decoration-zinc-700 hover:text-zinc-300">{t.userEmail}</a>
                         {" · "}Opened {fmtDate(t.createdAt)}

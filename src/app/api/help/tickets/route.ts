@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const subject = typeof body?.subject === "string" ? body.subject : "";
     try {
       const transcript = (await helpHistory(user.id, 8)).map((m) => ({ role: m.role, content: m.content }));
-      const ticket = await openTicket(user, { subject, body: message }, transcript);
+      const ticket = await openTicket(user, { subject, body: message, images: body?.images }, transcript);
       return NextResponse.json({ ticket: shape(ticket) }, { status: 201 });
     } catch (err) {
       if (err instanceof TicketInputError) return NextResponse.json({ error: err.message }, { status: 400 });

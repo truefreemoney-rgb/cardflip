@@ -1,21 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RobotBuddy from "@/components/RobotBuddy";
 import Spinner from "@/components/Spinner";
 import { apiPath } from "@/lib/client/basePath";
+import { shrinkImage } from "@/lib/client/shrinkImage";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { startGuide } from "@/components/TourOverlay";
 
 /**
- * The help robot's body: Chat / Support Tickets tabs, the ticket form and the
- * composer. Two homes (Chris 09-26, "popups can be frustrating for mobile
- * users"): the desktop popover under the header button (NavRobot) and the
- * full page at /app/help on phones. Same state and markup in both, so a fix
- * lands in both. One rolling conversation per account (/api/help/chat).
+ * The help robot's body: Chat / Support Tickets tabs, the ticket form, a
+ * ticket's detail (what they sent, photos, notes, and a box to add more
+ * while it is open) and the composer. Two homes (Chris 09-26, "popups can
+ * be frustrating for mobile users"): the desktop popover under the header
+ * button (NavRobot) and the full page at /app/help on phones. Same state
+ * and markup in both, so a fix lands in both. One rolling conversation per
+ * account (/api/help/chat).
  */
 
 export interface Msg {
@@ -35,10 +38,24 @@ interface Ticket {
   closedAt: number | null;
 }
 
-/** What the panel shows: the chat, the ticket form, or the seller's tickets. */
-type View = "chat" | "ticket" | "tickets";
+interface Note {
+  id: string;
+  body: string;
+  images: string[];
+  createdAt: number;
+}
+
+interface TicketDetail extends Ticket {
+  body: string;
+  images: string[];
+  notes: Note[];
+}
+
+/** What the panel shows: the chat, the ticket form, the seller's tickets, or one ticket. */
+type View = "chat" | "ticket" | "tickets" | "detail";
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
+const IMAGES_MAX = 4;
 
 /** Empty-chat starters (Chris, 09-04: solve 99% the easiest way — nobody should have to type). */
 const STARTERS = [
@@ -68,6 +85,8 @@ function parseReply(content: string): { text: string; guide: string | null; link
   return { text, guide, link, ticket };
 }
 
+const fmtWhen = (ms: number) => new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
 interface Props {
   /** "sheet" = the desktop popover (has a close button, fixed height); "page" = /app/help (scrolls like a page). */
   mode: "sheet" | "page";
@@ -91,8 +110,16 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [tSubject, setTSubject] = useState("");
   const [tBody, setTBody] = useState("");
+  const [tImages, setTImages] = useState<string[]>([]);
   const [tBusy, setTBusy] = useState(false);
   const [tError, setTError] = useState<string | null>(null);
+  // One ticket, opened from the list.
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<TicketDetail | null>(null);
+  const [nBody, setNBody] = useState("");
+  const [nImages, setNImages] = useState<string[]>([]);
+  const [nBusy, setNBusy] = useState(false);
+  const [nError, setNError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +160,23 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
       cancelled = true;
     };
   }, [active, tickets]);
+
+  // One ticket's detail loads when it is opened.
+  useEffect(() => {
+    if (view !== "detail" || !detailId) return;
+    let cancelled = false;
+    fetch(apiPath(`/api/help/tickets/${detailId}`))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setDetail(data?.ticket ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, detailId]);
 
   // Newest message in view. The sheet focuses the box when it opens; the
   // page doesn't (a keyboard popping up on page load is the thing we're
@@ -199,14 +243,14 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   const submitTicket = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (tBusy || !tBody.trim()) return;
+      if (tBusy || (!tBody.trim() && tImages.length === 0)) return;
       setTBusy(true);
       setTError(null);
       try {
         const res = await fetch(apiPath("/api/help/tickets"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject: tSubject, message: tBody }),
+          body: JSON.stringify({ subject: tSubject, message: tBody, images: tImages }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -217,6 +261,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         setTickets((prev) => [t, ...(prev ?? [])]);
         setTSubject("");
         setTBody("");
+        setTImages([]);
         setMessages((m) => [
           ...(m ?? []),
           {
@@ -232,7 +277,37 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         setTBusy(false);
       }
     },
-    [tBusy, tBody, tSubject],
+    [tBusy, tBody, tSubject, tImages],
+  );
+
+  // Add to an open ticket.
+  const submitNote = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (!detail || nBusy || (!nBody.trim() && nImages.length === 0)) return;
+      setNBusy(true);
+      setNError(null);
+      try {
+        const res = await fetch(apiPath(`/api/help/tickets/${detail.id}/notes`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: nBody, images: nImages }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setNError(data.error || "Couldn't add that. Try again.");
+          return;
+        }
+        setDetail((d) => (d ? { ...d, notes: [...d.notes, data.note as Note] } : d));
+        setNBody("");
+        setNImages([]);
+      } catch {
+        setNError("No connection. Try again in a moment.");
+      } finally {
+        setNBusy(false);
+      }
+    },
+    [detail, nBusy, nBody, nImages],
   );
 
   const clear = useCallback(async () => {
@@ -243,6 +318,14 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
 
   function ask(text: string) {
     void sendText(text);
+  }
+  function openDetail(id: string) {
+    setDetailId(id);
+    setDetail(null);
+    setNBody("");
+    setNImages([]);
+    setNError(null);
+    setView("detail");
   }
   // Guides spotlight the real app pages: leave the help surface first. The
   // page version goes to the scanner, where every guide begins.
@@ -259,8 +342,18 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
     router.push("/app");
   }
 
-  const title = view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "Support Tickets";
-  const subtitle = view === "chat" ? "Help, tours, moral support" : view === "ticket" ? "A human reads it and emails you back" : "Your tickets. A human replies by email.";
+  const title =
+    view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : view === "detail" ? (detail ? `Ticket #${detail.number}` : "Ticket") : "Support Tickets";
+  const subtitle =
+    view === "chat"
+      ? "Help, tours, moral support"
+      : view === "ticket"
+        ? "A human reads it and emails you back"
+        : view === "detail"
+          ? detail?.status === "open"
+            ? "In progress. Add anything that helps."
+            : "Closed."
+          : "Your tickets. A human replies by email.";
   const field = "rounded-xl border border-edge bg-black/40 px-3.5 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm";
   const primary = "rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -272,7 +365,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           <p className="text-sm font-semibold text-white">{title}</p>
           <p className="truncate text-[11px] text-zinc-500">{subtitle}</p>
         </div>
-        {view === "ticket" && (
+        {(view === "ticket" || view === "detail") && (
           <button onClick={() => setView("tickets")} className="text-[11px] text-zinc-400 transition hover:text-white">
             Back
           </button>
@@ -337,8 +430,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
             aria-label="What's wrong"
             className={`min-h-[9rem] flex-1 resize-none ${field}`}
           />
+          <PhotoPicker urls={tImages} onChange={setTImages} disabled={tBusy} />
           {tError && <p className="text-xs text-amber-300">{tError}</p>}
-          <button type="submit" disabled={tBusy || !tBody.trim()} className={primary}>
+          <button type="submit" disabled={tBusy || (!tBody.trim() && tImages.length === 0)} className={primary}>
             {tBusy ? "Sending…" : "Send ticket"}
           </button>
           <p className="text-center text-[11px] text-zinc-600">You get a copy by email with the ticket number.</p>
@@ -358,17 +452,76 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           )}
           {tickets && tickets.length === 0 && <p className="py-4 text-center text-sm text-zinc-500">No tickets yet.</p>}
           {tickets?.map((t) => (
-            <div key={t.id} className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5">
+            <button
+              key={t.id}
+              onClick={() => openDetail(t.id)}
+              className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5 text-left transition hover:border-edge-strong"
+            >
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-zinc-400">#{t.number}</span>
-                <span className={`rounded-full px-2 py-px text-[11px] font-semibold ${t.status === "open" ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-zinc-500"}`}>
-                  {t.statusLabel}
-                </span>
+                <StatusChip status={t.status} label={t.statusLabel} />
                 <span className="ml-auto text-[11px] text-zinc-600">{new Date(t.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
               </div>
               <p className="mt-1 truncate text-sm text-zinc-200">{t.subject}</p>
-            </div>
+            </button>
           ))}
+        </div>
+      )}
+
+      {view === "detail" && (
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+          {detail === null && (
+            <p className="text-center text-[11px] text-zinc-600">
+              <Spinner className="mr-1 inline h-3 w-3" /> Loading…
+            </p>
+          )}
+          {detail && (
+            <>
+              <div className="rounded-xl border border-edge bg-surface-2/60 px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <StatusChip status={detail.status} label={detail.statusLabel} />
+                  <span className="ml-auto text-[11px] text-zinc-600">Opened {fmtWhen(detail.createdAt)}</span>
+                </div>
+                <p className="mt-1.5 text-sm font-medium text-white">{detail.subject}</p>
+                {/* The subject falls back to the first line of the message; don't show it twice. */}
+                {detail.body && detail.body !== detail.subject && <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{detail.body}</p>}
+                <PhotoStrip urls={detail.images} />
+              </div>
+              {detail.notes.map((n) => (
+                <div key={n.id} className="ml-4 rounded-xl border border-edge bg-surface-2/40 px-3.5 py-2.5">
+                  <p className="text-[11px] text-zinc-600">You added · {fmtWhen(n.createdAt)}</p>
+                  {n.body && <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{n.body}</p>}
+                  <PhotoStrip urls={n.images} />
+                </div>
+              ))}
+              {detail.status === "open" ? (
+                <form onSubmit={submitNote} className="flex flex-col gap-2 rounded-xl border border-brand-400/30 bg-brand-500/5 px-3.5 py-3">
+                  <textarea
+                    value={nBody}
+                    onChange={(e) => setNBody(e.target.value)}
+                    maxLength={2000}
+                    rows={3}
+                    placeholder="Add more detail"
+                    aria-label="Add more detail"
+                    className={`resize-none ${field}`}
+                  />
+                  <PhotoPicker urls={nImages} onChange={setNImages} disabled={nBusy} />
+                  {nError && <p className="text-xs text-amber-300">{nError}</p>}
+                  <button type="submit" disabled={nBusy || (!nBody.trim() && nImages.length === 0)} className={primary}>
+                    {nBusy ? "Sending…" : "Add to ticket"}
+                  </button>
+                </form>
+              ) : (
+                <p className="text-center text-[11px] text-zinc-600">
+                  Closed {detail.closedAt ? fmtWhen(detail.closedAt) : ""}. Still stuck?{" "}
+                  <button onClick={() => setView("ticket")} className="underline decoration-zinc-700 transition hover:text-zinc-300">
+                    Open a new ticket
+                  </button>
+                  .
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -507,6 +660,104 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           Send
         </button>
       </form>
+    </div>
+  );
+}
+
+function StatusChip({ status, label }: { status: "open" | "closed"; label: string }) {
+  return (
+    <span className={`rounded-full px-2 py-px text-[11px] font-semibold ${status === "open" ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-zinc-500"}`}>
+      {label}
+    </span>
+  );
+}
+
+/** Thumbnails on a ticket or note; tap opens the full photo. */
+function PhotoStrip({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {urls.map((u) => (
+        <a key={u} href={u} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-edge">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={u} alt="Photo" className="h-16 w-16 object-cover" loading="lazy" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Add photos to a ticket or note: shrink on the client, upload to Blob,
+ * keep the URL. Up to four; the server drops anything past that or from
+ * anywhere but our store.
+ */
+function PhotoPicker({ urls, onChange, disabled }: { urls: string[]; onChange: (urls: string[]) => void; disabled?: boolean }) {
+  const [uploading, setUploading] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function pick(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).slice(0, IMAGES_MAX - urls.length);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setErr(null);
+    setUploading((n) => n + files.length);
+    const added: string[] = [];
+    for (const f of files) {
+      try {
+        const blob = await shrinkImage(f);
+        const form = new FormData();
+        form.append("file", blob, f.name.replace(/\.[^.]+$/, "") + (blob.type === "image/jpeg" ? ".jpg" : ""));
+        const res = await fetch(apiPath("/api/help/tickets/image"), { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || typeof data.url !== "string") throw new Error(data.error || "Upload failed");
+        added.push(data.url);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Couldn't upload that photo");
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    if (added.length) onChange([...urls, ...added].slice(0, IMAGES_MAX));
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {urls.map((u) => (
+          <div key={u} className="relative h-16 w-16 overflow-hidden rounded-lg border border-edge">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={u} alt="Photo" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onChange(urls.filter((x) => x !== u))}
+              aria-label="Remove photo"
+              className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-[11px] text-white"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        {uploading > 0 && (
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-edge bg-surface-2/60">
+            <Spinner className="h-4 w-4" />
+          </div>
+        )}
+        {urls.length + uploading < IMAGES_MAX && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => inputRef.current?.click()}
+            className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-edge-strong text-zinc-400 transition hover:border-brand-400 hover:text-white disabled:opacity-40"
+          >
+            <span className="text-lg leading-none">+</span>
+            <span className="text-[10px]">Photo</span>
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={pick} />
+      {err && <p className="text-xs text-amber-300">{err}</p>}
     </div>
   );
 }

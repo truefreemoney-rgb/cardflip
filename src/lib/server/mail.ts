@@ -241,6 +241,20 @@ interface TicketMail {
   subject: string;
   body: string;
   createdAt: number;
+  /** Blob URLs of photos the seller attached (09-26). */
+  images?: string[];
+}
+
+/** Photos as a text block and as linked thumbnails. */
+function photosText(images: string[] | undefined): string[] {
+  return images?.length ? ["", `Photos (${images.length}):`, ...images] : [];
+}
+function photosHtml(images: string[] | undefined): string {
+  if (!images?.length) return "";
+  const imgs = images
+    .map((u) => `<a href="${u}" style="display:inline-block;margin:0 6px 6px 0"><img src="${u}" alt="Photo" style="max-width:220px;max-height:220px;border-radius:8px;border:1px solid #ddd"></a>`)
+    .join("");
+  return `<p style="font-size:12px;color:#999;margin:12px 0 4px">Photos</p><div>${imgs}</div>`;
 }
 interface TicketUser {
   id: string;
@@ -278,6 +292,7 @@ export async function sendSupportTicketEmail(
     `${tag} · ${ticket.subject}`,
     "",
     ticket.body,
+    ...photosText(ticket.images),
     "",
     "— Account —",
     ...facts,
@@ -289,6 +304,7 @@ export async function sendSupportTicketEmail(
     <p style="color:#666;font-size:12px">${escHtml(tag)}</p>
     <h2 style="margin:0 0 12px">${escHtml(ticket.subject)}</h2>
     <p style="white-space:pre-wrap">${escHtml(ticket.body)}</p>
+    ${photosHtml(ticket.images)}
     <hr style="border:none;border-top:1px solid #ddd;margin:16px 0">
     <p style="font-size:13px;color:#666">${facts.map(escHtml).join("<br>")}</p>
     ${chat.length ? `<p style="font-size:12px;color:#999;margin-bottom:4px">Recent robot chat</p><div style="font-size:13px;color:#555;white-space:pre-wrap">${chat.map(escHtml).join("\n")}</div>` : ""}
@@ -298,6 +314,47 @@ export async function sendSupportTicketEmail(
     to,
     replyTo: `${user.name} <${user.email}>`,
     subject: `${tag} · ${ticket.subject}`,
+    text,
+    html,
+  });
+}
+
+/**
+ * To support@: the seller added to an open ticket. Subject is "Re: SUPPORT
+ * TICKET #12 · subject" so it threads under the original in the inbox.
+ */
+export async function sendSupportTicketNoteEmail(
+  to: string,
+  ticket: TicketMail,
+  user: TicketUser,
+  note: { body: string; images: string[]; createdAt: number },
+): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const adminUrl = `${site}/admin/support`;
+  const tag = `SUPPORT TICKET #${ticket.number}`;
+  const text = [
+    `${tag} · ${ticket.subject} — the seller added more:`,
+    "",
+    note.body || "(photos only)",
+    ...photosText(note.images),
+    "",
+    `From: ${user.name} <${user.email}>`,
+    `Close it: ${adminUrl}`,
+  ].join("\n");
+  const html = `
+    <p style="color:#666;font-size:12px">${escHtml(tag)} · the seller added more</p>
+    <h2 style="margin:0 0 12px">${escHtml(ticket.subject)}</h2>
+    <p style="white-space:pre-wrap">${escHtml(note.body || "(photos only)")}</p>
+    ${photosHtml(note.images)}
+    <hr style="border:none;border-top:1px solid #ddd;margin:16px 0">
+    <p style="font-size:13px;color:#666">From: ${escHtml(user.name)} &lt;${escHtml(user.email)}&gt;</p>
+    <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open support tickets</a></p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    replyTo: `${user.name} <${user.email}>`,
+    subject: `Re: ${tag} · ${ticket.subject}`,
     text,
     html,
   });

@@ -20,7 +20,7 @@ delete process.env.SMTP_HOST;
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { createUser, deleteUser } = await import(at("lib/server/users.ts"));
-const { OPEN_TICKETS_PER_USER, TicketInputError, TicketLimitError, getTicket, listAllTickets, listUserTickets, openTicket, openTicketCount, setTicketStatus, ticketTag } = await import(at("lib/server/supportTickets.ts"));
+const { OPEN_TICKETS_PER_USER, TicketInputError, TicketLimitError, addTicketNote, cleanImages, getTicket, getUserTicket, listAllTickets, listUserTickets, openTicket, openTicketCount, setTicketStatus, ticketTag } = await import(at("lib/server/supportTickets.ts"));
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -65,7 +65,30 @@ check("admin list: all, with who", (await listAllTickets()).map((t) => [t.number
 
 console.log("cap");
 for (let i = 0; i < OPEN_TICKETS_PER_USER - 2; i++) await openTicket(a, { subject: "", body: `spam ${i}` }, [], { mail });
-check("sixth open ticket refused", await throwsWith(() => openTicket(a, { subject: "", body: "one more" }, [], { mail }), TicketLimitError));
+check("open tickets are capped at 3", OPEN_TICKETS_PER_USER, 3);
+check("one past the cap is refused", await throwsWith(() => openTicket(a, { subject: "", body: "one more" }, [], { mail }), TicketLimitError));
+
+console.log("photos + notes");
+const GOOD = "https://abc123.public.blob.vercel-storage.com/tickets/photo-1.jpg";
+const GOOD2 = "https://abc123.public.blob.vercel-storage.com/tickets/photo-2.jpg";
+check("cleanImages keeps our tickets/ URLs, drops the rest, dedupes, caps at 4",
+  cleanImages([GOOD, "https://evil.example/x.jpg", "https://abc123.public.blob.vercel-storage.com/board/x.jpg", GOOD, GOOD2, 5, GOOD2 + "3", GOOD2 + "4", GOOD2 + "5"]),
+  [GOOD, GOOD2, GOOD2 + "3", GOOD2 + "4"]);
+const noteSent = [];
+const noteMail = async (to, t, u, n) => { noteSent.push({ to, number: t.number, replyTo: u.email, body: n.body, images: n.images }); };
+const n1 = await addTicketNote(a, t1.id, { body: "  Also the back photo is blurry.  ", images: [GOOD, "https://evil.example/x.jpg"] }, { noteMail });
+check("note: trimmed body, cleaned images", [n1.body, n1.images], ["Also the back photo is blurry.", [GOOD]]);
+check("note mails support@ as a reply, reply-to the seller", noteSent, [{ to: "support@cardflip.io", number: 1000, replyTo: "ash@x.io", body: "Also the back photo is blurry.", images: [GOOD] }]);
+const n2 = await addTicketNote(a, t1.id, { body: "", images: [GOOD2] }, { noteMail });
+check("photos-only note is fine", [n2.body, n2.images], ["", [GOOD2]]);
+check("empty note refused", await throwsWith(() => addTicketNote(a, t1.id, { body: "  ", images: [] }, { noteMail }), TicketInputError));
+check("brock can't add to ash's ticket", await throwsWith(() => addTicketNote(b, t1.id, { body: "hi" }, { noteMail }), TicketInputError));
+check("seller detail carries notes in order", (await getUserTicket(a.id, t1.id)).notes.map((n) => n.body), ["Also the back photo is blurry.", ""]);
+check("someone else's detail is null", await getUserTicket(b.id, t1.id), null);
+check("admin list carries notes + images", (await listAllTickets()).find((t) => t.id === t1.id).notes.length, 2);
+const withPhotos = await openTicket(b, { subject: "", body: "", images: [GOOD] }, [], { mail });
+check("photos-only ticket: subject falls back, images kept", [withPhotos.subject, withPhotos.images], ["Photos", [GOOD]]);
+check("ticket with neither text nor photos refused", await throwsWith(() => openTicket(b, { subject: "x", body: "", images: [] }, [], { mail }), TicketInputError));
 
 console.log("status");
 sent.length = 0;
@@ -73,6 +96,7 @@ const closed = await setTicketStatus(t1.id, "closed", { closedMail });
 check("closed: status + closed_at + one mail", [closed.status, typeof closed.closedAt, sent], ["closed", "number", [{ kind: "closed", to: "ash@x.io", number: 1000 }]]);
 await setTicketStatus(t1.id, "closed", { closedMail });
 check("closing again mails nothing", sent.length, 1);
+check("closed tickets refuse notes", await throwsWith(() => addTicketNote(a, t1.id, { body: "still broken" }, { noteMail }), TicketInputError));
 const reopened = await setTicketStatus(t1.id, "open", { closedMail });
 check("reopen clears closed_at", [reopened.status, reopened.closedAt], ["open", null]);
 check("open first in the admin list", (await listAllTickets())[0].status, "open");
