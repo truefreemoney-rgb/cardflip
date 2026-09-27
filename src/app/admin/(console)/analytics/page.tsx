@@ -6,7 +6,6 @@ import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseWindow, RANGES, type CustomWindow, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
-import { scanSpendLast30d } from "@/lib/server/scanUsage";
 import { PRICE } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +23,11 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const win = parseWindow(params);
   const custom = typeof win === "string" ? null : win;
   const range: string = typeof win === "string" ? win : "custom";
-  const [a, expenses, metered] = await Promise.all([getAnalytics(win), loadExpenses(), scanSpendLast30d()]);
+  const [a, expenses] = await Promise.all([getAnalytics(win), loadExpenses()]);
   const m = a.metrics;
-  // Subscriptions plus the measured scan spend of the last 30 days: the API is pay-as-you-go, so the running
-  // rate is the honest monthly figure. Big testing months are one-off rows, out of the total (Chris 09-27).
-  const costsMonthly = Math.round((monthlyTotal(expenses) + metered.usd) * 100) / 100;
+  // The Anthropic API is one ordinary expense row Chris keeps from the console (09-27: no separate measured
+  // scan-spend line). Big testing months are one-off rows, out of the total.
+  const costsMonthly = Math.round(monthlyTotal(expenses) * 100) / 100;
   const unconfirmedCosts = expenses.filter((e) => !e.confirmed).length;
   // Soonest recurring bill: the tile shows the name and how many days away.
   const upcoming = expenses
@@ -260,7 +259,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         </Tile>
       </div>
       <Tile className="mt-3">
-        <Expenses expenses={expenses} metered={{ usd: metered.usd, scans: metered.scans }} />
+        <Expenses expenses={expenses} />
       </Tile>
 
       {/* Social */}

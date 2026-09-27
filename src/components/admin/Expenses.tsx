@@ -32,7 +32,7 @@ function Field({ label, children, className = "" }: { label: string; children: R
  * carry a "Looks Right" button so Chris can confirm them in one tap. Save
  * puts the whole list back.
  */
-export default function Expenses({ expenses: initial, metered }: { expenses: Expense[]; metered: { usd: number; scans: number } }) {
+export default function Expenses({ expenses: initial }: { expenses: Expense[] }) {
   const router = useRouter();
   const [rows, setRows] = useState<Expense[]>(initial);
   const [open, setOpen] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export default function Expenses({ expenses: initial, metered }: { expenses: Exp
     }
   }
 
-  const total = Math.round((monthlyTotal(rows) + metered.usd) * 100) / 100;
+  const total = Math.round(monthlyTotal(rows) * 100) / 100;
   const unconfirmed = rows.filter((r) => !r.confirmed).length;
   const recurring = rows.filter((r) => r.period !== "once");
   const oneOffs = rows.filter((r) => r.period === "once");
@@ -186,18 +186,6 @@ export default function Expenses({ expenses: initial, metered }: { expenses: Exp
 
       <p className="mb-1 mt-3 text-[10px] font-medium uppercase tracking-wide text-zinc-500">Every month</p>
       <ul className="divide-y divide-white/5">
-        <li className="flex items-center gap-3 py-2.5">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-zinc-100">Scan tokens (Anthropic API)</p>
-            <p className="truncate text-[11px] text-zinc-500">
-              {metered.scans.toLocaleString()} scan{metered.scans === 1 ? "" : "s"} in the last 30 days · billed by usage, so this is the running rate
-            </p>
-          </div>
-          <p className="w-24 shrink-0 text-right tabular-nums">
-            <span className="font-display text-base font-semibold text-zinc-100">${metered.usd.toFixed(2)}</span>
-            <span className="text-[11px] text-zinc-500">/mo</span>
-          </p>
-        </li>
         {recurring.map(renderRow)}
       </ul>
 
