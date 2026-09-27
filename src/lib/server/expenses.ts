@@ -9,7 +9,7 @@ import { getSetting, setSetting } from "@/lib/server/settings";
  * page and the test share it.
  */
 export const EXPENSES_KEY = "expenses";
-export { monthlyTotal, normalizeExpense, type Expense, type Period } from "@/lib/expenses";
+export { daysUntil, monthlyTotal, nextDue, normalizeExpense, type Expense, type Period } from "@/lib/expenses";
 import { normalizeExpense, type Expense } from "@/lib/expenses";
 
 /** Seeded once when the list does not exist yet. Amounts are Claude's best guess; Chris confirms in the console. */
@@ -19,7 +19,7 @@ export const SEED_EXPENSES: Expense[] = [
   { id: "ipostal1", name: "iPostal1 mailbox", amountUsd: 9.99, period: "month", note: "Chevy Chase MD business address (Stripe)", confirmed: false },
   { id: "fastmail", name: "Fastmail", amountUsd: 5, period: "month", note: "support@cardflip.io mail", confirmed: false },
   { id: "domain", name: "cardflip.io domain", amountUsd: 35, period: "year", note: "Renewal", confirmed: false },
-  { id: "x-api", name: "X API credits", amountUsd: 5, period: "once", note: "09-25, about 330 posts; recharge when posts 402", confirmed: false },
+  { id: "x-api", name: "X API credits", amountUsd: 5, period: "once", note: "About 330 posts; recharge when posts 402", dueDate: "2026-09-25", confirmed: false },
   { id: "claude", name: "Claude plan (Chris)", amountUsd: 0, period: "month", note: "Fill in your plan", confirmed: false },
 ];
 

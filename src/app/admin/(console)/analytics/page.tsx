@@ -4,7 +4,7 @@ import Expenses from "@/components/admin/Expenses";
 import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseRange, RANGES, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
-import { loadExpenses, monthlyTotal } from "@/lib/server/expenses";
+import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
 import { PRICE } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,13 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const m = a.metrics;
   const costsMonthly = monthlyTotal(expenses);
   const unconfirmedCosts = expenses.filter((e) => !e.confirmed).length;
+  // Soonest recurring bill: the tile shows the name and how many days away.
+  const upcoming = expenses
+    .filter((e) => e.period !== "once")
+    .map((e) => ({ e, day: nextDue(e) }))
+    .filter((x): x is { e: (typeof expenses)[number]; day: string } => x.day !== null)
+    .sort((x, y) => x.day.localeCompare(y.day))[0];
+  const upcomingDays = upcoming ? daysUntil(upcoming.day) : null;
   const rangeLabel = RANGES.find((r) => r.id === range)!.label;
   const priorLabel = range === "24h" ? "the 24h before" : `the ${rangeLabel} before`;
 
@@ -250,6 +257,13 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
           <Label>Net per month</Label>
           <p className="mt-0.5 text-[11px] text-zinc-600">recurring minus subscriptions, before the Anthropic bill</p>
+        </Tile>
+        <Tile>
+          <Big className={upcomingDays !== null && upcomingDays <= 3 ? "text-amber-300" : undefined}>
+            {upcoming ? (upcomingDays === 0 ? "Today" : upcomingDays === 1 ? "Tomorrow" : `${upcomingDays} days`) : "—"}
+          </Big>
+          <Label>Next bill due</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{upcoming ? `${upcoming.e.name} · ${usd(upcoming.e.amountUsd)} · ${upcoming.day}` : "add due dates below"}</p>
         </Tile>
       </div>
       <Tile className="mt-3">

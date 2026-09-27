@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
-import { monthlyTotal, PERIODS, perMonth, type Expense, type Period } from "@/lib/expenses";
+import { daysUntil, monthlyTotal, nextDue, PERIODS, perMonth, type Expense, type Period } from "@/lib/expenses";
+
+/** "due today", "in 3 days", "12 days ago" for the row's next billing day. */
+function dueLabel(e: Expense): { text: string; soon: boolean } | null {
+  const next = nextDue(e);
+  if (!next) return null;
+  const n = daysUntil(next);
+  if (n === 0) return { text: "due today", soon: true };
+  if (n < 0) return { text: `${-n} day${n === -1 ? "" : "s"} ago`, soon: false };
+  return { text: `in ${n} day${n === 1 ? "" : "s"}`, soon: n <= 7 };
+}
 
 /**
  * The expense table under Money on /admin/analytics. Every row is editable in
@@ -60,12 +70,12 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium text-zinc-200">Expenses</p>
         <p className="text-[11px] text-zinc-500">
-          {unconfirmed > 0 ? `${unconfirmed} to confirm · ` : ""}one-offs are not in the monthly total
+          {unconfirmed > 0 ? `${unconfirmed} to confirm · ` : ""}one-offs are not in the monthly total · dates roll forward on their own
         </p>
       </div>
       <ul className="divide-y divide-white/5">
         {rows.map((r, i) => (
-          <li key={r.id} className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 py-2 sm:grid-cols-[minmax(0,1.4fr)_5.5rem_5.5rem_minmax(0,1.6fr)_auto_auto] sm:items-center">
+          <li key={r.id} className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 py-2 sm:grid-cols-[minmax(0,1.3fr)_5.5rem_5.5rem_8.5rem_minmax(0,1.4fr)_auto_auto] sm:items-center">
             <input className={input} value={r.name} placeholder="What" aria-label="Name" onChange={(e) => edit(i, { name: e.target.value })} />
             <div className="flex items-center gap-1 sm:contents">
               <input
@@ -85,6 +95,13 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="flex items-center gap-2 sm:block">
+              <input className={`${input} w-36 sm:w-full`} type="date" value={r.dueDate ?? ""} aria-label="Due date" onChange={(e) => edit(i, { dueDate: e.target.value })} />
+              {(() => {
+                const d = dueLabel(r);
+                return d ? <span className={`text-[11px] sm:mt-0.5 sm:block ${d.soon ? "text-amber-300" : "text-zinc-500"}`}>{d.text}</span> : null;
+              })()}
             </div>
             <input className={`${input} col-span-2 sm:col-span-1`} value={r.note ?? ""} placeholder="Note" aria-label="Note" onChange={(e) => edit(i, { note: e.target.value })} />
             <label className={`flex items-center gap-1.5 text-[11px] ${r.confirmed ? "text-zinc-500" : "text-amber-300"}`}>
