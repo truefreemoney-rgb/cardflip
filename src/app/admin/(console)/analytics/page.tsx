@@ -1,8 +1,10 @@
 import Link from "next/link";
 import ActivityBars from "@/components/admin/ActivityBars";
+import Expenses from "@/components/admin/Expenses";
 import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseRange, RANGES, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
+import { loadExpenses, monthlyTotal } from "@/lib/server/expenses";
 import { PRICE } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +20,10 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   await requireOwnerPage();
   const { range: raw } = await searchParams;
   const range = parseRange(raw);
-  const a = await getAnalytics(range);
+  const [a, expenses] = await Promise.all([getAnalytics(range), loadExpenses()]);
   const m = a.metrics;
+  const costsMonthly = monthlyTotal(expenses);
+  const unconfirmedCosts = expenses.filter((e) => !e.confirmed).length;
   const rangeLabel = RANGES.find((r) => r.id === range)!.label;
   const priorLabel = range === "24h" ? "the 24h before" : `the ${rangeLabel} before`;
 
@@ -237,7 +241,20 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
             {sub.rows.map((r) => `${r.plan} ${r.status} ${r.users}`).join(" · ") || "none yet"}
           </p>
         </Tile>
+        <Tile>
+          <Big className="text-rose-300">{usd(costsMonthly)}</Big>
+          <Label>Monthly costs</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} subscriptions, confirmed`}</p>
+        </Tile>
+        <Tile>
+          <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
+          <Label>Net per month</Label>
+          <p className="mt-0.5 text-[11px] text-zinc-600">recurring minus subscriptions, before the Anthropic bill</p>
+        </Tile>
       </div>
+      <Tile className="mt-3">
+        <Expenses expenses={expenses} />
+      </Tile>
 
       {/* Social */}
       <H2>Social</H2>
