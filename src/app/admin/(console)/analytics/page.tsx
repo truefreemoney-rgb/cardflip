@@ -5,6 +5,7 @@ import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseRange, RANGES, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
+import { scanSpendLast30d } from "@/lib/server/scanUsage";
 import { PRICE } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,10 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   await requireOwnerPage();
   const { range: raw } = await searchParams;
   const range = parseRange(raw);
-  const [a, expenses] = await Promise.all([getAnalytics(range), loadExpenses()]);
+  const [a, expenses, metered] = await Promise.all([getAnalytics(range), loadExpenses(), scanSpendLast30d()]);
   const m = a.metrics;
-  const costsMonthly = monthlyTotal(expenses);
+  // Subscriptions plus the measured scan-token bill of the last 30 days (Chris 09-27: "another row just for scan tokens").
+  const costsMonthly = Math.round((monthlyTotal(expenses) + metered.usd) * 100) / 100;
   const unconfirmedCosts = expenses.filter((e) => !e.confirmed).length;
   // Soonest recurring bill: the tile shows the name and how many days away.
   const upcoming = expenses
@@ -251,12 +253,12 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <Tile>
           <Big className="text-rose-300">{usd(costsMonthly)}</Big>
           <Label>Monthly costs</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} subscriptions, confirmed`}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} subscriptions`} + scan tokens</p>
         </Tile>
         <Tile>
           <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
           <Label>Net per month</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">recurring minus subscriptions, before the Anthropic bill</p>
+          <p className="mt-0.5 text-[11px] text-zinc-600">recurring minus every cost below</p>
         </Tile>
         <Tile>
           <Big className={upcomingDays !== null && upcomingDays <= 3 ? "text-amber-300" : undefined}>
@@ -267,7 +269,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         </Tile>
       </div>
       <Tile className="mt-3">
-        <Expenses expenses={expenses} />
+        <Expenses expenses={expenses} metered={{ usd: metered.usd, scans: metered.scans }} />
       </Tile>
 
       {/* Social */}

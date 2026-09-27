@@ -20,7 +20,7 @@ function dueLabel(e: Expense): { text: string; soon: boolean } | null {
  * place (name, amount, per month / year / once, note, confirmed); Save puts
  * the whole list back. Seeded rows say "Confirm" until Chris ticks them.
  */
-export default function Expenses({ expenses: initial }: { expenses: Expense[] }) {
+export default function Expenses({ expenses: initial, metered }: { expenses: Expense[]; metered: { usd: number; scans: number } }) {
   const router = useRouter();
   const [rows, setRows] = useState<Expense[]>(initial);
   const [dirty, setDirty] = useState(false);
@@ -61,7 +61,7 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
     }
   }
 
-  const total = monthlyTotal(rows);
+  const total = Math.round((monthlyTotal(rows) + metered.usd) * 100) / 100;
   const unconfirmed = rows.filter((r) => !r.confirmed).length;
   const input = "w-full rounded-lg border border-edge bg-black/30 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-brand-400/60";
 
@@ -74,6 +74,15 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
         </p>
       </div>
       <ul className="divide-y divide-white/5">
+        <li className="grid grid-cols-[1fr_auto] items-center gap-x-2 py-2 text-xs">
+          <div className="min-w-0">
+            <p className="text-zinc-100">Anthropic API (scan tokens)</p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              Measured, last 30 days · {metered.scans.toLocaleString()} scan{metered.scans === 1 ? "" : "s"} · billed monthly by usage, so no fixed amount
+            </p>
+          </div>
+          <span className="tabular-nums text-rose-300">${metered.usd.toFixed(2)}/mo</span>
+        </li>
         {rows.map((r, i) => (
           <li key={r.id} className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 py-2 sm:grid-cols-[minmax(0,1.3fr)_5.5rem_5.5rem_8.5rem_minmax(0,1.4fr)_auto_auto] sm:items-center">
             <input className={input} value={r.name} placeholder="What" aria-label="Name" onChange={(e) => edit(i, { name: e.target.value })} />

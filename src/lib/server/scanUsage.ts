@@ -81,6 +81,11 @@ export async function scanSpendSummary(): Promise<{ last24h: ScanSpend; last30d:
   return { last24h, last30d };
 }
 
+/** The last 30 days, for the expenses table's scan-token row (clock read here, not in render). */
+export async function scanSpendLast30d(): Promise<ScanSpend> {
+  return scanSpendSince(Date.now() - 30 * 24 * 60 * 60 * 1000);
+}
+
 /** Spend over a window — the admin console's margin tile. */
 export async function scanSpendSince(sinceMs: number): Promise<ScanSpend> {
   const row = (await db
