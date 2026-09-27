@@ -112,8 +112,10 @@ export async function openTicket(
   const now = Date.now();
   // Numbering inside the transaction so two sellers never share a number.
   const number = await db.transaction(async (tx) => {
-    const row = (await tx.prepare(`SELECT COALESCE(MAX(number), ${FIRST_TICKET_NUMBER - 1}) + 1 AS n FROM support_tickets`).get()) as { n: number };
-    const n = Number(row.n);
+    const row = (await tx.prepare("SELECT COALESCE(MAX(number), 0) + 1 AS n FROM support_tickets").get()) as { n: number };
+    // Never below the floor, even with the pre-1000 test tickets in the table
+    // (09-26: #1 existed, so "COALESCE(MAX, 999) + 1" handed out #2).
+    const n = Math.max(Number(row.n), FIRST_TICKET_NUMBER);
     await tx
       .prepare("INSERT INTO support_tickets (id, number, user_id, subject, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'open', ?, ?)")
       .run(id, n, user.id, subject, body, now, now);
