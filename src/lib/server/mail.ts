@@ -306,6 +306,7 @@ export async function sendSupportTicketEmail(
 /** To the seller: we have it, here is your number. */
 export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMail): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const tag = `SUPPORT TICKET #${ticket.number}`;
   const text = [
     `We received your support ticket. It's #${ticket.number}.`,
@@ -314,7 +315,7 @@ export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMa
     "",
     "It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.",
     "Reply to this email to add anything.",
-    "You can see the status any time from the robot in the app: tap Help, then My tickets.",
+    `You can see the status any time at ${site}/app/help (Support Tickets tab).`,
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
@@ -323,7 +324,7 @@ export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMa
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
     <p>It's being processed. A human at CardFlip reads every ticket and replies to this address, usually within 24 hours.</p>
     <p>Reply to this email to add anything.</p>
-    <p style="color:#666;font-size:13px">You can see the status any time from the robot in the app: tap Help, then My tickets.</p>
+    <p style="color:#666;font-size:13px">You can see the status any time at <a href="${site}/app/help" style="color:#6d5dfc">${site}/app/help</a> (Support Tickets tab).</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Received`, text, html });
 }
@@ -331,20 +332,21 @@ export async function sendSupportTicketReceiptEmail(to: string, ticket: TicketMa
 /** To the seller: closed. */
 export async function sendSupportTicketClosedEmail(to: string, ticket: TicketMail): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const tag = `SUPPORT TICKET #${ticket.number}`;
   const text = [
     `Your support ticket #${ticket.number} is closed.`,
     "",
     `Subject: ${ticket.subject}`,
     "",
-    "If you still need help, reply to this email or open a new ticket from the robot in the app.",
+    `If you still need help, reply to this email or open a new ticket at ${site}/app/help.`,
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
     <p>Your support ticket <strong>#${ticket.number}</strong> is closed.</p>
     <p style="color:#444"><strong>Subject:</strong> ${escHtml(ticket.subject)}</p>
-    <p style="color:#666;font-size:13px">If you still need help, reply to this email or open a new ticket from the robot in the app.</p>
+    <p style="color:#666;font-size:13px">If you still need help, reply to this email or open a new ticket at <a href="${site}/app/help" style="color:#6d5dfc">${site}/app/help</a>.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({ from: fromAddress(), to, subject: `${tag} · Closed`, text, html });
 }
