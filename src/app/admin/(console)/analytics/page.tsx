@@ -1,8 +1,9 @@
 import Link from "next/link";
 import ActivityBars from "@/components/admin/ActivityBars";
 import Expenses from "@/components/admin/Expenses";
+import RangeDates from "@/components/admin/RangeDates";
 import { money, num } from "@/components/admin/format";
-import { deltaPct, getAnalytics, parseRange, RANGES, type Metric } from "@/lib/server/analytics";
+import { deltaPct, getAnalytics, parseWindow, RANGES, type CustomWindow, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
 import { scanSpendLast30d } from "@/lib/server/scanUsage";
@@ -17,11 +18,13 @@ export const maxDuration = 60;
  * its change against the period before, range switch pinned to the bottom
  * of a phone screen where a thumb is. Server-rendered, no client fetches.
  */
-export default async function AdminAnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function AdminAnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
   await requireOwnerPage();
-  const { range: raw } = await searchParams;
-  const range = parseRange(raw);
-  const [a, expenses, metered] = await Promise.all([getAnalytics(range), loadExpenses(), scanSpendLast30d()]);
+  const params = await searchParams;
+  const win = parseWindow(params);
+  const custom = typeof win === "string" ? null : win;
+  const range: string = typeof win === "string" ? win : "custom";
+  const [a, expenses, metered] = await Promise.all([getAnalytics(win), loadExpenses(), scanSpendLast30d()]);
   const m = a.metrics;
   // Subscriptions plus the measured scan spend of the last 30 days: the API is pay-as-you-go, so the running
   // rate is the honest monthly figure. Big testing months are one-off rows, out of the total (Chris 09-27).
@@ -34,8 +37,9 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
     .filter((x): x is { e: (typeof expenses)[number]; day: string } => x.day !== null)
     .sort((x, y) => x.day.localeCompare(y.day))[0];
   const upcomingDays = upcoming ? daysUntil(upcoming.day) : null;
-  const rangeLabel = RANGES.find((r) => r.id === range)!.label;
-  const priorLabel = range === "24h" ? "the 24h before" : `the ${rangeLabel} before`;
+  const day = (s: string) => new Date(`${s}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const windowLabel = custom ? `${day(custom.from)} to ${day(custom.to)}` : `Last ${RANGES.find((r) => r.id === range)!.label}`;
+  const priorLabel = custom ? `the ${custom.days} day${custom.days === 1 ? "" : "s"} before` : range === "24h" ? "the 24h before" : `the ${RANGES.find((r) => r.id === range)!.label} before`;
 
   const usd = (v: number) => money(v);
   const cents4 = (v: number) => `$${v.toFixed(4)}`;
@@ -78,10 +82,10 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <div>
           <h1 className="text-2xl font-semibold text-white">Analytics</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Last {rangeLabel}, each number against {priorLabel}. Eastern time.
+            {windowLabel}, each number against {priorLabel}. Eastern time. Money below is all-time and ignores the range.
           </p>
         </div>
-        <RangePicker range={range} className="hidden sm:flex" />
+        <RangePicker range={range} custom={custom} className="hidden sm:flex" />
       </div>
 
       {/* Headline */}
@@ -116,7 +120,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       {/* Funnel */}
       <H2>Funnel</H2>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Funnel title={`Signed up in the last ${rangeLabel}`} steps={a.funnel.cohort} />
+        <Funnel title={custom ? `Signed up ${windowLabel}` : `Signed up in the ${windowLabel.toLowerCase()}`} steps={a.funnel.cohort} />
         <Funnel title="Everyone, all time" steps={a.funnel.allTime} />
       </div>
 
@@ -245,14 +249,14 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           </p>
         </Tile>
         <Tile>
-          <Big className="text-emerald-400">{usd(m.soldUsd.total)}</Big>
+          <Big className="text-emerald-400">{usd(a.lifetime.soldUsd)}</Big>
           <Label>Sold through CardFlip</Label>
-          <Delta cur={m.soldUsd.total} prior={m.soldUsd.prior} fmt={usd} />
+          <p className="mt-0.5 text-[11px] text-zinc-600">{num(a.lifetime.sold)} card{a.lifetime.sold === 1 ? "" : "s"}, all time</p>
         </Tile>
         <Tile>
           <Big>{num(sub.ebayConnected)}</Big>
           <Label>eBay connected</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{num(m.listed.total)} listed in this range</p>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{num(a.lifetime.listed)} listed, all time</p>
         </Tile>
       </div>
       <Tile className="mt-3">
@@ -301,15 +305,16 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       </div>
 
       <div className="fixed inset-x-4 bottom-4 z-30 sm:hidden">
-        <RangePicker range={range} className="flex w-full justify-between shadow-lg shadow-black/40" />
+        <RangePicker range={range} custom={custom} up className="flex w-full justify-between shadow-lg shadow-black/40" />
       </div>
     </section>
   );
 }
 
-function RangePicker({ range, className = "" }: { range: string; className?: string }) {
+function RangePicker({ range, custom, up = false, className = "" }: { range: string; custom: CustomWindow | null; up?: boolean; className?: string }) {
   return (
     <nav aria-label="Range" className={`items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1 text-xs backdrop-blur-md ${className}`}>
+      <RangeDates from={custom?.from} to={custom?.to} active={custom !== null} up={up} />
       {RANGES.map((r) => (
         <Link
           key={r.id}

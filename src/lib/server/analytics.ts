@@ -30,6 +30,40 @@ export function parseRange(v: unknown): Range {
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 
+/** A custom window picked with two dates (Eastern calendar days, both ends inclusive). */
+export interface CustomWindow {
+  id: "custom";
+  from: string;
+  to: string;
+  since: number;
+  end: number;
+  days: number;
+}
+export type Window = Range | CustomWindow;
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** Eastern midnight that starts the given calendar day. */
+function etDayStart(day: string, now: number): number {
+  const [y, m, d] = day.split("-").map(Number);
+  return Date.UTC(y, m - 1, d) - etOffsetMs(now);
+}
+
+/**
+ * ?from=YYYY-MM-DD&to=YYYY-MM-DD wins when both are real days and in order;
+ * otherwise the preset (?range=), defaulting to 7d. `to` in the future is
+ * clipped to now; a window longer than a year is refused (falls back).
+ */
+export function parseWindow(params: { range?: unknown; from?: unknown; to?: unknown }, now = Date.now()): Window {
+  const { from, to } = params;
+  if (typeof from === "string" && typeof to === "string" && DAY_RE.test(from) && DAY_RE.test(to) && from <= to) {
+    const since = etDayStart(from, now);
+    const end = Math.min(etDayStart(to, now) + DAY_MS, now);
+    const days = Math.round((etDayStart(to, now) + DAY_MS - since) / DAY_MS);
+    if (Number.isFinite(since) && end > since && days <= 366) return { id: "custom", from, to, since, end, days };
+  }
+  return parseRange(params.range);
+}
+
 export interface Series {
   /** Bucket keys, oldest first: "YYYY-MM-DD" or (hourly) "YYYY-MM-DDTHH", Eastern time (Chris 09-26: "this should be on EST time"). */
   keys: string[];
@@ -45,9 +79,12 @@ export interface Metric {
 }
 
 export interface Analytics {
+  /** End of the window: the real now for presets, the end of the `to` day for a custom window. */
   now: number;
-  range: Range;
+  range: Range | "custom";
   since: number;
+  /** Money lives on its own (Chris 09-27): these ignore the range. */
+  lifetime: { soldUsd: number; sold: number; listed: number };
   metrics: {
     visitors: Metric;
     pageViews: Metric;
@@ -196,9 +233,11 @@ async function funnel(since: number | null): Promise<FunnelSteps> {
   return { signedUp, scanned, listed, sold, paying };
 }
 
-export async function getAnalytics(range: Range, now = Date.now()): Promise<Analytics> {
-  const hours = RANGES.find((r) => r.id === range)!.hours;
-  const since = now - hours * HOUR_MS;
+export async function getAnalytics(window: Window, realNow = Date.now()): Promise<Analytics> {
+  const range = typeof window === "string" ? window : window.id;
+  const since = typeof window === "string" ? realNow - RANGES.find((r) => r.id === window)!.hours * HOUR_MS : window.since;
+  // A custom window ends one ms before the next Eastern midnight so the last bucket is the `to` day, not the day after.
+  const now = typeof window === "string" ? realNow : window.end - 1;
   const hourly = range === "24h";
   const m = (spec: Spec) => metric(spec, since, now, hourly);
 
@@ -210,6 +249,7 @@ export async function getAnalytics(range: Range, now = Date.now()): Promise<Anal
     scansByGame, priceChecksByGame,
     subRows, ebayConnected, totalUsers,
     socialRows,
+    lifeSoldUsd, lifeSold, lifeListed,
   ] = await Promise.all([
     m({ table: "page_views", ts: "at", agg: "COUNT(DISTINCT visitor)" }),
     m({ table: "page_views", ts: "at", agg: "COUNT(*)" }),
@@ -257,6 +297,9 @@ export async function getAnalytics(range: Range, now = Date.now()): Promise<Anal
     scalar("SELECT COUNT(*) AS n FROM users WHERE ebay_connected = 1"),
     scalar("SELECT COUNT(*) AS n FROM users"),
     rows<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key LIKE ?", `${LAST_POST_PREFIX}%`),
+    scalar("SELECT COALESCE(SUM(sold_price), 0) AS n FROM cards WHERE status = 'sold'"),
+    scalar("SELECT COUNT(*) AS n FROM cards WHERE status = 'sold'"),
+    scalar("SELECT COUNT(*) AS n FROM cards WHERE listed_at IS NOT NULL OR status IN ('listed','sold')"),
   ]);
 
   const visionCostUsd: Metric = {
@@ -286,6 +329,7 @@ export async function getAnalytics(range: Range, now = Date.now()): Promise<Anal
     now,
     range,
     since,
+    lifetime: { soldUsd: lifeSoldUsd, sold: lifeSold, listed: lifeListed },
     metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, priceChecks, listed, sold, soldUsd, wishlist, helpMessages, errors },
     funnel: { cohort, allTime },
     pages: pages.map((p) => ({ path: p.path, views: Number(p.views), visitors: Number(p.visitors) })),

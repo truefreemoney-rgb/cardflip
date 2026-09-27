@@ -23,7 +23,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { referrerHost, deviceClass } = await import(at("lib/visit.ts"));
 const visit = await import(at("app/api/visit/route.ts"));
-const { getAnalytics, deltaPct, parseRange, etOffsetMs } = await import(at("lib/server/analytics.ts"));
+const { getAnalytics, deltaPct, parseRange, parseWindow, etOffsetMs } = await import(at("lib/server/analytics.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
 const { setSetting } = await import(at("lib/server/settings.ts"));
@@ -139,6 +139,20 @@ check("24h prior page views", h.metrics.pageViews.prior, 1);
 console.log("helpers");
 check("deltaPct", [deltaPct(150, 100), deltaPct(50, 100), deltaPct(5, 0), deltaPct(0, 0)], [50, -50, null, 0]);
 check("parseRange", [parseRange("30d"), parseRange("junk"), parseRange(undefined)], ["30d", "7d", "7d"]);
+{
+  const w = parseWindow({ from: "2026-09-01", to: "2026-09-15" }, now);
+  check("parseWindow custom", [w.id, w.from, w.to, w.days], ["custom", "2026-09-01", "2026-09-15", 15]);
+  check("parseWindow custom spans 15 Eastern days", Math.round((w.end - w.since) / 86_400_000), 15);
+  const clipped = parseWindow({ from: "2026-09-01", to: "2099-01-01" }, now);
+  check("parseWindow refuses a window over a year", clipped, "7d");
+  check("parseWindow to before from -> preset", parseWindow({ from: "2026-09-15", to: "2026-09-01", range: "30d" }, now), "30d");
+  check("parseWindow junk dates -> preset", parseWindow({ from: "sep 1", to: "2026-09-15" }, now), "7d");
+  const custom = await getAnalytics(w, now);
+  check("custom window reports range custom", [custom.range, custom.since, custom.now], ["custom", w.since, w.end - 1]);
+  const keys = custom.metrics.pageViews.series.keys;
+  check("custom window buckets run from `from` to `to`", [keys[0], keys[keys.length - 1], keys.length], ["2026-09-01", "2026-09-15", 15]);
+  check("lifetime money is present", typeof custom.lifetime.soldUsd, "number");
+}
 
 if (failures) {
   console.log(`\n${failures} failure(s)`);
