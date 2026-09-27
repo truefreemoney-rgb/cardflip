@@ -19,6 +19,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 ## Chris — needs you
 
 - [ ] [Chris] Helper login for the social-media work (training wheels, 09-10): on Vercel set ADMIN_HELPER_USER (her first name, e.g. sam) and ADMIN_HELPER_PASSWORD, redeploy. She signs in at cardflip.io/admin/login with those; she gets the Tasks page only — her own category, Add note / Photo / ▶ Run / ↳ Reply — and nothing can be merged or deleted from there. Runner answers social tasks in the PR body (docs/social/).
+- [ ] [Chris] PINTEREST (adapter shipped 09-26): (1) business account at pinterest.com/business/create, handle cardflipio; (2) developers.pinterest.com -> Create app (redirect URI https://cardflip.io/api/social/pinterest/callback) -> reply with App ID + secret; then Connect once on /admin/social.
 - [ ] [Chris] eBay live-test batch next time you post: non-NM push, graded push, reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual, watchlist dip email.
 - [ ] [Chris] MD LLC decision (also solves the Stripe address).
 - [x] 09-25 iPostal1 business name — NOT NEEDED (no LLC; Stripe public business name = CardFlip is enough). Was: Mailbox Settings → Change Plan → Virtual Business Address (from $14.99/mo); do it with the LLC (ticket #3081502).
