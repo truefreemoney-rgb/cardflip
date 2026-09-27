@@ -268,7 +268,7 @@ export default function NavRobot() {
           {
             id: `local-ticket-${t.id}`,
             role: "assistant",
-            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email. Open the Support tab any time to check on it.`,
+            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email. Open the Support Tickets tab any time to check on it.`,
           },
         ]);
         setView("chat");
@@ -336,7 +336,7 @@ export default function NavRobot() {
             <div className="flex items-center gap-2 border-b border-edge px-4 py-2.5">
               <RobotBuddy pose={busy ? "think" : "idle"} size={28} float={false} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-white">{view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "Support"}</p>
+                <p className="text-sm font-semibold text-white">{view === "chat" ? "The robot" : view === "ticket" ? "New support ticket" : "Support Tickets"}</p>
                 <p className="truncate text-[11px] text-zinc-500">
                   {view === "chat" ? "Help, tours, moral support" : view === "ticket" ? "A human reads it and emails you back" : "Your tickets. A human replies by email."}
                 </p>
@@ -374,7 +374,7 @@ export default function NavRobot() {
                       selected ? "border-brand-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
                     }`}
                   >
-                    {t === "chat" ? "Chat" : "Support"}
+                    {t === "chat" ? "Chat" : "Support Tickets"}
                     {t === "tickets" && openCount > 0 && (
                       <span className="ml-1.5 rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] text-amber-300">{openCount}</span>
                     )}

@@ -230,7 +230,7 @@ async function actOnTicketTag(user: User, reply: string, transcript: { role: "us
   const text = reply.replace(OPEN_TICKET_RE, "").replace(/\n{3,}/g, "\n\n").trim();
   try {
     const ticket = await openTicket(user, { subject, body }, transcript);
-    return `${text}\n\nTicket #${ticket.number} is open. A human reads it and replies to your email, usually within 24 hours. The Support tab has the status. {{opened:${ticket.number}}}`;
+    return `${text}\n\nTicket #${ticket.number} is open. A human reads it and replies to your email, usually within 24 hours. The Support Tickets tab has the status. {{opened:${ticket.number}}}`;
   } catch (err) {
     if (err instanceof TicketLimitError || err instanceof TicketInputError) return `${text}\n\n${err.message}`;
     console.error("[help] robot could not open a ticket:", err);
