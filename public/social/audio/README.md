@@ -15,10 +15,11 @@ it starts mid-phrase.
 
 | file | Pixabay URL |
 | ---- | ----------- |
-| the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) | https://pixabay.com/music/old-school-rnb-upbeat-upbeat-music-567448/ (Pixabay Content License, verified 09-26) |
+| echoes_of_lumen-upbeat-music-happy-commercial-586975.mp3 (95.5 bpm, 0:52, start 2.95s) | https://pixabay.com/music/beats-upbeat-music-happy-commercial-586975/ (Pixabay Content License; Chris picked it 09-26 night, first airs 09-27 7am) |
 
-Tried and set aside 09-25 (Chris picked one for now; drop the file back in to use it):
+Tried and set aside (Chris picked one at a time; drop the file back in to use it):
 
+- the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) https://pixabay.com/music/old-school-rnb-upbeat-upbeat-music-567448/ (ran 09-26; copy in Chris's Downloads)
 - prettyjohn1-upbeat-upbeat-music-540858.mp3 (129 bpm) https://pixabay.com/music/beats-upbeat-upbeat-music-540858/
 - vaitsez-fitness-fitness-workout-beat-582771.mp3 (107.5 bpm) https://pixabay.com/music/beats-fitness-fitness-workout-beat-582771/
 - Chris also linked https://pixabay.com/music/old-school-hip-hop-upbeat-564418/ ("Upbeat" by The_Mountain, a different track from the one in the folder, never downloaded).
