@@ -61,7 +61,7 @@ export default function Expenses({ expenses: initial, metered }: { expenses: Exp
     }
   }
 
-  const total = monthlyTotal(rows);
+  const total = Math.round((monthlyTotal(rows) + metered.usd) * 100) / 100;
   const unconfirmed = rows.filter((r) => !r.confirmed).length;
   const input = "w-full rounded-lg border border-edge bg-black/30 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-brand-400/60";
 
@@ -74,11 +74,14 @@ export default function Expenses({ expenses: initial, metered }: { expenses: Exp
         </p>
       </div>
       <ul className="divide-y divide-white/5">
-        <li className="flex items-baseline justify-between gap-2 py-2 text-[11px] text-zinc-500">
-          <span>
-            Of the Anthropic API row, real site scans were <span className="tabular-nums text-zinc-300">${metered.usd.toFixed(2)}</span> in the last 30 days ({metered.scans.toLocaleString()} scan
-            {metered.scans === 1 ? "" : "s"}, measured). The rest is testing.
-          </span>
+        <li className="grid grid-cols-[1fr_auto] items-center gap-x-2 py-2 text-xs">
+          <div className="min-w-0">
+            <p className="text-zinc-100">Anthropic API, site scans</p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              Measured from the last 30 days, {metered.scans.toLocaleString()} scan{metered.scans === 1 ? "" : "s"}. Pay as you go on auto-reload, so this is the running rate, not a bill.
+            </p>
+          </div>
+          <span className="tabular-nums text-rose-300">${metered.usd.toFixed(2)}/mo</span>
         </li>
         {rows.map((r, i) => (
           <li key={r.id} className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 py-2 sm:grid-cols-[minmax(0,1.3fr)_5.5rem_5.5rem_8.5rem_minmax(0,1.4fr)_auto_auto] sm:items-center">

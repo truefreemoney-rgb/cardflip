@@ -21,7 +21,7 @@ export const SEED_EXPENSES: Expense[] = [
   { id: "domain", name: "cardflip.io domain", amountUsd: 35, period: "year", note: "Renewal", confirmed: false },
   { id: "x-api", name: "X API credits", amountUsd: 5, period: "once", note: "About 330 posts; recharge when posts 402", dueDate: "2026-09-25", confirmed: false },
   { id: "claude", name: "Claude Max (Anthropic)", amountUsd: 106.35, period: "month", note: "Chris's plan, tax included", dueDate: "2026-10-09", confirmed: false },
-  { id: "anthropic-api", name: "Anthropic API (console)", amountUsd: 40.94, period: "month", note: "Sep 2026 spend; auto-reloads in $10 steps. Site scans are a few dollars, testing is the rest", confirmed: false },
+  { id: "anthropic-api-sep", name: "Anthropic API top-ups, Sep 2026", amountUsd: 42.58, period: "once", dueDate: "2026-09-10", note: "Four auto-reloads during the accuracy testing; site scans were $3.15 of it", confirmed: true },
 ];
 
 export async function loadExpenses(): Promise<Expense[]> {

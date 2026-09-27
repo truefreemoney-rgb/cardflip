@@ -23,8 +23,9 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const range = parseRange(raw);
   const [a, expenses, metered] = await Promise.all([getAnalytics(range), loadExpenses(), scanSpendLast30d()]);
   const m = a.metrics;
-  // The Anthropic API is a row Chris keeps from the console (testing dwarfs real scans); the measured scan spend is an info line under the table.
-  const costsMonthly = monthlyTotal(expenses);
+  // Subscriptions plus the measured scan spend of the last 30 days: the API is pay-as-you-go, so the running
+  // rate is the honest monthly figure. Big testing months are one-off rows, out of the total (Chris 09-27).
+  const costsMonthly = Math.round((monthlyTotal(expenses) + metered.usd) * 100) / 100;
   const unconfirmedCosts = expenses.filter((e) => !e.confirmed).length;
   // Soonest recurring bill: the tile shows the name and how many days away.
   const upcoming = expenses
@@ -253,7 +254,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <Tile>
           <Big className="text-rose-300">{usd(costsMonthly)}</Big>
           <Label>Monthly costs</Label>
-          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} rows, all confirmed`}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-600">{unconfirmedCosts ? `${unconfirmedCosts} to confirm below` : `${expenses.length} rows, all confirmed`} + scan usage</p>
         </Tile>
         <Tile>
           <Big className={sub.mrrUsd - costsMonthly >= 0 ? "text-emerald-400" : "text-rose-300"}>{usd(sub.mrrUsd - costsMonthly)}</Big>
