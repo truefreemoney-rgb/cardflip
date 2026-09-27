@@ -20,7 +20,8 @@ export const SEED_EXPENSES: Expense[] = [
   { id: "fastmail", name: "Fastmail", amountUsd: 5, period: "month", note: "support@cardflip.io mail", confirmed: false },
   { id: "domain", name: "cardflip.io domain", amountUsd: 35, period: "year", note: "Renewal", confirmed: false },
   { id: "x-api", name: "X API credits", amountUsd: 5, period: "once", note: "About 330 posts; recharge when posts 402", dueDate: "2026-09-25", confirmed: false },
-  { id: "claude", name: "Claude plan (Chris)", amountUsd: 0, period: "month", note: "Fill in your plan", confirmed: false },
+  { id: "claude", name: "Claude Max (Anthropic)", amountUsd: 106.35, period: "month", note: "Chris's plan, tax included", dueDate: "2026-10-09", confirmed: false },
+  { id: "anthropic-api", name: "Anthropic API (console)", amountUsd: 40.94, period: "month", note: "Sep 2026 spend; auto-reloads in $10 steps. Site scans are a few dollars, testing is the rest", confirmed: false },
 ];
 
 export async function loadExpenses(): Promise<Expense[]> {
