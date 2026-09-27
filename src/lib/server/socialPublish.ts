@@ -44,14 +44,18 @@ export const LAST_POST_PREFIX = "social_last_post:";
  */
 export type Slot = "morning" | "midday" | "evening";
 /**
- * Morning goes out as VIDEO (Chris 09-26: "pick cards that are the biggest
- * movers and shakers" — the 7am slot switched from the set spotlight to the
- * week's movers so the video has something worth ranking No.5 → No.1).
- * Midday took the set spotlight picture, evening keeps the drops picture.
+ * The movers VIDEO goes out at 1pm (Chris 09-27: "switch the video to 1pm";
+ * it ran at 7am from 09-26, when he asked for "the biggest movers and
+ * shakers" so the countdown has something worth ranking No.5 → No.1).
+ * Morning is the set spotlight picture, evening keeps the drops picture.
+ * VIDEO_SLOT is the one slot the render job (scripts/social-video.mjs) and
+ * its safety net (/api/cron/social-video) key on; move the slot here and
+ * the schedules in social-post.yml + vercel.json together.
  */
+export const VIDEO_SLOT: Slot = "midday";
 export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
-  morning: { hour: 7, kind: "movers", label: "7am movers of the week" },
-  midday: { hour: 13, kind: "set", label: "1pm set spotlight" },
+  morning: { hour: 7, kind: "set", label: "7am set spotlight" },
+  midday: { hour: 13, kind: "movers", label: "1pm movers of the week" },
   evening: { hour: 19, kind: "dips", label: "7pm price drops" },
 };
 export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
@@ -388,7 +392,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
     }
     if (site.videoOnly) {
-      // A video-only site owes nothing on a slot with no rendered MP4 (only the 7am movers video is rendered today).
+      // A video-only site owes nothing on a slot with no rendered MP4 (only the VIDEO_SLOT movers video is rendered today).
       const withVideo: typeof plan = [];
       for (const p of todo) {
         const drafts: SocialPost[] = [];

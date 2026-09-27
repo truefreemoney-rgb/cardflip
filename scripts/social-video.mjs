@@ -38,16 +38,16 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { topMovers, recentlyFeatured, money } = await import(at("lib/server/social.ts"));
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
-const { eastern, SLOTS } = await import(at("lib/server/socialPublish.ts"));
+const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 
 // Same day the publisher keys on (Eastern), so a 6:30am ET render lands on the right row.
 const day = arg("--day", eastern().day);
 const game = "pokemon";
-// The kind rendered here follows the morning slot's mapping (SLOTS in
-// socialPublish.ts), so a future re-mapping does not silently orphan this
-// script or the row the publisher looks for.
-const KIND = SLOTS.morning.kind;
+// The kind rendered here follows the video slot's mapping (VIDEO_SLOT +
+// SLOTS in socialPublish.ts; 1pm since 09-27), so a re-mapping does not
+// silently orphan this script or the row the publisher looks for.
+const KIND = SLOTS[VIDEO_SLOT].kind;
 const KEY = videoKey(game, KIND, day);
 if (has("--skip-if-done") && (await getSetting(KEY))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
 

@@ -100,22 +100,22 @@ const vid = fakeSite("vid", { postsVideo: true });
 let r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [pic, vid], fetchImage, fetchVideo });
 check("no video registered → both sites post the picture, nothing fetched", [pic.posts[0].video ?? null, vid.posts[0].video ?? null, videoFetches.length, r.sites.map((s) => s.posts[0].video ?? null)], [null, null, 0, [null, null]]);
 
-// Morning's kind is "movers" since 09-26 (SLOTS in socialPublish.ts).
+// The video slot is midday, kind "movers", since 09-27 (VIDEO_SLOT + SLOTS in socialPublish.ts).
 await setSetting(videoKey("pokemon", "movers", THU), JSON.stringify({ url: "https://blob/pokemon-movers.mp4", bytes: 9, mime: "video/mp4", width: 1080, height: 1920, seconds: 15.3, renderedAt: 1 }));
 check("videoFor reads the row", (await videoFor({ game: "pokemon", kind: "movers", day: THU }))?.url, "https://blob/pokemon-movers.mp4");
 check("nothing for a kind with no registered video", await videoFor({ game: "pokemon", kind: "dips", day: THU }), null);
 
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vid], fetchImage, fetchVideo, dry: true });
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [pic, vid], fetchImage, fetchVideo, dry: true });
 check("dry run flags video for the video site only, fetches nothing", [r.sites[0].posts[0].video ?? null, r.sites[1].posts[0].video ?? null, videoFetches.length], [null, "yes", 0]);
 
 const vid2 = fakeSite("vid2", { postsVideo: true });
 const broken = fakeSite("broken", { postsVideo: true, failVideo: true });
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vid, vid2, broken], fetchImage, fetchVideo });
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [pic, vid, vid2, broken], fetchImage, fetchVideo });
 check("picture site still gets the picture", [pic.posts.at(-1).video ?? null, r.sites[0].posts[0].video ?? null], [null, null]);
 check("video sites get the MP4 with its url and bytes", [vid.posts.at(-1).video.url, vid.posts.at(-1).video.bytes.toString(), vid.posts.at(-1).video.seconds, r.sites[1].posts[0].video], ["https://blob/pokemon-movers.mp4", "mp4-bytes", 15.3, "yes"]);
 check("the picture rides along for the adapter's own fallback", vid.posts.at(-1).image.toString(), "png");
 check("one video fetch for three video sites", videoFetches, ["https://blob/pokemon-movers.mp4"]);
-check("video upload failure → picture posted, slot marked, report says fallback", [broken.posts.length, broken.posts[0].video ?? null, r.sites[3].status, r.sites[3].posts[0].video, r.sites[3].posts[0].error, await getSetting(`${SLOT_PREFIX}broken:morning`)], [1, null, "posted", "fallback", "video failed, picture posted: video upload boom", THU]);
+check("video upload failure → picture posted, slot marked, report says fallback", [broken.posts.length, broken.posts[0].video ?? null, r.sites[3].status, r.sites[3].posts[0].video, r.sites[3].posts[0].error, await getSetting(`${SLOT_PREFIX}broken:midday`)], [1, null, "posted", "fallback", "video failed, picture posted: video upload boom", THU]);
 check("sites reported in order", r.sites.map((s) => s.site), ["pic", "vid", "vid2", "broken"]);
 
 console.log("text matches a registered video's frozen cards (09-26)");
@@ -133,7 +133,7 @@ const frozenCards = [
 ];
 await setSetting(videoKey("pokemon", "movers", THU), JSON.stringify({ url: "https://blob/pokemon-movers-2.mp4", bytes: 9, mime: "video/mp4", width: 1080, height: 1920, seconds: 15.3, renderedAt: 2, kind: "movers", cards: frozenCards }));
 const textSite = fakeSite("textsite");
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [textSite], fetchImage, fetchVideo });
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [textSite], fetchImage, fetchVideo });
 check("posted caption uses the frozen $999, not the fresh $15", textSite.posts[0].text.includes("$999"), true);
 check("posted caption never mentions the fresh price", textSite.posts[0].text.includes("$15.00"), false);
 
@@ -327,10 +327,10 @@ const vonly = fakeSite("vonly", { postsVideo: true });
 vonly.videoOnly = true;
 const vbroken = fakeSite("vbroken", { postsVideo: true, failVideo: true });
 vbroken.videoOnly = true;
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "midday", force: true, sites: [pic, vonly], fetchImage, fetchVideo });
+r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vonly], fetchImage, fetchVideo });
 check("video-only site skips a slot with no rendered video, picture site posts", [r.sites[0].status, r.sites[1].status, r.sites[1].reason, vonly.posts.length], ["posted", "skipped", "video only, nothing rendered for this slot", 0]);
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [vonly, vbroken], fetchImage, fetchVideo });
-check("video-only site posts the 7am video; a failed upload is a failure, not a picture", [r.sites[0].status, r.sites[0].posts[0].video, vonly.posts[0].video.url, r.sites[1].status, r.sites[1].posts[0].error, vbroken.posts.length, await getSetting(`${SLOT_PREFIX}vbroken:morning`)], ["posted", "yes", "https://blob/pokemon-movers-2.mp4", "failed", "video upload boom", 0, null]);
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [vonly, vbroken], fetchImage, fetchVideo });
+check("video-only site posts the 1pm video; a failed upload is a failure, not a picture", [r.sites[0].status, r.sites[0].posts[0].video, vonly.posts[0].video.url, r.sites[1].status, r.sites[1].posts[0].error, vbroken.posts.length, await getSetting(`${SLOT_PREFIX}vbroken:midday`)], ["posted", "yes", "https://blob/pokemon-movers-2.mp4", "failed", "video upload boom", 0, null]);
 const gated = { ...fakeSite("gated"), authorized: async () => false };
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [gated], fetchImage, fetchVideo });
 check("an OAuth site that is not authorized reads as not connected", [r.sites[0].status, r.sites[0].reason], ["skipped", "not connected"]);
@@ -343,9 +343,10 @@ globalThis.fetch = realFetch;
   const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
   const at = (path) => vercel.crons.filter((c) => c.path === path).map((c) => c.schedule).sort();
   check("Vercel posts at 7am/1pm/7pm Eastern, both DST hours", at("/api/social/publish"), ["5 0 * * *", "5 11 * * *", "5 12 * * *", "5 17 * * *", "5 18 * * *", "5 23 * * *"]);
-  check("Vercel checks the video at 6:40 Eastern, both DST hours", at("/api/cron/social-video"), ["40 10 * * *", "40 11 * * *"]);
+  check("Vercel checks the video at 12:40pm Eastern, both DST hours (video at 1pm since 09-27)", at("/api/cron/social-video"), ["40 16 * * *", "40 17 * * *"]);
   const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
-  check("workflow renders from 4:30am Eastern", wf.includes('cron: "30 8 * * *"'), true);
+  check("workflow renders from 10:30am Eastern", wf.includes('cron: "30 14 * * *"'), true);
+  check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"5 17 * * *","5 18 * * *"]'), wf.includes('"5 11 * * *","5 12 * * *"]')], [true, false]);
   check("workflow has a render-only dispatch input", wf.includes("render_only:") && wf.includes("inputs.render_only != '1'"), true);
 }
 

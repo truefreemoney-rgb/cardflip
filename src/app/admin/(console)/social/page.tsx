@@ -20,7 +20,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   // api/social/<site>/callback lands here with ?<site>=connected or ?<site>=error:<why>.
   const notice =
     tiktok === "connected"
-      ? "TikTok connected. It posts the 7am video, private until the app audit passes."
+      ? "TikTok connected. It posts the 1pm video, private until the app audit passes."
       : tiktok?.startsWith("error:")
         ? `TikTok connect failed: ${tiktok.slice(6)}`
         : pinterest === "connected"
