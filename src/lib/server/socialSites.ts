@@ -1,6 +1,7 @@
 import "server-only";
 import { bluesky } from "@/lib/server/sites/bluesky";
 import { facebook, instagram, threads } from "@/lib/server/sites/meta";
+import { pinterest } from "@/lib/server/sites/pinterest";
 import { tiktok } from "@/lib/server/sites/tiktok";
 import { x } from "@/lib/server/sites/x";
 import type { SocialSite } from "@/lib/server/socialPublish";
@@ -11,6 +12,7 @@ import type { SocialSite } from "@/lib/server/socialPublish";
  * connected" on /admin/social. Every site here takes the 7am set-spotlight
  * VIDEO (Chris 09-25 reversed the 09-10 no-video rule; lib/socialVideo.ts),
  * picture as the fallback. TikTok is video only and connects by OAuth from
- * /admin/social (private posts until its app audit passes). Next: Pinterest.
+ * /admin/social (private posts until its app audit passes). Pinterest pins
+ * the picture with a link home (pictures only, same OAuth connect).
  */
-export const SOCIAL_SITES: SocialSite[] = [bluesky, x, facebook, instagram, threads, tiktok];
+export const SOCIAL_SITES: SocialSite[] = [bluesky, x, facebook, instagram, threads, tiktok, pinterest];

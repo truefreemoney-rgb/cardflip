@@ -240,5 +240,24 @@ delete process.env.THREADS_TOKEN;
 check("no env token → off", (await meta.refreshMetaTokens(T0)).map((r) => r.status), ["off", "off"]);
 globalThis.fetch = realFetch;
 
+console.log("Pinterest (pictures only, OAuth connect)");
+const pin = await import(at("lib/server/sites/pinterest.ts"));
+delete process.env.PINTEREST_APP_ID;
+delete process.env.PINTEREST_APP_SECRET;
+check("off without app creds, never video", [pin.pinterest.connected(), pin.pinterest.postsVideo ?? false, pin.pinterest.connectPath], [false, false, "/api/social/pinterest/connect"]);
+process.env.PINTEREST_APP_ID = "app-1";
+process.env.PINTEREST_APP_SECRET = "s3";
+check("creds on but not yet connected in the browser", [pin.pinterest.connected(), await pin.pinterest.authorized()], [true, false]);
+const authUrl = new URL(pin.pinterestAuthUrl("https://cardflip.io", "st4te"));
+check("consent url carries id, callback, scopes, state", [authUrl.origin + authUrl.pathname, authUrl.searchParams.get("client_id"), authUrl.searchParams.get("redirect_uri"), authUrl.searchParams.get("scope"), authUrl.searchParams.get("state")], ["https://www.pinterest.com/oauth/", "app-1", "https://cardflip.io/api/social/pinterest/callback", "boards:read,boards:write,pins:read,pins:write", "st4te"]);
+const f1 = pin.pinterestFields("Pokémon movers of the week\nCharizard ex +12%\ncardflip.io");
+check("title = first line, description = whole caption", [f1.title, f1.description.endsWith("cardflip.io"), f1.description.includes("\n")], ["Pokémon movers of the week", true, true]);
+const longTitle = "word ".repeat(40).trim();
+const f2 = pin.pinterestFields(longTitle + "\n" + "x".repeat(600));
+check("title cut at a word under 100, description capped at 500", [f2.title.length <= 100, f2.title.endsWith("…"), f2.title.includes("  "), f2.description.length], [true, true, false, 500]);
+check("empty caption still has a title", pin.pinterestFields("").title, "CardFlip");
+delete process.env.PINTEREST_APP_ID;
+delete process.env.PINTEREST_APP_SECRET;
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

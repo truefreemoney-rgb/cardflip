@@ -14,11 +14,20 @@ export const dynamic = "force-dynamic";
  * both games, made from our own price history. No account is needed to
  * look; the publisher routine posts the same drafts once the tokens exist.
  */
-export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string }> }) {
+export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string }> }) {
   await requireOwnerPage();
-  const { day: raw, tiktok } = await searchParams;
-  // api/social/tiktok/callback lands here with ?tiktok=connected or ?tiktok=error:<why>.
-  const notice = tiktok === "connected" ? "TikTok connected. It posts the 7am video, private until the app audit passes." : tiktok?.startsWith("error:") ? `TikTok connect failed: ${tiktok.slice(6)}` : null;
+  const { day: raw, tiktok, pinterest } = await searchParams;
+  // api/social/<site>/callback lands here with ?<site>=connected or ?<site>=error:<why>.
+  const notice =
+    tiktok === "connected"
+      ? "TikTok connected. It posts the 7am video, private until the app audit passes."
+      : tiktok?.startsWith("error:")
+        ? `TikTok connect failed: ${tiktok.slice(6)}`
+        : pinterest === "connected"
+          ? "Pinterest connected. Every post also pins its picture with a link to cardflip.io."
+          : pinterest?.startsWith("error:")
+            ? `Pinterest connect failed: ${pinterest.slice(6)}`
+            : null;
   // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : eastern().day;
   const games = await socialGames();

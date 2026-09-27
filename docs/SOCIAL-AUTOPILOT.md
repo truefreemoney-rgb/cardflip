@@ -211,8 +211,20 @@ needs a video. Order = easiest to connect first, then reach.
    $0.015 per post created, prepaid credits; Chris bought $5 on 09-25
    (about 330 posts, 3 to 4 months at 3/day), auto-recharge OFF. When the
    balance runs out posts fail with 402 and the Completed line says so.
-5. **Pinterest** — pins = the movers image + a link to cardflip.io; good
-   for search. Business account + app access.
+5. **Pinterest** — adapter DONE 09-26 (`src/lib/server/sites/pinterest.ts`,
+   pictures only: every slot's picture becomes a pin on one board with a
+   link to cardflip.io; title = first caption line ≤100, description ≤500).
+   Same OAuth shape as TikTok: Vercel env `PINTEREST_APP_ID` +
+   `PINTEREST_APP_SECRET` from the developer app (redirect URI
+   `https://cardflip.io/api/social/pinterest/callback`, scopes boards:read,
+   boards:write, pins:read, pins:write), then "connect" on `/admin/social`
+   (`api/social/pinterest/connect` → consent → `callback`). Tokens in settings
+   `social_token:pinterest` (access 30d, refresh 365d, self-refreshing).
+   Board `PINTEREST_BOARD` (default "Pokémon Card Prices") is found by name or
+   created public on the first pin; its id is cached in settings
+   `social_pinterest_board`. Trial access (own account only) is all it needs.
+   CHRIS: business account @cardflipio at pinterest.com/business/create, then
+   developers.pinterest.com → My apps → create app → paste id + secret.
 6. **LinkedIn / Reddit** — only if free and one-time; Reddit stays human
    (communities punish bot promo).
 
