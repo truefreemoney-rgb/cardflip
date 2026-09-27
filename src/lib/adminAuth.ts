@@ -14,16 +14,20 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const ADMIN_COOKIE = "cardflip_admin";
 /**
- * Idle timeout (Chris, 09-10: "time out users after 5 minutes" — the helper
- * stayed signed in on her own computer). The console keeps the cookie alive
- * while someone is actually using it (POST /api/admin/touch from
- * AdminKeepAlive); five quiet minutes and the next request is a login.
+ * Idle timeouts. The console keeps the cookie alive while someone is actually
+ * using it (POST /api/admin/touch from AdminKeepAlive); once the quiet
+ * stretch passes the TTL, the next request is a login.
+ * - Owner: 8 hours (Chris, 09-27: the 5-minute cut "logs me out way too
+ *   fast, it's just annoying at this point").
+ * - Helper: still 5 minutes (Chris, 09-10: "time out users after 5 minutes",
+ *   the helper stayed signed in on her own computer).
  */
-export const ADMIN_SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes idle
-/** A token that expires further out than TTL was issued under an older rule: refuse it. */
+export const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // owner, 8 hours idle
+export const HELPER_SESSION_TTL_MS = 5 * 60 * 1000; // helper, 5 minutes idle
+/** A token that expires further out than its TTL was issued under an older rule: refuse it. */
 const CLOCK_SKEW_MS = 60 * 1000;
-export function tokenLifeOk(expiresAt: number, now: number): boolean {
-  return Number.isFinite(expiresAt) && expiresAt > now && expiresAt - now <= ADMIN_SESSION_TTL_MS + CLOCK_SKEW_MS;
+export function tokenLifeOk(expiresAt: number, now: number, ttl = ADMIN_SESSION_TTL_MS): boolean {
+  return Number.isFinite(expiresAt) && expiresAt > now && expiresAt - now <= ttl + CLOCK_SKEW_MS;
 }
 
 export interface AdminCredentials {
@@ -130,7 +134,7 @@ export function verifyAdminToken(token: string | undefined | null, now = Date.no
  */
 export function signHelperToken(now = Date.now(), creds = helperCredentials(), env: NodeJS.ProcessEnv = process.env): { token: string; expiresAt: number } {
   if (!creds) throw new Error("No helper login is configured");
-  const expiresAt = now + ADMIN_SESSION_TTL_MS;
+  const expiresAt = now + HELPER_SESSION_TTL_MS;
   const mac = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
   return { token: `${expiresAt}.h.${mac}`, expiresAt };
 }
@@ -143,7 +147,7 @@ export function adminRoleOf(token: string | undefined | null, now = Date.now(), 
   const creds = helperCredentials(env);
   if (!m || !creds) return null;
   const expiresAt = Number(m[1]);
-  if (!tokenLifeOk(expiresAt, now)) return null;
+  if (!tokenLifeOk(expiresAt, now, HELPER_SESSION_TTL_MS)) return null;
   const expected = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
   return safeEqual(m[2], expected) ? "helper" : null;
 }

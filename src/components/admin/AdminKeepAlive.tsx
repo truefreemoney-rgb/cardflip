@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 
 /**
- * Console idle timeout (Chris, 09-10: "time out users after 5 minutes").
- * The cookie lives 5 minutes; this keeps it fresh while the person is
+ * Console idle timeout. The owner's cookie lives 8 hours (Chris 09-27), the
+ * helper's 5 minutes (Chris 09-10); this keeps it fresh while the person is
  * actually here — a touch every minute if they clicked, typed or scrolled
- * since the last one and the tab is visible. Five quiet minutes: the
- * server already refuses the cookie, so the page goes to the login itself
- * instead of failing quietly on the next save.
+ * since the last one and the tab is visible. Past the quiet limit the server
+ * refuses the cookie, so the page goes to the login itself instead of
+ * failing quietly on the next save. The client only knows the owner's limit;
+ * the helper is bounced by the 401 on her next touch.
  */
-const IDLE_MS = 5 * 60 * 1000;
+const IDLE_MS = 8 * 60 * 60 * 1000;
 const TOUCH_EVERY_MS = 60 * 1000;
 
 export default function AdminKeepAlive() {
