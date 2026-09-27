@@ -386,7 +386,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
               onClick={() => setView("ticket")}
               className="flex w-full items-center justify-between rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-left text-sm font-semibold text-amber-200 transition hover:bg-amber-400/15"
             >
-              <span>Something&apos;s broken? Open a support ticket.</span>
+              <span>Open a support ticket</span>
               <span aria-hidden className="text-amber-300/70">→</span>
             </button>
             <div className="flex flex-wrap gap-1.5 pt-1">
