@@ -15,9 +15,11 @@ it starts mid-phrase.
 
 | file | Pixabay URL |
 | ---- | ----------- |
-| echoes_of_lumen-upbeat-music-happy-commercial-586975.mp3 (95.5 bpm, 0:52, start 2.95s) | https://pixabay.com/music/beats-upbeat-music-happy-commercial-586975/ (Pixabay Content License; Chris picked it 09-26 night, first airs 09-27 7am) |
+| cinematic-soul-upbeat-success-happy-corporate-music-511436.mp3 (112.5 bpm, 1:13, start 10.08s) | https://pixabay.com/music/electronic-upbeat-success-happy-corporate-music-511436/ (Pixabay Content License; Chris picked it 09-27 night, first airs 09-28 7am) |
 
 Tried and set aside (Chris picked one at a time; drop the file back in to use it):
+
+- echoes_of_lumen-upbeat-music-happy-commercial-586975.mp3 (95.5 bpm, 0:52, start 2.95s) https://pixabay.com/music/beats-upbeat-music-happy-commercial-586975/ (aired 09-27; copy in Chris's Downloads)
 
 - the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) https://pixabay.com/music/old-school-rnb-upbeat-upbeat-music-567448/ (ran 09-26; copy in Chris's Downloads)
 - prettyjohn1-upbeat-upbeat-music-540858.mp3 (129 bpm) https://pixabay.com/music/beats-upbeat-upbeat-music-540858/
