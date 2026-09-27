@@ -27,7 +27,7 @@ interface Msg {
   id: string;
   role: "user" | "assistant";
   content: string;
-  actions?: { type: "guide" | "link" | "ticket"; value: string }[];
+  actions?: { type: "guide" | "link" | "ticket" | "opened"; value: string }[];
 }
 
 interface Ticket {
@@ -217,7 +217,11 @@ export default function NavRobot() {
           setError(data.error || "The robot didn't answer. Try again.");
           return;
         }
-        setMessages((m) => [...(m ?? []), data.reply as Msg]);
+        const reply = data.reply as Msg;
+        setMessages((m) => [...(m ?? []), reply]);
+        // The robot opened a ticket in this turn: reload the list so the
+        // Support tab and its badge show it.
+        if (reply.actions?.some((a) => a.type === "opened")) setTickets(null);
       } catch {
         setError("No connection. Try again in a moment.");
       } finally {
@@ -479,12 +483,21 @@ export default function NavRobot() {
                 const guideId = m.actions?.find((a) => a.type === "guide")?.value ?? parsed.guide;
                 const link = m.actions?.find((a) => a.type === "link")?.value ?? parsed.link;
                 const ticket = m.actions?.some((a) => a.type === "ticket") || parsed.ticket;
+                const opened = m.actions?.find((a) => a.type === "opened")?.value;
                 const g = guideId ? guideById(guideId) : null;
                 return (
                   <div key={m.id} className="flex flex-col items-start gap-1.5">
                     <Bubble role="assistant">{text}</Bubble>
-                    {(g || link || ticket) && (
+                    {(g || link || ticket || opened) && (
                       <div className="flex flex-wrap gap-1.5 pl-1">
+                        {opened && (
+                          <button
+                            onClick={() => setView("tickets")}
+                            className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                          >
+                            View ticket #{opened}
+                          </button>
+                        )}
                         {ticket && (
                           <button
                             onClick={() => setView("ticket")}

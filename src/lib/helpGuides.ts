@@ -116,7 +116,10 @@ export const HELP_LINKS: Record<string, string> = {
 };
 
 /**
- * Tags the model writes: {{guide:id}}, {{link:/path}} and {{ticket}} (offer
- * to open a support ticket, 09-26). Parsed by the chat.
+ * Tags the model writes: {{guide:id}}, {{link:/path}}, {{ticket}} (offer the
+ * support-ticket form, 09-26) and {{open_ticket:Subject|Message}} (the robot
+ * opens the ticket itself once the seller says yes, 09-26). The server turns
+ * an open_ticket into {{opened:1000}} before storing, so a replay never
+ * opens a second one. Parsed by the chat.
  */
-export const TAG_RE = /\{\{(guide|link|ticket)(?::([^}]*))?\}\}/g;
+export const TAG_RE = /\{\{(guide|link|ticket|open_ticket|opened)(?::([^}]*))?\}\}/g;

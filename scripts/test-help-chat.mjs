@@ -104,6 +104,25 @@ nextReply = "Long one.";
 await askHelp(seller, "x".repeat(900));
 check("message is capped at 600 chars", requests[3].messages.at(-1).content.length, 600);
 
+// --- the robot opens a ticket -------------------------------------------------
+const { listUserTickets } = await import(at("lib/server/supportTickets.ts"));
+nextReply = "Done. {{open_ticket:Scan keeps failing|My scan of a Charizard keeps failing on the back photo.}}";
+const opened = await askHelp(seller, "yes open it");
+check("robot opens the ticket: number line + opened action",
+  [opened.content.includes("Ticket #1000 is open"), opened.content.includes("open_ticket"), opened.actions],
+  [true, false, [{ type: "opened", value: "1000" }]]);
+const mine = await listUserTickets(seller.id);
+check("ticket row: subject + first-person body", [mine.length, mine[0].subject, mine[0].body],
+  [1, "Scan keeps failing", "My scan of a Charizard keeps failing on the back photo."]);
+const storedTurn = await db.prepare("SELECT content FROM help_messages WHERE user_id = ? AND role = 'assistant' ORDER BY created_at DESC, rowid DESC LIMIT 1").get(seller.id);
+check("stored turn carries opened, not open_ticket", [storedTurn.content.includes("{{opened:1000}}"), storedTurn.content.includes("open_ticket")], [true, false]);
+nextReply = "Replay.";
+await askHelp(seller, "thanks");
+check("replay does not open a second ticket", (await listUserTickets(seller.id)).length, 1);
+check("history shows the opened action", (await helpHistory(seller.id)).filter((m) => m.actions.some((a) => a.type === "opened")).length, 1);
+check("splitReply: opened with a non-number is dropped", splitReply("x {{opened:abc}}").actions, []);
+check("splitReply: a stray open_ticket is dropped, not acted on", splitReply("x {{open_ticket:a|b}}"), { content: "x", actions: [] });
+
 // --- daily cap ----------------------------------------------------------------
 const other = await createUser("O", "other@example.com", "hunter22");
 const now = Date.now();
@@ -114,7 +133,7 @@ check("40 user turns in 24h → HelpCapError", await throwsWith(() => askHelp(ot
 await db.prepare("UPDATE help_messages SET created_at = ? WHERE user_id = ?").run(now - 25 * 60 * 60 * 1000, other.id);
 nextReply = "Fresh day.";
 check("old turns don't count", (await askHelp(other, "one more")).content, "Fresh day.");
-check("cap doesn't leak across users", (await helpHistory(seller.id)).length, 8);
+check("cap doesn't leak across users", (await helpHistory(seller.id)).length, 12);
 
 // --- clear --------------------------------------------------------------------
 await clearHelpHistory(seller.id);
