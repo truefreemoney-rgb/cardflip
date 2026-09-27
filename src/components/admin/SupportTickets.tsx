@@ -16,11 +16,11 @@ type Row = TicketWithUser & { notes: TicketNote[] };
  * Help → Support Tickets and mails them "You Received a Reply". Close ends it
  * for both sides; Reopen brings it back.
  */
-export default function SupportTickets({ initial }: { initial: Row[] }) {
+export default function SupportTickets({ initial, initialOpen = null }: { initial: Row[]; initialOpen?: string | null }) {
   const [tickets, setTickets] = useState(initial);
   const [tab, setTab] = useState<Tab>("live");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen && initial.some((t) => t.id === initialOpen) ? initialOpen : null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
