@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
+import { devAnthropicKey } from "./lib/dev-key.mjs";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -80,7 +81,7 @@ if (uncached > VISION_CALL_CAP && !flag("yes")) {
 
 // The scanner's own read path — first look + second look + Art Series
 // picture match, exactly what /api/vision/scan runs.
-process.env.ANTHROPIC_API_KEY ||= env.ANTHROPIC_API_KEY;
+process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
 async function readCard(b64) {
   return (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg")).read;
 }

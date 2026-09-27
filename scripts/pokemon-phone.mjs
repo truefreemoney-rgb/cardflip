@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
+import { devAnthropicKey } from "./lib/dev-key.mjs";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -40,7 +41,7 @@ for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8")
   const m = /^([A-Za-z_][A-Za-z0-9_]*)="?(.*?)"?$/.exec(line.trim());
   if (m) env[m[1]] = m[2];
 }
-process.env.ANTHROPIC_API_KEY ||= env.ANTHROPIC_API_KEY;
+process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
 
 async function pull() {
   let url = process.env.TURSO_DATABASE_URL, authToken = process.env.TURSO_AUTH_TOKEN;

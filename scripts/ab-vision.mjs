@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 import Anthropic from "@anthropic-ai/sdk";
+import { devAnthropicKey } from "./lib/dev-key.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-haiku-4-5"];
 const PRICE = {
@@ -32,7 +33,6 @@ for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8")
   const m = /^([A-Za-z_][A-Za-z0-9_]*)="?(.*?)"?$/.exec(line.trim());
   if (m) env[m[1]] = m[2];
 }
-if (!env.ANTHROPIC_API_KEY) { console.error("missing ANTHROPIC_API_KEY in .env.vercel.local"); process.exit(1); }
 // .env.vercel.local's TURSO_DATABASE_URL points at the old cardflip-cardflipper
 // db (404s); .env.migration.json holds the live cardflip-christophis creds.
 const cfg = JSON.parse(fs.readFileSync(path.join(root, ".env.migration.json"), "utf8").replace(/^﻿/, ""));
@@ -43,7 +43,8 @@ const jsonArg = process.argv.indexOf("--json");
 const jsonOut = jsonArg > -1 ? process.argv[jsonArg + 1] : null;
 
 const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+// Testing-workspace key only, never prod (scripts/lib/dev-key.mjs).
+const anthropic = new Anthropic({ apiKey: devAnthropicKey() });
 
 // Prompt + schema: the live ones (vision.ts exports them for exactly this).
 const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, SYSTEM, SYSTEM_MTG } = await import("../src/lib/server/vision.ts");

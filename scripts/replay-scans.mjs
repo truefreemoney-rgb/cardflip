@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 import Anthropic from "@anthropic-ai/sdk";
+import { devAnthropicKey } from "./lib/dev-key.mjs";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -43,7 +44,8 @@ for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8")
 }
 const cfg = JSON.parse(fs.readFileSync(path.join(root, ".env.migration.json"), "utf8").replace(/^﻿/, ""));
 const prod = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+// Testing-workspace key only, never prod (scripts/lib/dev-key.mjs).
+const anthropic = new Anthropic({ apiKey: devAnthropicKey() });
 
 // Schema + system prompt: same shape as src/lib/server/vision.ts (kept in
 // step by hand — vision.ts is server-only and not importable here).
