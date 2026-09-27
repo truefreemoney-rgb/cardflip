@@ -50,7 +50,7 @@ export default function RangeDates({ from, to, active, up = false }: { from?: st
         Dates
       </button>
       {open && (
-        <div className={`absolute right-0 z-40 w-64 rounded-2xl border border-edge bg-surface-2 p-3 shadow-xl shadow-black/50 ${up ? "bottom-full mb-2" : "top-full mt-2"}`}>
+        <div className={`absolute right-0 z-40 w-64 rounded-2xl border border-edge-strong bg-[#171a28] p-3 shadow-xl shadow-black/60 ${up ? "bottom-full mb-2" : "top-full mt-2"}`}>
           <label className="block">
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-zinc-500">From</span>
             <input className={`${input} w-full`} type="date" value={a} max={b || undefined} onChange={(e) => setA(e.target.value)} />
