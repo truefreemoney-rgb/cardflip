@@ -189,6 +189,14 @@ export interface NewCard {
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
+  /** Set at creation when the seller's own app already named the card (CSV import). */
+  verifiedAt?: number | null;
+  /** Why the identification is doubtful; null = clean. */
+  matchDoubt?: string | null;
+  /** What the seller paid, when known at creation (CSV import). */
+  costBasis?: number | null;
+  /** 1st Edition printing (a "-1st" catalog twin). */
+  firstEdition?: boolean;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
@@ -201,8 +209,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, verified_at, match_doubt, cost_basis, first_edition, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -223,6 +231,10 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.catalogCardId ?? null,
       card.rarity ?? null,
       card.category ?? null,
+      card.verifiedAt ?? null,
+      card.matchDoubt ?? null,
+      card.costBasis ?? null,
+      card.firstEdition ? 1 : 0,
       now,
       now,
     );
@@ -244,15 +256,15 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     quantity: 1,
     catalogCardId: card.catalogCardId ?? null,
     listedAt: null,
-    verifiedAt: null,
-    matchDoubt: null,
-    firstEdition: false,
+    verifiedAt: card.verifiedAt ?? null,
+    matchDoubt: card.matchDoubt ?? null,
+    firstEdition: Boolean(card.firstEdition),
     rarity: card.rarity ?? null,
     category: card.category ?? null,
     soldPrice: null,
     soldAt: null,
     soldFees: null,
-    costBasis: null,
+    costBasis: card.costBasis ?? null,
     alertPrice: null,
     alertedAt: null,
     ebayOrderId: null,

@@ -1270,9 +1270,14 @@ export default function CollectionPage() {
           </p>
         </div>
         {gameView === "pokemon" && (
-          <Link href="/app/collection/sets" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
-            Set Completion →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/app/collection/import" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
+              Import CSV →
+            </Link>
+            <Link href="/app/collection/sets" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
+              Set Completion →
+            </Link>
+          </div>
         )}
       </div>
       {/* Its own full-width row, counts inside the pills: the compact corner

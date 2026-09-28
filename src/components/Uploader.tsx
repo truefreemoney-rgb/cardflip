@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import { formatMoney } from "@/lib/listing";
 import { useRef, useState } from "react";
@@ -178,6 +179,13 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
                   📦 Sealed product
                 </button>
               )}
+              <Link
+                href="/app/collection/import"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
+              >
+                📄 Import a CSV
+              </Link>
             </div>
           </>
         )}
@@ -304,6 +312,10 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
               </button>
             </>
           )}
+          {" · "}
+          <Link href="/app/collection/import" className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200">
+            Import from another app
+          </Link>
         </p>
         {pageError && (
           <p role="status" className="mt-2 text-xs font-medium text-amber-300">
