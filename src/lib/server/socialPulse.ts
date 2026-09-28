@@ -165,7 +165,7 @@ async function facebook(c: { base: string; pageId: string; token: string } | nul
   try {
     const faceFields = FACES.map((f) => `reactions.type(${f}).limit(0).summary(true).as(r_${f.toLowerCase()})`).join(",");
     const fields = `message,created_time,permalink_url,shares,comments.limit(0).summary(true),reactions.limit(0).summary(true),${faceFields}`;
-    const body = await getJson<{
+    type FbPosts = {
       data?: Array<
         {
           id: string;
@@ -177,11 +177,18 @@ async function facebook(c: { base: string; pageId: string; token: string } | nul
           reactions?: { summary?: { total_count?: number } };
         } & Record<string, { summary?: { total_count?: number } } | unknown>
       >;
-    }>(
-      `${c.base}/${c.pageId}/posts?fields=${encodeURIComponent(fields)}&limit=${LIMIT}&access_token=${encodeURIComponent(c.token)}`,
-      {},
-      "facebook posts",
-    );
+    };
+    // /posts needs pages_read_user_content (an app-review permission); the
+    // Page's OWN posts are readable through /published_posts with the
+    // pages_read_engagement + pages_manage_posts the poster token already
+    // carries (09-28: first open 400'd with error #10 on /posts).
+    const read = (edge: string) =>
+      getJson<FbPosts>(
+        `${c.base}/${c.pageId}/${edge}?fields=${encodeURIComponent(fields)}&limit=${LIMIT}&access_token=${encodeURIComponent(c.token)}`,
+        {},
+        `facebook ${edge}`,
+      );
+    const body = await read("published_posts").catch(() => read("feed"));
     const posts: PulsePost[] = (body.data ?? []).map((p) => {
       const reactions: Record<string, number> = {};
       for (const f of FACES) {

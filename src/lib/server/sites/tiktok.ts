@@ -26,7 +26,10 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  */
 const API = process.env.TIKTOK_API_BASE ?? "https://open.tiktokapis.com";
 const AUTH = "https://www.tiktok.com/v2/auth/authorize/";
-export const TIKTOK_SCOPES = ["user.info.basic", "video.publish", "video.upload"];
+// video.list (09-28) lets the social pulse read our own videos' counts; the
+// app must have the scope enabled in the TikTok developer portal AND the
+// account must reconnect once so the token carries it.
+export const TIKTOK_SCOPES = ["user.info.basic", "video.publish", "video.upload", "video.list"];
 export const TIKTOK_MAX_CHARS = 2200;
 export const TIKTOK_TOKEN_KEY = "social_token:tiktok";
 export const TIKTOK_STATE_KEY = "social_oauth_state:tiktok";
