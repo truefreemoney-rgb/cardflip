@@ -8,6 +8,7 @@ import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
 import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCapture";
+import { splitBinderPhoto } from "@/lib/client/binder";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
@@ -946,6 +947,71 @@ export default function AppPage() {
     [addFiles],
   );
 
+  // Binder page (tier 1 #4, 09-27): one photo → the locate call finds every
+  // card → one queue item per crop, through the ordinary scan. The note is
+  // what the camera's chip slot says while that runs; it also holds Capture
+  // until the split lands so two pages can't race.
+  const [pageNote, setPageNote] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const pageNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashPageNote = useCallback((text: string, ms = 4000) => {
+    setPageNote(text);
+    if (pageNoteTimer.current) clearTimeout(pageNoteTimer.current);
+    pageNoteTimer.current = setTimeout(() => setPageNote(null), ms);
+  }, []);
+  const onPagePhoto = useCallback(
+    async (file: File, fromCamera: boolean) => {
+      if (pageNoteTimer.current) clearTimeout(pageNoteTimer.current);
+      setPageNote("Finding the cards on the page…");
+      const split = await splitBinderPhoto(file);
+      if (split.status === "done" && split.files.length > 0) {
+        const ids = addFiles(split.files);
+        sessionItemIdsRef.current.push(...ids);
+        if (fromCamera) setCameraItemId(ids[0] ?? null);
+        const n = split.files.length;
+        const trimmed = split.found - n;
+        const note =
+          trimmed > 0
+            ? `Found ${split.found} cards — queued ${n}, the rest are past your scan allowance`
+            : `Found ${n} ${n === 1 ? "card" : "cards"} — scanning ${n === 1 ? "it" : "them"} now`;
+        flashPageNote(note);
+        // No camera open on an upload: the trim has to be said somewhere.
+        if (!fromCamera && trimmed > 0) setPageError(note);
+        // A photo upload has no camera session; ask the category the way
+        // uploads do.
+        if (!fromCamera && !categoryAskedRef.current) {
+          categoryAskedRef.current = true;
+          setCategoryPrompt({ existing: [] });
+          void fetchCategories().then((list) => setCategoryPrompt((p) => (p ? { existing: list } : p)));
+        }
+        return;
+      }
+      const text =
+        split.status === "quota"
+          ? split.error ?? "You're out of scans — each card on a page is one scan"
+          : split.status === "empty"
+            ? "No cards found — fill the guide with the page and try again"
+            : split.status === "unconfigured"
+              ? "Page scanning isn't available right now"
+              : split.status === "done"
+                ? "You have no scans left for the cards on this page"
+                : "Couldn't read that page — hold still and try again";
+      flashPageNote(text, 5000);
+      if (!fromCamera) setPageError(text);
+    },
+    [addFiles, flashPageNote],
+  );
+  const onCameraCapturePage = useCallback((file: File) => void onPagePhoto(file, true), [onPagePhoto]);
+  const onPageUpload = useCallback(
+    (files: File[]) => {
+      setPageError(null);
+      void (async () => {
+        for (const file of files) await onPagePhoto(file, false);
+      })();
+    },
+    [onPagePhoto],
+  );
+
   /** Camera closed: if this session scanned anything and hasn't been asked
    *  yet, ask "which category?" now, over the queue — never over the reveal. */
   const closeCamera = useCallback(() => {
@@ -1168,6 +1234,8 @@ export default function AppPage() {
         value: items.reduce((sum, item) => sum + (item.card ? currentPrice(item) : 0), 0),
       }}
       onCapture={onCameraCapture}
+      onCapturePage={onCameraCapturePage}
+      pageNote={pageNote}
       onClose={closeCamera}
       onOpen={(id) => {
         setSelectedId(id);
@@ -1315,7 +1383,7 @@ export default function AppPage() {
             </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
-          <Uploader onFiles={addUploads} onOpenCamera={openCamera} showcase={showcase} />
+          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} showcase={showcase} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —
               a card with no scan photo can only draft with catalog art eBay
@@ -1371,6 +1439,7 @@ export default function AppPage() {
               <GameToggle game={game} onChange={setGame} compact />
               <Uploader
                 onFiles={addUploads}
+                onPageFiles={onPageUpload}
                 onOpenCamera={openCamera}
                 variant="compact"
               />

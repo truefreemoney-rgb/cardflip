@@ -12,6 +12,10 @@ interface Props {
    * a locally-rendered camera modal would vanish mid-stack.
    */
   onOpenCamera?: () => void;
+  /** Binder-page photos: each one is split into a card per pocket (lib/client/binder.ts). */
+  onPageFiles?: (files: File[]) => void;
+  /** Why the last page photo queued nothing, shown under the buttons. */
+  pageError?: string | null;
   variant?: "hero" | "compact";
   /** Real, live-priced cards for the stage (from /api/cards/featured); empty = no card yet. */
   showcase?: ShowcaseCard[];
@@ -27,7 +31,7 @@ export interface ShowcaseCard {
   lead?: boolean;
 }
 
-export default function Uploader({ onFiles, onOpenCamera, variant = "hero", showcase = [] }: Props) {
+export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError, variant = "hero", showcase = [] }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
   // to rotate images"), and not the Charizard: the card the server marked as
   // the stage lead (lib/server/stageCards.ts picks it — currently a full-art
@@ -45,27 +49,44 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
         )[0]
       : null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pageInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  function handle(list: FileList | null) {
+  function handle(list: FileList | null, to: (files: File[]) => void = onFiles) {
     if (!list) return;
     const files = Array.from(list).filter((f) => f.type.startsWith("image/"));
-    if (files.length > 0) onFiles(files);
+    if (files.length > 0) to(files);
   }
 
   const input = (
-    <input
-      ref={inputRef}
-      type="file"
-      accept="image/*"
-      multiple
-      className="sr-only"
-      onChange={(e) => {
-        handle(e.target.files);
-        e.target.value = "";
-      }}
-    />
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        onChange={(e) => {
+          handle(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {onPageFiles && (
+        <input
+          ref={pageInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="sr-only"
+          data-testid="page-input"
+          onChange={(e) => {
+            handle(e.target.files, onPageFiles);
+            e.target.value = "";
+          }}
+        />
+      )}
+    </>
   );
 
   if (variant === "compact") {
@@ -120,6 +141,17 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
               >
                 📷 Use camera
               </button>
+              {onPageFiles && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    pageInputRef.current?.click();
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
+                >
+                  📖 Binder page photo
+                </button>
+              )}
             </div>
           </>
         )}
@@ -220,7 +252,26 @@ export default function Uploader({ onFiles, onOpenCamera, variant = "hero", show
           </button>
         </div>
 
-        <p className="mt-3 text-[11px] text-zinc-600">Or drop photos anywhere on this panel · JPG, PNG, HEIC · a whole stack at once is fine</p>
+        <p className="mt-3 text-[11px] text-zinc-600">
+          Or drop photos anywhere on this panel · JPG, PNG, HEIC · a whole stack at once is fine
+          {onPageFiles && (
+            <>
+              {" · "}
+              <button
+                type="button"
+                onClick={() => pageInputRef.current?.click()}
+                className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200"
+              >
+                Upload a binder page
+              </button>
+            </>
+          )}
+        </p>
+        {pageError && (
+          <p role="status" className="mt-2 text-xs font-medium text-amber-300">
+            {pageError}
+          </p>
+        )}
       </div>
       {input}
     </div>

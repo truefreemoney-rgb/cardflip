@@ -5,8 +5,15 @@
 // three wear levels. No API call. Run: npm run test:vision-schema
 import assert from "node:assert/strict";
 
-const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA } =
+const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, LOCATE_SCHEMA } =
   await import(new URL("../src/lib/server/vision.ts", import.meta.url).href);
+
+// Binder page locate (09-27): { cards: [{x,y,w,h}] }, both levels fully required.
+assert.deepEqual([...LOCATE_SCHEMA.required], ["cards"]);
+assert.equal(LOCATE_SCHEMA.additionalProperties, false);
+const boxSchema = LOCATE_SCHEMA.properties.cards.items;
+assert.deepEqual([...boxSchema.required].sort(), Object.keys(boxSchema.properties).sort(), "locate box: required == properties");
+assert.equal(boxSchema.additionalProperties, false);
 
 for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA })) {
   if (!schema) continue;

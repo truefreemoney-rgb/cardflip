@@ -36,10 +36,28 @@ interface Props {
   /** Everything identified so far this session — the running score in the HUD. */
   tally?: { count: number; value: number } | null;
   onCapture: (file: File) => void;
+  /**
+   * Page mode: one shot of a binder page (or a spread). The page splits it
+   * into one queue item per card (lib/client/binder.ts); this modal only
+   * frames and captures. Absent = no Page toggle.
+   */
+  onCapturePage?: (file: File) => void;
+  /** What the page split is doing right now, shown in the chip slot in Page mode. */
+  pageNote?: string | null;
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
   onOpen?: (id: string) => void;
 }
+
+export type CaptureMode = "card" | "page";
+
+/**
+ * Guide ratio per mode. A card is 63×88; a 9-pocket page is about 8×11 with
+ * the pockets, and a wider guide also fits three cards laid side by side.
+ */
+const GUIDE_RATIO: Record<CaptureMode, number> = { card: 63 / 88, page: 8 / 11 };
+/** Share of the displayed video height the guide takes. */
+const GUIDE_HEIGHT: Record<CaptureMode, number> = { card: 0.82, page: 0.92 };
 
 /**
  * Room between the guide and the viewfinder's edge for the ✕ / torch /
@@ -69,6 +87,7 @@ interface GuideRect {
  */
 function guideGeometry(
   video: HTMLVideoElement,
+  mode: CaptureMode = "card",
 ): { display: GuideRect; video: GuideRect } | null {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
@@ -80,12 +99,13 @@ function guideGeometry(
   const dh = vh * scale;
   const dx = (ew - dw) / 2;
   const dy = (eh - dh) / 2;
-  let gh = dh * 0.82;
-  let gw = gh * (63 / 88);
+  const ratio = GUIDE_RATIO[mode];
+  let gh = dh * GUIDE_HEIGHT[mode];
+  let gw = gh * ratio;
   const maxW = Math.min(dw, Math.max(dw * 0.5, ew - 2 * GUIDE_GUTTER_PX));
   if (gw > maxW) {
     gw = maxW;
-    gh = gw * (88 / 63);
+    gh = gw / ratio;
   }
   const gx = dx + (dw - gw) / 2;
   const gy = dy + (dh - gh) / 2;
@@ -96,13 +116,13 @@ function guideGeometry(
 }
 
 /** Guide in video px, falling back to the centered 82% rect if not laid out. */
-function guideInVideo(video: HTMLVideoElement): GuideRect {
-  const g = guideGeometry(video);
+function guideInVideo(video: HTMLVideoElement, mode: CaptureMode = "card"): GuideRect {
+  const g = guideGeometry(video, mode);
   if (g) return g.video;
   const vw = video.videoWidth;
   const vh = video.videoHeight;
-  const h = vh * 0.82;
-  const w = Math.min(vw, h * (63 / 88));
+  const h = vh * GUIDE_HEIGHT[mode];
+  const w = Math.min(vw, h * GUIDE_RATIO[mode]);
   return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
 }
 
@@ -121,9 +141,22 @@ function guideInVideo(video: HTMLVideoElement): GuideRect {
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ lastScan, tally, onCapture, onClose, onOpen }: Props) {
+export default function CameraCapture({ lastScan, tally, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Card (one card fills the guide) or Page (a binder page; one shot, every
+  // card on it is queued). Page asks the camera for its largest frame, since
+  // each card is a ninth of the shot and the read still needs its number.
+  const [mode, setMode] = useState<CaptureMode>("card");
+  const setModeAndFocus = useCallback((next: CaptureMode) => {
+    setMode(next);
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const size = next === "page" ? 4096 : 1920;
+    track.applyConstraints({ width: { ideal: size }, height: { ideal: size } }).catch(() => {
+      // Some cameras refuse a live resize; the current frame size stands.
+    });
+  }, []);
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
@@ -154,7 +187,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !ready) return;
-    const measure = () => setGuide(guideGeometry(video)?.display ?? null);
+    const measure = () => setGuide(guideGeometry(video, mode)?.display ?? null);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(video);
@@ -166,7 +199,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
       video.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
     };
-  }, [ready]);
+  }, [ready, mode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,7 +324,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
     // farther than what was framed (Chris, 09-03: "make it 10% closer").
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
+    const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video, mode);
     const pad = 0;
     const sx = Math.max(0, gx - pad);
     const sy = Math.max(0, gy - pad);
@@ -304,8 +337,10 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
     canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     // Score the attack-text band at the calibration geometry (see
-    // lib/sharpness.ts) straight off the capture canvas.
+    // lib/sharpness.ts) straight off the capture canvas. The band is a
+    // single card's geometry, so Page mode skips the gate.
     const score = (() => {
+      if (mode === "page") return Infinity;
       const bw = SHARPNESS_SAMPLE_WIDTH;
       const bh = Math.max(3, Math.round((bw * (sh * SHARPNESS_BAND.h)) / (sw * SHARPNESS_BAND.w)));
       const band = document.createElement("canvas");
@@ -348,9 +383,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
           setTimeout(() => setBlurNote(null), 2500);
           return;
         }
-        onCapture(
-          new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }),
-        );
+        const file = new File([blob], `${mode === "page" ? "page" : "camera"}-${Date.now()}.jpg`, { type: "image/jpeg" });
+        if (mode === "page" && onCapturePage) onCapturePage(file);
+        else onCapture(file);
         setCaptured((count) => count + 1);
         setFlash(true);
         setTimeout(() => setFlash(false), 150);
@@ -359,7 +394,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
       "image/jpeg",
       0.92,
     );
-  }, [onCapture]);
+  }, [onCapture, onCapturePage, mode]);
 
   const bracket = "border-brand-400";
   // Sweep while the last capture is still identifying; off once a match is
@@ -421,9 +456,11 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
     ? "Camera unavailable"
     : !ready
       ? "Opening the camera…"
-      : identifying
-        ? "Reading the last card — line up the next one"
-        : "Fill the guide, then tap Capture";
+      : mode === "page"
+        ? pageNote ?? "Fill the guide with the whole page, then tap Capture"
+        : identifying
+          ? "Reading the last card — line up the next one"
+          : "Fill the guide, then tap Capture";
 
   return (
     <div
@@ -504,12 +541,22 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
                 <span className={`absolute -right-px -top-px h-8 w-8 rounded-tr-xl border-r-3 border-t-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -left-px h-8 w-8 rounded-bl-xl border-b-3 border-l-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -right-px h-8 w-8 rounded-br-xl border-b-3 border-r-3 transition-colors ${bracket}`} />
+                {/* Page mode: a faint 3×3 so a binder page lines up pocket
+                    by pocket. A hint, not a crop — the cards are found in
+                    the photo wherever they sit. */}
+                {mode === "page" && (
+                  <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" aria-hidden>
+                    {Array.from({ length: 9 }, (_, i) => (
+                      <span key={i} className="border border-white/15" />
+                    ))}
+                  </span>
+                )}
                 {/* The strike, then the stamp + ring: the instant the match
                     lands. Keyed by scan id so every card gets its own. */}
-                {revealed?.card && (
+                {mode === "card" && revealed?.card && (
                   <RevealStrike key={`strike-${revealed.id}`} tier={revealTierNow ?? "plain"} />
                 )}
-                {revealed && (
+                {mode === "card" && revealed && (
                   <RevealStamp key={revealed.id} matched={Boolean(revealed.card)} tier={revealTierNow ?? "plain"} />
                 )}
               </div>
@@ -625,6 +672,20 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
             >
               {blurNote}
             </p>
+          ) : mode === "page" ? (
+            pageNote ? (
+              <p
+                role="status"
+                className="animate-fade-up w-full rounded-2xl border border-brand-400/30 bg-brand-500/10 px-4 py-3 text-center text-sm font-medium text-brand-100"
+              >
+                {pageNote}
+              </p>
+            ) : (
+              <p className="w-full text-center text-xs text-zinc-500">
+                Hold the phone square over a binder page, or cards laid out on a table. One
+                shot finds every card — each one counts as a scan.
+              </p>
+            )
           ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} />
           ) : (
@@ -635,13 +696,36 @@ export default function CameraCapture({ lastScan, tally, onCapture, onClose, onO
           )}
         </div>
 
+        {/* Card / Page: which guide the shot fills. Its own row so the two
+            targets never share a thumb with Capture. */}
+        {onCapturePage && (
+          <div className="flex shrink-0 justify-center px-3 pb-2 sm:px-0 sm:pb-0" role="radiogroup" aria-label="What to scan">
+            <div className="flex rounded-full border border-edge bg-surface-2 p-0.5 text-xs font-semibold">
+              {(["card", "page"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m}
+                  onClick={() => setModeAndFocus(m)}
+                  className={`rounded-full px-4 py-1.5 transition ${
+                    mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {m === "card" ? "One Card" : "Binder Page"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
           <button
             onClick={capture}
-            disabled={!ready}
+            disabled={!ready || (mode === "page" && Boolean(pageNote))}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
-            Capture Card
+            {mode === "page" ? "Capture Page" : "Capture Card"}
           </button>
           <button
             onClick={onClose}
