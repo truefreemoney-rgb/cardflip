@@ -48,7 +48,7 @@ import { toast } from "@/components/Toaster";
  * the ledger that survives closing the tab.
  */
 
-type StatusFilter = "all" | "ready" | "listed" | "ended" | "sold";
+type StatusFilter = "all" | "ready" | "listed" | "ended" | "sold" | "sealed";
 
 /** A listing that ended on eBay without selling (seller ended it, or eBay
  *  did) — still status "listed" on the row, but not live and not in play. */
@@ -88,6 +88,8 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "listed", label: "Live" },
   { value: "ended", label: "Ended" },
   { value: "sold", label: "Sold" },
+  // Booster boxes, ETBs, tins (Chris, 09-28: sealed can be scanned in now).
+  { value: "sealed", label: "Sealed" },
 ];
 
 // Sorts a seller actually reaches for: the money cards, what's been sitting
@@ -1195,6 +1197,7 @@ export default function CollectionPage() {
       if (filter === "listed" && !isLive(card)) return false;
       if (filter === "ended" && !isEnded(card)) return false;
       if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
+      if (filter === "sealed" && card.kind !== "sealed") return false;
       if (!needle) return true;
       return (
         card.cardName.toLowerCase().includes(needle) ||
@@ -1822,14 +1825,16 @@ export default function CollectionPage() {
         </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
-          <div className="text-3xl">🃏</div>
+          <div className="text-3xl">{filter === "sealed" ? "📦" : "🃏"}</div>
           <p className="text-sm font-medium text-white">
-            {cards.length === 0 ? "No cards yet" : "Nothing matches"}
+            {cards.length === 0 ? "No cards yet" : filter === "sealed" ? "No sealed products yet" : "Nothing matches"}
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
             {cards.length === 0
               ? "Scan a card and it will show up here, tracked from draft to sold."
-              : "Try a different filter or search."}
+              : filter === "sealed"
+                ? "Booster boxes, ETBs and tins land here. Add one from the scanner with Add Sealed Product."
+                : "Try a different filter or search."}
           </p>
           {cards.length === 0 && (
             <Link
