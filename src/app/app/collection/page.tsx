@@ -1269,6 +1269,11 @@ export default function CollectionPage() {
             to sold.
           </p>
         </div>
+        {gameView === "pokemon" && (
+          <Link href="/app/collection/sets" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
+            Set Completion →
+          </Link>
+        )}
       </div>
       {/* Its own full-width row, counts inside the pills: the compact corner
           switch was invisible on a phone (Chris, 09-06: "inventory needs a
