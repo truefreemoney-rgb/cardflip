@@ -20,7 +20,8 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
-import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
+import { GRADED_LOCKED, makeSealedProduct, parseGradeQuery, type SetInfo } from "@/lib/grading";
+import SealedAddSheet from "@/components/SealedAddSheet";
 import { parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
@@ -788,6 +789,63 @@ export default function AppPage() {
   // addCardFromSearch / addSealedProduct (the add-without-a-photo roads)
   // were removed 09-01 with their UI — eBay only accepts photos of the
   // actual item, so a queue entry with no scan photo was a dead end.
+  // Sealed product came back photo-first (Tier 2 #13, 09-27): the seller's
+  // photo of the box is the listing image, the set + kind picker names it,
+  // and the TCGplayer sealed feed prices it in SealedEditor. Nothing to
+  // scan, so the item enters "ready" and never goes through pump().
+  const [sealedOpen, setSealedOpen] = useState(false);
+  const addSealedItem = useCallback(
+    (file: File, set: SetInfo, productType: string) => {
+      const card = makeSealedProduct(set, productType, game);
+      const item: ScanItem = {
+        ...createItem(file, language, game),
+        kind: "sealed",
+        status: "ready",
+        card,
+        productType,
+        strategy: "market",
+      };
+      commit([...itemsRef.current, item]);
+      setSelectedId(item.id);
+      sessionItemIdsRef.current.push(item.id);
+      if (!categoryAskedRef.current) {
+        categoryAskedRef.current = true;
+        setCategoryPrompt({ existing: [] });
+        void fetchCategories().then((list) => {
+          setCategoryPrompt((p) => (p ? { existing: list } : p));
+        });
+      }
+      void (async () => {
+        const input = {
+          kind: "sealed" as const,
+          game,
+          cardName: card.name,
+          setName: set.name,
+          cardNumber: "",
+          imageUrl: set.logoUrl,
+          condition: "Factory Sealed",
+          productType,
+          price: 0,
+          catalogCardId: card.id,
+          category: scanCategoryRef.current,
+        };
+        const server = (await createServerCard(input)) ?? (await createServerCard(input));
+        if (!server) {
+          patchItem(item.id, { error: "Couldn't save this product — check your connection and add it again" });
+          return;
+        }
+        patchItem(item.id, { serverId: server.id });
+        // The seller named the set and the kind themselves: there is no
+        // match to verify, so the publish gate opens here (patchItem syncs
+        // verifiedAt to the ledger once serverId is set).
+        patchItem(item.id, { verifiedAt: Date.now() });
+        const uploaded = await uploadCardPhoto(server.id, file);
+        if (uploaded.ok) patchItem(item.id, { photoAt: uploaded.photoAt });
+        else toast(uploaded.message, "err");
+      })();
+    },
+    [commit, patchItem, language, game],
+  );
 
   // /app?resume=<ledger id>: reopen ONE draft from My cards in the editor
   // (Chris, 09-01 — he was rescanning cards just to get the build page
@@ -1387,7 +1445,7 @@ export default function AppPage() {
             </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
-          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} showcase={showcase} />
+          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} onSealed={() => setSealedOpen(true)} showcase={showcase} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —
               a card with no scan photo can only draft with catalog art eBay
@@ -1445,6 +1503,7 @@ export default function AppPage() {
                 onFiles={addUploads}
                 onPageFiles={onPageUpload}
                 onOpenCamera={openCamera}
+                onSealed={() => setSealedOpen(true)}
                 variant="compact"
               />
               {user.role !== "admin" && user.tier === "trial" && !user.ebayConnected ? (
@@ -1582,6 +1641,9 @@ export default function AppPage() {
         </main>
       )}
       {camera}
+      {sealedOpen && (
+        <SealedAddSheet game={game} onClose={() => setSealedOpen(false)} onAdd={addSealedItem} />
+      )}
       {categoryPrompt && (
         <CategorySheet
           title="Which category?"

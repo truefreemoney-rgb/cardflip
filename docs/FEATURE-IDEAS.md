@@ -31,7 +31,7 @@ paid for, CSV export was removed on purpose (listed below as a question).
 | 10 | **Public collection / binder page** | cardflip.io/u/handle: a shareable page of the cards someone owns or is selling, with live prices and "buy on eBay" links. Free marketing every time a user shares it. Private by default. | M |
 | 11 | ~~**Quantity on a card**~~ | DECLINED by Chris 09-27 (and 09-03): cards sell individually only, never a multi-quantity listing. Duplicates stay separate rows. Do not propose again. | — |
 | 12 | **Import from other apps** | Upload a Collectr / TCGplayer / Pokellector CSV and get the collection in CardFlip with prices. Removes the switching cost. | M |
-| 13 | **Sealed product price feed** | Booster boxes, ETBs, tins priced automatically (TCGplayer sealed products are in the catalog data) instead of hand-set. Only PokeData does this. | M |
+| 13 | **Sealed product price feed** | SHIPPED 09-27: booster boxes, ETBs, tins, packs, blisters, bundles priced from TCGplayer daily (lib/server/sealedPrices.ts; displays/cases dropped, Pokémon Center variants listed but out of the median). Came with the photo-first sealed add the 09-01 cleanup removed (Add a sealed product → photo of the box → set + kind). Only PokeData did this. | M |
 
 ## Tier 3 — selling power (Pro plan material)
 

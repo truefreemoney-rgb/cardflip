@@ -216,7 +216,10 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.condition,
       productType,
       card.price,
-      card.price,
+      // A row created unpriced (sealed product before the feed's default
+      // lands) leaves scan_price NULL so the live refresh backfills it from
+      // the series on the add day instead of pinning "scanned at $0".
+      card.price > 0 ? card.price : null,
       card.catalogCardId ?? null,
       card.rarity ?? null,
       card.category ?? null,
@@ -237,7 +240,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     productType,
     status: "ready",
     price: card.price,
-    scanPrice: card.price,
+    scanPrice: card.price > 0 ? card.price : null,
     quantity: 1,
     catalogCardId: card.catalogCardId ?? null,
     listedAt: null,

@@ -16,9 +16,11 @@ interface Props {
 
 /**
  * Type-to-add for sealed product: pick the set, pick what it is (pack, box,
- * ETB…), and it enters the queue priced by hand. There is nothing to scan —
- * a booster box has no collector number — so unlike cards this flow is the
- * only way in, not a fallback for a failed photo.
+ * ETB…), and it enters the queue priced from the TCGplayer sealed feed
+ * (SealedEditor; by hand when the feed has no row). There is nothing to
+ * scan — a booster box has no collector number — so unlike cards this flow
+ * is the only way in, not a fallback for a failed photo. Rendered inside
+ * SealedAddSheet, under the required photo of the box.
  */
 export default function SealedProductAdd({ game = "pokemon", onAdd }: Props) {
   const productTypes = sealedProductTypesFor(game);

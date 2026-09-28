@@ -9,6 +9,7 @@ import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
+import { scanSealedProducts } from "@/lib/server/sealedPrices";
 
 /**
  * The once-a-day maintenance run that keeps the charts moving:
@@ -84,7 +85,10 @@ export async function dailyStatus(now = Date.now()) {
 export interface DailyResult {
   ran: boolean;
   mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
-  pokemonTcgcsv?: { groups: number; groupsFailed: number; seriesTouched: number } | { error: string } | { skipped: string };
+  pokemonTcgcsv?:
+    | { groups: number; groupsFailed: number; seriesTouched: number; sealedSeries?: number; sealedScan?: { groupsScanned: number; groupsFailed: number; products: number } | { error: string } }
+    | { error: string }
+    | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
   ebayFees?: { sellers: number; filled: number } | { error: string };
@@ -113,8 +117,18 @@ export async function runPokemonSteps(
   const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers"> = {};
   try {
     if (await hasTcgplayerMap()) {
+      // Sealed product map first (a few groups' product lists per run,
+      // lib/server/sealedPrices.ts) so the refresh right after prices
+      // whatever it found. Its failure never costs the card refresh.
+      let sealedScan: { groupsScanned: number; groupsFailed: number; products: number } | { error: string };
+      try {
+        sealedScan = await scanSealedProducts();
+      } catch (err) {
+        sealedScan = { error: err instanceof Error ? err.message : String(err) };
+        console.error("daily: sealed product scan failed:", err);
+      }
       const r = await refreshPokemonPricesFromTcgcsv();
-      result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched };
+      result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched, sealedSeries: r.sealedSeries, sealedScan };
     } else {
       result.pokemonTcgcsv = { skipped: "no tcgplayer_products map — run npm run backfill:pokemon and redeploy the seed" };
     }

@@ -16,6 +16,8 @@ interface Props {
   onPageFiles?: (files: File[]) => void;
   /** Why the last page photo queued nothing, shown under the buttons. */
   pageError?: string | null;
+  /** Opens the "Add a sealed product" sheet (photo + set + kind; SealedAddSheet). */
+  onSealed?: () => void;
   variant?: "hero" | "compact";
   /** Real, live-priced cards for the stage (from /api/cards/featured); empty = no card yet. */
   showcase?: ShowcaseCard[];
@@ -31,7 +33,7 @@ export interface ShowcaseCard {
   lead?: boolean;
 }
 
-export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError, variant = "hero", showcase = [] }: Props) {
+export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError, onSealed, variant = "hero", showcase = [] }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
   // to rotate images"), and not the Charizard: the card the server marked as
   // the stage lead (lib/server/stageCards.ts picks it — currently a full-art
@@ -107,13 +109,26 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
       }
     };
     return (
-      <div className="relative">
+      <div className="relative flex items-center gap-1.5">
         <button
           onClick={handleClick}
           className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
         >
           {onOpenCamera && <span aria-hidden>📷 </span>}Add more cards
         </button>
+        {/* Phones skip the menu (the tap IS the camera), so sealed product
+            needs its own way in once the queue exists. */}
+        {onSealed && (
+          <button
+            type="button"
+            onClick={onSealed}
+            aria-label="Add a sealed product"
+            title="Add a sealed product"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-edge bg-surface-1 text-base transition hover:border-edge-strong hover:bg-surface-2"
+          >
+            <span aria-hidden>📦</span>
+          </button>
+        )}
         {menuOpen && (
           <>
             {/* Click-away backdrop */}
@@ -150,6 +165,17 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
                   className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
                 >
                   📖 Binder page photo
+                </button>
+              )}
+              {onSealed && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSealed();
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5"
+                >
+                  📦 Sealed product
                 </button>
               )}
             </div>
@@ -263,6 +289,18 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
                 className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200"
               >
                 Upload a binder page
+              </button>
+            </>
+          )}
+          {onSealed && (
+            <>
+              {" · "}
+              <button
+                type="button"
+                onClick={onSealed}
+                className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200"
+              >
+                Add a sealed product
               </button>
             </>
           )}

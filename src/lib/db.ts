@@ -526,6 +526,30 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_tcgplayer_products_group ON tcgplayer_products(group_id);
 
+  -- Sealed product price feed (Tier 2 #13, 09-27): TCGplayer's booster
+  -- boxes / ETBs / tins per set, found by scanning each group's product list
+  -- for rows with no collector number (lib/server/sealedPrices.ts). Their
+  -- daily market prices ride the same tcgcsv /prices fetch the cards use
+  -- and land in price_series under the sealed product's catalog id.
+  CREATE TABLE IF NOT EXISTS tcgplayer_sealed (
+    product_id INTEGER PRIMARY KEY,
+    group_id INTEGER NOT NULL,
+    game TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    name TEXT NOT NULL,
+    product_type TEXT,
+    -- 'standard' | 'exclusive' (Pokémon Center / retailer variant: shown,
+    -- not in the kind's median); lots (displays, cases) are never stored.
+    role TEXT NOT NULL DEFAULT 'standard'
+  );
+  CREATE INDEX IF NOT EXISTS idx_tcgplayer_sealed_set ON tcgplayer_sealed(game, set_name, product_type);
+  -- Which groups have had their product list read, and when (rescanned
+  -- every SEALED_RESCAN_DAYS so a new tin lands).
+  CREATE TABLE IF NOT EXISTS tcgplayer_sealed_groups (
+    group_id INTEGER PRIMARY KEY,
+    scanned_day TEXT NOT NULL
+  );
+
   -- Daily visitors for the admin console (09-25). One row per visitor per
   -- path per UTC day; "visitor" is sha256(day + ip + user agent + salt), so
   -- it cannot be joined across days or back to a person (the privacy page

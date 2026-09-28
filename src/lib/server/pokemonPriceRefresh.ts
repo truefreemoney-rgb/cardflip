@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import { tcgplayerProductPattern, tcgplayerVariantKey, type PatternVariant } from "@/lib/tcgcsv";
+import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
 
 /**
  * Daily Pokémon price points from TCGCSV (tcgcsv.com — TCGplayer's prices,
@@ -22,6 +23,8 @@ export interface PokemonRefreshResult {
   groups: number;
   groupsFailed: number;
   seriesTouched: number;
+  /** Sealed product series written this run (lib/server/sealedPrices.ts). */
+  sealedSeries: number;
   day: string;
 }
 
@@ -59,6 +62,12 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     ((await db.prepare("SELECT id FROM en_cards WHERE id LIKE '%-1st'").all()) as { id: string }[]).map((r) => r.id),
   );
 
+  // Sealed product (booster boxes, ETBs, tins): the same /prices response
+  // carries them; their points are collected here and written after the
+  // loop under the sealed catalog ids (Tier 2 #13).
+  const sealedMap = await readSealedMap("pokemon");
+  const sealedPrices = new Map<number, number>();
+
   let groupsFailed = 0;
   const upserts: SeriesUpsert[] = [];
   const touched = new Set<string>();
@@ -90,6 +99,10 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     for (const r of results) {
       const mapped = productToCard.get(r.productId);
       const price = r.marketPrice ?? null;
+      if (!mapped && price != null && price > 0 && sealedMap.has(r.productId) && !sealedPrices.has(r.productId)) {
+        sealedPrices.set(r.productId, price);
+        continue;
+      }
       if (!mapped || price == null || !(price > 0)) continue;
       // A pattern product's price is the pattern variant whatever subtype
       // TCGplayer files it under ("Holofoil").
@@ -115,7 +128,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     }
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
-  await upsertSeriesRows(upserts);
+  const sealedUpserts = sealedSeriesUpserts("pokemon", day, sealedPrices, sealedMap, existingSeries);
+  await upsertSeriesRows([...upserts, ...sealedUpserts]);
   // Drop the series a pattern product wrote under the wrong key before the
   // pattern was understood (the "holofoil" row on an uncommon trainer).
   for (const [cardId, seen] of patternCardVariants) {
@@ -128,5 +142,5 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         .run(cardId, variant);
     }
   }
-  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length, day };
+  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length, sealedSeries: sealedUpserts.length, day };
 }

@@ -14,6 +14,7 @@
 
 import type { GameId, GradedInfo, GradingCompany, PokemonCard } from "@/lib/types";
 import { GAMES } from "./games.ts";
+import { sealedProductId } from "./sealedProducts.ts";
 
 export const GRADING_COMPANIES: GradingCompany[] = ["PSA", "CGC"];
 
@@ -157,7 +158,9 @@ export function makeSealedProduct(
   game: GameId = "pokemon",
 ): PokemonCard {
   return {
-    id: `sealed-${game}-${set.name}-${productType}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    // Same id the TCGplayer sealed feed writes price_series under
+    // (lib/sealedProducts.ts) — that is what prices the row automatically.
+    id: sealedProductId(game, set.name, productType),
     name: `${set.name} ${productType}`,
     setName: set.name,
     setSeries: "",
