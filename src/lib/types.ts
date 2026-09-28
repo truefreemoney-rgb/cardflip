@@ -342,6 +342,8 @@ export interface ScanItem {
   productType: string | null;
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
+  /** What the seller paid for the card (profit per card); null = not entered. */
+  costBasis: number | null;
   /** Seller-edited listing title, or null to use the generated one. */
   titleOverride: string | null;
   /** Seller-edited listing description, or null to use the generated one. */

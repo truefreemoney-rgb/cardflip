@@ -30,6 +30,8 @@ export interface ServerCard {
   soldAt: number | null;
   /** Actual eBay fee for this sale (Finances API); null = the estimate applies. */
   soldFees: number | null;
+  /** What the seller paid; null = not entered (profit per card, 09-27). */
+  costBasis: number | null;
   /** Last time a discount offer went to this listing's watchers. */
   watcherOfferAt: number | null;
   /** Seller set the price by hand; the Inventory live refresh leaves it alone. */
@@ -95,6 +97,8 @@ export interface UpdateCardInput {
   firstEdition?: boolean;
   /** Send true with a price the seller typed/chose — it stops the live refresh touching it. */
   priceLocked?: boolean;
+  /** What the seller paid; null clears it. */
+  costBasis?: number | null;
 }
 
 export interface LivePrice {

@@ -39,6 +39,7 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
+import { saleBreakdown } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 
 /**
@@ -342,6 +343,8 @@ export default function CollectionPage() {
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
   const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
+  // "What you paid" edited in place on the card detail (09-27, profit per card).
+  const [costForm, setCostForm] = useState<{ id: string; value: string } | null>(null);
   // Change a LIVE listing's price from here and the eBay listing follows, so
   // a seller never has to go to eBay (Chris, 09-04). Live rows only — a draft
   // is priced in the editor, a sold row records what it went for.
@@ -453,12 +456,20 @@ export default function CollectionPage() {
             <span className={`font-display text-3xl font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
               {formatMoney(priceValue)}
             </span>
-            {sold && card.soldPrice != null && (
-              <span className="text-sm text-zinc-400">
-                net <span className="font-semibold text-emerald-400">{formatMoney(netAfterFees(card.soldPrice, card.soldFees))}</span>
-                {card.soldFees != null ? " after eBay fees" : " after estimated fees"}
-              </span>
-            )}
+            {sold && card.soldPrice != null && (() => {
+              const b = saleBreakdown(card)!;
+              // With a purchase price on file the caption is the real profit;
+              // without one it is the take-home after fees and postage.
+              return (
+                <span className="text-sm text-zinc-400">
+                  {b.costKnown ? "profit " : "you keep "}
+                  <span className={`font-semibold ${b.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {b.profit < 0 ? "−" : ""}{formatMoney(Math.abs(b.profit))}
+                  </span>
+                  {b.costKnown ? ` after ${b.feesActual ? "" : "estimated "}fees, postage and what you paid` : ` after ${b.feesActual ? "" : "estimated "}fees and postage`}
+                </span>
+              );
+            })()}
             {live && card.ebayOfferId && (
               <button
                 type="button"
@@ -515,6 +526,51 @@ export default function CollectionPage() {
               <dd className="truncate text-sm text-zinc-100">{value}</dd>
             </div>
           ))}
+          {/* What you paid (09-27): tap to type it; it feeds profit and the year-end report. */}
+          <div className="min-w-0 bg-surface-1 px-4 py-2.5">
+            <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">You paid</dt>
+            <dd className="truncate text-sm">
+              {costForm?.id === card.id ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const n = costForm.value.trim() === "" ? null : Math.max(0, Math.round((parseFloat(costForm.value) || 0) * 100) / 100);
+                    void applyPatch(card, { costBasis: n });
+                    setCostForm(null);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <span className="relative">
+                    <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      autoFocus
+                      value={costForm.value}
+                      onChange={(e) => setCostForm({ id: card.id, value: e.target.value })}
+                      onKeyDown={(e) => e.key === "Escape" && setCostForm(null)}
+                      aria-label="What you paid"
+                      className="w-20 rounded-md border border-edge bg-black/40 py-0.5 pl-4 pr-1 text-base text-white outline-none focus:border-brand-400 sm:text-sm"
+                    />
+                  </span>
+                  <button type="submit" className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25">
+                    ✓
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCostForm({ id: card.id, value: card.costBasis != null ? card.costBasis.toFixed(2) : "" })}
+                  className={`inline-flex max-w-full items-center gap-1 underline-offset-4 transition hover:underline ${
+                    card.costBasis != null ? "text-zinc-100 hover:text-white" : "text-brand-300 hover:text-brand-200"
+                  }`}
+                >
+                  <span className="truncate">{card.costBasis != null ? formatMoney(card.costBasis) : "Add what you paid"}</span>
+                </button>
+              )}
+            </dd>
+          </div>
           {/* Category is a link: add one, or change it (Chris, 09-04). */}
           <div className="min-w-0 bg-surface-1 px-4 py-2.5">
             <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Category</dt>
@@ -1041,7 +1097,12 @@ export default function CollectionPage() {
 
     const inPlayCopies = [...drafts, ...listed].reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
     const soldCopies = sold.filter((c) => c.soldPrice != null).length;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays };
+    // Profit (09-27) = net take-home minus what the seller paid; only sales
+    // with a purchase price on file count toward cost, the rest are flagged.
+    const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
+    const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
+    const profit = net - cost;
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays, cost, costKnown, profit };
   }, [gameCards]);
 
 
@@ -1217,6 +1278,7 @@ export default function CollectionPage() {
                   ["Sold for", stats.earned],
                   [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
                   [`Postage · ${stats.soldCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.soldCopies * POSTAGE_USD)],
+                  ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
                 ]}
               />
             ) : (
@@ -1229,6 +1291,25 @@ export default function CollectionPage() {
                 muted
               />
             )}
+            {stats.sold.length > 0 && (
+              <div className="mt-2.5 flex items-baseline justify-between gap-3 border-t border-edge/60 pt-2.5 text-sm">
+                <span className="text-zinc-300">
+                  Profit
+                  {stats.costKnown < stats.soldCopies && (
+                    <span className="ml-1 text-xs text-zinc-500">({stats.soldCopies - stats.costKnown} sale{stats.soldCopies - stats.costKnown === 1 ? "" : "s"} with no purchase price)</span>
+                  )}
+                </span>
+                <span className={`shrink-0 font-display font-semibold tabular-nums ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {stats.profit < 0 ? "−" : ""}{formatMoney(Math.abs(stats.profit))}
+                </span>
+              </div>
+            )}
+            <Link
+              href="/app/collection/report"
+              className="mt-2 inline-block text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
+            >
+              Sales Report for Taxes →
+            </Link>
           </div>
         </div>
         {/* The pile's value day by day, from our own price series (Chris,

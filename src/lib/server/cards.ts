@@ -36,6 +36,8 @@ export interface CardRecord {
   /** Actual fee eBay charged for this sale (Finances API). Null = not fetched
    * yet — display falls back to the estimate in lib/fees.ts. */
   soldFees: number | null;
+  /** What the seller paid for it; null = not entered. Profit = sale − fees − postage − this. */
+  costBasis: number | null;
   /** eBay order/line the sold row came from, for the fee lookup. */
   ebayOrderId: string | null;
   ebayLineItemId: string | null;
@@ -95,6 +97,7 @@ interface CardRow {
   sold_price: number | null;
   sold_at: number | null;
   sold_fees: number | null;
+  cost_basis: number | null;
   ebay_order_id: string | null;
   ebay_line_item_id: string | null;
   watcher_offer_at: number | null;
@@ -140,6 +143,7 @@ function fromRow(row: CardRow): CardRecord {
     soldPrice: row.sold_price,
     soldAt: row.sold_at,
     soldFees: row.sold_fees ?? null,
+    costBasis: row.cost_basis ?? null,
     ebayOrderId: row.ebay_order_id ?? null,
     ebayLineItemId: row.ebay_line_item_id ?? null,
     watcherOfferAt: row.watcher_offer_at ?? null,
@@ -237,6 +241,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     soldPrice: null,
     soldAt: null,
     soldFees: null,
+    costBasis: null,
     ebayOrderId: null,
     ebayLineItemId: null,
     watcherOfferAt: null,
@@ -458,6 +463,7 @@ export interface CardUpdate {
   firstEdition?: boolean;
   /** True when the price in this patch was typed/chosen by the seller. */
   priceLocked?: boolean;
+  costBasis?: number | null;
 }
 
 /** Ownership is enforced here, not just at the route layer: the WHERE clause
@@ -493,6 +499,7 @@ export async function updateCard(
     match_doubt: patch.matchDoubt !== undefined ? patch.matchDoubt : existingRow.match_doubt,
     first_edition: patch.firstEdition !== undefined ? (patch.firstEdition ? 1 : 0) : existingRow.first_edition,
     price_locked: patch.priceLocked !== undefined ? (patch.priceLocked ? 1 : 0) : existingRow.price_locked,
+    cost_basis: patch.costBasis !== undefined ? patch.costBasis : existingRow.cost_basis,
     // Any status move settles the ended flag — sold/unlisted cards don't
     // need the chip, and a later manual "Mark listed" starts clean.
     ebay_ended_at: patch.status !== undefined ? null : existingRow.ebay_ended_at,
@@ -507,7 +514,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, price_locked = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, price_locked = ?, cost_basis = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -529,6 +536,7 @@ export async function updateCard(
       merged.match_doubt ?? null,
       merged.first_edition ?? null,
       merged.price_locked ?? 0,
+      merged.cost_basis ?? null,
       merged.sold_fees,
       merged.ebay_order_id,
       merged.ebay_line_item_id,

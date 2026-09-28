@@ -73,6 +73,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           : undefined,
       firstEdition: typeof body?.firstEdition === "boolean" ? body.firstEdition : undefined,
       priceLocked: typeof body?.priceLocked === "boolean" ? body.priceLocked : undefined,
+      // What they paid (09-27): a finite number >= 0 lands (to the cent), anything else clears it.
+      costBasis:
+        "costBasis" in (body ?? {})
+          ? typeof body.costBasis === "number" && Number.isFinite(body.costBasis) && body.costBasis >= 0
+            ? Math.round(body.costBasis * 100) / 100
+            : null
+          : undefined,
     });
 
     if (!card) {

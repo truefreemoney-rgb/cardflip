@@ -1232,6 +1232,26 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             />
           </div>
         </label>
+        {/* What they paid (09-27): optional, drives profit per card and the year-end report. */}
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
+          <span>
+            What you paid <span className="font-normal text-zinc-500">(optional, for your profit)</span>
+          </span>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">
+              $
+            </span>
+            <PriceInput
+              value={item.costBasis ?? 0}
+              onValue={(n) => onChange({ costBasis: n })}
+              onCommit={(n) => {
+                onChange({ costBasis: n });
+                if (item.serverId) void updateServerCard(item.serverId, { costBasis: n });
+              }}
+              className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
+            />
+          </div>
+        </label>
       </div>
 
       <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />

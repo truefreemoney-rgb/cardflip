@@ -618,6 +618,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // before are backfilled from price_series on the scan day by the
       // Inventory live refresh.
       "scan_price REAL",
+      // What the seller paid for the card (09-27, profit per card + the
+      // year-end report). NULL = never entered; 0 = pulled/free.
+      "cost_basis REAL",
       // Seller pressed "Verify match" on this card (09-03, Chris): eBay
       // publishing is locked until it's set. Null = "Verify match" in the UI.
       "verified_at INTEGER",
