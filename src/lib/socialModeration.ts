@@ -110,3 +110,47 @@ export function replyPlan(kind: CommentKind, text: string, id: string): ReplyPla
   if (kind === "praise") return tinyHash(id) % 4 === 0 ? "reply" : "skip";
   return "skip";
 }
+
+/* ---------- guard rails for replies nobody reads first (Chris 09-28: "do them all") ---------- */
+
+/** Comments older than this are stored, never answered — a late reply reads as a bot. */
+export const STALE_MS = 2 * 24 * 60 * 60 * 1000;
+/** Robot replies per day across every site. */
+export const DAILY_REPLY_CAP = 10;
+/** Robot replies to one person per day. */
+export const PER_AUTHOR_DAILY_CAP = 1;
+/** Robot replies to one person under one post, ever (their answer to our answer gets one more, then Chris). */
+export const PER_THREAD_CAP = 2;
+
+export function isStale(at: string, now = Date.now()): boolean {
+  const t = new Date(at).getTime();
+  return Number.isFinite(t) && now - t > STALE_MS;
+}
+
+const PROMISE_WORDS = /\b(guarantee[sd]?|always|never fails?|refund(s|ed)?|shipping|ship(s|ped)?|discount(s|ed)?|deal(s)?|coupon(s)?|promo(s|tion)?|free money|100%)\b/i;
+const OWN_LINK = /^(https?:\/\/)?(www\.)?cardflip\.io(\/\S*)?$/i;
+
+/**
+ * Why a reply must NOT go out on its own, or null when it may. Dollar
+ * figures are allowed only when our own post carries the same figure;
+ * promises and sales words never; links only to cardflip.io; length
+ * inside the site's limit.
+ */
+export function replyProblem(reply: string, postText: string, site: string): string | null {
+  const r = reply.replace(/\s+/g, " ").trim();
+  if (!r) return "empty";
+  const max = REPLY_MAX[site] ?? 280;
+  if (r.length > max) return `over ${max} characters`;
+  const money = r.match(/\$\s?\d[\d,]*(\.\d+)?/g) ?? [];
+  for (const m of money) {
+    const plain = m.replace(/\s/g, "");
+    if (!postText.replace(/\s/g, "").includes(plain)) return `names a price (${plain}) that is not in our post`;
+  }
+  for (const link of r.match(/https?:\/\/\S+|\b[\w-]+\.(com|io|net|org|app|gg|shop)\b\S*/gi) ?? []) {
+    if (!OWN_LINK.test(link.replace(/[).,!?]+$/, ""))) return `links to ${link}`;
+  }
+  const promise = r.match(PROMISE_WORDS);
+  if (promise) return `says "${promise[0]}"`;
+  if (/[!]{1}/.test(r)) return "exclamation mark";
+  return null;
+}

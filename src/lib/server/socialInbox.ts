@@ -2,7 +2,18 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { classifyComment, fitReply, isOwnComment, replyPlan, type CommentKind } from "@/lib/socialModeration";
+import {
+  classifyComment,
+  DAILY_REPLY_CAP,
+  fitReply,
+  isOwnComment,
+  isStale,
+  PER_AUTHOR_DAILY_CAP,
+  PER_THREAD_CAP,
+  replyPlan,
+  replyProblem,
+  type CommentKind,
+} from "@/lib/socialModeration";
 import { getSetting } from "@/lib/server/settings";
 import { metaReadCreds } from "./sites/meta.ts";
 import { xSignedGet, xSignedJson } from "./sites/x.ts";
@@ -76,6 +87,10 @@ export interface SweepSite {
   questions: number;
   /** Replies the robot sent itself this sweep. */
   replied: number;
+  /** Comments parked for Chris (heated, capped, failed the pre-send check). */
+  held: number;
+  /** Repeat spammers blocked on the platform. */
+  blocked: number;
 }
 
 export interface SweepReport {
@@ -85,6 +100,8 @@ export interface SweepReport {
   hidden: number;
   questions: number;
   replied: number;
+  held: number;
+  blocked: number;
 }
 
 /** Settings key for the auto-reply switch on /admin/social/posts. On unless set to "0". */
@@ -382,6 +399,91 @@ async function replyOnSite(c: SocialComment, text: string, meta: MetaCreds): Pro
   }
 }
 
+/** Remove a reply the robot (or Chris) posted. Bluesky, X, Facebook, Instagram and Threads all delete their own record by id. */
+async function deleteReplyOnSite(c: SocialComment, meta: MetaCreds): Promise<void> {
+  const replyId = typeof c.meta.replyId === "string" ? c.meta.replyId : null;
+  if (!replyId) throw new Error("No reply id stored for this comment");
+  switch (c.site) {
+    case "bluesky": {
+      const session = await blueskySession();
+      if (!session) throw new Error("Bluesky not connected");
+      const rkey = replyId.split("/").pop();
+      if (!rkey) throw new Error("bluesky: bad reply uri");
+      await blueskyCall("com.atproto.repo.deleteRecord", { repo: session.did, collection: "app.bsky.feed.post", rkey }, session);
+      return;
+    }
+    case "x": {
+      const res = await xSignedJson("DELETE", `/2/tweets/${replyId}`, {});
+      if (!res) throw new Error("X not connected");
+      if (!res.ok) throw new Error(`x delete ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return;
+    }
+    case "facebook":
+    case "instagram":
+    case "threads": {
+      const c2 = meta[c.site];
+      if (!c2) throw new Error(`${SITE_LABEL[c.site]} not connected`);
+      await getJson(`${c2.base}/${replyId}?access_token=${encodeURIComponent(c2.token)}`, { method: "DELETE" }, `${c.site} delete reply`);
+      return;
+    }
+    default:
+      throw new Error(`${SITE_LABEL[c.site] ?? c.site}: delete not supported`);
+  }
+}
+
+/** Block the comment's author where a robot may: Bluesky (block record), X (blocking), Facebook (page block list). */
+async function blockOnSite(c: SocialComment, meta: MetaCreds): Promise<void> {
+  if (!c.authorId) throw new Error("No author id");
+  switch (c.site) {
+    case "bluesky": {
+      const session = await blueskySession();
+      if (!session) throw new Error("Bluesky not connected");
+      await blueskyCall(
+        "com.atproto.repo.createRecord",
+        { repo: session.did, collection: "app.bsky.graph.block", record: { $type: "app.bsky.graph.block", subject: c.authorId, createdAt: new Date().toISOString() } },
+        session,
+      );
+      return;
+    }
+    case "x": {
+      const meRes = await xSignedGet("/2/users/me", {});
+      if (!meRes) throw new Error("X not connected");
+      if (!meRes.ok) throw new Error(`x me ${meRes.status}`);
+      const me = (await meRes.json()) as { data?: { id?: string } };
+      if (!me.data?.id) throw new Error("x me: no id");
+      const res = await xSignedJson("POST", `/2/users/${me.data.id}/blocking`, { target_user_id: c.authorId });
+      if (!res) throw new Error("X not connected");
+      if (!res.ok) throw new Error(`x block ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return;
+    }
+    case "facebook": {
+      if (!meta.facebook) throw new Error("Facebook not connected");
+      await getJson(`${meta.facebook.base}/${meta.facebook.pageId}/blocked?user=${encodeURIComponent(c.authorId)}&access_token=${encodeURIComponent(meta.facebook.token)}`, { method: "POST" }, "facebook block");
+      return;
+    }
+    default:
+      throw new Error(`${SITE_LABEL[c.site] ?? c.site} has no block for pages; hiding is the most it allows`);
+  }
+}
+
+/**
+ * Why the robot may not answer this one right now, or null. Ten a day
+ * across every site, one per person per day, two per person under one
+ * post; beyond that the comment waits for Chris.
+ */
+async function replyCapReason(site: string, postId: string, authorId: string | null, now: number): Promise<string | null> {
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const auto = "status = 'replied' AND meta LIKE '%\"auto\":true%'";
+  const today = (await db.prepare(`SELECT COUNT(*) AS n FROM social_comments WHERE ${auto} AND acted_at >= ?`).get(dayAgo)) as { n: number } | undefined;
+  if (Number(today?.n ?? 0) >= DAILY_REPLY_CAP) return `the robot already sent ${DAILY_REPLY_CAP} replies today`;
+  if (!authorId) return null;
+  const person = (await db.prepare(`SELECT COUNT(*) AS n FROM social_comments WHERE ${auto} AND site = ? AND author_id = ? AND acted_at >= ?`).get(site, authorId, dayAgo)) as { n: number } | undefined;
+  if (Number(person?.n ?? 0) >= PER_AUTHOR_DAILY_CAP) return "the robot already answered this person today";
+  const thread = (await db.prepare(`SELECT COUNT(*) AS n FROM social_comments WHERE ${auto} AND site = ? AND post_id = ? AND author_id = ?`).get(site, postId, authorId)) as { n: number } | undefined;
+  if (Number(thread?.n ?? 0) >= PER_THREAD_CAP) return "a back-and-forth; the robot stops after two";
+  return null;
+}
+
 /* ---------- drafting ---------- */
 
 let client: Anthropic | null = null;
@@ -495,7 +597,7 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
   ];
   const sites: SweepSite[] = await Promise.all(
     readers.map(async ({ site, connected, read }): Promise<SweepSite> => {
-      const out: SweepSite = { site, label: SITE_LABEL[site] ?? site, connected, error: null, seen: 0, added: 0, hidden: 0, questions: 0, replied: 0 };
+      const out: SweepSite = { site, label: SITE_LABEL[site] ?? site, connected, error: null, seen: 0, added: 0, hidden: 0, questions: 0, replied: 0, held: 0, blocked: 0 };
       if (!connected) return out;
       let found: Found[];
       try {
@@ -547,15 +649,37 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
               status = "new";
             }
           }
+          // Second spam from the same account: block it where the platform lets a robot do that.
+          if (repeat >= 1 && f.authorId) {
+            try {
+              await blockOnSite(row, meta);
+              row.meta.blocked = true;
+              out.blocked++;
+            } catch (err) {
+              row.meta.blockError = err instanceof Error ? err.message : String(err);
+            }
+          }
         } else {
           if (kind === "question") out.questions++;
           const plan = replyPlan(kind, f.text, id);
+          const hold = (why: string) => {
+            row.meta.needsYou = true;
+            row.meta.holdReason = why;
+            out.held++;
+          };
           if (plan === "hold") {
             // Heated or a dispute: shown to Chris with no draft, answered in his words.
-            row.meta.needsYou = true;
+            hold("heated or a dispute");
+          } else if (plan === "reply" && isStale(f.at, now)) {
+            // Older than two days: stored, never answered.
+            row.meta.stale = true;
           } else if (plan === "reply") {
+            const cap = auto ? await replyCapReason(f.site, f.postId, f.authorId, now) : null;
             draft = await draftReply({ site: f.site, postText: f.postText, text: f.text, kind });
-            if (draft && auto) {
+            const problem = draft ? replyProblem(draft, f.postText, f.site) : "no draft";
+            if (cap) hold(cap);
+            else if (auto && problem) hold(`the reply ${problem}`);
+            else if (draft && auto) {
               try {
                 const sentId = await replyOnSite(row, draft, meta);
                 status = "replied";
@@ -566,6 +690,7 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
               } catch (err) {
                 // The draft stays in Chris's queue with the reason.
                 row.meta.sendError = err instanceof Error ? err.message : String(err);
+                hold("the send failed");
               }
             }
           }
@@ -588,6 +713,8 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
     hidden: sites.reduce((a, s) => a + s.hidden, 0),
     questions: sites.reduce((a, s) => a + s.questions, 0),
     replied: sites.reduce((a, s) => a + s.replied, 0),
+    held: sites.reduce((a, s) => a + s.held, 0),
+    blocked: sites.reduce((a, s) => a + s.blocked, 0),
   };
   await noteSweepOnBoard(report).catch(() => {});
   return report;
@@ -595,11 +722,28 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
 
 /* ---------- Chris's actions ---------- */
 
-export async function actOnComment(id: string, action: "reply" | "hide" | "dismiss", text?: string): Promise<SocialComment> {
+export type CommentAction = "reply" | "hide" | "dismiss" | "undo" | "block";
+
+export async function actOnComment(id: string, action: CommentAction, text?: string): Promise<SocialComment> {
   const c = await getComment(id);
   if (!c) throw new Error("Comment not found");
   const now = Date.now();
-  if (action === "reply") {
+  if (action === "undo") {
+    // Take our reply down on the platform; the comment goes back to dismissed with the old text kept in meta.
+    const meta = await metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null }));
+    await deleteReplyOnSite(c, meta);
+    const { replyId: _gone, ...rest } = c.meta;
+    void _gone;
+    await db
+      .prepare("UPDATE social_comments SET status = 'dismissed', reply_text = NULL, acted_at = ?, meta = ? WHERE id = ?")
+      .run(now, JSON.stringify({ ...rest, undone: c.replyText, auto: false }), id);
+  } else if (action === "block") {
+    const meta = await metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null }));
+    await blockOnSite(c, meta);
+    await db
+      .prepare("UPDATE social_comments SET status = CASE WHEN status = 'new' THEN 'dismissed' ELSE status END, acted_at = COALESCE(acted_at, ?), meta = ? WHERE id = ?")
+      .run(now, JSON.stringify({ ...c.meta, blocked: true }), id);
+  } else if (action === "reply") {
     const body = fitReply(c.site, (text ?? c.draft ?? "").trim());
     if (!body) throw new Error("Reply text is empty");
     const meta = await metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null }));
@@ -626,20 +770,35 @@ export async function redraft(id: string): Promise<string | null> {
 
 /* ---------- board line ---------- */
 
-function slotLabel(now: number): string {
-  const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "America/New_York" }).format(new Date(now)));
-  return h < 11 ? "morning" : h < 17 ? "afternoon" : "evening";
+/** Start of the Eastern day that holds `now`, in ms. */
+function easternDayStart(now: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", second: "numeric", hour12: false }).formatToParts(new Date(now));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0) % 24;
+  return now - ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000 - (now % 1000);
 }
 
+/**
+ * One board line per day (Chris 09-28: "do them all"): the day's totals
+ * from the table, rewritten in place on every sweep, plus any site that
+ * could not be read this time.
+ */
 async function noteSweepOnBoard(r: SweepReport): Promise<void> {
-  const waiting = await countNew();
-  if (r.added === 0 && r.hidden === 0) return;
-  const parts = r.sites
-    .filter((s) => s.added > 0 || s.hidden > 0 || s.error)
-    .map((s) => (s.error ? `${s.label}: not read (${s.error.slice(0, 80)})` : `${s.label}: ${s.added} new${s.hidden ? `, ${s.hidden} spam hidden` : ""}${s.replied ? `, ${s.replied} answered` : ""}${s.questions ? `, ${s.questions} question${s.questions === 1 ? "" : "s"}` : ""}`))
-    .join(" · ");
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(r.at));
-  const text = `Social inbox ${day} ${slotLabel(r.at)} — ${parts}. ${waiting} waiting for you → /admin/social/posts`;
+  const start = easternDayStart(r.at);
+  const n = async (where: string, ...args: (string | number)[]) =>
+    Number(((await db.prepare(`SELECT COUNT(*) AS n FROM social_comments WHERE seen_at >= ? AND ${where}`).get(start, ...args)) as { n: number } | undefined)?.n ?? 0);
+  const [seen, answered, hidden, held, blocked, waiting] = await Promise.all([
+    n("1"),
+    n("status = 'replied' AND meta LIKE '%\"auto\":true%'"),
+    n("status = 'hidden'"),
+    n("meta LIKE '%\"needsYou\":true%'"),
+    n("meta LIKE '%\"blocked\":true%'"),
+    countNew(),
+  ]);
+  const unread = r.sites.filter((s) => s.error).map((s) => `${s.label} not read (${s.error!.slice(0, 60)})`);
+  if (seen === 0 && unread.length === 0) return;
+  const prefix = `Social ${day} —`;
+  const text = `${prefix} ${seen} comment${seen === 1 ? "" : "s"}: ${answered} answered, ${held} held for you, ${hidden} spam hidden, ${blocked} blocked${unread.length ? ` · ${unread.join(" · ")}` : ""}. ${waiting} waiting → /admin/social/posts`;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { sections, updatedAt } = await loadBoard();
@@ -648,7 +807,9 @@ async function noteSweepOnBoard(r: SweepReport): Promise<void> {
         completed = { id: randomUUID(), title: COMPLETED_TITLE, hint: "what got finished, newest first", items: [] };
         sections.push(completed);
       }
-      completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text, completedAt: r.at, from: "Claude — my queue (in order)" });
+      const existing = completed.items.find((it) => it.text.startsWith(prefix));
+      if (existing) existing.text = text;
+      else completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text, completedAt: r.at, from: "Claude — my queue (in order)" });
       await saveBoard(sections, updatedAt);
       return;
     } catch (err) {

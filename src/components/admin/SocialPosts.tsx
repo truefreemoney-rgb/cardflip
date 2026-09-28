@@ -95,7 +95,7 @@ function PostRow({ post, comments, open, onToggle, onDone }: { post: StoredPost;
           {handled.length > 0 && (
             <ul className="space-y-1.5">
               {handled.map((c) => (
-                <HandledComment key={c.id} c={c} />
+                <HandledComment key={c.id} c={c} onDone={onDone} />
               ))}
             </ul>
           )}

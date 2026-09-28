@@ -8,7 +8,7 @@
  * word boundary.
  */
 import assert from "node:assert/strict";
-import { classifyComment, fitReply, isOwnComment, replyPlan, REPLY_MAX } from "../src/lib/socialModeration.ts";
+import { classifyComment, fitReply, isOwnComment, isStale, replyPlan, replyProblem, REPLY_MAX, STALE_MS } from "../src/lib/socialModeration.ts";
 
 const spam = [
   "DM me for cheap PSA 10 Charizards",
@@ -63,4 +63,20 @@ const replies = praisePlans.filter((p) => p === "reply").length;
 assert.ok(replies >= 30 && replies <= 70, `praise about one in four, got ${replies}/200`);
 assert.ok(praisePlans.every((p) => p === "reply" || p === "skip"));
 assert.equal(replyPlan("praise", "nice card", "bluesky:7"), replyPlan("praise", "nice card", "bluesky:7"), "seeded, stable across runs");
+// Pre-send check: nothing goes out that names a price we did not post, promises, links elsewhere, or shouts.
+const post = "Umbreon ex jumped to $412 this week. cardflip.io";
+assert.equal(replyProblem("It is at $412 in our data, scan yours at cardflip.io", post, "x"), null);
+assert.match(replyProblem("Should fetch $500 easy", post, "x"), /\$500/);
+assert.match(replyProblem("We guarantee the price", post, "x"), /guarantee/);
+assert.match(replyProblem("Free shipping on us", post, "x"), /shipping/);
+assert.match(replyProblem("see https://othersite.com/deal", post, "x"), /links to/);
+assert.equal(replyProblem("Both scan fine at cardflip.io/help", post, "bluesky"), null);
+assert.match(replyProblem("Nice pull!", post, "x"), /exclamation/);
+assert.equal(replyProblem("", post, "x"), "empty");
+assert.match(replyProblem("x".repeat(301), post, "bluesky"), /over 300/);
+// Stale: two days and older is stored, never answered.
+const nowMs = Date.UTC(2026, 8, 28, 12);
+assert.equal(isStale(new Date(nowMs - STALE_MS + 60_000).toISOString(), nowMs), false);
+assert.equal(isStale(new Date(nowMs - STALE_MS - 60_000).toISOString(), nowMs), true);
+assert.equal(isStale("junk", nowMs), false);
 console.log("social inbox: ok");

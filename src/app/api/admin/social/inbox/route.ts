@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (!id || !action) return NextResponse.json({ error: "id and action required" }, { status: 400 });
   try {
     if (action === "redraft") return NextResponse.json({ draft: await redraft(id) });
-    if (action !== "reply" && action !== "hide" && action !== "dismiss") return NextResponse.json({ error: "unknown action" }, { status: 400 });
+    if (action !== "reply" && action !== "hide" && action !== "dismiss" && action !== "undo" && action !== "block") return NextResponse.json({ error: "unknown action" }, { status: 400 });
     const comment = await actOnComment(id, action, typeof body?.text === "string" ? body.text : undefined);
     return NextResponse.json({ comment });
   } catch (err) {
