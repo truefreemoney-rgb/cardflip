@@ -148,15 +148,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
   // card on it is queued). Page asks the camera for its largest frame, since
   // each card is a ninth of the shot and the read still needs its number.
   const [mode, setMode] = useState<CaptureMode>("card");
-  const setModeAndFocus = useCallback((next: CaptureMode) => {
-    setMode(next);
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    const size = next === "page" ? 4096 : 1920;
-    track.applyConstraints({ width: { ideal: size }, height: { ideal: size } }).catch(() => {
-      // Some cameras refuse a live resize; the current frame size stands.
-    });
-  }, []);
+  // Page mode shoots through the phone's own camera app, not the live
+  // stream: iPhone Safari caps getUserMedia near 1080 wide, which split nine
+  // ways left each card ~330px and its number unreadable (Chris's first
+  // binder test, 09-27: nothing matched). A native photo is the full sensor,
+  // ~3000px wide, so every card gets ~1000px. The viewfinder stays up only
+  // as the framing hint; capture="environment" opens the back camera.
+  const pageInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
@@ -311,6 +309,10 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
   }, [torch]);
 
   const capture = useCallback(() => {
+    if (mode === "page" && onCapturePage) {
+      pageInputRef.current?.click();
+      return;
+    }
     const video = videoRef.current;
     // videoWidth is 0 until the stream delivers its first frame.
     if (!video || video.videoWidth === 0) return;
@@ -383,9 +385,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
           setTimeout(() => setBlurNote(null), 2500);
           return;
         }
-        const file = new File([blob], `${mode === "page" ? "page" : "camera"}-${Date.now()}.jpg`, { type: "image/jpeg" });
-        if (mode === "page" && onCapturePage) onCapturePage(file);
-        else onCapture(file);
+        onCapture(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }));
         setCaptured((count) => count + 1);
         setFlash(true);
         setTimeout(() => setFlash(false), 150);
@@ -457,7 +457,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
     : !ready
       ? "Opening the camera…"
       : mode === "page"
-        ? pageNote ?? "Fill the guide with the whole page, then tap Capture"
+        ? pageNote ?? "Tap Capture Page — your camera takes one full-size photo"
         : identifying
           ? "Reading the last card — line up the next one"
           : "Fill the guide, then tap Capture";
@@ -682,8 +682,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
               </p>
             ) : (
               <p className="w-full text-center text-xs text-zinc-500">
-                Hold the phone square over a binder page, or cards laid out on a table. One
-                shot finds every card — each one counts as a scan.
+                Shoot a binder page, or cards laid out on a table, square-on and close
+                enough to fill the shot. One photo finds every card — each one counts as a scan.
               </p>
             )
           ) : lastScan ? (
@@ -707,7 +707,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
                   type="button"
                   role="radio"
                   aria-checked={mode === m}
-                  onClick={() => setModeAndFocus(m)}
+                  onClick={() => setMode(m)}
                   className={`rounded-full px-4 py-1.5 transition ${
                     mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
                   }`}
@@ -720,9 +720,26 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
         )}
 
         <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
+          {onCapturePage && (
+            <input
+              ref={pageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                onCapturePage(file);
+                setCaptured((count) => count + 1);
+                fxCapture();
+              }}
+            />
+          )}
           <button
             onClick={capture}
-            disabled={!ready || (mode === "page" && Boolean(pageNote))}
+            disabled={(mode === "page" ? Boolean(pageNote) : !ready)}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
             {mode === "page" ? "Capture Page" : "Capture Card"}
