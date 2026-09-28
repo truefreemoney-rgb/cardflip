@@ -64,6 +64,29 @@ interface Session {
   didDoc?: { service?: Array<{ id?: string; type?: string; serviceEndpoint?: string }> };
 }
 
+/** Sign in with the app password (the social inbox reads notifications and answers replies with this). Null when Bluesky is not connected. */
+export async function blueskySession(): Promise<Session | null> {
+  const identifier = process.env.BLUESKY_HANDLE?.trim();
+  const password = process.env.BLUESKY_APP_PASSWORD?.trim();
+  if (!identifier || !password) return null;
+  return xrpc<Session>("com.atproto.server.createSession", { identifier, password });
+}
+
+/** A signed GET on the PDS (notifications, threads). */
+export async function blueskyGet<T>(method: string, params: Record<string, string>, session: Session): Promise<T> {
+  const res = await fetch(`${PDS}/xrpc/${method}?${new URLSearchParams(params).toString()}`, {
+    headers: { authorization: `Bearer ${session.accessJwt}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`bluesky ${method} ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return (await res.json()) as T;
+}
+
+/** A signed procedure call (createRecord for replies). */
+export async function blueskyCall<T>(method: string, body: unknown, session: Session): Promise<T> {
+  return xrpc<T>(method, body, session.accessJwt);
+}
+
 /** The PDS that holds this account (from the session's DID document), for the service-auth audience. */
 export function pdsHost(session: Session, fallback = PDS): string {
   const svc = session.didDoc?.service?.find((s) => s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer");

@@ -577,6 +577,33 @@ const SCHEMA = `
     PRIMARY KEY (day, visitor, path)
   ) WITHOUT ROWID;
   CREATE INDEX IF NOT EXISTS idx_page_views_at ON page_views(at);
+
+  -- Social inbox (09-28): every comment / reply on the autopilot's posts,
+  -- read an hour after each slot (lib/server/socialInbox.ts). id is
+  -- "<site>:<comment id>". kind = spam | question | praise | other; status =
+  -- new | hidden | replied | dismissed. draft is the robot's suggested
+  -- reply, reply_text what actually went out. meta = per-site JSON the
+  -- reply call needs (Bluesky cid/root, X conversation).
+  CREATE TABLE IF NOT EXISTS social_comments (
+    id TEXT PRIMARY KEY,
+    site TEXT NOT NULL,
+    comment_id TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    post_url TEXT NOT NULL,
+    post_text TEXT NOT NULL,
+    author TEXT NOT NULL,
+    author_id TEXT,
+    text TEXT NOT NULL,
+    at TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    status TEXT NOT NULL,
+    draft TEXT,
+    reply_text TEXT,
+    seen_at INTEGER NOT NULL,
+    acted_at INTEGER,
+    meta TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_social_comments_status ON social_comments(status, seen_at);
 `;
 
 /**

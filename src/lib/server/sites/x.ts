@@ -89,6 +89,13 @@ export async function xSignedGet(path: string, query: Record<string, string>): P
   return signedFetch(c, "GET", `${API}${path}`, { query });
 }
 
+/** A signed JSON request (POST / PUT / DELETE) against the X API — replies and hiding for the social inbox. Null when X is not configured. */
+export async function xSignedJson(method: "POST" | "PUT" | "DELETE", path: string, json: unknown): Promise<Response | null> {
+  const c = creds();
+  if (!c) return null;
+  return signedFetch(c, method, `${API}${path}`, { json });
+}
+
 async function signedFetch(
   c: XCreds,
   method: string,

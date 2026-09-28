@@ -1,0 +1,81 @@
+/**
+ * Social inbox classifier (pure, no server imports): sorts a comment on one
+ * of our posts into spam / question / praise / other. Spam is hidden on
+ * sight where the site allows it (Facebook, Instagram, Threads, X) and
+ * flagged where it does not (Bluesky); everything else waits for Chris on
+ * /admin/social/inbox with a drafted reply. Errs toward "other" — a real
+ * collector wrongly hidden costs more than one spam comment Chris dismisses.
+ */
+
+export type CommentKind = "spam" | "question" | "praise" | "other";
+
+/** Links we never treat as spam: our own site and the platforms themselves. */
+const OWN_HOSTS = /(^|\.)(cardflip\.io|bsky\.app|x\.com|twitter\.com|facebook\.com|instagram\.com|threads\.net|tiktok\.com)$/i;
+
+const SPAM_PHRASES: RegExp[] = [
+  /\bdm\s+(me|us)\b/i,
+  /\b(whats?app|telegram|signal)\b/i,
+  /\b(crypto|bitcoin|forex|binary options|nft drop|airdrop)\b/i,
+  /\bcheck\s+(out\s+)?my\s+(page|profile|bio|link|shop|store)\b/i,
+  /\b(link|shop|store)\s+in\s+(my\s+)?bio\b/i,
+  /\bfollow\s+(me|back|for\s+follow)\b/i,
+  /\bbuy\s+(followers|likes|views)\b/i,
+  /\bpromo\s*code\b/i,
+  /\bearn\s+\$?\d/i,
+  /\b(make|made)\s+\$\d[\d,]*\s+(a|per)\s+(day|week|month)\b/i,
+  /\bwork\s+from\s+home\b/i,
+  /\b(cheap|discount|wholesale)\s+(cards?|boxes?|packs?)\s+(here|available|for sale)\b/i,
+  /\bi\s+(sell|have)\s+.*\b(psa|cgc|bgs)\b.*\b(message|dm|inbox)\b/i,
+  /\bmessage\s+me\s+(for|to)\b/i,
+  /\b(hmu|hit me up)\b/i,
+];
+
+const QUESTION_STARTS = /^(how|what|where|when|why|which|who|is|are|does|do|can|could|would|should|will|did|any|anyone)\b/i;
+
+const PRAISE_WORDS = /\b(nice|cool|awesome|love|great|sick|fire|amazing|beautiful|clean|dope|wow|sweet|legit|impressive|congrats|good stuff|well done)\b|🔥|❤️|😍|👏|💯/i;
+
+function foreignLinks(text: string): number {
+  let n = 0;
+  for (const m of text.matchAll(/https?:\/\/([^\s/]+)|(?<![\w@.])((?:[a-z0-9-]+\.)+(?:com|net|org|io|co|shop|store|xyz|info|biz|me|link|app|gg|tv))(?![\w])/gi)) {
+    const host = (m[1] ?? m[2] ?? "").replace(/^www\./i, "");
+    if (host && !OWN_HOSTS.test(host)) n++;
+  }
+  return n;
+}
+
+export function classifyComment(text: string): CommentKind {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return "other";
+  if (SPAM_PHRASES.some((re) => re.test(t))) return "spam";
+  const links = foreignLinks(t);
+  if (links >= 2) return "spam";
+  // One outside link with a sales pitch or a bare link and nothing else.
+  if (links === 1 && (/\b(sale|selling|buy|cheap|free|win|giveaway|bonus|offer)\b/i.test(t) || t.replace(/https?:\/\/\S+/g, "").trim().length < 12)) return "spam";
+  // Mass emoji / mention dumps with nothing to say.
+  const mentions = (t.match(/(?<![\w])@[\w.]+/g) ?? []).length;
+  if (mentions >= 3 && t.replace(/@[\w.]+/g, "").trim().length < 8) return "spam";
+  if (t.includes("?") || QUESTION_STARTS.test(t)) return "question";
+  if (PRAISE_WORDS.test(t) && t.length <= 160) return "praise";
+  return "other";
+}
+
+/** True when a comment is one of ours (the page / account replying to itself). */
+export function isOwnComment(authorId: string | null | undefined, authorHandle: string | null | undefined, ownIds: string[]): boolean {
+  const ids = ownIds.filter(Boolean).map((s) => s.toLowerCase().replace(/^@/, ""));
+  if (authorId && ids.includes(authorId.toLowerCase())) return true;
+  if (authorHandle && ids.includes(authorHandle.toLowerCase().replace(/^@/, ""))) return true;
+  return false;
+}
+
+/** Reply length per site, so a draft never gets refused on send. */
+export const REPLY_MAX: Record<string, number> = { bluesky: 300, x: 280, facebook: 8000, instagram: 2200, threads: 500, tiktok: 150 };
+
+/** Trim a reply to the site's limit on a word boundary. */
+export function fitReply(site: string, text: string): string {
+  const max = REPLY_MAX[site] ?? 280;
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trim() + "…";
+}
