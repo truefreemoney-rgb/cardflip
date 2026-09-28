@@ -175,6 +175,26 @@ export function displayCardNumber(card: {
   return card.setTotal ? `${card.number}/${card.setTotal}` : card.number;
 }
 
+/**
+ * The number exactly as the card prints it, for eBay titles and the Card
+ * Number specific: "083/086", "161/131", "4/102". Modern sets zero-pad the
+ * number to three digits and print the total the same width; our catalog
+ * keeps the padded number ("083") but the bare total (86), so the total is
+ * padded out to the number's width. Old sets ("4" of 102) are untouched.
+ * Buyers search the printed form, so this is what the title must say.
+ */
+export function printedCardNumber(card: {
+  number: string;
+  setTotal?: number | null;
+  setCode?: string | null;
+  game?: GameId;
+}): string {
+  if (card.game === "mtg" || card.game === "onepiece" || !card.setTotal) return displayCardNumber(card);
+  const digits = /^\d+$/.test(card.number) ? card.number.length : 0;
+  const total = String(card.setTotal).padStart(digits, "0");
+  return `${card.number}/${total}`;
+}
+
 /** MTG finish keys as they appear in `CardPrice.variant`, with UI labels. */
 export const MTG_FINISH_LABEL: Record<string, string> = {
   nonfoil: "Nonfoil",

@@ -93,6 +93,52 @@ console.log("Raw card");
     ["1st Edition"],
   );
   check(
+    "Rarity aspect is eBay's word ('Holo Rare', not pokemontcg.io's 'Rare Holo')",
+    item.product.aspects.Rarity,
+    ["Holo Rare"],
+  );
+  check(
+    "a holo-only rarity sets Finish = Holo even with no printing given",
+    item.product.aspects.Finish,
+    ["Holo"],
+  );
+  const pattern = buildInventoryItem({
+    ...base,
+    card: { ...card, name: "Harlequin", setName: "White Flare", number: "083", setTotal: 86, rarity: "Uncommon" },
+    printing: "Poké Ball Pattern",
+  }).product.aspects;
+  check("Card Number is the printed, padded form", pattern["Card Number"], ["083/086"]);
+  check("Poké Ball pattern → Finish Holo", pattern.Finish, ["Holo"]);
+  check("plain rarity passes through", pattern.Rarity, ["Uncommon"]);
+  check("no Full Art / Alt Art on an Uncommon", pattern.Features, undefined);
+  check(
+    "Reverse Holofoil → Finish Reverse Holo",
+    buildInventoryItem({ ...base, card: { ...card, rarity: "Uncommon" }, printing: "Reverse Holofoil" }).product.aspects.Finish,
+    ["Reverse Holo"],
+  );
+  check(
+    "Normal print of a plain rarity → Finish Regular",
+    buildInventoryItem({ ...base, card: { ...card, rarity: "Common" }, printing: "Normal" }).product.aspects.Finish,
+    ["Regular"],
+  );
+  check(
+    "no printing and a plain rarity → no Finish at all (never guessed)",
+    buildInventoryItem({ ...base, card: { ...card, rarity: "Common" } }).product.aspects.Finish,
+    undefined,
+  );
+  const sir = buildInventoryItem({
+    ...base,
+    card: { ...card, name: "Umbreon ex", setName: "Prismatic Evolutions", number: "161", setTotal: 131, rarity: "Special Illustration Rare" },
+    printing: "Holofoil",
+  }).product.aspects;
+  check("Special Illustration Rare → Full Art + Alternative Art", sir.Features, ["Full Art", "Alternative Art"]);
+  check("secret number keeps the printed total", sir["Card Number"], ["161/131"]);
+  check(
+    "1st Edition leads the Features list ahead of the rarity's",
+    buildInventoryItem({ ...base, card: { ...card, rarity: "Rare Ultra" }, firstEdition: true }).product.aspects.Features,
+    ["1st Edition", "Full Art"],
+  );
+  check(
     "Japanese card → Language aspect + English name",
     buildInventoryItem({
       ...base,

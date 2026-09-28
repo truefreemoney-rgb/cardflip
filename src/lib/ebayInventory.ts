@@ -33,7 +33,8 @@ import type {
 } from "@/lib/types";
 import { SITE_URL } from "./siteUrl.ts";
 import { belowFloor, floorRefusal } from "./fees.ts";
-import { GAMES } from "./games.ts";
+import { GAMES, printedCardNumber } from "./games.ts";
+import { ebayFeatures, ebayFinish, ebayRarityWord } from "./ebayVocab.ts";
 
 export const EBAY_MARKETPLACE_ID = "EBAY_US";
 
@@ -55,11 +56,15 @@ export interface DraftInput {
     imageSmall: string;
     /** MTG type line, for the Card Type aspect. */
     typeLine?: string | null;
+    /** Printed set total (86 for "083/086"), for the padded Card Number specific. */
+    setTotal?: number | null;
   };
   /** Which game — drives the Game aspect and MTG-only specifics. Pokémon when absent. */
   game?: GameId;
   /** MTG finish of the copy ("nonfoil" | "foil" | "etched"). */
   finish?: string | null;
+  /** Pokémon: the quote's printing label ("Holofoil", "Reverse Holofoil", "Poké Ball Pattern", "Normal") — drives Finish. */
+  printing?: string | null;
   /**
    * Whether the seller's own photo of this copy is stored on the server
    * (lib/server/cardPhotos.ts). Server-set from disk, never trusted from the
@@ -211,17 +216,33 @@ export function buildAspects(input: DraftInput): Record<string, string[]> {
   }
 
   aspects["Card Name"] = [clip(input.card.englishName || input.card.name)];
-  if (input.card.number) aspects["Card Number"] = [clip(input.card.number)];
-  if (input.card.rarity) aspects.Rarity = [clip(input.card.rarity)];
+  // The number as printed ("083/086") — the form buyers type into the Card
+  // Number filter; the bare "083" matches nothing they search.
+  if (input.card.number) {
+    aspects["Card Number"] = [clip(printedCardNumber({ ...input.card, game: game.id }))];
+  }
   const features: string[] = [];
   if (input.firstEdition) features.push("1st Edition");
   if (game.id === "mtg") {
+    if (input.card.rarity) aspects.Rarity = [clip(input.card.rarity)];
     // MTG buyers filter on finish and card type; both are facts we hold.
     aspects.Finish = [input.finish === "foil" || input.finish === "etched" ? "Foil" : "Regular"];
     if (input.card.typeLine) {
       const mainType = input.card.typeLine.split(" — ")[0].split(" // ")[0].trim();
       if (mainType) aspects["Card Type"] = [clip(mainType)];
     }
+  } else {
+    // Pokémon: eBay's sidebar filters are Finish / Features / Graded, so the
+    // rarity goes in as eBay's word ("Special Illustration Rare", "Holo
+    // Rare"), the finish comes from the picked printing (or a rarity that can
+    // only be a holo), and Full Art / Alternative Art follow the rarity. No
+    // Card Type: the catalog mirror carries no supertype (09-28), and a
+    // guessed specific is worse than none.
+    const rarity = ebayRarityWord(input.card.rarity);
+    if (rarity) aspects.Rarity = [clip(rarity)];
+    const finish = ebayFinish(input.printing, input.card.rarity);
+    if (finish) aspects.Finish = [finish];
+    features.push(...ebayFeatures(input.card.rarity));
   }
   if (features.length) aspects.Features = features;
 

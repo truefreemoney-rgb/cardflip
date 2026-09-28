@@ -16,7 +16,8 @@ import type {
 import { gradeLabel } from "./grading.ts";
 import { descriptionHtml } from "./ebayInventory.ts";
 import { SITE_URL } from "./siteUrl.ts";
-import { GAMES, MTG_FINISH_LABEL } from "./games.ts";
+import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
+import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
 import { listingFloor, MIN_NET_USD, POSTAGE_USD } from "./fees.ts";
 
@@ -527,7 +528,7 @@ function buildTitle(
   card: PokemonCard,
   condition: Condition,
   facts: ListingFacts = {},
-  /** Pokémon printing worth a search term ("Reverse Holofoil", "Poké Ball Pattern"); never Normal. */
+  /** The quote's printing label ("Reverse Holofoil", "Poké Ball Pattern", "Normal"); undefined when unknown. */
   printing?: string,
 ): string {
   // "1st Edition" goes right after the name — it's the term buyers search,
@@ -535,36 +536,59 @@ function buildTitle(
   const lang = cjkLanguage(card);
   const baseName = lang && card.englishName ? card.englishName : card.name;
   const name = facts.firstEdition ? `${baseName} 1st Edition` : baseName;
-  // A slab's grade replaces the condition outright: "PSA 10 Near Mint" reads
-  // as noise to a buyer, and the grade is the term they search.
-  const tail = facts.grading ? gradeLabel(facts.grading) : condition;
   const game = GAMES[gameOf(card)];
-  // MTG buyers search by set code + number ("LTR 187") and care whether it's
-  // a foil; those words go before the game token so they survive trimming.
   const isMtg = game.id === "mtg";
-  const number = isMtg && card.setCode ? `${card.setCode} ${card.number}` : card.number;
-  const finish = isMtg
-    ? facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : ""
-    : printing ?? "";
-  const token = [finish, lang ?? "", game.titleToken].filter(Boolean).join(" ");
-
   // A CJK set name is dead weight in an English-market title; the English
   // name + number + language identify the card.
   const setForTitle = lang ? "" : card.setName;
-  const full = `${name} ${setForTitle} ${number} ${token} ${tail}`.replace(/\s+/g, " ");
-  if (full.length <= 80) return full;
 
-  // When trimming, drop what buyers search for least: for a slab the grade is
-  // the search term so the set name goes; for a raw card the set matters more
-  // than the condition.
-  const trimmed = (
-    facts.grading
-      ? `${name} ${number} ${token} ${tail}`
-      : `${name} ${setForTitle} ${number} ${token}`
-  ).replace(/\s+/g, " ");
-  if (trimmed.length <= 80) return trimmed;
+  if (isMtg) {
+    // MTG buyers search by set code + number ("LTR 187") and care whether
+    // it's a foil; those words go before the game token so they survive
+    // trimming. A slab's grade replaces the condition outright.
+    const tail = facts.grading ? gradeLabel(facts.grading) : condition;
+    const number = card.setCode ? `${card.setCode} ${card.number}` : card.number;
+    const finish =
+      facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : "";
+    const token = [finish, lang ?? "", game.titleToken].filter(Boolean).join(" ");
+    const full = `${name} ${setForTitle} ${number} ${token} ${tail}`.replace(/\s+/g, " ");
+    if (full.length <= 80) return full;
+    const trimmed = (
+      facts.grading
+        ? `${name} ${number} ${token} ${tail}`
+        : `${name} ${setForTitle} ${number} ${token}`
+    ).replace(/\s+/g, " ");
+    if (trimmed.length <= 80) return trimmed;
+    return trimmed.slice(0, 80).trim();
+  }
 
-  return trimmed.slice(0, 80).trim();
+  // Pokémon (and the other number/total games), the way the big sellers
+  // write it (09-28, from ~40 sold listings):
+  //   {Name} ({Printing}) {###/###} {Rarity} {Set} Pokemon Card {NM|grade}
+  //   "Harlequin (Poke Ball Pattern) 083/086 Holo Uncommon White Flare Pokemon Card NM"
+  //   "Umbreon ex 161/131 Special Illustration Rare Prismatic Evolutions Pokemon Card NM"
+  // The number is the printed, fully padded form; the rarity is eBay's word
+  // for it; the printing sits after the name in ASCII; the condition is the
+  // abbreviation buyers scan for. A slab's grade takes the condition's place.
+  const printingWord = titlePrintingWord(printing, card.rarity);
+  const rarityWord = titleRarityWord(card.rarity, printing);
+  const number = printedCardNumber(card);
+  const gameWord = game.id === "pokemon" ? "Pokemon" : game.titleToken;
+  const tail = facts.grading ? gradeLabel(facts.grading) : CONDITION_ABBREV[condition] ?? condition;
+  const head = [name, printingWord ? `(${printingWord})` : "", number, rarityWord ?? ""];
+  const assemble = (set: string, cardWord: string) =>
+    [...head, set, lang ?? "", gameWord, cardWord, tail]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Trim order when over 80: "Card" goes first, then the set — never the
+  // number or the rarity, which are what the search matches on.
+  for (const attempt of [assemble(setForTitle, "Card"), assemble(setForTitle, ""), assemble("", "")]) {
+    if (attempt.length <= 80) return attempt;
+  }
+  return assemble("", "").slice(0, 80).trim();
 }
 
 export function buildListing(
@@ -630,12 +654,10 @@ export function buildListing(
     .join("\n\n");
 
   // A holo / reverse / pattern printing is a term buyers search, so it goes
-  // in the title too (Chris, 09-27: Poké Ball pattern Harlequin). The plain
-  // print says nothing.
-  const titlePrinting =
-    !isMtg && printingLabel && !/^(normal|unlimited|average)$/i.test(printingLabel) ? printingLabel : undefined;
+  // in the title too (Chris, 09-27: Poké Ball pattern Harlequin); the title
+  // builder decides which words a plain or holo print earns.
   return {
-    title: buildTitle(card, condition, facts, titlePrinting),
+    title: buildTitle(card, condition, facts, isMtg ? undefined : printingLabel),
     description,
     price,
     categoryId: CCG_CARDS_CATEGORY_ID,

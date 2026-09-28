@@ -235,6 +235,111 @@ console.log("\nA slab's grade replaces the condition flow:");
   );
 }
 
+console.log("\neBay titles read like the big sellers' (09-28):");
+{
+  const harlequin = {
+    ...card([usd(3, "pokeBallPattern")]),
+    name: "Harlequin",
+    setName: "White Flare",
+    number: "083",
+    setTotal: 86,
+    rarity: "Uncommon",
+  };
+  check(
+    "printing after the name, padded number, Holo + rarity, set, Pokemon Card NM",
+    buildListing(harlequin, 3, "Near Mint", "Poké Ball Pattern").title,
+    "Harlequin (Poke Ball Pattern) 083/086 Holo Uncommon White Flare Pokemon Card NM",
+  );
+  check(
+    "a reverse holo names itself once, rarity stays plain",
+    buildListing(harlequin, 3, "Lightly Played", "Reverse Holofoil").title,
+    "Harlequin (Reverse Holo) 083/086 Uncommon White Flare Pokemon Card LP",
+  );
+  check(
+    "a plain print earns no printing word and no Holo",
+    buildListing(harlequin, 1, "Moderately Played", "Normal").title,
+    "Harlequin 083/086 Uncommon White Flare Pokemon Card MP",
+  );
+  const umbreon = {
+    ...card([usd(1400)]),
+    name: "Umbreon ex",
+    setName: "Prismatic Evolutions",
+    number: "161",
+    setTotal: 131,
+    rarity: "Special Illustration Rare",
+  };
+  check(
+    "a holo the rarity already announces gets no (Holo); secret number over the printed total; 81 chars → 'Card' dropped first",
+    buildListing(umbreon, 1400, "Near Mint", "Holofoil").title,
+    "Umbreon ex 161/131 Special Illustration Rare Prismatic Evolutions Pokemon NM",
+  );
+  check(
+    "the same card in a shorter set keeps 'Card'",
+    buildListing({ ...umbreon, setName: "Evolving Skies" }, 1400, "Near Mint", "Holofoil").title,
+    "Umbreon ex 161/131 Special Illustration Rare Evolving Skies Pokemon Card NM",
+  );
+  check(
+    "pokemontcg.io's 'Rare Holo' becomes eBay's 'Holo Rare'; old sets keep 4/102",
+    buildListing({ ...card([usd(100)]), setTotal: 102, rarity: "Rare Holo" }, 100, "Near Mint", "Holofoil").title,
+    "Charizard 4/102 Holo Rare Base Set Pokemon Card NM",
+  );
+  check(
+    "1st Edition stays right after the name",
+    buildListing({ ...card([usd(100)]), setTotal: 102, rarity: "Rare Holo" }, 100, "Near Mint", "1st Ed. Holofoil", {
+      firstEdition: true,
+    }).title,
+    "Charizard 1st Edition 4/102 Holo Rare Base Set Pokemon Card NM",
+  );
+  check(
+    "a slab's grade takes the condition's place",
+    buildListing({ ...card([usd(100)]), setTotal: 102, rarity: "Rare Holo" }, 100, "Near Mint", "Holofoil", {
+      grading: { company: "PSA", grade: "10" },
+    }).title,
+    "Charizard 4/102 Holo Rare Base Set Pokemon Card PSA 10",
+  );
+  const long = buildListing(
+    {
+      ...card([usd(50)]),
+      name: "Iono's Bellibolt ex",
+      setName: "Journey Together",
+      number: "183",
+      setTotal: 159,
+      rarity: "Special Illustration Rare",
+    },
+    50,
+    "Near Mint",
+    "Holofoil",
+  ).title;
+  check(
+    "still over 80 without 'Card': the set goes, never the number or the rarity",
+    [long, long.length <= 80],
+    ["Iono's Bellibolt ex 183/159 Special Illustration Rare Pokemon NM", true],
+  );
+  const longer = buildListing(
+    {
+      ...card([usd(50)]),
+      name: "Lillie's Clefairy ex 1st Edition Something",
+      setName: "Journey Together",
+      number: "184",
+      setTotal: 159,
+      rarity: "Special Illustration Rare",
+    },
+    50,
+    "Near Mint",
+    "Holofoil",
+  ).title;
+  check(
+    "still over 80: the set goes next, number + rarity survive",
+    [longer.includes("184/159"), longer.includes("Special Illustration Rare"), longer.includes("Journey"), longer.length <= 80],
+    [true, true, false, true],
+  );
+  check(
+    "Damaged abbreviates to DMG",
+    buildListing(harlequin, 1, "Damaged", "Normal").title.endsWith(" Pokemon Card DMG"),
+    true,
+  );
+}
+
 console.log("\nSealed product flows through the same listing shapes:");
 {
   const set = { name: "Evolving Skies", releaseDate: "2021-08-27", logoUrl: "" };

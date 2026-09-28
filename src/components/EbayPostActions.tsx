@@ -12,7 +12,7 @@ import {
   type EbayPushSuccess,
 } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { formatMoney, itemFirstEdition, mtgFinishOf } from "@/lib/listing";
+import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/listing";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 
 interface Props {
@@ -109,9 +109,13 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
         imageLarge: item.card!.imageLarge,
         imageSmall: item.card!.imageSmall,
         typeLine: item.card!.typeLine ?? null,
+        setTotal: item.card!.setTotal ?? null,
       },
       game: item.game,
       finish: item.game === "mtg" ? mtgFinishOf(item) : null,
+      // The printing behind the quote ("Reverse Holofoil", "Poké Ball
+      // Pattern", "Normal") — eBay's Finish specific comes from it.
+      printing: item.game === "mtg" ? null : quoteForItem(item)?.price.label ?? null,
       kind: item.kind,
       condition: item.condition,
       grading: item.grading,
