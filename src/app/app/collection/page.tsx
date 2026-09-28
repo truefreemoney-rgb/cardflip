@@ -530,9 +530,12 @@ export default function CollectionPage() {
             </div>
           ))}
           {/* What you paid (09-27): tap to type it; it feeds profit and the year-end report. */}
-          <div className="min-w-0 bg-surface-1 px-4 py-2.5">
+          {/* While typing, the cell takes the whole row: a 3-col cell on a
+              phone is too narrow for the input + Save, and truncate hid the
+              button (Chris, 09-28: "needs a save button"). */}
+          <div className={`min-w-0 bg-surface-1 px-4 py-2.5 ${costForm?.id === card.id ? "col-span-3" : ""}`}>
             <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">You paid</dt>
-            <dd className="truncate text-sm">
+            <dd className={`text-sm ${costForm?.id === card.id ? "" : "truncate"}`}>
               {costForm?.id === card.id ? (
                 <form
                   onSubmit={(e) => {
@@ -557,8 +560,8 @@ export default function CollectionPage() {
                       className="w-20 rounded-md border border-edge bg-black/40 py-0.5 pl-4 pr-1 text-base text-white outline-none focus:border-brand-400 sm:text-sm"
                     />
                   </span>
-                  <button type="submit" className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25">
-                    ✓
+                  <button type="submit" className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black transition hover:bg-emerald-400">
+                    Save
                   </button>
                 </form>
               ) : (
@@ -576,9 +579,9 @@ export default function CollectionPage() {
           </div>
           {/* Price alert on an owned card (09-27): email when the market-based asking price reaches the target. Sold rows have nothing to watch. */}
           {!sold && (
-            <div className="min-w-0 bg-surface-1 px-4 py-2.5">
+            <div className={`min-w-0 bg-surface-1 px-4 py-2.5 ${alertForm?.id === card.id ? "col-span-3" : ""}`}>
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Alert me at</dt>
-              <dd className="truncate text-sm">
+              <dd className={`text-sm ${alertForm?.id === card.id ? "" : "truncate"}`}>
                 {alertForm?.id === card.id ? (
                   <form
                     onSubmit={(e) => {
@@ -603,8 +606,9 @@ export default function CollectionPage() {
                         className="w-20 rounded-md border border-edge bg-black/40 py-0.5 pl-4 pr-1 text-base text-white outline-none focus:border-brand-400 sm:text-sm"
                       />
                     </span>
-                    <button type="submit" className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25">
-                      ✓
+                    {/* A worded Save (Chris, 09-28): "not many people are going to know to hit return". */}
+                    <button type="submit" className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black transition hover:bg-emerald-400">
+                      Save
                     </button>
                     {card.alertPrice != null && (
                       <button type="button" onClick={() => { void applyPatch(card, { alertPrice: null }); setAlertForm(null); }} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
