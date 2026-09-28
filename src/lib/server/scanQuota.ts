@@ -29,6 +29,56 @@ export function scanQuotaExhausted(user: User): boolean {
   return q.remaining !== null && q.remaining <= 0;
 }
 
+/**
+ * Count `n` scans at once (a CSV import: every imported card is one scan —
+ * Chris, 09-27, "if they import, I want each card to count as a scan").
+ * Same order as recordScan: the month's allowance, then invite bonus, then
+ * Scan Pack; the caller has already capped n at the remaining balance.
+ */
+export async function recordScans(user: User, n: number): Promise<ScanQuota> {
+  if (n <= 0) return scanQuota(user);
+  const tier = scanTier(user);
+  if (tier === "trial") {
+    const t = (user.trialScansUsed ?? 0) + n;
+    await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(t, user.id);
+    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+  }
+  if (tier === "legacy") {
+    const d = day();
+    const used = (user.scanMonth === d ? user.scansUsed : 0) + n;
+    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(d, used, user.id);
+    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
+  }
+  if (tier === "owner") {
+    const m = month();
+    const used = (user.scanMonth === m ? user.scansUsed : 0) + n;
+    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
+    return { used, included: 0, remaining: null };
+  }
+  if (tier === "pack") {
+    const pack = Math.max(0, (user.extraScans ?? 0) - n);
+    await db.prepare("UPDATE users SET extra_scans = ? WHERE id = ?").run(pack, user.id);
+    return { used: 0, included: pack + n, remaining: pack, pack };
+  }
+  const m = month();
+  const cap = monthlyScans(user);
+  const before = user.scanMonth === m ? user.scansUsed : 0;
+  let bonus = user.bonusScans ?? 0;
+  let pack = user.extraScans ?? 0;
+  let left = n;
+  const fromMonth = Math.min(left, Math.max(0, cap - before));
+  const used = before + fromMonth;
+  left -= fromMonth;
+  const fromBonus = Math.min(left, bonus);
+  bonus -= fromBonus;
+  left -= fromBonus;
+  pack = Math.max(0, pack - left);
+  await db
+    .prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = ?, extra_scans = ? WHERE id = ?")
+    .run(m, used, bonus, pack, user.id);
+  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus + pack, bonus, pack };
+}
+
 /** Count one scan, resetting the counter on month rollover. Answers the
  * post-scan quota so the scan response can carry usage without a re-read. */
 export async function recordScan(user: User): Promise<ScanQuota> {

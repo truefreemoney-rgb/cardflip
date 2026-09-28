@@ -64,6 +64,10 @@ export interface ImportPreview {
   value: number;
   /** True when the file holds more cards than one import takes; the rest are dropped. */
   truncated: boolean;
+  /** Why it was cut: the per-file cap or the seller's scan balance. */
+  truncatedBy: "file" | "scans" | null;
+  /** Scans left before this import (null = unlimited). Every imported card is one scan. */
+  scansLeft: number | null;
 }
 
 const foldSet = (s: string) => normalizeSetName(s).replace(/\s+/g, "");
@@ -160,11 +164,21 @@ function describe(row: ImportRow): string {
   return [row.name, row.setName, row.number].filter(Boolean).join(" · ");
 }
 
-/** The whole file, matched and priced, nothing written. */
-export async function previewImport(csv: string): Promise<ImportPreview> {
+/**
+ * The whole file, matched and priced, nothing written. `scansLeft` is the
+ * seller's scan balance: every imported card counts as one scan (Chris,
+ * 09-27), so the import stops where the balance does.
+ */
+export async function previewImport(csv: string, scansLeft: number | null = null): Promise<ImportPreview> {
   const parsed = parseImport(csv);
   const rows: PreviewRow[] = [];
-  let budget = MAX_IMPORT_CARDS;
+  const byScans = scansLeft != null && scansLeft < MAX_IMPORT_CARDS;
+  let budget = byScans ? Math.max(0, scansLeft) : MAX_IMPORT_CARDS;
+  const overReason = byScans
+    ? scansLeft <= 0
+      ? "You're out of scans — each imported card is one scan"
+      : `Only ${scansLeft} scan${scansLeft === 1 ? "" : "s"} left — each imported card is one scan`
+    : `Over the ${MAX_IMPORT_CARDS}-card limit for one import`;
   let truncated = false;
 
   for (const s of parsed.skipped) {
@@ -217,7 +231,7 @@ export async function previewImport(csv: string): Promise<ImportPreview> {
     }
     if (budget <= 0) {
       truncated = true;
-      rows.push({ ...base, reason: `Over the ${MAX_IMPORT_CARDS}-card limit for one import` });
+      rows.push({ ...base, reason: overReason });
       continue;
     }
     const m = await matchRow(row);
@@ -261,6 +275,8 @@ export async function previewImport(csv: string): Promise<ImportPreview> {
     skipped: rows.filter((r) => r.status === "skip").length,
     value: Math.round(value * 100) / 100,
     truncated,
+    truncatedBy: truncated ? (byScans ? "scans" : "file") : null,
+    scansLeft,
   };
 }
 
@@ -274,8 +290,8 @@ export interface ImportResult {
  * Preview, then write: one card row per copy for every ok/check row.
  * `omit` = file lines the seller unticked in the review.
  */
-export async function commitImport(userId: string, csv: string, omit: number[] = []): Promise<ImportResult> {
-  const preview = await previewImport(csv);
+export async function commitImport(userId: string, csv: string, omit: number[] = [], scansLeft: number | null = null): Promise<ImportResult> {
+  const preview = await previewImport(csv, scansLeft);
   const skip = new Set(omit);
   const now = Date.now();
   const cards: CardRecord[] = [];

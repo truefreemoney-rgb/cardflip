@@ -119,7 +119,15 @@ check("value = priced rows × quantity", p.value, Math.round((askingPriceFor(400
 console.log("\ncap");
 const big = "Name,Set,Number,Quantity\n" + Array.from({ length: 12 }, () => "Pikachu,151,25,50").join("\n");
 const capped = await previewImport(big);
-check("500 cards then the rest is over the limit", [capped.cards, capped.truncated, capped.rows.filter((r) => r.status === "skip").length], [MAX_IMPORT_CARDS, true, 2]);
+check("500 cards then the rest is over the limit", [capped.cards, capped.truncated, capped.truncatedBy, capped.rows.filter((r) => r.status === "skip").length], [MAX_IMPORT_CARDS, true, "file", 2]);
+console.log("\nscans (every imported card is one scan)");
+const scanCapped = await previewImport(csv, 4);
+// The balance check runs before the catalog lookup, so the unknown-card row is "waiting" too (6 rows), never a wasted lookup.
+check("4 scans left → 4 cards, the rest wait", [scanCapped.cards, scanCapped.truncatedBy, scanCapped.scansLeft, scanCapped.rows.filter((r) => r.reason?.startsWith("Only 4 scans left")).length], [4, "scans", 4, 6]);
+check("a ×2 row is split at the balance", scanCapped.rows.find((r) => r.line === 3).quantity, 2);
+const none = await previewImport(csv, 0);
+check("0 scans left → nothing to import, reasons say so", [none.cards, none.rows.filter((r) => r.reason?.startsWith("You're out of scans")).length], [0, 9]);
+check("null = unlimited", (await previewImport(csv, null)).cards, 9);
 
 console.log("\ncommit");
 const u = await createUser("Seller", "seller@example.com", "hunter22", "user");
@@ -133,6 +141,22 @@ check("cost basis from the file", byCatalog("base2-4").map((c) => c.costBasis).s
 check("doubtful row is unverified with the reason", byCatalog("sv03.5-25").map((c) => [c.verifiedAt != null, c.matchDoubt]).sort((a, b) => Number(a[0]) - Number(b[0])), [[false, "No card number in the file — check the printing"], [true, null]]);
 check("unpriced promo has no scan price", byCatalog("swshp-1").map((c) => [c.price, c.scanPrice]), [[0, null]]);
 check("imported rows are tagged", new Set(cards.map((c) => c.category)).size === 1 && cards[0].category, "Imported");
+
+console.log("\nrecordScans");
+const { recordScans } = await import(at("lib/server/scanQuota.ts"));
+const { findUserById, PLAN_SCANS } = await import(at("lib/server/users.ts"));
+const month = new Date().toISOString().slice(0, 7);
+const cap = PLAN_SCANS.standard;
+// A subscriber with 3 of the month left, 2 bonus, 5 pack: 8 imported cards take the month, the bonus, then 3 of the pack.
+await db.prepare("UPDATE users SET access_override = 'comp_standard', scan_month = ?, scans_used = ?, bonus_scans = 2, extra_scans = 5 WHERE id = ?").run(month, cap - 3, u.id);
+let sub = await findUserById(u.id);
+const q = await recordScans(sub, 8);
+check("month first, then bonus, then pack", [q.used, q.bonus, q.pack, q.remaining], [cap, 0, 2, 2]);
+sub = await findUserById(u.id);
+check("written to the row", [sub.scansUsed, sub.bonusScans, sub.extraScans], [cap, 0, 2]);
+check("zero is a no-op", (await recordScans(sub, 0)).remaining, 2);
+const commitCapped = await commitImport(u.id, csv, [], 2);
+check("commit honours the balance", commitCapped.created, 2);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

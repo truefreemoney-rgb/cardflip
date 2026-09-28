@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { previewImport, commitImport, MAX_CSV_BYTES } from "@/lib/server/collectionImport";
+import { recordScans, scanQuota } from "@/lib/server/scanQuota";
 
 /**
  * Import from other apps (Tier 2 #12): POST { csv, commit?, omit? }.
  * commit false (default) = preview only; true = create the rows.
  * `omit` = file line numbers the seller unticked in the review.
+ *
+ * Every imported card is one scan on the allowance (Chris, 09-27: "if they
+ * import, I want each card to count as a scan"): the preview is capped at
+ * the balance, the commit records the count, and zero left is a 402 like
+ * the scanner's.
  */
 export async function POST(req: Request) {
   try {
@@ -17,12 +23,17 @@ export async function POST(req: Request) {
     if (!csv.trim()) return NextResponse.json({ error: "Choose a CSV file first." }, { status: 400 });
     if (csv.length > MAX_CSV_BYTES) return NextResponse.json({ error: "That file is too big — split it under 1 MB." }, { status: 413 });
     const omit = Array.isArray(body?.omit) ? body.omit.filter((n: unknown): n is number => typeof n === "number") : [];
+    const quota = scanQuota(user);
     try {
       if (body?.commit === true) {
-        const result = await commitImport(user.id, csv, omit);
-        return NextResponse.json({ created: result.created, cards: result.cards });
+        if (quota.remaining !== null && quota.remaining <= 0) {
+          return NextResponse.json({ error: "You're out of scans — each imported card is one scan", quota: true, usage: quota }, { status: 402 });
+        }
+        const result = await commitImport(user.id, csv, omit, quota.remaining);
+        const usage = await recordScans(user, result.created);
+        return NextResponse.json({ created: result.created, cards: result.cards, usage });
       }
-      return NextResponse.json({ preview: await previewImport(csv) });
+      return NextResponse.json({ preview: await previewImport(csv, quota.remaining), usage: quota });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Couldn't read that file.";
       return NextResponse.json({ error: message }, { status: 400 });

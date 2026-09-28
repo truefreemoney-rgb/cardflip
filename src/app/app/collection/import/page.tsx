@@ -41,10 +41,12 @@ interface Preview {
   skipped: number;
   value: number;
   truncated: boolean;
+  truncatedBy: "file" | "scans" | null;
+  scansLeft: number | null;
 }
 
 export default function ImportPage() {
-  const { status } = useSession();
+  const { status, user, refresh } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const [csv, setCsv] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
@@ -96,6 +98,8 @@ export default function ImportPage() {
       if (!r.ok) throw new Error(j.error || "The import failed — nothing was added.");
       setDone(j.created as number);
       toast(`${j.created} card${j.created === 1 ? "" : "s"} imported`);
+      // The header's scan meter reads the session; every imported card was a scan.
+      void refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "The import failed — nothing was added.");
     } finally {
@@ -115,6 +119,8 @@ export default function ImportPage() {
   const skipped = preview ? preview.rows.filter((r) => r.status === "skip") : [];
   const willImport = live.filter((r) => !omit.has(r.line)).reduce((n, r) => n + r.quantity, 0);
   const willValue = live.filter((r) => !omit.has(r.line)).reduce((n, r) => n + r.price * r.quantity, 0);
+  const scansLeft = preview ? preview.scansLeft : (user?.scans?.remaining ?? null);
+  const scansLine = scansLeft == null ? "Each imported card uses one scan." : `Each imported card uses one scan · ${scansLeft} left`;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-8 sm:px-6">
@@ -167,6 +173,7 @@ export default function ImportPage() {
             <span className="text-base font-semibold text-white">{busy === "preview" ? "Reading your file…" : "Choose your CSV file"}</span>
             <span className="text-xs text-zinc-500">Nothing is added until you check the list on the next screen</span>
           </button>
+          <p className="mt-2 text-center text-xs text-zinc-500">{scansLine}</p>
           {error && (
             <p role="alert" className="mt-3 text-sm font-medium text-amber-300">
               {error}
@@ -199,7 +206,15 @@ export default function ImportPage() {
                 Different file
               </button>
             </div>
-            {preview.truncated && <p className="mt-1 text-xs text-amber-300">One import takes up to 500 cards — import the rest from a second file.</p>}
+            <p className="mt-1 text-xs text-zinc-500">{scansLine}</p>
+            {preview.truncated && preview.truncatedBy === "scans" && (
+              <p className="mt-1 text-xs text-amber-300">
+                {preview.scansLeft && preview.scansLeft > 0
+                  ? `Only ${preview.scansLeft} scan${preview.scansLeft === 1 ? "" : "s"} left this month — the rest of the file waits for more scans.`
+                  : "You're out of scans this month — the import waits for more scans."}
+              </p>
+            )}
+            {preview.truncated && preview.truncatedBy === "file" && <p className="mt-1 text-xs text-amber-300">One import takes up to 500 cards — import the rest from a second file.</p>}
           </div>
 
           {live.length === 0 ? (
