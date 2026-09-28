@@ -119,6 +119,9 @@ export function gameOf(card: { game?: GameId } | null | undefined): GameId {
 /** How the card is framed, as seen in the photo. Null = couldn't tell. */
 export type ArtStyle = "standard" | "full-art" | null;
 
+/** How worn one part of a card looks in the photo (corners, edges, surface). */
+export type WearLevel = "clean" | "light wear" | "worn";
+
 export interface VisionCardRead {
   /** Name exactly as printed, in the card's own language. */
   name: string;
@@ -146,6 +149,13 @@ export interface VisionCardRead {
   condition: string | null;
   /** What drove the condition call — edge wear, centering, surface scratches. */
   conditionNotes: string | null;
+  /**
+   * The three things a grader looks at, read from the photo (09-27). Absent
+   * on reads made before the field existed; null when that part can't be seen.
+   */
+  corners?: WearLevel | null;
+  edges?: WearLevel | null;
+  surface?: WearLevel | null;
   /** 0-1. Below LOW_CONFIDENCE the scanner treats this as a guess. */
   confidence: number;
   /** MTG: token / Art Series card / normal card, or null when unsure. */
@@ -323,6 +333,11 @@ export interface ScanItem {
   candidates: PokemonCard[];
   card: PokemonCard | null;
   condition: Condition;
+  /**
+   * The seller tapped "Looks Right" on the photo's condition suggestion
+   * (09-27). Client-only; a manual change of condition is the override.
+   */
+  conditionAgreed?: boolean;
   strategy: PriceStrategy;
   /** Explicit variant choice, or null to use the default pick. */
   variant: string | null;

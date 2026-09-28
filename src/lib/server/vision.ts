@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { GameId, ScanLanguage, VisionCardRead } from "@/lib/types";
+import type { GameId, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
 
 export type { VisionCardRead };
 
@@ -93,8 +93,23 @@ export const CARD_READ_SCHEMA = {
         "Condition judged from this photo. Null when the photo is too blurry, dark, or angled to judge.",
     },
     conditionNotes: nullableString(
-      "One short sentence on what drove the condition call — visible edge whitening, off-centering, surface scratches, creases. Null when condition is null.",
+      "One short plain sentence, for the seller, on what drove the condition call — e.g. 'Light whitening on the bottom edge, corners sharp, surface clean.' Name the spot when you can see it. Null when condition is null.",
     ),
+    corners: {
+      anyOf: [{ type: "string", enum: ["clean", "light wear", "worn"] }, { type: "null" }],
+      description:
+        "The four corners. 'clean': sharp, no whitening. 'light wear': a touch of whitening or softening on one or two corners. 'worn': visible rounding, fraying or whitening on several corners. Null when the corners can't be seen.",
+    },
+    edges: {
+      anyOf: [{ type: "string", enum: ["clean", "light wear", "worn"] }, { type: "null" }],
+      description:
+        "The four edges. 'clean': no whitening or chipping. 'light wear': a few small white flecks or a short whitened stretch. 'worn': whitening or chipping along a whole edge or more. Null when the edges can't be seen.",
+    },
+    surface: {
+      anyOf: [{ type: "string", enum: ["clean", "light wear", "worn"] }, { type: "null" }],
+      description:
+        "The face of the card. 'clean': no scratches, dents, creases or print lines. 'light wear': faint scratches or scuffs visible only in the light. 'worn': obvious scratches, dents, creases, stains or peeling. A glare spot or reflection is not wear. Null when glare or blur hides the surface.",
+    },
     confidence: {
       type: "number",
       description:
@@ -132,6 +147,9 @@ export const CARD_READ_SCHEMA = {
     "language",
     "condition",
     "conditionNotes",
+    "corners",
+    "edges",
+    "surface",
     "confidence",
     "kind",
     "slab",
@@ -523,6 +541,8 @@ async function firstLook(
   }
 
   const parsed = JSON.parse(text.text) as VisionCardRead;
+  const asWear = (v: unknown): WearLevel | null =>
+    v === "clean" || v === "light wear" || v === "worn" ? v : null;
   const read: VisionCardRead = {
     ...parsed,
     // Schema-constrained, but the number still reaches a regex downstream.
@@ -533,6 +553,9 @@ async function firstLook(
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
     slab: typeof parsed.slab === "boolean" ? parsed.slab : null,
     firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
+    corners: asWear(parsed.corners),
+    edges: asWear(parsed.edges),
+    surface: asWear(parsed.surface),
     copyrightYear: typeof parsed.copyrightYear === "number" && parsed.copyrightYear >= 1993 && parsed.copyrightYear <= 2100 ? Math.trunc(parsed.copyrightYear) : null,
     name: parsed.name.trim(),
     ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),

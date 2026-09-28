@@ -26,6 +26,7 @@ import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
   Condition,
+  WearLevel,
   GradedInfo,
   GradingCompany,
   PokemonCard,
@@ -249,6 +250,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // Condition-change feedback (QA leftover): the price moves silently
   // otherwise, and a seller picking Lightly Played wonders if it took.
   const [conditionNote, setConditionNote] = useState<string | null>(null);
+  // "Change" on the condition suggestion jumps to this select.
+  const conditionSelectRef = useRef<HTMLSelectElement | null>(null);
   useEffect(() => {
     if (!conditionNote) return;
     const t = window.setTimeout(() => setConditionNote(null), 2600);
@@ -830,14 +833,74 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
-          {verified && item.vision?.conditionNotes && (
-            <p className="mt-2 text-sm leading-snug text-zinc-500">
-              <span className="font-medium text-zinc-400">
-                Graded {item.vision.condition ?? "from photo"}:
-              </span>{" "}
-              {item.vision.conditionNotes}
-            </p>
-          )}
+          {verified && item.vision?.condition && (() => {
+            // Condition suggestion (09-27, Tier 1 #3): the photo's call is
+            // already priced in; here the seller sees why and either agrees
+            // or changes it. A manual change of the Condition select is the
+            // override, so the strip shrinks to one line either way.
+            const v = item.vision;
+            const suggested = v.condition;
+            const overridden = item.condition !== suggested;
+            if (item.conditionAgreed && !overridden) {
+              return (
+                <p className="mt-2 text-sm text-zinc-500">
+                  <span className="text-emerald-400">✓</span> {suggested}, agreed from the photo
+                </p>
+              );
+            }
+            if (overridden) {
+              return (
+                <p className="mt-2 text-sm text-zinc-500">
+                  You set {item.condition}. The photo suggested {suggested}
+                  {v.conditionNotes ? `: ${v.conditionNotes}` : "."}
+                </p>
+              );
+            }
+            const parts: { label: string; level: WearLevel | null | undefined }[] = [
+              { label: "Corners", level: v.corners },
+              { label: "Edges", level: v.edges },
+              { label: "Surface", level: v.surface },
+            ];
+            const seen = parts.filter((p) => p.level != null);
+            const tone = (l: WearLevel) =>
+              l === "clean" ? "text-emerald-400" : l === "light wear" ? "text-amber-300" : "text-rose-400";
+            return (
+              <div className="mt-3 rounded-xl border border-edge bg-surface-1 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Condition from the photo</p>
+                <p className="mt-0.5 font-display text-lg font-semibold text-white">{suggested}</p>
+                {seen.length > 0 && (
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    {seen.map((p) => (
+                      <span key={p.label} className="text-zinc-500">
+                        {p.label} <span className={tone(p.level!)}>{p.level}</span>
+                      </span>
+                    ))}
+                  </p>
+                )}
+                {v.conditionNotes && <p className="mt-1 text-sm leading-snug text-zinc-400">{v.conditionNotes}</p>}
+                <div className="mt-2.5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onChange({ conditionAgreed: true })}
+                    className="rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/25"
+                  >
+                    Looks Right
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = conditionSelectRef.current;
+                      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      el?.focus();
+                    }}
+                    className="rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Back by request (Chris, 09-03, after the stress test): the
               other matches are the one-tap fix for a blurry-photo
@@ -1031,6 +1094,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
             Condition
             <select
+              ref={conditionSelectRef}
               value={item.condition}
               onChange={(e) => {
                 const condition = e.target.value as Condition;
