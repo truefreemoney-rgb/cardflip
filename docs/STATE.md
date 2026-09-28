@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-lateâ†’09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite â€” cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-06 ~3am ET 09-07 (session 11 end; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 90`).
+Last updated: 2026-09-28 ~00:10 ET (session 48 end: TIER 2 COMPLETE, #12/#10/#9 shipped + imports count as scans; resume = this file only; FIRST ACTION block = "Start here next session", read with `limit: 90`). NEXT = hand Chris the Tier 2 check list ONE AT A TIME (session 47 items 1-6 + 7 import, 8 public page, 9 push); first = phone notifications Turn On. Also: .env.local was clobbered 09-27 (see session 48 late note).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** â€” pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
