@@ -438,7 +438,7 @@ export default function CollectionPage() {
     // viewable (Chris, 09-08). Live rows end first; ended/drafts delete.
     const canDelete = (card.status !== "listed" || ended) && !sold;
     return (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-edge bg-surface-1">
+      <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
         {/* Status header */}
         <div className="flex flex-wrap items-center gap-2 border-b border-edge px-4 py-3">
           {status}
@@ -2398,6 +2398,8 @@ export default function CollectionPage() {
             logging={false}
             loading={detail.loading}
             photo={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : null}
+            centering={card.game !== "mtg" && card.kind !== "sealed"}
+            sealed={card.kind === "sealed"}
             aside={renderDetailAside(card)}
             onClose={() => setDetail(null)}
           />
