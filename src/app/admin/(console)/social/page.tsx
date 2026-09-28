@@ -5,6 +5,7 @@ import { eastern, siteStatus, slotAt, socialGames, videoFor } from "@/lib/server
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
+import { countNew } from "@/lib/server/socialInbox";
 import { addDays } from "@/lib/priceSeries";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : eastern().day;
   const games = await socialGames();
-  const [perGame, sites] = await Promise.all([Promise.all(games.map((g) => socialDrafts(g, day))), siteStatus(SOCIAL_SITES)]);
+  const [perGame, sites, waiting] = await Promise.all([Promise.all(games.map((g) => socialDrafts(g, day))), siteStatus(SOCIAL_SITES), countNew()]);
   const drafts = perGame.flat();
   // The rendered MP4 for any draft the 6:50am job registered (set spotlight), shown before it posts.
   const videos: Record<string, string> = {};
@@ -47,8 +48,9 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <p className="text-sm text-zinc-400">What the autopilot posts on {day}. Pictures and words come from our price history; nothing here is typed by hand.</p>
         </div>
         <nav className="flex gap-2 text-sm">
-          <Link href="/admin/social/inbox" className="rounded-full border border-brand-400/60 px-3 py-1 text-brand-200 hover:text-white">Inbox</Link>
-          <Link href="/admin/social/pulse" className="rounded-full border border-brand-400/60 px-3 py-1 text-brand-200 hover:text-white">Pulse</Link>
+          <Link href="/admin/social/posts" className="rounded-full border border-brand-400/60 px-3 py-1 text-brand-200 hover:text-white">
+            Posts{waiting > 0 ? <span className="ml-1 rounded-full bg-brand-500/20 px-1.5 text-xs">{waiting}</span> : null}
+          </Link>
           <Link href={`/admin/social?day=${addDays(day, -1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">← {addDays(day, -1)}</Link>
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>

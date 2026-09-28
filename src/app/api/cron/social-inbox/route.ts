@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { sweepSocialInbox } from "@/lib/server/socialInbox";
+import { refreshSocialPosts } from "@/lib/server/socialPosts";
 
 /**
  * Social inbox sweep: read every site's comments and replies on our posts,
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
     }
   }
   const started = Date.now();
-  const report = await sweepSocialInbox();
-  return NextResponse.json({ ...report, ms: Date.now() - started });
+  // Same ping also stores every post's counts for /admin/social/posts (the page never reads a platform itself).
+  const [report, posts] = await Promise.all([sweepSocialInbox(), refreshSocialPosts()]);
+  return NextResponse.json({ ...report, posts: { stored: posts.stored, sites: posts.sites }, ms: Date.now() - started });
 }

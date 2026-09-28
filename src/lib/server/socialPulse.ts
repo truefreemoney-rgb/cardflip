@@ -16,6 +16,8 @@ import { xSignedGet } from "./sites/x.ts";
 import { tiktokAccessToken } from "./sites/tiktok.ts";
 
 export interface PulsePost {
+  /** The platform's own id for the post (Bluesky: the at:// uri) — what social_comments.post_id carries. */
+  id: string;
   url: string;
   text: string;
   /** ISO timestamp of the post. */
@@ -102,6 +104,7 @@ async function bluesky(): Promise<SitePulse> {
     const posts: PulsePost[] = (feed.feed ?? [])
       .filter((f) => !f.reason)
       .map(({ post }) => ({
+        id: post.uri,
         url: `https://bsky.app/profile/${handle}/post/${post.uri.split("/").pop()}`,
         text: post.record?.text ?? "",
         at: post.record?.createdAt ?? "",
@@ -142,6 +145,7 @@ async function x(): Promise<SitePulse> {
       }>;
     };
     const posts: PulsePost[] = (body.data ?? []).map((t) => ({
+      id: t.id,
       url: `https://x.com/${handle}/status/${t.id}`,
       text: t.text ?? "",
       at: t.created_at ?? "",
@@ -203,6 +207,7 @@ async function facebook(c: { base: string; pageId: string; token: string } | nul
         if (n > 0) reactions[f.toLowerCase()] = n;
       }
       return {
+        id: p.id,
         url: p.permalink_url ?? `https://www.facebook.com/${p.id}`,
         text: p.message ?? "",
         at: p.created_time ?? "",
@@ -232,6 +237,7 @@ async function instagram(c: { base: string; userId: string; token: string } | nu
       "instagram media",
     );
     const posts: PulsePost[] = (body.data ?? []).map((m) => ({
+      id: m.id,
       url: m.permalink ?? `https://www.instagram.com/p/${m.id}/`,
       text: m.caption ?? "",
       at: m.timestamp ?? "",
@@ -261,6 +267,7 @@ async function threads(c: { base: string; userId: string; token: string } | null
     const posts: PulsePost[] = await Promise.all(
       list.map(async (t) => {
         const post: PulsePost = {
+          id: t.id,
           url: t.permalink ?? `https://www.threads.net/post/${t.id}`,
           text: t.text ?? "",
           at: t.timestamp ?? "",
@@ -311,6 +318,7 @@ async function tiktok(): Promise<SitePulse> {
     );
     if (body.error?.code && body.error.code !== "ok") throw new Error(`tiktok: ${body.error.code} ${body.error.message ?? ""}`);
     const posts: PulsePost[] = (body.data?.videos ?? []).map((v) => ({
+      id: v.id,
       url: v.share_url ?? `https://www.tiktok.com/video/${v.id}`,
       text: v.title ?? "",
       at: v.create_time ? new Date(v.create_time * 1000).toISOString() : "",

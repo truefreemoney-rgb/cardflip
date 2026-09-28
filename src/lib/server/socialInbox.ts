@@ -17,7 +17,7 @@ import { HELP_MODEL } from "@/lib/server/helpChat";
  * Spam is hidden on sight where the platform allows (Facebook, Instagram,
  * Threads hide; X hides the reply) and only flagged on Bluesky (no hide
  * there). Everything else gets a drafted reply (Haiku) and waits on
- * /admin/social/inbox for Chris: Send (posts the reply), Hide, or Dismiss.
+ * /admin/social/posts for Chris: Send (posts the reply), Hide, or Dismiss.
  * Nothing is ever auto-replied. One Completed line on the board per sweep
  * that found something. TikTok is not read (comment.list scope + audit).
  */
@@ -428,6 +428,28 @@ export async function listComments(status: CommentStatus | "handled", limit = 10
   return rows.map(rowToComment);
 }
 
+/**
+ * Every comment (any status) on the given posts, newest first — the posts
+ * page shows them under each post. keys are "<site>:<post id>".
+ */
+export async function commentsForPosts(keys: string[]): Promise<SocialComment[]> {
+  if (keys.length === 0) return [];
+  const rows = (await db
+    .prepare(`SELECT * FROM social_comments WHERE (site || ':' || post_id) IN (${keys.map(() => "?").join(",")}) ORDER BY at DESC`)
+    .all(...keys)) as Record<string, unknown>[];
+  return rows.map(rowToComment);
+}
+
+/** Waiting comments whose post is not in social_posts yet (a mention, or a post older than the platform lists). */
+export async function orphanComments(limit = 50): Promise<SocialComment[]> {
+  const rows = (await db
+    .prepare(
+      "SELECT c.* FROM social_comments c WHERE c.status = 'new' AND NOT EXISTS (SELECT 1 FROM social_posts p WHERE p.site = c.site AND p.post_id = c.post_id) ORDER BY c.at DESC LIMIT ?",
+    )
+    .all(limit)) as Record<string, unknown>[];
+  return rows.map(rowToComment);
+}
+
 export async function getComment(id: string): Promise<SocialComment | null> {
   const r = await db.prepare("SELECT * FROM social_comments WHERE id = ?").get(id);
   return r ? rowToComment(r) : null;
@@ -581,7 +603,7 @@ async function noteSweepOnBoard(r: SweepReport): Promise<void> {
     .map((s) => (s.error ? `${s.label}: not read (${s.error.slice(0, 80)})` : `${s.label}: ${s.added} new${s.hidden ? `, ${s.hidden} spam hidden` : ""}${s.questions ? `, ${s.questions} question${s.questions === 1 ? "" : "s"}` : ""}`))
     .join(" · ");
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(r.at));
-  const text = `Social inbox ${day} ${slotLabel(r.at)} — ${parts}. ${waiting} waiting for you → /admin/social/inbox`;
+  const text = `Social inbox ${day} ${slotLabel(r.at)} — ${parts}. ${waiting} waiting for you → /admin/social/posts`;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { sections, updatedAt } = await loadBoard();

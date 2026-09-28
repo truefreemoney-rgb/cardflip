@@ -604,6 +604,37 @@ const SCHEMA = `
     meta TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_social_comments_status ON social_comments(status, seen_at);
+  CREATE INDEX IF NOT EXISTS idx_social_comments_post ON social_comments(site, post_id);
+
+  -- Social posts (09-28): every post the autopilot made, with its counts as
+  -- last read from the platform (lib/server/socialPosts.ts). Filled by the
+  -- inbox cron an hour after each slot and by Refresh on /admin/social/posts,
+  -- so the page itself never calls a platform. reactions = Facebook faces
+  -- JSON. social_pulse_reads remembers how the last read of each site went.
+  CREATE TABLE IF NOT EXISTS social_posts (
+    site TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    text TEXT NOT NULL,
+    at TEXT NOT NULL,
+    likes INTEGER,
+    comments INTEGER,
+    shares INTEGER,
+    views INTEGER,
+    reactions TEXT,
+    first_seen_at INTEGER NOT NULL,
+    read_at INTEGER NOT NULL,
+    PRIMARY KEY (site, post_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_social_posts_at ON social_posts(at);
+  CREATE TABLE IF NOT EXISTS social_pulse_reads (
+    site TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    connected INTEGER NOT NULL,
+    error TEXT,
+    posts INTEGER NOT NULL,
+    read_at INTEGER NOT NULL
+  );
 `;
 
 /**
