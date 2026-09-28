@@ -125,6 +125,8 @@ const broken = fakeSite("broken", { fail: true });
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [broken], fetchImage });
 check("failing site → failed, slot not marked", [r.sites[0].status, await getSetting(`${SLOT_PREFIX}broken:morning`)], ["failed", null]);
 check("errors carried per post", r.sites[0].posts.every((p) => p.error === "boom"));
+r = await publishSocial({ day: THU, now: clock(11, 30), origin: "http://x", sites: [broken], fetchImage });
+check("a later ping of the same slot retries it, but flags the repeat", [r.sites[0].status, r.sites[0].repeat], ["failed", true]);
 
 console.log("board");
 const { sections } = await loadBoard();

@@ -150,6 +150,8 @@ export interface SiteReport {
   label: string;
   status: "posted" | "skipped" | "dry" | "failed";
   reason?: string;
+  /** failed again on a later ping of the same slot; the board already has the first failure, so noteOnBoard leaves it out. */
+  repeat?: boolean;
   /** video: "yes" = the MP4 went out; "fallback" = the video upload failed and the picture went instead (error says why). */
   posts: Array<{ id: string; title: string; uri?: string; error?: string; video?: "yes" | "fallback" }>;
 }
@@ -452,8 +454,14 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     }
     if (!opts.dry) {
       const posted = entry.posts.filter((p) => p.uri);
-      if (posted.length === 0) entry.status = "failed";
-      else {
+      if (posted.length === 0) {
+        entry.status = "failed";
+        // A site that never lands (Pinterest on Trial access) is retried on every
+        // backstop ping of the slot, which is wanted; logging it each time is not.
+        const failKey = `${SLOT_PREFIX}failed:${site.id}:${todo.map((p) => p.slot).join("+")}`;
+        if ((await getSetting(failKey)) === etDay) entry.repeat = true;
+        else await setSetting(failKey, etDay);
+      } else {
         // Same Eastern day = the 7am/1pm/7pm slots add up (Chris 09-26: the
         // analytics tile said "1 post" after three); a new day starts over.
         let uris: string[] = [];
@@ -487,7 +495,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
 
 /** One Completed line per run that posted or failed; silent when nothing happened. */
 export async function noteOnBoard(report: PublishReport, now = Date.now()): Promise<void> {
-  const active = report.sites.filter((s) => s.status === "posted" || s.status === "failed");
+  const active = report.sites.filter((s) => s.status === "posted" || (s.status === "failed" && !s.repeat));
   if (active.length === 0) return;
   const text = active
     .map((s) => {
