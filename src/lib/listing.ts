@@ -233,9 +233,16 @@ export function canPriceListing(price: CardPrice): boolean {
   return price.currency === "USD";
 }
 
+/** Pokémon printings whose camel-case key doesn't read well split. */
+const POKEMON_VARIANT_LABEL: Record<string, string> = {
+  pokeBallPattern: "Poké Ball Pattern",
+  masterBallPattern: "Master Ball Pattern",
+};
+
 export function formatVariantLabel(variant: string): string {
   if (variant === "average") return "Average";
   if (MTG_FINISH_LABEL[variant]) return MTG_FINISH_LABEL[variant];
+  if (POKEMON_VARIANT_LABEL[variant]) return POKEMON_VARIANT_LABEL[variant];
   return variant
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (c) => c.toUpperCase())
@@ -520,6 +527,8 @@ function buildTitle(
   card: PokemonCard,
   condition: Condition,
   facts: ListingFacts = {},
+  /** Pokémon printing worth a search term ("Reverse Holofoil", "Poké Ball Pattern"); never Normal. */
+  printing?: string,
 ): string {
   // "1st Edition" goes right after the name — it's the term buyers search,
   // and it must survive even when the tail gets trimmed for length.
@@ -534,7 +543,9 @@ function buildTitle(
   // a foil; those words go before the game token so they survive trimming.
   const isMtg = game.id === "mtg";
   const number = isMtg && card.setCode ? `${card.setCode} ${card.number}` : card.number;
-  const finish = isMtg && facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : "";
+  const finish = isMtg
+    ? facts.finish && facts.finish !== "nonfoil" ? MTG_FINISH_LABEL[facts.finish] ?? facts.finish : ""
+    : printing ?? "";
   const token = [finish, lang ?? "", game.titleToken].filter(Boolean).join(" ");
 
   // A CJK set name is dead weight in an English-market title; the English
@@ -618,8 +629,13 @@ export function buildListing(
     .filter((line) => line && line.length > 0)
     .join("\n\n");
 
+  // A holo / reverse / pattern printing is a term buyers search, so it goes
+  // in the title too (Chris, 09-27: Poké Ball pattern Harlequin). The plain
+  // print says nothing.
+  const titlePrinting =
+    !isMtg && printingLabel && !/^(normal|unlimited|average)$/i.test(printingLabel) ? printingLabel : undefined;
   return {
-    title: buildTitle(card, condition, facts),
+    title: buildTitle(card, condition, facts, titlePrinting),
     description,
     price,
     categoryId: CCG_CARDS_CATEGORY_ID,

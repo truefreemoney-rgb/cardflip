@@ -19,7 +19,7 @@ import { parseCardQuery } from "@/lib/cardNumber";
 import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber, parseMtgQuery } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
@@ -631,6 +631,19 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     facts,
   );
   const listing = withListingOverrides(generated, item);
+  // The Printing dropdown's rows: real printings with a dollar price, one
+  // per variant. eBay comps rows are a price basis, not a printing; the
+  // 1st Edition rows belong to the toggle on eligible WotC-era cards.
+  const printings = card.prices.filter(
+    (p, i, all) =>
+      p.market != null &&
+      p.market > 0 &&
+      canPriceListing(p) &&
+      p.source !== "ebay" &&
+      p.variant !== "average" &&
+      !(firstEdEligible && isFirstEditionVariant(p.variant)) &&
+      all.findIndex((q) => q.variant === p.variant) === i,
+  );
   async function handleWishlist() {
     if (!card) return;
     setWishlisting(true);
@@ -1130,9 +1143,38 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           </label>
         )}
 
-        {/* No Printing dropdown (Chris, 09-03: "scratch the whole idea for now,
-            remove the printing section") — the quote uses the default basis,
-            eBay comps first. */}
+        {/* Printing (back 09-27, Chris: "a dropdown with all possibilities for
+            that particular card and let the user pick, if the scan doesn't
+            already"): every priced printing of this card — normal, reverse
+            holo, holo, Poké Ball / Master Ball pattern. The pick drives the
+            quote, the title and the "Printing:" line. eBay basis rows are
+            not printings and stay out; when the default quote is one of
+            those, the first option keeps it. Hidden while 1st Edition is
+            checked — that toggle owns the printing then. */}
+        {!item.firstEdition && !item.grading && printings.length > 1 && (
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
+            Printing
+            <select
+              value={item.variant ?? (printings.some((p) => p.variant === quote?.price.variant) ? quote!.price.variant : "")}
+              onChange={(e) => {
+                const value = e.target.value;
+                onChange({ variant: value || null, priceOverride: null });
+                const picked = printings.find((p) => p.variant === value);
+                setConditionNote(picked ? `Priced as ${picked.label} — the title and description say so too.` : null);
+              }}
+              className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
+            >
+              {quote && !printings.some((p) => p.variant === quote.price.variant) && (
+                <option value="">Best price — {quote.price.label} — {formatMoney(quote.base, quote.price.currency)}</option>
+              )}
+              {printings.map((p) => (
+                <option key={`${p.source}-${p.variant}`} value={p.variant}>
+                  {p.label} — {formatMoney(p.market ?? 0, p.currency)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {item.grading?.company === "PSA" && (

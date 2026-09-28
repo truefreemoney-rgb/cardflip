@@ -18,7 +18,7 @@ import {
   todayUtc,
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
-import { matchGroupsToSets, normalizeSetName, productNumber, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
+import { matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -77,6 +77,13 @@ check("single point: no windows, no change", [single.low30, single.change30, sin
 const young = summarize([{ day: day(3), price: 10 }, { day: day(0), price: 12 }], now);
 check("young series: change from oldest", Math.round(young.change30), 20);
 check("empty → null", summarize([], now), null);
+
+console.log("\nPattern products (TCGplayer files Poké Ball / Master Ball reverses as their own product):");
+check("Poke Ball Pattern product", tcgplayerProductPattern("Harlequin (Poke Ball Pattern)"), "pokeBallPattern");
+check("Poké Ball with accent and hyphen", tcgplayerProductPattern("Heatmor (Poké-Ball Pattern)"), "pokeBallPattern");
+check("Master Ball Pattern product", tcgplayerProductPattern("Snivy (Master Ball Pattern)"), "masterBallPattern");
+check("plain product is not a pattern", tcgplayerProductPattern("Harlequin - 083/086"), null);
+check("null name", tcgplayerProductPattern(null), null);
 
 console.log(failures === 0 ? "\nAll price-history checks passed" : `\n${failures} price-history check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);
