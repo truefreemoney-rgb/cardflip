@@ -271,6 +271,7 @@ function AccountSettings({
   const [push, setPush] = useState<PushState | "loading">("loading");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMsg, setPushMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [installOpen, setInstallOpen] = useState(false);
   useEffect(() => {
     let live = true;
     void pushState().then((s) => {
@@ -309,7 +310,7 @@ function AccountSettings({
       : push === "on"
         ? "On for this phone — dips, sales, price alerts and support replies as banners."
         : push === "needs-install"
-          ? "Add CardFlip to your Home Screen (Share → Add to Home Screen), then turn this on from there."
+          ? "Not available in Safari. Add CardFlip to your Home Screen to turn this on."
           : push === "denied"
             ? "Blocked in your phone's settings for CardFlip. Allow it there, then come back."
             : push === "unsupported"
@@ -941,10 +942,21 @@ function AccountSettings({
               <button type="button" className={push === "on" ? rowBtn : rowPrimary} onClick={() => void togglePush()} disabled={pushBusy}>
                 {pushBusy ? "…" : push === "on" ? "Turn Off" : "Turn On"}
               </button>
+            ) : push === "needs-install" ? (
+              <button type="button" className={installOpen ? rowBtn : rowPrimary} onClick={() => setInstallOpen((v) => !v)}>
+                {installOpen ? "Close" : "Show Me How"}
+              </button>
             ) : undefined
           }
-          open={Boolean(pushMsg)}
+          open={Boolean(pushMsg) || (push === "needs-install" && installOpen)}
         >
+          {push === "needs-install" && installOpen && (
+            <ol className="list-decimal space-y-2 pl-5 text-sm text-zinc-300">
+              <li>Tap the Share button at the bottom of Safari (the square with an arrow pointing up).</li>
+              <li>Scroll down and tap <span className="font-semibold text-white">Add to Home Screen</span>, then <span className="font-semibold text-white">Add</span>.</li>
+              <li>Open CardFlip from your Home Screen, come back to Account, and tap <span className="font-semibold text-white">Turn On</span>.</li>
+            </ol>
+          )}
           {pushMsg && <Notice kind={pushMsg.kind}>{pushMsg.text}</Notice>}
         </Row>
       </Group>
