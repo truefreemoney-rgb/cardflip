@@ -345,6 +345,7 @@ export default function CollectionPage() {
   const [soldForm, setSoldForm] = useState<{ id: string; value: string } | null>(null);
   // "What you paid" edited in place on the card detail (09-27, profit per card).
   const [costForm, setCostForm] = useState<{ id: string; value: string } | null>(null);
+  const [alertForm, setAlertForm] = useState<{ id: string; value: string } | null>(null);
   // Change a LIVE listing's price from here and the eBay listing follows, so
   // a seller never has to go to eBay (Chris, 09-04). Live rows only — a draft
   // is priced in the editor, a sold row records what it went for.
@@ -571,6 +572,59 @@ export default function CollectionPage() {
               )}
             </dd>
           </div>
+          {/* Price alert on an owned card (09-27): email when the market-based asking price reaches the target. Sold rows have nothing to watch. */}
+          {!sold && (
+            <div className="min-w-0 bg-surface-1 px-4 py-2.5">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Alert me at</dt>
+              <dd className="truncate text-sm">
+                {alertForm?.id === card.id ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const n = parseFloat(alertForm.value);
+                      void applyPatch(card, { alertPrice: Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null });
+                      setAlertForm(null);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <span className="relative">
+                      <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        autoFocus
+                        value={alertForm.value}
+                        onChange={(e) => setAlertForm({ id: card.id, value: e.target.value })}
+                        onKeyDown={(e) => e.key === "Escape" && setAlertForm(null)}
+                        aria-label="Alert me at"
+                        className="w-20 rounded-md border border-edge bg-black/40 py-0.5 pl-4 pr-1 text-base text-white outline-none focus:border-brand-400 sm:text-sm"
+                      />
+                    </span>
+                    <button type="submit" className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25">
+                      ✓
+                    </button>
+                    {card.alertPrice != null && (
+                      <button type="button" onClick={() => { void applyPatch(card, { alertPrice: null }); setAlertForm(null); }} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+                        Clear
+                      </button>
+                    )}
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAlertForm({ id: card.id, value: card.alertPrice != null ? card.alertPrice.toFixed(2) : priceValue > 0 ? priceValue.toFixed(2) : "" })}
+                    title="Get an email when this card reaches your price (checked daily)"
+                    className={`inline-flex max-w-full items-center gap-1 underline-offset-4 transition hover:underline ${
+                      card.alertPrice != null ? "text-amber-200 hover:text-amber-100" : "text-brand-300 hover:text-brand-200"
+                    }`}
+                  >
+                    <span className="truncate">{card.alertPrice != null ? `🔔 ${formatMoney(card.alertPrice)}${card.alertedAt ? " · sent" : ""}` : "Set a price alert"}</span>
+                  </button>
+                )}
+              </dd>
+            </div>
+          )}
           {/* Category is a link: add one, or change it (Chris, 09-04). */}
           <div className="min-w-0 bg-surface-1 px-4 py-2.5">
             <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Category</dt>

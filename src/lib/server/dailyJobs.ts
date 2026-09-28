@@ -4,6 +4,7 @@ import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { sweepWeeklyDigest } from "@/lib/server/digest";
+import { sweepCardAlerts } from "@/lib/server/cardAlerts";
 import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
@@ -88,6 +89,7 @@ export interface DailyResult {
   ebaySales?: { sellers: number; sold: number; endedListings: number } | { error: string };
   ebayFees?: { sellers: number; filled: number } | { error: string };
   wishlistAlerts?: { checked: number; sent: number } | { error: string };
+  cardAlerts?: { checked: number; sent: number; nudged: number } | { error: string };
   weeklyDigest?: { skipped?: string; users: number; sent: number } | { error: string };
   autoOffers?: { sellers: number; sent: number; failed: number } | { error: string };
   ms?: number;
@@ -107,8 +109,8 @@ export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "weeklyDigest" | "autoOffers">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "weeklyDigest" | "autoOffers"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers"> = {};
   try {
     if (await hasTcgplayerMap()) {
       const r = await refreshPokemonPricesFromTcgcsv();
@@ -128,6 +130,12 @@ export async function runPokemonSteps(
   } catch (err) {
     result.wishlistAlerts = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: wishlist alert sweep failed:", err);
+  }
+  try {
+    result.cardAlerts = await sweepCardAlerts(now);
+  } catch (err) {
+    result.cardAlerts = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: card alert sweep failed:", err);
   }
   // Sunday collection digest, same reasoning: mail before the slow steps.
   try {

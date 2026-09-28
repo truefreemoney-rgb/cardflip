@@ -621,6 +621,13 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // What the seller paid for the card (09-27, profit per card + the
       // year-end report). NULL = never entered; 0 = pulled/free.
       "cost_basis REAL",
+      // Price alert on an owned card (Tier 2 #7, 09-27): mail when the
+      // market-based asking price reaches alert_price; alerted_at stamps the
+      // send and stays until the target changes. spike_alerted_at stamps the
+      // "sell now" nudge (25%+ and $5+ up in a week), one per card per 30 days.
+      "alert_price REAL",
+      "alerted_at INTEGER",
+      "spike_alerted_at INTEGER",
       // Seller pressed "Verify match" on this card (09-03, Chris): eBay
       // publishing is locked until it's set. Null = "Verify match" in the UI.
       "verified_at INTEGER",

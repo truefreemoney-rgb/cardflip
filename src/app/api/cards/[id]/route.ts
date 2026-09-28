@@ -80,6 +80,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             ? Math.round(body.costBasis * 100) / 100
             : null
           : undefined,
+      // Price alert (09-27): a finite number > 0 lands (to the cent), anything else clears it.
+      alertPrice:
+        "alertPrice" in (body ?? {})
+          ? typeof body.alertPrice === "number" && Number.isFinite(body.alertPrice) && body.alertPrice > 0
+            ? Math.round(body.alertPrice * 100) / 100
+            : null
+          : undefined,
     });
 
     if (!card) {

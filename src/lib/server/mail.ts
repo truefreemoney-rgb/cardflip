@@ -111,6 +111,59 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
   });
 }
 
+export interface CardAlertHit {
+  name: string;
+  set: string;
+  number: string;
+  /** Asking price today. */
+  price: number;
+  /** The seller's target ("target"), or the price a week ago ("spike"). */
+  target: number;
+  kind: "target" | "spike";
+}
+
+/** Owned cards: "it reached your price" and "sell now, it spiked" — one mail per user per daily pass (cardAlerts.ts). */
+export async function sendCardAlertEmail(to: string, hits: CardAlertHit[]): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const targets = hits.filter((h) => h.kind === "target");
+  const spikes = hits.filter((h) => h.kind === "spike");
+  const tLine = (h: CardAlertHit) => `${h.name} (${h.set} · ${h.number}) — now $${h.price.toFixed(2)}, your alert was $${h.target.toFixed(2)}`;
+  const sLine = (h: CardAlertHit) => {
+    const pct = h.target > 0 ? Math.round(((h.price - h.target) / h.target) * 100) : 0;
+    return `${h.name} (${h.set} · ${h.number}) — $${h.price.toFixed(2)}, up ${pct}% from $${h.target.toFixed(2)} a week ago`;
+  };
+  const blocks: Array<{ head: string; lines: string[] }> = [];
+  if (targets.length) blocks.push({ head: targets.length === 1 ? "A card you own reached your alert price." : `${targets.length} cards you own reached your alert prices.`, lines: targets.map(tLine) });
+  if (spikes.length) blocks.push({ head: spikes.length === 1 ? "Sell now? A card you own spiked this week." : `Sell now? ${spikes.length} cards you own spiked this week.`, lines: spikes.map(sLine) });
+  const text = [
+    ...blocks.flatMap((b) => [b.head, ...b.lines.map((l) => "· " + l), ""]),
+    `Your collection: ${site}/app/collection`,
+    "",
+    "Prices refresh once a day. A price alert won't repeat unless you set a new target; a spike note comes at most once a month per card.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    ${blocks.map((b) => `<p>${esc(b.head)}</p><ul>${b.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`).join("")}
+    <p><a href="${site}/app/collection" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your collection</a></p>
+    <p style="color:#666;font-size:13px">Prices refresh once a day. A price alert won't repeat unless you set a new target; a spike note comes at most once a month per card.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  const first = targets[0] ?? spikes[0];
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject:
+      hits.length === 1
+        ? first.kind === "target"
+          ? `${first.name} reached $${first.price.toFixed(2)}`
+          : `Sell now? ${first.name} is up to $${first.price.toFixed(2)}`
+        : `${hits.length} cards you own moved to your prices`,
+    text,
+    html,
+  });
+}
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (n: number) => `${n >= 0 ? "+" : "-"}${usd(Math.abs(n))}`;

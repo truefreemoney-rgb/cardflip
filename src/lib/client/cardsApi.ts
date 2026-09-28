@@ -32,6 +32,9 @@ export interface ServerCard {
   soldFees: number | null;
   /** What the seller paid; null = not entered (profit per card, 09-27). */
   costBasis: number | null;
+  /** Owned-card price alert target; alertedAt = the mail went out. */
+  alertPrice: number | null;
+  alertedAt: number | null;
   /** Last time a discount offer went to this listing's watchers. */
   watcherOfferAt: number | null;
   /** Seller set the price by hand; the Inventory live refresh leaves it alone. */
@@ -99,6 +102,8 @@ export interface UpdateCardInput {
   priceLocked?: boolean;
   /** What the seller paid; null clears it. */
   costBasis?: number | null;
+  /** Price alert target; null clears it. */
+  alertPrice?: number | null;
 }
 
 export interface LivePrice {
