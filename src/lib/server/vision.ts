@@ -514,8 +514,16 @@ export async function analyzeCardImageWithUsage(
   mediaType: string,
   languageHint: ScanLanguage,
   game: GameId = "pokemon",
+  /**
+   * The photo is one pocket cut from a binder page. The pocket's plastic
+   * edge and the neighbouring sleeve read as a slab holder (3 of 9 cards on
+   * Chris's first page, 09-27), so the prompt says so and slab is forced
+   * false — a graded card does not fit a binder pocket.
+   */
+  pocket = false,
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
-  const first = await firstLook(base64Image, mediaType, languageHint, game);
+  const first = await firstLook(base64Image, mediaType, languageHint, game, pocket);
+  if (pocket) first.read.slab = false;
   // An Art Series front prints no text at all, so the picture itself is the
   // identification (lib/server/artHash.ts) — no second vision call needed.
   if (game === "mtg" && (first.read.kind === "art" || /^unknown\b/i.test(first.read.name) || !first.read.name)) {
@@ -562,6 +570,7 @@ async function firstLook(
   mediaType: string,
   languageHint: ScanLanguage,
   game: GameId,
+  pocket = false,
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
   const response = await getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
@@ -600,7 +609,11 @@ async function firstLook(
                 : languageHint === "ja"
                   ? "Japanese"
                   : "Chinese"
-            }, but trust the photo over that if they disagree.`,
+            }, but trust the photo over that if they disagree.${
+              pocket
+                ? " This photo is one pocket cut out of a binder page: the card is in a soft plastic pocket, and the edges of the picture may show the pocket seam or a sliver of the next card. It is NOT a graded slab; slab is false. Read the card in the middle."
+                : ""
+            }`,
           },
         ],
       },

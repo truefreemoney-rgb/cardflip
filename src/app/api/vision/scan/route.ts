@@ -87,6 +87,7 @@ export async function POST(req: Request) {
       mediaType,
       language,
       parseGame(body?.game),
+      body?.pocket === true,
     );
     // Metered for everyone (launch pricing needs the data), enforced above
     // for subscribers only. After the call — a failed scan shouldn't count.

@@ -87,6 +87,8 @@ export async function scanCardWithVision(
   file: File,
   language: ScanLanguage,
   game: GameId = "pokemon",
+  /** The photo is one pocket cut from a binder page: sleeved, never a slab. */
+  pocket = false,
 ): Promise<VisionScanOutcome> {
   try {
     const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
@@ -95,7 +97,7 @@ export async function scanCardWithVision(
     const res = await fetch(apiPath("/api/vision/scan"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64, mediaType, language, game }),
+      body: JSON.stringify({ image: base64, mediaType, language, game, ...(pocket ? { pocket: true } : {}) }),
       // A stalled cellular socket left the item "scanning" indefinitely
       // (mobile QA 09-06); the catch below turns the abort into an error
       // outcome so the OCR fallback runs. Guarded: iOS < 16 lacks timeout().

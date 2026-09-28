@@ -349,7 +349,11 @@ export default function AppPage() {
           // Vision first, OCR as the fallback. Tesseract misreads CJK badly
           // enough that the lookup needs fuzzy matching to cope; when vision
           // is available it reads the card directly and that guesswork goes away.
-          const vision = await scanCardWithVision(next.file, next.language, next.game);
+          // A binder-page crop (lib/client/binder.ts names them) carries the
+          // pocket hint: the sleeve edge in the crop read as a slab holder
+          // on 3 of 9 cards in Chris's first good page (09-27).
+          const pocket = next.file.name.startsWith("binder-");
+          const vision = await scanCardWithVision(next.file, next.language, next.game, pocket);
 
           if (vision.usage) {
             setScanUsage(vision.usage);
