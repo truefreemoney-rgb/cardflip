@@ -40,7 +40,7 @@ paid for, CSV export was removed on purpose (listed below as a question).
 | 14 | **Repricing rules** | "Drop 5% every 14 days unsold, never below floor", "match market weekly". Runs nightly, user turns it on per card or for all. Was a dealer-tier idea; works as a Pro perk. | M |
 | 15 | **Scheduled listing + auto-relist** | Queue drafts to go live Sunday 7pm ET (eBay's best hour); ended-unsold listings relist themselves once. | S |
 | 16 | **Listing polish** | Best Offer auto-accept/decline thresholds, promoted listing toggle, listing title A/B (two title styles, we track which sells). | M |
-| 17 | **Collection insights tab** | Your collection's movers this week, value by set, value by game, "your most valuable 10", what percent is listed vs sitting. Stock-portfolio feel, which is how Collectr sells itself. | M |
+| 17 | **Collection insights tab** — SHIPPED 09-28 as /app/collection/insights | Your collection's movers this week, value by set, value by game, "your most valuable 10", what percent is listed vs sitting. Stock-portfolio feel, which is how Collectr sells itself. | M |
 
 ## Tier 4 — switches already built, just off
 
