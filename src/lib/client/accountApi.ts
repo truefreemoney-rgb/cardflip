@@ -71,6 +71,9 @@ export async function updateProfile(patch: {
   name?: string;
   email?: string;
   currentPassword?: string;
+  /** Public collection page: the slug (empty string clears it) and the switch. */
+  handle?: string;
+  handlePublic?: boolean;
 }): Promise<SessionUser> {
   const res = await apiFetch("/api/account", {
     method: "PATCH",

@@ -36,6 +36,9 @@ export interface SessionUser {
   scans?: { used: number; included: number; remaining: number | null; bonus?: number; pack?: number };
   /** Has this user scanned at least one card yet? Only set by /api/auth/me; drives the logo link. */
   hasCards?: boolean;
+  /** Public collection page: the /u/<handle> slug and whether it is open. */
+  handle?: string | null;
+  handlePublic?: boolean;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

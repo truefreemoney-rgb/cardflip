@@ -9,6 +9,7 @@ import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
 import { PRICE, PRICE_SHORT, SCANS } from "@/lib/pricing";
 import { requestTourReplay } from "@/lib/client/tour";
+import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
 import {
   changePassword,
   deleteAccount,
@@ -228,6 +229,40 @@ function AccountSettings({
       setProfileMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't save" });
     } finally {
       setProfileBusy(false);
+    }
+  }
+
+  // --- Public collection page (Tier 2 #10) --------------------------------
+  const [handleOpen, setHandleOpen] = useState(false);
+  const [handleDraft, setHandleDraft] = useState(user.handle ?? "");
+  const [handleBusy, setHandleBusy] = useState(false);
+  const [handleMsg, setHandleMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const handleNorm = normalizeHandle(handleDraft);
+  const handleHint = handleNorm ? handleProblem(handleNorm) : null;
+  const handleChanged = handleNorm !== (user.handle ?? "");
+  const publicUrl = user.handle ? `${typeof window !== "undefined" ? window.location.origin : ""}${publicCollectionPath(user.handle)}` : "";
+
+  async function savePublicPage(patch: { handle?: string; handlePublic?: boolean }) {
+    setHandleBusy(true);
+    setHandleMsg(null);
+    try {
+      const next = await updateProfile(patch);
+      setUser(next);
+      setHandleDraft(next.handle ?? "");
+      setHandleMsg({ kind: "ok", text: patch.handlePublic === true ? "Your page is live." : patch.handlePublic === false ? "Your page is private again." : "Saved." });
+    } catch (err) {
+      setHandleMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't save" });
+    } finally {
+      setHandleBusy(false);
+    }
+  }
+
+  async function copyPublicUrl() {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setHandleMsg({ kind: "ok", text: "Link copied." });
+    } catch {
+      setHandleMsg({ kind: "err", text: publicUrl });
     }
   }
 
@@ -767,6 +802,80 @@ function AccountSettings({
               </button>
             </div>
             {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
+          </form>
+        </Row>
+        <Row
+          title="Public collection page"
+          status={
+            user.handlePublic && user.handle ? (
+              <>
+                <Dot on />
+                Live at{" "}
+                <a href={publicCollectionPath(user.handle)} target="_blank" rel="noopener noreferrer" className="text-brand-300 underline-offset-2 hover:underline">
+                  cardflip.io{publicCollectionPath(user.handle)}
+                </a>
+              </>
+            ) : (
+              <>
+                <Dot on={false} />
+                Private. Share your cards, today&apos;s prices and Buy on eBay links at one address.
+              </>
+            )
+          }
+          action={
+            <button type="button" className={rowBtn} onClick={() => setHandleOpen((v) => !v)} disabled={handleBusy}>
+              {handleOpen ? "Close" : user.handle ? "Edit" : "Set Up"}
+            </button>
+          }
+          open={handleOpen}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (handleChanged && !handleHint) void savePublicPage({ handle: handleNorm });
+            }}
+            className="flex flex-col gap-3"
+          >
+            <label className={labelCls}>
+              Your address
+              <div className="mt-1 flex items-center rounded-lg border border-edge bg-black/40 focus-within:border-brand-400">
+                <span className="pl-3 text-sm text-zinc-500">cardflip.io/u/</span>
+                <input
+                  className="w-full bg-transparent px-1 py-2.5 text-base text-white outline-none placeholder:text-zinc-600 sm:text-sm"
+                  value={handleDraft}
+                  onChange={(e) => setHandleDraft(e.target.value)}
+                  disabled={handleBusy}
+                  maxLength={HANDLE_MAX}
+                  placeholder="your-name"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </div>
+              {handleHint && handleDraft && <span className="mt-1 block text-xs text-amber-300">{handleHint}</span>}
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="submit" className={primaryBtn} disabled={handleBusy || !handleChanged || Boolean(handleHint) || !handleNorm}>
+                {handleBusy ? "Saving…" : user.handle ? "Save Address" : "Claim Address"}
+              </button>
+              {user.handle && (
+                <button
+                  type="button"
+                  className={user.handlePublic ? rowBtn : rowPrimary}
+                  disabled={handleBusy || handleChanged}
+                  onClick={() => void savePublicPage({ handlePublic: !user.handlePublic })}
+                >
+                  {user.handlePublic ? "Make Private" : "Make Public"}
+                </button>
+              )}
+              {user.handle && user.handlePublic && (
+                <button type="button" className={rowBtn} onClick={() => void copyPublicUrl()}>
+                  Copy Link
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-zinc-500">Visitors see the cards you own that are not sold, with today&apos;s prices. Your name shows; your email never does. Turn it off any time.</p>
+            {handleMsg && <Notice kind={handleMsg.kind}>{handleMsg.text}</Notice>}
           </form>
         </Row>
       </Group>

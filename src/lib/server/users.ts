@@ -45,6 +45,9 @@ export interface User {
   referredBy: string | null;
   referralRewardedAt: number | null;
   bonusScans: number;
+  /** Public collection page (Tier 2 #10): the /u/<handle> slug and whether the page is open. */
+  handle: string | null;
+  handlePublic: boolean;
 }
 
 interface UserRow {
@@ -75,6 +78,8 @@ interface UserRow {
   referred_by: string | null;
   referral_rewarded_at: number | null;
   bonus_scans: number | null;
+  handle: string | null;
+  handle_public: number | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -118,7 +123,15 @@ function fromRow(row: UserRow): User {
     referredBy: row.referred_by ?? null,
     referralRewardedAt: row.referral_rewarded_at ?? null,
     bonusScans: row.bonus_scans ?? 0,
+    handle: row.handle ?? null,
+    handlePublic: row.handle_public === 1,
   };
+}
+
+/** The account behind a public collection handle (any visibility). */
+export async function findUserByHandle(handle: string): Promise<User | null> {
+  const row = (await db.prepare("SELECT * FROM users WHERE handle = ?").get(handle)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
 }
 
 /** An active (or grace-period) paid subscription. */
@@ -402,6 +415,8 @@ export async function createUser(
     referredBy: null,
     referralRewardedAt: null,
     bonusScans: 0,
+    handle: null,
+    handlePublic: false,
   };
 }
 
@@ -432,7 +447,7 @@ export async function setUserRole(userId: string, role: Role): Promise<void> {
 /** Account page: rename / change sign-in email. Email is normalised like signup. */
 export async function updateUserProfile(
   userId: string,
-  patch: { name?: string; email?: string },
+  patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean },
 ): Promise<void> {
   if (patch.name !== undefined) {
     await db.prepare("UPDATE users SET name = ? WHERE id = ?").run(patch.name.trim(), userId);
@@ -442,6 +457,12 @@ export async function updateUserProfile(
       patch.email.trim().toLowerCase(),
       userId,
     );
+  }
+  if (patch.handle !== undefined) {
+    await db.prepare("UPDATE users SET handle = ? WHERE id = ?").run(patch.handle, userId);
+  }
+  if (patch.handlePublic !== undefined) {
+    await db.prepare("UPDATE users SET handle_public = ? WHERE id = ?").run(patch.handlePublic ? 1 : 0, userId);
   }
 }
 
@@ -560,6 +581,9 @@ export interface PublicUser {
   packScans: number;
   /** Scans used / included / left right now — the header counter (09-07). */
   scans: ScanQuota;
+  /** Public collection page: the chosen handle and whether /u/<handle> is open. */
+  handle: string | null;
+  handlePublic: boolean;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -577,5 +601,7 @@ export function toPublicUser(user: User): PublicUser {
     bonusScans: user.bonusScans ?? 0,
     packScans: packScans(user),
     scans: scanQuota(user),
+    handle: user.handle ?? null,
+    handlePublic: Boolean(user.handlePublic),
   };
 }

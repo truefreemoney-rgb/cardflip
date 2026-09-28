@@ -739,6 +739,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "digest_sent_week TEXT",
     "digest_off INTEGER NOT NULL DEFAULT 0",
     "digest_token TEXT",
+    // Public collection page (Tier 2 #10, 09-27): cardflip.io/u/<handle>.
+    // handle is the chosen slug (lib/handle.ts rules, unique — checked in
+    // code before every write); handle_public = 1 opens the page. Private
+    // by default: a handle alone shows nothing.
+    "handle TEXT",
+    "handle_public INTEGER NOT NULL DEFAULT 0",
   ]],
 ];
 
