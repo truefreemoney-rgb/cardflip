@@ -646,7 +646,6 @@ export function buildListing(
       .filter(Boolean)
       .join(" "),
     conditionLine,
-    "Happy to combine shipping on multiple cards — message before paying and I'll send an updated invoice.",
   ]
     .filter((line) => line && line.length > 0)
     .join("\n\n");
@@ -681,8 +680,6 @@ export function buildSealedListing(
   const description = [
     `${product.name} (${game.fullName}) — factory sealed and unopened.`,
     "Please review the photos, which show the exact item you will receive.",
-    "Shipped boxed with padding, sent within 1 business day.",
-    "Happy to combine shipping on multiple items — message before paying and I'll send an updated invoice.",
   ].join("\n\n");
 
   const isLoosePack = /pack$/i.test(productType ?? "");
