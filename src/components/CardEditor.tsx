@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
+import { CenteringPhoto } from "@/components/CenteringPhoto";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
@@ -670,17 +671,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           </div>
           {/* Search-added cards have no photo — nothing to compare against. */}
           {item.previewUrl && (
-            <div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.previewUrl}
-                alt="The photo you uploaded"
-                className="h-56 w-auto rounded-xl object-contain opacity-90 shadow-xl shadow-black/40"
-              />
-              <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-                Your photo
-              </p>
-            </div>
+            // Centering check drawn on the photo (Pokémon border only,
+            // 09-27); other games get the plain photo.
+            <CenteringPhoto src={item.previewUrl} enabled={item.game === "pokemon"} />
           )}
         </div>
 
