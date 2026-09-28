@@ -470,29 +470,37 @@ const isFirstEditionVariant = (variant: string) => variant.startsWith("1stEditio
  * the daily tcgcsv refresh feeds from that product.
  */
 export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  // Poké Ball / Master Ball pattern printings (lib/tcgcsv.ts) exist only in
+  // our own price_series — the upstream knows normal / holofoil / reverse.
+  // Without this merge the Printing dropdown never listed them (Chris,
+  // 09-28: "i dont see a dropdown for Harlequin"). One query for the batch.
+  const patterns = await ownSeriesPrices(cards.filter((c) => !isFirstEditionId(c.id)).map((c) => c.id), "%Pattern");
   const out: PokemonCard[] = [];
   for (const card of cards) {
     if (!isFirstEditionId(card.id)) {
-      out.push({ ...card, prices: card.prices.filter((p) => !isFirstEditionVariant(p.variant)) });
+      const base = card.prices.filter((p) => !isFirstEditionVariant(p.variant));
+      const extra = (patterns.get(card.id) ?? []).filter((p) => !base.some((b) => b.variant === p.variant));
+      out.push({ ...card, prices: [...base, ...extra] });
       continue;
     }
     let prices = card.prices.filter((p) => isFirstEditionVariant(p.variant));
-    if (prices.length === 0) prices = await ownSeriesPrices(card.id);
+    if (prices.length === 0) prices = (await ownSeriesPrices([card.id], "1stEdition%")).get(card.id) ?? [];
     out.push({ ...card, prices });
   }
   return out;
 }
 
-/** Latest USD point of each of a card's own 1st Edition series, as price rows. */
-async function ownSeriesPrices(cardId: string): Promise<CardPrice[]> {
+/** Latest USD point of each card's own series whose variant matches `like`, as price rows per card. */
+async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<string, CardPrice[]>> {
+  const out = new Map<string, CardPrice[]>();
+  if (cardIds.length === 0) return out;
   try {
     const rows = (await db
       .prepare(
-        `SELECT variant, source, prices FROM price_series
-          WHERE card_id = ? AND currency = 'USD' AND variant LIKE '1stEdition%'`,
+        `SELECT card_id, variant, source, prices FROM price_series
+          WHERE card_id IN (${cardIds.map(() => "?").join(",")}) AND currency = 'USD' AND variant LIKE ?`,
       )
-      .all(cardId)) as unknown as { variant: string; source: string; prices: string }[];
-    const out: CardPrice[] = [];
+      .all(...cardIds, like)) as unknown as { card_id: string; variant: string; source: string; prices: string }[];
     for (const r of rows) {
       const points = decodePrices(r.prices);
       let last: number | null = null;
@@ -500,7 +508,8 @@ async function ownSeriesPrices(cardId: string): Promise<CardPrice[]> {
         if (points[j] != null) { last = points[j]; break; }
       }
       if (last == null || !(last > 0)) continue;
-      out.push({
+      const list = out.get(r.card_id) ?? [];
+      list.push({
         source: r.source as CardPrice["source"],
         variant: r.variant,
         label: formatVariantLabel(r.variant),
@@ -509,10 +518,11 @@ async function ownSeriesPrices(cardId: string): Promise<CardPrice[]> {
         low: null,
         high: null,
       });
+      out.set(r.card_id, list);
     }
     return out;
   } catch {
-    return [];
+    return out;
   }
 }
 
