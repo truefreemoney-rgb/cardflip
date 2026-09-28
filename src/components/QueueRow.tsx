@@ -37,7 +37,10 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
           className="h-14 w-10 shrink-0 rounded-md object-cover shadow-md shadow-black/40"
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-white">
+          {/* Two lines, not one: the longest catalogue names run 51
+              characters ("Team Galactic's Invention G-107 Technical
+              Machine G") and a phone row fits ~18 per line (Chris, 09-28). */}
+          <span className="line-clamp-2 text-sm font-medium leading-snug text-white [overflow-wrap:anywhere]">
             {item.card ? item.card.englishName || item.card.name : "Identifying…"}
             {item.card?.englishName && (
               <span className="text-zinc-500"> ({item.card.englishName})</span>

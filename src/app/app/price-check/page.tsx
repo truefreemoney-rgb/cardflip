@@ -617,7 +617,7 @@ export default function PriceCheckPage() {
                 />
                 <div className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm font-medium text-white">
-                    <span className="truncate">{entry.cardName}</span>
+                    <span className="line-clamp-2 leading-snug [overflow-wrap:anywhere]">{entry.cardName}</span>
                     {openingId === entry.id && <Spinner className="h-3 w-3 shrink-0" />}
                   </span>
                   <span className="block truncate text-xs text-zinc-500">

@@ -862,7 +862,7 @@ export default function WishlistPage() {
                     </button>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">{item.cardName}</p>
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-white [overflow-wrap:anywhere]">{item.cardName}</p>
                       {item.englishName && (
                         <p className="truncate text-xs font-medium text-brand-300">{item.englishName}</p>
                       )}

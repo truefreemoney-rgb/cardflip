@@ -231,7 +231,7 @@ function RepriceSheet({
         <div className="flex items-start gap-3">
           <CardImage src={card.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded-md" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold text-white">{card.cardName}</p>
+            <p className="line-clamp-2 text-base font-semibold leading-snug text-white [overflow-wrap:anywhere]">{card.cardName}</p>
             <p className="truncate text-xs text-zinc-500">
               {card.setName}
               {card.cardNumber ? ` · ${card.cardNumber}` : ""}
@@ -2103,7 +2103,7 @@ export default function CollectionPage() {
                     }}
                     className="min-w-0 flex-1 cursor-pointer rounded-lg outline-none transition hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-brand-400"
                   >
-                    <p className="truncate text-[15px] font-semibold leading-tight text-white sm:text-sm">
+                    <p className="line-clamp-2 text-[15px] font-semibold leading-tight text-white [overflow-wrap:anywhere] sm:text-sm">
                       {card.cardName}
                       {(card.quantity || 1) > 1 && (
                         <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-zinc-300">
