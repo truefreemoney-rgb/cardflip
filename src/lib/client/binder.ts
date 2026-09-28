@@ -49,7 +49,9 @@ export async function splitBinderPhoto(file: File): Promise<BinderSplit> {
     const res = await fetch(apiPath("/api/vision/locate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64, mediaType: "image/jpeg" }),
+      // Source size rides along for the ledger: whether the phone gave the
+      // scanner a frame big enough to split is the first thing to check.
+      body: JSON.stringify({ image: base64, mediaType: "image/jpeg", width: bitmap.width, height: bitmap.height }),
       signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(45_000) : undefined,
     });
     const data = await res.json().catch(() => null);

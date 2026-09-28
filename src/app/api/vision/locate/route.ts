@@ -43,7 +43,8 @@ export async function POST(req: Request) {
 
     const result = await locateCards(image, mediaType);
     const cards = cleanBoxes(result.cards);
-    await recordScanUsage(user.id, VISION_MODEL, result.usage, { locate: true, found: cards.length }).catch((err) =>
+    const px = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : null);
+    await recordScanUsage(user.id, VISION_MODEL, result.usage, { locate: true, found: cards.length, w: px(body?.width), h: px(body?.height) }).catch((err) =>
       console.error("scan_usage write failed:", err instanceof Error ? err.message : err),
     );
     return NextResponse.json({ status: "done", cards, usage: scanQuota(user) });

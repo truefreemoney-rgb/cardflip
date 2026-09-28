@@ -147,14 +147,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
   // Card (one card fills the guide) or Page (a binder page; one shot, every
   // card on it is queued). Page asks the camera for its largest frame, since
   // each card is a ninth of the shot and the read still needs its number.
+  // Page mode captures from the live view exactly like One Card (Chris,
+  // 09-27: "it has to be like one card scans" — a hand-off to the phone's
+  // camera app was built and pulled the same night). The stream is
+  // re-opened at the camera's largest frame when Page is picked: at the
+  // 1920 ask a page split nine ways left each card ~330px and its number
+  // unreadable (first binder test: nothing matched).
   const [mode, setMode] = useState<CaptureMode>("card");
-  // Page mode shoots through the phone's own camera app, not the live
-  // stream: iPhone Safari caps getUserMedia near 1080 wide, which split nine
-  // ways left each card ~330px and its number unreadable (Chris's first
-  // binder test, 09-27: nothing matched). A native photo is the full sensor,
-  // ~3000px wide, so every card gets ~1000px. The viewfinder stays up only
-  // as the framing hint; capture="environment" opens the back camera.
-  const pageInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
@@ -211,8 +210,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
         // Some Android WebViews reject the ideal size + facing combination
         // outright (OverconstrainedError) instead of approximating, so the
         // ask relaxes twice before giving up (mobile QA 09-06).
+        const edge = mode === "page" ? 4096 : 1920;
         const attempts: MediaStreamConstraints[] = [
-          { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1920 } } },
+          { video: { facingMode: { ideal: "environment" }, width: { ideal: edge }, height: { ideal: edge } } },
           { video: { facingMode: "environment" } },
           { video: true },
         ];
@@ -268,7 +268,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
       cancelled = true;
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [retryKey]);
+    // mode: Page re-opens the stream at the larger ask (see above).
+  }, [retryKey, mode]);
 
   // iOS ends the MediaStream when the PWA is backgrounded or the phone locks;
   // the <video> then sits frozen/black until the sheet is closed and reopened
@@ -309,10 +310,6 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
   }, [torch]);
 
   const capture = useCallback(() => {
-    if (mode === "page" && onCapturePage) {
-      pageInputRef.current?.click();
-      return;
-    }
     const video = videoRef.current;
     // videoWidth is 0 until the stream delivers its first frame.
     if (!video || video.videoWidth === 0) return;
@@ -385,7 +382,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
           setTimeout(() => setBlurNote(null), 2500);
           return;
         }
-        onCapture(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }));
+        const file = new File([blob], `${mode === "page" ? "page" : "camera"}-${Date.now()}.jpg`, { type: "image/jpeg" });
+        if (mode === "page" && onCapturePage) onCapturePage(file);
+        else onCapture(file);
         setCaptured((count) => count + 1);
         setFlash(true);
         setTimeout(() => setFlash(false), 150);
@@ -457,7 +456,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
     : !ready
       ? "Opening the camera…"
       : mode === "page"
-        ? pageNote ?? "Tap Capture Page — your camera takes one full-size photo"
+        ? pageNote ?? "Fill the guide with the whole page, then tap Capture"
         : identifying
           ? "Reading the last card — line up the next one"
           : "Fill the guide, then tap Capture";
@@ -682,8 +681,8 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
               </p>
             ) : (
               <p className="w-full text-center text-xs text-zinc-500">
-                Shoot a binder page, or cards laid out on a table, square-on and close
-                enough to fill the shot. One photo finds every card — each one counts as a scan.
+                Hold the phone square over a binder page, or cards laid out on a table, and
+                fill the guide. One shot finds every card — each one counts as a scan.
               </p>
             )
           ) : lastScan ? (
@@ -707,7 +706,13 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
                   type="button"
                   role="radio"
                   aria-checked={mode === m}
-                  onClick={() => setMode(m)}
+                  onClick={() => {
+                    if (m === mode) return;
+                    setMode(m);
+                    // The stream re-opens at the new size; hide the guide until it has a frame.
+                    setReady(false);
+                    setTorch("unavailable");
+                  }}
                   className={`rounded-full px-4 py-1.5 transition ${
                     mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
                   }`}
@@ -720,26 +725,9 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
         )}
 
         <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
-          {onCapturePage && (
-            <input
-              ref={pageInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                onCapturePage(file);
-                setCaptured((count) => count + 1);
-                fxCapture();
-              }}
-            />
-          )}
           <button
             onClick={capture}
-            disabled={(mode === "page" ? Boolean(pageNote) : !ready)}
+            disabled={!ready || (mode === "page" && Boolean(pageNote))}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
             {mode === "page" ? "Capture Page" : "Capture Card"}
