@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
-import { MatchComparison } from "@/components/CenteringPhoto";
+import { MatchHero } from "@/components/CenteringPhoto";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
@@ -661,10 +661,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         {/* The seller's photo stays beside the match. Showing only the matched
             card's official art made a wrong match invisible — there was
             nothing left to compare it against. */}
-        {/* Two equal tiles in one panel (09-28 redesign); search-added
-            cards have no photo, so the panel is the match tile alone.
+        {/* One card on a lit stage with a Match / Your Photo switch (09-28
+            makeover); search-added cards have no photo, so no switch.
             Centering is drawn on the photo for Pokémon only. */}
-        <MatchComparison
+        <MatchHero
           photoSrc={item.previewUrl || null}
           centering={item.game === "pokemon"}
           match={

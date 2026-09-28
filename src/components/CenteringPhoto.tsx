@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { checkCentering, type Centering } from "@/lib/centering";
 
 /**
- * The match panel on the listing screen: the catalogue art and the seller's
- * photo as two equal 5:7 tiles in one surface, a corner label on each, and
- * the centering read as one line under both (09-28, Chris: the old
- * side-by-side with captions underneath "looked bad" on the phone — uneven
- * heights, tiny grey labels, a three-line failure note under one column).
+ * The hero of the listing screen (09-28 makeover, Chris: the side-by-side
+ * match/photo pair "looked messy" on the phone). One big card on a lit
+ * stage, a Match / Your Photo switch under it, and the centering read only
+ * while the photo is up. A product page, not a comparison table.
  *
  * The centering check runs entirely in the browser off the scan photo: no
  * extra vision spend. Pokémon only (yellow border); other games get the
@@ -23,25 +22,12 @@ const MAX_EDGE = 640;
 type Read = { src: string; kind: "none" } | { src: string; kind: "done"; result: Centering };
 type State = { kind: "off" } | { kind: "working" } | { kind: "none" } | { kind: "done"; result: Centering };
 
-const tileClass = "relative aspect-[5/7] overflow-hidden rounded-xl bg-black/40";
-const labelClass =
-  "pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-200 backdrop-blur-sm";
-
-/** The "Match" tile wrapper: whatever art (or placeholder) the editor has. */
-export function MatchTile({ children }: { children: React.ReactNode }) {
-  return (
-    <div className={tileClass}>
-      <span className={labelClass}>Match</span>
-      {children}
-    </div>
-  );
-}
-
-export function MatchComparison({
+export function MatchHero({
   match,
   photoSrc,
   centering,
 }: {
+  /** The catalogue art (or the no-art placeholder), filling its box. */
   match: React.ReactNode;
   /** The seller's photo; search-added cards have none. */
   photoSrc: string | null;
@@ -50,6 +36,7 @@ export function MatchComparison({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [read, setRead] = useState<Read | null>(null);
+  const [view, setView] = useState<"match" | "photo">("match");
   const active = centering && Boolean(photoSrc);
   const state: State = !active
     ? { kind: "off" }
@@ -98,58 +85,85 @@ export function MatchComparison({
     };
   }, [photoSrc, centering]);
 
+  const showPhoto = Boolean(photoSrc) && view === "photo";
   const done = state.kind === "done" ? state.result : null;
   const tone = !done ? "text-zinc-500" : done.psaMax >= 9 ? "text-emerald-400" : done.psaMax >= 7 ? "text-amber-300" : "text-rose-400";
   const dot = !done ? "bg-zinc-600" : done.psaMax >= 9 ? "bg-emerald-400" : done.psaMax >= 7 ? "bg-amber-300" : "bg-rose-400";
 
   return (
-    <div className={`w-full shrink-0 rounded-2xl border border-edge bg-surface-1 p-2 ${photoSrc ? "sm:w-[21rem]" : "sm:w-[10.5rem]"}`}>
-      <div className={`grid gap-2 ${photoSrc ? "grid-cols-2" : "grid-cols-1"}`}>
-        <MatchTile>{match}</MatchTile>
-        {photoSrc && (
-          <div className={tileClass}>
-            <span className={labelClass}>{done ? "Centering" : "Your photo"}</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoSrc}
-              alt="The photo you uploaded"
-              className={`absolute inset-0 h-full w-full object-contain ${done ? "invisible" : ""}`}
-            />
-            {/* The canvas holds the same photo with the centering box drawn
-                on; same box, same object-fit, so it lands exactly over the
-                img and the layout never changes. */}
-            <canvas
-              ref={canvasRef}
-              aria-hidden={!done}
-              className={`absolute inset-0 h-full w-full object-contain ${done ? "" : "hidden"}`}
-            />
-          </div>
-        )}
+    <div className="w-full shrink-0 sm:w-64">
+      {/* The stage: a lit surface with one card standing on it. */}
+      <div className="relative overflow-hidden rounded-2xl border border-edge bg-surface-1 px-6 pb-5 pt-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(60% 55% at 50% 30%, rgba(170,180,255,0.16), transparent 70%)" }}
+        />
+        <div className="relative mx-auto aspect-[5/7] w-[62%] overflow-hidden rounded-xl bg-black/40 shadow-2xl shadow-black/60 ring-1 ring-white/10 sm:w-[82%]">
+          {/* Both layers stay mounted so the centering canvas keeps its
+              drawing; the switch only changes which one is visible. */}
+          <div className={showPhoto ? "invisible" : ""}>{match}</div>
+          {photoSrc && (
+            <div className={`absolute inset-0 ${showPhoto ? "" : "invisible"}`}>
+              {/* The photo blurred and stretched behind the contained one,
+                  so a phone photo that is not 5:7 fills the card with its
+                  own colours instead of black bars. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoSrc} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoSrc}
+                alt="The photo you uploaded"
+                className={`absolute inset-0 h-full w-full object-contain ${done ? "invisible" : ""}`}
+              />
+              {/* Same photo with the centering box drawn on; same box and
+                  object-fit, so it lands exactly over the img. */}
+              <canvas ref={canvasRef} aria-hidden={!done} className={`absolute inset-0 h-full w-full object-contain ${done ? "" : "hidden"}`} />
+            </div>
+          )}
+        </div>
       </div>
-      {photoSrc && state.kind !== "off" && (
-        <div className="mt-2 flex min-h-[1.25rem] items-center gap-2 px-1 pb-0.5 text-xs">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
-          {state.kind === "working" && <span className="text-zinc-500">Checking centering…</span>}
-          {state.kind === "none" && (
-            <span className="text-zinc-500">
-              Centering not measured
-              <span className="hidden min-[400px]:inline"> · keep the whole yellow border in frame</span>
-            </span>
-          )}
-          {done && (
-            <>
-              <span className="font-display text-sm text-white">
-                {done.horizontal} <span className="text-[11px] text-zinc-500">L/R</span>
-              </span>
-              <span className="font-display text-sm text-white">
-                {done.vertical} <span className="text-[11px] text-zinc-500">T/B</span>
-              </span>
-              <span className={`ml-auto truncate ${tone}`} title={done.borders.clipped ? "Rough read: the border touches the photo edge" : undefined}>
-                {done.verdict}
-                {done.borders.clipped ? " (rough)" : ""}
-              </span>
-            </>
-          )}
+
+      {photoSrc && (
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-full border border-edge bg-surface-1 p-1" role="tablist" aria-label="Which card to show">
+          {(["match", "photo"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded-full py-2 text-sm font-semibold transition ${
+                view === v ? "bg-surface-3 text-white shadow-sm shadow-black/30" : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {v === "match" ? "Match" : "Your Photo"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showPhoto && state.kind !== "off" && (
+        <div className="mt-3 px-1 text-xs">
+          <div className="flex items-center gap-2">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+            {state.kind === "working" && <span className="text-zinc-500">Checking centering…</span>}
+            {state.kind === "none" && <span className="text-zinc-400">Centering not measured</span>}
+            {done && (
+              <>
+                <span className="font-display text-sm text-white">
+                  {done.horizontal} <span className="text-[11px] text-zinc-500">L/R</span>
+                </span>
+                <span className="font-display text-sm text-white">
+                  {done.vertical} <span className="text-[11px] text-zinc-500">T/B</span>
+                </span>
+                <span className={`ml-auto truncate ${tone}`}>{done.verdict}</span>
+              </>
+            )}
+          </div>
+          {state.kind === "none" && <p className="mt-0.5 pl-3.5 text-[11px] text-zinc-600">Keep the whole yellow border in frame next time.</p>}
+          {done && done.borders.clipped && <p className="mt-0.5 pl-3.5 text-[11px] text-zinc-600">Rough read: the border touches the photo edge.</p>}
+          {done && !done.borders.clipped && done.psaMax < 10 && <p className="mt-0.5 pl-3.5 text-[11px] text-zinc-600">PSA 10 needs 55/45 or better.</p>}
         </div>
       )}
     </div>
