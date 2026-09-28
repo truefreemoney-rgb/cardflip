@@ -609,9 +609,8 @@ export function buildListing(
     ? `Professionally graded ${gradeLabel(facts.grading)}. The slab in the photos is the exact one you will receive — please verify the cert number.`
     : `Condition: ${condition}. Graded by eye — please review the photos, which show the exact card you will receive.`;
 
-  const shippingLine = facts.grading
-    ? "Slab shipped between cardboard in a bubble mailer, sent within 1 business day."
-    : "Shipped in a penny sleeve and top loader inside a rigid mailer, sent within 1 business day.";
+  // No packaging or handling-time line (Chris, 09-28): we cannot promise how
+  // or when a seller ships. eBay's own handling-time field covers timing.
 
   const game = GAMES[gameOf(card)];
   const isMtg = game.id === "mtg";
@@ -647,7 +646,6 @@ export function buildListing(
       .filter(Boolean)
       .join(" "),
     conditionLine,
-    shippingLine,
     "Happy to combine shipping on multiple cards — message before paying and I'll send an updated invoice.",
   ]
     .filter((line) => line && line.length > 0)
