@@ -691,9 +691,12 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               panel (rarity · market · eBay asking) instead of loose chips.
               The "Not this card?" toggle is gone — other matches only
               appear after a name search. */}
-          <div className="flex items-start justify-between gap-3">
+          {/* Phones: the name gets the full width and the actions sit on
+              their own row under it (Chris, 09-28: long names were sharing
+              the row with Watch / Delete). Desktop keeps one row. */}
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <div className="min-w-0">
-              <h2 className="font-display text-2xl font-semibold leading-tight text-white">
+              <h2 className="font-display text-2xl font-semibold leading-tight text-white [overflow-wrap:anywhere]">
                 {card.englishName || card.name}
                 {/* The printed name stays visible when it differs -- it is how
                     the physical card in hand is verified against the match. */}
