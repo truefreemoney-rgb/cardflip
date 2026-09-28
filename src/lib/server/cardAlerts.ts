@@ -4,6 +4,8 @@ import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/server/mail";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { sendPushToUser } from "@/lib/server/push";
+import { cardAlertPush } from "@/lib/pushMessages";
 
 /**
  * Price alerts on cards the seller OWNS (Tier 2 #7, 09-27). Two kinds, one
@@ -56,10 +58,11 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 export async function sweepCardAlerts(
   now = Date.now(),
   /** Test seam: the mailer and its configured check (scripts/test-card-alerts.mjs). */
-  deps: { send?: typeof sendCardAlertEmail; configured?: () => boolean } = {},
+  deps: { send?: typeof sendCardAlertEmail; configured?: () => boolean; push?: typeof sendPushToUser } = {},
 ): Promise<CardAlertSweepResult> {
   if (!(deps.configured ?? isMailConfigured)()) return { checked: 0, sent: 0, nudged: 0 };
   const send = deps.send ?? sendCardAlertEmail;
+  const push = deps.push ?? sendPushToUser;
   const cooldown = now - SPIKE_COOLDOWN_DAYS * DAY;
   // Armed targets, plus every held card whose spike nudge is off cooldown.
   const rows = (await db
@@ -78,7 +81,7 @@ export async function sweepCardAlerts(
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))]);
   const today = todayUtc(now);
   const weekAgo = addDays(today, -7);
-  const byUser = new Map<string, { email: string; hits: Array<CardAlertHit & { rowId: string }> }>();
+  const byUser = new Map<string, { email: string; userId: string; hits: Array<CardAlertHit & { rowId: string }> }>();
   for (const r of rows) {
     const s = series.get(r.catalog_card_id);
     if (!s) continue;
@@ -101,14 +104,14 @@ export async function sweepCardAlerts(
       }
     }
     if (hits.length === 0) continue;
-    const entry = byUser.get(r.user_id) ?? { email: r.email, hits: [] };
+    const entry = byUser.get(r.user_id) ?? { email: r.email, userId: r.user_id, hits: [] };
     entry.hits.push(...hits);
     byUser.set(r.user_id, entry);
   }
 
   let sent = 0;
   let nudged = 0;
-  for (const { email, hits } of byUser.values()) {
+  for (const { email, userId, hits } of byUser.values()) {
     try {
       await send(email, hits);
       for (const h of hits) {
@@ -120,6 +123,8 @@ export async function sweepCardAlerts(
           nudged++;
         }
       }
+      // The phone banner rides along with the mail (Tier 2 #9); it never throws.
+      await push(userId, cardAlertPush(hits));
     } catch (err) {
       // Stamp nothing on a failed send — the next daily pass retries.
       console.error(`card alert email to ${email} failed:`, err);

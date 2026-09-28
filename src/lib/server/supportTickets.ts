@@ -9,6 +9,8 @@ import {
   sendSupportTicketReplyEmail,
 } from "@/lib/server/mail";
 import type { User } from "@/lib/server/users";
+import { sendPushToUser } from "@/lib/server/push";
+import { ticketReplyPush } from "@/lib/pushMessages";
 
 /**
  * Support tickets (Chris 09-26): the robot accepts and manages them, and the
@@ -260,7 +262,7 @@ export async function addTicketNote(
 export async function replyToTicket(
   ticketId: string,
   input: { body: string; images?: unknown },
-  deps: { replyMail?: typeof sendSupportTicketReplyEmail } = {},
+  deps: { replyMail?: typeof sendSupportTicketReplyEmail; push?: typeof sendPushToUser } = {},
 ): Promise<TicketNote | null> {
   const ticket = await getTicket(ticketId);
   if (!ticket) return null;
@@ -277,6 +279,8 @@ export async function replyToTicket(
       console.error(`[tickets] reply mail failed for #${ticket.number}:`, err);
     }
   }
+  // Phone banner too (Tier 2 #9); never throws.
+  await (deps.push ?? sendPushToUser)(ticket.userId, ticketReplyPush(ticket, body));
   return note;
 }
 

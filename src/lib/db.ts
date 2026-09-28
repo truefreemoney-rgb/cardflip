@@ -550,6 +550,21 @@ const SCHEMA = `
     scanned_day TEXT NOT NULL
   );
 
+  -- Web Push (Tier 2 #9, 09-27): one row per browser/phone that turned
+  -- phone notifications on (lib/server/push.ts). endpoint is the push
+  -- service URL (unique per install); p256dh/auth are the browser's keys.
+  -- A 404/410 from the push service deletes the row.
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT,
+    created_at INTEGER NOT NULL,
+    last_sent_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+
   -- Daily visitors for the admin console (09-25). One row per visitor per
   -- path per UTC day; "visitor" is sha256(day + ip + user agent + salt), so
   -- it cannot be joined across days or back to a person (the privacy page

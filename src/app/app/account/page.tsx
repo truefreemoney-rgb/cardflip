@@ -10,6 +10,7 @@ import { logout, type SessionUser } from "@/lib/client/auth";
 import { PRICE, PRICE_SHORT, SCANS } from "@/lib/pricing";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
+import { disablePush, enablePush, pushState, sendTestPush, type PushState } from "@/lib/client/push";
 import {
   changePassword,
   deleteAccount,
@@ -265,6 +266,55 @@ function AccountSettings({
       setHandleMsg({ kind: "err", text: publicUrl });
     }
   }
+
+  // --- Phone notifications (Tier 2 #9) -------------------------------------
+  const [push, setPush] = useState<PushState | "loading">("loading");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void pushState().then((s) => {
+      if (live) setPush(s);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function togglePush() {
+    setPushBusy(true);
+    setPushMsg(null);
+    try {
+      if (push === "on") {
+        await disablePush();
+        setPush("off");
+        setPushMsg({ kind: "ok", text: "Notifications are off on this phone." });
+      } else {
+        await enablePush();
+        setPush("on");
+        const shown = await sendTestPush();
+        setPushMsg({ kind: "ok", text: shown ? "On. A test banner is on its way." : "On. Dips, sales, alerts and support replies will show up here." });
+      }
+    } catch (err) {
+      setPush(await pushState());
+      setPushMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't change that" });
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  const pushStatus =
+    push === "loading"
+      ? "Checking…"
+      : push === "on"
+        ? "On for this phone — dips, sales, price alerts and support replies as banners."
+        : push === "needs-install"
+          ? "Add CardFlip to your Home Screen (Share → Add to Home Screen), then turn this on from there."
+          : push === "denied"
+            ? "Blocked in your phone's settings for CardFlip. Allow it there, then come back."
+            : push === "unsupported"
+              ? "This browser can't show notifications."
+              : "Off. Get dips, sales, price alerts and support replies as phone banners.";
 
   // --- Password ----------------------------------------------------------
   const [curPw, setCurPw] = useState("");
@@ -877,6 +927,25 @@ function AccountSettings({
             <p className="text-xs text-zinc-500">Visitors see the cards you own that are not sold, with today&apos;s prices. Your name shows; your email never does. Turn it off any time.</p>
             {handleMsg && <Notice kind={handleMsg.kind}>{handleMsg.text}</Notice>}
           </form>
+        </Row>
+        <Row
+          title="Phone notifications"
+          status={
+            <>
+              <Dot on={push === "on"} />
+              {pushStatus}
+            </>
+          }
+          action={
+            push === "on" || push === "off" ? (
+              <button type="button" className={push === "on" ? rowBtn : rowPrimary} onClick={() => void togglePush()} disabled={pushBusy}>
+                {pushBusy ? "…" : push === "on" ? "Turn Off" : "Turn On"}
+              </button>
+            ) : undefined
+          }
+          open={Boolean(pushMsg)}
+        >
+          {pushMsg && <Notice kind={pushMsg.kind}>{pushMsg.text}</Notice>}
         </Row>
       </Group>
 

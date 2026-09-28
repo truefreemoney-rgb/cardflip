@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { sendPushToUser } from "@/lib/server/push";
+import { wishlistDipPush } from "@/lib/pushMessages";
 
 /**
  * The daily check behind "email me when it dips to $X" on wishlist rows.
@@ -40,10 +42,11 @@ export interface AlertSweepResult {
 export async function sweepWishlistAlerts(
   now = Date.now(),
   /** Test seam: the mailer and its configured check (scripts/test-ebay-sweeps.mjs). */
-  deps: { send?: typeof sendWishlistAlertEmail; configured?: () => boolean } = {},
+  deps: { send?: typeof sendWishlistAlertEmail; configured?: () => boolean; push?: typeof sendPushToUser } = {},
 ): Promise<AlertSweepResult> {
   if (!(deps.configured ?? isMailConfigured)()) return { checked: 0, sent: 0 };
   const send = deps.send ?? sendWishlistAlertEmail;
+  const push = deps.push ?? sendPushToUser;
   const rows = (await db
     .prepare(
       `SELECT w.id, w.user_id, w.card_name, w.english_name, w.set_name, w.card_number,
@@ -57,11 +60,11 @@ export async function sweepWishlistAlerts(
   // One batched series read for the whole sweep instead of one per row (up
   // to 200 round trips on Turso).
   const prices = await latestUsdPrices([...new Set(rows.map((r) => r.card_id))]);
-  const hitsByUser = new Map<string, { email: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
+  const hitsByUser = new Map<string, { email: string; userId: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
     const price = prices.get(row.card_id)?.price ?? null;
     if (price == null || price > row.alert_price) continue;
-    const entry = hitsByUser.get(row.user_id) ?? { email: row.email, hits: [] };
+    const entry = hitsByUser.get(row.user_id) ?? { email: row.email, userId: row.user_id, hits: [] };
     entry.hits.push({
       rowId: row.id,
       name: row.english_name || row.card_name,
@@ -74,13 +77,15 @@ export async function sweepWishlistAlerts(
   }
 
   let sent = 0;
-  for (const { email, hits } of hitsByUser.values()) {
+  for (const { email, userId, hits } of hitsByUser.values()) {
     try {
       await send(email, hits);
       sent += hits.length;
       for (const hit of hits) {
         await db.prepare("UPDATE wishlist_items SET alerted_at = ? WHERE id = ?").run(now, hit.rowId);
       }
+      // The phone banner rides along with the mail (Tier 2 #9); it never throws.
+      await push(userId, wishlistDipPush(hits));
     } catch (err) {
       // Stamp nothing on a failed send — the next daily pass retries.
       console.error(`wishlist alert email to ${email} failed:`, err);

@@ -517,6 +517,7 @@ export async function deleteUser(userId: string): Promise<void> {
       "DELETE FROM cards WHERE user_id = ?",
       "DELETE FROM sessions WHERE user_id = ?",
       "DELETE FROM ebay_tokens WHERE user_id = ?",
+      "DELETE FROM push_subscriptions WHERE user_id = ?",
       "DELETE FROM wishlist_items WHERE user_id = ?",
       "DELETE FROM price_checks WHERE user_id = ?",
       "DELETE FROM help_messages WHERE user_id = ?",

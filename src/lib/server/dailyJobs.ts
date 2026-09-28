@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
+import { sendPushToUser } from "@/lib/server/push";
+import { soldPush } from "@/lib/pushMessages";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { sweepWeeklyDigest } from "@/lib/server/digest";
 import { sweepCardAlerts } from "@/lib/server/cardAlerts";
@@ -179,6 +181,8 @@ export async function runPokemonSteps(
     for (const seller of sellers) {
       const r = await syncEbaySales(seller.user_id, true);
       soldCount += r.sold.length;
+      // "Your card sold" on the phone (Tier 2 #9); never throws.
+      if (r.sold.length > 0) await sendPushToUser(seller.user_id, soldPush(r.sold.map((c) => ({ name: c.cardName, soldPrice: c.soldPrice }))));
       // After sales, so a sold-out listing flips sold instead of "ended".
       const e = await syncEndedEbayListings(seller.user_id, true);
       endedCount += e.ended.length;
