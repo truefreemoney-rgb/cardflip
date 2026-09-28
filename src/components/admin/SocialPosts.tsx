@@ -119,7 +119,8 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
 
   const byPost = groupByPost(data.comments);
   const unread = data.sites.filter((s) => s.connected && s.error);
-  const siteChips = SITE_ORDER.filter((s) => data.perSite[s] || data.sites.some((r) => r.site === s && r.connected));
+  // Only sites that hold posts get a chip — a connected site with nothing stored (X refusing reads, TikTok private) would filter the page to empty.
+  const siteChips = SITE_ORDER.filter((s) => (data.perSite[s] ?? 0) > 0);
 
   function qs(f: Filters, before?: string): string {
     const p = new URLSearchParams();
