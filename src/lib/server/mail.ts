@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { PRICE, SCANS } from "@/lib/pricing";
+import type { Digest } from "@/lib/server/digest";
 
 /**
  * Outbound mail — the password-reset link and the subscription welcome.
@@ -107,6 +108,65 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
         : `${hits.length} watchlist cards hit your alert prices`,
     text,
     html,
+  });
+}
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const signed = (n: number) => `${n >= 0 ? "+" : "-"}${usd(Math.abs(n))}`;
+
+/** Sunday collection digest — one mail per seller per week (lib/server/digest.ts). */
+export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { userId: string; token: string }): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const unsubUrl = `${site}/api/digest/unsubscribe?u=${encodeURIComponent(unsub.userId)}&t=${encodeURIComponent(unsub.token)}`;
+  const change = d.valueNow - d.valueBefore;
+  const pct = d.valueBefore > 0 ? Math.round((change / d.valueBefore) * 1000) / 10 : 0;
+  const headline = `Your collection is worth ${usd(d.valueNow)} (${signed(change)}${d.valueBefore > 0 ? `, ${pct >= 0 ? "+" : ""}${pct}%` : ""} this week)`;
+  const cardLine = (c: { name: string; set: string; number: string; now: number; change: number; pct: number }) =>
+    `${c.name} (${c.set} · ${c.number}) — ${usd(c.now)}, ${signed(c.change)} (${c.pct >= 0 ? "+" : ""}${c.pct}%)`;
+  const soldLine = (c: { name: string; set: string; number: string; price: number }) => `${c.name} (${c.set} · ${c.number}) — sold for ${usd(c.price)}`;
+  const staleLine = (c: { name: string; set: string; number: string; price: number; days: number }) => `${c.name} (${c.set} · ${c.number}) — ${usd(c.price)}, listed ${c.days} days`;
+
+  const sections: Array<{ title: string; lines: string[]; empty?: string }> = [
+    { title: "Top Gainers", lines: d.gainers.map(cardLine), empty: "No card went up this week." },
+    { title: "Top Losers", lines: d.losers.map(cardLine), empty: "No card went down this week." },
+    { title: "Sold This Week", lines: d.sold.map(soldLine), empty: "Nothing sold this week." },
+    { title: `Listed ${30}+ Days`, lines: d.stale.map(staleLine) },
+  ].filter((s) => s.lines.length > 0 || s.empty);
+
+  const text = [
+    headline,
+    `${d.held} card${d.held === 1 ? "" : "s"} in your collection.`,
+    "",
+    ...sections.flatMap((s) => [s.title.toUpperCase(), ...(s.lines.length ? s.lines.map((l) => "· " + l) : [s.empty!]), ""]),
+    `Your collection: ${site}/app/collection`,
+    "",
+    "Prices refresh once a day. This digest goes out every Sunday.",
+    `Stop these emails: ${unsubUrl}`,
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p style="font-size:18px;font-weight:700;margin:0 0 4px">${esc(headline)}</p>
+    <p style="color:#666;margin:0 0 16px">${d.held} card${d.held === 1 ? "" : "s"} in your collection.</p>
+    ${sections
+      .map(
+        (s) => `<p style="font-weight:600;margin:16px 0 4px">${esc(s.title)}</p>${
+          s.lines.length ? `<ul style="margin:0;padding-left:18px">${s.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p style="color:#666;margin:0">${esc(s.empty!)}</p>`
+        }`,
+      )
+      .join("")}
+    <p style="margin:20px 0"><a href="${site}/app/collection" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your collection</a></p>
+    <p style="color:#666;font-size:13px">Prices refresh once a day. This digest goes out every Sunday. <a href="${unsubUrl}" style="color:#666">Stop these emails</a>.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: `Your CardFlip week: ${usd(d.valueNow)} (${signed(change)})`,
+    text,
+    html,
+    headers: { "List-Unsubscribe": `<${unsubUrl}>` },
   });
 }
 

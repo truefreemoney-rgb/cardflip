@@ -702,6 +702,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "referred_by TEXT",
     "referral_rewarded_at INTEGER",
     "bonus_scans INTEGER NOT NULL DEFAULT 0",
+    // Weekly collection digest (Tier 2 #8, 09-27): digest_sent_week is the
+    // ISO week (e.g. 2026-W39) the Sunday mail last went out, the dedupe for
+    // the daily job's repeated runs; digest_off = 1 after the unsubscribe link.
+    "digest_sent_week TEXT",
+    "digest_off INTEGER NOT NULL DEFAULT 0",
+    "digest_token TEXT",
   ]],
 ];
 
