@@ -113,9 +113,12 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
       <div className="relative flex items-center gap-1.5">
         <button
           onClick={handleClick}
-          className="rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
+          className="shrink-0 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
         >
-          {onOpenCamera && <span aria-hidden>📷 </span>}Add more cards
+          {onOpenCamera && <span aria-hidden>📷 </span>}
+          {/* Short on phones so Add · sealed · eBay share one row (09-28). */}
+          <span className="sm:hidden">Add Cards</span>
+          <span className="hidden sm:inline">Add more cards</span>
         </button>
         {/* Phones skip the menu (the tap IS the camera), so sealed product
             needs its own way in once the queue exists. */}
@@ -125,7 +128,7 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
             onClick={onSealed}
             aria-label="Add a sealed product"
             title="Add a sealed product"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-edge bg-surface-1 text-base transition hover:border-edge-strong hover:bg-surface-2"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-1 text-base transition hover:border-edge-strong hover:bg-surface-2"
           >
             <span aria-hidden>📦</span>
           </button>

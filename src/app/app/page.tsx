@@ -1453,51 +1453,46 @@ export default function AppPage() {
         </main>
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-edge bg-surface-1 px-5 py-4">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
-              <div>
-                <p className="text-lg font-semibold text-white">
+          {/* Queue summary (09-28 makeover, Chris: "taking up a lot of space
+              and kinda sloppy"): two tight rows on a phone — the numbers on
+              one line, the three actions on the next — and one row on
+              desktop. Display type for the values, no wrapping labels. */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:py-4">
+            <div className="flex items-end justify-between gap-x-6 gap-y-1 sm:flex-wrap sm:justify-start">
+              <div className="min-w-0">
+                <p className="font-display text-xl font-semibold leading-none text-white">
                   {items.length} card{items.length === 1 ? "" : "s"}
                 </p>
-                <p className="text-xs text-zinc-500" aria-live="polite">
+                <p className="mt-1 truncate text-[11px] text-zinc-500" aria-live="polite">
                   {readyCount} ready · {listedItems.length} live · {items.length - identified.length} pending
                 </p>
               </div>
-              <div>
-                <p className="text-lg font-semibold text-white">
-                  {formatMoney(pendingValue)}
-                </p>
-                <p className="text-xs text-zinc-500">In progress</p>
+              <div className="text-right sm:text-left">
+                <p className="font-display text-xl font-semibold leading-none text-white">{formatMoney(pendingValue)}</p>
+                <p className="mt-1 text-[11px] text-zinc-500">In progress</p>
               </div>
               {scanUsage && scanUsage.remaining !== null && (
-                <div>
+                <div className="hidden sm:block">
+                  {/* Phones already show the meter in the header. */}
                   <p
-                    className={`text-lg font-semibold ${
-                      scanUsage.remaining <= 0
-                        ? "text-red-400"
-                        : scanUsage.remaining <= 50
-                          ? "text-amber-300"
-                          : "text-white"
+                    className={`font-display text-xl font-semibold leading-none ${
+                      scanUsage.remaining <= 0 ? "text-red-400" : scanUsage.remaining <= 50 ? "text-amber-300" : "text-white"
                     }`}
                   >
                     {scanUsage.remaining}
                   </p>
-                  <p className="text-xs text-zinc-500">Scans left</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">Scans left</p>
                 </div>
               )}
               {soldItems.length > 0 && (
-                <div className="animate-fade-up">
-                  <p className="text-lg font-semibold text-emerald-400">
-                    {formatMoney(totalEarned)}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    Sold ({soldItems.length})
-                  </p>
+                <div className="animate-fade-up text-right sm:text-left">
+                  <p className="font-display text-xl font-semibold leading-none text-emerald-400">{formatMoney(totalEarned)}</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">Sold ({soldItems.length})</p>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <GameToggle game={game} onChange={setGame} compact />
               <Uploader
                 onFiles={addUploads}
@@ -1511,27 +1506,19 @@ export default function AppPage() {
                 // (Chris, 09-06) — the plans page, not the eBay consent screen.
                 <Link
                   href="/pricing"
-                  className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                  className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 sm:ml-0"
                 >
                   Subscribe Now
                 </Link>
               ) : (
-              <button
-                onClick={() => void sendAllToEbay()}
-                disabled={bulkBusy || identified.length === 0}
-                title={
-                  user.ebayConnected
-                    ? "Send every verified card to your eBay account"
-                    : "Connect your eBay account first"
-                }
-                className="rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {bulkBusy
-                  ? "Sending…"
-                  : user.ebayConnected
-                    ? "Send all to eBay"
-                    : "Connect eBay to send"}
-              </button>
+                <button
+                  onClick={() => void sendAllToEbay()}
+                  disabled={bulkBusy || identified.length === 0}
+                  title={user.ebayConnected ? "Send every verified card to your eBay account" : "Connect your eBay account first"}
+                  className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:ml-0"
+                >
+                  {bulkBusy ? "Sending…" : user.ebayConnected ? "Send to eBay" : "Connect eBay"}
+                </button>
               )}
             </div>
           </div>
