@@ -12,8 +12,9 @@ import {
   enrichWithPricing,
   hasEnglishMirror,
   searchEnglishCardsLocal,
+  splitFirstEditionPrices,
 } from "@/lib/server/enCards";
-import type { ArtStyle, MtgCues, ScanLanguage } from "@/lib/types";
+import type { ArtStyle, MtgCues, PokemonCard, ScanLanguage } from "@/lib/types";
 import { parseMtgCuesParams } from "@/lib/mtgCues";
 import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtgCards";
 import { hasTcgMirror, isTcgGame, searchTcgCardsLocal, tcgCardById } from "@/lib/server/tcgCards";
@@ -44,6 +45,25 @@ const PRICING_BUDGET_MS = 2500;
 
 const hasMarketPrice = (cards: { prices: { market: number | null }[] }[]) =>
   cards.some((c) => c.prices.some((p) => p.market));
+
+/**
+ * Prices while upstream is slow: every printing we hold in our own
+ * price_series (normal / reverse / Poké Ball pattern...), so the Printing
+ * dropdown has its rows on the first answer, not only after a lucky fast
+ * pokemontcg.io call (09-28: Chris opened Harlequin during a slow upstream
+ * and the dropdown was gone — the old fallback sent ONE held price). A card
+ * with no series of its own still gets the last held point.
+ */
+async function heldPrices(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  const own = await splitFirstEditionPrices(cards.map((c) => ({ ...c, prices: [] })));
+  const missing = own.filter((c) => !c.prices.some((p) => p.market)).map((c) => c.id);
+  const held = missing.length ? await latestUsdPrices(missing) : new Map();
+  return own.map((card, i) => {
+    if (card.prices.some((p) => p.market)) return card;
+    const p = held.get(card.id);
+    return p ? { ...card, prices: [heldPriceEntry(p)] } : cards[i];
+  });
+}
 
 /** Background refresh of a stale English cache row — never blocks a response. */
 async function refreshEnglishCache(
@@ -174,11 +194,7 @@ export async function GET(req: NextRequest) {
     if (priced && hasMarketPrice(priced)) {
       return NextResponse.json({ cards: priced, matchedOn: "id", source: "local" });
     }
-    const held = await latestUsdPrices(local.cards.map((c) => c.id));
-    const cards = (priced ?? local.cards).map((card) => {
-      const p = held.get(card.id);
-      return p ? { ...card, prices: [heldPriceEntry(p)] } : card;
-    });
+    const cards = await heldPrices(priced ?? local.cards);
     return NextResponse.json({ cards, matchedOn: "id", source: "local", ...(priced ? {} : { pricing: "pending" }) });
   }
 
@@ -338,11 +354,7 @@ export async function GET(req: NextRequest) {
         });
         // Last held price meanwhile (09-10): a tile logged from a pending
         // answer was showing "—" in Recent lookups for good.
-        const held = await latestUsdPrices(local.cards.map((c) => c.id));
-        const cards = local.cards.map((card) => {
-          const p = held.get(card.id);
-          return p ? { ...card, prices: [heldPriceEntry(p)] } : card;
-        });
+        const cards = await heldPrices(local.cards);
         return NextResponse.json({ cards, matchedOn, source: "local", pricing: "pending" });
       }
     }
