@@ -398,6 +398,9 @@ export default function CollectionPage() {
     const href = resumeHrefFor(card);
     const primary = "inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white transition";
     const quiet = "inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white";
+    const rowCls = "flex items-center justify-between gap-3 px-4 py-2.5";
+    const rowLabel = "shrink-0 text-[10px] font-medium uppercase tracking-wide text-zinc-500";
+    const rowValue = "flex min-w-0 justify-end text-right text-sm";
     const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : "Suggested price";
     const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
     const note = sold
@@ -529,13 +532,18 @@ export default function CollectionPage() {
               <dd className="truncate text-sm text-zinc-100">{value}</dd>
             </div>
           ))}
+          {facts.length % 3 !== 0 &&
+            Array.from({ length: 3 - (facts.length % 3) }).map((_, i) => <div key={`pad-${i}`} className="bg-surface-1" />)}
+        </dl>
+
+        {/* The seller's own notes, one full row each: label left, value
+            right. They were 3-col cells and the text got cut off on phones
+            (Chris, 09-28: "too bunched up"). */}
+        <dl className="divide-y divide-edge border-b border-edge">
           {/* What you paid (09-27): tap to type it; it feeds profit and the year-end report. */}
-          {/* While typing, the cell takes the whole row: a 3-col cell on a
-              phone is too narrow for the input + Save, and truncate hid the
-              button (Chris, 09-28: "needs a save button"). */}
-          <div className={`min-w-0 bg-surface-1 px-4 py-2.5 ${costForm?.id === card.id ? "col-span-3" : ""}`}>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">You paid</dt>
-            <dd className={`text-sm ${costForm?.id === card.id ? "" : "truncate"}`}>
+          <div className={rowCls}>
+            <dt className={rowLabel}>You paid</dt>
+            <dd className={rowValue}>
               {costForm?.id === card.id ? (
                 <form
                   onSubmit={(e) => {
@@ -579,9 +587,9 @@ export default function CollectionPage() {
           </div>
           {/* Price alert on an owned card (09-27): email when the market-based asking price reaches the target. Sold rows have nothing to watch. */}
           {!sold && (
-            <div className={`min-w-0 bg-surface-1 px-4 py-2.5 ${alertForm?.id === card.id ? "col-span-3" : ""}`}>
-              <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Alert me at</dt>
-              <dd className={`text-sm ${alertForm?.id === card.id ? "" : "truncate"}`}>
+            <div className={rowCls}>
+              <dt className={rowLabel}>Alert me at</dt>
+              <dd className={rowValue}>
                 {alertForm?.id === card.id ? (
                   <form
                     onSubmit={(e) => {
@@ -632,13 +640,13 @@ export default function CollectionPage() {
             </div>
           )}
           {/* Category is a link: add one, or change it (Chris, 09-04). */}
-          <div className="min-w-0 bg-surface-1 px-4 py-2.5">
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Category</dt>
-            <dd className="truncate text-sm">
+          <div className={rowCls}>
+            <dt className={rowLabel}>Category</dt>
+            <dd className={rowValue}>
               <button
                 type="button"
                 onClick={() => setCategoryTarget(card)}
-                className={`inline-flex max-w-full items-center gap-1 underline-offset-4 transition hover:underline ${
+                className={`inline-flex max-w-full items-center gap-1.5 underline-offset-4 transition hover:underline ${
                   card.category ? "text-zinc-100 hover:text-white" : "text-brand-300 hover:text-brand-200"
                 }`}
               >
@@ -647,8 +655,6 @@ export default function CollectionPage() {
               </button>
             </dd>
           </div>
-          {(facts.length + 1) % 3 !== 0 &&
-            Array.from({ length: 3 - ((facts.length + 1) % 3) }).map((_, i) => <div key={`pad-${i}`} className="bg-surface-1" />)}
         </dl>
 
         {/* Actions: one primary, then the quiet row */}
