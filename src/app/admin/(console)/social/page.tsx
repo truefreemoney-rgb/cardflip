@@ -47,6 +47,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <p className="text-sm text-zinc-400">What the autopilot posts on {day}. Pictures and words come from our price history; nothing here is typed by hand.</p>
         </div>
         <nav className="flex gap-2 text-sm">
+          <Link href="/admin/social/pulse" className="rounded-full border border-brand-400/60 px-3 py-1 text-brand-200 hover:text-white">Pulse</Link>
           <Link href={`/admin/social?day=${addDays(day, -1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">← {addDays(day, -1)}</Link>
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>

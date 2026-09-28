@@ -317,6 +317,25 @@ function threadsCreds() {
   return token ? { userId: process.env.THREADS_USER_ID?.trim() || "me", token } : null;
 }
 
+/**
+ * Read-side credentials for the social pulse (lib/server/socialPulse.ts):
+ * the same tokens the posters use, resolved to the Page / user the posts
+ * belong to. Null per site when that site is not connected.
+ */
+export async function metaReadCreds(): Promise<{
+  facebook: { base: string; pageId: string; token: string } | null;
+  instagram: { base: string; userId: string; token: string } | null;
+  threads: { base: string; userId: string; token: string } | null;
+}> {
+  const fb = fbCreds();
+  const facebook = fb ? await resolvePage(fb).then((p) => ({ base: GRAPH, ...p })).catch(() => null) : null;
+  const ig = igCreds();
+  if (ig && ig.base === IG_LOGIN) ig.token = (await liveToken("instagram")) ?? ig.token;
+  const th = threadsCreds();
+  const threads = th ? { base: THREADS, userId: th.userId, token: (await liveToken("threads")) ?? th.token } : null;
+  return { facebook, instagram: ig, threads };
+}
+
 export const threads: SocialSite = {
   id: "threads",
   label: "Threads",

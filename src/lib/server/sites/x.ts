@@ -82,6 +82,13 @@ export function xAuthHeader(
   );
 }
 
+/** A signed GET against the X API with the posting account's keys — null when X is not configured. Used by the social pulse. */
+export async function xSignedGet(path: string, query: Record<string, string>): Promise<Response | null> {
+  const c = creds();
+  if (!c) return null;
+  return signedFetch(c, "GET", `${API}${path}`, { query });
+}
+
 async function signedFetch(
   c: XCreds,
   method: string,
