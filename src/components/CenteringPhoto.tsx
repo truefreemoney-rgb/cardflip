@@ -4,29 +4,64 @@ import { useEffect, useRef, useState } from "react";
 import { checkCentering, type Centering } from "@/lib/centering";
 
 /**
- * "Your photo" with the centering check drawn on it (09-27, Tier 1 #2).
- * Runs entirely in the browser off the scan photo: no extra vision spend.
- * Pokémon only (yellow border); other games get the plain photo.
+ * The match panel on the listing screen: the catalogue art and the seller's
+ * photo as two equal 5:7 tiles in one surface, a corner label on each, and
+ * the centering read as one line under both (09-28, Chris: the old
+ * side-by-side with captions underneath "looked bad" on the phone — uneven
+ * heights, tiny grey labels, a three-line failure note under one column).
  *
- * The drawn box follows the measured inner edge of the border, and each
- * side carries its share of the border as a percent. Under the photo: the
- * L/R and T/B pair and the PSA verdict. When the border cannot be measured
- * the caption says so; a number is never invented.
+ * The centering check runs entirely in the browser off the scan photo: no
+ * extra vision spend. Pokémon only (yellow border); other games get the
+ * plain photo. The drawn box follows the measured inner edge of the border
+ * and each side carries its share as a percent. When the border cannot be
+ * measured the line says so; a number is never invented.
  */
 
 const MAX_EDGE = 640;
 
-type State =
-  | { kind: "working" }
-  | { kind: "none" }
-  | { kind: "done"; result: Centering };
+/** A read is keyed by the photo it was made from; a new photo starts "working". */
+type Read = { src: string; kind: "none" } | { src: string; kind: "done"; result: Centering };
+type State = { kind: "off" } | { kind: "working" } | { kind: "none" } | { kind: "done"; result: Centering };
 
-export function CenteringPhoto({ src, enabled }: { src: string; enabled: boolean }) {
+const tileClass = "relative aspect-[5/7] overflow-hidden rounded-xl bg-black/40";
+const labelClass =
+  "pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-200 backdrop-blur-sm";
+
+/** The "Match" tile wrapper: whatever art (or placeholder) the editor has. */
+export function MatchTile({ children }: { children: React.ReactNode }) {
+  return (
+    <div className={tileClass}>
+      <span className={labelClass}>Match</span>
+      {children}
+    </div>
+  );
+}
+
+export function MatchComparison({
+  match,
+  photoSrc,
+  centering,
+}: {
+  match: React.ReactNode;
+  /** The seller's photo; search-added cards have none. */
+  photoSrc: string | null;
+  /** Run the yellow-border centering read (Pokémon only). */
+  centering: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [state, setState] = useState<State>({ kind: "working" });
+  const [read, setRead] = useState<Read | null>(null);
+  const active = centering && Boolean(photoSrc);
+  const state: State = !active
+    ? { kind: "off" }
+    : read && read.src === photoSrc
+      ? read.kind === "done"
+        ? { kind: "done", result: read.result }
+        : { kind: "none" }
+      : { kind: "working" };
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!centering || !photoSrc) return;
+    const src = photoSrc;
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
@@ -48,68 +83,73 @@ export function CenteringPhoto({ src, enabled }: { src: string; enabled: boolean
         result = null;
       }
       if (!result) {
-        setState({ kind: "none" });
+        setRead({ src, kind: "none" });
         return;
       }
       draw(ctx, result, W);
-      setState({ kind: "done", result });
+      setRead({ src, kind: "done", result });
     };
-    img.onerror = () => { if (!cancelled) setState({ kind: "none" }); };
+    img.onerror = () => {
+      if (!cancelled) setRead({ src, kind: "none" });
+    };
     img.src = src;
-    return () => { cancelled = true; };
-  }, [src, enabled]);
-
-  if (!enabled) {
-    return (
-      <div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="The photo you uploaded" className="h-56 w-auto rounded-xl object-contain opacity-90 shadow-xl shadow-black/40" />
-        <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">Your photo</p>
-      </div>
-    );
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [photoSrc, centering]);
 
   const done = state.kind === "done" ? state.result : null;
   const tone = !done ? "text-zinc-500" : done.psaMax >= 9 ? "text-emerald-400" : done.psaMax >= 7 ? "text-amber-300" : "text-rose-400";
+  const dot = !done ? "bg-zinc-600" : done.psaMax >= 9 ? "bg-emerald-400" : done.psaMax >= 7 ? "bg-amber-300" : "bg-rose-400";
 
   return (
-    <div className="w-max max-w-full">
-      <div className="relative">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt="The photo you uploaded"
-          className={`h-56 w-auto rounded-xl object-contain shadow-xl shadow-black/40 ${done ? "invisible" : "opacity-90"}`}
-        />
-        {/* The canvas holds the same photo with the centering box drawn on;
-            it sits over the img so the layout box never changes. */}
-        <canvas
-          ref={canvasRef}
-          aria-hidden={!done}
-          className={`absolute inset-0 h-56 w-auto rounded-xl ${done ? "" : "hidden"}`}
-        />
+    <div className={`w-full shrink-0 rounded-2xl border border-edge bg-surface-1 p-2 ${photoSrc ? "sm:w-[21rem]" : "sm:w-[10.5rem]"}`}>
+      <div className={`grid gap-2 ${photoSrc ? "grid-cols-2" : "grid-cols-1"}`}>
+        <MatchTile>{match}</MatchTile>
+        {photoSrc && (
+          <div className={tileClass}>
+            <span className={labelClass}>{done ? "Centering" : "Your photo"}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoSrc}
+              alt="The photo you uploaded"
+              className={`absolute inset-0 h-full w-full object-contain ${done ? "invisible" : ""}`}
+            />
+            {/* The canvas holds the same photo with the centering box drawn
+                on; same box, same object-fit, so it lands exactly over the
+                img and the layout never changes. */}
+            <canvas
+              ref={canvasRef}
+              aria-hidden={!done}
+              className={`absolute inset-0 h-full w-full object-contain ${done ? "" : "hidden"}`}
+            />
+          </div>
+        )}
       </div>
-      <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-        {done ? "Centering" : "Your photo"}
-      </p>
-      {state.kind === "working" && <p className="mt-1 text-center text-xs text-zinc-600">Checking centering…</p>}
-      {state.kind === "none" && (
-        <p className="mt-1 max-w-[14rem] text-center text-xs text-zinc-600">
-          Couldn&apos;t measure centering on this photo. It needs the whole yellow border in frame.
-        </p>
-      )}
-      {done && (
-        <div className="mt-1 max-w-[14rem] text-center">
-          <p className="font-display text-sm text-white">
-            <span className="text-zinc-500">L/R</span> {done.horizontal}
-            <span className="ml-3 text-zinc-500">T/B</span> {done.vertical}
-          </p>
-          <p className={`mt-0.5 text-xs ${tone}`}>{done.verdict}</p>
-          {done.borders.clipped ? (
-            <p className="mt-0.5 text-[11px] text-zinc-600">Rough read: the border touches the photo edge</p>
-          ) : done.psaMax < 10 ? (
-            <p className="mt-0.5 text-[11px] text-zinc-600">PSA 10 needs 55/45 or better</p>
-          ) : null}
+      {photoSrc && state.kind !== "off" && (
+        <div className="mt-2 flex min-h-[1.25rem] items-center gap-2 px-1 pb-0.5 text-xs">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+          {state.kind === "working" && <span className="text-zinc-500">Checking centering…</span>}
+          {state.kind === "none" && (
+            <span className="text-zinc-500">
+              Centering not measured
+              <span className="hidden min-[400px]:inline"> · keep the whole yellow border in frame</span>
+            </span>
+          )}
+          {done && (
+            <>
+              <span className="font-display text-sm text-white">
+                {done.horizontal} <span className="text-[11px] text-zinc-500">L/R</span>
+              </span>
+              <span className="font-display text-sm text-white">
+                {done.vertical} <span className="text-[11px] text-zinc-500">T/B</span>
+              </span>
+              <span className={`ml-auto truncate ${tone}`} title={done.borders.clipped ? "Rough read: the border touches the photo edge" : undefined}>
+                {done.verdict}
+                {done.borders.clipped ? " (rough)" : ""}
+              </span>
+            </>
+          )}
         </div>
       )}
     </div>

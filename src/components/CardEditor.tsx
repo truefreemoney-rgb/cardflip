@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
-import { CenteringPhoto } from "@/components/CenteringPhoto";
+import { MatchComparison } from "@/components/CenteringPhoto";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
@@ -661,37 +661,29 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         {/* The seller's photo stays beside the match. Showing only the matched
             card's official art made a wrong match invisible — there was
             nothing left to compare it against. */}
-        <div className="flex shrink-0 items-start gap-3">
-          <div>
-            {card.imageLarge || card.imageSmall ? (
-              <CardImage
-                src={card.imageLarge || card.imageSmall}
-                alt={card.name}
-                className="h-56 w-auto rounded-xl shadow-2xl shadow-black/50"
-              />
+        {/* Two equal tiles in one panel (09-28 redesign); search-added
+            cards have no photo, so the panel is the match tile alone.
+            Centering is drawn on the photo for Pokémon only. */}
+        <MatchComparison
+          photoSrc={item.previewUrl || null}
+          centering={item.game === "pokemon"}
+          match={
+            card.imageLarge || card.imageSmall ? (
+              <CardImage src={card.imageLarge || card.imageSmall} alt={card.name} className="absolute inset-0 h-full w-full object-cover" />
             ) : (
               // No catalogue art (some promos, kits). Used to fall back to the
               // seller's own photo, which read as "the match is a mirror of my
               // card" (Chris, 09-03). Say what's missing instead.
-              <div className="flex h-56 w-40 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-edge-strong bg-surface-1 px-3 text-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 border border-dashed border-edge-strong px-3 text-center">
                 <p className="text-sm font-medium text-zinc-300">{card.name}</p>
                 <p className="text-xs text-zinc-500">
                   {card.setName} · {displayCardNumber(card)}
                 </p>
                 <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-600">No catalogue art yet</p>
               </div>
-            )}
-            <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-              Match
-            </p>
-          </div>
-          {/* Search-added cards have no photo — nothing to compare against. */}
-          {item.previewUrl && (
-            // Centering check drawn on the photo (Pokémon border only,
-            // 09-27); other games get the plain photo.
-            <CenteringPhoto src={item.previewUrl} enabled={item.game === "pokemon"} />
-          )}
-        </div>
+            )
+          }
+        />
 
         <div className="min-w-0 flex-1">
           {/* Header makeover (Chris, 09-03: "kinda sloppy"): title row with
