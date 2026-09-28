@@ -116,7 +116,9 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
           onClick={handleClick}
           className="flex-1 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 sm:flex-none sm:px-4"
         >
-          {onOpenCamera && <span aria-hidden>📷 </span>}
+          {/* Card icon, not a camera: the label says what you add, the
+              sibling "Add Sealed" uses a box (Chris, 09-28). */}
+          <span aria-hidden>🃏 </span>
           <span className="sm:hidden">Add Cards</span>
           <span className="hidden sm:inline">Add more cards</span>
         </button>
