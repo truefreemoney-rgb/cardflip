@@ -81,7 +81,11 @@ function Site({ s }: { s: SitePulse }) {
       ) : s.error ? (
         <p className="text-sm text-amber-300">{s.error}</p>
       ) : s.posts.length === 0 ? (
-        <p className="text-sm text-zinc-500">No posts yet.</p>
+        <p className="text-sm text-zinc-500">
+          {s.site === "tiktok"
+            ? "No public videos. TikTok lists public videos only; ours post private until the app audit passes, then counts appear here."
+            : "No posts yet."}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
