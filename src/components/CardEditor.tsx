@@ -1145,11 +1145,15 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             quote, the title and the "Printing:" line. eBay basis rows are
             not printings and stay out; when the default quote is one of
             those, the first option keeps it. Hidden while 1st Edition is
-            checked — that toggle owns the printing then. */}
-        {!item.firstEdition && !item.grading && printings.length > 1 && (
+            checked — that toggle owns the printing then. Always shown
+            otherwise (Chris, 09-28): one possibility = the row is there,
+            greyed out, not clickable — the seller still sees which printing
+            they are selling. */}
+        {!item.firstEdition && !item.grading && (printings.length > 0 || quote) && (
           <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
             Printing
             <select
+              disabled={printings.length + (quote && !printings.some((p) => p.variant === quote.price.variant) ? 1 : 0) < 2}
               value={item.variant ?? (printings.some((p) => p.variant === quote?.price.variant) ? quote!.price.variant : "")}
               onChange={(e) => {
                 const value = e.target.value;
@@ -1157,7 +1161,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 const picked = printings.find((p) => p.variant === value);
                 setConditionNote(picked ? `Priced as ${picked.label} — the title and description say so too.` : null);
               }}
-              className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
+              className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400 disabled:cursor-not-allowed disabled:appearance-none disabled:text-zinc-400 disabled:opacity-60"
             >
               {quote && !printings.some((p) => p.variant === quote.price.variant) && (
                 <option value="">Best price — {quote.price.label} — {formatMoney(quote.base, quote.price.currency)}</option>
