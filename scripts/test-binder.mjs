@@ -30,7 +30,7 @@ assert.deepEqual(cleanBoxes("nope"), []);
 assert.deepEqual(cleanBoxes([{ x: 0.1, y: 0.1, w: 0.02, h: 0.5 }]), [], "too thin");
 
 // Cap.
-const many = Array.from({ length: 20 }, (_, i) => ({ x: (i % 5) * 0.2, y: Math.floor(i / 5) * 0.25, w: 0.18, h: 0.22 }));
+const many = Array.from({ length: 30 }, (_, i) => ({ x: (i % 6) * 0.16, y: Math.floor(i / 6) * 0.2, w: 0.14, h: 0.18 }));
 assert.equal(cleanBoxes(many).length, MAX_CARDS_PER_PAGE);
 
 // Crop: padded by CROP_MARGIN of the box, clamped to the photo, integer px.

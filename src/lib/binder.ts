@@ -22,8 +22,12 @@ export interface CropRect {
   sh: number;
 }
 
-/** Most cards one page shot can hold: a 12-pocket page. */
-export const MAX_CARDS_PER_PAGE = 12;
+/**
+ * Most cards one shot can hold: a spread of two 12-pocket pages. Pages come
+ * in 1, 2, 4, 6, 9 and 12 pockets; the model returns one box per card it
+ * sees, so any layout below the cap works without a grid assumption.
+ */
+export const MAX_CARDS_PER_PAGE = 24;
 
 /**
  * Margin around the reported box, as a fraction of the box's own size.
