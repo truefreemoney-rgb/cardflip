@@ -470,16 +470,20 @@ const isFirstEditionVariant = (variant: string) => variant.startsWith("1stEditio
  * the daily tcgcsv refresh feeds from that product.
  */
 export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<PokemonCard[]> {
-  // Poké Ball / Master Ball pattern printings (lib/tcgcsv.ts) exist only in
-  // our own price_series — the upstream knows normal / holofoil / reverse.
-  // Without this merge the Printing dropdown never listed them (Chris,
-  // 09-28: "i dont see a dropdown for Harlequin"). One query for the batch.
-  const patterns = await ownSeriesPrices(cards.filter((c) => !isFirstEditionId(c.id)).map((c) => c.id), "%Pattern");
+  // Every printing we price daily ourselves (TCGCSV → price_series) that the
+  // upstream row lacks: Poké Ball / Master Ball patterns exist only there,
+  // and when the upstream join misses (White Flare: no release-date match)
+  // the plain printings come from here too. Without this the Printing
+  // dropdown had one row or none (Chris, 09-28: "i dont see a dropdown for
+  // Harlequin"). One query for the batch.
+  const own = await ownSeriesPrices(cards.filter((c) => !isFirstEditionId(c.id)).map((c) => c.id), "%");
   const out: PokemonCard[] = [];
   for (const card of cards) {
     if (!isFirstEditionId(card.id)) {
       const base = card.prices.filter((p) => !isFirstEditionVariant(p.variant));
-      const extra = (patterns.get(card.id) ?? []).filter((p) => !base.some((b) => b.variant === p.variant));
+      const extra = (own.get(card.id) ?? []).filter(
+        (p) => !isFirstEditionVariant(p.variant) && !base.some((b) => b.variant === p.variant),
+      );
       out.push({ ...card, prices: [...base, ...extra] });
       continue;
     }
