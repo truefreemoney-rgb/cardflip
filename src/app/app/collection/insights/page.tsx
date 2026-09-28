@@ -252,17 +252,7 @@ export default function InsightsPage() {
                   </div>
                 ))}
               </dl>
-              {data.unlistedVerified.count > 0 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2.5">
-                  <p className="text-sm text-zinc-200">
-                    <span className="font-semibold text-white">{formatMoney(data.unlistedVerified.value)}</span> in {data.unlistedVerified.count} verified{" "}
-                    {data.unlistedVerified.count === 1 ? "draft" : "drafts"} not listed yet.
-                  </p>
-                  <Link href="/app/collection" className="text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
-                    List them →
-                  </Link>
-                </div>
-              )}
+              {/* No "drafts not listed" nudge here (Chris, 09-28: "i dont think we need that"). */}
             </div>
           </section>
 
