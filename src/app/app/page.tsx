@@ -1454,20 +1454,24 @@ export default function AppPage() {
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
           {/* Queue summary (09-28 makeover, Chris: "taking up a lot of space
-              and kinda sloppy"): two tight rows on a phone — the numbers on
-              one line, the three actions on the next — and one row on
-              desktop. Display type for the values, no wrapping labels. */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:py-4">
-            <div className="flex items-end justify-between gap-x-6 gap-y-1 sm:flex-wrap sm:justify-start">
+              and kinda sloppy"): two tight rows on a phone — the numbers with
+              the eBay button on the first, the two worded Add buttons on the
+              second — and one row on desktop (the phone wrappers dissolve
+              with sm:contents). Display type for the values. */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-5 sm:py-4">
+            <div className="flex items-center justify-between gap-3 sm:contents">
+            <div className="flex min-w-0 items-end gap-x-6 gap-y-1 sm:flex-wrap">
               <div className="min-w-0">
                 <p className="font-display text-xl font-semibold leading-none text-white">
                   {items.length} card{items.length === 1 ? "" : "s"}
+                  {/* Phones fold the value into the headline; desktop has its own stat. */}
+                  <span className="sm:hidden"> · {formatMoney(pendingValue)}</span>
                 </p>
                 <p className="mt-1 truncate text-[11px] text-zinc-500" aria-live="polite">
                   {readyCount} ready · {listedItems.length} live · {items.length - identified.length} pending
                 </p>
               </div>
-              <div className="text-right sm:text-left">
+              <div className="hidden sm:block">
                 <p className="font-display text-xl font-semibold leading-none text-white">{formatMoney(pendingValue)}</p>
                 <p className="mt-1 text-[11px] text-zinc-500">In progress</p>
               </div>
@@ -1485,28 +1489,18 @@ export default function AppPage() {
                 </div>
               )}
               {soldItems.length > 0 && (
-                <div className="animate-fade-up text-right sm:text-left">
+                <div className="hidden animate-fade-up sm:block">
                   <p className="font-display text-xl font-semibold leading-none text-emerald-400">{formatMoney(totalEarned)}</p>
                   <p className="mt-1 text-[11px] text-zinc-500">Sold ({soldItems.length})</p>
                 </div>
               )}
             </div>
-
-            <div className="flex items-center gap-2">
-              <GameToggle game={game} onChange={setGame} compact />
-              <Uploader
-                onFiles={addUploads}
-                onPageFiles={onPageUpload}
-                onOpenCamera={openCamera}
-                onSealed={() => setSealedOpen(true)}
-                variant="compact"
-              />
               {user.role !== "admin" && user.tier === "trial" && !user.ebayConnected ? (
                 // Trial: selling is paid, so the one action here is Subscribe
                 // (Chris, 09-06) — the plans page, not the eBay consent screen.
                 <Link
                   href="/pricing"
-                  className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 sm:ml-0"
+                  className="shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 sm:order-last"
                 >
                   Subscribe Now
                 </Link>
@@ -1515,11 +1509,22 @@ export default function AppPage() {
                   onClick={() => void sendAllToEbay()}
                   disabled={bulkBusy || identified.length === 0}
                   title={user.ebayConnected ? "Send every verified card to your eBay account" : "Connect your eBay account first"}
-                  className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:ml-0"
+                  className="shrink-0 whitespace-nowrap rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:order-last"
                 >
                   {bulkBusy ? "Sending…" : user.ebayConnected ? "Send to eBay" : "Connect eBay"}
                 </button>
               )}
+            </div>
+
+            <div className="flex items-center gap-2 sm:contents">
+              <GameToggle game={game} onChange={setGame} compact />
+              <Uploader
+                onFiles={addUploads}
+                onPageFiles={onPageUpload}
+                onOpenCamera={openCamera}
+                onSealed={() => setSealedOpen(true)}
+                variant="compact"
+              />
             </div>
           </div>
           {bulkNote && (

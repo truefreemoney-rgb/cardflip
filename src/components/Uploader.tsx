@@ -110,27 +110,28 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
       }
     };
     return (
-      <div className="relative flex items-center gap-1.5">
+      // Phones: the two Add buttons split the row evenly; desktop: natural width.
+      <div className="relative flex flex-1 items-center gap-2 sm:ml-auto sm:flex-none">
         <button
           onClick={handleClick}
-          className="shrink-0 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
+          className="flex-1 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 sm:flex-none sm:px-4"
         >
           {onOpenCamera && <span aria-hidden>📷 </span>}
-          {/* Short on phones so Add · sealed · eBay share one row (09-28). */}
           <span className="sm:hidden">Add Cards</span>
           <span className="hidden sm:inline">Add more cards</span>
         </button>
         {/* Phones skip the menu (the tap IS the camera), so sealed product
-            needs its own way in once the queue exists. */}
+            needs its own way in once the queue exists. A worded button, not
+            a box icon (Chris, 09-28: "doesn't make sense to a user"). */}
         {onSealed && (
           <button
             type="button"
             onClick={onSealed}
-            aria-label="Add a sealed product"
-            title="Add a sealed product"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-1 text-base transition hover:border-edge-strong hover:bg-surface-2"
+            className="flex-1 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 sm:flex-none sm:px-4"
           >
-            <span aria-hidden>📦</span>
+            <span aria-hidden>📦 </span>
+            <span className="sm:hidden">Add Sealed</span>
+            <span className="hidden sm:inline">Add Sealed Product</span>
           </button>
         )}
         {menuOpen && (
