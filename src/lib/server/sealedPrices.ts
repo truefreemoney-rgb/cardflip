@@ -26,6 +26,12 @@ const PAUSE_MS = 80;
 export const SEALED_RESCAN_DAYS = 30;
 /** Groups read per daily run: ~0.3s each, so the whole catalog lands within a week. */
 export const SEALED_GROUPS_PER_RUN = 30;
+/**
+ * The very first run (no group scanned yet) reads the whole catalog in one
+ * go (~150 groups ≈ 1 min) so the feed is full the day it ships instead of
+ * a week later. After that the daily pace applies.
+ */
+export const SEALED_FIRST_FILL_GROUPS = 400;
 const MIN_TRACKED_USD = 0.05;
 
 export interface SealedScanResult {
@@ -108,6 +114,10 @@ export async function scanSealedProducts(
   fetchProducts: (groupId: number) => Promise<TcgProduct[]> = fetchGroupProducts,
 ): Promise<SealedScanResult> {
   const game: GameId = "pokemon";
+  if (limit === SEALED_GROUPS_PER_RUN) {
+    const scanned = (await db.prepare("SELECT COUNT(*) AS n FROM tcgplayer_sealed_groups").get()) as { n: number } | undefined;
+    if (!Number(scanned?.n)) limit = SEALED_FIRST_FILL_GROUPS;
+  }
   const due = await sealedGroupsDue(game, day, limit);
   if (due.length === 0) return { groupsScanned: 0, groupsFailed: 0, products: 0 };
   const setOf = await groupSetNames(game);

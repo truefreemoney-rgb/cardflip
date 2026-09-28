@@ -27,7 +27,7 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { classifySealedProduct, sealedProductRole, sealedProductId, sealedTcgplayerId, median } = await import(at("lib/sealedProducts.ts"));
 const { makeSealedProduct } = await import(at("lib/grading.ts"));
 const {
-  storeSealedProducts, sealedGroupsDue, sealedSeriesUpserts, sealedQuote, scanSealedProducts, readSealedMap, SEALED_RESCAN_DAYS,
+  storeSealedProducts, sealedGroupsDue, sealedSeriesUpserts, sealedQuote, scanSealedProducts, readSealedMap, SEALED_RESCAN_DAYS, SEALED_GROUPS_PER_RUN,
 } = await import(at("lib/server/sealedPrices.ts"));
 const { upsertSeriesRows, readSeriesMap } = await import(at("lib/server/priceBulkWrite.ts"));
 const { createCard, getCardForUser } = await import(at("lib/server/cards.ts"));
@@ -168,6 +168,17 @@ check("named after its cards' set", (await db.prepare("SELECT set_name, product_
 check("group marked scanned", await sealedGroupsDue("pokemon", DAY, 10), []);
 const failed = await scanSealedProducts(addDays(DAY, SEALED_RESCAN_DAYS + 1), 1, async () => { throw new Error("HTTP 503"); });
 check("a failed fetch counts and does not mark the group", [failed.groupsFailed, (await sealedGroupsDue("pokemon", addDays(DAY, SEALED_RESCAN_DAYS + 1), 10)).length], [1, 2]);
+
+console.log("first fill");
+// 40 more groups, nothing scanned yet: the daily-pace call reads them all in one go.
+const extra = Array.from({ length: 40 }, (_, i) => `(${5000 + i}, ${2000 + i}, 'sv02-001', 'pokemon')`).join(", ");
+await db.prepare(`INSERT INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES ${extra}`).run();
+await db.prepare("DELETE FROM tcgplayer_sealed_groups").run();
+const first = await scanSealedProducts(DAY, SEALED_GROUPS_PER_RUN, async () => []);
+check("first run reads every group, not the daily 30", first.groupsScanned > SEALED_GROUPS_PER_RUN, true);
+await db.prepare("DELETE FROM tcgplayer_sealed_groups WHERE group_id >= 2000").run();
+const steady = await scanSealedProducts(DAY, SEALED_GROUPS_PER_RUN, async () => []);
+check("later runs keep the daily pace", steady.groupsScanned, SEALED_GROUPS_PER_RUN);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exitCode = failures ? 1 : 0;
