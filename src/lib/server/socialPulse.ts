@@ -188,7 +188,13 @@ async function facebook(c: { base: string; pageId: string; token: string } | nul
         {},
         `facebook ${edge}`,
       );
-    const body = await read("published_posts").catch(() => read("feed"));
+    // Report the first edge's own error when both refuse — the fallback's
+    // message names a permission the first one may not even need.
+    const body = await read("published_posts").catch((first: unknown) =>
+      read("feed").catch(() => {
+        throw first;
+      }),
+    );
     const posts: PulsePost[] = (body.data ?? []).map((p) => {
       const reactions: Record<string, number> = {};
       for (const f of FACES) {
