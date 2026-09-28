@@ -576,7 +576,7 @@ async function firstLook(
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
     // backups/ab-vision-0902.json): identification IDENTICAL (name 64/64,
     // number 59/64 on both) at 2.5x cheaper ($0.011 vs $0.028/scan) — the
-    // difference between a maxed 500-scan subscriber losing money and ~47%
+    // difference between a maxed-out subscriber (500 scans at the time; see lib/pricing.ts) losing money and ~47%
     // margin. Tradeoff: Sonnet abstains on photo-judged condition more often
     // (34/64 vs 60/64), so sellers pick condition manually more — fine, a
     // photo-guessed condition was always soft.

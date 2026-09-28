@@ -1,6 +1,6 @@
 /**
  * Scan metering + cron gate — the two small server libs money rides on:
- * scanQuota meters the subscription's 500-scans-a-month allowance, and
+ * scanQuota meters the plan's monthly allowance (PLAN_SCANS, from lib/pricing.ts), and
  * cronAuthError is the only thing between the internet and the daily jobs.
  * Run: npm run test:quota
  *
