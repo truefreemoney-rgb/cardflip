@@ -20,7 +20,7 @@ export default async function AdminSocialPostsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-white">Social Posts</h1>
           <p className="text-sm text-zinc-400">
-            Every post with its likes, comments, shares and views, and the comments under it. Counts and comments are read an hour after each post; Refresh reads them now. Spam is hidden on sight; nothing is sent until you press Send.
+            Every post with its likes, comments, shares and views, and the comments under it. Counts and comments are read an hour after each post; Refresh reads them now. Spam is hidden on sight. Questions get answered, praise now and then; anything heated waits for you.
           </p>
         </div>
         <Link href="/admin/social" className="rounded-full border border-edge px-3 py-1 text-sm text-zinc-300 hover:text-white">

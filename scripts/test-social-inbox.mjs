@@ -8,7 +8,7 @@
  * word boundary.
  */
 import assert from "node:assert/strict";
-import { classifyComment, fitReply, isOwnComment, REPLY_MAX } from "../src/lib/socialModeration.ts";
+import { classifyComment, fitReply, isOwnComment, replyPlan, REPLY_MAX } from "../src/lib/socialModeration.ts";
 
 const spam = [
   "DM me for cheap PSA 10 Charizards",
@@ -51,4 +51,16 @@ assert.ok(!fitReply("x", long).includes("wor…"), "cuts on a word boundary");
 assert.ok(fitReply("bluesky", long).length <= 300);
 assert.equal(fitReply("facebook", long), long);
 
+// Who gets a reply (Chris 09-28: only when necessary, occasional fun).
+assert.equal(replyPlan("spam", "DM me for cheap PSA 10s", "x:1"), "skip");
+assert.equal(replyPlan("question", "Does it read Japanese cards?", "x:2"), "reply");
+assert.equal(replyPlan("other", "@cardflip you should add Lorcana", "x:3"), "reply", "named without a question mark");
+assert.equal(replyPlan("other", "pulled this one last week", "x:4"), "skip", "plain remark says nothing");
+assert.equal(replyPlan("question", "Is this a scam? Where is my refund", "x:5"), "hold", "heated waits for Chris");
+assert.equal(replyPlan("praise", "this app is trash lol", "x:6"), "hold");
+const praisePlans = Array.from({ length: 200 }, (_, i) => replyPlan("praise", "nice card", `bluesky:${i}`));
+const replies = praisePlans.filter((p) => p === "reply").length;
+assert.ok(replies >= 30 && replies <= 70, `praise about one in four, got ${replies}/200`);
+assert.ok(praisePlans.every((p) => p === "reply" || p === "skip"));
+assert.equal(replyPlan("praise", "nice card", "bluesky:7"), replyPlan("praise", "nice card", "bluesky:7"), "seeded, stable across runs");
 console.log("social inbox: ok");

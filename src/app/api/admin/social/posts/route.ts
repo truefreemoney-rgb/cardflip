@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { listSocialPosts, refreshSocialPosts } from "@/lib/server/socialPosts";
-import { sweepSocialInbox } from "@/lib/server/socialInbox";
+import { AUTO_REPLY_KEY, sweepSocialInbox } from "@/lib/server/socialInbox";
+import { setSetting } from "@/lib/server/settings";
 
 /**
  * Owner-only data for /admin/social/posts.
@@ -37,7 +38,11 @@ export async function POST(req: NextRequest) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
     throw err;
   }
-  const body = (await req.json().catch(() => null)) as { action?: string; site?: string | null; waiting?: boolean } | null;
+  const body = (await req.json().catch(() => null)) as { action?: string; site?: string | null; waiting?: boolean; on?: boolean } | null;
+  if (body?.action === "autoReply") {
+    await setSetting(AUTO_REPLY_KEY, body.on === false ? "0" : "1");
+    return NextResponse.json({ autoReply: body.on !== false });
+  }
   if (body?.action !== "refresh") return NextResponse.json({ error: "unknown action" }, { status: 400 });
   const started = Date.now();
   // Counts and comments in parallel: the two never touch the same rows.
@@ -46,6 +51,6 @@ export async function POST(req: NextRequest) {
   const errors = [...pulse.sites.filter((s) => s.error).map((s) => `${s.label}: ${s.error}`), ...sweep.sites.filter((s) => s.error).map((s) => `${s.label} comments: ${s.error}`)];
   return NextResponse.json({
     ...page,
-    refresh: { posts: pulse.stored, added: sweep.added, hidden: sweep.hidden, errors, ms: Date.now() - started },
+    refresh: { posts: pulse.stored, added: sweep.added, hidden: sweep.hidden, replied: sweep.replied, errors, ms: Date.now() - started },
   });
 }

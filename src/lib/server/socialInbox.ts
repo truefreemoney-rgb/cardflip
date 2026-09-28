@@ -2,7 +2,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { classifyComment, fitReply, isOwnComment, type CommentKind } from "@/lib/socialModeration";
+import { classifyComment, fitReply, isOwnComment, replyPlan, type CommentKind } from "@/lib/socialModeration";
+import { getSetting } from "@/lib/server/settings";
 import { metaReadCreds } from "./sites/meta.ts";
 import { xSignedGet, xSignedJson } from "./sites/x.ts";
 import { blueskyCall, blueskyGet, blueskySession } from "./sites/bluesky.ts";
@@ -16,10 +17,15 @@ import { HELP_MODEL } from "@/lib/server/helpChat";
  * classified (lib/socialModeration.ts), and stored in social_comments.
  * Spam is hidden on sight where the platform allows (Facebook, Instagram,
  * Threads hide; X hides the reply) and only flagged on Bluesky (no hide
- * there). Everything else gets a drafted reply (Haiku) and waits on
- * /admin/social/posts for Chris: Send (posts the reply), Hide, or Dismiss.
- * Nothing is ever auto-replied. One Completed line on the board per sweep
- * that found something. TikTok is not read (comment.list scope + audit).
+ * there). Who gets answered is lib/socialModeration.ts replyPlan (Chris
+ * 09-28: "you should be able to manage and submit yourself ... only when
+ * necessary and occasional fun/playful engagement"): questions and
+ * anything naming CardFlip get a Haiku reply SENT by the sweep; praise
+ * about one in four; plain remarks nothing; heated ones (refund, scam,
+ * fake) wait for Chris with no draft. The switch is AUTO_REPLY_KEY (off =
+ * drafts wait for Send). A reply that fails to send stays in the queue
+ * with the reason. One Completed line on the board per sweep that found
+ * something. TikTok is not read (comment.list scope + audit).
  */
 
 export type CommentStatus = "new" | "hidden" | "replied" | "dismissed";
@@ -68,6 +74,8 @@ export interface SweepSite {
   added: number;
   hidden: number;
   questions: number;
+  /** Replies the robot sent itself this sweep. */
+  replied: number;
 }
 
 export interface SweepReport {
@@ -76,6 +84,13 @@ export interface SweepReport {
   added: number;
   hidden: number;
   questions: number;
+  replied: number;
+}
+
+/** Settings key for the auto-reply switch on /admin/social/posts. On unless set to "0". */
+export const AUTO_REPLY_KEY = "social_auto_reply";
+export async function autoReplyOn(): Promise<boolean> {
+  return (await getSetting(AUTO_REPLY_KEY)) !== "0";
 }
 
 const SITE_LABEL: Record<string, string> = { bluesky: "Bluesky", x: "X", facebook: "Facebook", instagram: "Instagram", threads: "Threads" };
@@ -370,7 +385,7 @@ async function replyOnSite(c: SocialComment, text: string, meta: MetaCreds): Pro
 /* ---------- drafting ---------- */
 
 let client: Anthropic | null = null;
-const DRAFT_SYSTEM = `You write short replies for CardFlip's social accounts (cardflip.io: scan a trading card with your phone, see what it is worth, sell it on eBay in one tap). You are answering a comment on one of our posts. Rules: one or two sentences, friendly and plain, no hashtags, no emoji unless the comment used them, no prices or claims that are not in the post text, never promise shipping, refunds, or deals, never argue. If the comment asks how to use CardFlip, say it is at cardflip.io and the first scans are free. If the comment is just praise, thank them briefly and add one genuine line. If it is a question you cannot answer from the post, say you will check and point them to cardflip.io/help. Output only the reply text.`;
+const DRAFT_SYSTEM = `You write short replies for CardFlip's social accounts (cardflip.io: scan a trading card with your phone, see what it is worth, sell it on eBay in one tap). You are answering a comment on one of our posts. Rules: one or two sentences, friendly and plain, no hashtags, no emoji unless the comment used them, no prices or claims that are not in the post text, never promise shipping, refunds, or deals, never argue. If the comment asks how to use CardFlip, say it is at cardflip.io and the first scans are free. If the comment is just praise, one short line back; dry and a little playful is welcome, no exclamation marks, no hype. If the comment names CardFlip without asking anything, answer what they seem to want in one line. If it is a question you cannot answer from the post, say you will check and point them to cardflip.io/help. Output only the reply text.`;
 
 export async function draftReply(c: { site: string; postText: string; text: string; kind: CommentKind }): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
@@ -470,7 +485,7 @@ async function priorSpam(site: string, authorId: string | null): Promise<number>
 /* ---------- the sweep ---------- */
 
 export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
-  const meta = await metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null }));
+  const [meta, auto] = await Promise.all([metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null })), autoReplyOn()]);
   const readers: Array<{ site: string; connected: boolean; read: () => Promise<Found[]> }> = [
     { site: "bluesky", connected: Boolean(process.env.BLUESKY_HANDLE && process.env.BLUESKY_APP_PASSWORD), read: readBluesky },
     { site: "x", connected: Boolean(process.env.X_API_KEY), read: readX },
@@ -480,7 +495,7 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
   ];
   const sites: SweepSite[] = await Promise.all(
     readers.map(async ({ site, connected, read }): Promise<SweepSite> => {
-      const out: SweepSite = { site, label: SITE_LABEL[site] ?? site, connected, error: null, seen: 0, added: 0, hidden: 0, questions: 0 };
+      const out: SweepSite = { site, label: SITE_LABEL[site] ?? site, connected, error: null, seen: 0, added: 0, hidden: 0, questions: 0, replied: 0 };
       if (!connected) return out;
       let found: Found[];
       try {
@@ -533,14 +548,34 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
             }
           }
         } else {
-          draft = await draftReply({ site: f.site, postText: f.postText, text: f.text, kind });
           if (kind === "question") out.questions++;
+          const plan = replyPlan(kind, f.text, id);
+          if (plan === "hold") {
+            // Heated or a dispute: shown to Chris with no draft, answered in his words.
+            row.meta.needsYou = true;
+          } else if (plan === "reply") {
+            draft = await draftReply({ site: f.site, postText: f.postText, text: f.text, kind });
+            if (draft && auto) {
+              try {
+                const sentId = await replyOnSite(row, draft, meta);
+                status = "replied";
+                row.replyText = draft;
+                row.meta.replyId = sentId;
+                row.meta.auto = true;
+                out.replied++;
+              } catch (err) {
+                // The draft stays in Chris's queue with the reason.
+                row.meta.sendError = err instanceof Error ? err.message : String(err);
+              }
+            }
+          }
+          // plan === "skip": stored under its post, nothing said.
         }
         await db
           .prepare(
-            "INSERT OR IGNORE INTO social_comments (id, site, comment_id, post_id, post_url, post_text, author, author_id, text, at, kind, status, draft, reply_text, seen_at, acted_at, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)",
+            "INSERT OR IGNORE INTO social_comments (id, site, comment_id, post_id, post_url, post_text, author, author_id, text, at, kind, status, draft, reply_text, seen_at, acted_at, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           )
-          .run(id, f.site, f.commentId, f.postId, f.postUrl, f.postText.slice(0, 2000), f.author, f.authorId, f.text.slice(0, 4000), f.at, kind, status, draft, now, status === "hidden" ? now : null, JSON.stringify(row.meta));
+          .run(id, f.site, f.commentId, f.postId, f.postUrl, f.postText.slice(0, 2000), f.author, f.authorId, f.text.slice(0, 4000), f.at, kind, status, draft, row.replyText, now, status === "new" ? null : now, JSON.stringify(row.meta));
         out.added++;
       }
       return out;
@@ -552,6 +587,7 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
     added: sites.reduce((a, s) => a + s.added, 0),
     hidden: sites.reduce((a, s) => a + s.hidden, 0),
     questions: sites.reduce((a, s) => a + s.questions, 0),
+    replied: sites.reduce((a, s) => a + s.replied, 0),
   };
   await noteSweepOnBoard(report).catch(() => {});
   return report;
@@ -600,7 +636,7 @@ async function noteSweepOnBoard(r: SweepReport): Promise<void> {
   if (r.added === 0 && r.hidden === 0) return;
   const parts = r.sites
     .filter((s) => s.added > 0 || s.hidden > 0 || s.error)
-    .map((s) => (s.error ? `${s.label}: not read (${s.error.slice(0, 80)})` : `${s.label}: ${s.added} new${s.hidden ? `, ${s.hidden} spam hidden` : ""}${s.questions ? `, ${s.questions} question${s.questions === 1 ? "" : "s"}` : ""}`))
+    .map((s) => (s.error ? `${s.label}: not read (${s.error.slice(0, 80)})` : `${s.label}: ${s.added} new${s.hidden ? `, ${s.hidden} spam hidden` : ""}${s.replied ? `, ${s.replied} answered` : ""}${s.questions ? `, ${s.questions} question${s.questions === 1 ? "" : "s"}` : ""}`))
     .join(" · ");
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(r.at));
   const text = `Social inbox ${day} ${slotLabel(r.at)} — ${parts}. ${waiting} waiting for you → /admin/social/posts`;

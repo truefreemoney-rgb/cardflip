@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { socialPulse, type SitePulse } from "./socialPulse.ts";
-import { commentsForPosts, orphanComments, countNew, type SocialComment } from "./socialInbox.ts";
+import { autoReplyOn, commentsForPosts, orphanComments, countNew, type SocialComment } from "./socialInbox.ts";
 import { postKey, SITE_ORDER, tally, type PostTotals, type StoredPost } from "@/lib/socialPosts";
 
 /**
@@ -97,6 +97,8 @@ export interface PostsPage {
   hasMore: boolean;
   /** Newest read across sites (ms), or null before the first refresh. */
   readAt: number | null;
+  /** The robot sends its own replies (settings social_auto_reply, on by default). */
+  autoReply: boolean;
 }
 
 function rowToPost(r: Record<string, unknown>): StoredPost {
@@ -150,13 +152,14 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
   const hasMore = rows.length > limit;
   const posts = rows.slice(0, limit).map(rowToPost);
   const siteArgs = q.site ? [q.site] : [];
-  const [comments, orphans, reads, sums, perSiteRows, waiting] = await Promise.all([
+  const [comments, orphans, reads, sums, perSiteRows, waiting, autoReply] = await Promise.all([
     commentsForPosts(posts.filter((p) => p.held > 0).map((p) => postKey(p.site, p.postId))),
     q.before ? Promise.resolve([] as SocialComment[]) : orphanComments(),
     db.prepare("SELECT * FROM social_pulse_reads").all() as Promise<Record<string, unknown>[]>,
     db.prepare(`SELECT likes, comments, shares, views FROM social_posts ${q.site ? "WHERE site = ?" : ""}`).all(...siteArgs) as Promise<Record<string, unknown>[]>,
     db.prepare("SELECT site, COUNT(*) AS n FROM social_posts GROUP BY site").all() as Promise<Record<string, unknown>[]>,
     countNew(),
+    autoReplyOn(),
   ]);
   const sites: SiteRead[] = reads
     .map((r) => ({
@@ -173,5 +176,5 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
   const n = (v: unknown): number | null => (v == null ? null : Number(v));
   const totals = tally(sums.map((r) => ({ likes: n(r.likes), comments: n(r.comments), shares: n(r.shares), views: n(r.views) })));
   const readAt = sites.reduce<number | null>((acc, s) => (acc == null || s.readAt > acc ? s.readAt : acc), null);
-  return { posts, comments, orphans, sites, totals, perSite, waiting, hasMore, readAt };
+  return { posts, comments, orphans, sites, totals, perSite, waiting, hasMore, readAt, autoReply };
 }

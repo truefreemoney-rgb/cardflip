@@ -79,3 +79,34 @@ export function fitReply(site: string, text: string): string {
   const sp = cut.lastIndexOf(" ");
   return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trim() + "…";
 }
+
+/* ---------- who gets a reply (Chris, 09-28: "only when necessary and occasional fun/playful engagement") ---------- */
+
+export type ReplyPlan = "reply" | "hold" | "skip";
+
+/** Complaints, disputes and anything heated: no robot reply, Chris answers in his own words. */
+const TOUCHY = /\b(scam(mer|my)?|fraud|refund|rip[- ]?off|fake|lawsuit|sue|stole|stolen|overpriced|wrong price|garbage|trash|worst|terrible|awful|hate|disgusting|liar|lying|bs|bullshit|clickbait|misleading)\b/i;
+
+/** Aimed at us by name — answered even without a question mark. */
+const AIMED_AT_US = /@?card\s?flip\b/i;
+
+function tinyHash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/**
+ * reply = draft and send; hold = show it to Chris with no draft (touchy);
+ * skip = store it, say nothing. Questions and anything naming CardFlip get
+ * a reply; praise gets one about one time in four (seeded on the comment
+ * id, so a re-run picks the same ones); plain remarks get nothing.
+ */
+export function replyPlan(kind: CommentKind, text: string, id: string): ReplyPlan {
+  if (kind === "spam") return "skip";
+  const t = text.replace(/\s+/g, " ").trim();
+  if (TOUCHY.test(t)) return "hold";
+  if (kind === "question" || AIMED_AT_US.test(t)) return "reply";
+  if (kind === "praise") return tinyHash(id) % 4 === 0 ? "reply" : "skip";
+  return "skip";
+}

@@ -162,15 +162,31 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "refresh", site: filters.site, waiting: filters.waiting }),
       });
-      const page = (await res.json()) as PostsPage & { refresh?: { posts: number; added: number; hidden: number; errors: string[] }; error?: string };
+      const page = (await res.json()) as PostsPage & { refresh?: { posts: number; added: number; hidden: number; replied: number; errors: string[] }; error?: string };
       if (!res.ok) throw new Error(page.error ?? `HTTP ${res.status}`);
       setData(page);
       const r = page.refresh;
       if (r) {
         const bits = [`${r.posts} posts read`, `${r.added} new comment${r.added === 1 ? "" : "s"}`];
+        if (r.replied) bits.push(`${r.replied} answered`);
         if (r.hidden) bits.push(`${r.hidden} spam hidden`);
         setNote(bits.join(" · "));
       }
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function flipAutoReply() {
+    const on = !data.autoReply;
+    setBusy("filter");
+    try {
+      const res = await fetch("/api/admin/social/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autoReply", on }) });
+      const j = (await res.json()) as { autoReply?: boolean; error?: string };
+      if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
+      setData((d) => ({ ...d, autoReply: j.autoReply === true }));
     } catch (err) {
       setNote(err instanceof Error ? err.message : String(err));
     } finally {
@@ -227,8 +243,19 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
         ))}
         <span className="mx-1 hidden h-4 w-px bg-edge sm:block" />
         <Chip active={filters.waiting} onClick={() => setFilter({ waiting: !filters.waiting })}>
-          Needs Reply{data.waiting > 0 ? <span className="ml-1 text-xs">{data.waiting}</span> : null}
+          Needs You{data.waiting > 0 ? <span className="ml-1 text-xs">{data.waiting}</span> : null}
         </Chip>
+        <button
+          type="button"
+          onClick={flipAutoReply}
+          disabled={busy !== null}
+          role="switch"
+          aria-checked={data.autoReply}
+          title={data.autoReply ? "The robot answers questions and the odd bit of praise itself. Press to hold every reply for your Send." : "Replies wait for your Send. Press to let the robot answer itself."}
+          className={`rounded-full border px-3 py-1 text-sm ${data.autoReply ? "border-emerald-400/50 text-emerald-300" : "border-edge text-zinc-400"} disabled:opacity-40`}
+        >
+          Auto-Reply {data.autoReply ? "On" : "Off"}
+        </button>
         <span className="ml-auto text-xs text-zinc-500">{data.readAt ? `Read ${whenET(data.readAt)}` : "Not read yet"}</span>
         <button
           type="button"
