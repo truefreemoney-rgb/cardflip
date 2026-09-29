@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
     const game = parseGame(req.nextUrl.searchParams.get("game"));
     if (isTcgGame(game)) {
       if (!name && !number) {
-        return NextResponse.json({ error: "Missing name (or a card number like OP01-001 / 42/204)" }, { status: 400 });
+        return NextResponse.json({ error: "Missing name (or a card number like OP01-001 / LOB-EN005 / 42/204)" }, { status: 400 });
       }
       if (!(await hasTcgMirror(game))) {
         return NextResponse.json({ error: `The ${GAMES[game].label} catalogue isn't loaded on this server yet` }, { status: 503 });
@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
       const subtitle = sanitize(req.nextUrl.searchParams.get("sub") ?? "") || null;
       const variantParam = sanitize(req.nextUrl.searchParams.get("variant") ?? "") || null;
       const printedKey: PrintedNumber | null = number ? { number, setTotal, setCode, isSecretRare: false } : null;
-      const cards = await searchTcgCardsLocal(game, rawName, printedKey, limit, subtitle, variantParam);
+      const cards = await searchTcgCardsLocal(game, rawName, printedKey, limit, subtitle, variantParam, firstEdition);
       const matchedOn = !rawName ? "number+set" : number ? "name+number" : "name";
       if (cards.length === 0) {
         console.warn("search-card no match", JSON.stringify({ game, name: rawName, number, setTotal, setCode, subtitle, variant: variantParam }));

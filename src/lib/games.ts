@@ -119,9 +119,28 @@ export const GAMES: Record<GameId, GameInfo> = {
     searchPlaceholder: "e.g. Roronoa Zoro OP01-001",
     numberExample: "OP01-001",
   },
+  // 09-29 (Chris: "add yugioh to the list"). Printed key = the set code
+  // "LOB-EN005"; sellers title it "Yugioh" (sold listings), eBay's Game aspect
+  // says "Yu-Gi-Oh! TCG".
+  yugioh: {
+    id: "yugioh",
+    label: "Yu-Gi-Oh!",
+    fullName: "Yu-Gi-Oh! TCG",
+    titleToken: "Yugioh",
+    searchToken: "yugioh",
+    ebayGameAspect: "Yu-Gi-Oh! TCG",
+    singlesCategoryName: "Collectible Card Games > Yu-Gi-Oh! TCG > Individual Cards",
+    sealedCategoryName: "Collectible Card Games > Yu-Gi-Oh! TCG > Sealed Products",
+    sealedProductTypes: ["Booster Pack", "Booster Box", "Structure Deck", "Tin", "Special Edition", "Collection Box"],
+    searchPlaceholder: "e.g. Dark Magician LOB-EN005",
+    numberExample: "LOB-EN005",
+  },
 };
 
-export const GAME_IDS: GameId[] = ["pokemon", "mtg", "lorcana", "onepiece"];
+export const GAME_IDS: GameId[] = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"];
+
+/** Games whose printed number is one token with the set inside ("OP01-077", "LOB-EN005"). */
+export const SET_IN_NUMBER_GAMES: GameId[] = ["onepiece", "yugioh"];
 
 export function isGameId(value: unknown): value is GameId {
   return typeof value === "string" && (GAME_IDS as string[]).includes(value);
@@ -169,9 +188,9 @@ export function displayCardNumber(card: {
   game?: GameId;
 }): string {
   if (card.game === "mtg") return `${card.setCode ?? ""} ${card.number}`.trim();
-  // One Piece prints the set inside the number ("OP01-077"); Lorcana prints
-  // number/total like Pokémon.
-  if (card.game === "onepiece") return card.number;
+  // One Piece / Yu-Gi-Oh! print the set inside the number ("OP01-077",
+  // "LOB-EN005"); Lorcana prints number/total like Pokémon.
+  if (card.game && SET_IN_NUMBER_GAMES.includes(card.game)) return card.number;
   return card.setTotal ? `${card.number}/${card.setTotal}` : card.number;
 }
 
@@ -189,7 +208,7 @@ export function printedCardNumber(card: {
   setCode?: string | null;
   game?: GameId;
 }): string {
-  if (card.game === "mtg" || card.game === "onepiece" || !card.setTotal) return displayCardNumber(card);
+  if (card.game === "mtg" || (card.game && SET_IN_NUMBER_GAMES.includes(card.game)) || !card.setTotal) return displayCardNumber(card);
   const digits = /^\d+$/.test(card.number) ? card.number.length : 0;
   const total = String(card.setTotal).padStart(digits, "0");
   return `${card.number}/${total}`;

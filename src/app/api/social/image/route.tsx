@@ -15,6 +15,7 @@ import {
 } from "@/lib/server/social";
 import type { GameId } from "@/lib/types";
 import { fallbackArtUrl } from "@/lib/cardArt";
+import { parseGame } from "@/lib/games";
 
 /**
  * The social post as a picture (docs/SOCIAL-AUTOPILOT.md): one PNG per
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
   if (!(await allowed(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = req.nextUrl.searchParams;
   const kind = q.get("kind") === "card" ? "card" : q.get("kind") === "dips" ? "dips" : q.get("kind") === "set" ? "set" : "movers";
-  const game: GameId = q.get("game") === "mtg" ? "mtg" : "pokemon";
+  const game: GameId = parseGame(q.get("game"));
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
   const size = POST_SIZES[sizeKey];

@@ -1,3 +1,4 @@
+import { parseGame } from "@/lib/games";
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
 
     const card = await createCard(user.id, {
       kind,
-      game: body?.game === "mtg" ? "mtg" : "pokemon",
+      game: parseGame(body?.game),
       cardName,
       setName,
       cardNumber,

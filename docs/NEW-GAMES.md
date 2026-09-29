@@ -57,6 +57,29 @@ different version, reprints; One Piece: booster, starter, EB/PRB,
 parallel / alt art, manga / special / full art, reprint, same name /
 different id). Cost guard as the other panels.
 
+## Yu-Gi-Oh! (09-29)
+
+Chris: "add yugioh to the list, add what you need, give me a switch in the
+admin". Source = TCGplayer via tcgcsv.com category 2 (`npm run sync:yugioh`,
+658 groups, 60,136 rows, 172 unpriced), NOT YGOPRODeck: YGOPRODeck asks not
+to hotlink, has one picture per artwork, and prices 72% of printings at $0.
+TCGplayer gives a picture and a price per printing (set code + rarity), and
+prices 1st Edition and Unlimited separately (LOB Dark Magician $1,208 vs
+$43) → a `-1st` twin row (listing.ts isFirstEditionCard reads the suffix).
+Printed key = the set code "LOB-EN005" (first LOB run prints "LOB-005";
+`yugiohKey` drops the language letters). Read: `YUGIOH_READ_SCHEMA` /
+`SYSTEM_YUGIOH` — rarity in `variant` (15 slugs, judged from the foil),
+`firstEdition` from the "1st Edition" text left under the art, the passcode
+bottom-left is NOT the number. Ranker: `searchYugioh` in tcgCards.ts (code →
+name → rarity 0/0.75/1.5 → 1st stamp 1.5 → tagged rows +0.25). Indexes:
+`idx_tcg_cards_game_number`, `idx_tcg_cards_game_folded` (the name query
+pins it with INDEXED BY — Turso's planner scanned all 60k rows without).
+First check (scripts/yugioh-check.mjs, 3 TCGplayer pictures read under the
+Pokémon switch): switched itself 3/3, set code exact 2/3, rarity weak on
+stock scans. Admin switch on /admin/switches; off = admins only.
+Also 09-29: every save path used to coerce non-Magic games to "pokemon"
+(cards, wishlist, price checks, drafts, insights…) — now `parseGame`.
+
 ## Numbers
 
 | Game | Panel | First try | One tap |

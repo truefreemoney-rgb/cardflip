@@ -45,8 +45,21 @@ function onePieceVariantFamily(v: string): string {
 
 const COLUMNS = "id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, price_usd, price_usd_foil";
 
-export type TcgGame = Extract<GameId, "lorcana" | "onepiece">;
-export const isTcgGame = (g: GameId): g is TcgGame => g === "lorcana" || g === "onepiece";
+export type TcgGame = Extract<GameId, "lorcana" | "onepiece" | "yugioh">;
+export const isTcgGame = (g: GameId): g is TcgGame => g === "lorcana" || g === "onepiece" || g === "yugioh";
+
+/**
+ * Yu-Gi-Oh! set code without the language letters: "LOB-EN005" and the
+ * first print run's "LOB-005" are one card; "SDY-E005" too. Null when the
+ * text is not a set code.
+ */
+export function yugiohKey(number: string): string | null {
+  const m = /^([A-Z0-9]{2,6})\s*-\s*(?:EN|E|NA)?(\d{2,4}[A-Z]?)$/.exec(number.trim().toUpperCase());
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+
+/** "Quarter Century Secret Rare" / "quarter-century-secret-rare" → one slug. */
+const raritySlug = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const fold = (s: string) => s.toLowerCase().replace(/[‘’‛′`´]/g, "'").replace(/[“”]/g, '"').replace(/-/g, " ").replace(/\s+/g, " ").trim();
 const FOLDED = "REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', '''')";
@@ -113,10 +126,13 @@ export async function searchTcgCardsLocal(
   subtitle: string | null = null,
   /** The printing the read saw: parallel / enchanted / alt-art / …; "standard" = plain. */
   variant: string | null = null,
+  /** Yu-Gi-Oh!: the "1st Edition" stamp seen (true), looked for and absent (false), unread (null). */
+  firstEdition: boolean | null = null,
 ): Promise<PokemonCard[]> {
   const needle = fold(name);
   let wantedNumber = printed ? normalizeNumber(printed.number) : null;
   let wantedCode = printed?.setCode ? printed.setCode.toUpperCase() : null;
+  if (game === "yugioh") return searchYugioh(needle, printed, limit, variant, firstEdition);
   if (game === "onepiece" && wantedNumber) {
     // The read sometimes prepends the rarity printed beside the number
     // ("SP P-084", "SR OP05-119"); the catalog key is the number alone.
@@ -214,6 +230,75 @@ export async function searchTcgCardsLocal(
       else p += rowV === wantedVariant ? 0 : rowV === "" ? 1 : 2;
     } else if (row.variant) p += 0.25;
     if (row.price_usd == null && row.price_usd_foil == null) p += 0.5;
+    return p;
+  };
+  const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);
+  return scored.map((x) => ({ ...toCard(x.row), rankScore: x.s }));
+}
+
+/**
+ * Yu-Gi-Oh! (09-29): the printed key is the set code ("LOB-EN005"), which
+ * names one card in one set; the same code can come in several rarities
+ * (Ultra and Secret of one reprint set are different price lines, told apart
+ * by the foil), and most printings sell as 1st Edition and Unlimited — the
+ * stamp under the art decides, and it is worth far more ("-1st" rows,
+ * scripts/sync-yugioh.mjs).
+ */
+async function searchYugioh(
+  needle: string,
+  printed: PrintedNumber | null,
+  limit: number,
+  rarity: string | null,
+  firstEdition: boolean | null,
+): Promise<PokemonCard[]> {
+  const wantedKey = printed ? yugiohKey(printed.number) : null;
+  let rows: TcgRow[] = [];
+  if (wantedKey) {
+    const [prefix, digits] = wantedKey.split("-");
+    rows = (await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND collector_number IN (?, ?, ?) LIMIT 60`)
+      .all(`${prefix}-${digits}`, `${prefix}-EN${digits}`, `${prefix}-E${digits}`)) as unknown as TcgRow[];
+  }
+  // The number is unread, or it read wrong (none of its rows has this name):
+  // every printing of the name, newest first.
+  if (needle && !rows.some((r) => fold(r.name) === needle)) {
+    // INDEXED BY: prod's planner (no ANALYZE stats) picked the number index
+    // and walked all 60k rows (09-29 EXPLAIN on Turso).
+    const byName = (await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards INDEXED BY idx_tcg_cards_game_folded WHERE game = 'yugioh' AND ${FOLDED} >= ? AND ${FOLDED} < ? ORDER BY set_release_date DESC LIMIT 400`)
+      .all(needle, `${needle}￿`)) as unknown as TcgRow[];
+    const have = new Set(rows.map((r) => r.id));
+    rows = rows.concat(byName.filter((r) => !have.has(r.id)));
+  }
+  if (rows.length === 0 && needle) {
+    rows = (await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 200`)
+      .all(`%${needle}%`)) as unknown as TcgRow[];
+  }
+  if (rows.length === 0) return [];
+
+  const wantRarity = rarity && rarity !== "unknown" && rarity !== "standard" ? raritySlug(rarity) : null;
+  const score = (row: TcgRow): number => {
+    const exactName = needle !== "" && fold(row.name) === needle;
+    const exactNumber = Boolean(wantedKey) && yugiohKey(row.collector_number) === wantedKey;
+    let tier: number;
+    if (exactNumber && (exactName || needle === "")) tier = 0;
+    else if (exactName) tier = 1;
+    else if (exactNumber) tier = 2;
+    else tier = 3;
+    let p = tier * NAME_TIER;
+    // Rarity off the foil: "prismatic secret" read against a "secret" row is closer than "common".
+    if (wantRarity) {
+      const have = raritySlug(row.rarity);
+      p += have === wantRarity ? 0 : have.includes(wantRarity) || wantRarity.includes(have) ? 0.75 : 1.5;
+    }
+    const isFirst = row.id.endsWith("-1st");
+    if (firstEdition === true) p += isFirst ? 0 : 1.5;
+    else if (firstEdition === false) p += isFirst ? 1.5 : 0;
+    else if (isFirst) p += 0.25;
+    // Tagged rows ("(Red)", "(Alternate Art)") are the rarer face; the picture settles them.
+    if (row.variant) p += 0.25;
+    if (row.price_usd == null) p += 0.5;
     return p;
   };
   const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);

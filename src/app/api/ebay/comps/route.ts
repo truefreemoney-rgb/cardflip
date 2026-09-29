@@ -14,6 +14,7 @@ import { recordPoint } from "@/lib/server/priceHistory";
 import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
 import { cachedEbayComps } from "@/lib/server/ebayCompsCache";
+import { parseGame } from "@/lib/games";
 import {
   LIMITS,
   RateLimitError,
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
     if (!cached && grading && comps && comps.count >= 2 && typeof card.id === "string" && card.id) {
       const gradeNum = grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade;
       const variant = `graded-${grading.company.toLowerCase()}-${gradeNum}`;
-      const game = card.game === "mtg" ? "mtg" : "pokemon";
+      const game = parseGame(card.game);
       const cardId = card.id;
       const average = comps.average;
       void (async () => {

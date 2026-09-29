@@ -5,6 +5,7 @@ import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { askingPriceFor } from "@/lib/listing";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import type { GameId } from "@/lib/types";
+import { parseGame } from "@/lib/games";
 
 /**
  * Public collection page (Tier 2 #10, 09-27): cardflip.io/u/<handle>.
@@ -107,7 +108,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
       number: r.card_number,
       imageUrl: r.image_url,
       condition: r.condition,
-      game: r.game === "mtg" ? "mtg" : "pokemon",
+      game: parseGame(r.game),
       kind: r.kind === "sealed" ? "sealed" : "card",
       price,
       ebayUrl,

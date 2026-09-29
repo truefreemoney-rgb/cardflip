@@ -19,6 +19,7 @@
     "sync:mtg": "node --experimental-strip-types --no-warnings scripts/sync-mtg.mjs",
     "sync:lorcana": "node --experimental-strip-types --no-warnings scripts/sync-lorcana.mjs",
     "sync:onepiece": "node --experimental-strip-types --no-warnings scripts/sync-onepiece.mjs",
+    "sync:yugioh": "node --experimental-strip-types --no-warnings scripts/sync-yugioh.mjs",
     "export:mtg": "node scripts/export-mtg-mirror.mjs",
     "test:pricing": "node --experimental-strip-types --no-warnings scripts/test-pricing.mjs",
     "test:printings": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-own-printings.mjs",

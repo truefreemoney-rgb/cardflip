@@ -447,7 +447,7 @@ export default function AppPage() {
             if (otherGame && !read.switchedFrom) {
               // A game we don't scan, or one not open to this seller yet: say
               // so instead of forcing a Pokémon match onto it.
-              const named = otherGame === "yugioh" ? "Yu-Gi-Oh!" : isGameId(otherGame) ? GAMES[otherGame].fullName : otherGame;
+              const named = isGameId(otherGame) ? GAMES[otherGame].label : otherGame;
               readError = `That looks like a ${named} card — CardFlip doesn't scan those yet`;
               nameCandidates = [];
               printed = null;

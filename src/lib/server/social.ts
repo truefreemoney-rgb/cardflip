@@ -363,12 +363,13 @@ export function pctLabel(pct: number): string {
   return `${r > 0 ? "+" : ""}${r}%`;
 }
 
-const GAME_LABEL: Record<GameId, string> = { pokemon: "Pokémon", mtg: "Magic", lorcana: "Lorcana", onepiece: "One Piece" };
+const GAME_LABEL: Record<GameId, string> = { pokemon: "Pokémon", mtg: "Magic", lorcana: "Lorcana", onepiece: "One Piece", yugioh: "Yu-Gi-Oh!" };
 const GAME_TAGS: Record<GameId, string[]> = {
   pokemon: ["PokemonTCG", "PokemonCards", "TCG"],
   mtg: ["MTG", "MagicTheGathering", "MTGFinance"],
   lorcana: ["DisneyLorcana", "Lorcana", "TCG"],
   onepiece: ["OnePieceCardGame", "OPTCG", "TCG"],
+  yugioh: ["Yugioh", "YuGiOhTCG", "TCG"],
 };
 
 /** Caption for the movers post. Plain, no exclamation marks (docs/SOCIAL.md). */

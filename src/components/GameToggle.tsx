@@ -48,7 +48,9 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
           role="radio"
           aria-checked={game === id}
           onClick={() => onChange(id)}
-          className={`rounded-full font-medium transition ${block ? "flex-1 py-2 text-center" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
+          // Five games at px-3 measured 351px = the whole 375px camera row
+          // (09-29); px-2.5 leaves room on a 360px Android too.
+          className={`rounded-full font-medium transition ${block ? "flex-1 py-2 text-center" : compact ? (visible.length > 4 ? "px-2.5 py-1.5" : "px-3 py-1.5") : "px-3.5 py-1.5"} ${
             game === id
               ? "bg-brand-500 text-white"
               : "text-zinc-400 hover:text-zinc-200"

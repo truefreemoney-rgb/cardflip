@@ -1,3 +1,4 @@
+import { parseGame } from "@/lib/games";
 import "server-only";
 import type { DraftInput } from "@/lib/ebayInventory";
 
@@ -24,7 +25,7 @@ export function draftInputFromBody(body: unknown): Omit<DraftInput, "hasPhoto"> 
       imageSmall: String(b.card.imageSmall ?? ""),
       typeLine: b.card.typeLine ? String(b.card.typeLine) : null,
     },
-    game: b.game === "mtg" ? "mtg" : "pokemon",
+    game: parseGame(b.game),
     finish: b.finish === "foil" || b.finish === "etched" || b.finish === "nonfoil" ? b.finish : null,
     kind: b.kind === "sealed" ? "sealed" : "card",
     condition: b.condition ?? "Near Mint",

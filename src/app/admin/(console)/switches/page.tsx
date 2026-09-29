@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminSwitchesPage() {
   await requireOwnerPage();
-  const games = { mtg: false, lorcana: false, onepiece: false };
+  const games = { mtg: false, lorcana: false, onepiece: false, yugioh: false };
   for (const g of GATED_GAMES) games[g] = await gamePublic(g);
   return (
     <section>

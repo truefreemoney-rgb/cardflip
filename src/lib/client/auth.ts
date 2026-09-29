@@ -29,7 +29,7 @@ export interface SessionUser {
   tourSeenAt?: number | null;
   /** Site switches as they apply to this viewer (admins see everything). */
   /** Which gated games this viewer may see (admins: all). */
-  features?: { magic: boolean; mtg?: boolean; lorcana?: boolean; onepiece?: boolean };
+  features?: { magic: boolean; mtg?: boolean; lorcana?: boolean; onepiece?: boolean; yugioh?: boolean };
   /** Unused two-step backup codes left. */
   totpBackupCodesLeft?: number;
   /** Scans used / included / left right now (header counter); remaining null = unlimited. */

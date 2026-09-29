@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
 import { latestUsdPrice } from "@/lib/server/priceHistory";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import { parseGame } from "@/lib/games";
 
 export interface PriceCheckEntry {
   id: string;
@@ -99,7 +100,7 @@ function cleanCard(card: PokemonCard): PokemonCard {
     number: str(card.number, 40),
     imageSmall: str(card.imageSmall, 500) || str(card.imageLarge, 500),
     imageLarge: str(card.imageLarge, 500),
-    game: card.game === "mtg" ? "mtg" : "pokemon",
+    game: parseGame(card.game),
     prices,
   };
 }

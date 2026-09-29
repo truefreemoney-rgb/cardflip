@@ -13,7 +13,7 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
-import { readSavedGame, saveGame } from "@/lib/games";
+import { readSavedGame, saveGame, parseGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
@@ -57,7 +57,7 @@ const isLive = (c: ServerCard) => c.status === "listed" && !c.ebayEndedAt;
 
 /** The listing page for a ledger row, with the hints that make reopening instant. */
 function resumeHrefFor(card: ServerCard): string {
-  return `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
+  return `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
 }
 
 /** What the ledger row already knows about its catalog card, shaped for the
@@ -372,7 +372,7 @@ export default function CollectionPage() {
       return;
     }
     setDetail({ id: card.id, catalog: catalogStub(card), loading: true });
-    const game: GameId = card.game === "mtg" ? "mtg" : "pokemon";
+    const game: GameId = parseGame(card.game);
     let found: PokemonCard | null = null;
     try {
       if (card.catalogCardId) found = await fetchCardById(card.catalogCardId, game);
@@ -726,7 +726,7 @@ export default function CollectionPage() {
   async function relist(card: ServerCard) {
     await applyPatch(card, { status: "ready", listedAt: null, soldPrice: null, soldAt: null });
     router.push(
-      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`,
+      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`,
     );
   }
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -1873,7 +1873,7 @@ export default function CollectionPage() {
             const draft = card.status === "ready";
             const isSelected = selected.has(card.id);
             const img = card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl;
-            const resumeHref = `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${card.game === "mtg" ? "mtg" : "pokemon"}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
+            const resumeHref = `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
             const glow = live
               ? "ring-emerald-400/40 shadow-emerald-500/15"
               : ended

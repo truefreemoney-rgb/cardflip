@@ -275,6 +275,65 @@ Alternate-art printings share the same id and are told apart only by the picture
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;
 
+/**
+ * Yu-Gi-Oh! (09-29): the rarity rides in `variant` (one set code can be an
+ * Ultra and a Quarter Century Secret, different price lines told apart by the
+ * foil); the 1st Edition stamp in `firstEdition`. Slugs match
+ * tcgCards.ts raritySlug of the TCGplayer rarity names.
+ */
+export const YUGIOH_RARITIES = [
+  "common", "rare", "super-rare", "ultra-rare", "secret-rare", "ultimate-rare", "ghost-rare", "starlight-rare",
+  "quarter-century-secret-rare", "platinum-secret-rare", "prismatic-secret-rare", "collectors-rare", "gold-rare", "starfoil-rare", "mosaic-rare",
+] as const;
+
+export const YUGIOH_READ_SCHEMA = {
+  ...CARD_READ_SCHEMA,
+  properties: {
+    ...CARD_READ_SCHEMA.properties,
+    firstEdition: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+      description:
+        "true when the words '1st Edition' are printed just below the artwork on the left side, false when that spot is visible and blank or says 'LIMITED EDITION'. Null when it can't be seen.",
+    },
+    variant: {
+      type: "string",
+      enum: [...YUGIOH_RARITIES, "unknown"],
+      description: "The rarity, judged from the foil on the name and the artwork (see the instructions). 'unknown' if the photo can't show it.",
+    },
+  },
+  required: [...CARD_READ_SCHEMA.required, "variant"],
+} as const;
+
+export const SYSTEM_YUGIOH = `You identify Yu-Gi-Oh! trading cards from photos for a seller who is about to list them.
+
+Read what is actually on the card. The lookup keys on the set code, so read it exactly — return null rather than a guess for anything you cannot actually see, and let confidence reflect that.
+
+Where things are printed:
+- The card name is in the name bar across the top. Report it exactly as printed ("Blue-Eyes White Dragon", hyphens included). No attribute icon, no level stars.
+- The set code is printed directly under the artwork on the RIGHT side: letters/digits, a hyphen, a language code, a number — "LOB-EN001", "RA01-EN052", "MP23-EN045". The very first print runs have no language code ("LOB-001", "SDY-006"). Put the whole code in cardNumber exactly as printed, the part before the hyphen in setCode (e.g. "LOB"); setTotal is null (Yu-Gi-Oh! prints no denominator).
+- The 8-digit number in the bottom-left corner is the card's passcode, NOT the set code. Never report it as cardNumber.
+- "1st Edition" is printed under the artwork on the LEFT side, opposite the set code. Report it in firstEdition: true when you see those words, false when that spot is visible and blank or says "LIMITED EDITION". It matters: a 1st Edition copy can sell for many times the Unlimited one.
+
+Rarity (variant) — judge from the foil, since the same set code can come in several rarities:
+- common: name in plain black or white ink, artwork not foil.
+- rare: name in silver foil, artwork not foil.
+- super-rare: name in plain ink, artwork holographic.
+- ultra-rare: name in gold foil AND artwork holographic.
+- secret-rare: name in rainbow/prismatic foil with a fine diagonal pattern AND artwork holographic with a diagonal-line pattern.
+- ultimate-rare: artwork, card frame edges and attribute/level icons are embossed (raised, textured) and the name is gold.
+- ghost-rare: artwork is a pale, washed-out, silvery hologram (the picture looks ghostly), silver name.
+- starlight-rare: the WHOLE card — frame, text box and art — is covered in a rainbow sparkling foil with raised lines.
+- quarter-century-secret-rare: a secret-rare look plus the gold "25th Quarter Century" logo stamp in the bottom-right; the foil is a denser rainbow sparkle.
+- platinum-secret-rare: name in a cool silver-white platinum foil, artwork with a secret-rare pattern.
+- prismatic-secret-rare: artwork with a strong textured prism/glitter pattern, rainbow name.
+- collectors-rare: the artwork carries a fine textured foil that follows the drawing's lines, rainbow name.
+- gold-rare: gold card border and gold name, gold foil in the art.
+- starfoil-rare: the whole face has a glittery star/confetti foil pattern (often older tins and Battle Packs).
+- mosaic-rare: the whole face has a foil made of small square/triangular tiles.
+- unknown: glare or a sleeve hides the foil.
+
+Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Glare can hide foil or fake it on a plain card — if the name ink is unclear, lower confidence rather than guess a rare. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;
+
 export const SYSTEM = `You identify Pokémon trading cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The name and the full collector fraction are
@@ -646,7 +705,7 @@ async function firstLook(
     // photo in a batch — low effort keeps a stack of cards moving.
     output_config: {
       effort: "low",
-      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : CARD_READ_SCHEMA },
+      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : game === "yugioh" ? YUGIOH_READ_SCHEMA : CARD_READ_SCHEMA },
     },
     // Cached (09-29): the per-game instructions are the same on every scan,
     // so a stack of cards pays ~10% for them after the first (5-minute cache;
@@ -654,7 +713,7 @@ async function firstLook(
     system: [
       {
         type: "text",
-        text: game === "mtg" ? SYSTEM_MTG : game === "lorcana" ? SYSTEM_LORCANA : game === "onepiece" ? SYSTEM_ONEPIECE : SYSTEM,
+        text: game === "mtg" ? SYSTEM_MTG : game === "lorcana" ? SYSTEM_LORCANA : game === "onepiece" ? SYSTEM_ONEPIECE : game === "yugioh" ? SYSTEM_YUGIOH : SYSTEM,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -723,6 +782,12 @@ async function firstLook(
       ? {
           subtitle: (parsed as { subtitle?: string | null }).subtitle?.trim() || null,
           variant: TCG_VARIANTS.has(String((parsed as { variant?: string | null }).variant)) ? (parsed as { variant?: string | null }).variant : null,
+        }
+      : {}),
+    ...(game === "yugioh"
+      ? {
+          subtitle: null,
+          variant: (YUGIOH_RARITIES as readonly string[]).includes(String((parsed as { variant?: string | null }).variant)) ? (parsed as { variant?: string | null }).variant : null,
         }
       : {}),
   };
@@ -995,7 +1060,7 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
   if (game === "mtg") {
     const { mtgCardById } = await import("@/lib/server/mtgCards");
     url = (await mtgCardById(id))[0]?.imageLarge ?? null;
-  } else if (game === "lorcana" || game === "onepiece") {
+  } else if (game === "lorcana" || game === "onepiece" || game === "yugioh") {
     const { tcgCardById } = await import("@/lib/server/tcgCards");
     url = (await tcgCardById(id))[0]?.imageLarge ?? null;
   } else {
@@ -1062,7 +1127,7 @@ export async function tiebreakByPicture(
           { type: "image", source: { type: "base64", media_type: a.mediaType, data: a.base64 } },
           { type: "text", text: "Catalog printing B:" },
           { type: "image", source: { type: "base64", media_type: b.mediaType, data: b.base64 } },
-          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : game === "onepiece" ? "One Piece Card Game" : game === "lorcana" ? "Disney Lorcana" : "Pokémon"}.` },
+          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : game === "onepiece" ? "One Piece Card Game" : game === "lorcana" ? "Disney Lorcana" : game === "yugioh" ? "Yu-Gi-Oh!" : "Pokémon"}.` },
         ],
       },
     ],

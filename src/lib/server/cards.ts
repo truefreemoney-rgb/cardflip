@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE } from "@/lib/fees";
 import type { GameId } from "@/lib/types";
+import { parseGame } from "@/lib/games";
 
 export type CardStatus = "ready" | "listed" | "sold";
 /** "card" is a single (raw or slabbed); "sealed" is unopened product. */
@@ -136,7 +137,7 @@ function fromRow(row: CardRow): CardRecord {
     id: row.id,
     userId: row.user_id,
     kind: row.kind ?? "card",
-    game: row.game === "mtg" ? "mtg" : "pokemon",
+    game: parseGame(row.game),
     cardName: row.card_name,
     setName: row.set_name,
     cardNumber: row.card_number,
@@ -210,7 +211,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   const now = Date.now();
   const kind: CardKind = card.kind === "sealed" ? "sealed" : "card";
   const productType = kind === "sealed" ? (card.productType ?? null) : null;
-  const game: GameId = card.game === "mtg" ? "mtg" : "pokemon";
+  const game: GameId = parseGame(card.game);
 
   await db
     .prepare(

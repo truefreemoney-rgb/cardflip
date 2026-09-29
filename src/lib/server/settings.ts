@@ -31,7 +31,7 @@ export async function magicPublic(): Promise<boolean> {
  * (docs/BACKLOG.md NEXT VERTICALS: one at a time, gated first). Magic keeps
  * its original key; the newer games use "<game>_public".
  */
-export const GATED_GAMES = ["mtg", "lorcana", "onepiece"] as const;
+export const GATED_GAMES = ["mtg", "lorcana", "onepiece", "yugioh"] as const;
 export type GatedGame = (typeof GATED_GAMES)[number];
 
 export function gamePublicKey(game: GatedGame): string {

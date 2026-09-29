@@ -20,7 +20,7 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { db } = await import(at("lib/db.ts"));
-const { searchTcgCardsLocal, splitOnePieceNumber, hasTcgMirror } = await import(at("lib/server/tcgCards.ts"));
+const { searchTcgCardsLocal, splitOnePieceNumber, hasTcgMirror, yugiohKey } = await import(at("lib/server/tcgCards.ts"));
 const { GAMES, GAME_IDS, isGameId, parseGame, displayCardNumber } = await import(at("lib/games.ts"));
 const { isNearTie } = await import(at("lib/tiebreak.ts"));
 
@@ -32,9 +32,11 @@ function check(label, actual, expected = true) {
 }
 
 check("registry lists both games", GAME_IDS.includes("lorcana") && GAME_IDS.includes("onepiece"));
-check("isGameId accepts them", isGameId("lorcana") && isGameId("onepiece") && !isGameId("yugioh"));
-check("parseGame falls back to Pokémon", parseGame("yugioh"), "pokemon");
-check("eBay Game aspects set", Boolean(GAMES.lorcana.ebayGameAspect) && Boolean(GAMES.onepiece.ebayGameAspect));
+check("isGameId accepts them", isGameId("lorcana") && isGameId("onepiece") && isGameId("yugioh") && !isGameId("digimon"));
+check("parseGame falls back to Pokémon", parseGame("digimon"), "pokemon");
+check("eBay Game aspects set", Boolean(GAMES.lorcana.ebayGameAspect) && Boolean(GAMES.onepiece.ebayGameAspect) && Boolean(GAMES.yugioh.ebayGameAspect));
+check("Yu-Gi-Oh! number displays as printed", displayCardNumber({ number: "LOB-EN005", setTotal: 126, game: "yugioh" }), "LOB-EN005");
+check("Yu-Gi-Oh! key drops the language letters", [yugiohKey("lob-en005"), yugiohKey("LOB-005"), yugiohKey("SDY-E005"), yugiohKey("Dark Magician")], ["LOB-005", "LOB-005", "SDY-005", null]);
 check("One Piece number displays as printed", displayCardNumber({ number: "OP01-077", game: "onepiece" }), "OP01-077");
 check("Lorcana number displays as a fraction", displayCardNumber({ number: "42", setTotal: 204, game: "lorcana" }), "42/204");
 check("split OP id", splitOnePieceNumber("op01-077"), { setCode: "OP01", number: "OP01-077" });
@@ -63,6 +65,14 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-sanji-r1", "onepiece", "Sanji", "", "ST15", "Starter 15", "P-029_r1", null, "", "C", "reprint", 1, null],
   ["op-law", "onepiece", "Trafalgar Law - OP05-069", "", "OP05", "Awakening", "OP05-069", null, "", "SR", "", 3, null],
   ["op-law-2", "onepiece", "Trafalgar Law", "", "OP01", "Romance Dawn", "OP01-047", null, "", "L", "", 2, null],
+  // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
+  // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
+  ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
+  ["ygo-21876-1st", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 1207.76, null],
+  ["ygo-22612", "yugioh", "Dark Magician", "", "SDY", "Starter Deck: Yugi", "SDY-006", null, "2002-03-29", "Ultra Rare", "", 33.1, null],
+  ["ygo-ra01-ur", "yugioh", "Dark Magician", "", "RA01", "25th Anniversary Rarity Collection", "RA01-EN052", null, "2023-11-03", "Ultra Rare", "", 1.5, null],
+  ["ygo-ra01-qcsr", "yugioh", "Dark Magician", "", "RA01", "25th Anniversary Rarity Collection", "RA01-EN052", null, "2023-11-03", "Quarter Century Secret Rare", "quarter-century-secret-rare", 30, null],
+  ["ygo-bewd", "yugioh", "Blue-Eyes White Dragon", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-001", null, "2002-03-08", "Ultra Rare", "", 90, null],
 ]) {
   await db
     .prepare(
@@ -93,6 +103,14 @@ check("One Piece: full-art read prefers the special row over the plain reprint t
 check("One Piece: a feed key with its _r1 suffix still matches the printed number", await top("onepiece", "Sanji", pn("P-029")), "op-sanji-r1");
 check("One Piece: a catalog name carrying the number still counts as an exact name", await top("onepiece", "Trafalgar Law", pn("OP05-069")), "op-law");
 check("One Piece: a one-digit number misread with an exact name lands on the nearest number", await top("onepiece", "Nami", pn("OP01-017")), "op-nami");
+const ygo = async (name, number, rarity = null, first = null) => (await searchTcgCardsLocal("yugioh", name, number ? pn(number) : null, 5, null, rarity, first))[0]?.id ?? null;
+check("Yu-Gi-Oh!: LOB-EN005 read finds the LOB-005 row", await ygo("Dark Magician", "LOB-EN005", null, false), "ygo-21876");
+check("Yu-Gi-Oh!: 1st Edition stamp seen → the -1st twin", await ygo("Dark Magician", "LOB-EN005", "ultra-rare", true), "ygo-21876-1st");
+check("Yu-Gi-Oh!: set code alone identifies", await ygo("", "SDY-006"), "ygo-22612");
+check("Yu-Gi-Oh!: rarity read separates one code's Ultra from its Quarter Century", await ygo("Dark Magician", "RA01-EN052", "quarter-century-secret-rare"), "ygo-ra01-qcsr");
+check("Yu-Gi-Oh!: nothing seen on a two-rarity code → the plain untagged row", await ygo("Dark Magician", "RA01-EN052"), "ygo-ra01-ur");
+check("Yu-Gi-Oh!: a hyphenated name matches folded", await ygo("Blue-Eyes White Dragon", null), "ygo-bewd");
+check("Yu-Gi-Oh!: a misread code with the name exact still lands on the name", await ygo("Blue-Eyes White Dragon", "LOB-O01"), "ygo-bewd");
 check("rankScore exposed", typeof (await searchTcgCardsLocal("onepiece", "Nami", null, 5))[0]?.rankScore === "number");
 check("Lorcana card name carries the version", (await searchTcgCardsLocal("lorcana", "Ariel", pn("1", 204), 1))[0]?.name, "Ariel - On Human Legs");
 

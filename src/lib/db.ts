@@ -302,6 +302,11 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_name ON tcg_cards(game, name);
   CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_key ON tcg_cards(game, set_code, collector_number);
+  -- Yu-Gi-Oh! (60k rows) looks up by the set code alone and by the folded
+  -- name (tcgCards.ts FOLDED — must match it character for character or
+  -- the planner scans the whole game).
+  CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_number ON tcg_cards(game, collector_number);
+  CREATE INDEX IF NOT EXISTS idx_tcg_cards_game_folded ON tcg_cards(game, REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', ''''));
 
   CREATE TABLE IF NOT EXISTS mtg_sets (
     code TEXT PRIMARY KEY,

@@ -7,7 +7,7 @@ export type ScanLanguage = "en" | "ja" | "zh";
  * mirror table, vision prompt, listing words and eBay aspects — see
  * lib/games.ts).
  */
-export type GameId = "pokemon" | "mtg" | "lorcana" | "onepiece";
+export type GameId = "pokemon" | "mtg" | "lorcana" | "onepiece" | "yugioh";
 
 export type PriceSource = "tcgplayer" | "cardmarket" | "ebay";
 

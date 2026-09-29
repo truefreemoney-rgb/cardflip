@@ -1,3 +1,4 @@
+import { parseGame } from "@/lib/games";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
@@ -78,7 +79,7 @@ function cleanCard(card: PokemonCard): PokemonCard {
     number: str(card.number, 40),
     imageSmall: str(card.imageSmall, 500) || str(card.imageLarge, 500),
     imageLarge: str(card.imageLarge, 500),
-    game: card.game === "mtg" ? "mtg" : "pokemon",
+    game: parseGame(card.game),
   };
 }
 

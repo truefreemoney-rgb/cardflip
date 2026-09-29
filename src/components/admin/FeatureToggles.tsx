@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 import { GAMES } from "@/lib/games";
 
-type Gated = "mtg" | "lorcana" | "onepiece";
-const ROWS: Gated[] = ["mtg", "lorcana", "onepiece"];
+type Gated = "mtg" | "lorcana" | "onepiece" | "yugioh";
+const ROWS: Gated[] = ["mtg", "lorcana", "onepiece", "yugioh"];
 
 /**
  * Site switches (admin console). Each game after Pokémon is public or
