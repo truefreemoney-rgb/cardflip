@@ -307,6 +307,29 @@ Plan from here (my side needs nothing from Chris until step 3):
    non-English printings (mirror is English), Art Series USD prices
    (backlog), own pHash pipeline.
 
+09-29 update (Chris: "near 100% like Pokémon; I'm sure there are more
+special cards, I'll leave it to you"): the stock-image panel comes FIRST,
+his phone batch proves it at the end.
+- The API began rejecting any structured-output schema with more than 16
+  union-typed fields; the Magic read had 20 → every Magic scan 400'd
+  (Lorcana / One Piece 17). Fixed 3055c8c: Magic/TCG extras are plain
+  strings or enums with "unknown"; test:vision-schema counts unions.
+- Live tiebreak run: 203/205 = 99.0% confirmed. New buckets: 2025+ sets
+  40/40 (FIN, SPM, TDM, DFT, EOE mixed treatments), adventure 8/8.
+- Basic lands with no number (1990s) now match by picture against the
+  hashed land fronts (kind "land"); closes Plains BRB 128 vs 6ED 333.
+- Art Series gold-signature: the mirror has signed twins only for MH2 and
+  STX ("Ns" numbers, not hashed); every newer Art Series set is ONE row per
+  card, and a dHash cannot separate a gold stamp. Needs a "signed" read
+  cue and its own price line. Open.
+- Thirteen more buckets queued from the mirror's own frame_effects /
+  promo_types / set_type / finishes inventory (etched-only, surge/galaxy/
+  ripple/halo foils, poster/scroll/dossier/gilded/neon/oil-slick/
+  textured/embossed/concept/vault/imagine/japan-showcase/Dracula/Godzilla,
+  box toppers/judge/FNM/buy-a-box, masterpieces, full-art, Un-sets,
+  future frame, lettered numbers, odd types, legendary/inverted/
+  colorshifted frames, FTV/duel decks, commander precons).
+
 ## 4. What NOT to do
 
 - Do not match on name alone or fall through to a fuzzy name lookup as the

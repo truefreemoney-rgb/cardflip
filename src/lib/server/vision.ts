@@ -546,6 +546,14 @@ export async function analyzeCardImageWithUsage(
     const matched = await matchArtByPicture(base64Image, first.read);
     if (matched) return { read: matched, usage: first.usage };
   }
+  // A basic land with no collector number (1990s core sets, box sets) has
+  // only its picture to say which printing it is — same name, same artist,
+  // same year across sets (Plains BRB 128 vs 6ED 333, 09-29 panel). Every
+  // hashed land front is a candidate; no hit within range keeps the read.
+  if (game === "mtg" && first.read.kind !== "art" && !first.read.cardNumber && BASIC_LAND_NAME.test(first.read.name.trim())) {
+    const matched = await matchArtByPicture(base64Image, first.read, "land");
+    if (matched) return { read: matched, usage: first.usage };
+  }
   const reason = await secondLookReason(first.read, game);
   if (!reason) return first;
   try {
@@ -561,7 +569,9 @@ export async function analyzeCardImageWithUsage(
   }
 }
 
-async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind: "art" | "token" = "art"): Promise<VisionCardRead | null> {
+const BASIC_LAND_NAME = /^(snow-covered )?(plains|island|swamp|mountain|forest)$|^wastes$/i;
+
+async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind: "art" | "token" | "land" = "art"): Promise<VisionCardRead | null> {
   try {
     const { matchArtSeries } = await import("@/lib/server/artHash");
     const hit = await matchArtSeries(Buffer.from(base64Image, "base64"), kind);
@@ -571,7 +581,8 @@ async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind
       name: hit.name,
       setCode: hit.setCode.toUpperCase(),
       cardNumber: hit.number,
-      kind,
+      // A land is still a card; the art / token kinds name the object.
+      kind: kind === "land" ? (read.kind ?? "card") : kind,
       confidence: Math.max(read.confidence ?? 0, 0.9),
       secondLook: `${kind}-picture:${hit.distance}`,
     };

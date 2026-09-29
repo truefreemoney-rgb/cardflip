@@ -58,8 +58,9 @@ check("different pictures: far apart", hamming(ha, await dHash(b)) > ART_MATCH_M
 await db.prepare(
   `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at, type_line, art_hash)
    VALUES ('altc-a', 'Fell Beast''s Shriek', 'altc', 'Tales of Middle-earth Art Series', '18', '2023-06-23', 1, 0, 'Card', ?),
-          ('altc-b', 'Aragorn, Hornburg Hero', 'altc', 'Tales of Middle-earth Art Series', '2', '2023-06-23', 1, 0, 'Card', ?)`,
-).run(ha, await dHash(b));
+          ('altc-b', 'Aragorn, Hornburg Hero', 'altc', 'Tales of Middle-earth Art Series', '2', '2023-06-23', 1, 0, 'Card', ?),
+          ('brb-plains', 'Plains', 'brb', 'Battle Royale Box Set', '128', '1999-11-12', 0.2, 0, 'Basic Land — Plains', ?)`,
+).run(ha, await dHash(b), await dHash(b));
 
 check("re-encoded copy of a mirror picture is matched to its row",
   (await matchArtSeries(aSmallJpeg))?.id ?? null, "altc-a");
@@ -67,6 +68,13 @@ check("a framed copy (light border around the picture) still matches via the ins
   (await matchArtSeries(aFramed))?.id ?? null, "altc-a");
 const noise = await sharp({ create: { width: 400, height: 560, channels: 3, noise: { type: "gaussian", mean: 128, sigma: 60 } } }).jpeg().toBuffer();
 check("a stranger is refused rather than guessed", await matchArtSeries(noise), null);
+
+// Basic lands (09-29): a "land" match only looks at Basic Land rows — the
+// same picture stored as an Art Series card (altc-b, seeded above with the
+// same hash) must not answer a land read, and vice versa.
+check("a land picture matches its Basic Land row", (await matchArtSeries(b, "land"))?.id ?? null, "brb-plains");
+check("… and the art-series kind still ignores land rows", (await matchArtSeries(b, "art"))?.id ?? null, "altc-b");
+check("a land read never lands on an Art Series row", (await matchArtSeries(aSmallJpeg, "land"))?.id ?? null, null);
 
 console.log(failures === 0 ? "\nAll art-hash checks passed" : `\n${failures} art-hash check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;

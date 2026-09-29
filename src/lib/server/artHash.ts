@@ -68,8 +68,8 @@ interface ArtRow {
   type_line: string;
 }
 
-/** Which hashed rows a picture may match: Art Series fronts, tokens / emblems, or everything hashed. */
-export type PictureKind = "art" | "token" | "all";
+/** Which hashed rows a picture may match: Art Series fronts, tokens / emblems, basic land fronts, or everything hashed. */
+export type PictureKind = "art" | "token" | "land" | "all";
 
 let cache: { at: number; rows: ArtRow[] } | null = null;
 const CACHE_MS = 10 * 60 * 1000;
@@ -105,6 +105,7 @@ export async function matchArtSeries(image: Buffer, kind: PictureKind = "art"): 
   const rows =
     kind === "all" ? all
     : kind === "token" ? all.filter((r) => /^(token|emblem)/i.test(r.type_line ?? ""))
+    : kind === "land" ? all.filter((r) => /^basic land/i.test(r.type_line ?? ""))
     : all.filter((r) => /^card(?![a-z])/i.test(r.type_line ?? ""));
   if (rows.length === 0) return null;
   const hashes = await Promise.all([0, 0.05, 0.12].map((inset) => dHash(image, inset)));

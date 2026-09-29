@@ -57,6 +57,23 @@ const BUCKETS = [
   // on one face, single-faced).
   ["2025+ sets", "set_release_date >= '2025-01-01' AND set_release_date <= '2025-12-31' AND promo_types = '' AND set_code NOT IN ('plst','sld') AND type_line NOT LIKE 'Card%' AND type_line NOT LIKE 'Token%'", 40],
   ["adventure", "type_line LIKE '%Adventure%' AND set_code NOT IN ('plst','sld')", 8],
+  // 09-29 (Chris: "near 100% like Pokémon; I'm sure there are more special
+  // cards"): every printing family in the mirror's frame_effects /
+  // promo_types / set_type / finishes / number-suffix data that the buckets
+  // above did not touch.
+  ["etched-only printings", "finishes = 'etched' AND set_code NOT IN ('plst','sld')", 8],
+  ["special foils (surge/galaxy/ripple/halo…)", "(promo_types LIKE '%surgefoil%' OR promo_types LIKE '%galaxyfoil%' OR promo_types LIKE '%ripplefoil%' OR promo_types LIKE '%halofoil%' OR promo_types LIKE '%rainbowfoil%' OR promo_types LIKE '%texturedfoil%' OR promo_types LIKE '%fracturefoil%' OR promo_types LIKE '%manafoil%' OR promo_types LIKE '%raisedfoil%') AND set_code NOT IN ('plst','sld')", 12],
+  ["booster-fun variants (poster/scroll/dossier/gilded/neon/oilslick…)", "(promo_types LIKE '%poster%' OR promo_types LIKE '%scroll%' OR promo_types LIKE '%dossier%' OR promo_types LIKE '%gilded%' OR promo_types LIKE '%neonink%' OR promo_types LIKE '%oilslick%' OR promo_types LIKE '%textured%' OR promo_types LIKE '%embossed%' OR promo_types LIKE '%portrait%' OR promo_types LIKE '%stepandcompleat%' OR promo_types LIKE '%magnified%' OR promo_types LIKE '%doubleexposure%' OR promo_types LIKE '%invisibleink%' OR promo_types LIKE '%concept%' OR promo_types LIKE '%vault%' OR promo_types LIKE '%imagine%' OR promo_types LIKE '%ravnicacity%' OR promo_types LIKE '%japanshowcase%' OR promo_types LIKE '%draculaseries%' OR promo_types LIKE '%godzillaseries%') AND set_code NOT IN ('plst','sld')", 24],
+  ["box toppers / judge / FNM / buy-a-box", "(promo_types LIKE '%boxtopper%' OR promo_types LIKE '%judgegift%' OR promo_types LIKE '%fnm%' OR promo_types LIKE '%buyabox%' OR promo_types LIKE '%bundle%' OR promo_types LIKE '%gameday%' OR promo_types LIKE '%storechampionship%') AND set_code NOT IN ('plst','sld')", 12],
+  ["masterpieces (Expeditions/Inventions/Invocations)", "set_code IN (SELECT code FROM mtg_sets WHERE set_type = 'masterpiece')", 8],
+  ["full-art (Nyx / Unstable lands etc.)", "full_art = 1 AND type_line NOT LIKE 'Card%' AND set_code NOT IN ('plst','sld')", 8],
+  ["Un-sets / silver border", "set_code IN (SELECT code FROM mtg_sets WHERE set_type = 'funny')", 8],
+  ["future frame", "frame = 'future'", 5],
+  ["lettered numbers (12a / 12b variants)", "collector_number GLOB '*[0-9][a-f]' AND set_code NOT IN ('plst','sld')", 10],
+  ["odd types (Battle / Kindred / Host / Stickers / Conspiracy)", "(type_line LIKE 'Battle%' OR type_line LIKE 'Kindred%' OR type_line LIKE 'Host%' OR type_line LIKE 'Stickers%' OR type_line LIKE 'Conspiracy%' OR type_line LIKE 'Dungeon%')", 8],
+  ["legendary / inverted / colorshifted frames", "(frame_effects LIKE '%colorshifted%' OR frame_effects LIKE '%inverted%' OR frame_effects LIKE '%devoid%' OR frame_effects LIKE '%tombstone%' OR frame_effects LIKE '%miracle%' OR frame_effects LIKE '%companion%') AND set_code NOT IN ('plst','sld')", 12],
+  ["From the Vault / premium decks / duel decks", "set_code IN (SELECT code FROM mtg_sets WHERE set_type IN ('from_the_vault','premium_deck','duel_deck','spellbook'))", 8],
+  ["commander precons", "set_code IN (SELECT code FROM mtg_sets WHERE set_type = 'commander') AND promo_types = '' AND frame_effects = ''", 10],
 ];
 
 function pickPanel() {
