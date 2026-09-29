@@ -136,7 +136,7 @@ export const CARD_READ_SCHEMA = {
     slab: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
       description:
-        "true when the card is sealed inside a graded slab: a rigid clear plastic holder with a printed grading label across the top (PSA, CGC, BGS, SGC, ACE and the like, showing a company name, a grade number and a cert number). false for a raw card, sleeved or not. Null if unsure.",
+        "true when the card is sealed inside a graded slab: a rigid clear plastic holder with a printed grading label across the top (PSA, CGC, BGS, SGC, ACE and the like, showing a company name, a grade number and a cert number). Only true when you can actually see that printed grading label. false for a raw card, sleeved or not, and for a card in a toploader, card saver, or one-touch magnetic holder (rigid plastic with NO grading label). false or null when the photo is too blurry or cropped to see a label.",
     },
     firstEdition: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
@@ -399,7 +399,8 @@ setName is optional — the set code is what identifies the printing.
 
 If the card sits inside a graded slab (a rigid plastic holder with a grading
 label across the top: PSA, CGC, BGS, SGC, ACE), say so in "slab" and still
-read the card underneath as usual.
+read the card underneath as usual. A toploader, card saver or magnetic
+one-touch holder is NOT a slab: no printed grading label means slab is false.
 
 Two things that are not playable cards come out of the same packs and must
 be called out in "kind": tokens (type line "Token Creature — …", collector

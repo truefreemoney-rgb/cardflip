@@ -456,7 +456,12 @@ export default function AppPage() {
               nameCandidates = [];
               printed = null;
             } else if (read.slab && GRADED_LOCKED) {
-              readError = SLAB_MESSAGE;
+              // A slab photo still shows the card clearly under the plastic.
+              // No name = a bad photo the reader called a slab (Chris 09-29:
+              // a blurry Kraven in a toploader) — ask for a retake instead.
+              readError = read.name?.trim()
+                ? SLAB_MESSAGE
+                : "Couldn't read this card — retake with the whole card in the guide and no glare";
               nameCandidates = [];
               printed = null;
             } else if (
