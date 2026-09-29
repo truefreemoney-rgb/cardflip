@@ -668,6 +668,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "flavor_name TEXT NOT NULL DEFAULT ''",
       // Art Series picture fingerprint (lib/server/artHash.ts), 09-10.
       "art_hash TEXT NOT NULL DEFAULT ''",
+      // Unfinity Attraction lit numbers, "2,5,6" (219a-f differ only there), 09-29.
+      "attraction_lights TEXT NOT NULL DEFAULT ''",
     ],
   ],
   // Ticket photos (Chris 09-26): JSON array of Blob URLs. Prod's table

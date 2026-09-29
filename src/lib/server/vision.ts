@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { GameId, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
+import { parseAttractionLights } from "@/lib/mtgCues";
 
 export type { VisionCardRead };
 
@@ -205,8 +206,14 @@ export const MTG_READ_SCHEMA = {
       type: "string",
       description: "The printed serial number when the card is serialized, e.g. '045/500'. An empty string otherwise.",
     },
+    attractionLights: {
+      type: "array",
+      items: { type: "integer" },
+      description:
+        "Unfinity 'Attraction' cards only (type line says Attraction): the column of numbers 1-6 down the right edge — list ONLY the numbers that are lit / highlighted, e.g. [2, 5, 6]. Empty array on every other card.",
+    },
   },
-  required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "borderColor", "serialNumber"],
+  required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "borderColor", "serialNumber", "attractionLights"],
 } as const;
 
 /**
@@ -503,6 +510,7 @@ function normalizeMtgCues(parsed: VisionCardRead): Partial<VisionCardRead> {
     copyrightYear: year != null && year >= 1993 && year <= 2100 ? year : null,
     borderColor: parsed.borderColor && MTG_BORDERS.has(parsed.borderColor) ? parsed.borderColor : null,
     serialNumber: parsed.serialNumber?.trim() || null,
+    attractionLights: Array.isArray(parsed.attractionLights) ? parseAttractionLights(parsed.attractionLights) : [],
     // The older binary read is derived so every artStyle consumer keeps
     // working: any special frame is "full-art" to the ranker's special-set gate.
     artStyle:

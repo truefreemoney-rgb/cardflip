@@ -293,6 +293,17 @@ check("embossed ampersand seen: the PAFR 190a row wins on the printed AFR 190",
 const bards = await searchMtgCardsLocal("Instrument of the Bards", "190", "afr", 5, null, false, { marks: [] });
 check("emboss not seen: the plain AFR 190 first, the ampersand twin a near-tie for the picture",
   bards[0]?.id === "afr-190" && bards[1]?.id === "pafr-190a" && isNearTie(bards));
+// 09-29: Unfinity Attractions 219a-f are one picture; only the lit numbers differ.
+for (const [num, lights] of [["219a", "2,3,6"], ["219b", "2,4,6"], ["219c", "2,5,6"], ["219e", "3,5,6"]]) {
+  await db.prepare(
+    `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at, frame, border_color, attraction_lights)
+     VALUES (?, 'Kiddie Coaster', 'unf', 'Unfinity', ?, '2022-10-07', 0.2, 0, '2015', 'black', ?)`,
+  ).run(`unf-${num}`, num, lights);
+}
+check("Attraction lights read exactly pick that variant",
+  await mtgTopC("Kiddie Coaster", "219", "unf", { attractionLights: [2, 5, 6] }), "unf-219c");
+check("one light missed (09-29 panel read [2,5]): the closest variant still wins",
+  await mtgTopC("Kiddie Coaster", "219", "unf", { attractionLights: [2, 5] }), "unf-219c");
 check("no marks read at all leaves the plain printing on top",
   await mtgTopC("Pyretic Ritual", null, null, { finish: "foil" }), "m11-153");
 // 09-10 pre-1998 rules: a printed year rules out the no-year sets (Beta,

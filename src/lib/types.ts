@@ -108,6 +108,8 @@ export interface MtgCues {
   bevel?: boolean | null;
   /** Second look: The List corner — true icon seen, false corner empty, null not checked. */
   listIconSeen?: boolean | null;
+  /** Unfinity Attraction: the lit numbers on the right edge, ascending ([2, 5, 6]). */
+  attractionLights?: number[] | null;
 }
 
 /** The game a card belongs to; Pokémon when the field was never set. */
@@ -195,6 +197,8 @@ export interface VisionCardRead {
   borderColor?: MtgBorder | null;
   /** "045/500" when the card is serialized. */
   serialNumber?: string | null;
+  /** Unfinity Attraction: lit numbers (1-6) on the right edge; empty on every other card. */
+  attractionLights?: number[];
 }
 
 /**

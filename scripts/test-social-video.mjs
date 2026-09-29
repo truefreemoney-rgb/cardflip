@@ -148,10 +148,14 @@ async function bodyOf(init) {
   if (init.body instanceof FormData) { const o = {}; for (const [k, v] of init.body.entries()) o[k] = typeof v === "string" ? v : `<file ${v.size}b>`; return o; }
   return `<bytes ${init.body.byteLength ?? init.body.length}>`;
 }
+// The self-like after each post (lib/server/socialSelfLike.ts, 09-29) is not
+// the upload path under test: it gets a 500 and stays out of `calls`.
+const isSelfLike = (u) => /app\.bsky\.feed\.getPosts|\/2\/users\/me\b|\/likes(\?|$)|\/2\/users\/[^/]+\/likes/.test(u);
 function stub(handler) {
   calls.length = 0;
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
+    if (isSelfLike(u)) return new Response(JSON.stringify({ error: "self-like not under test" }), { status: 500 });
     const body = await bodyOf(init);
     calls.push({ url: u, method: init.method ?? "GET", body, ct: init.headers?.["content-type"] ?? null });
     const out = handler(u, body, calls.length);

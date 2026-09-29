@@ -24,9 +24,10 @@ export function mtgCuesOf(read: VisionCardRead): MtgCues | null {
     noYearLine: read.noYearLine === true,
     bevel: typeof read.bevel === "boolean" ? read.bevel : null,
     listIconSeen: typeof read.listIconSeen === "boolean" ? read.listIconSeen : null,
+    attractionLights: read.attractionLights?.length ? read.attractionLights : null,
   };
   const any =
-    cues.finish || cues.treatment || (cues.marks?.length ?? 0) > 0 || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null || cues.listIconSeen !== null;
+    cues.finish || cues.treatment || (cues.marks?.length ?? 0) > 0 || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null || cues.listIconSeen !== null || cues.attractionLights;
   return any ? cues : null;
 }
 
@@ -41,6 +42,7 @@ export function mtgCuesToParams(cues: MtgCues): Record<string, string> {
   if (cues.noYearLine) out.noyear = "1";
   if (typeof cues.bevel === "boolean") out.bevel = cues.bevel ? "1" : "0";
   if (typeof cues.listIconSeen === "boolean") out.licon = cues.listIconSeen ? "1" : "0";
+  if (cues.attractionLights?.length) out.lights = cues.attractionLights.join(",");
   return out;
 }
 
@@ -51,6 +53,7 @@ export function parseMtgCuesParams(params: URLSearchParams): MtgCues | null {
   const artist = (params.get("artist") ?? "").trim().slice(0, 80);
   const year = Number(params.get("year"));
   const border = params.get("border");
+  const lights = parseAttractionLights(params.get("lights") ?? "");
   const cues: MtgCues = {
     finish: finish && FINISHES.has(finish) ? (finish as MtgFinish) : null,
     treatment: treatment && TREATMENTS.has(treatment) ? (treatment as MtgTreatment) : null,
@@ -61,8 +64,16 @@ export function parseMtgCuesParams(params: URLSearchParams): MtgCues | null {
     noYearLine: params.get("noyear") === "1",
     bevel: params.get("bevel") === "1" ? true : params.get("bevel") === "0" ? false : null,
     listIconSeen: params.get("licon") === "1" ? true : params.get("licon") === "0" ? false : null,
+    attractionLights: lights.length ? lights : null,
   };
   const any =
-    cues.finish || cues.treatment || cues.marks !== undefined || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null || cues.listIconSeen !== null;
+    cues.finish || cues.treatment || cues.marks !== undefined || cues.artist || cues.copyrightYear || cues.border || cues.noYearLine || cues.bevel !== null || cues.listIconSeen !== null || cues.attractionLights;
   return any ? cues : null;
+}
+
+/** "2,5,6" / [6, 2, 5, 9] → [2, 5, 6]: distinct lights 1-6, ascending. */
+export function parseAttractionLights(value: string | unknown[]): number[] {
+  const items = Array.isArray(value) ? value : value.split(",");
+  const nums = items.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 6);
+  return [...new Set(nums)].sort((a, b) => a - b);
 }

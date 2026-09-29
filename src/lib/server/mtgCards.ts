@@ -47,6 +47,8 @@ interface MtgCardRow {
   textless: number;
   /** Scryfall flavor_name: LTC 386 "Shards of Narsil" is Thorn of Amethyst; '' on most rows. */
   flavor_name: string;
+  /** Unfinity Attraction lit numbers, "2,5,6"; '' elsewhere (and on rows synced before 09-29). */
+  attraction_lights?: string;
   /** Joined from mtg_sets in the search queries; absent on the id fetch. */
   set_type?: string | null;
 }
@@ -54,7 +56,7 @@ interface MtgCardRow {
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
                       image_url, rarity, type_line, finishes,
                       price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil,
-                      artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name`;
+                      artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name, attraction_lights`;
 
 /** The same columns off a `c` alias, plus the set's type — for the ranked
  * searches, which join mtg_sets (both tables have a `name` column). */
@@ -223,6 +225,19 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
       // the picture tiebreak (which sees both images) decides.
       p += (mark === "list-icon" && cues.listIconSeen !== false) || mark === "embossed" ? 1 : 3;
     }
+  }
+
+  // Unfinity Attractions: 219a-f are one picture with different lit numbers
+  // down the right edge (09-29, Kiddie Coaster 219c). A read that disagrees
+  // costs one per light that differs (a missed light is the usual misread),
+  // capped at a wrong treatment; a row with no lights data costs nothing.
+  if (cues.attractionLights?.length && row.attraction_lights) {
+    const rowLights = new Set(row.attraction_lights.split(",").map(Number));
+    const read = new Set(cues.attractionLights);
+    let differ = 0;
+    for (const n of rowLights) if (!read.has(n)) differ += 1;
+    for (const n of read) if (!rowLights.has(n)) differ += 1;
+    p += Math.min(3, differ);
   }
 
   // Artist: same art across reprints shares the credit, so this separates
