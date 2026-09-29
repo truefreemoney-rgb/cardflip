@@ -189,10 +189,13 @@ export default async function Home() {
         {/* Seamless (Chris, 09-04): no section backgrounds on this page — the
             body ambient is the only ground, so there is nothing to transition
             between. The only local light is the glow behind the phone.
-            overflow-x-clip, not overflow-hidden: hidden clipped the phone's
-            blurred glow at the section's bottom edge — a hard line across
-            the page (Chris, twice: "it's supposed to flow together"). */}
-        <section className="relative overflow-x-clip">
+            NO overflow rule on this section: overflow-hidden clipped the
+            glow at the bottom (Chris, twice: "it's supposed to flow
+            together"), and overflow-x-clip left the hero stuck at the
+            landscape width on iOS after rotating back to portrait (Chris
+            09-28, only this section, everything below fine). The glow is
+            sized to stay inside the viewport instead. */}
+        <section className="relative">
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             {/* Centered until the two-column layout kicks in at lg: between
                 640 and 1023px (iPhone landscape, iPad) the phone sits centered
