@@ -38,4 +38,34 @@ assert.deepEqual(
   ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"],
 );
 
+// 09-29: the API rejects a structured-output schema with more than 16
+// union-typed (anyOf / type-array) parameters — "Schemas contains too many
+// parameters with union types … limit: 16". The Magic read had 20 and every
+// Magic scan 400'd; Lorcana / One Piece had 17. Count them the way the API
+// does and keep every read schema at or under the cap.
+const { SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA } = await import(new URL("../src/lib/server/vision.ts", import.meta.url).href);
+function unionCount(schema) {
+  let n = 0;
+  const walk = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node.anyOf) || Array.isArray(node.oneOf) || Array.isArray(node.type)) n++;
+    for (const v of Object.values(node.properties ?? {})) walk(v);
+    if (node.items) walk(node.items);
+  };
+  for (const v of Object.values(schema.properties ?? {})) walk(v);
+  return n;
+}
+for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, LOCATE_SCHEMA, SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA })) {
+  if (!schema) continue;
+  const n = unionCount(schema);
+  assert.ok(n <= 16, `${name}: ${n} union-typed parameters, the API caps a schema at 16`);
+}
+// The Magic-only fields stay non-nullable so the count holds; the parse maps "" / "unknown" to null.
+for (const key of ["finish", "treatment", "artist", "borderColor", "serialNumber"]) {
+  assert.ok(!("anyOf" in MTG_READ_SCHEMA.properties[key]), `MTG ${key} must not be anyOf-nullable`);
+}
+for (const key of ["subtitle", "variant"]) {
+  assert.ok(!("anyOf" in TCG_READ_SCHEMA.properties[key]), `TCG ${key} must not be anyOf-nullable`);
+}
+
 console.log("test:vision-schema ok");

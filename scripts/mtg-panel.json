@@ -673,6 +673,14 @@
  },
  {
   "bucket": "showcase",
+  "id": "001d33b2-5e6f-4233-bd03-be85642e76e4",
+  "name": "Uldaros Theorix",
+  "set": "fra",
+  "number": "358",
+  "image": "https://cards.scryfall.io/normal/front/0/0/001d33b2-5e6f-4233-bd03-be85642e76e4.jpg?1790136298"
+ },
+ {
+  "bucket": "showcase",
   "id": "004a67ce-60ef-4cc2-9f4d-f30e3029d80a",
   "name": "Keen-Eyed Curator",
   "set": "blb",
@@ -782,14 +790,6 @@
   "set": "wot",
   "number": "39",
   "image": "https://cards.scryfall.io/normal/front/0/1/01499449-5614-428f-8fc1-1fa74f7114ad.jpg?1783914923"
- },
- {
-  "bucket": "showcase",
-  "id": "01502e03-4cd6-40ef-b8fe-93e76e7ed54b",
-  "name": "Jor Kadeen, First Goldwarden",
-  "set": "one",
-  "number": "332",
-  "image": "https://cards.scryfall.io/normal/front/0/1/01502e03-4cd6-40ef-b8fe-93e76e7ed54b.jpg?1783917949"
  },
  {
   "bucket": "extended art",
@@ -929,6 +929,14 @@
  },
  {
   "bucket": "borderless",
+  "id": "001d33b2-5e6f-4233-bd03-be85642e76e4",
+  "name": "Uldaros Theorix",
+  "set": "fra",
+  "number": "358",
+  "image": "https://cards.scryfall.io/normal/front/0/0/001d33b2-5e6f-4233-bd03-be85642e76e4.jpg?1790136298"
+ },
+ {
+  "bucket": "borderless",
   "id": "004a67ce-60ef-4cc2-9f4d-f30e3029d80a",
   "name": "Keen-Eyed Curator",
   "set": "blb",
@@ -1022,14 +1030,6 @@
   "set": "blc",
   "number": "78",
   "image": "https://cards.scryfall.io/normal/front/0/0/00e73c6f-bdbb-474b-9b24-44cb3fd5f751.jpg?1783910714"
- },
- {
-  "bucket": "borderless",
-  "id": "00ef8f06-dfcc-4ffa-a054-b0c81b39dcc0",
-  "name": "Amarant Coral",
-  "set": "fic",
-  "number": "457",
-  "image": "https://cards.scryfall.io/normal/front/0/0/00ef8f06-dfcc-4ffa-a054-b0c81b39dcc0.jpg?1783904652"
  },
  {
   "bucket": "retro frame",
@@ -1638,5 +1638,389 @@
   "set": "eoe",
   "number": "382",
   "image": "https://cards.scryfall.io/normal/front/0/7/07b10f1b-b03b-4f19-bc7e-69d5eaa5ff07.jpg?1783905871"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "009c8a91-8c73-4e3f-9955-45344ae07832",
+  "name": "Biolume Egg // Biolume Serpent",
+  "set": "inr",
+  "number": "54",
+  "image": "https://cards.scryfall.io/normal/front/0/0/009c8a91-8c73-4e3f-9955-45344ae07832.jpg?1783908172"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "00b492ca-9cba-4d51-91b9-41430c6933a1",
+  "name": "Tip the Scales",
+  "set": "tdc",
+  "number": "29",
+  "image": "https://cards.scryfall.io/normal/front/0/0/00b492ca-9cba-4d51-91b9-41430c6933a1.jpg?1783907175"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "00d9dd37-aad3-46bd-ac9b-140974c8dcaa",
+  "name": "Coretapper",
+  "set": "eoc",
+  "number": "132",
+  "image": "https://cards.scryfall.io/normal/front/0/0/00d9dd37-aad3-46bd-ac9b-140974c8dcaa.jpg?1783906023"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "011374c3-f69d-4573-8c32-5bd0fe083d6a",
+  "name": "Ragost, Deft Gastronaut",
+  "set": "eoe",
+  "number": "224",
+  "image": "https://cards.scryfall.io/normal/front/0/1/011374c3-f69d-4573-8c32-5bd0fe083d6a.jpg?1783905925"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "011bd7d8-6d60-482a-91b7-d3f0aad13b71",
+  "name": "Eusocial Engineering",
+  "set": "eoe",
+  "number": "181",
+  "image": "https://cards.scryfall.io/normal/front/0/1/011bd7d8-6d60-482a-91b7-d3f0aad13b71.jpg?1783905940"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "018257cf-8981-4691-92ab-6a33f77c9680",
+  "name": "Crashing Drawbridge",
+  "set": "tdc",
+  "number": "316",
+  "image": "https://cards.scryfall.io/normal/front/0/1/018257cf-8981-4691-92ab-6a33f77c9680.jpg?1783907014"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "01ea8333-38a8-4b7b-9f03-c5534df28353",
+  "name": "Disciple of Bolas",
+  "set": "tdc",
+  "number": "178",
+  "image": "https://cards.scryfall.io/normal/front/0/1/01ea8333-38a8-4b7b-9f03-c5534df28353.jpg?1783907090"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "0200a8c5-3293-48d0-a523-ba148680f588",
+  "name": "Dragonback Lancer",
+  "set": "tdm",
+  "number": "9",
+  "image": "https://cards.scryfall.io/normal/front/0/2/0200a8c5-3293-48d0-a523-ba148680f588.jpg?1783907416"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "02046824-6c48-40bb-9f0b-4fd280c6ed85",
+  "name": "Asylum Visitor",
+  "set": "inr",
+  "number": "96",
+  "image": "https://cards.scryfall.io/normal/front/0/2/02046824-6c48-40bb-9f0b-4fd280c6ed85.jpg?1783908149"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "0208b947-78d9-45bd-855f-846d9a7c547d",
+  "name": "Prophet of the Scarab",
+  "set": "drc",
+  "number": "9",
+  "image": "https://cards.scryfall.io/normal/front/0/2/0208b947-78d9-45bd-855f-846d9a7c547d.jpg?1783907751"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "02645651-cd55-4bd0-8a4d-fa257270a0e0",
+  "name": "Hashaton, Scarab's Fist",
+  "set": "drc",
+  "number": "1",
+  "image": "https://cards.scryfall.io/normal/front/0/2/02645651-cd55-4bd0-8a4d-fa257270a0e0.jpg?1783907754"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "02d46d0e-3161-45b5-a49e-5cd592c67ddd",
+  "name": "Winter, Cursed Rider",
+  "set": "dft",
+  "number": "228",
+  "image": "https://cards.scryfall.io/normal/front/0/2/02d46d0e-3161-45b5-a49e-5cd592c67ddd.jpg?1783907852"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "02e8e540-8aa3-4e6a-9a11-c3949cab5f0f",
+  "name": "Tezzeret, Cruel Captain",
+  "set": "eoe",
+  "number": "2",
+  "image": "https://cards.scryfall.io/normal/front/0/2/02e8e540-8aa3-4e6a-9a11-c3949cab5f0f.jpg?1783906001"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "031afea3-fbfb-4663-a8cc-9b7eb7b16020",
+  "name": "Dragonfire Blade",
+  "set": "tdm",
+  "number": "240",
+  "image": "https://cards.scryfall.io/normal/front/0/3/031afea3-fbfb-4663-a8cc-9b7eb7b16020.jpg?1783907290"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "036f387a-8dee-482e-b3e3-cf79b54c61e1",
+  "name": "Blood Artist",
+  "set": "inr",
+  "number": "97",
+  "image": "https://cards.scryfall.io/normal/front/0/3/036f387a-8dee-482e-b3e3-cf79b54c61e1.jpg?1783908150"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "03b9c9ed-fb6f-4f8d-bb1d-7999dec4245c",
+  "name": "Cephalid Coliseum",
+  "set": "tdc",
+  "number": "349",
+  "image": "https://cards.scryfall.io/normal/front/0/3/03b9c9ed-fb6f-4f8d-bb1d-7999dec4245c.jpg?1783906997"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "03c45b66-ddc7-43f8-95d0-fe2ad743b3a4",
+  "name": "Solar Array",
+  "set": "eoc",
+  "number": "18",
+  "image": "https://cards.scryfall.io/normal/front/0/3/03c45b66-ddc7-43f8-95d0-fe2ad743b3a4.jpg?1783906061"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "03f8c846-d80c-49a4-a562-e817cd0c6096",
+  "name": "Skycloud Expanse",
+  "set": "eoc",
+  "number": "181",
+  "image": "https://cards.scryfall.io/normal/front/0/3/03f8c846-d80c-49a4-a562-e817cd0c6096.jpg?1783906004"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "03fbf51d-f622-4629-a228-a03ce7caf500",
+  "name": "Darkwater Catacombs",
+  "set": "tdc",
+  "number": "355",
+  "image": "https://cards.scryfall.io/normal/front/0/3/03fbf51d-f622-4629-a228-a03ce7caf500.jpg?1783906991"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "040d064e-b023-4750-afeb-1f58e36bc4ab",
+  "name": "Swamp",
+  "set": "dft",
+  "number": "283",
+  "image": "https://cards.scryfall.io/normal/front/0/4/040d064e-b023-4750-afeb-1f58e36bc4ab.jpg?1783907831"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "0422cfdd-0a7c-4097-8655-b074cd8fd713",
+  "name": "Arcane Signet",
+  "set": "drc",
+  "number": "52",
+  "image": "https://cards.scryfall.io/normal/front/0/4/0422cfdd-0a7c-4097-8655-b074cd8fd713.jpg?1783907738"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "043c25d5-13ee-4cab-98d5-fb89db9cf6e3",
+  "name": "Riverwalk Technique",
+  "set": "tdm",
+  "number": "54",
+  "image": "https://cards.scryfall.io/normal/front/0/4/043c25d5-13ee-4cab-98d5-fb89db9cf6e3.jpg?1783907390"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "04506bad-3856-4184-8dda-941ded60f41a",
+  "name": "Gisela, the Broken Blade",
+  "set": "inr",
+  "number": "24",
+  "image": "https://cards.scryfall.io/normal/front/0/4/04506bad-3856-4184-8dda-941ded60f41a.jpg?1783908181"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "04613bd6-6968-42e0-bdbd-a805df178c39",
+  "name": "Laughing Jasper Flint",
+  "set": "slp",
+  "number": "44",
+  "image": "https://cards.scryfall.io/normal/front/0/4/04613bd6-6968-42e0-bdbd-a805df178c39.jpg?1783905652"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "04762c85-d25d-4120-adec-8681adcf581a",
+  "name": "Valorous Stance",
+  "set": "inr",
+  "number": "48",
+  "image": "https://cards.scryfall.io/normal/front/0/4/04762c85-d25d-4120-adec-8681adcf581a.jpg?1783908171"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "047e6ce0-b38b-467e-8bc5-102c71054bae",
+  "name": "Avenger of Zendikar",
+  "set": "tdc",
+  "number": "247",
+  "image": "https://cards.scryfall.io/normal/front/0/4/047e6ce0-b38b-467e-8bc5-102c71054bae.jpg?1783907052"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "049acc79-1d68-410f-a081-88a7d40e823a",
+  "name": "Underfoot Underdogs",
+  "set": "tdm",
+  "number": "129",
+  "image": "https://cards.scryfall.io/normal/front/0/4/049acc79-1d68-410f-a081-88a7d40e823a.jpg?1783907351"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "04def7e3-10e4-4733-8c19-8fa6e4469086",
+  "name": "Forbidden Alchemy",
+  "set": "tdc",
+  "number": "152",
+  "image": "https://cards.scryfall.io/normal/front/0/4/04def7e3-10e4-4733-8c19-8fa6e4469086.jpg?1783907107"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "04e02176-16ee-4676-8b33-cedebdb18cbc",
+  "name": "Chrome Host Seedshark",
+  "set": "eoc",
+  "number": "68",
+  "image": "https://cards.scryfall.io/normal/front/0/4/04e02176-16ee-4676-8b33-cedebdb18cbc.jpg?1783906045"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "05024abf-7528-4ae7-9df5-b2ab841e9912",
+  "name": "Lumberknot",
+  "set": "inr",
+  "number": "414",
+  "image": "https://cards.scryfall.io/normal/front/0/5/05024abf-7528-4ae7-9df5-b2ab841e9912.jpg?1783908006"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "0530b343-98c2-440a-b32e-d1566d318c3b",
+  "name": "Starting Column",
+  "set": "dft",
+  "number": "244",
+  "image": "https://cards.scryfall.io/normal/front/0/5/0530b343-98c2-440a-b32e-d1566d318c3b.jpg?1783907846"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "0542d0d7-5b0f-4093-b74d-6a60f174aeb5",
+  "name": "Leyline Tyrant",
+  "set": "tdc",
+  "number": "221",
+  "image": "https://cards.scryfall.io/normal/front/0/5/0542d0d7-5b0f-4093-b74d-6a60f174aeb5.jpg?1783907068"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "056136a8-84be-477c-b654-63238fb8236e",
+  "name": "Rescue Leopard",
+  "set": "tdm",
+  "number": "116",
+  "image": "https://cards.scryfall.io/normal/front/0/5/056136a8-84be-477c-b654-63238fb8236e.jpg?1783907357"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "05690d52-06c4-40b1-8360-380418a83250",
+  "name": "The Aetherspark",
+  "set": "dft",
+  "number": "231",
+  "image": "https://cards.scryfall.io/normal/front/0/5/05690d52-06c4-40b1-8360-380418a83250.jpg?1783907850"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "05a6ab03-f0b9-4738-a5f9-5d95bb22de75",
+  "name": "Honored Knight-Captain",
+  "set": "eoe",
+  "number": "22",
+  "image": "https://cards.scryfall.io/normal/front/0/5/05a6ab03-f0b9-4738-a5f9-5d95bb22de75.jpg?1783905994"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "060b7e5f-5b40-4efc-9fad-4cebf40b654b",
+  "name": "Infernal Grasp",
+  "set": "eoc",
+  "number": "84",
+  "image": "https://cards.scryfall.io/normal/front/0/6/060b7e5f-5b40-4efc-9fad-4cebf40b654b.jpg?1783906040"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "064cc22d-d424-4bc9-b8f0-88b170fd6c28",
+  "name": "Webstrike Elite",
+  "set": "dft",
+  "number": "186",
+  "image": "https://cards.scryfall.io/normal/front/0/6/064cc22d-d424-4bc9-b8f0-88b170fd6c28.jpg?1783907863"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "06624919-bb3e-458c-9301-0bb22d8b556c",
+  "name": "Thunderbreak Regent",
+  "set": "tdc",
+  "number": "241",
+  "image": "https://cards.scryfall.io/normal/front/0/6/06624919-bb3e-458c-9301-0bb22d8b556c.jpg?1783907054"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "066de4d6-3fa4-44e0-ab02-8d97b603015a",
+  "name": "Loamcrafter Faun",
+  "set": "eoc",
+  "number": "99",
+  "image": "https://cards.scryfall.io/normal/front/0/6/066de4d6-3fa4-44e0-ab02-8d97b603015a.jpg?1783906034"
+ },
+ {
+  "bucket": "2025+ sets",
+  "id": "06e0c180-2275-461a-86e7-8ccdc5f47938",
+  "name": "Grapple with the Past",
+  "set": "inr",
+  "number": "199",
+  "image": "https://cards.scryfall.io/normal/front/0/6/06e0c180-2275-461a-86e7-8ccdc5f47938.jpg?1783908096"
+ },
+ {
+  "bucket": "adventure",
+  "id": "0001e77a-7fff-49d2-a55c-42f6fdf6db08",
+  "name": "Obyra's Attendants // Desperate Parry",
+  "set": "woe",
+  "number": "63",
+  "image": "https://cards.scryfall.io/normal/front/0/0/0001e77a-7fff-49d2-a55c-42f6fdf6db08.jpg?1783915116"
+ },
+ {
+  "bucket": "adventure",
+  "id": "01739030-c280-492b-a5c9-b3e9f6debc6d",
+  "name": "Kellan, Daring Traveler // Journey On",
+  "set": "lci",
+  "number": "231",
+  "image": "https://cards.scryfall.io/normal/front/0/1/01739030-c280-492b-a5c9-b3e9f6debc6d.jpg?1783913732"
+ },
+ {
+  "bucket": "adventure",
+  "id": "022d2005-2a09-4f9a-802c-e655bfcb95f4",
+  "name": "Illithid Harvester // Plant Tadpoles",
+  "set": "clb",
+  "number": "564",
+  "image": "https://cards.scryfall.io/normal/front/0/2/022d2005-2a09-4f9a-802c-e655bfcb95f4.jpg?1783922566"
+ },
+ {
+  "bucket": "adventure",
+  "id": "02b5d22a-e928-42a0-a688-8994fcd358b0",
+  "name": "Illithid Harvester // Plant Tadpoles",
+  "set": "pclb",
+  "number": "76s",
+  "image": "https://cards.scryfall.io/normal/front/0/2/02b5d22a-e928-42a0-a688-8994fcd358b0.jpg?1783922292"
+ },
+ {
+  "bucket": "adventure",
+  "id": "039c20ab-13c4-426a-888c-9093340a85a0",
+  "name": "Merchant of the Vale // Haggle",
+  "set": "eld",
+  "number": "293",
+  "image": "https://cards.scryfall.io/normal/front/0/3/039c20ab-13c4-426a-888c-9093340a85a0.jpg?1783932561"
+ },
+ {
+  "bucket": "adventure",
+  "id": "043718ea-59f6-4d1a-94c5-271704c1a38a",
+  "name": "Twining Twins // Swift Spiral",
+  "set": "woe",
+  "number": "240",
+  "image": "https://cards.scryfall.io/normal/front/0/4/043718ea-59f6-4d1a-94c5-271704c1a38a.jpg?1783915061"
+ },
+ {
+  "bucket": "adventure",
+  "id": "068bc755-9d3d-430b-abc5-c775a5415bf9",
+  "name": "Ishgard, the Holy See // Faith & Grief",
+  "set": "fin",
+  "number": "283",
+  "image": "https://cards.scryfall.io/normal/front/0/6/068bc755-9d3d-430b-abc5-c775a5415bf9.jpg?1783906548"
+ },
+ {
+  "bucket": "adventure",
+  "id": "06bd1ad2-fb5d-4aef-87d1-13a341c686fa",
+  "name": "Flaxen Intruder // Welcome Home",
+  "set": "eld",
+  "number": "155",
+  "image": "https://cards.scryfall.io/normal/front/0/6/06bd1ad2-fb5d-4aef-87d1-13a341c686fa.jpg?1783932614"
  }
 ]

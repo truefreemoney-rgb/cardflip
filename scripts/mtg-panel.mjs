@@ -52,6 +52,11 @@ const BUCKETS = [
   ["double-faced / split", "name LIKE '% // %' AND type_line NOT LIKE 'Card%' AND set_code NOT IN ('plst','sld')", 10],
   ["art series", "type_line LIKE 'Card%' AND set_code LIKE 'a%'", 5],
   ["textless", "textless = 1", 5],
+  // 09-29 (Chris's own cards are 2025+): the current-year sets, Universes
+  // Beyond included, every treatment mixed; and adventure cards (two names
+  // on one face, single-faced).
+  ["2025+ sets", "set_release_date >= '2025-01-01' AND set_release_date <= '2025-12-31' AND promo_types = '' AND set_code NOT IN ('plst','sld') AND type_line NOT LIKE 'Card%' AND type_line NOT LIKE 'Token%'", 40],
+  ["adventure", "type_line LIKE '%Adventure%' AND set_code NOT IN ('plst','sld')", 8],
 ];
 
 function pickPanel() {

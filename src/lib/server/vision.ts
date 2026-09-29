@@ -168,18 +168,22 @@ export const MTG_READ_SCHEMA = {
   ...CARD_READ_SCHEMA,
   properties: {
     ...CARD_READ_SCHEMA.properties,
+    // 09-29: the API caps a schema at 16 nullable / union-typed fields; the
+    // base read already uses 15, so every Magic-only field below is a plain
+    // string or an enum with an explicit "unknown" value, never anyOf-null.
+    // normalizeMtgCues maps "" and "unknown" to null, so nothing downstream
+    // changes. Pinned by test:vision-schema.
     finish: {
-      anyOf: [{ type: "string", enum: ["nonfoil", "foil", "etched"] }, { type: "null" }],
+      type: "string",
+      enum: ["nonfoil", "foil", "etched", "unknown"],
       description:
-        "The card's finish, read from the surface. 'foil': a rainbow / metallic sheen runs across the WHOLE face — art, text box and border alike — and shifts with the light. 'etched': the frame linework and art glitter like metallic paint while the face itself is matte. 'nonfoil': flat printed card. A single bright glare spot is reflection, not foil. The small oval holographic stamp at the bottom of rares is a security stamp on foils AND nonfoils — it says nothing about finish. Null when the photo cannot settle it; never default to nonfoil.",
+        "The card's finish, read from the surface. 'foil': a rainbow / metallic sheen runs across the WHOLE face — art, text box and border alike — and shifts with the light. 'etched': the frame linework and art glitter like metallic paint while the face itself is matte. 'nonfoil': flat printed card. A single bright glare spot is reflection, not foil. The small oval holographic stamp at the bottom of rares is a security stamp on foils AND nonfoils — it says nothing about finish. 'unknown' when the photo cannot settle it; never default to nonfoil.",
     },
     treatment: {
-      anyOf: [
-        { type: "string", enum: ["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"] },
-        { type: "null" },
-      ],
+      type: "string",
+      enum: ["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless", "unknown"],
       description:
-        "The frame treatment. 'standard': the normal frame for its era, art in a window, black (or white) border. 'showcase': a set-specific decorative alternate frame (stylised borders, manga panels, scrolls, storybook, etc.). 'extended-art': normal frame but the art runs out to the card edges on the sides. 'borderless': art fills the whole card face with no frame around it. 'retro': the old 1990s-style frame (rounded inner bevel, old-style title bar) printed on a MODERN card that still carries a set code. 'full-art': a basic land or promo where the art fills the card and the text sits in a small strip. 'textless': no rules text. Null if unsure.",
+        "The frame treatment. 'standard': the normal frame for its era, art in a window, black (or white) border. 'showcase': a set-specific decorative alternate frame (stylised borders, manga panels, scrolls, storybook, etc.). 'extended-art': normal frame but the art runs out to the card edges on the sides. 'borderless': art fills the whole card face with no frame around it. 'retro': the old 1990s-style frame (rounded inner bevel, old-style title bar) printed on a MODERN card that still carries a set code. 'full-art': a basic land or promo where the art fills the card and the text sits in a small strip. 'textless': no rules text. 'unknown' if unsure.",
     },
     marks: {
       type: "array",
@@ -187,13 +191,20 @@ export const MTG_READ_SCHEMA = {
       description:
         "Small printed marks that change which printing this is. 'list-icon': a small WHITE planeswalker symbol (a five-pointed flame shape) printed inside the black border at the very bottom-left corner of the card, to the left of / below the copyright line — the card otherwise looks exactly like its original printing (The List reprint). Look at that corner deliberately. 'promo-stamp': a planeswalker-symbol stamp in the bottom of the text box / art (Promo Pack). 'date-stamp': a small rectangular stamp with a date near the set symbol (prerelease). 'serialized': a large printed serial like '045/500' on the face. Empty array when none.",
     },
-    artist: nullableString("The artist credit printed at the bottom-left (after the brush icon), exactly as printed. Null if unreadable."),
-    borderColor: {
-      anyOf: [{ type: "string", enum: ["black", "white", "silver", "gold", "borderless"] }, { type: "null" }],
-      description:
-        "The outer border colour. Modern cards are black; 1990s core sets and some 2000s cards are white; Un-sets are silver; a few promos gold; 'borderless' when the art runs to the edge with no border. Null if unsure.",
+    artist: {
+      type: "string",
+      description: "The artist credit printed at the bottom-left (after the brush icon), exactly as printed. An empty string if unreadable.",
     },
-    serialNumber: nullableString("The printed serial number when the card is serialized, e.g. '045/500'. Null otherwise."),
+    borderColor: {
+      type: "string",
+      enum: ["black", "white", "silver", "gold", "borderless", "unknown"],
+      description:
+        "The outer border colour. Modern cards are black; 1990s core sets and some 2000s cards are white; Un-sets are silver; a few promos gold; 'borderless' when the art runs to the edge with no border. 'unknown' if unsure.",
+    },
+    serialNumber: {
+      type: "string",
+      description: "The printed serial number when the card is serialized, e.g. '045/500'. An empty string otherwise.",
+    },
   },
   required: [...CARD_READ_SCHEMA.required, "finish", "treatment", "marks", "artist", "borderColor", "serialNumber"],
 } as const;
@@ -209,13 +220,18 @@ export const TCG_READ_SCHEMA = {
   ...CARD_READ_SCHEMA,
   properties: {
     ...CARD_READ_SCHEMA.properties,
-    subtitle: nullableString(
-      "Disney Lorcana only: the version line printed in smaller type directly under the character name (e.g. 'On Human Legs', 'Spectacular Singer'). Null for One Piece and when there is none.",
-    ),
-    variant: {
-      anyOf: [{ type: "string", enum: ["standard", "parallel", "enchanted", "alt-art", "manga", "box-topper", "full-art", "special"] }, { type: "null" }],
+    // Plain string / "unknown" enum for the same 16-union API cap as the
+    // Magic schema above; the parse maps "" and "unknown" to null.
+    subtitle: {
+      type: "string",
       description:
-        "The printing. 'standard': the normal card frame with the art in its box. Lorcana: 'enchanted' when the illustration fills the whole card with a shimmering border-to-border treatment and the number is above the set total (e.g. 205/204). One Piece: 'parallel' (alternate art) when the illustration extends past the usual art box or is a different picture from the normal print, 'manga' for a manga-panel style illustration, 'box-topper' for the box-topper stamp, 'full-art' for a borderless full-art print. Null if unsure.",
+        "Disney Lorcana only: the version line printed in smaller type directly under the character name (e.g. 'On Human Legs', 'Spectacular Singer'). An empty string for One Piece and when there is none.",
+    },
+    variant: {
+      type: "string",
+      enum: ["standard", "parallel", "enchanted", "alt-art", "manga", "box-topper", "full-art", "special", "unknown"],
+      description:
+        "The printing. 'standard': the normal card frame with the art in its box. Lorcana: 'enchanted' when the illustration fills the whole card with a shimmering border-to-border treatment and the number is above the set total (e.g. 205/204). One Piece: 'parallel' (alternate art) when the illustration extends past the usual art box or is a different picture from the normal print, 'manga' for a manga-panel style illustration, 'box-topper' for the box-topper stamp, 'full-art' for a borderless full-art print. 'unknown' if unsure.",
     },
   },
   required: [...CARD_READ_SCHEMA.required, "subtitle", "variant"],
@@ -233,9 +249,9 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sl
 
 export const SYSTEM_ONEPIECE = `You identify One Piece Card Game cards from photos for a seller who is about to list them.
 
-Read what is actually on the card. The lookup keys on the card id printed in the bottom-left corner — "OP01-077", "ST01-001", "EB01-005", "PRB01-002" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is null for this game.
+Read what is actually on the card. The lookup keys on the card id printed in the bottom-left corner — "OP01-077", "ST01-001", "EB01-005", "PRB01-002" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is an empty string for this game.
 
-Alternate-art printings share the same id and are told apart only by the picture: report variant "parallel" when the illustration extends beyond the normal art box or is clearly a different illustration from the standard print, "manga" for a manga-panel style illustration, "box-topper" when a box-topper stamp is present, "full-art" for a borderless full-art print, "standard" for the normal framed print. Null if unsure. The rarity letters near the id (C, UC, R, SR, SEC, L) are not the variant.
+Alternate-art printings share the same id and are told apart only by the picture: report variant "parallel" when the illustration extends beyond the normal art box or is clearly a different illustration from the standard print, "manga" for a manga-panel style illustration, "box-topper" when a box-topper stamp is present, "full-art" for a borderless full-art print, "standard" for the normal framed print. "unknown" if unsure. The rarity letters near the id (C, UC, R, SR, SEC, L) are not the variant.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;
 
