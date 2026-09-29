@@ -56,11 +56,13 @@ export default function HeroRelayout({ targetId }: { targetId: string }) {
       t1 = window.setTimeout(nudge, 50);
       t2 = window.setTimeout(nudge, 400);
     };
-    if (wantDiag) setDiag(measure().text);
+    // First readout on a timer, not synchronously in the effect (lint: set-state-in-effect).
+    const t0 = wantDiag ? window.setTimeout(() => setDiag(measure().text), 0) : 0;
     window.addEventListener("orientationchange", onChange);
     window.addEventListener("resize", onChange);
     window.visualViewport?.addEventListener("resize", onChange);
     return () => {
+      window.clearTimeout(t0);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.removeEventListener("orientationchange", onChange);
