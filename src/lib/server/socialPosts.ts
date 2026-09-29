@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { socialPulse, type SitePulse } from "./socialPulse.ts";
 import { autoReplyOn, commentsForPosts, orphanComments, countNew, type SocialComment } from "./socialInbox.ts";
+import { likeOwnPosts, type SelfLikeReport } from "./socialSelfLike.ts";
 import { postKey, SITE_ORDER, tally, type PostTotals, type StoredPost } from "@/lib/socialPosts";
 
 /**
@@ -32,6 +33,8 @@ export interface RefreshReport {
   sites: SiteRead[];
   /** Rows written (new or updated). */
   stored: number;
+  /** Our own likes on our own posts, per site (Bluesky, X, Facebook). */
+  likes: SelfLikeReport[];
 }
 
 /** Read every site live and store what came back. Never throws — a failing site keeps its old rows and records the error. */
@@ -68,7 +71,9 @@ export async function refreshSocialPosts(now = Date.now()): Promise<RefreshRepor
       sites.push({ site: s.site, label: s.label, connected: s.connected, error: s.connected ? s.error : null, posts: s.posts.length, readAt: now });
     }
   });
-  return { at: now, sites, stored };
+  // Like whatever of ours is not liked yet (backfill + retries). Never throws.
+  const likes = await likeOwnPosts(now).catch((err) => [{ site: "all", liked: 0, error: err instanceof Error ? err.message : String(err) }]);
+  return { at: now, sites, stored, likes };
 }
 
 export interface PostsQuery {

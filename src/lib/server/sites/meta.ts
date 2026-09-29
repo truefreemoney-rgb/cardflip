@@ -217,6 +217,17 @@ async function resolvePage(c: { pageId: string; token: string }): Promise<{ page
   return pageCache;
 }
 
+/**
+ * The Page likes one of its own posts (Chris 09-29, for the algorithm).
+ * Needs pages_manage_engagement on the Page token. A repeat is a no-op.
+ */
+export async function facebookLikeOwn(objectId: string): Promise<void> {
+  const creds = fbCreds();
+  if (!creds) throw new Error("facebook: not connected");
+  const c = await resolvePage(creds);
+  await graph(`${GRAPH}/${objectId}/likes`, { method: "POST", headers: FORM, body: form({ access_token: c.token }) }, "facebook like");
+}
+
 export const facebook: SocialSite = {
   id: "facebook",
   label: "Facebook",
@@ -236,6 +247,7 @@ export const facebook: SocialSite = {
         "facebook videos",
       );
       if (!j.id) throw new Error("facebook videos: no id in response");
+      await facebookLikeOwn(j.id).catch((err) => console.warn("facebook self-like failed", err instanceof Error ? err.message : err));
       return { uri: `https://www.facebook.com/${c.pageId}/videos/${j.id}` };
     }
     const fd = new FormData();
@@ -246,6 +258,7 @@ export const facebook: SocialSite = {
     const j = await graph<{ id?: string; post_id?: string }>(`${GRAPH}/${c.pageId}/photos`, { method: "POST", body: fd }, "facebook photos");
     const id = j.post_id ?? j.id;
     if (!id) throw new Error("facebook photos: no id in response");
+    await facebookLikeOwn(id).catch((err) => console.warn("facebook self-like failed", err instanceof Error ? err.message : err));
     return { uri: metaPostUrl("facebook", id) };
   },
 };

@@ -97,6 +97,27 @@ export function pdsHost(session: Session, fallback = PDS): string {
   }
 }
 
+/**
+ * Like one of our own posts (Chris 09-29: "like our own posts for algorithm
+ * sake"). Skips a post the account already likes, so a like Chris gave by
+ * hand is never doubled. True = liked now, false = already liked.
+ */
+export async function blueskyLikeOwn(atUri: string, session: Session, cid?: string): Promise<boolean> {
+  if (!cid) {
+    const got = await blueskyGet<{ posts?: Array<{ uri: string; cid: string; viewer?: { like?: string } }> }>("app.bsky.feed.getPosts", { uris: atUri }, session);
+    const post = got.posts?.[0];
+    if (!post) throw new Error(`bluesky getPosts: ${atUri} not found`);
+    if (post.viewer?.like) return false;
+    cid = post.cid;
+  }
+  await xrpc("com.atproto.repo.createRecord", {
+    repo: session.did,
+    collection: "app.bsky.feed.like",
+    record: { $type: "app.bsky.feed.like", subject: { uri: atUri, cid }, createdAt: new Date().toISOString() },
+  }, session.accessJwt);
+  return true;
+}
+
 async function uploadVideo(session: Session, p: NonNullable<SitePost["video"]>): Promise<unknown> {
   const aud = `did:web:${pdsHost(session)}`;
   const exp = Math.floor(Date.now() / 1000) + 30 * 60;
@@ -153,7 +174,7 @@ export const bluesky: SocialSite = {
           $type: "app.bsky.embed.images",
           images: [{ alt: p.alt, image: (await xrpc<{ blob: unknown }>("com.atproto.repo.uploadBlob", p.image, session.accessJwt, p.mime)).blob, aspectRatio: { width: p.width, height: p.height } }],
         };
-    const record = await xrpc<{ uri: string }>(
+    const record = await xrpc<{ uri: string; cid: string }>(
       "com.atproto.repo.createRecord",
       {
         repo: session.did,
@@ -168,6 +189,8 @@ export const bluesky: SocialSite = {
       },
       session.accessJwt,
     );
+    // Our own like, right away; best-effort, the inbox sweep retries misses.
+    await blueskyLikeOwn(record.uri, session, record.cid).catch((err) => console.warn("bluesky self-like failed", err instanceof Error ? err.message : err));
     const rkey = record.uri.split("/").pop();
     return { uri: `https://bsky.app/profile/${process.env.BLUESKY_HANDLE}/post/${rkey}` };
   },

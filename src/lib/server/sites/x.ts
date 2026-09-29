@@ -234,6 +234,22 @@ async function setAltText(c: XCreds, mediaId: string, alt: string): Promise<void
   }
 }
 
+let myId: string | null = null;
+
+/** Like one of our own posts (Chris 09-29, for the algorithm). X answers liked:true again on a repeat, so no check first. */
+export async function xLikeOwn(tweetId: string): Promise<void> {
+  const c = creds();
+  if (!c) throw new Error("x: not connected");
+  if (!myId) {
+    const me = await signedFetch(c, "GET", `${API}/2/users/me`, {});
+    if (!me.ok) await fail("users/me", me);
+    myId = ((await me.json()) as { data?: { id?: string } }).data?.id ?? null;
+    if (!myId) throw new Error("x users/me: no id");
+  }
+  const res = await signedFetch(c, "POST", `${API}/2/users/${myId}/likes`, { json: { tweet_id: tweetId } });
+  if (!res.ok) await fail("likes", res);
+}
+
 export const x: SocialSite = {
   id: "x",
   label: "X",
@@ -252,6 +268,8 @@ export const x: SocialSite = {
     if (!res.ok) await fail("tweets", res);
     const j = (await res.json()) as { data?: { id?: string } };
     if (!j.data?.id) throw new Error("x tweets: no id in response");
+    // Our own like, right away; best-effort, the inbox sweep retries misses.
+    await xLikeOwn(j.data.id).catch((err) => console.warn("x self-like failed", err instanceof Error ? err.message : err));
     const handle = process.env.X_HANDLE?.trim().replace(/^@/, "") || "i";
     return { uri: `https://x.com/${handle}/status/${j.data.id}` };
   },

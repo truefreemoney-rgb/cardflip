@@ -635,6 +635,14 @@ const SCHEMA = `
     posts INTEGER NOT NULL,
     read_at INTEGER NOT NULL
   );
+  -- Our own likes on our own posts (Chris 09-29, for the algorithm): one
+  -- row per post the sweep has liked, so a post is liked once, never again.
+  CREATE TABLE IF NOT EXISTS social_self_likes (
+    site TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (site, post_id)
+  );
 `;
 
 /**
