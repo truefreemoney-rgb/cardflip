@@ -20,6 +20,13 @@
 // variant), so those twins keep the TCGdex image and the refresh routes the
 // 1st Edition variants to the twin by id.
 //
+// 09-29 (Chris: Base Set Charizard showed a stamped photo): TCGdex and
+// pokemontcg.io scan the 1st Edition print for EVERY card of these sets, so
+// the plain (unlimited) card looked stamped. Base Set's plain cards take the
+// photo of TCGplayer's unlimited product (group 604, no stamp); Jungle through
+// Neo Destiny have no unstamped photo anywhere free (TCGplayer's shared
+// product photo is stamped too) and keep the scan for now.
+//
 // Also moves any 1st Edition price series already recorded under a base card
 // onto its twin, so history isn't lost. Idempotent; safe to re-run after
 // `npm run sync:en` (which only sweeps sets that vanished upstream).
@@ -40,9 +47,11 @@ if (prodFlag) {
   prod = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
 }
 
-/** TCGdex set name → TCGplayer group whose product photos are the 1st Edition print (Base Set only). */
+/** TCGdex set name → TCGplayer groups: the 1st Edition print's photos for the
+ * twin (shadowlessGroup) and the unstamped print's photos for the plain card
+ * (unlimitedGroup). Base Set only. */
 const SETS = {
-  "Base Set": { shadowlessGroup: 1663 },
+  "Base Set": { shadowlessGroup: 1663, unlimitedGroup: 604 },
   Jungle: {},
   Fossil: {},
   "Team Rocket": {},
@@ -94,6 +103,9 @@ const MOVE_SERIES = [
 const now = Date.now();
 const cardRows = [];
 const productRows = [];
+/** [image_url, id]: plain cards that get an unstamped photo. */
+const imageRows = [];
+const SET_IMAGE = "UPDATE en_cards SET image_url = ? WHERE id = ?";
 
 for (const [setName, opts] of Object.entries(SETS)) {
   const base = local
@@ -118,14 +130,30 @@ for (const [setName, opts] of Object.entries(SETS)) {
     }
   }
 
+  let unlimited = new Map();
+  if (opts.unlimitedGroup) {
+    const products = (await getJson(`https://tcgcsv.com/tcgplayer/3/${opts.unlimitedGroup}/products`)).results ?? [];
+    for (const p of products) {
+      const number = (p.extendedData ?? []).find((e) => e.name === "Number")?.value;
+      if (number && !unlimited.has(normNum(number))) unlimited.set(normNum(number), p);
+    }
+  }
+
   let withOwnImage = 0;
   for (const row of base) {
+    // The twin keeps the stamped scan; after a first run the plain row holds
+    // the TCGplayer photo, so rebuild the scan URL from the set and number.
+    const scan = row.image_url.includes("tcgplayer-cdn")
+      ? `https://assets.tcgdex.net/en/base/${row.set_id}/${row.local_id}/low.webp`
+      : row.image_url;
+    const plain = unlimited.get(normNum(row.local_id));
+    if (plain) imageRows.push([`https://tcgplayer-cdn.tcgplayer.com/product/${plain.productId}_in_1000x1000.jpg`, row.id]);
     // Base Set Machamp shipped stamped in every 2-Player Starter Set — the
     // stamp carries no premium there, so it gets no twin (lib/listing.ts
     // canBeFirstEdition carves it out the same way).
     if (setName === "Base Set" && row.name === "Machamp") continue;
     const twinId = `${row.id}-1st`;
-    let image = row.image_url;
+    let image = scan;
     const product = shadowless.get(normNum(row.local_id));
     if (product) {
       image = `https://tcgplayer-cdn.tcgplayer.com/product/${product.productId}_in_1000x1000.jpg`;
@@ -137,7 +165,7 @@ for (const [setName, opts] of Object.entries(SETS)) {
       image, row.set_card_count_official, row.set_card_count_total, row.set_code, now,
     ]);
   }
-  console.log(`${setName}: ${base.length} cards → twins${opts.shadowlessGroup ? ` (${withOwnImage} with shadowless photos)` : ""}`);
+  console.log(`${setName}: ${base.length} cards → twins${opts.shadowlessGroup ? ` (${withOwnImage} with shadowless photos)` : ""}${opts.unlimitedGroup ? `, ${unlimited.size} unstamped photos for the plain cards` : ""}`);
 }
 
 // Local
@@ -146,15 +174,18 @@ const upsertProduct = local.prepare(UPSERT_PRODUCT);
 local.exec("BEGIN");
 for (const r of cardRows) upsertCard.run(...r);
 for (const r of productRows) upsertProduct.run(...r);
+const setImage = local.prepare(SET_IMAGE);
+for (const r of imageRows) setImage.run(...r);
 for (const sql of MOVE_SERIES) local.exec(sql);
 local.exec("COMMIT");
-console.log(`local: ${cardRows.length} twin rows, ${productRows.length} shadowless products mapped`);
+console.log(`local: ${cardRows.length} twin rows, ${productRows.length} shadowless products mapped, ${imageRows.length} plain cards re-photographed`);
 
 // Prod
 if (prod) {
   const stmts = [
     ...cardRows.map((args) => ({ sql: UPSERT_CARD, args })),
     ...productRows.map((args) => ({ sql: UPSERT_PRODUCT, args })),
+    ...imageRows.map((args) => ({ sql: SET_IMAGE, args })),
   ];
   for (let i = 0; i < stmts.length; i += 200) {
     await prod.batch(stmts.slice(i, i + 200), "write");

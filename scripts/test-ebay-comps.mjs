@@ -45,6 +45,10 @@ for (const [title, want] of [
 const celebZard = { ...zard4, id: "cel25c-4_A", setName: "Celebrations: Classic Collection" };
 check("a Celebrations card still prices off Celebrations listings",
   isComparable("Charizard 4/102 Celebrations PSA 10", celebZard, psa10, null), true);
+check("'Classic Collection' in a Celebrations title is the set, not a lot",
+  isComparable("Charizard 4/102 Celebrations Classic Collection PSA 10", celebZard, psa10, null), true);
+check("a real collection is still a lot",
+  isComparable("Pokemon card collection Charizard 4/102 PSA 10 plus more", celebZard, psa10, null), false);
 
 console.log("\nAccepts genuine singles:");
 for (const title of [

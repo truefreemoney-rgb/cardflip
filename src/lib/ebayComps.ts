@@ -14,7 +14,10 @@ import type { EbayComps, EbayListing, PokemonCard } from "@/lib/types";
 /** Titles that aren't a single raw copy of the card being priced. */
 const REJECT_PATTERNS: RegExp[] = [
   // Bulk: one 50-card lot averaged against singles wrecks the number.
-  /\b(lot|lots|bundle|joblot|job lot|playset|collection|binder|bulk)\b/i,
+  /\b(lot|lots|bundle|joblot|job lot|playset|binder|bulk)\b/i,
+  // "collection" is a lot, except in set names: Legendary Collection,
+  // Celebrations Classic Collection (09-29).
+  /(?<!\b(classic|legendary)\s+)\bcollection\b/i,
   /\bset of\b/i,
   /\b\d{2,}\s*(cards?|pcs|pieces)\b/i,
   /\bx\s*\d{2,}\b/i,
