@@ -343,6 +343,27 @@ export async function sendErrorDigestEmail(to: string, total: number, groups: Er
   });
 }
 
+/** A site that used to post just failed (socialPublish.ts alertFailures, 09-29). */
+export async function sendSocialFailureEmail(to: string, failures: Array<{ label: string; error: string }>): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const adminUrl = `${site}/admin/social`;
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  const names = failures.map((f) => f.label).join(", ");
+  const text = [
+    `The social robot could not post to ${names}.`,
+    "",
+    ...failures.map((f) => `${f.label}: ${f.error.slice(0, 300)}`),
+    "",
+    `Details: ${adminUrl}`,
+  ].join("\n");
+  const html = `
+    <p>The social robot could not post to <strong>${esc(names)}</strong>.</p>
+    ${failures.map((f) => `<p><strong>${esc(f.label)}</strong><br><span style="color:#666;font-size:13px">${esc(f.error.slice(0, 300))}</span></p>`).join("")}
+    <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Social</a></p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: `CardFlip: Social Post Failed on ${names}`, text, html });
+}
+
 /* ---------------------------------------------------------------------------
  * Support tickets (supportTickets.ts, 09-26). Three mails: the working copy
  * to the support inbox, a receipt to the seller, and "closed" to the seller.

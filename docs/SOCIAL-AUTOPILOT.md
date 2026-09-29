@@ -186,8 +186,11 @@ needs a video. Order = easiest to connect first, then reach.
    picture is parked on the Vercel Blob store (BLOB_READ_WRITE_TOKEN) for
    the post and deleted after. THREADS LIVE 09-25 (@cardflipio; token pasted by Chris into Vercel;
    long-lived token expires after 60 days, refresh via
-   /refresh_access_token before 11-24). FACEBOOK LIVE 09-25 (Page 1314676718400499; META_PAGE_TOKEN is a
-   user token from the Explorer, swapped for the Page token at post time).
+   /refresh_access_token before 11-24). FACEBOOK LIVE 09-25 (Page 1314676718400499). 09-29: META_PAGE_TOKEN
+   is now a NEVER-EXPIRING PAGE token (debug_token expires_at 0) made from an extended user token via
+   /me/accounts; scopes include pages_manage_engagement (self-likes). The 09-28 re-paste was a 1-hour
+   user token and Facebook went dark for a day; alertFailures() now mails Chris when a site that used
+   to post fails.
    INSTAGRAM LIVE 09-25: INSTAGRAM_TOKEN from the "Instagram API with
    Instagram Login" use case (graph.instagram.com, /me, no Page needed;
    60-day token);

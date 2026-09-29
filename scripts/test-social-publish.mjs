@@ -262,5 +262,25 @@ check("empty caption still has a title", pin.pinterestFields("").title, "CardFli
 delete process.env.PINTEREST_APP_ID;
 delete process.env.PINTEREST_APP_SECRET;
 
+// --- failure alert (09-29: Facebook's token died and nobody heard for a day) ---
+{
+  const { alertFailures } = await import(at("lib/server/socialPublish.ts"));
+  const store = new Map([[`${LAST_POST_PREFIX}facebook`, "2026-09-28"]]);
+  const sent = [];
+  const deps = { get: async (k) => store.get(k) ?? null, set: async (k, v) => void store.set(k, v), send: async (f) => void sent.push(f) };
+  const rep = {
+    etDay: "2026-09-29",
+    sites: [
+      { site: "facebook", label: "Facebook", status: "failed", posts: [{ id: "a", title: "A", error: "Session has expired" }] },
+      { site: "pinterest", label: "Pinterest", status: "failed", posts: [{ id: "a", title: "A", error: "Trial access" }] },
+      { site: "x", label: "X", status: "posted", posts: [{ id: "a", title: "A", uri: "u" }] },
+    ],
+  };
+  check("alert: a site that used to post is mailed; never-posted Pinterest is not", await alertFailures(rep, deps), ["facebook"]);
+  check("alert: the mail carries the error", sent[0]?.[0]?.error, "Session has expired");
+  check("alert: once per site per day", await alertFailures(rep, deps), []);
+  check("alert: again the next day", await alertFailures({ ...rep, etDay: "2026-09-30" }, deps), ["facebook"]);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

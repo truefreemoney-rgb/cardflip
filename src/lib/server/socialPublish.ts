@@ -489,8 +489,45 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       if ((d.kind === "movers" || d.kind === "dips") && landedIds.has(d.id)) await markFeatured(d.game, d.kind, day, d.cardIds);
     }
     await noteOnBoard(report, now);
+    await alertFailures(report).catch((err) => console.warn("social: failure alert skipped", err instanceof Error ? err.message : err));
   }
   return report;
+}
+
+/**
+ * Email Chris the day a site that USED to post starts failing (09-29:
+ * Facebook's token died 09-28 and nobody noticed for a day; the board line
+ * is not an alert). A site that never posted (Pinterest on Trial access) is
+ * a known state, not news. One mail per site per Eastern day.
+ */
+export async function alertFailures(
+  report: PublishReport,
+  deps: {
+    get?: (k: string) => Promise<string | null>;
+    set?: (k: string, v: string) => Promise<void>;
+    send?: (failures: Array<{ label: string; error: string }>) => Promise<void>;
+  } = {},
+): Promise<string[]> {
+  const get = deps.get ?? getSetting;
+  const set = deps.set ?? setSetting;
+  const failures: Array<{ site: string; label: string; error: string }> = [];
+  for (const s of report.sites) {
+    if (s.status !== "failed") continue;
+    if (!(await get(`${LAST_POST_PREFIX}${s.site}`))) continue;
+    const key = `${SLOT_PREFIX}alerted:${s.site}`;
+    if ((await get(key)) === report.etDay) continue;
+    failures.push({ site: s.site, label: s.label, error: s.posts.find((p) => p.error)?.error ?? s.reason ?? "unknown error" });
+  }
+  if (failures.length === 0) return [];
+  if (deps.send) await deps.send(failures);
+  else {
+    const { isMailConfigured, sendSocialFailureEmail } = await import("@/lib/server/mail");
+    const { OWNER_EMAIL } = await import("@/lib/server/users");
+    if (!isMailConfigured()) return [];
+    await sendSocialFailureEmail(OWNER_EMAIL, failures);
+  }
+  for (const f of failures) await set(`${SLOT_PREFIX}alerted:${f.site}`, report.etDay);
+  return failures.map((f) => f.site);
 }
 
 /** One Completed line per run that posted or failed; silent when nothing happened. */
