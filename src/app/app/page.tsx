@@ -1479,7 +1479,7 @@ export default function AppPage() {
             </ol>
           </div>
           <GameToggle game={game} onChange={setGame} />
-          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} onSealed={() => setSealedOpen(true)} showcase={showcase} />
+          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} onSealed={() => setSealedOpen(true)} showcase={showcase} game={game} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —
               a card with no scan photo can only draft with catalog art eBay

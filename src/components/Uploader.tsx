@@ -4,6 +4,8 @@ import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import { formatMoney } from "@/lib/listing";
 import { useRef, useState } from "react";
+import { GAMES } from "@/lib/games";
+import type { GameId } from "@/lib/types";
 
 interface Props {
   onFiles: (files: File[]) => void;
@@ -22,6 +24,8 @@ interface Props {
   variant?: "hero" | "compact";
   /** Real, live-priced cards for the stage (from /api/cards/featured); empty = no card yet. */
   showcase?: ShowcaseCard[];
+  /** The game the scanner reads as — named on the Scan button (Chris 09-29: testers missed the switch). */
+  game?: GameId;
 }
 
 export interface ShowcaseCard {
@@ -34,7 +38,7 @@ export interface ShowcaseCard {
   lead?: boolean;
 }
 
-export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError, onSealed, variant = "hero", showcase = [] }: Props) {
+export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError, onSealed, variant = "hero", showcase = [], game }: Props) {
   // One card, still (Chris, 09-07: "just keep 1 card in the center, no need
   // to rotate images"), and not the Charizard: the card the server marked as
   // the stage lead (lib/server/stageCards.ts picks it — currently a full-art
@@ -281,7 +285,7 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
               data-tour="capture"
               className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
             >
-              Scan a Card
+              {game ? `Scan ${GAMES[game].label} Cards` : "Scan a Card"}
             </button>
           )}
           <button

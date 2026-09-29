@@ -466,7 +466,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
         ? pageNote ?? "Fill the guide with the whole page, then tap Capture"
         : identifying
           ? "Reading the last card — line up the next one"
-          : "Fill the guide, then tap Capture";
+          : game
+            ? `Scanning ${GAMES[game].label} cards — fill the guide, tap Capture`
+            : "Fill the guide, then tap Capture";
 
   return (
     <div
