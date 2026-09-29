@@ -122,7 +122,8 @@ test.describe("trial account", () => {
     await signup(page);
     await page.goto("/app");
     await dismissTour(page);
-    await page.getByRole("button", { name: /Scan a Card/i }).click();
+    // dd63f28 named the game on the button ("Scan Pokémon Cards", "Scan Magic Cards").
+    await page.getByRole("button", { name: /Scan (a Card|\S+ Cards)/i }).first().click();
     const dialog = page.getByRole("dialog", { name: "Camera scanner" });
     await expect(dialog).toBeVisible();
     // No camera → the error state. Its buttons used to render below the video,
