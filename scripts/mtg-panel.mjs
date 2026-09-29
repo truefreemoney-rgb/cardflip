@@ -99,6 +99,7 @@ if (opt("bucket")) panel = panel.filter((p) => p.bucket.toLowerCase().includes(o
 // stay out of the score. Chris 09-29: art cards on the backburner. Run them
 // on purpose with --bucket "art series".
 else panel = panel.filter((p) => p.bucket !== "art series");
+if (opt("id")) panel = panel.filter((p) => opt("id").split(",").includes(p.id));
 if (opt("limit")) panel = panel.slice(0, Number(opt("limit")));
 // --fresh re-reads the selected cards (keep the rest of the cache).
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};

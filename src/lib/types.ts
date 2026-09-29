@@ -85,7 +85,7 @@ export type MtgFinish = "nonfoil" | "foil" | "etched";
 /** MTG frame treatment as seen in the photo (Scryfall's own words where it has them). */
 export type MtgTreatment = "standard" | "showcase" | "extended-art" | "borderless" | "retro" | "full-art" | "textless";
 /** Small printed marks that change the printing: The List icon, promo-pack stamp, prerelease date stamp, a serial number. */
-export type MtgMark = "list-icon" | "promo-stamp" | "date-stamp" | "serialized";
+export type MtgMark = "list-icon" | "promo-stamp" | "date-stamp" | "serialized" | "embossed";
 export type MtgBorder = "black" | "white" | "silver" | "gold" | "borderless";
 
 /**

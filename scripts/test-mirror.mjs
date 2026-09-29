@@ -280,6 +280,19 @@ check("vision read the card, corner unchecked: original still first but the List
   isNearTie(await searchMtgCardsLocal("Pyretic Ritual", "153", "m11", 5, null, false, { marks: [], copyrightYear: 2010 })));
 check("corner checked and empty: no near-tie, the original stands",
   !isNearTie(await searchMtgCardsLocal("Pyretic Ritual", "153", "m11", 5, null, false, { marks: [], copyrightYear: 2010, listIconSeen: false })));
+// 09-29: the AFR ampersand promo prints "AFR 190" with a faint embossed "&";
+// Scryfall files it PAFR 190a. Seen = that row; unseen = picture tiebreak.
+for (const [id, code, num, promos] of [["afr-190", "afr", "190", ""], ["pafr-190a", "pafr", "190a", "embossed,instore"]]) {
+  await db.prepare(
+    `INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, price_usd, synced_at, frame, border_color, promo_types)
+     VALUES (?, 'Instrument of the Bards', ?, 'Adventures in the Forgotten Realms', ?, '2021-07-23', 1, 0, '2015', 'black', ?)`,
+  ).run(id, code, num, promos);
+}
+check("embossed ampersand seen: the PAFR 190a row wins on the printed AFR 190",
+  await mtgTopC("Instrument of the Bards", "190", "afr", { marks: ["embossed"] }), "pafr-190a");
+const bards = await searchMtgCardsLocal("Instrument of the Bards", "190", "afr", 5, null, false, { marks: [] });
+check("emboss not seen: the plain AFR 190 first, the ampersand twin a near-tie for the picture",
+  bards[0]?.id === "afr-190" && bards[1]?.id === "pafr-190a" && isNearTie(bards));
 check("no marks read at all leaves the plain printing on top",
   await mtgTopC("Pyretic Ritual", null, null, { finish: "foil" }), "m11-153");
 // 09-10 pre-1998 rules: a printed year rules out the no-year sets (Beta,
@@ -328,6 +341,7 @@ check("bevel cue never touches a black-border row",
 const { hasTwinPrinting } = await import(at("lib/server/mtgCards.ts"));
 check("twin lookup: a set+number The List reprinted", await hasTwinPrinting("m11", "153"), "list");
 check("twin lookup: a set+number with no look-alike", await hasTwinPrinting("dmu", "107"), null);
+check("twin lookup: an AFR number with an embossed ampersand promo", await hasTwinPrinting("afr", "190"), "embossed");
 
 check("finish is carried on the card, not used to rank",
   (await searchMtgCardsLocal("Sol Ring", null, "c21", 5, null, false, { finish: "foil" }))[0]?.finishes, ["nonfoil", "foil"]);

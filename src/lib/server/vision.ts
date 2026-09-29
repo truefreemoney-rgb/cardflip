@@ -187,9 +187,9 @@ export const MTG_READ_SCHEMA = {
     },
     marks: {
       type: "array",
-      items: { type: "string", enum: ["list-icon", "promo-stamp", "date-stamp", "serialized"] },
+      items: { type: "string", enum: ["list-icon", "promo-stamp", "date-stamp", "serialized", "embossed"] },
       description:
-        "Small printed marks that change which printing this is. 'list-icon': a small WHITE planeswalker symbol (a five-pointed flame shape) printed inside the black border at the very bottom-left corner of the card, to the left of / below the copyright line — the card otherwise looks exactly like its original printing (The List reprint). Look at that corner deliberately. 'promo-stamp': a planeswalker-symbol stamp in the bottom of the text box / art (Promo Pack). 'date-stamp': a small rectangular stamp with a date near the set symbol (prerelease). 'serialized': a large printed serial like '045/500' on the face. Empty array when none.",
+        "Small printed marks that change which printing this is. 'list-icon': a small WHITE planeswalker symbol (a five-pointed flame shape) printed inside the black border at the very bottom-left corner of the card, to the left of / below the copyright line — the card otherwise looks exactly like its original printing (The List reprint). Look at that corner deliberately. 'promo-stamp': a planeswalker-symbol stamp in the bottom of the text box / art (Promo Pack). 'date-stamp': a small rectangular stamp with a date near the set symbol (prerelease). 'serialized': a large printed serial like '045/500' on the face. 'embossed': a large faint raised/embossed symbol (e.g. the D&D ampersand '&') pressed across the whole card face, over art and text box alike — an in-store promo; not the small set symbol. Empty array when none.",
     },
     artist: {
       type: "string",
@@ -487,7 +487,7 @@ export async function analyzeCardImage(
 
 const MTG_FINISHES = new Set(["nonfoil", "foil", "etched"]);
 const MTG_TREATMENTS = new Set(["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"]);
-const MTG_MARKS = new Set(["list-icon", "promo-stamp", "date-stamp", "serialized"]);
+const MTG_MARKS = new Set(["list-icon", "promo-stamp", "date-stamp", "serialized", "embossed"]);
 const MTG_BORDERS = new Set(["black", "white", "silver", "gold", "borderless"]);
 
 /** Schema-constrained already; this only trims strings and drops anything
@@ -742,6 +742,10 @@ export const SECOND_LOOK_SCHEMA = {
       anyOf: [{ type: "boolean" }, { type: "null" }],
       description: "Magic only. true when a small rectangular foil date stamp (prerelease) is visible. Null if unsure.",
     },
+    embossed: {
+      type: "boolean",
+      description: "Magic only. true when a large faint raised / embossed symbol (e.g. the D&D ampersand '&') is pressed across the text box and art, not just the small set symbol. false otherwise.",
+    },
     serialNumber: nullableString("A printed serial like '045/500' if visible, else null."),
     artist: nullableString("The artist credit as printed ('Illus. Rob Alexander' → 'Rob Alexander'). Null if not visible."),
     borderColor: {
@@ -755,13 +759,13 @@ export const SECOND_LOOK_SCHEMA = {
     },
     confidence: { type: "number", description: "0 to 1, how sure you are of the number and year specifically." },
   },
-  required: ["name", "cardNumber", "setTotal", "setCode", "copyrightYear", "listIcon", "dateStamp", "serialNumber", "artist", "borderColor", "innerBevel", "confidence"],
+  required: ["name", "cardNumber", "setTotal", "setCode", "copyrightYear", "listIcon", "dateStamp", "embossed", "serialNumber", "artist", "borderColor", "innerBevel", "confidence"],
   additionalProperties: false,
 } as const;
 
 const SYSTEM_SECOND_LOOK = `This is an enlarged close-up of the BOTTOM part of one trading card (Pokémon or Magic: The Gathering). Read only what is printed here, exactly as printed, and return null for anything you cannot actually see in this crop. Do not guess from memory of the card.
 
-What lives here: the collector number and its denominator or expansion code in the bottom corner; the copyright line and its last year; the artist credit; on Art Series cards the card's name in small type; on The List reprints a small white planeswalker symbol at the far bottom-left inside the black border; on prerelease cards a small rectangular foil date stamp; on serialized cards a printed serial like 045/500. The outer edge of the card, if visible, is black or white; on a white-bordered 1990s Magic card look at where the white border meets the coloured frame — Unlimited Edition has a thin dark bevelled line there, Revised and 4th Edition meet flat.`;
+What lives here: the collector number and its denominator or expansion code in the bottom corner; the copyright line and its last year; the artist credit; on Art Series cards the card's name in small type; on The List reprints a small white planeswalker symbol at the far bottom-left inside the black border; on prerelease cards a small rectangular foil date stamp; on in-store promos a large faint embossed symbol (the D&D ampersand '&') pressed across the text box; on serialized cards a printed serial like 045/500. The outer edge of the card, if visible, is black or white; on a white-bordered 1990s Magic card look at where the white border meets the coloured frame — Unlimited Edition has a thin dark bevelled line there, Revised and 4th Edition meet flat.`;
 
 type SecondLookRead = {
   name: string | null;
@@ -771,6 +775,7 @@ type SecondLookRead = {
   copyrightYear: number | null;
   listIcon: boolean | null;
   dateStamp: boolean | null;
+  embossed?: boolean;
   serialNumber: string | null;
   artist: string | null;
   borderColor: string | null;
@@ -877,6 +882,7 @@ export function mergeSecondLook(first: VisionCardRead, second: SecondLookRead, r
     const marks = new Set(first.marks ?? []);
     if (second.listIcon === true) marks.add("list-icon");
     if (second.dateStamp === true) marks.add("date-stamp");
+    if (second.embossed === true) marks.add("embossed");
     const serial = second.serialNumber?.trim() || null;
     if (serial) {
       marks.add("serialized");

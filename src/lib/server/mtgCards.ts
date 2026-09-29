@@ -209,6 +209,7 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
     "promo-stamp": promos.includes("promopack") || /\dp$/.test(number),
     "date-stamp": promos.includes("prerelease") || promos.includes("datestamped") || /\ds$/.test(number),
     serialized: promos.includes("serialized"),
+    embossed: promos.includes("embossed"),
   } as const;
   for (const [mark, rowHas] of Object.entries(rowMarks)) {
     const seen = marks.has(mark as MtgMark);
@@ -218,7 +219,9 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
     if (!seen && rowHas && (known || mark === "list-icon") && (cues.marks !== undefined)) {
       // A List row with the corner unchecked / unsure costs one (a near-tie
       // for the picture tiebreak); with the corner seen empty it costs three.
-      p += mark === "list-icon" && cues.listIconSeen !== false ? 1 : 3;
+      // A faint emboss across the face is easy to miss on a photo: one, so
+      // the picture tiebreak (which sees both images) decides.
+      p += (mark === "list-icon" && cues.listIconSeen !== false) || mark === "embossed" ? 1 : 3;
     }
   }
 
@@ -453,12 +456,22 @@ export async function searchMtgCardsLocal(
     const stampTwin =
       Boolean(stampSuffix) && wantedNumber !== null && stampSuffix!.test(row.collector_number) &&
       (wantedCode === null || rawCode === wantedCode || rawCode === `p${wantedCode}`);
-    const rowCode = listTwin || (stampTwin && wantedCode) ? wantedCode! : rawCode;
+    // The AFR "ampersand" in-store promo prints AFR 190 with a faint D&D "&"
+    // pressed across the face; Scryfall files it as PAFR 190a (09-29). Like a
+    // List twin it rides the printed key whether or not the emboss was seen —
+    // unseen, cuePenalty puts it one behind, and the picture tiebreak decides.
+    const embossTwin =
+      !stampTwin && wantedNumber !== null && wantedCode !== null && cues?.marks !== undefined &&
+      rawCode === `p${wantedCode}` && /a$/.test(row.collector_number) &&
+      (row.promo_types ?? "").split(",").includes("embossed");
+    const rowCode = listTwin || ((stampTwin || embossTwin) && wantedCode) ? wantedCode! : rawCode;
     const rowNumber = listTwin
       ? row.collector_number.slice(row.collector_number.indexOf("-") + 1)
       : stampTwin
         ? row.collector_number.replace(stampSuffix!, "")
-        : row.collector_number;
+        : embossTwin
+          ? row.collector_number.slice(0, -1)
+          : row.collector_number;
     const frontFace = rowName.split(" // ")[0];
     const flavor = (row.flavor_name ?? "").toLowerCase().replace(/,/g, "");
     const exactName = needle !== "" && (rowName === needle || frontFace === needle || (flavor !== "" && flavor === needle));
@@ -562,7 +575,7 @@ export async function hasListTwin(setCode: string, number: string): Promise<bool
  * prerelease date stamp ("<n>s" in P<SET>), a promo-pack stamp ("<n>p"), or
  * a serialized copy ("<n>z"). The scan's second look fires on these.
  */
-export async function hasTwinPrinting(setCode: string, number: string): Promise<"list" | "prerelease" | "promo" | "serialized" | null> {
+export async function hasTwinPrinting(setCode: string, number: string): Promise<"list" | "prerelease" | "promo" | "serialized" | "embossed" | null> {
   const code = setCode.toLowerCase();
   try {
     const rows = (await db
@@ -570,14 +583,16 @@ export async function hasTwinPrinting(setCode: string, number: string): Promise<
         `SELECT set_code, collector_number FROM mtg_cards
           WHERE (set_code = 'plst' AND collector_number = ?)
              OR (set_code IN (?, ?) AND collector_number IN (?, ?, ?))
+             OR (set_code = ? AND collector_number = ? AND ',' || promo_types || ',' LIKE '%,embossed,%')
           LIMIT 4`,
       )
-      .all(`${setCode.toUpperCase()}-${number}`, code, `p${code}`, `${number}s`, `${number}p`, `${number}z`)) as unknown as Array<{ set_code: string; collector_number: string }>;
+      .all(`${setCode.toUpperCase()}-${number}`, code, `p${code}`, `${number}s`, `${number}p`, `${number}z`, `p${code}`, `${number}a`)) as unknown as Array<{ set_code: string; collector_number: string }>;
     for (const r of rows) {
       if (r.set_code === "plst") return "list";
       if (r.collector_number.endsWith("s")) return "prerelease";
       if (r.collector_number.endsWith("p")) return "promo";
       if (r.collector_number.endsWith("z")) return "serialized";
+      if (r.collector_number.endsWith("a")) return "embossed";
     }
     return null;
   } catch {

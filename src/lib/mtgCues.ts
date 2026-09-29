@@ -9,7 +9,7 @@ import type { MtgBorder, MtgCues, MtgFinish, MtgMark, MtgTreatment, VisionCardRe
 
 const FINISHES = new Set<string>(["nonfoil", "foil", "etched"]);
 const TREATMENTS = new Set<string>(["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"]);
-const MARKS = new Set<string>(["list-icon", "promo-stamp", "date-stamp", "serialized"]);
+const MARKS = new Set<string>(["list-icon", "promo-stamp", "date-stamp", "serialized", "embossed"]);
 const BORDERS = new Set<string>(["black", "white", "silver", "gold", "borderless"]);
 
 /** What the vision read carries, as cues. Null when it read none of them. */
