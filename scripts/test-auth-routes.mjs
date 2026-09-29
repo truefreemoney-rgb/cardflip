@@ -73,6 +73,20 @@ const signupToken = sessionCookie(created);
 check("signup: session cookie is live", Boolean(signupToken && await getSessionUserId(signupToken)));
 check("signup: duplicate email → 409", (await signup.POST(post({ name: "B", email: "SAM@example.com", password: "123456" }))).status, 409);
 
+// --- one account per IP / device, no throwaway inboxes (Chris 09-29) ------------
+check("signup: mailinator refused", (await signup.POST(post({ name: "P", email: "probex@mailinator.com", password: "123456" }))).status, 400);
+check("signup: throwaway subdomain refused", (await signup.POST(post({ name: "P", email: "p@x.yopmail.com", password: "123456" }))).status, 400);
+check("signup: gmail allowed", (await signup.POST(post({ name: "G", email: "someone@gmail.com", password: "123456" }))).status, 201);
+const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com", password: "123456" }, "203.0.113.7"));
+check("signup: first on an IP → 201", firstOnIp.status, 201);
+const device = firstOnIp.cookies.get("cf_dev")?.value;
+check("signup: sets the device cookie", Boolean(device));
+check("signup: second on the same IP → 403", (await signup.POST(post({ name: "Two", email: "two@example.com", password: "123456" }, "203.0.113.7"))).status, 403);
+const sameDevice = post({ name: "Three", email: "three@example.com", password: "123456" }, "198.51.100.9");
+sameDevice.headers.set("cookie", `cf_dev=${device}`);
+check("signup: same device on a new IP → 403", (await signup.POST(sameDevice)).status, 403);
+check("signup: refused ones made no account", Boolean(await db.prepare("SELECT 1 FROM users WHERE email IN ('two@example.com','three@example.com')").get()), false);
+
 // --- login ------------------------------------------------------------------
 const unknown = await login.POST(post({ email: "ghost@example.com", password: "hunter22" }));
 const wrongPw = await login.POST(post({ email: "sam@example.com", password: "wrong-pw" }));

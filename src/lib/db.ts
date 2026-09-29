@@ -648,6 +648,17 @@ const SCHEMA = `
     at INTEGER NOT NULL,
     PRIMARY KEY (site, post_id)
   );
+  -- Throwaway-account guard (Chris 09-29, lib/server/signupGuard.ts): one row
+  -- per public signup. ip_hash is a salted sha256, never the raw IP;
+  -- device_id is the cf_dev cookie. One signup per ip_hash and per device.
+  CREATE TABLE IF NOT EXISTS signup_log (
+    user_id TEXT PRIMARY KEY,
+    ip_hash TEXT,
+    device_id TEXT NOT NULL,
+    at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_signup_log_ip ON signup_log (ip_hash);
+  CREATE INDEX IF NOT EXISTS idx_signup_log_device ON signup_log (device_id);
 `;
 
 /**

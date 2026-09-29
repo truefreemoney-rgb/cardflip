@@ -5,6 +5,17 @@ import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
+import {
+  DEVICE_COOKIE,
+  DEVICE_COOKIE_MAX_AGE,
+  ONE_ACCOUNT_ERROR,
+  deviceIdFrom,
+  hashIp,
+  isDisposableEmail,
+  newDeviceId,
+  recordSignup,
+  signupBlocked,
+} from "@/lib/server/signupGuard";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -32,6 +43,10 @@ export async function POST(req: Request) {
     );
   }
 
+  if (isDisposableEmail(email)) {
+    return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });
+  }
+
   if (await findUserByEmail(email)) {
     return NextResponse.json(
       { error: "An account with that email already exists." },
@@ -39,7 +54,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // One account per IP and per device (Chris 09-29).
+  const ipHash = hashIp(clientIp(req));
+  const knownDevice = deviceIdFrom(req);
+  const deviceId = knownDevice ?? newDeviceId();
+  if (await signupBlocked(ipHash, knownDevice)) {
+    return NextResponse.json({ error: ONE_ACCOUNT_ERROR }, { status: 403 });
+  }
+
   const user = await createUser(name, email, password);
+  await recordSignup(user.id, ipHash, deviceId);
   // Invite a friend: ?ref=CODE captured on the landing page rides along.
   // Best effort — a bad or stale code never blocks the signup.
   if (typeof body?.ref === "string" && body.ref) await attachReferral(user.id, body.ref).catch(() => {});
@@ -56,5 +80,12 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+  res.cookies.set(DEVICE_COOKIE, deviceId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: DEVICE_COOKIE_MAX_AGE,
+  });
   return res;
 }
