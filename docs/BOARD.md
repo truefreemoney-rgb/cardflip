@@ -98,6 +98,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
 
+- [x] 09-28 Landing hero iOS rotation bug (hero stuck wide after landscape→portrait): HeroRelayout safety net, plain glow, no overflow clip, ?diag=1 readout — Chris: fixed.
 - [x] 09-28 Landing hero on phones/tablets: copy stays centered until the two-column layout (640-1023px was lopsided); phone glow is a masked gradient instead of a blurred layer, so iOS no longer cuts it in a hard line above How it works.
 - [x] 09-28 SOCIAL GUARD RAILS (Chris: "do them all"): every robot reply passes a pre-send check (no prices we did not post, no promises, no outside links, no exclamation marks), caps of 10 a day / 1 per person a day / 2 per thread, comments older than 2 days are never answered, Undo on every robot reply takes it down on the platform, repeat spammers are blocked where the platform allows, and the board gets one social line per day instead of one per sweep.
 - [x] 09-28 SOCIAL AUTO-REPLY (Chris: "you should be able to manage and submit yourself"): the robot now answers questions and anything naming CardFlip on its own, praise about one time in four (dry, a little playful), says nothing to plain remarks, and holds heated ones (refund, scam, fake) for Chris with a Needs You tag. Auto-Reply On/Off switch on /admin/social/posts; Off = every reply waits for Send.
