@@ -206,6 +206,7 @@ function sameCard(c, p) {
 }
 
 const misses = [];
+const printMisses = [];
 const byBucket = new Map();
 let cardHit = 0, printHit = 0, n = 0, tiebreaks = 0;
 for (const p of batch) {
@@ -235,6 +236,7 @@ for (const p of batch) {
   n++;
   if (hit) cardHit++;
   if (top?.id === p.want) printHit++;
+  else if (hit) printMisses.push(`${p.name}${p.subtitle ? " - " + p.subtitle : ""}: listing says ${p.wantVariant || "base"} ${p.want}, we picked ${top?.variant || "base"} ${top?.id} [${top?.setCode}]  title: ${p.title}  ${p.listing}`);
   const tally = byBucket.get(p.bucket) ?? { hit: 0, n: 0 };
   tally.n++; if (hit) tally.hit++;
   byBucket.set(p.bucket, tally);
@@ -256,6 +258,7 @@ console.log("\nbucket     card / n");
 for (const [b, t] of byBucket) console.log(`${b.padEnd(10)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
 console.log(`\n${game} seller photos: right card first: ${cardHit}/${n} = ${pct(cardHit)}%  (target ≥ 90%)   exact printing: ${printHit}/${n} = ${pct(printHit)}% (title labels are loose — not the gate)`);
 if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak)`);
+for (const m of printMisses) console.log(`~ printing differs: ${m}`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}\n  ${m.listing}`);
 }
