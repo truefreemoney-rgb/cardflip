@@ -615,7 +615,16 @@ async function firstLook(
       effort: "low",
       format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : CARD_READ_SCHEMA },
     },
-    system: game === "mtg" ? SYSTEM_MTG : game === "lorcana" ? SYSTEM_LORCANA : game === "onepiece" ? SYSTEM_ONEPIECE : SYSTEM,
+    // Cached (09-29): the per-game instructions are the same on every scan,
+    // so a stack of cards pays ~10% for them after the first (5-minute cache;
+    // Sonnet 5 caches 1,024+ tokens, shorter prompts just don't cache).
+    system: [
+      {
+        type: "text",
+        text: game === "mtg" ? SYSTEM_MTG : game === "lorcana" ? SYSTEM_LORCANA : game === "onepiece" ? SYSTEM_ONEPIECE : SYSTEM,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",

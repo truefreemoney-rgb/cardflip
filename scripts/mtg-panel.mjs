@@ -95,6 +95,10 @@ function pickPanel() {
 
 let panel = flag("pick") || !fs.existsSync(PANEL_PATH) ? pickPanel() : JSON.parse(fs.readFileSync(PANEL_PATH, "utf8"));
 if (opt("bucket")) panel = panel.filter((p) => p.bucket.toLowerCase().includes(opt("bucket").toLowerCase()));
+// Art cards are refused at the scan (ART_CARDS_LOCKED, app/page.tsx), so they
+// stay out of the score. Chris 09-29: art cards on the backburner. Run them
+// on purpose with --bucket "art series".
+else panel = panel.filter((p) => p.bucket !== "art series");
 if (opt("limit")) panel = panel.slice(0, Number(opt("limit")));
 // --fresh re-reads the selected cards (keep the rest of the cache).
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
