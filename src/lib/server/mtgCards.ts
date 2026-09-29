@@ -200,6 +200,8 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
   // Printed marks ↔ promo types / The List. A seen mark that the row lacks
   // and a row that carries a mark the scan didn't see both cost.
   const marks = new Set(cues.marks ?? []);
+  // Date stamp wins over a promo stamp read on the same card (see stampSuffix).
+  if (marks.has("date-stamp")) marks.delete("promo-stamp");
   const isList = row.set_code.toLowerCase() === "plst";
   const number = row.collector_number.toLowerCase();
   const rowMarks = {
@@ -430,16 +432,21 @@ export async function searchMtgCardsLocal(
   // the photo, that suffixed row is the printed key — without this the base
   // printing won every one of the 21 stamped cards on the phase 2 panel.
   const marks = new Set(cues?.marks ?? []);
-  const stampSuffix = marks.has("promo-stamp") ? /p$/ : marks.has("date-stamp") ? /[s★]$/ : marks.has("serialized") ? /z$/ : null;
+  // A printed date is decisive: prerelease, even when the reader also calls
+  // the set-symbol stamp a promo stamp (09-29: Blessing of Frost 161s → 161p).
+  const stampSuffix = marks.has("date-stamp") ? /[s★]$/ : marks.has("promo-stamp") ? /p$/ : marks.has("serialized") ? /z$/ : null;
   const score = (row: MtgCardRow): number => {
     const rowName = row.name.toLowerCase().replace(/,/g, "");
     // A List row's "M11-153" is the original's code + number; with the icon
     // in the photo, that IS the printed key.
     // (Vision sometimes reports the List's own code, "PLST", with the bare
     // original number — then any PLST row ending in that number is the key.)
+    // With the icon SEEN, a misread code still finds its List row by number
+    // (09-29: Enlarge read "MB1 170" with the icon; the row is PLST M14-170).
     const listTwin = (listSeen || listMaybe) && row.set_code.toLowerCase() === "plst" && wantedCode
-      ? wantedCode === "plst"
-        ? wantedNumber !== null && row.collector_number.toLowerCase().endsWith(`-${wantedNumber}`)
+      ? wantedCode === "plst" || listSeen
+        ? (wantedCode !== "plst" && row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)) ||
+          (wantedNumber !== null && row.collector_number.toLowerCase().endsWith(`-${wantedNumber}`))
         : row.collector_number.toLowerCase().startsWith(`${wantedCode}-`)
       : false;
     const rawCode = row.set_code.toLowerCase();

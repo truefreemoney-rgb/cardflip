@@ -272,6 +272,8 @@ check("The List icon lifts the PLST printing over the plain one",
   await mtgTopC("Pyretic Ritual", null, null, { marks: ["list-icon"] }), "plst-m11-153");
 check("The List icon + the ORIGINAL's printed code and number lands on the PLST row",
   await mtgTopC("Pyretic Ritual", "153", "m11", { marks: ["list-icon"], copyrightYear: 2010 }), "plst-m11-153");
+check("The List icon seen + a MISREAD code: the PLST row is still found by number (09-29 Enlarge MB1 170)",
+  await mtgTopC("Pyretic Ritual", "153", "mb1", { marks: ["list-icon"], copyrightYear: 2010 }), "plst-m11-153");
 check("without the icon, the original's code and number stay on the original",
   await mtgTopC("Pyretic Ritual", "153", "m11", { copyrightYear: 2010 }), "m11-153");
 check("vision read the card, corner unchecked: original still first but the List twin is a near-tie for the picture",

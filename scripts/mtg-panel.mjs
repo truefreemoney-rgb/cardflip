@@ -186,6 +186,15 @@ for (const p of panel) {
     hit = true;
     catalogLimited++;
   }
+  // Same for The List: most of Scryfall's PLST scans are the original card's
+  // scan with no List icon (09-29: 8 of 9 PLST misses read no icon). The
+  // original printing is the right answer for that picture. It is still a
+  // miss when the icon WAS read and the original won anyway.
+  if (!hit && top && p.set.toLowerCase() === "plst" && !(read.marks ?? []).includes("list-icon") && top.name === p.name &&
+      `${(top.setCode ?? "").toUpperCase()}-${top.number}` === p.number.toUpperCase()) {
+    hit = true;
+    catalogLimited++;
+  }
   const tally = byBucket.get(p.bucket) ?? { hit: 0, n: 0 };
   tally.n++;
   if (hit) tally.hit++;
@@ -211,7 +220,7 @@ for (const [bucket, t] of byBucket) {
   console.log(`${bucket.padEnd(26)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
 }
 console.log(`\nexact printing: ${hit}/${total} = ${total ? ((hit / total) * 100).toFixed(1) : 0}%  (target ≥ 98%)`);
-if (catalogLimited) console.log(`(${catalogLimited} stamped / serialized twins whose Scryfall scan shows no stamp — counted as hits on the base printing)`);
+if (catalogLimited) console.log(`(${catalogLimited} stamped / serialized / List twins whose Scryfall scan shows no stamp or icon — counted as hits on the base printing)`);
 if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
