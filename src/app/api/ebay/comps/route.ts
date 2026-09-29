@@ -9,7 +9,7 @@ import {
   isEbayConfigured,
 } from "@/lib/server/ebay";
 import type { PokemonCard } from "@/lib/types";
-import { canBeFirstEdition } from "@/lib/listing";
+import { canBeFirstEdition, isFirstEditionCard } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
 import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
@@ -43,8 +43,16 @@ export async function POST(req: Request) {
     // seller at eBay even when we have no credentials to price against.
     // 1st Edition is a separate market (Chris, 09-04): only meaningful for
     // sets that had a 1st Edition run; elsewhere the flag is ignored.
-    const firstEdition =
-      typeof body?.firstEdition === "boolean" && canBeFirstEdition(card) ? (body.firstEdition as boolean) : null;
+    // The twin card IS the stamped copy; the plain card of a set that had a
+    // run is the unstamped one unless the seller ticked the stamp — a 1st
+    // Edition slab must never land in the plain card's graded curve (09-29).
+    const firstEdition = !canBeFirstEdition(card)
+      ? null
+      : isFirstEditionCard(card)
+        ? true
+        : typeof body?.firstEdition === "boolean"
+          ? (body.firstEdition as boolean)
+          : false;
 
     const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true });
     const soldSearchUrl = ebaySoldSearchUrl(card, { firstEdition: firstEdition === true });
@@ -75,7 +83,18 @@ export async function POST(req: Request) {
     ]);
 
     if (activeResult.status === "rejected") throw activeResult.reason;
-    const { comps, cached } = activeResult.value;
+    const { cached } = activeResult.value;
+    let { comps } = activeResult.value;
+
+    // A slab never sells below a raw copy of the same card. When the graded
+    // average does, the comps are another printing (09-29: Celebrations
+    // "4/102" slabs priced Base Set Charizard PSA 10 at $629 vs $944 raw) —
+    // no price beats a wrong one, and it never enters the history.
+    const rawMarket = Math.max(0, ...(card.prices ?? []).filter((p) => p.currency === "USD").map((p) => p.market ?? 0));
+    if (grading && comps && rawMarket > 0 && comps.average < rawMarket) {
+      console.warn(`graded comps below raw for ${card.id}: ${grading.company} ${grading.grade} ${comps.average} < ${rawMarket}`);
+      comps = null;
+    }
 
     // Graded lookups are the only graded price signal anywhere — bank each
     // one as a history point (variant "graded-psa-10" style) so cards people

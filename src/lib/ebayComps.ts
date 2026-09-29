@@ -59,6 +59,21 @@ function hasForeignVariantSuffix(lowerTitle: string, lowerName: string): boolean
   return false;
 }
 
+/** Pokémon printings that reuse a classic card's name and number, keyed by
+ * the word that names them in the card's own set (so a Celebrations card
+ * still prices off Celebrations listings). Shadowless is its own market;
+ * Japanese copies are another language entirely. */
+const OTHER_PRINTINGS: Array<[string, RegExp]> = [
+  ["celebrations", /\bcelebrations?\b/i],
+  ["classic collection", /\bclassic\s+collection\b/i],
+  ["25th", /\b25th\b/i],
+  ["base set 2", /\bbase\s*set\s*2\b/i],
+  ["legendary collection", /\blegendary\s+collection\b/i],
+  ["evolutions", /\bevolutions\b/i],
+  ["shadowless", /\bshadowless\b/i],
+  ["japanese", /\b(japanese|japan|jpn)\b/i],
+];
+
 /** "1st Edition", "1st Ed", "First Edition" in a listing title. */
 const FIRST_EDITION_TITLE = /\b(1st|first)[\s-]*(edition|ed)\b/i;
 
@@ -123,6 +138,16 @@ export function isComparable(
   // different card, whatever the number says.
   if (card.game !== "mtg" && hasForeignVariantSuffix(lower, nameToMatch)) {
     return false;
+  }
+
+  // Same name AND same number, different printing (09-29: Base Set Charizard
+  // PSA 10 averaged $629 — the Celebrations "4/102" reprint slabs outnumbered
+  // the real $10k+ ones and the outlier fence then trimmed the real ones).
+  if (card.game !== "mtg") {
+    const ownSet = card.setName.toLowerCase();
+    for (const [word, re] of OTHER_PRINTINGS) {
+      if (re.test(title) && !ownSet.includes(word)) return false;
+    }
   }
 
   // The collector number is the strongest same-card signal available, so

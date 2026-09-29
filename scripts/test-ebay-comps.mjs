@@ -30,6 +30,22 @@ function check(label, actual, expected) {
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}${ok ? "" : ` (got ${actual}, expected ${expected})`}`);
 }
 
+// 09-29: Base Set Charizard PSA 10 averaged $629 off Celebrations slabs.
+console.log("\nOther printings with the same name and number (09-29):");
+const zard4 = { ...card, id: "base1-4", name: "Charizard", setName: "Base Set", number: "4", setTotal: 102, rarity: "Rare Holo" };
+const psa10 = { company: "PSA", grade: "10" };
+for (const [title, want] of [
+  ["1999 Pokemon Base Set Charizard 4/102 Holo Rare PSA 10 Gem Mint", true],
+  ["Charizard 4/102 Celebrations Classic Collection PSA 10", false],
+  ["Pokemon 25th Anniversary Charizard #4 PSA 10 GEM MINT", false],
+  ["Charizard 4/102 Shadowless Base Set PSA 10", false],
+  ["Charizard Japanese Base Set No. 006 #4 PSA 10", false],
+  ["Charizard 4 Base Set 2 Holo PSA 10", false],
+]) check(title, isComparable(title, zard4, psa10, false), want);
+const celebZard = { ...zard4, id: "cel25c-4_A", setName: "Celebrations: Classic Collection" };
+check("a Celebrations card still prices off Celebrations listings",
+  isComparable("Charizard 4/102 Celebrations PSA 10", celebZard, psa10, null), true);
+
 console.log("\nAccepts genuine singles:");
 for (const title of [
   "Pokemon Charizard ex 199/165 151 Special Illustration Rare SIR NM",
