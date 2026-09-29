@@ -1,5 +1,8 @@
 "use client";
 
+import GameToggle from "@/components/GameToggle";
+import { GAMES } from "@/lib/games";
+import type { GameId } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,6 +29,10 @@ import {
 } from "@/lib/sharpness";
 
 interface Props {
+  /** Which game the next shot is read as — named on the Capture button (09-29). */
+  game?: GameId;
+  /** Switch games without leaving the camera. */
+  onGameChange?: (game: GameId) => void;
   /**
    * The queue item created by this modal's most recent capture. The scan runs
    * in the page's pump loop, not here — threading the item back in is what
@@ -141,7 +148,7 @@ function guideInVideo(video: HTMLVideoElement, mode: CaptureMode = "card"): Guid
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ lastScan, tally, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, tally, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // Card (one card fills the guide) or Page (a binder page; one shot, every
@@ -695,6 +702,15 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
           )}
         </div>
 
+        {/* Which game the shot is read as (Chris 09-29: beta testers scanned
+            Magic with the switch on Pokémon). The scanner also switches by
+            itself when the card is another game; this row says it up front. */}
+        {game && onGameChange && (
+          <div className="flex shrink-0 justify-center px-3 pb-2 sm:px-0 sm:pb-0">
+            <GameToggle game={game} onChange={onGameChange} compact />
+          </div>
+        )}
+
         {/* Card / Page: which guide the shot fills. Its own row so the two
             targets never share a thumb with Capture. */}
         {onCapturePage && (
@@ -730,7 +746,7 @@ export default function CameraCapture({ lastScan, tally, onCapture, onCapturePag
             disabled={!ready || (mode === "page" && Boolean(pageNote))}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
           >
-            {mode === "page" ? "Capture Page" : "Capture Card"}
+            {mode === "page" ? "Capture Page" : game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
           </button>
           <button
             onClick={onClose}

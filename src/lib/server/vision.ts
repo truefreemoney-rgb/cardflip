@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { GameId, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
 import { parseAttractionLights } from "@/lib/mtgCues";
+import { isGameId } from "@/lib/games";
 
 export type { VisionCardRead };
 
@@ -41,9 +42,20 @@ function nullableString(description: string) {
   } as const;
 }
 
+/** What the read can say the card is: every scannable game, plus the ones we don't scan yet. */
+export const DETECTED_GAMES = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh", "other"] as const;
+
 export const CARD_READ_SCHEMA = {
   type: "object",
   properties: {
+    // 09-29 (Chris: beta testers scanned Magic with the switch on Pokémon):
+    // the read names the game it sees, and a mismatch re-reads as that game.
+    cardGame: {
+      type: "string",
+      enum: [...DETECTED_GAMES],
+      description:
+        "Which trading card game this card is from, judged from the card itself: 'pokemon' (Pokémon TCG), 'mtg' (Magic: The Gathering), 'lorcana' (Disney Lorcana), 'onepiece' (One Piece Card Game), 'yugioh' (Yu-Gi-Oh!), 'other' for any other game or no card at all.",
+    },
     name: {
       type: "string",
       description:
@@ -138,6 +150,7 @@ export const CARD_READ_SCHEMA = {
     },
   },
   required: [
+    "cardGame",
     "name",
     "englishName",
     "setName",
@@ -545,8 +558,20 @@ export async function analyzeCardImageWithUsage(
    * false — a graded card does not fit a binder pocket.
    */
   pocket = false,
+  /** Games this seller may scan; a read of one of them under the wrong switch re-reads as it. Omitted = never switch. */
+  canSwitchTo?: (detected: GameId) => boolean,
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
   const first = await firstLook(base64Image, mediaType, languageHint, game, pocket);
+  const detected = first.read.detectedGame;
+  if (detected && detected !== game && isGameId(detected) && canSwitchTo?.(detected)) {
+    // The seller's switch said one game, the card is another: read it again
+    // with the right game's instructions (the first read is the wrong schema).
+    const again = await analyzeCardImageWithUsage(base64Image, mediaType, languageHint, detected, pocket);
+    return {
+      read: { ...again.read, game: detected, switchedFrom: game },
+      usage: addUsage(first.usage, again.usage),
+    };
+  }
   if (pocket) first.read.slab = false;
   // An Art Series front prints no text at all, so the picture itself is the
   // identification (lib/server/artHash.ts) — no second vision call needed.
@@ -691,6 +716,8 @@ async function firstLook(
     surface: asWear(parsed.surface),
     copyrightYear: typeof parsed.copyrightYear === "number" && parsed.copyrightYear >= 1993 && parsed.copyrightYear <= 2100 ? Math.trunc(parsed.copyrightYear) : null,
     name: parsed.name.trim(),
+    game,
+    detectedGame: DETECTED_GAMES.includes(parsed.cardGame as (typeof DETECTED_GAMES)[number]) ? parsed.cardGame : null,
     ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),
     ...(game === "lorcana" || game === "onepiece"
       ? {

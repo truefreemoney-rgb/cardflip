@@ -9,6 +9,7 @@ import {
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
+import { gameFeaturesFor } from "@/lib/server/settings";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { isSubscribed, scanTier } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
@@ -82,12 +83,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Only games this seller can see may take over a scan (gated games stay admin-only).
+    const features: Record<string, boolean> = { pokemon: true, ...(await gameFeaturesFor(user)) };
     const { read: card, usage: tokens } = await analyzeCardImageWithUsage(
       image,
       mediaType,
       language,
       parseGame(body?.game),
       body?.pocket === true,
+      (g) => features[g] === true,
     );
     // Metered for everyone (launch pricing needs the data), enforced above
     // for subscribers only. After the call — a failed scan shouldn't count.
@@ -96,7 +100,8 @@ export async function POST(req: Request) {
     const [usage] = await Promise.all([
       recordScan(user),
       recordScanUsage(user.id, VISION_MODEL, tokens, {
-        game: parseGame(body?.game),
+        game: card.game ?? parseGame(body?.game),
+        ...(card.switchedFrom ? { from: card.switchedFrom } : {}),
         name: card.name,
         number: card.cardNumber,
         total: card.setTotal,

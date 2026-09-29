@@ -197,6 +197,14 @@ export interface VisionCardRead {
   borderColor?: MtgBorder | null;
   /** "045/500" when the card is serialized. */
   serialNumber?: string | null;
+  /** Raw from the model: which game it saw ("yugioh" / "other" included). */
+  cardGame?: string;
+  /** The game the read says the card is from; null when it didn't say. */
+  detectedGame?: string | null;
+  /** The game these fields were read as (the switch, or the detected game after a re-read). */
+  game?: GameId;
+  /** Set when the seller's switch was on another game and the scanner re-read the card. */
+  switchedFrom?: GameId;
   /** Unfinity Attraction: lit numbers (1-6) on the right edge; empty on every other card. */
   attractionLights?: number[];
 }

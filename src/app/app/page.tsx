@@ -22,7 +22,7 @@ import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber }
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, makeSealedProduct, parseGradeQuery, type SetInfo } from "@/lib/grading";
 import SealedAddSheet from "@/components/SealedAddSheet";
-import { parseGame, readSavedGame, saveGame } from "@/lib/games";
+import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import {
@@ -336,15 +336,17 @@ export default function AppPage() {
 
     try {
       for (;;) {
-        const next = itemsRef.current.find((i) => i.status === "queued");
-        if (!next) break;
+        const queued = itemsRef.current.find((i) => i.status === "queued");
+        if (!queued) break;
 
         // Search-added items are born "ready" and never enter the queue; a
         // queued item without a file would otherwise loop here forever.
-        if (!next.file) {
-          patchItem(next.id, { status: "error", error: "No photo attached" });
+        if (!queued.file) {
+          patchItem(queued.id, { status: "error", error: "No photo attached" });
           continue;
         }
+        // Reassigned when the scan turns out to be another game (below).
+        let next: ScanItem & { file: File } = { ...queued, file: queued.file };
 
         patchItem(next.id, { status: "scanning" });
         // More waiting and a free worker slot: run them side by side. The
@@ -393,6 +395,16 @@ export default function AppPage() {
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
+            // The switch said one game, the card was another: the server
+            // re-read it as the right game (Chris 09-29, beta testers). The
+            // item and the switch follow, so the next shot starts right.
+            if (read.switchedFrom && read.game && read.game !== next.game) {
+              const g = read.game;
+              next = { ...next, game: g };
+              patchItem(next.id, { game: g });
+              setGame(g);
+              toast(`That's a ${GAMES[g].label} card — switched to ${GAMES[g].label}`, "info");
+            }
             // The photo outranks the seller's language toggle — stacks get sorted wrong.
             language = read.language;
             art = read.artStyle ?? null;
@@ -431,7 +443,15 @@ export default function AppPage() {
             // Art cards carry no number, so the model rates its name+number
             // confidence low even when the name is plain — the floor applies
             // to real cards only.
-            if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
+            const otherGame = read.detectedGame && read.detectedGame !== next.game && read.detectedGame !== "other" ? read.detectedGame : null;
+            if (otherGame && !read.switchedFrom) {
+              // A game we don't scan, or one not open to this seller yet: say
+              // so instead of forcing a Pokémon match onto it.
+              const named = otherGame === "yugioh" ? "Yu-Gi-Oh!" : isGameId(otherGame) ? GAMES[otherGame].fullName : otherGame;
+              readError = `That looks like a ${named} card — CardFlip doesn't scan those yet`;
+              nameCandidates = [];
+              printed = null;
+            } else if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
               readError = `Couldn't read this card (${Math.round(read.confidence * 100)}% sure) — retake with the whole card in the guide and no glare`;
               nameCandidates = [];
               printed = null;
@@ -668,7 +688,7 @@ export default function AppPage() {
     } finally {
       pumpingRef.current--;
     }
-  }, [patchItem, patchUser, refresh]);
+  }, [patchItem, patchUser, refresh, setGame]);
 
   /**
    * Price the card against what it's actually going for on eBay. Deliberately
@@ -1302,6 +1322,8 @@ export default function AppPage() {
 
   const camera = cameraOpen && (
     <CameraCapture
+      game={game}
+      onGameChange={setGame}
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
       tally={{
         count: items.filter((item) => item.card).length,
