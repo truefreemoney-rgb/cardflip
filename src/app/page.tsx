@@ -3,6 +3,7 @@ import MarketingNav from "@/components/MarketingNav";
 import TrialCta from "@/components/TrialCta";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
+import HeroRelayout from "@/components/HeroRelayout";
 import CardWall from "@/components/CardWall";
 import DemoInventory from "@/components/DemoInventory";
 import PlanCard from "@/components/PlanCard";
@@ -195,8 +196,11 @@ export default async function Home() {
             landscape width on iOS after rotating back to portrait (Chris
             09-28, only this section, everything below fine). The glow is
             sized to stay inside the viewport instead. */}
-        <section className="relative">
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
+        <section id="hero" className="relative">
+          <HeroRelayout targetId="hero" />
+          {/* Plain column on phones and tablets, grid only from lg: one less
+              layout mode for iOS to get wrong on rotation. */}
+          <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             {/* Centered until the two-column layout kicks in at lg: between
                 640 and 1023px (iPhone landscape, iPad) the phone sits centered
                 below the copy, so left-aligned copy read as lopsided. */}
@@ -251,12 +255,13 @@ export default async function Home() {
                 rationed showpiece on this page. */}
             {heroCard && (
               <div className="animate-fade-up relative mx-auto w-[280px] sm:w-[300px]" style={{ animationDelay: "150ms" }}>
-                {/* Glow fades out through a radial mask instead of filter blur:
-                    iOS Safari clips a blurred layer to its animated parent, so
-                    the halo ended in a hard line above How it works. A masked
-                    gradient has no layer to clip and is cheaper on phones. */}
+                {/* Glow = plain radial gradients that fade to transparent on
+                    their own. No filter blur (iOS clipped the blurred layer
+                    into a hard line above How it works) and no mask-image
+                    (one more compositing feature iOS can hold stale across a
+                    rotation). Stays inside the viewport on every phone. */}
                 <div
-                  className="absolute -inset-x-8 -inset-y-24 bg-[conic-gradient(from_140deg,rgba(125,211,252,0.5),rgba(167,139,250,0.6),rgba(240,171,252,0.5),rgba(252,211,77,0.32),rgba(125,211,252,0.5))] [mask-image:radial-gradient(closest-side,black_50%,transparent_100%)] [-webkit-mask-image:radial-gradient(closest-side,black_50%,transparent_100%)]"
+                  className="absolute -inset-x-8 -inset-y-24 bg-[radial-gradient(ellipse_at_50%_45%,rgba(167,139,250,0.55),rgba(125,211,252,0.28)_38%,rgba(240,171,252,0.14)_56%,transparent_72%)]"
                   aria-hidden
                 />
                 <div className="relative rounded-[2.6rem] border border-edge-strong bg-[#0b0d13] p-2 shadow-2xl shadow-black/70">
