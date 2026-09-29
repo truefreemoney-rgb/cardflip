@@ -1,4 +1,4 @@
-# Backlog (checklists)
+﻿# Backlog (checklists)
 
 Written 2026-08-16 from a full project audit; ticks = done that evening. Excludes payment/subscription
 billing (Chris: not yet). Sizes S/M/L. "(deferred)" = Chris chose to park it.
@@ -79,7 +79,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] (yea 09-04) Help chat panel (Haiku, grounded on help articles + account facts) — ask it something it should know and something it shouldn't.
 - [x] (yea 09-04) Scanner empty state: "Scan. Price. List." + stage rotating ten real cards with the Found chip.
 - [x] YEA 09-06. IQ-85 pass (09-04 evening): paywall one sentence/one button; editor Verify → price → Publish with details behind Change; "Check and publish" on the scan result chip.
-- [ ] Landing hero centered on phones; hero glow no longer cut off above How it works.
+- [x] 09-28 Landing hero centered on phones; hero glow no longer cut off above How it works.
 - [x] (yea 09-04) Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
 - [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
 - [ ] Trial accounts see "Subscribe now" (→ /pricing) everywhere eBay would be offered: publish row, connect card, queue summary, header pill (09-06). Plan cards live when signed in.

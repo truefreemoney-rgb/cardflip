@@ -194,7 +194,10 @@ export default async function Home() {
             the page (Chris, twice: "it's supposed to flow together"). */}
         <section className="relative overflow-x-clip">
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
-            <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+            {/* Centered until the two-column layout kicks in at lg: between
+                640 and 1023px (iPhone landscape, iPad) the phone sits centered
+                below the copy, so left-aligned copy read as lopsided. */}
+            <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 {magic ? "Pokémon TCG · Magic: The Gathering" : "Pokémon TCG"}
               </div>
@@ -226,7 +229,7 @@ export default async function Home() {
                 </a>
               </div>
 
-              <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 sm:justify-start" style={{ animationDelay: "240ms" }}>
+              <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 lg:justify-start" style={{ animationDelay: "240ms" }}>
                 {[
                   `${catalogLabel} printings, each priced on its own`,
                   "TCGplayer market plus live eBay comps",
@@ -245,8 +248,12 @@ export default async function Home() {
                 rationed showpiece on this page. */}
             {heroCard && (
               <div className="animate-fade-up relative mx-auto w-[280px] sm:w-[300px]" style={{ animationDelay: "150ms" }}>
+                {/* Glow fades out through a radial mask instead of filter blur:
+                    iOS Safari clips a blurred layer to its animated parent, so
+                    the halo ended in a hard line above How it works. A masked
+                    gradient has no layer to clip and is cheaper on phones. */}
                 <div
-                  className="absolute -inset-10 rounded-full bg-[conic-gradient(from_140deg,rgba(125,211,252,0.35),rgba(167,139,250,0.45),rgba(240,171,252,0.35),rgba(252,211,77,0.22),rgba(125,211,252,0.35))] blur-3xl"
+                  className="absolute -inset-16 bg-[conic-gradient(from_140deg,rgba(125,211,252,0.35),rgba(167,139,250,0.45),rgba(240,171,252,0.35),rgba(252,211,77,0.22),rgba(125,211,252,0.35))] [mask-image:radial-gradient(closest-side,rgba(0,0,0,0.9)_35%,transparent_100%)] [-webkit-mask-image:radial-gradient(closest-side,rgba(0,0,0,0.9)_35%,transparent_100%)]"
                   aria-hidden
                 />
                 <div className="relative rounded-[2.6rem] border border-edge-strong bg-[#0b0d13] p-2 shadow-2xl shadow-black/70">
@@ -292,7 +299,7 @@ export default async function Home() {
                 </div>
                 <p className="mt-4 text-center text-[11px] text-zinc-500">
                   Real card, live market price.
-                  <span className="hidden sm:inline"> Move your cursor over it.</span>
+                  <span className="hidden lg:inline"> Move your cursor over it.</span>
                 </p>
               </div>
             )}
