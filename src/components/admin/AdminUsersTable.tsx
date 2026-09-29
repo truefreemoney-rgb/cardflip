@@ -38,6 +38,11 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
+/** "US" → 🇺🇸 (two regional-indicator letters). */
+function flag(code: string): string {
+  return /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0))) : "";
+}
+
 /** Deterministic avatar hue per user, so a face stays the same between visits. */
 function hue(id: string): number {
   let h = 0;
@@ -328,6 +333,11 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <RoleToggle userId={u.id} role={u.role} isSelf={false} />
                     </div>
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
+                    {r?.country && (
+                      <span className="text-[11px] text-zinc-500" title="Where the signup came from">
+                        Signed up from {flag(r.country)} {r.country}
+                      </span>
+                    )}
                     <button
                       onClick={() => remove(u)}
                       disabled={busyId === u.id}

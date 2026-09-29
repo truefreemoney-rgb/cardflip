@@ -76,16 +76,23 @@ export async function repeatSignup(ipHash: string | null, deviceId: string | nul
   return null;
 }
 
+/** Vercel's two-letter country for the request, or null (local, unknown). */
+export function countryFrom(req: Request): string | null {
+  const c = req.headers.get("x-vercel-ip-country")?.trim().toUpperCase() ?? "";
+  return /^[A-Z]{2}$/.test(c) ? c : null;
+}
+
 /** Log the signup; a repeat starts with the free trial already spent. */
 export async function recordSignup(
   userId: string,
   ipHash: string | null,
   deviceId: string,
   repeat: boolean,
+  country: string | null = null,
   now = Date.now(),
 ): Promise<void> {
   await db
-    .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at) VALUES (?, ?, ?, ?)")
-    .run(userId, ipHash, deviceId, now);
+    .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at, country) VALUES (?, ?, ?, ?, ?)")
+    .run(userId, ipHash, deviceId, now, country);
   if (repeat) await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, userId);
 }

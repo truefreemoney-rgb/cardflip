@@ -92,6 +92,14 @@ check("signup: repeat device starts with the trial spent", await trialUsed("thre
 await signup.POST(post({ name: "L1", email: "l1@example.com", password: "123456" }, "127.0.0.1"));
 await signup.POST(post({ name: "L2", email: "l2@example.com", password: "123456" }, "127.0.0.1"));
 check("signup: loopback (e2e in CI) never counts as a repeat", await trialUsed("l2@example.com"), 0);
+const fromCanada = post({ name: "C", email: "canada@example.com", password: "123456" });
+fromCanada.headers.set("x-vercel-ip-country", "CA");
+await signup.POST(fromCanada);
+check(
+  "signup: stores Vercel's country",
+  (await db.prepare("SELECT s.country FROM signup_log s JOIN users u ON u.id = s.user_id WHERE u.email = 'canada@example.com'").get())?.country,
+  "CA",
+);
 
 // --- login ------------------------------------------------------------------
 const unknown = await login.POST(post({ email: "ghost@example.com", password: "hunter22" }));

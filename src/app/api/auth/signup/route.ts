@@ -8,6 +8,7 @@ import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
   DEVICE_COOKIE,
   DEVICE_COOKIE_MAX_AGE,
+  countryFrom,
   deviceIdFrom,
   hashIp,
   isDisposableEmail,
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   const repeat = Boolean(await repeatSignup(ipHash, knownDevice));
 
   const created = await createUser(name, email, password);
-  await recordSignup(created.id, ipHash, deviceId, repeat);
+  await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req));
   const user = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
   // Invite a friend: ?ref=CODE captured on the landing page rides along.
   // Best effort — a bad or stale code never blocks the signup.

@@ -791,6 +791,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // two-letter code Vercel stamps on the request. All three are aggregate
   // columns — still no cookie, no user id, no IP.
   ["page_views", ["ref TEXT", "device TEXT", "country TEXT"]],
+  // Signup country (09-29, Chris asked where the Probe accounts came from):
+  // Vercel's two-letter x-vercel-ip-country, shown on the admin user row.
+  ["signup_log", ["country TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

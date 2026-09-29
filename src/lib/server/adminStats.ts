@@ -67,6 +67,8 @@ export interface UserRollup {
   revenue: number;
   wishlist: number;
   lastActive: number | null;
+  /** Two-letter signup country (signup_log, 09-29 on); null before that. */
+  country: string | null;
 }
 
 export interface AdminOverview {
@@ -161,12 +163,13 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
               (SELECT COUNT(*) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS sold,
               (SELECT COALESCE(SUM(sold_price), 0) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS revenue,
               (SELECT COUNT(*) FROM wishlist_items w WHERE w.user_id = u.id) AS wishlist,
-              (SELECT MAX(updated_at) FROM cards c WHERE c.user_id = u.id) AS lastActive
+              (SELECT MAX(updated_at) FROM cards c WHERE c.user_id = u.id) AS lastActive,
+              (SELECT country FROM signup_log s WHERE s.user_id = u.id) AS country
          FROM users u`,
     )
     .all()) as unknown as UserRollup[];
   const userRollups: Record<string, UserRollup> = {};
-  for (const r of rollupRows) userRollups[r.id] = { ...r, lastActive: r.lastActive ?? null };
+  for (const r of rollupRows) userRollups[r.id] = { ...r, lastActive: r.lastActive ?? null, country: r.country ?? null };
 
   // Catalog health = eight whole-table walks (~450k rows: en/jp/zh/mtg cards,
   // sets, tcgplayer map, price_series sums). It only changes on a sync or the
