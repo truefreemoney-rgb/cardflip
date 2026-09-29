@@ -7,5 +7,8 @@ cd /d C:\Users\Chris\cardflip
 echo ===== catalog sync %date% %time% =====
 call npm run sync:en || echo sync:en FAILED (continuing - push sends whatever is fresh)
 call npm run sync:mtg || echo sync:mtg FAILED (continuing)
+call npm run sync:lorcana || echo sync:lorcana FAILED (continuing)
+call npm run sync:onepiece || echo sync:onepiece FAILED (continuing)
+call npm run sync:yugioh || echo sync:yugioh FAILED (continuing)
 "C:\Program Files\nodejs\node.exe" scripts\push-catalog.mjs
 echo ===== done %date% %time% (push exit %errorlevel%) =====
