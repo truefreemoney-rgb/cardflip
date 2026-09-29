@@ -253,7 +253,7 @@ export default async function Home() {
                     the halo ended in a hard line above How it works. A masked
                     gradient has no layer to clip and is cheaper on phones. */}
                 <div
-                  className="absolute -inset-24 bg-[conic-gradient(from_140deg,rgba(125,211,252,0.5),rgba(167,139,250,0.6),rgba(240,171,252,0.5),rgba(252,211,77,0.32),rgba(125,211,252,0.5))] [mask-image:radial-gradient(closest-side,black_50%,transparent_100%)] [-webkit-mask-image:radial-gradient(closest-side,black_50%,transparent_100%)]"
+                  className="absolute -inset-x-8 -inset-y-24 bg-[conic-gradient(from_140deg,rgba(125,211,252,0.5),rgba(167,139,250,0.6),rgba(240,171,252,0.5),rgba(252,211,77,0.32),rgba(125,211,252,0.5))] [mask-image:radial-gradient(closest-side,black_50%,transparent_100%)] [-webkit-mask-image:radial-gradient(closest-side,black_50%,transparent_100%)]"
                   aria-hidden
                 />
                 <div className="relative rounded-[2.6rem] border border-edge-strong bg-[#0b0d13] p-2 shadow-2xl shadow-black/70">

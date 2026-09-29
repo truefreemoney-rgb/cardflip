@@ -52,6 +52,11 @@
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
+  /* Nothing may widen the page. iOS Safari keeps the wider landscape
+     layout after rotating back to portrait when any element overflows
+     sideways (Chris 09-28: "content gets stuck to the right, have to
+     refresh"). clip, not hidden: hidden would kill sticky headers. */
+  overflow-x: clip;
 }
 
 body {
