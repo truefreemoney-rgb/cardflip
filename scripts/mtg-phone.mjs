@@ -45,7 +45,7 @@ async function pull() {
   }
   const db = createClient({ url, authToken });
   const r = await db.execute(
-    `SELECT c.id, c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.condition, p.updated_at
+    `SELECT c.id, c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.condition, c.variant, p.updated_at
        FROM card_photos p JOIN cards c ON c.id = p.card_id
       WHERE c.game = 'mtg' AND c.catalog_card_id IS NOT NULL
       ORDER BY p.updated_at DESC`,
@@ -57,7 +57,7 @@ async function pull() {
       const b = await db.execute({ sql: "SELECT bytes FROM card_photos WHERE card_id = ?", args: [row.id] });
       fs.writeFileSync(file, Buffer.from(b.rows[0].bytes));
     }
-    batch.push({ id: row.id, name: row.card_name, set: row.set_name, number: row.card_number, want: row.catalog_card_id, condition: row.condition, at: Number(row.updated_at) });
+    batch.push({ id: row.id, name: row.card_name, set: row.set_name, number: row.card_number, want: row.catalog_card_id, condition: row.condition, finish: row.variant ?? null, at: Number(row.updated_at) });
   }
   fs.writeFileSync(LIST_PATH, JSON.stringify(batch, null, 1));
   console.log(`pulled ${batch.length} Magic phone photos → ${path.relative(root, PHOTO_DIR)}`);
@@ -81,7 +81,13 @@ if (uncached > VISION_CALL_CAP && !flag("yes")) {
 
 // The scanner's own read path — first look + second look + Art Series
 // picture match, exactly what /api/vision/scan runs.
-process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
+// A fully cached run makes no API call, so it needs no key.
+if (uncached > 0) {
+  process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
+} else {
+  delete process.env.ANTHROPIC_API_KEY;
+  console.log("no vision calls: running without an API key");
+}
 async function readCard(b64) {
   return (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg")).read;
 }
@@ -93,6 +99,10 @@ const wantRow = mirror.prepare("SELECT name, set_code, collector_number, finishe
 
 const misses = [];
 const finishes = {};
+// Finish truth = the variant Chris kept on the ledger card (foil / etched /
+// nonfoil; the editor's variant picker). Rows with no variant are not scored.
+const finishMisses = [];
+let finishHit = 0, finishN = 0;
 let hit = 0, n = 0;
 for (const p of batch) {
   let read = cache[p.id];
@@ -111,6 +121,11 @@ for (const p of batch) {
   const top = found[0];
   n++;
   finishes[read.finish ?? "null"] = (finishes[read.finish ?? "null"] ?? 0) + 1;
+  if (p.finish === "foil" || p.finish === "etched" || p.finish === "nonfoil") {
+    finishN++;
+    if (read.finish === p.finish) finishHit++;
+    else finishMisses.push(`${p.name} [${p.set} ${p.number}]: kept ${p.finish}, read ${read.finish ?? "null"}`);
+  }
   if (top?.id === p.want) hit++;
   else {
     const w = wantRow.get(p.want);
@@ -125,7 +140,13 @@ for (const p of batch) {
 }
 process.stdout.write("\r");
 console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)`);
-console.log(`finish read: ${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}  (not scored — the ledger keeps no finish)`);
+console.log(`finish read: ${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+if (finishN) {
+  console.log(`finish vs the variant kept on the ledger: ${finishHit}/${finishN} = ${((finishHit / finishN) * 100).toFixed(1)}%  (${batch.length - finishN} cards keep no variant, not scored)`);
+  for (const m of finishMisses) console.log(`  ✗ ${m}`);
+} else {
+  console.log("finish not scored: no batch card keeps a variant (run --pull after the ledger has foil/nonfoil set)");
+}
 for (const m of misses) {
   console.log(`\n✗ want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

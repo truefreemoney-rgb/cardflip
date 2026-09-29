@@ -58,6 +58,8 @@ export interface CardRecord {
   matchDoubt: string | null;
   /** 1st Edition stamp (WotC-era Pokémon) — its own market and listing title. */
   firstEdition: boolean;
+  /** Price variant held as: Magic finish (foil / etched / nonfoil) or a Pokémon printing; null = default. */
+  variant: string | null;
   /** Catalog rarity as the source spells it; null for rows scanned before it was stored. */
   rarity: string | null;
   /** Seller-chosen folder; null = uncategorized. */
@@ -112,6 +114,7 @@ interface CardRow {
   verified_at: number | null;
   match_doubt: string | null;
   first_edition: number | null;
+  variant: string | null;
   rarity: string | null;
   category: string | null;
   ebay_sku: string | null;
@@ -159,6 +162,7 @@ function fromRow(row: CardRow): CardRecord {
     verifiedAt: row.verified_at ?? null,
     matchDoubt: row.match_doubt ?? null,
     firstEdition: row.first_edition === 1,
+    variant: row.variant ?? null,
     rarity: row.rarity ?? null,
     category: row.category ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
@@ -197,6 +201,8 @@ export interface NewCard {
   costBasis?: number | null;
   /** 1st Edition printing (a "-1st" catalog twin). */
   firstEdition?: boolean;
+  /** Variant the scan read (Magic finish) — the seller can change it in the editor. */
+  variant?: string | null;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
@@ -209,8 +215,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, verified_at, match_doubt, cost_basis, first_edition, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, verified_at, match_doubt, cost_basis, first_edition, variant, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -235,6 +241,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.matchDoubt ?? null,
       card.costBasis ?? null,
       card.firstEdition ? 1 : 0,
+      card.variant ?? null,
       now,
       now,
     );
@@ -259,6 +266,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     verifiedAt: card.verifiedAt ?? null,
     matchDoubt: card.matchDoubt ?? null,
     firstEdition: Boolean(card.firstEdition),
+    variant: card.variant ?? null,
     rarity: card.rarity ?? null,
     category: card.category ?? null,
     soldPrice: null,
@@ -486,6 +494,8 @@ export interface CardUpdate {
   verifiedAt?: number | null;
   matchDoubt?: string | null;
   firstEdition?: boolean;
+  /** Variant / Magic finish the seller picked; null = back to the default. */
+  variant?: string | null;
   /** True when the price in this patch was typed/chosen by the seller. */
   priceLocked?: boolean;
   costBasis?: number | null;
@@ -525,6 +535,7 @@ export async function updateCard(
     verified_at: patch.verifiedAt !== undefined ? patch.verifiedAt : existingRow.verified_at,
     match_doubt: patch.matchDoubt !== undefined ? patch.matchDoubt : existingRow.match_doubt,
     first_edition: patch.firstEdition !== undefined ? (patch.firstEdition ? 1 : 0) : existingRow.first_edition,
+    variant: patch.variant !== undefined ? patch.variant : existingRow.variant,
     price_locked: patch.priceLocked !== undefined ? (patch.priceLocked ? 1 : 0) : existingRow.price_locked,
     cost_basis: patch.costBasis !== undefined ? patch.costBasis : existingRow.cost_basis,
     alert_price: patch.alertPrice !== undefined ? patch.alertPrice : existingRow.alert_price,
@@ -543,7 +554,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -564,6 +575,7 @@ export async function updateCard(
       merged.verified_at ?? null,
       merged.match_doubt ?? null,
       merged.first_edition ?? null,
+      merged.variant ?? null,
       merged.price_locked ?? 0,
       merged.cost_basis ?? null,
       merged.alert_price ?? null,

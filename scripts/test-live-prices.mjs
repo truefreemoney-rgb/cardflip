@@ -64,6 +64,12 @@ const current = await mk({ price: 20, catalogCardId: "base1-58" });
 // A row from before scan_price existed: nulled, to be backfilled from the series on its scan day.
 const old = await mk({ price: 12.5, catalogCardId: "base1-58", condition: "Lightly Played" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(old.id);
+// Magic foil (09-28): the row keeps the finish it was scanned as; the refresh
+// must price it off the foil series, not the default nonfoil one.
+await recordPoint("mtg-bolt", "mtg", "nonfoil", "tcgplayer", "USD", 2);
+await recordPoint("mtg-bolt", "mtg", "foil", "tcgplayer", "USD", 50);
+const foil = await mk({ price: 1, catalogCardId: "mtg-bolt", game: "mtg", cardName: "Lightning Bolt", variant: "foil" });
+const plain = await mk({ price: 1, catalogCardId: "mtg-bolt", game: "mtg", cardName: "Lightning Bolt" });
 
 console.log("askingPriceFor");
 check("NM = market rounded", askingPriceFor(20, "Near Mint"), 20);
@@ -91,6 +97,10 @@ check("scan price stored on create", (await getCardForUser(draft.id, user.id)).s
 check("scanned reported from the stored value", by[draft.id]?.scanned, 12.5);
 check("older row: scanned backfilled from the series on its scan day (LP)", by[old.id]?.scanned, 17);
 check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, 17);
+check("variant stored on create and read back", (await getCardForUser(foil.id, user.id)).variant, "foil");
+check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, 50);
+check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, 2);
+check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
 
 console.log(failures === 0 ? "\nAll live-price checks passed." : `\n${failures} live-price check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

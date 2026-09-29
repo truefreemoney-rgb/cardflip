@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
-import { usdSeries } from "@/lib/server/priceHistory";
+import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
 
 /**
@@ -38,6 +38,7 @@ interface Row {
   id: string;
   price: number;
   catalog_card_id: string;
+  variant: string | null;
   condition: string;
   status: string;
   price_locked: number | null;
@@ -63,14 +64,14 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 export async function refreshLivePrices(userId: string, now = Date.now()): Promise<LivePrice[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id, condition, status, price_locked, scan_price, created_at FROM cards
+      `SELECT id, price, catalog_card_id, variant, condition, status, price_locked, scan_price, created_at FROM cards
        WHERE user_id = ? AND status != 'sold' AND catalog_card_id IS NOT NULL
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
     .all(userId)) as unknown as Row[];
   if (rows.length === 0) return [];
 
-  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))]);
+  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
   const out: LivePrice[] = [];
   // Writes are collected and flushed as multi-row UPDATE ... FROM (VALUES)
   // statements below: per-row UPDATEs were up to 2 x ROW_CAP round trips on
@@ -78,7 +79,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
   const backfills: { id: string; scanned: number }[] = [];
   const moves: { id: string; price: number }[] = [];
   for (const row of rows) {
-    const s = series.get(row.catalog_card_id);
+    const s = heldSeries(series, row);
     const market = s ? lastOf(s.prices) : null;
     if (!s || market == null || !(market > 0)) continue;
     const suggested = askingPriceFor(market, row.condition);

@@ -78,6 +78,7 @@ export async function POST(req: Request) {
       catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId : null,
       rarity: typeof body?.rarity === "string" ? body.rarity.slice(0, 60) : null,
       category: typeof body?.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null,
+      variant: typeof body?.variant === "string" && body.variant.trim() ? body.variant.trim().slice(0, 40) : null,
     });
     return NextResponse.json({ card }, { status: 201 });
   } catch (err) {

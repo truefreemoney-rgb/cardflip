@@ -106,7 +106,7 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
  * shouldn't ride the plain printing's price. Shared by the wishlist alert
  * sweep and the reprice nudge.
  */
-const VARIANT_ORDER = ["normal", "holofoil", "reverseHolofoil"];
+const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil", "foil", "etched"];
 export async function latestUsdPrice(cardId: string): Promise<number | null> {
   const series = (await getPriceHistory(cardId)).filter(
     (s) => s.currency === "USD" && s.points.length > 0,
@@ -171,11 +171,18 @@ export async function latestUsdPrices(
  * The preferred USD series (same variant order) for each card, whole — for
  * callers that need a price on a given day as well as the latest
  * (lib/server/livePrices.ts: scanned → now).
+ *
+ * `prefer` — the variants held rows are kept as (cards.variant: a Magic foil,
+ * a Pokémon holo). Each such series is ALSO stored under "cardId|variant" so
+ * a foil row and a nonfoil row of the same card each read their own line
+ * (heldSeries below); the plain cardId key keeps the default order.
  */
 export async function usdSeries(
   cardIds: string[],
+  prefer?: Map<string, Set<string>>,
 ): Promise<Map<string, { variant: string; startDay: string; prices: (number | null)[] }>> {
   const out = new Map<string, { variant: string; startDay: string; prices: (number | null)[] }>();
+  const rankOf = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
   for (let i = 0; i < cardIds.length; i += 400) {
     const chunk = cardIds.slice(i, i + 400);
     const rows = (await db
@@ -187,14 +194,31 @@ export async function usdSeries(
     for (const r of rows) {
       const prices = decodePrices(r.prices);
       if (!prices.some((p) => p != null)) continue;
-      const rank = VARIANT_ORDER.indexOf(r.variant) + 1 || 99;
+      const entry = { variant: r.variant, startDay: r.start_day, prices };
+      const rank = rankOf(r.variant);
       const have = out.get(r.card_id);
-      if (!have || rank < ((VARIANT_ORDER.indexOf(have.variant) + 1) || 99)) {
-        out.set(r.card_id, { variant: r.variant, startDay: r.start_day, prices });
-      }
+      if (!have || rank < rankOf(have.variant)) out.set(r.card_id, entry);
+      if (prefer?.get(r.card_id)?.has(r.variant)) out.set(`${r.card_id}|${r.variant}`, entry);
     }
   }
   return out;
+}
+
+/** The `prefer` map for usdSeries from held rows: catalog id → the variants rows of it are kept as. */
+export function preferredVariants(rows: { catalog_card_id: string; variant: string | null }[]): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const r of rows) {
+    if (!r.variant) continue;
+    const set = out.get(r.catalog_card_id) ?? new Set<string>();
+    set.add(r.variant);
+    out.set(r.catalog_card_id, set);
+  }
+  return out;
+}
+
+/** A held row's series: its own variant's line when the row keeps one and it exists, else the card's default. */
+export function heldSeries<T>(series: Map<string, T>, row: { catalog_card_id: string; variant: string | null }): T | undefined {
+  return (row.variant ? series.get(`${row.catalog_card_id}|${row.variant}`) : undefined) ?? series.get(row.catalog_card_id);
 }
 
 // ---------------------------------------------------------------------------

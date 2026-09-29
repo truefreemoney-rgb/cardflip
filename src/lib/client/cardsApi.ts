@@ -45,6 +45,8 @@ export interface ServerCard {
   matchDoubt: string | null;
   /** 1st Edition stamp — read by the scanner or ticked in the editor. */
   firstEdition: boolean;
+  /** Variant held as (Magic finish / Pokémon printing); null = default. */
+  variant: string | null;
   /** Catalog rarity; null on rows scanned before it was stored. */
   rarity: string | null;
   /** Seller-chosen folder; null = uncategorized. */
@@ -77,6 +79,7 @@ export interface CreateCardInput {
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
+  variant?: string | null;
 }
 
 export interface UpdateCardInput {
@@ -98,6 +101,8 @@ export interface UpdateCardInput {
   verifiedAt?: number | null;
   matchDoubt?: string | null;
   firstEdition?: boolean;
+  /** Variant / Magic finish; null clears it. */
+  variant?: string | null;
   /** Send true with a price the seller typed/chose — it stops the live refresh touching it. */
   priceLocked?: boolean;
   /** What the seller paid; null clears it. */

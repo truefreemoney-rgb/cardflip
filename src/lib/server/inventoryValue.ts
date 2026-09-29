@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
-import { usdSeries } from "@/lib/server/priceHistory";
+import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
@@ -29,6 +29,7 @@ export interface ValuePoint {
 
 interface Row {
   catalog_card_id: string;
+  variant: string | null;
   condition: string;
   quantity: number | null;
   status: string;
@@ -55,24 +56,24 @@ export async function inventoryValueSeries(
   const span = Math.min(MAX_VALUE_DAYS, Math.max(2, Math.floor(days)));
   const rows = (await db
     .prepare(
-      `SELECT catalog_card_id, condition, quantity, status, created_at, sold_at FROM cards
+      `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at FROM cards
        WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
     .all(userId, game)) as unknown as Row[];
   if (rows.length === 0) return [];
 
-  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))]);
+  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
   const today = todayUtc(now);
   const firstDay = addDays(today, -(span - 1));
   const held = rows
     .map((r) => ({
-      series: series.get(r.catalog_card_id) ?? null,
+      series: heldSeries(series, r) ?? null,
       condition: r.condition,
       qty: r.quantity ?? 1,
       // Day of the series' first reading — the line starts at the earliest one.
       first: (() => {
-        const s = series.get(r.catalog_card_id);
+        const s = heldSeries(series, r);
         const i = s ? s.prices.findIndex((p) => p != null) : -1;
         return s && i >= 0 ? addDays(s.startDay, i) : null;
       })(),

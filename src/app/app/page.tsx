@@ -124,6 +124,7 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
   card,
   grading,
   firstEdition: row.firstEdition,
+  variant: row.variant ?? null,
   // Slabs price off raw market as a floor, never quick-sale discounts.
   strategy: grading ? "market" : "quick",
   condition: asCondition(row.condition) ?? "Near Mint",
@@ -298,6 +299,11 @@ export default function AppPage() {
           ...("verifiedAt" in patch ? { verifiedAt: patch.verifiedAt ?? null } : {}),
           ...("matchDoubt" in patch ? { matchDoubt: patch.matchDoubt ?? null } : {}),
         });
+      }
+      // The variant picker (Magic foil / etched, Pokémon holo) changes what
+      // the card IS on eBay and which series prices it — sync it at once.
+      if ("variant" in patch) {
+        void updateServerCard(item.serverId, { variant: patch.variant ?? null });
       }
     },
     [commit],
@@ -605,6 +611,10 @@ export default function AppPage() {
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,
               category: scanCategoryRef.current,
+              // The finish the scan read (Magic foil / etched), set on the
+              // item just above — a foil saved as the default finish would
+              // list on eBay as Regular and refresh off the nonfoil series.
+              variant: itemsRef.current.find((i) => i.id === next.id)?.variant ?? null,
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.

@@ -86,6 +86,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
 
 ### C. Shipped, NOT proven on production (needs a real action to confirm)
+- [ ] Magic finish persistence (09-28): scan a foil on the phone, save, refresh → editor still says Foil; eBay draft aspect Finish = Foil; Inventory price = foil market. Verified by test:liveprices only.
 - [ ] Help chat's Haiku call on prod (verified only by a one-off script with the Vercel key; dev has no key).
 - [ ] Trial selling gate on prod (402 on draft/publish) — verified locally only.
 - [ ] Admin plan overrides on prod (comp/unlimited/legacy/trial) — verified locally only.

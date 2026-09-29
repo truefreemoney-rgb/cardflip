@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/server/mail";
-import { usdSeries } from "@/lib/server/priceHistory";
+import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import { sendPushToUser } from "@/lib/server/push";
 import { cardAlertPush } from "@/lib/pushMessages";
@@ -38,6 +38,7 @@ interface Row {
   card_number: string;
   condition: string;
   catalog_card_id: string;
+  variant: string | null;
   alert_price: number | null;
   alerted_at: number | null;
   spike_alerted_at: number | null;
@@ -68,7 +69,7 @@ export async function sweepCardAlerts(
   const rows = (await db
     .prepare(
       `SELECT c.id, c.user_id, u.email, c.card_name, c.set_name, c.card_number, c.condition,
-              c.catalog_card_id, c.alert_price, c.alerted_at, c.spike_alerted_at
+              c.catalog_card_id, c.variant, c.alert_price, c.alerted_at, c.spike_alerted_at
        FROM cards c JOIN users u ON u.id = c.user_id
        WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL
          AND ((c.alert_price IS NOT NULL AND c.alerted_at IS NULL)
@@ -78,12 +79,12 @@ export async function sweepCardAlerts(
     .all(cooldown)) as unknown as Row[];
   if (rows.length === 0) return { checked: 0, sent: 0, nudged: 0 };
 
-  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))]);
+  const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
   const today = todayUtc(now);
   const weekAgo = addDays(today, -7);
   const byUser = new Map<string, { email: string; userId: string; hits: Array<CardAlertHit & { rowId: string }> }>();
   for (const r of rows) {
-    const s = series.get(r.catalog_card_id);
+    const s = heldSeries(series, r);
     if (!s) continue;
     const market = onDay(s, today);
     if (market == null || !(market > 0)) continue;

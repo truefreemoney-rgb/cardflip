@@ -96,7 +96,14 @@ for (const line of fs.readFileSync(path.join(root, ".env.vercel.local"), "utf8")
 // The scanner's own read path — first look + second look (a crop of the
 // bottom strip when the first read is unsettled), exactly what
 // /api/vision/scan runs. The cache stores the merged read.
-process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
+// A fully cached run with --no-tiebreak makes no API call at all, so it needs
+// no key (a floor score: ranker order on near-ties, no Opus).
+if (uncached > 0 || !flag("no-tiebreak")) {
+  process.env.ANTHROPIC_API_KEY = devAnthropicKey(); // testing-workspace key only, never prod (scripts/lib/dev-key.mjs)
+} else {
+  delete process.env.ANTHROPIC_API_KEY;
+  console.log("no vision calls and --no-tiebreak: running without an API key");
+}
 async function readCard(b64) {
   return (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg")).read;
 }

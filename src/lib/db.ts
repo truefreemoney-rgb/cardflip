@@ -697,6 +697,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Catalog id (pokemontcg.io / Scryfall) — keys the row into
       // price_series for the reprice nudge. Null on rows scanned before.
       "catalog_card_id TEXT",
+      // Price variant the row is held as (09-28): Magic finish (nonfoil /
+      // foil / etched) or a Pokémon printing (holofoil / reverseHolofoil).
+      // The scanner reads it and the editor's variant picker sets it; the
+      // eBay Finish aspect and the live refresh's series follow it. NULL =
+      // rows from before, priced on the default variant.
+      "variant TEXT",
       // Real net-after-fees: the eBay order/line this sold row came from
       // (written by the sales sync) and the actual fee the Finances API
       // reported for it (lib/server/ebayFinances.ts). sold_fees NULL means

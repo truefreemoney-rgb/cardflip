@@ -72,6 +72,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             : null
           : undefined,
       firstEdition: typeof body?.firstEdition === "boolean" ? body.firstEdition : undefined,
+      // Variant / Magic finish: a non-empty string lands, anything else clears it.
+      variant:
+        "variant" in (body ?? {})
+          ? typeof body.variant === "string" && body.variant.trim()
+            ? body.variant.trim().slice(0, 40)
+            : null
+          : undefined,
       priceLocked: typeof body?.priceLocked === "boolean" ? body.priceLocked : undefined,
       // What they paid (09-27): a finite number >= 0 lands (to the cent), anything else clears it.
       costBasis:

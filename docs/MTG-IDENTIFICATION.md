@@ -257,6 +257,56 @@ details only. Null keeps the ranker's order. Billed on the scan ledger.
 Real phone photos: mtg:phone 39/42 = 92.9% before this work; re-run after
 Chris's next Magic batch.
 
+## 3e. Second crack (09-28) — where Magic actually stands, and the plan
+
+Chris 09-28: "take another crack at getting magic working ... double sided
+cards and art cards, decades of history ... seems almost impossible to lock
+down". Re-checked before planning anything:
+
+| Check (09-28, no API spend) | Result |
+|---|---|
+| `mtg:panel --no-tiebreak` from cache (floor: ranker order on near-ties) | 195/205 = 95.1% — identical to 09-10, no regression from the September scanner changes |
+| with the picture tiebreak (last full run 09-10) | 203/205 = 99.0% |
+| `mtg:phone` from cache (Chris's 42 real photos) | 42/42 = 100% |
+| every one of the 10 floor misses | the right printing is at #2–#4 ("Not your card?" one tap) |
+
+Identification is not the problem. Double-faced and adventure cards are
+matched on the front face (which carries the number); Art Series match by
+picture (5/5); The List, prerelease, serialized and Secret Lair pass. The
+open bucket is pre-1998 (19/24: Unlimited vs Revised with no year line —
+the bevel and the tiebreak decide, and the catalog scan can't show either).
+
+What WAS broken (found 09-28, fixed same day, `test:liveprices` pins it):
+the scanner read the finish (21 of the 42 phone photos = foil) and the
+editor's variant picker set it on the queue item, but the ledger row had no
+column for it. Once saved, a foil came back as the default finish: the eBay
+Finish aspect said Regular, the listing's "Finish:" line said Nonfoil, and
+the Inventory live refresh / price alerts / collection value priced it off
+the nonfoil series. Now `cards.variant` is stored on create (the scan's
+finish) and on every picker change (PATCH), restored on resume, and
+`usdSeries(ids, preferredVariants(rows))` + `heldSeries` give each held
+row its own variant's line (a foil and a nonfoil copy of the same card
+each read their own). Pokémon holo picks ride the same column.
+
+Plan from here (my side needs nothing from Chris until step 3):
+
+1. DONE — finish persistence above; `mtg:phone` now scores the read finish
+   against the variant kept on the ledger (`finish vs the variant kept`)
+   once rows carry one, so the foil read gets a number for the first time.
+2. Replay scripts run key-free when fully cached (`mtg:panel --no-tiebreak`,
+   `mtg:phone`); anything uncached still needs ANTHROPIC_DEV_API_KEY in
+   .env.testing.local (Testing workspace, spend-limited; never prod).
+3. CHRIS: the stress batch (BOARD "MTG stress test — say when"). 30+ cards
+   on the phone, deliberately the hard kinds: a foil and its nonfoil twin,
+   a double-faced card, an Art Series card, a List reprint, a 1990s white-
+   border, a promo-stamped card, an etched foil. Correct the finish in the
+   editor when the read is wrong — that IS the truth the script scores.
+4. After the batch: `mtg:phone -- --pull` → exact printing ≥ 90% and the
+   finish number. Tune the finish prompt only if the foil read is < 90%.
+5. Not doing (unchanged from §4): tokens (not in the mirror; low value),
+   non-English printings (mirror is English), Art Series USD prices
+   (backlog), own pHash pipeline.
+
 ## 4. What NOT to do
 
 - Do not match on name alone or fall through to a fuzzy name lookup as the
