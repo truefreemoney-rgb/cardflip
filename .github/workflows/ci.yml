@@ -55,3 +55,19 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  # A red run emails Chris (09-29: CI sat red for three hours and nobody
+  # looked). The only secret in this file, and only in this step.
+  alert:
+    needs: [checks, e2e]
+    if: failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          body=$(jq -n --arg u "$URL" --arg s "$GITHUB_SHA" --arg m "$(printf '%s' "$MSG" | head -n1)" '{workflow:"CI",sha:$s,url:$u,message:("Commit: " + $m)}')
+          curl -sS --max-time 30 -X POST -H "Authorization: Bearer ${KEY}" -H "content-type: application/json" -d "$body" https://cardflip.io/api/ops/alert

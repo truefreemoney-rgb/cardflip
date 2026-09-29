@@ -35,3 +35,11 @@ jobs:
       - if: github.event_name == 'deployment_status'
         run: sleep 45
       - run: node scripts/prod-smoke.mjs https://cardflip.io
+      - name: Email Chris
+        if: failure()
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body=$(jq -n --arg u "$URL" --arg s "$GITHUB_SHA" '{workflow:"Production Smoke",sha:$s,url:$u,message:"A live-site check failed. If this mail is late or missing, the site itself may be down."}')
+          curl -sS --max-time 30 -X POST -H "Authorization: Bearer ${KEY}" -H "content-type: application/json" -d "$body" https://cardflip.io/api/ops/alert

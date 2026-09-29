@@ -1,0 +1,20 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { opsAlert } from "@/lib/server/opsAlert";
+
+/**
+ * POST /api/ops/alert — GitHub Actions' failure() step (ci.yml,
+ * prod-smoke.yml) with Bearer SOCIAL_POST_KEY, the one key GitHub already
+ * holds. Body: { workflow, sha?, url?, message? }. Mails Chris, once an hour
+ * per workflow (lib/server/opsAlert.ts).
+ */
+export async function POST(req: NextRequest) {
+  const k = process.env.SOCIAL_POST_KEY;
+  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!k || given !== k) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  const workflow = typeof body?.workflow === "string" ? body.workflow.slice(0, 80) : "";
+  if (!workflow) return NextResponse.json({ error: "workflow is required" }, { status: 400 });
+  const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : undefined);
+  const result = await opsAlert({ workflow, sha: str(body.sha, 40), url: str(body.url, 300), message: str(body.message, 500) });
+  return NextResponse.json({ result });
+}

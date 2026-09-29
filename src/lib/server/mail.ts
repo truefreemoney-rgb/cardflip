@@ -364,6 +364,23 @@ export async function sendSocialFailureEmail(to: string, failures: Array<{ label
   await transport().sendMail({ from: fromAddress(), to, subject: `CardFlip: Social Post Failed on ${names}`, text, html });
 }
 
+/** CI or the prod smoke check failed (lib/server/opsAlert.ts, 09-29). */
+export async function sendOpsAlertEmail(
+  to: string,
+  a: { workflow: string; sha?: string; url?: string; message?: string },
+): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const what = `${a.workflow} failed${a.sha ? ` on ${a.sha.slice(0, 7)}` : ""}.`;
+  const text = [what, a.message ?? "", "", "Claude fixes this before the next task.", a.url ? `Run: ${a.url}` : ""].filter(Boolean).join("\n");
+  const html = `
+    <p><strong>${esc(what)}</strong></p>
+    ${a.message ? `<p style="color:#666;font-size:13px">${esc(a.message)}</p>` : ""}
+    <p>Claude fixes this before the next task.</p>
+    ${a.url ? `<p><a href="${esc(a.url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open the Run</a></p>` : ""}`;
+  await transport().sendMail({ from: fromAddress(), to, subject: `CardFlip: ${a.workflow} Failed`, text, html });
+}
+
 /* ---------------------------------------------------------------------------
  * Support tickets (supportTickets.ts, 09-26). Three mails: the working copy
  * to the support inbox, a receipt to the seller, and "closed" to the seller.

@@ -282,5 +282,19 @@ delete process.env.PINTEREST_APP_SECRET;
   check("alert: again the next day", await alertFailures({ ...rep, etDay: "2026-09-30" }, deps), ["facebook"]);
 }
 
+// --- CI / prod-smoke alert (lib/server/opsAlert.ts, 09-29) — lives here for the harness ---
+{
+  const { opsAlert, OPS_ALERT_GAP_MS } = await import(at("lib/server/opsAlert.ts"));
+  const store = new Map();
+  const sent = [];
+  const deps = { get: async (k) => store.get(k) ?? null, set: async (k, v) => void store.set(k, v), send: async (a) => void sent.push(a.workflow) };
+  const t = 1_800_000_000_000;
+  check("ops alert: first failure mails", await opsAlert({ workflow: "CI" }, t, deps), "sent");
+  check("ops alert: quiet inside the hour", await opsAlert({ workflow: "CI" }, t + 15 * 60_000, deps), "quiet");
+  check("ops alert: other workflow still mails", await opsAlert({ workflow: "Production Smoke" }, t + 60_000, deps), "sent");
+  check("ops alert: mails again after the hour", await opsAlert({ workflow: "CI" }, t + OPS_ALERT_GAP_MS, deps), "sent");
+  check("ops alert: what went out", sent, ["CI", "Production Smoke", "CI"]);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
