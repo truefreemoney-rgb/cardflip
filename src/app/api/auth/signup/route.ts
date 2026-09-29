@@ -8,14 +8,14 @@ import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
   DEVICE_COOKIE,
   DEVICE_COOKIE_MAX_AGE,
-  ONE_ACCOUNT_ERROR,
   deviceIdFrom,
   hashIp,
   isDisposableEmail,
   newDeviceId,
   recordSignup,
-  signupBlocked,
+  repeatSignup,
 } from "@/lib/server/signupGuard";
+import { TRIAL_SCANS } from "@/lib/server/users";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -54,16 +54,15 @@ export async function POST(req: Request) {
     );
   }
 
-  // One account per IP and per device (Chris 09-29).
+  // Free scans once per IP and per device (Chris 09-29).
   const ipHash = hashIp(clientIp(req));
   const knownDevice = deviceIdFrom(req);
   const deviceId = knownDevice ?? newDeviceId();
-  if (await signupBlocked(ipHash, knownDevice)) {
-    return NextResponse.json({ error: ONE_ACCOUNT_ERROR }, { status: 403 });
-  }
+  const repeat = Boolean(await repeatSignup(ipHash, knownDevice));
 
-  const user = await createUser(name, email, password);
-  await recordSignup(user.id, ipHash, deviceId);
+  const created = await createUser(name, email, password);
+  await recordSignup(created.id, ipHash, deviceId, repeat);
+  const user = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
   // Invite a friend: ?ref=CODE captured on the landing page rides along.
   // Best effort — a bad or stale code never blocks the signup.
   if (typeof body?.ref === "string" && body.ref) await attachReferral(user.id, body.ref).catch(() => {});

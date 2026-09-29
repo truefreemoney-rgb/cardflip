@@ -81,11 +81,17 @@ const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com"
 check("signup: first on an IP → 201", firstOnIp.status, 201);
 const device = firstOnIp.cookies.get("cf_dev")?.value;
 check("signup: sets the device cookie", Boolean(device));
-check("signup: second on the same IP → 403", (await signup.POST(post({ name: "Two", email: "two@example.com", password: "123456" }, "203.0.113.7"))).status, 403);
+check("signup: second on the same IP still → 201", (await signup.POST(post({ name: "Two", email: "two@example.com", password: "123456" }, "203.0.113.7"))).status, 201);
 const sameDevice = post({ name: "Three", email: "three@example.com", password: "123456" }, "198.51.100.9");
 sameDevice.headers.set("cookie", `cf_dev=${device}`);
-check("signup: same device on a new IP → 403", (await signup.POST(sameDevice)).status, 403);
-check("signup: refused ones made no account", Boolean(await db.prepare("SELECT 1 FROM users WHERE email IN ('two@example.com','three@example.com')").get()), false);
+check("signup: same device on a new IP still → 201", (await signup.POST(sameDevice)).status, 201);
+const trialUsed = async (email) => (await db.prepare("SELECT trial_scans_used AS n FROM users WHERE email = ?").get(email))?.n;
+check("signup: first on the IP keeps the free trial", await trialUsed("one@example.com"), 0);
+check("signup: repeat IP starts with the trial spent", await trialUsed("two@example.com"), 5);
+check("signup: repeat device starts with the trial spent", await trialUsed("three@example.com"), 5);
+await signup.POST(post({ name: "L1", email: "l1@example.com", password: "123456" }, "127.0.0.1"));
+await signup.POST(post({ name: "L2", email: "l2@example.com", password: "123456" }, "127.0.0.1"));
+check("signup: loopback (e2e in CI) never counts as a repeat", await trialUsed("l2@example.com"), 0);
 
 // --- login ------------------------------------------------------------------
 const unknown = await login.POST(post({ email: "ghost@example.com", password: "hunter22" }));

@@ -1,15 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { TRIAL_SCANS } from "@/lib/server/users";
 
 /**
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
- * mailinator: "you get 1 account per ip address"):
+ * mailinator: no new accounts just for free scans):
  *  - throwaway inbox domains are refused outright (Gmail etc. are untouched);
- *  - ONE public signup per IP and per device (cf_dev cookie), ever. A second
- *    one is refused with ONE_ACCOUNT_ERROR, which points at support.
- * Known cost Chris accepted: people behind one shared IP (a phone carrier,
- * a household) can't each sign up; support can create them from admin.
- * Accounts made before 09-29 have no signup_log row, so they block nothing.
+ *  - the FIRST signup on an IP or device (cf_dev cookie) gets the free
+ *    trial; every later one, ever, is still created but starts with the
+ *    trial spent, so it lands on the Scan Pack wall. A real person behind a
+ *    shared IP (household, phone carrier) can still sign up and pay.
+ * Accounts made before 09-29 have no signup_log row, so they count for nothing.
  */
 
 export const DEVICE_COOKIE = "cf_dev";
@@ -44,9 +45,13 @@ export function isDisposableEmail(email: string): boolean {
   return false;
 }
 
-/** IPs are stored hashed, never raw. "unknown" is not a key (it would pool everyone). */
+/**
+ * IPs are stored hashed, never raw. "unknown" is not a key (it would pool
+ * everyone), nor is loopback: prod never sees it, and every e2e signup in
+ * CI comes from it (CI 09-29 went red on the second one).
+ */
 export function hashIp(ip: string): string | null {
-  if (!ip || ip === "unknown") return null;
+  if (!ip || ip === "unknown" || /^(127\.|::1$|::ffff:127\.)/.test(ip)) return null;
   return createHash("sha256").update(`cardflip-signup:${ip}`).digest("hex").slice(0, 32);
 }
 
@@ -60,11 +65,8 @@ export function newDeviceId(): string {
   return randomUUID();
 }
 
-export const ONE_ACCOUNT_ERROR =
-  "An account was already made from this network or device. Log in to it, or contact support@cardflip.io if this is wrong.";
-
-/** Refusal reason, or null when this IP and device have never signed up. */
-export async function signupBlocked(ipHash: string | null, deviceId: string | null): Promise<"same-device" | "same-ip" | null> {
+/** Why this signup gets no free scans, or null when the IP and device are new. */
+export async function repeatSignup(ipHash: string | null, deviceId: string | null): Promise<"same-device" | "same-ip" | null> {
   if (deviceId && (await db.prepare("SELECT 1 FROM signup_log WHERE device_id = ? LIMIT 1").get(deviceId))) {
     return "same-device";
   }
@@ -74,8 +76,16 @@ export async function signupBlocked(ipHash: string | null, deviceId: string | nu
   return null;
 }
 
-export async function recordSignup(userId: string, ipHash: string | null, deviceId: string, now = Date.now()): Promise<void> {
+/** Log the signup; a repeat starts with the free trial already spent. */
+export async function recordSignup(
+  userId: string,
+  ipHash: string | null,
+  deviceId: string,
+  repeat: boolean,
+  now = Date.now(),
+): Promise<void> {
   await db
     .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at) VALUES (?, ?, ?, ?)")
     .run(userId, ipHash, deviceId, now);
+  if (repeat) await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, userId);
 }
