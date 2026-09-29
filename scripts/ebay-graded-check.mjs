@@ -13,7 +13,6 @@ for (const f of [".env.local", ".env.vercel.local"]) {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { fetchEbayComps } = await import(at("lib/server/ebay.ts"));
 const { englishCardById } = await import(at("lib/server/enCards.ts"));
-const { isComparable } = await import(at("lib/ebayComps.ts"));
 
 const [id = "base1-4", company = "PSA", grade = "10"] = process.argv.slice(2);
 const card = (await englishCardById(id)).cards[0];
