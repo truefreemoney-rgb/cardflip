@@ -33,6 +33,7 @@ const en = await import(at("lib/server/enCards.ts"));
 const cjk = await import(at("lib/server/cjkCards.ts"));
 const bulk = await import(at("lib/server/priceBulkWrite.ts"));
 const active = await import(at("lib/server/activeUsers.ts"));
+const trust = await import(at("lib/server/priceTrustSite.ts"));
 
 // Tables where a bare scan is an outage waiting to happen. scan_usage and
 // price_checks are the per-action ledgers (one row per scan / check, for
@@ -163,6 +164,16 @@ await run("searchCjkCardsLocal (zh)", [], () => cjk.searchCjkCardsLocal("zh", "ç
 // idx_scan_usage_user. The small tables (cards, wishlist, help, tickets)
 // are walked on purpose behind a 60 s memo; they are not on the BIG list.
 await run("loadActiveUsers", [], () => active.loadActiveUsers(now));
+
+// The site price guard (09-30): one series read + one release-date / EUR read per 400 cards, all on the
+// primary keys (price_series (card_id, variant, source), en_cards / mtg_cards id). The set browser reads
+// the whole set through the same loader, so a scan here would be a whole-table walk per set open.
+trust.clearTrustMemo();
+await run("loadTrustData (pokemon)", [], () => trust.loadTrustData([{ cardId: "base1-4", game: "pokemon" }]));
+trust.clearTrustMemo();
+await run("loadTrustData (mtg)", [], () => trust.loadTrustData([{ cardId: "mh2-138", game: "mtg" }]));
+trust.clearTrustMemo();
+await run("latestUsdWithTrust (set browser)", [], () => trust.latestUsdWithTrust(["base1-4"]));
 
 // --- set lists are memoed: the second call must not touch the catalog at all ---
 const before = violations.length;

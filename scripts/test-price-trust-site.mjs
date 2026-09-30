@@ -65,6 +65,11 @@ console.log("held variant and siblings");
   check("... while the default normal line of the same card stays fine", verdict(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)])), null);
   check("a held variant with no line of its own falls back to the default", verdict(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil" }), [true, "flat 87d"]);
   check("... unless the caller asks for that printing exactly", verdict(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil", exact: true }), null);
+  // Aquapolis-style: the reverse holo is $336 while Cardmarket's one average (the plain card) is EUR 28: 10.7x, and real.
+  const aqua = data("pokemon", [ser("normal", liquid(177)), ser("reverseHolofoil", liquid(336))], { cmEur: 28.42 });
+  check("the Cardmarket average does not referee a reverse holo (it is the plain card's price)", verdict(aqua, { variant: "reverseHolofoil" }), null);
+  check("... while it still referees the default printing of the same card", verdict(data("pokemon", [ser("normal", liquid(177)), ser("reverseHolofoil", liquid(336))], { cmEur: 10 }), { variant: "normal" })?.[0], true);
+  check("a reverse holo is still judged on its own series (flat round $500 for 87 days)", verdict(data("pokemon", [ser("normal", liquid(20)), ser("reverseHolofoil", DEOXYS)], { cmEur: 28.42 }), { variant: "reverseHolofoil" }), [true, "flat 87d"]);
   const sib = data("pokemon", [ser("normal", liquid(160)), ser("holofoil", liquid(40))]);
   check("sibling anchor on the default: $160 normal vs a $40 holo is 4x", verdict(sib), [true, "sibling 4.0x"]);
   check("no sibling test for a non-default printing (a holo is 3x its reverse legitimately)", verdict(data("pokemon", [ser("holofoil", liquid(120)), ser("reverseHolofoil", liquid(30))]), { variant: "reverseHolofoil" }), null);

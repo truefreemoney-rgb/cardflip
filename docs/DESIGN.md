@@ -119,6 +119,19 @@ cleanly on failure). No placeholder cards, no invented prices, no fake
 testimonials, no fabricated eBay connection. Copy claims only what the
 product does today.
 
+A market price the price guard does not believe (`lib/server/priceTrust.ts`,
+asked on the site through `lib/server/priceTrustSite.ts`, 09-30) is never
+presented as a card's value. Every screen shows the same sentence in place of
+the number: "This price looks off, check sold listings" (`PRICE_FLAG_NOTE`,
+drawn by `components/PriceFlagNote`, amber like the "no market price" note),
+with a "View Sold on eBay" link where the page already has that search. No
+listing price is suggested from it (the seller types their own; the $1.22
+break-even guard still applies), no reprice nudge or price alert fires from
+it, it is not saved as a wishlist baseline, and it is left out of value totals
+(collection In play, insights, digest, public page, cost to finish) unless the
+seller typed the price. Hard (proved wrong) and soft (unverified) flags read
+the same: a collector cannot verify either. Sealed products are outside the rule.
+
 ## Component patterns
 
 - Public card peek: `CardPeekModal` (HoloCard 3D + live price + CTA) — the

@@ -25,6 +25,11 @@ import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
  *    the social path reads them. A holo is legitimately 3x its reverse holo,
  *    and a Lorcana or Magic foil 3x+ its normal print: siblings on flagged 7
  *    Lorcana foils that were fine.
+ *  - Pokemon's Cardmarket referee (one average per card) only speaks for the
+ *    default printing: a reverse holo is legitimately 5-60x the average of the
+ *    plain card (Aquapolis reverse holos: $336 against EUR 28), and the referee
+ *    flagged 46 of 754 real reverse holos >= $10. Other printings are judged on
+ *    their own series only (spike, flat, doubling, soft signs).
  *  - Magic's referee is the finish's own Cardmarket price on the mirror row
  *    (foil and etched on price_eur_foil), not the nonfoil one.
  *  - Lorcana / One Piece / Yu-Gi-Oh series started 09-30: the "< 14 priced
@@ -131,7 +136,9 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
       .map((o) => (opts.old ? valueOnOrBefore(o, addDays(day, -opts.old.back)) : lastIn(o)))
       .filter((v): v is number => v != null && v > 0);
   }
-  const refEur = data.game === "mtg" ? (variant === "nonfoil" ? (data.eur?.nonfoil ?? null) : (data.eur?.foil ?? null)) : data.game === "pokemon" ? data.cmEur : null;
+  // Pokemon: the one Cardmarket average belongs to the default printing (or to a card the price table has no series for at all).
+  const cmSpeaks = data.game === "pokemon" && (s ? s === def : data.series.length === 0);
+  const refEur = data.game === "mtg" ? (variant === "foil" || variant === "etched" ? (data.eur?.foil ?? null) : (data.eur?.nonfoil ?? null)) : cmSpeaks ? data.cmEur : null;
   const verdict = priceTrust({ to, prices, siblings, refEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
   if (verdict.ok) return null;
   const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
