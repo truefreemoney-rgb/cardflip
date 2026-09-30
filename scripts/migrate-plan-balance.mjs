@@ -35,7 +35,7 @@ import fs from "node:fs";
 import { createClient } from "@libsql/client";
 
 const { PRICING } = await import("../src/lib/pricing.ts");
-const { SEED_MONTH, seedAmount, seedKey } = await import("../src/lib/planSeed.ts");
+const { CREDITS_FROM, SEED_MONTH, seedAmount, seedKey } = await import("../src/lib/planSeed.ts");
 
 // Same value as OWNER_EMAIL in src/lib/server/users.ts (that module is server-only).
 const OWNER_EMAIL = "truefreemoney@gmail.com";
@@ -143,6 +143,10 @@ export async function plan(client, opts) {
       out.push({ ...base, action: "skip", why: "owner or admin account" });
       continue;
     }
+    if (Number(r.created_at) >= CREDITS_FROM) {
+      out.push({ ...base, action: "skip", why: "account made on or after Oct 1: first paid under the new rules, no old allowance is owed" });
+      continue;
+    }
     if (hasBalance && r.plan_scans !== null && r.plan_scans !== undefined) {
       out.push({ ...base, action: "skip", why: `already has a balance (${r.plan_scans})` });
       continue;
@@ -167,7 +171,12 @@ export async function plan(client, opts) {
       }
     }
     const seed = seedAmount(cap, SEED_MONTH, used);
-    out.push({ ...base, action: "seed", seed, cap, used, source });
+    // The counter says nothing about September: this is either an old subscriber who did not
+    // scan in September (owed the full allowance) or an older account that first SUBSCRIBED on
+    // or after Oct 1 (owed nothing). The script cannot tell them apart; the daily credit job
+    // takes the seed back if the first invoice was paid after Oct 1, but check Stripe first.
+    const check = !counterHasMonth ? `counter is "${r.scan_month ?? "empty"}", not ${opts.month}: seeds the full allowance; if this person first subscribed on or after Oct 1 they are owed nothing, check their first invoice in Stripe` : null;
+    out.push({ ...base, action: "seed", seed, cap, used, source, ...(check ? { check } : {}) });
   }
   return out;
 }
@@ -211,7 +220,7 @@ export async function run(argv, log = console.log) {
           result = wrote ? result : "left alone (another writer seeded first)";
           if (wrote) seeded++;
         }
-        log(`  ${tag} ${e.plan} ${e.status}: ${result}  [${e.plan} cap ${e.cap}, used ${e.used} from ${e.source}]`);
+        log(`  ${tag} ${e.plan} ${e.status}: ${result}  [${e.plan} cap ${e.cap}, used ${e.used} from ${e.source}]${e.check ? `\n         ?? ${e.check}` : ""}`);
       } else {
         log(`  ${tag} ${e.plan} ${e.status}: SKIPPED, ${e.why}${e.flag ? `\n         !! ${e.flag}` : ""}`);
       }
@@ -219,6 +228,8 @@ export async function run(argv, log = console.log) {
     const skipped = entries.filter((e) => e.action === "skip");
     const flagged = skipped.filter((e) => e.flag);
     log(opts.apply ? `Seeded ${seeded}, skipped ${skipped.length}.` : `Would seed ${entries.length - skipped.length}, skip ${skipped.length}. Nothing was written; re-run with --apply.`);
+    const checks = entries.filter((e) => e.action === "seed" && e.check);
+    if (checks.length) log(`Check in Stripe before --apply: ${checks.map((e) => e.id.slice(0, 8)).join(", ")} (no September counter; may have first subscribed after Oct 1).`);
     if (flagged.length) log(`Needs a human: ${flagged.map((e) => e.id.slice(0, 8)).join(", ")} (live in Stripe on an override).`);
     return { opts, entries, seeded };
   } finally {

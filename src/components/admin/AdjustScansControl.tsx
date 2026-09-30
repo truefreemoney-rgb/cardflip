@@ -24,12 +24,15 @@ interface Props {
  * Admin, owner only: add or take back plan scans by hand, with a note, as a
  * ledger row (POST /api/admin/users/[id]/scans). This is how a refund without a
  * cancel takes its scans back, how a won dispute or a goodwill grant is put
- * right, and how a missed credit is fixed. A negative number floors at zero.
+ * right, and how a missed credit is fixed. Taking back floors at zero. Add or
+ * Take Back is a toggle (the API still takes a signed delta).
  * The answer names what really moved and lists the newest ledger rows.
  */
 export default function AdjustScansControl({ userId, planScans }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Add or Take Back is a toggle so the phone's digits-only keypad never needs a minus sign.
+  const [mode, setMode] = useState<"add" | "take">("add");
   const [delta, setDelta] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,11 +41,12 @@ export default function AdjustScansControl({ userId, planScans }: Props) {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const n = Number(delta);
-    if (!Number.isInteger(n) || n === 0) {
-      setError("Type a whole number of scans, like 250 or -250.");
+    const amount = /^\d+$/.test(delta.trim()) ? Number(delta.trim()) : 0;
+    if (!Number.isSafeInteger(amount) || amount === 0) {
+      setError("Type a whole number of scans, like 250.");
       return;
     }
+    const n = mode === "take" ? -amount : amount;
     setBusy(true);
     setError(null);
     setResult(null);
@@ -89,13 +93,31 @@ export default function AdjustScansControl({ userId, planScans }: Props) {
       </div>
       {open && (
         <form onSubmit={submit} className="flex flex-col gap-2 rounded-xl border border-edge bg-surface-1 p-3 sm:w-96">
+          <div role="group" aria-label="Add or take back" className="flex gap-2">
+            {(["add", "take"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+                className={`min-h-10 flex-1 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                  mode === m ? "bg-brand-500 text-white" : "bg-white/5 text-zinc-400 hover:bg-white/10"
+                }`}
+              >
+                {m === "add" ? "Add" : "Take Back"}
+              </button>
+            ))}
+          </div>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Scans to add or take back</span>
+            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              {mode === "add" ? "Scans to add" : "Scans to take back"}
+            </span>
             <input
               inputMode="numeric"
+              pattern="[0-9]*"
               value={delta}
               onChange={(e) => setDelta(e.target.value)}
-              placeholder="250 or -250"
+              placeholder="250"
               required
               className={`w-full ${input}`}
             />

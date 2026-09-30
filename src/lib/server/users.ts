@@ -5,7 +5,7 @@ import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
 import { PRICE, PRICING } from "@/lib/pricing";
 import type { ScanQuota } from "@/lib/quotaTypes";
-import { SEED_WINDOW_ENDS_AT, seedAmount } from "@/lib/planSeed";
+import { CREDITS_FROM, SEED_WINDOW_ENDS_AT, seedAmount } from "@/lib/planSeed";
 import { emailConfirmActive } from "@/lib/server/mail";
 
 export type { ScanQuota };
@@ -262,6 +262,8 @@ export function planSeedFor(
   now = Date.now(),
 ): number | null {
   if (user.planScans !== null || now >= SEED_WINDOW_ENDS_AT || !spendsPlanScans(user)) return null;
+  // An account made on or after Oct 1 first paid under the new rules: nothing is owed from the old counter.
+  if (user.createdAt >= CREDITS_FROM) return null;
   return seedAmount(monthlyScans(user), user.scanMonth, user.scansUsed);
 }
 
@@ -272,9 +274,10 @@ export function planScansLeft(user: Parameters<typeof planSeedFor>[0], now = Dat
 
 export function scanQuota(user: User, now = Date.now()): ScanQuota {
   const tier = scanTier(user);
-  // Banked plan scans that cannot be spent right now (canceled, or an override
-  // ignores them): shown so a paused balance never reads as lost.
-  const frozen = !spendsPlanScans(user) && tier !== "owner" && (user.planScans ?? 0) > 0 ? { frozen: user.planScans ?? 0 } : {};
+  // Banked plan scans that cannot be spent because the plan ended (or never
+  // started): shown so a paused balance never reads as lost. A live subscriber
+  // on an override is paying, not "paused": say nothing (billingCredits alerts the owner).
+  const frozen = !spendsPlanScans(user) && !isSubscribed(user) && tier !== "owner" && (user.planScans ?? 0) > 0 ? { frozen: user.planScans ?? 0 } : {};
   if (tier === "trial") {
     const t = user.trialScansUsed ?? 0;
     return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t), ...frozen };

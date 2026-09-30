@@ -115,7 +115,7 @@ assert.equal(copy.shortDate(OCT_25), "Oct 25", "dates are Eastern");
 assert.equal(copy.shortDate(null), "");
 
 let title = copy.scanCounterTitle(sub, "subscribed");
-assert.equal(title, "488 scans left, 238 carried over. Your next 250 arrive on Oct 25 — tap for more scans");
+assert.equal(title, "488 scans left, 238 carried over. Your next scans arrive on Oct 25 — tap for more scans");
 assert.ok(!/ of 250|\/ 250|this month/.test(title), "no '/ 250' for a subscriber");
 
 title = copy.scanCounterTitle({ ...sub, remaining: 588, bonus: 40, pack: 60 }, "subscribed");
@@ -135,9 +135,9 @@ assert.equal(copy.nextCreditSentence({ ...sub, nextCreditAt: null }), null, "a f
 
 // Out of scans: the next date, or a Scan Pack.
 const out = { ...sub, remaining: 0, plan: 0, carried: 0 };
-assert.equal(copy.scanCounterTitle(out, "subscribed"), "No scans left. Your next 250 arrive on Oct 25, or tap to add a Scan Pack");
+assert.equal(copy.scanCounterTitle(out, "subscribed"), "No scans left. Your next scans arrive on Oct 25, or tap to add a Scan Pack");
 assert.equal(copy.scanCounterTitle({ ...out, nextCreditAt: null }, "subscribed"), "No scans left. Tap to add a Scan Pack");
-assert.equal(copy.moreScansSentence(out, "subscribed"), "Your next 250 arrive on Oct 25, or add a Scan Pack to keep scanning now.");
+assert.equal(copy.moreScansSentence(out, "subscribed"), "Your next scans arrive on Oct 25, or add a Scan Pack to keep scanning now.");
 assert.equal(copy.moreScansSentence({ ...out, nextCreditAt: null }, "subscribed"), "Add a Scan Pack to keep scanning.");
 
 // Canceled: banked scans are paused, not lost, and the wording says so.
@@ -183,10 +183,15 @@ assert.ok(!/quota\?: \{/.test(read("src/app/app/account/page.tsx")) && has(read(
 assert.ok(has(read("src/lib/client/auth.ts"), "scans?: ScanQuota;"));
 
 const welcome = read("src/app/app/account/welcome/page.tsx");
-assert.ok(/hasScansToUse\(o\?\.quota \?\? o\?\.user\.scans\)/.test(welcome), "the welcome page waits for scans, not just for the status");
+assert.ok(/paymentCredited\(o\?\.quota \?\? o\?\.user\.scans, since\)/.test(welcome), "the welcome page waits for the payment's credit, not just for any spendable scans");
+assert.ok(!has(welcome, "SCANS.standard") && !has(welcome, "SCANS.pro"), "the welcome page never prints a count the server did not send");
 assert.ok(has(welcome, "Scan a Card") && has(welcome, "Manage Billing"), "welcome buttons are Title Case");
 const account = read("src/app/app/account/page.tsx");
-assert.ok(has(account, "hasScansToUse(o.quota ?? o.user.scans)"), "the account page's confirmed phase waits for scans too");
+assert.ok(has(account, "paymentCredited(o.quota ?? o.user.scans, since)"), "the account page's confirmed phase waits for the payment's credit too");
+// The rollover promise is only made to a real rollover subscriber, never to an override account.
+assert.ok(/\{rollover && \(\s*<p className="mt-3 text-xs text-zinc-600">\s*\{ROLLOVER_SENTENCE\}/.test(account), "the account page's rollover sentence is gated on hasPlanBalance");
+assert.ok(has(account, "Unlimited scans"), "an unlimited account reads 'Unlimited scans', not 0");
+assert.ok(!has(account, "Next {q.included"), "the next credit promises a date, not a count");
 assert.ok(has(account, "planEndsSentence(q)") && has(account, "frozenSentence(q)"), "the account page shows the ending plan and the paused balance");
 assert.ok(!/\/ quota\.included|\/ q\.included|\.included\) \* 100/.test(account), "no bar divides by included any more");
 assert.ok(has(account, "Cancel Plan") && !has(account, ">Cancel plan<"));
@@ -202,5 +207,20 @@ assert.ok(has(users, "plan scans left") && has(users, "AdjustScansControl"), "th
 assert.ok(has(read("src/app/admin/(console)/users/page.tsx"), "planScans: planScansLeft(u)"), "the admin page passes plan scans");
 const adjust = read("src/components/admin/AdjustScansControl.tsx");
 assert.ok(has(adjust, "/api/admin/users/${userId}/scans") && has(adjust, "Adjust Scans") && has(adjust, " text-base ") && has(adjust, "sm:text-sm"), "the control posts to the owner endpoint, Title Case, inputs >= 16px on phones");
+
+// The Adjust Scans control never needs a minus key: Add / Take Back is a toggle (iOS numeric keypad has none).
+assert.ok(has(adjust, "Take Back") && has(adjust, 'pattern="[0-9]*"') && !has(adjust, "-250"), "adjust: a Take Back toggle, digits only, no '-250' typed");
+
+// paymentCredited: the welcome page and the account poll wait for THIS payment's plan credit.
+const since = 1_000_000;
+assert.equal(copy.paymentCredited(undefined, since), false);
+assert.equal(copy.paymentCredited({ ...sub, plan: 0, remaining: 100, pack: 100, lastCreditAt: null }, since), false, "Scan Pack scans alone do not confirm a subscription payment");
+assert.equal(copy.paymentCredited({ ...sub, plan: 238, remaining: 238, lastCreditAt: since - 1 }, since), false, "a paused balance that unfroze, with an old credit, does not confirm it");
+assert.equal(copy.paymentCredited({ ...sub, lastCreditAt: since }, since), true, "a plan credit written since the checkout confirms it");
+assert.equal(copy.paymentCredited(comped, since), true, "a comped account (no plan balance) falls back to 'has scans'");
+assert.equal(copy.paymentCredited({ used: 0, included: 0, remaining: null }, since), true, "an unlimited account is ready");
+
+// The next credit names a date, never a count (a downgrade at period end changes the amount).
+assert.ok(!/\d/.test(copy.nextCreditSentence(sub).replace("Oct 25", "")), "no scan count in the next-credit sentence");
 
 console.log("rollover copy: ok");

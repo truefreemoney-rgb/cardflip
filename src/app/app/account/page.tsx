@@ -12,7 +12,7 @@ import { logout, type SessionUser } from "@/lib/client/auth";
 import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
 import { FROZEN_SENTENCE, PRICE, PRICE_SHORT, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import type { ScanQuota } from "@/lib/quotaTypes";
-import { frozenSentence, hasPlanBalance, hasScansToUse, planEndsSentence, shortDate } from "@/lib/scanCopy";
+import { frozenSentence, hasPlanBalance, paymentCredited, planEndsSentence, shortDate } from "@/lib/scanCopy";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from "@/lib/client/push";
@@ -158,6 +158,9 @@ function AccountSettings({
   useEffect(() => {
     if (billingReturn) window.history.replaceState(null, "", window.location.pathname);
   }, [billingReturn]);
+  // A plan credit written after this moment is the payment that brought them
+  // back (slack for a slow checkout); older ones are past months'.
+  const [since] = useState(() => Date.now() - 10 * 60_000);
   useEffect(() => {
     if (billingReturn !== "success") return;
     let cancelled = false;
@@ -170,7 +173,7 @@ function AccountSettings({
         setOverview(o);
         // Active AND the payment's scans credited: the webhook flips the status
         // first, so "active" alone can still show 0 scans for a moment.
-        if ((o.user.subStatus === "active" || o.user.subStatus === "trialing") && hasScansToUse(o.quota ?? o.user.scans)) {
+        if ((o.user.subStatus === "active" || o.user.subStatus === "trialing") && paymentCredited(o.quota ?? o.user.scans, since)) {
           setBillingPhase("confirmed");
           void refresh();
           setUser(o.user);
@@ -189,7 +192,7 @@ function AccountSettings({
       cancelled = true;
       clearInterval(id);
     };
-  }, [billingReturn, setUser, refresh]);
+  }, [billingReturn, setUser, refresh, since]);
 
   // --- Profile -----------------------------------------------------------
   const [name, setName] = useState(user.name);
@@ -1219,8 +1222,22 @@ function PlanSection({
   // more, and, once the plan is set to end, that the banked plan scans pause
   // then. Dates are Eastern. `q` is the same snapshot as the header counter.
   const q = quota ?? user.scans;
+  // Only a real rollover subscriber has a plan balance to describe. A subscriber
+  // on an admin override (legacy day counter, comp month counter, unlimited, trial)
+  // keeps the wording of that tier: the rollover promise is not theirs.
+  const rollover = hasPlanBalance(q);
   const scansLeft = (q?.remaining ?? 0).toLocaleString("en-US");
-  const nextDate = shortDate(q?.nextCreditAt);
+  const scansLeftText =
+    q?.remaining === null
+      ? "Unlimited scans"
+      : rollover
+        ? `${scansLeft} scans left`
+        : user.tier === "legacy"
+          ? `${scansLeft} of ${q?.included.toLocaleString("en-US")} scans left today`
+          : user.tier === "trial"
+            ? `${scansLeft} of ${q?.included.toLocaleString("en-US")} free scans left`
+            : `${scansLeft} scans left`;
+  const nextDate = rollover ? shortDate(q?.nextCreditAt) : "";
   const endsDate = shortDate(q?.endsAt);
   const ending = Boolean(user.cancelAtPeriodEnd) || Boolean(endsDate);
   // Plan scans that are banked but cannot be spent (canceled, or the plan ended).
@@ -1232,9 +1249,9 @@ function PlanSection({
     <>
       <Dot on />
       {user.subStatus === "past_due"
-        ? `Last payment failed — update your card. ${scansLeft} scans left.`
-        : `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${scansLeft} scans left${
-            ending ? (endsDate ? ` · plan ends ${endsDate}` : "") : nextDate && q ? ` · next ${q.included.toLocaleString("en-US")} on ${nextDate}` : ""
+        ? `Last payment failed — update your card. ${scansLeftText}.`
+        : `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${scansLeftText}${
+            ending ? (endsDate ? ` · plan ends ${endsDate}` : "") : nextDate ? ` · next scans on ${nextDate}` : ""
           }.${user.plan === "pro" || ending ? "" : ` Pro is ${SCANS.pro} for ${PRICE.pro} — switch in Manage Billing.`}`}
     </>
   ) : user.tier === "owner" ? (
@@ -1310,7 +1327,16 @@ function PlanSection({
       {subscribed && q && (
         <div className="max-w-sm">
           <p className="font-display text-2xl font-semibold tabular-nums text-white">
-            {scansLeft} <span className="font-sans text-sm font-normal text-zinc-400">scans left</span>
+            {q.remaining === null ? (
+              "Unlimited scans"
+            ) : (
+              <>
+                {scansLeft}{" "}
+                <span className="font-sans text-sm font-normal text-zinc-400">
+                  {rollover ? "scans left" : user.tier === "legacy" ? "scans left today" : user.tier === "trial" ? "free scans left" : "scans left"}
+                </span>
+              </>
+            )}
           </p>
           {hasPlanBalance(q) && (
             <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-xs text-zinc-400">
@@ -1336,21 +1362,23 @@ function PlanSection({
               ) : null}
               {nextDate && (
                 <>
-                  <dt>Next {q.included.toLocaleString("en-US")} scans arrive</dt>
+                  <dt>Next scans arrive</dt>
                   <dd className="text-right tabular-nums text-zinc-200">{nextDate}</dd>
                 </>
               )}
             </dl>
           )}
-          {ending && billingReturn !== "ending" && planEndsSentence(q) && (
+          {rollover && ending && billingReturn !== "ending" && planEndsSentence(q) && (
             <p role="status" className="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
               {planEndsSentence(q)}. Changed your mind? Manage Billing can undo it.
             </p>
           )}
-          <p className="mt-3 text-xs text-zinc-600">
-            {ROLLOVER_SENTENCE}
-            {ending ? "" : ` ${FROZEN_SENTENCE}`}
-          </p>
+          {rollover && (
+            <p className="mt-3 text-xs text-zinc-600">
+              {ROLLOVER_SENTENCE}
+              {ending ? "" : ` ${FROZEN_SENTENCE}`}
+            </p>
+          )}
           {billingReturn !== "ending" && !ending && (
             <button
               type="button"

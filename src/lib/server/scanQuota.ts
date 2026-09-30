@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { PRICE } from "@/lib/pricing";
-import { etDate } from "@/lib/time";
+import { etDate, etTime } from "@/lib/time";
 import { ensurePlanSeed } from "@/lib/server/scanCredits";
 import {
   LEGACY_DAILY_SCANS,
@@ -10,7 +10,6 @@ import {
   findUserById,
   isComped,
   monthlyScans,
-  planOf,
   scanQuota,
   scanTier,
   spendsPlanScans,
@@ -58,15 +57,21 @@ export function scanQuotaExhausted(user: User): boolean {
  * account with paused plan scans is told they come back on resubscribe.
  */
 export function outOfScansMessage(user: User, q: ScanQuota = scanQuota(user)): string {
+  // The legacy day is a UTC day (users.ts quotaDay); say when it rolls over in Eastern (site-wide ET, 09-30).
+  if (scanTier(user) === "legacy") {
+    const nextUtcMidnight = (Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000;
+    return `You've used today's ${LEGACY_DAILY_SCANS} scans. The counter resets at ${etTime(nextUtcMidnight)}, or subscribe for more scans.`;
+  }
+  // Every message ends with a full stop: callers show it as a sentence of its own.
   if (spendsPlanScans(user)) {
     const next = q.nextCreditAt ? etDate(q.nextCreditAt, "", { month: "short", day: "numeric" }) : "";
     return next
-      ? `You're out of scans. Your next ${PLAN_SCANS[planOf(user)].toLocaleString("en-US")} arrive on ${next}, or add a Scan Pack (${PRICE.pack}) to keep scanning now`
-      : `You're out of scans. Add a Scan Pack (${PRICE.pack}) to keep scanning`;
+      ? `You're out of scans. Your next scans arrive on ${next}, or add a Scan Pack (${PRICE.pack}) to keep scanning now.`
+      : `You're out of scans. Add a Scan Pack (${PRICE.pack}) to keep scanning.`;
   }
   return q.frozen
-    ? `You're out of scans. Your ${q.frozen.toLocaleString("en-US")} banked plan scans come back when you resubscribe, or buy a Scan Pack to keep scanning`
-    : "You're out of scans. Subscribe or buy a Scan Pack to keep scanning";
+    ? `You're out of scans. Your ${q.frozen.toLocaleString("en-US")} banked plan scans come back when you resubscribe, or buy a Scan Pack to keep scanning.`
+    : "You're out of scans. Subscribe or buy a Scan Pack to keep scanning.";
 }
 
 type Bucket = "plan" | "bonus" | "pack" | "counter" | "trial";
@@ -174,43 +179,64 @@ function record(draw: ScanDraw, bucket: Bucket, k: number, counterKey: string | 
  */
 export async function reserveScans(user: User, n: number): Promise<ScanReservation> {
   const draw = emptyDraw();
-  if (n > 0) {
-    // An unmigrated subscriber's balance is written from the old counter on
-    // first use, before the first guarded take (which would read NULL as 0).
-    if (spendsPlanScans(user) && user.planScans === null) await ensurePlanSeed(user.id);
-    const { order, counterKey, counterCap } = bucketsFor(user);
-    let left = n;
-    if (n === 1) {
-      for (const bucket of order) {
-        if (await take(bucket, user.id, 1, counterKey, counterCap)) {
-          record(draw, bucket, 1, counterKey);
-          left = 0;
-          break;
-        }
-      }
-    } else {
-      for (let attempt = 0; attempt < 6 && left > 0; attempt++) {
-        const row = (await db
-          .prepare("SELECT plan_scans, bonus_scans, extra_scans, scan_month, scans_used, trial_scans_used FROM users WHERE id = ?")
-          .get(user.id)) as BalanceRow | undefined;
-        if (!row) break;
-        let hinted = false;
+  const taken = () => draw.plan + draw.bonus + draw.pack + draw.counter + draw.trial;
+  try {
+    if (n > 0) {
+      // An unmigrated subscriber's balance is written from the old counter on
+      // first use, before the first guarded take (which would read NULL as 0).
+      if (spendsPlanScans(user) && user.planScans === null) await ensurePlanSeed(user.id);
+      const { order, counterKey, counterCap } = bucketsFor(user);
+      let left = n;
+      if (n === 1) {
         for (const bucket of order) {
-          if (left <= 0) break;
-          const k = Math.min(left, headroom(bucket, row, counterKey, counterCap));
-          if (k <= 0) continue;
-          hinted = true;
-          if (await take(bucket, user.id, k, counterKey, counterCap)) {
-            record(draw, bucket, k, counterKey);
-            left -= k;
+          if (await take(bucket, user.id, 1, counterKey, counterCap)) {
+            record(draw, bucket, 1, counterKey);
+            left = 0;
+            break;
           }
         }
-        if (!hinted) break;
+      } else {
+        for (let attempt = 0; attempt < 6 && left > 0; attempt++) {
+          const row = (await db
+            .prepare("SELECT plan_scans, bonus_scans, extra_scans, scan_month, scans_used, trial_scans_used FROM users WHERE id = ?")
+            .get(user.id)) as BalanceRow | undefined;
+          if (!row) break;
+          let hinted = false;
+          for (const bucket of order) {
+            if (left <= 0) break;
+            const k = Math.min(left, headroom(bucket, row, counterKey, counterCap));
+            if (k <= 0) continue;
+            hinted = true;
+            if (await take(bucket, user.id, k, counterKey, counterCap)) {
+              record(draw, bucket, k, counterKey);
+              left -= k;
+            }
+          }
+          if (!hinted) break;
+        }
       }
     }
+  } catch (err) {
+    // A database error part-way through: each take was its own committed
+    // statement, so what was drawn so far is put back before the error goes up
+    // (the caller never got a reservation to give back).
+    if (taken() > 0) {
+      await giveBackScans(user, { taken: taken(), draw, usage: scanQuota(user) }).catch((e) =>
+        console.error("scan give-back after a failed reserve failed:", e instanceof Error ? e.message : e),
+      );
+    }
+    throw err;
   }
-  const fresh = (await findUserById(user.id)) ?? user;
-  return { taken: draw.plan + draw.bonus + draw.pack + draw.counter + draw.trial, draw, usage: scanQuota(fresh) };
+  // The scans are already spent: a failed read of the fresh balance must not
+  // lose the reservation, so fall back to the row in hand (its numbers are
+  // stale, the caller only ships them as the usage snapshot).
+  let usage: ScanQuota;
+  try {
+    usage = scanQuota((await findUserById(user.id)) ?? user);
+  } catch {
+    usage = scanQuota(user);
+  }
+  return { taken: taken(), draw, usage };
 }
 
 /** Reserve one scan (the single-card scan route). */
@@ -246,6 +272,10 @@ export async function giveBackScans(user: User, reservation: ScanReservation, co
     }
     left -= k;
   }
-  const fresh = (await findUserById(user.id)) ?? user;
-  return scanQuota(fresh);
+  // The scans are back; a failed re-read only costs the fresh snapshot.
+  try {
+    return scanQuota((await findUserById(user.id)) ?? user);
+  } catch {
+    return scanQuota(user);
+  }
 }

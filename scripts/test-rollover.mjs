@@ -38,8 +38,8 @@ const { PRICING, ROLLOVER } = await import(at("lib/pricing.ts"));
 const { SEED_MONTH, CREDITS_FROM, seedAmount } = await import(at("lib/planSeed.ts"));
 const { createUser, findUserById, planSeedFor, scanQuota, setSubscription, PAID_SWITCH_AT, OWNER_EMAIL } = await import(at("lib/server/users.ts"));
 const { adjustPlanScans, creditPlanScans, ensurePlanSeed, ledgerForUser, reversePlanScans } = await import(at("lib/server/scanCredits.ts"));
-const { outOfScansMessage, reserveScan } = await import(at("lib/server/scanQuota.ts"));
-const { reconcilePaidInvoices, planCreditFor } = await import(at("lib/server/billingCredits.ts"));
+const { outOfScansMessage, reserveScan, reserveScans } = await import(at("lib/server/scanQuota.ts"));
+const { reconcilePaidInvoices, planCreditFor, handleChargeRefunded, handleDisputeCreated } = await import(at("lib/server/billingCredits.ts"));
 const { run: runMigration } = await import(new URL("./migrate-plan-balance.mjs", import.meta.url).href);
 
 let failures = 0;
@@ -99,9 +99,9 @@ console.log("ledger");
 }
 {
   const id = await mkUser({ plan_scans: 100 });
-  const r1 = await reversePlanScans({ userId: id, key: "refund:ch_1:100", refKey: "in_x", scans: 60 });
-  const r2 = await reversePlanScans({ userId: id, key: "refund:ch_1:200", refKey: "in_x", scans: 60 });
-  const again = await reversePlanScans({ userId: id, key: "refund:ch_1:200", refKey: "in_x", scans: 60 });
+  const r1 = await reversePlanScans({ userId: id, key: "refund:ch_1:100", refKey: "in_x", target: 60 });
+  const r2 = await reversePlanScans({ userId: id, key: "refund:ch_1:200", refKey: "in_x", target: 120 });
+  const again = await reversePlanScans({ userId: id, key: "refund:ch_1:200", refKey: "in_x", target: 120 });
   check("reversal takes what it can and floors at zero", [r1.applied, r2.applied, (await get(id)).planScans], [-60, -40, 0]);
   check("the same reversal key twice does nothing", [again.recorded, (await ledgerForUser(id)).length], [false, 2]);
   const adj = await adjustPlanScans(id, 25, "goodwill");
@@ -319,8 +319,8 @@ console.log("\nmessages");
   const next = Date.UTC(2026, 9, 25, 14);
   const sub = await mkUser({ plan_scans: 0, sub_period_end: next });
   const msg = outOfScansMessage(await get(sub));
-  check("a subscriber is told the next credit date (Eastern) and that a Scan Pack works now",
-    [msg.includes("Oct 25"), msg.includes(String(STD)), msg.includes("Scan Pack"), msg.includes("this month") || msg.includes("resets")], [true, true, true, false]);
+  check("a subscriber is told the next credit date (Eastern, no count: a downgrade may change it) and that a Scan Pack works now",
+    [msg.includes("Oct 25"), /\d{3}/.test(msg.replace(/\$\d+/g, "")), msg.includes("Scan Pack"), msg.includes("this month") || msg.includes("resets")], [true, false, true, false]);
   await setSubscription(sub, "active", next, "standard", next);
   const ending = outOfScansMessage(await get(sub));
   check("a plan that is ending promises no credit, only a Scan Pack", [ending.includes("Oct 25"), ending.includes("Scan Pack")], [false, true]);
@@ -329,7 +329,7 @@ console.log("\nmessages");
   const frozen = outOfScansMessage(await get(sub));
   check("a canceled account is told its banked scans come back on resubscribe", [frozen.includes("388"), frozen.includes("resubscribe")], [true, true]);
   const trial = await mkUser({ sub_status: null, plan: null });
-  check("a trial account keeps the plain wall message", outOfScansMessage(await get(trial)), "You're out of scans. Subscribe or buy a Scan Pack to keep scanning");
+  check("a trial account keeps the plain wall message", outOfScansMessage(await get(trial)), "You're out of scans. Subscribe or buy a Scan Pack to keep scanning.");
 }
 
 // --- route wiring ------------------------------------------------------------------------------
@@ -352,6 +352,99 @@ console.log("\nroutes");
   const stale = await get(id);
   const seen = await Promise.all([reserveScan(stale), reserveScan(stale), reserveScan(stale), reserveScan(stale)]);
   check("four scans in flight against three: three taken, one refused", [seen.filter((r) => r.taken === 1).length, (await get(id)).planScans], [3, 0]);
+}
+
+// --- review fixes (10-01) ---------------------------------------------------------------------------
+console.log("\nreview fixes");
+{
+  // 1. A refund and a dispute (or two partial refunds) for one charge, at the same moment, take the credit back ONCE.
+  const id = await mkUser({ plan_scans: 0, stripe_customer_id: "cus_race" });
+  await credit(id, "in_race", { chargeId: "ch_race", paymentIntent: "pi_race" });
+  await credit(id, "in_later"); // scans from a later payment must not be eaten
+  const charge = { id: "ch_race", amount: 999, amount_refunded: 999, payment_intent: "pi_race", invoice: "in_race", customer: "cus_race" };
+  // (The file database refuses a second write transaction while one is open, so the race is pinned by its cause:
+  // what earlier reversals took is read INSIDE the transaction that writes the next one, from the ledger, never from a caller's earlier read.)
+  const rf = await handleChargeRefunded(charge);
+  const dp = await handleDisputeCreated({ id: "dp_race", charge: "ch_race", payment_intent: "pi_race" });
+  check("a full refund, then a dispute on the same charge: the 250 is taken back once, not twice",
+    [(await get(id)).planScans, [rf.result, dp.result]], [STD, ["reversed", "nothing_more"]]);
+  const sum = (await rows("SELECT COALESCE(SUM(-scans), 0) AS n FROM scan_credits WHERE ref_key = 'in_race' AND kind = 'reversal'"))[0].n;
+  check("…the ledger shows one reversal of the credit", sum, STD);
+  const p1 = await reversePlanScans({ userId: id, key: "refund:ch_x:1", refKey: "in_race2", target: 100 });
+  const p2 = await reversePlanScans({ userId: id, key: "refund:ch_x:2", refKey: "in_race2", target: 100 });
+  const p3 = await reversePlanScans({ userId: id, key: "refund:ch_x:3", refKey: "in_race2", target: 160 });
+  check("reversals of one credit are netted inside the transaction: 100 + nothing + the 60 still owed", [p1.applied, p2.recorded, p3.applied, p3.wanted], [-100, false, -60, 60]);
+  check("the transaction reads the sum itself (the caller passes a target, not a delta)", src("lib/server/scanCredits.ts").includes("SELECT COALESCE(SUM(-scans), 0) AS n FROM scan_credits WHERE ref_key = ? AND kind = 'reversal'") && !src("lib/server/billingCredits.ts").includes("reversedScansFor("), true);
+
+  // 2. A database error part-way through reserveScans puts back what was already taken; a failed re-read keeps the reservation.
+  const many = await mkUser({ plan_scans: 3, bonus_scans: 5 });
+  const realPrepare = db.prepare;
+  db.prepare = (sql) => (sql.includes("bonus_scans = bonus_scans - ?") ? { get: async () => undefined, all: async () => [], run: async () => { throw new Error("turso blip"); } } : realPrepare.call(db, sql));
+  let threw = null;
+  try { await reserveScans(await get(many), 6); } catch (err) { threw = err.message; } finally { db.prepare = realPrepare; }
+  const backed = await get(many);
+  check("a take that throws after 3 plan scans were drawn: the error goes up and the plan scans are back", [threw, backed.planScans, backed.bonusScans], ["turso blip", 3, 5]);
+  const one = await mkUser({ plan_scans: 4 });
+  const stale = await get(one);
+  db.prepare = (sql) => (sql === "SELECT * FROM users WHERE id = ?" ? { get: async () => { throw new Error("read blip"); }, all: async () => [], run: async () => ({ changes: 0 }) } : realPrepare.call(db, sql));
+  let reservation = null;
+  try { reservation = await reserveScan(stale); } finally { db.prepare = realPrepare; }
+  check("a failed re-read after the take does not lose the reservation (taken 1, usage from the row in hand)", [reservation?.taken, reservation?.draw.plan, (await get(one)).planScans], [1, 1, 3]);
+
+  // 3. A subscriber who paid on the OLD code after Oct 1 is seeded by the new code, then their first invoice arrives: one allowance, not two.
+  const OCT_3 = Math.floor(Date.UTC(2026, 9, 3, 12) / 1000);
+  const OCT_4 = Date.UTC(2026, 9, 4, 14);
+  const first = (invId, cus, paidAt) => ({
+    id: invId, customer: cus, status: "paid", billing_reason: "subscription_create", amount_paid: 999, created: paidAt,
+    status_transitions: { paid_at: paidAt }, parent: { subscription_details: { subscription: "sub_" + invId } },
+    lines: { data: [{ pricing: { price_details: { price: "price_std" } }, amount: 999, parent: { subscription_item_details: { proration: false } } }] },
+  });
+  const nu = await mkUser({ scan_month: "2026-10", scans_used: 1, stripe_customer_id: "cus_new_old_code" });
+  const seeded = await atTime(OCT_4, async () => {
+    const r = await reserveScan(await get(nu));
+    return { taken: r.taken, plan: (await get(nu)).planScans };
+  });
+  check("the seed (old-counter leftover) is written when the new code first sees them", [seeded.taken, seeded.plan], [1, STD - 1]);
+  const rc = await atTime(OCT_4 + 3_600_000, () => reconcilePaidInvoices({ now: OCT_4 + 3_600_000, list: async () => ({ data: [first("in_first_new", "cus_new_old_code", OCT_3)], hasMore: false }) }));
+  check("then the reconcile credits their first invoice: the seed is taken back, so it ends at one allowance minus the scan used", [rc.credited, (await get(nu)).planScans], [1, STD - 1]);
+  const back = await rows("SELECT credit_key, kind, applied FROM scan_credits WHERE user_id = ? ORDER BY rowid", nu);
+  check("…the ledger says so: seed, payment, seed taken back", back.map((r) => [r.credit_key.split(":")[0], r.applied]), [["migration", STD], ["in_first_new", STD], ["seedback", -STD]]);
+  const rc2 = await atTime(OCT_4 + 7_200_000, () => reconcilePaidInvoices({ now: OCT_4 + 7_200_000, list: async () => ({ data: [first("in_first_new", "cus_new_old_code", OCT_3)], hasMore: false }) }));
+  check("running it again changes nothing", [rc2.credited, (await get(nu)).planScans], [0, STD - 1]);
+  // A seed written BEFORE the payment (a resubscriber whose old balance is legitimately theirs) stays.
+  const re = await mkUser({ scan_month: SEED_MONTH, scans_used: 10, stripe_customer_id: "cus_resub" });
+  await atTime(Date.UTC(2026, 9, 2), () => ensurePlanSeed(re));
+  await atTime(OCT_4 + 3_600_000, () => reconcilePaidInvoices({ now: OCT_4 + 3_600_000, list: async () => ({ data: [first("in_first_resub", "cus_resub", OCT_3)], hasMore: false }) }));
+  check("a seed that came before the payment stays: the seed plus the payment", (await get(re)).planScans, STD - 10 + STD);
+  // An account made on or after Oct 1 never owes a seed, in the app or in the migration script.
+  const born = await mkUser({ created_at: CREDITS_FROM + 1000 });
+  check("an account created after the flip owes no seed", [planSeedFor(await get(born), OCT_4), await atTime(OCT_4, () => ensurePlanSeed(born))], [null, 0]);
+  const dryNew = await atTime(OCT_4, () => runMigration(["--db", dbFile], () => {}));
+  check("…and the migration skips it", dryNew.entries.find((e) => e.id === born)?.action, "skip");
+  const dryLog = [];
+  const odd = await mkUser({ scan_month: "2026-10", scans_used: 3 });
+  const dry2 = await atTime(OCT_4, () => runMigration(["--db", dbFile], (l) => dryLog.push(l)));
+  check("the dry run flags a subscriber whose counter is not September (may have first paid after Oct 1)", [dry2.entries.find((e) => e.id === odd).check?.includes("Stripe"), dryLog.some((l) => l.includes("Check in Stripe before --apply"))], [true, true]);
+
+  // 4. A subscriber on an override is not "paused".
+  const legacyActive = await mkUser({ access_override: "legacy", plan: null, plan_scans: 250 });
+  check("an active subscriber on a legacy override has no frozen line", scanQuota(await get(legacyActive)).frozen === undefined);
+  const canceled = await mkUser({ sub_status: "canceled", plan_scans: 250 });
+  check("a canceled account still shows its paused balance", scanQuota(await get(canceled)).frozen, 250);
+
+  // 5. Every out-of-scans message is a sentence of its own and names a way forward.
+  const msgs = [
+    outOfScansMessage(await get(canceled)),
+    outOfScansMessage(await get(legacyActive)),
+    outOfScansMessage(await get(await mkUser({ plan_scans: 0, sub_period_end: Date.UTC(2026, 9, 25, 14) }))),
+    outOfScansMessage(await get(await mkUser({ plan_scans: 0, sub_period_end: null }))),
+    outOfScansMessage(await get(await mkUser({ sub_status: null, plan: null }))),
+  ];
+  check("every out-of-scans message ends with a full stop", msgs.map((m) => m.endsWith(".")), msgs.map(() => true));
+  check("…and a legacy account is told when its day rolls over (Eastern)", msgs[1].startsWith("You've used today's"), true);
+  const loc = src("app/api/vision/locate/route.ts");
+  const imp = src("app/api/cards/import/route.ts");
+  check("locate and import build their 402 from outOfScansMessage (next credit date or Scan Pack)", [loc.includes("error: outOfScansMessage(user)"), imp.includes("error: outOfScansMessage(user, quota)")], [true, true]);
 }
 
 console.log(failures ? `\n${failures} failing` : "\nall rollover checks passed");

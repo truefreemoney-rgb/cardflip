@@ -143,7 +143,11 @@ export async function POST(req: NextRequest) {
         if (subscriptionId && !deleted && status && ACTIVE_STATUSES.has(status) && subscriptionId !== stored) {
           await setStripeSubscription(user.id, subscriptionId);
         }
-        if (event.type === "customer.subscription.created") await markNoSeedOwed(user.id);
+        // A subscription that goes live on an account that was not subscribed is a new
+        // subscriber, whichever event arrives first (Stripe does not order them): nothing
+        // from the old monthly counter is owed, so its NULL balance must not seed.
+        const goesLive = !deleted && status !== null && ACTIVE_STATUSES.has(status) && !isSubscribed(user);
+        if (event.type === "customer.subscription.created" || goesLive) await markNoSeedOwed(user.id);
         const items = obj.items as { data?: { current_period_end?: number; price?: { id?: string } }[] } | undefined;
         const item = items?.data?.[0];
         const end = item?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;

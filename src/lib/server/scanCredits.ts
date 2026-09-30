@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db, type DbTx } from "@/lib/db";
 import { PRICING, ROLLOVER } from "@/lib/pricing";
-import { seedKey } from "@/lib/planSeed";
+import { CREDITS_FROM, seedKey } from "@/lib/planSeed";
 import { fromRow, planOf, planSeedFor, type Plan, type User, type UserRow } from "@/lib/server/users";
 
 /**
@@ -45,6 +45,10 @@ export interface CreditOutcome {
   seeded: number;
   balanceBefore: number | null;
   balanceAfter: number | null;
+  /** A reversal: the scans it asked for (what was still owed back after earlier refunds), of which `applied` was taken. */
+  wanted?: number;
+  /** A first payment that took back a seed written after it (see CreditInput.firstPaymentPaidAt). */
+  seedBack?: number;
   /** Why nothing (or less) was credited when it was not the plain case. */
   note?: string;
 }
@@ -118,6 +122,18 @@ export interface CreditInput {
    * `.updated` / invoice.paid arrives first must not hand them one.
    */
   seed?: boolean;
+  /**
+   * Set (ms, when it was paid) for a subscription's FIRST invoice
+   * (billing_reason subscription_create) coming through invoice.paid or the
+   * daily reconcile. A subscriber who first paid on or after CREDITS_FROM owes
+   * nothing from the old counter, but one who paid under the OLD code and was
+   * seeded when the new code first saw them (their scan_month is
+   * 2026-10 or empty, so the seed read as a full allowance) would otherwise be
+   * paid twice for one payment. If a seed was written AFTER that payment, it is
+   * taken back here in the same transaction, so the balance ends at one
+   * allowance minus whatever they scanned meanwhile.
+   */
+  firstPaymentPaidAt?: number | null;
 }
 
 /**
@@ -134,7 +150,17 @@ export async function creditPlanScans(o: CreditInput): Promise<CreditOutcome> {
     if (dup) return { ...NOTHING, note: "already credited" };
 
     const seeded = o.seed === false ? 0 : await seedInTx(tx, user, now);
-    const before = (user.planScans ?? 0) + seeded;
+    const beforeSeedBack = (user.planScans ?? 0) + seeded;
+
+    // A new subscriber's seed (written after they paid) is not owed: see firstPaymentPaidAt.
+    let seedBack = 0;
+    if (o.firstPaymentPaidAt != null && o.firstPaymentPaidAt >= CREDITS_FROM) {
+      const seedRow = (await tx
+        .prepare("SELECT applied, created_at FROM scan_credits WHERE credit_key = ? AND kind = 'migration'")
+        .get(seedKey(o.userId))) as { applied: number; created_at: number } | undefined;
+      if (seedRow && seedRow.applied > 0 && seedRow.created_at > o.firstPaymentPaidAt) seedBack = seedRow.applied;
+    }
+    const before = Math.max(0, beforeSeedBack - seedBack);
 
     let grant = Math.max(0, Math.round(o.scans));
     let note: string | undefined;
@@ -154,16 +180,27 @@ export async function creditPlanScans(o: CreditInput): Promise<CreditOutcome> {
       .prepare(INSERT_ROW)
       .run(o.key, o.userId, o.kind, o.plan, o.scans, grant, before, o.priceId ?? null, o.key, o.chargeId ?? null, o.paymentIntent ?? null, note ?? o.note ?? null, now);
     if (!ins.changes) return { ...NOTHING, note: "already credited" };
-    if (grant > 0) {
-      if (o.kind === "payment") {
-        await tx
-          .prepare("UPDATE users SET plan_scans = COALESCE(plan_scans, 0) + ?, plan_credit_scans = ?, plan_credit_at = ? WHERE id = ?")
-          .run(grant, grant, now, o.userId);
-      } else {
-        await tx.prepare("UPDATE users SET plan_scans = COALESCE(plan_scans, 0) + ? WHERE id = ?").run(grant, o.userId);
-      }
+    if (seedBack > 0) {
+      const back = await tx
+        .prepare(INSERT_ROW)
+        .run(`seedback:${o.userId}`, o.userId, "reversal", null, -seedBack, -seedBack, beforeSeedBack, null, seedKey(o.userId), null, null, `taken back: first paid ${o.key} after the seed, so no old allowance was owed`, now);
+      if (!back.changes) seedBack = 0;
     }
-    return { recorded: true, applied: grant, seeded, balanceBefore: before, balanceAfter: before + grant, ...(note ? { note } : {}) };
+    if (grant > 0 || seedBack > 0) {
+      // One statement: add the credit, take back the seed, never below zero.
+      const set = o.kind === "payment" && grant > 0 ? ", plan_credit_scans = ?, plan_credit_at = ?" : "";
+      const args: (number | string)[] = [grant - seedBack, ...(set ? [grant, now] : []), o.userId];
+      await tx.prepare(`UPDATE users SET plan_scans = MAX(0, COALESCE(plan_scans, 0) + ?)${set} WHERE id = ?`).run(...args);
+    }
+    return {
+      recorded: true,
+      applied: grant,
+      seeded,
+      balanceBefore: beforeSeedBack,
+      balanceAfter: Math.max(0, beforeSeedBack + grant - seedBack),
+      ...(seedBack > 0 ? { seedBack } : {}),
+      ...(note ? { note } : {}),
+    };
   });
 }
 
@@ -173,14 +210,20 @@ export interface ReversalInput {
   key: string;
   /** The invoice whose credit this undoes. */
   refKey: string;
-  /** Scans to take back (positive); the balance floors at zero. */
-  scans: number;
+  /**
+   * The most that may be taken back for this invoice IN TOTAL (positive). What
+   * earlier refunds and disputes already asked for is read INSIDE the write
+   * transaction and netted off, so two events for the same charge arriving at
+   * once (a refund and a dispute, two partial refunds) can never both take
+   * the whole amount. The balance floors at zero.
+   */
+  target: number;
   chargeId?: string | null;
   note?: string | null;
   now?: number;
 }
 
-/** Take back scans for a refund or dispute: never below zero, once per key. */
+/** Take back scans for a refund or dispute: never below zero, once per key, never more than `target` in total per invoice. */
 export async function reversePlanScans(o: ReversalInput): Promise<CreditOutcome> {
   const now = o.now ?? Date.now();
   return db.transaction(async (tx) => {
@@ -188,15 +231,17 @@ export async function reversePlanScans(o: ReversalInput): Promise<CreditOutcome>
     if (dup) return { ...NOTHING, note: "already reversed" };
     const row = (await tx.prepare("SELECT plan_scans FROM users WHERE id = ?").get(o.userId)) as { plan_scans: number | null } | undefined;
     if (!row) return { ...NOTHING, note: "no such user" };
+    const already = (await tx.prepare("SELECT COALESCE(SUM(-scans), 0) AS n FROM scan_credits WHERE ref_key = ? AND kind = 'reversal'").get(o.refKey)) as { n: number } | undefined;
     const before = row.plan_scans ?? 0;
-    const want = Math.max(0, Math.round(o.scans));
+    const want = Math.max(0, Math.round(o.target) - Number(already?.n ?? 0));
+    if (want <= 0) return { ...NOTHING, note: "nothing more to reverse" };
     const debit = Math.min(want, Math.max(0, before));
     const ins = await tx
       .prepare(INSERT_ROW)
       .run(o.key, o.userId, "reversal", null, -want, -debit, before, null, o.refKey, o.chargeId ?? null, null, o.note ?? null, now);
     if (!ins.changes) return { ...NOTHING, note: "already reversed" };
     if (debit > 0) await tx.prepare("UPDATE users SET plan_scans = plan_scans - ? WHERE id = ?").run(debit, o.userId);
-    return { recorded: true, applied: -debit, seeded: 0, balanceBefore: before, balanceAfter: before - debit };
+    return { recorded: true, applied: -debit, seeded: 0, balanceBefore: before, balanceAfter: before - debit, wanted: want };
   });
 }
 

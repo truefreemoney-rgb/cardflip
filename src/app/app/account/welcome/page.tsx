@@ -6,7 +6,7 @@ import { useSession } from "@/components/SessionProvider";
 import Spinner from "@/components/Spinner";
 import { fetchAccount } from "@/lib/client/accountApi";
 import { ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
-import { hasScansToUse } from "@/lib/scanCopy";
+import { paymentCredited } from "@/lib/scanCopy";
 
 /**
  * Where Stripe Checkout lands a new subscriber (Chris, 09-25: dropping them
@@ -35,6 +35,10 @@ export default function SubscribedPage() {
     }
   }, []);
 
+  // A plan credit written after this moment is the payment that brought them here
+  // (ten minutes of slack for a slow checkout; a credit older than that is a past month's).
+  const [since] = useState(() => Date.now() - 10 * 60_000);
+
   useEffect(() => {
     let cancelled = false;
     let tries = 0;
@@ -48,7 +52,7 @@ export default function SubscribedPage() {
       const ok =
         kind === "pack"
           ? (o?.user.packScans ?? 0) > 0
-          : (o?.user.subStatus === "active" || o?.user.subStatus === "trialing") && hasScansToUse(o?.quota ?? o?.user.scans);
+          : (o?.user.subStatus === "active" || o?.user.subStatus === "trialing") && paymentCredited(o?.quota ?? o?.user.scans, since);
       if (o && ok) {
         setReady((o.quota ?? o.user.scans)?.remaining ?? null);
         setPhase("confirmed");
@@ -71,11 +75,11 @@ export default function SubscribedPage() {
     return () => {
       cancelled = true;
     };
-  }, [refresh, kind]);
+  }, [refresh, kind, since]);
 
   const first = user?.name?.split(" ")[0];
-  // What the payment bought, until the server's own count is in.
-  const scans = ready !== null ? ready.toLocaleString("en-US") : user?.plan === "pro" ? SCANS.pro : SCANS.standard;
+  // The server's own count, once the payment is credited; no count while waiting (or for an unlimited account).
+  const scansReady = ready !== null && phase === "confirmed" ? `${ready.toLocaleString("en-US")} scans ready. ` : "";
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-10">
@@ -97,7 +101,7 @@ export default function SubscribedPage() {
             ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan and scans will show up"} shortly.`
             : kind === "pack"
               ? `${SCANS.pack} scans added, they never expire. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`
-              : `${scans} scans ready. ${ROLLOVER_SENTENCE} Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
+              : `${scansReady}${ROLLOVER_SENTENCE} Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
         </p>
 
         <Link

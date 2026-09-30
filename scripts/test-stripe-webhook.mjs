@@ -62,7 +62,7 @@ globalThis.fetch = async (url, init) => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { POST } = await import(at("app/api/stripe/webhook/route.ts"));
 const { planForPrice } = await import(at("lib/server/stripe.ts"));
-const { createUser, findUserById, setStripeCustomer, setSubscription } = await import(at("lib/server/users.ts"));
+const { createUser, findUserById, setStripeCustomer, setSubscription, PAID_SWITCH_AT } = await import(at("lib/server/users.ts"));
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -358,7 +358,8 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   const mkNull = async (sql = "") => {
     const p = await createUser("New", `new${++payers}@example.com`, "hunter22");
     await setStripeCustomer(p.id, `cus_new${payers}`);
-    if (sql) await db.prepare(`UPDATE users SET ${sql} WHERE id = ?`).run(p.id);
+    // An account from before the flip (a real clock after Oct 1 would otherwise make every fixture a post-flip account, which owes no seed).
+    await db.prepare(`UPDATE users SET created_at = ?${sql ? `, ${sql}` : ""} WHERE id = ?`).run(PAID_SWITCH_AT + 1, p.id);
     return { id: p.id, cus: `cus_new${payers}` };
   };
   const live = (id, sub, price = "price_std") => ({ id: sub, customer: id, status: "active", items: { data: [{ current_period_end: 1_900_000_000, price: { id: price } }] } });
@@ -377,6 +378,19 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
     await send(create("in_n2", b.cus, "sub_n2"));
   });
   check("…and when subscription.updated (no marker) is the first event: a first payment never seeds either", [(await state(b.id)).status, await planScans(b.id)], ["active", STD]);
+
+  // subscription.updated first, and the seller scans BEFORE the payment's invoice lands: no old allowance appears out of nowhere.
+  const d = await mkNull("scan_month = '2026-10', scans_used = 0");
+  await atTime(OCT_2, () => send({ type: "customer.subscription.updated", data: { object: live(d.cus, "sub_n4") } }));
+  const { scanQuota, spendsPlanScans } = await import(at("lib/server/users.ts"));
+  const { reserveScan } = await import(at("lib/server/scanQuota.ts"));
+  const du = await findUserById(d.id);
+  check("subscription.updated first: before the payment is credited the balance is 0, not a seeded old allowance",
+    [spendsPlanScans(du), scanQuota(du, OCT_2).plan, du.planScans], [true, 0, 0]);
+  const tried = await atTime(OCT_2, () => reserveScan(du));
+  check("…so a scan in between is refused, and nothing was seeded", [tried.taken, (await ledgerOf(d.id)).length], [0, 0]);
+  await atTime(OCT_2, () => send(create("in_n4", d.cus, "sub_n4")));
+  check("…then the first payment lands: exactly one allowance", await planScans(d.id), STD);
 
   const c = await mkNull();
   subscriptions.set("sub_n3", { status: "active", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_std" } }] } });
@@ -511,7 +525,7 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
 {
   const p = await mkPayer();
   const realTx = db.transaction.bind(db);
-  db.transaction = (fn) => realTx((tx) => fn({ ...tx, prepare: (sql) => { if (/UPDATE users SET plan_scans = COALESCE/.test(sql)) throw new Error("db down"); return tx.prepare(sql); } }));
+  db.transaction = (fn) => realTx((tx) => fn({ ...tx, prepare: (sql) => { if (/UPDATE users SET plan_scans = (MAX\(0, )?COALESCE/.test(sql)) throw new Error("db down"); return tx.prepare(sql); } }));
   const bad = await send(paid(oldInvoice("in_j1", p.cus, "sub_j", "price_std")));
   db.transaction = realTx;
   check("invoice.paid with a failing balance write → 500 (Stripe retries)", bad.status, 500);
@@ -529,7 +543,7 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   subscriptions.set("sub_j2", { status: "active", items: { data: [{ current_period_end: 1_800_000_000, price: { id: "price_std" } }] } });
   const checkoutEvent = { type: "checkout.session.completed", data: { object: { client_reference_id: friend.id, customer: friend.cus, subscription: "sub_j2", invoice: "in_j2", payment_status: "paid" } } };
   const realTx = db.transaction.bind(db);
-  db.transaction = (fn) => realTx((tx) => fn({ ...tx, prepare: (sql) => { if (/UPDATE users SET plan_scans = COALESCE/.test(sql)) throw new Error("db down"); return tx.prepare(sql); } }));
+  db.transaction = (fn) => realTx((tx) => fn({ ...tx, prepare: (sql) => { if (/UPDATE users SET plan_scans = (MAX\(0, )?COALESCE/.test(sql)) throw new Error("db down"); return tx.prepare(sql); } }));
   const bad = await send(checkoutEvent);
   db.transaction = realTx;
   const mid = await findUserById(friend.id);

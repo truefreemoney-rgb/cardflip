@@ -31,10 +31,28 @@ export function hasScansToUse(q: ScanQuota | null | undefined): boolean {
   return q != null && (q.remaining === null || q.remaining > 0);
 }
 
-/** "Your next 250 arrive on Oct 25", or null when no payment is coming (plan ending, payment failed). */
+/**
+ * Has the payment the seller just made been credited? A rollover subscriber's
+ * answer is a plan credit written since `sinceMs` (a Scan Pack, bonus scans or a
+ * paused plan balance that unfreezes at once are spendable before the payment
+ * lands, so "has scans" would confirm too early); anyone else falls back to
+ * "has scans to use".
+ */
+export function paymentCredited(q: ScanQuota | null | undefined, sinceMs: number): boolean {
+  if (!q) return false;
+  if (hasPlanBalance(q)) return typeof q.lastCreditAt === "number" && q.lastCreditAt >= sinceMs && q.plan > 0;
+  return hasScansToUse(q);
+}
+
+/**
+ * "Your next scans arrive on Oct 25", or null when no payment is coming (plan
+ * ending, payment failed). No count: a downgrade scheduled for the end of the
+ * period changes what the next payment buys, and nothing here reads the
+ * pending change, so the sentence promises the date and not the amount.
+ */
 export function nextCreditSentence(q: ScanQuota): string | null {
   const when = shortDate(q.nextCreditAt);
-  return when ? `Your next ${fmt(q.included)} arrive on ${when}` : null;
+  return when ? `Your next scans arrive on ${when}` : null;
 }
 
 /** "Plan ends Oct 25; 238 banked scans pause until you resubscribe", or null when the plan is not ending. */

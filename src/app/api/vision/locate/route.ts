@@ -3,7 +3,7 @@ import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { VISION_MODEL, VisionNotConfiguredError, isVisionConfigured, locateCards } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
-import { scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import { outOfScansMessage, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
 import { cleanBoxes } from "@/lib/binder";
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
-        { error: "You're out of scans — each card on the page is one scan", quota: true, usage: scanQuota(user) },
+        { error: outOfScansMessage(user), quota: true, usage: scanQuota(user) },
         { status: 402 },
       );
     }

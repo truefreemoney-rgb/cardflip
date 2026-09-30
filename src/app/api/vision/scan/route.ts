@@ -11,9 +11,8 @@ import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { gameFeaturesFor } from "@/lib/server/settings";
 import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
-import { scanTier, type ScanQuota, type User } from "@/lib/server/users";
+import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
-import { etTime } from "@/lib/time";
 import {
   LIMITS,
   RateLimitError,
@@ -31,20 +30,9 @@ const SCAN_DAILY_BUDGET = 500;
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-/** The 402 for an empty balance. The legacy day is a UTC day (users.ts quotaDay); its message says when it rolls over in Eastern (site-wide ET, 09-30). */
+/** The 402 for an empty balance (the message names the next credit date, a Scan Pack or the legacy reset: scanQuota.ts). */
 function outOfScans(user: User, usage: ScanQuota) {
-  const nextUtcMidnight = (Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000;
-  return NextResponse.json(
-    {
-      error:
-        scanTier(user) === "legacy"
-          ? `You've used today's 100 scans — the counter resets at ${etTime(nextUtcMidnight)}, or subscribe for more scans`
-          : outOfScansMessage(user, usage),
-      quota: true,
-      usage,
-    },
-    { status: 402 },
-  );
+  return NextResponse.json({ error: outOfScansMessage(user, usage), quota: true, usage }, { status: 402 });
 }
 
 export async function POST(req: Request) {

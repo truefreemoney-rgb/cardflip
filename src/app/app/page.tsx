@@ -1413,8 +1413,7 @@ export default function AppPage() {
           className="mx-auto mt-4 flex w-full max-w-7xl items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-200 sm:px-6"
         >
           <span>
-            <span className="font-semibold text-red-300">Out of scans.</span>{" "}
-            {quotaNote} Cards still scan by OCR, which reads less of the card.{" "}
+            <span className="font-semibold text-red-300">{quotaNote}</span> Cards still scan by OCR, which reads less of the card.{" "}
             <Link
               href="/app/account"
               className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"

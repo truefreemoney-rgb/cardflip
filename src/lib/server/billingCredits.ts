@@ -10,7 +10,6 @@ import {
   recordRefundBeforeCredit,
   rememberCharge,
   reversePlanScans,
-  reversedScansFor,
 } from "@/lib/server/scanCredits";
 import {
   fetchCharge,
@@ -128,6 +127,13 @@ export function planCreditFor(inv: StripeObject): CreditPlan {
   return { kind: "proration", plan: to.plan, scans, priceId: charge.priceId! };
 }
 
+/** When an invoice was paid (ms): Stripe's paid_at, else its creation time. */
+export function invoicePaidAt(inv: StripeObject): number {
+  const paid = rec(inv.status_transitions).paid_at;
+  if (typeof paid === "number") return paid * 1000;
+  return typeof inv.created === "number" ? inv.created * 1000 : 0;
+}
+
 export interface InvoiceOutcome {
   result: "credited" | "already" | "ignored" | "no_user" | "unknown_price";
   scans?: number;
@@ -185,6 +191,7 @@ export async function creditPaidInvoice(inv: StripeObject, source: "webhook" | "
     return { result: "no_user" };
   }
 
+  const firstPayment = str(inv.billing_reason) === "subscription_create";
   const out = await creditPlanScans({
     userId: user.id,
     key: id,
@@ -196,12 +203,14 @@ export async function creditPaidInvoice(inv: StripeObject, source: "webhook" | "
     paymentIntent: idOf(inv.payment_intent),
     note: `${source}: ${str(inv.billing_reason) ?? "invoice"}`,
     // A first payment is a new subscriber: nothing from the old monthly counter is owed to them.
-    seed: str(inv.billing_reason) !== "subscription_create",
+    seed: !firstPayment,
+    // ...and a seed the app wrote for them AFTER they paid (old code, deploy later) is taken back.
+    firstPaymentPaidAt: firstPayment ? invoicePaidAt(inv) : null,
   });
   if (!out.recorded) return { result: "already" };
   await alertIfOverride(user, out.applied, id, source);
   await alertIfSecondPayer(user, subscriptionId, id);
-  console.info(`stripe: ${user.email} +${out.applied} plan scans (${credit.kind}, invoice ${id}, ${source})${out.note ? ` [${out.note}]` : ""}`);
+  console.info(`stripe: ${user.email} +${out.applied} plan scans (${credit.kind}, invoice ${id}, ${source})${out.seedBack ? ` [took back a ${out.seedBack}-scan seed: first payment, nothing owed from the old counter]` : ""}${out.note ? ` [${out.note}]` : ""}`);
   return { result: "credited", scans: out.applied, ...(out.note ? { note: out.note } : {}) };
 }
 
@@ -262,11 +271,11 @@ async function creditBehind(chargeId: string | null, paymentIntent: string | nul
 
 async function reverseCredit(kind: "refund" | "dispute", key: string, row: { credit_key: string; user_id: string; applied: number }, fraction: number, chargeId: string | null): Promise<ReversalOutcome> {
   const target = Math.round(row.applied * Math.min(1, Math.max(0, fraction)));
-  const already = await reversedScansFor(row.credit_key);
-  const delta = target - already;
-  if (delta <= 0) return { result: "nothing_more" };
-  const out = await reversePlanScans({ userId: row.user_id, key, refKey: row.credit_key, scans: delta, chargeId, note: kind });
-  if (!out.recorded) return { result: "nothing_more", note: "already reversed" };
+  // What earlier refunds already took is netted inside the write transaction
+  // (reversePlanScans), so concurrent events for one charge cannot both take it.
+  const out = await reversePlanScans({ userId: row.user_id, key, refKey: row.credit_key, target, chargeId, note: kind });
+  if (!out.recorded) return { result: "nothing_more", note: out.note };
+  const delta = out.wanted ?? target;
   const took = -out.applied;
   if (took < delta) {
     await reportServerError(
@@ -379,8 +388,8 @@ export async function reconcilePaidInvoices(
           res.partial = true;
           break walk;
         }
-        const paidAt = typeof rec(inv.status_transitions).paid_at === "number" ? (rec(inv.status_transitions).paid_at as number) : typeof inv.created === "number" ? inv.created : 0;
-        if (paidAt * 1000 < creditsFrom) {
+        const paidAt = invoicePaidAt(inv);
+        if (paidAt < creditsFrom) {
           res.before++;
           continue;
         }
@@ -388,7 +397,7 @@ export async function reconcilePaidInvoices(
           const out = await creditPaidInvoice(inv, "reconcile");
           if (out.result === "credited") {
             res.credited++;
-            if (now - paidAt * 1000 > 3_600_000) missed++;
+            if (now - paidAt > 3_600_000) missed++;
           }
           else if (out.result === "unknown_price") res.unknownPrice++;
           else if (out.result === "no_user") res.noUser++;
