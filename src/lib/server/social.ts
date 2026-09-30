@@ -28,8 +28,10 @@ export const MOVER_MIN_PRICE = 10;
 export const HELD_DAYS = 3;
 /** Card of the day comes from the cards worth talking about. */
 export const COTD_MIN_PRICE = 15;
-/** How many series rows one call may read (Turso rows-read, 09-06). */
-const ROW_CAP = 6000;
+/** A safety cap on series rows per call; the price filter keeps the pool well under it (~11k Pokémon rows, 09-30). */
+const ROW_CAP = 30000;
+/** Series under this (latest or week-ago point) never make a post: half the mover floor, so a $6 → $12 gain still counts. */
+const POOL_MIN_USD = MOVER_MIN_PRICE / 2;
 /**
  * Magic reads a different pool (09-30): ~140k fresh mtg series, so an
  * unordered ROW_CAP sample was 4k Secret Lair / The List rows and almost
@@ -153,12 +155,19 @@ async function freshSeries(game: GameId, day: string, days: number) {
           .all(since, MTG_POOL_MIN_USD)
       : await db
           .prepare(
+            // Only series worth posting (09-30): the unordered ROW_CAP sample was
+            // 6k of ~36k fresh Pokémon rows, so "the five most valuable cards in
+            // Base Set" left out a $944 Charizard. Keep a series when its latest
+            // point or the one a week back is at POOL_MIN_USD or more (~11k rows).
             `SELECT card_id, variant, start_day, prices FROM price_series
               WHERE game = ? AND currency = 'USD' AND updated_day >= ?
+                AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
+                        COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?
               LIMIT ${ROW_CAP}`,
           )
-          .all(game, since)
+          .all(game, since, POOL_MIN_USD)
   ) as unknown as SeriesRow[];
+  if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
   const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
