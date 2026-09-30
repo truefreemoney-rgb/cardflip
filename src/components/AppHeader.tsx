@@ -78,9 +78,13 @@ export default function AppHeader() {
             ) : (
               <Link
                 href="/connect-ebay"
-                className="whitespace-nowrap rounded-full bg-ebay px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-ebay-hover"
+                title="Set up eBay"
+                aria-label="Set up eBay"
+                className="whitespace-nowrap rounded-full bg-ebay px-2 py-1 text-xs font-semibold text-white transition hover:bg-ebay-hover sm:px-2.5"
               >
-                eBay Setup
+                {/* Phones: "+ eBay" keeps the header one row (Chris 09-30: two rows "looks funky"). */}
+                <span className="sm:hidden">+ eBay</span>
+                <span className="hidden sm:inline">eBay Setup</span>
               </Link>
             )
           )}
@@ -118,11 +122,11 @@ export default function AppHeader() {
           the tab pill takes the second (it is w-full there, so it wraps).
           From sm the grid keeps the tabs centered; the third cell is the
           personal strip from xl up, an empty balancer before that. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 sm:grid sm:grid-cols-[1fr_auto_1fr]">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-x-3">
         <div className="flex items-center gap-2">
           <Logo size="sm" href={logoHref} />
         </div>
-        <div className="flex items-center gap-1.5 sm:hidden">{personalStrip}</div>
+        <div className="flex items-center gap-1 sm:hidden">{personalStrip}</div>
         <AppTabs />
         <div aria-hidden className="hidden sm:block xl:hidden" />
         <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>

@@ -53,7 +53,7 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
       title={title}
       aria-label={title}
       data-tour="scans"
-      className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums transition ${tone}`}
+      className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-xs font-semibold tabular-nums sm:gap-1.5 sm:px-2.5 transition ${tone}`}
     >
       <ScanIcon />
       {out ? (

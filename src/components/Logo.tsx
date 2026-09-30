@@ -13,7 +13,8 @@ import logo from "../../public/brand/cardflip-logo.png";
  * and app icon are the same CF card mark (app/icon.png, app/apple-icon.png, 09-10).
  */
 export default function Logo({ size = "md", href = "/" }: { size?: "sm" | "md"; href?: string }) {
-  const box = size === "sm" ? "h-7" : "h-8";
+  // sm = the app header: 24px under 400px wide so logo + help + scans + eBay fit one row (Chris 09-30).
+  const box = size === "sm" ? "h-6 min-[400px]:h-7" : "h-8";
   return (
     <Link href={href} aria-label="CardFlip" className="flex items-center">
       <Image src={logo} alt="CardFlip" priority className={`${box} w-auto`} />
