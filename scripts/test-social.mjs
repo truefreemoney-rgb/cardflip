@@ -58,6 +58,10 @@ await catalog("sv1-10", "Sparse", "60");      await recordPoint("sv1-10", "pokem
 // last priced a month ago and once today: no week-ago price, so no move (a stale point must not stand in for last week)
 await catalog("sv1-11", "Ancient", "61");     await recordPoint("sv1-11", "pokemon", "normal", "tcgplayer", "USD", 10, day(30)); await recordPoint("sv1-11", "pokemon", "normal", "tcgplayer", "USD", 40, day(0));
 await catalog("sv1-7", "Pricey", "250");       await recordPoint("sv1-7", "pokemon", "normal", "tcgplayer", "USD", 80, day(0)); // no 7d point: COTD only
+// 09-30 junk movers. Team Aqua's Corphish: a settled $8.64 common "up 479%" to $49.99 — under the floor on one end: skipped.
+await catalog("sv2-12", "Corphish", "51");     for (const b of [13, 12, 11, 10, 9, 8, 7]) await recordPoint("sv2-12", "pokemon", "normal", "tcgplayer", "USD", 8.64, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-12", "pokemon", "normal", "tcgplayer", "USD", 49.99, day(b));
+// Fighting Energy: $10 all along, a two-day $37.49 spike a week ago, $10 again — the "drop" is the spike ending: skipped.
+await catalog("sv2-13", "Fighting Energy", "93"); for (const b of [13, 12, 11, 10, 9]) await recordPoint("sv2-13", "pokemon", "normal", "tcgplayer", "USD", 11, day(b)); for (const b of [8, 7]) await recordPoint("sv2-13", "pokemon", "normal", "tcgplayer", "USD", 37.49, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-13", "pokemon", "normal", "tcgplayer", "USD", 11, day(b));
 await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, synced_at) VALUES (?, ?, 'dmu', 'Dominaria United', '107', 'https://cards.scryfall.io/normal/x.jpg', 0)").run("mtg-1", "Sheoldred");
 await recordPoint("mtg-1", "mtg", "normal", "tcgplayer", "USD", 5, day(7));
 await recordPoint("mtg-1", "mtg", "normal", "tcgplayer", "USD", 50, day(0)); // other game
@@ -68,6 +72,8 @@ check("ranked by |%|, cheap/flat/stale/spike/other game skipped", movers.map((m)
 check("gainers only for the 1pm post", (await topMovers("pokemon", TODAY, { direction: "up" })).map((m) => m.cardId), ["sv1-2", "sv1-10", "sv1-9", "sv1-4"]);
 check("a month-old point never stands in for last week's price", movers.some((m) => m.cardId === "sv1-11"), false);
 check("a one-day spike is not a move (Grass Energy +650%)", movers.some((m) => m.cardId === "sv1-8"), false);
+check("a cheap card jumping past the floor is not a move (Corphish $8.64 → $49.99)", movers.some((m) => m.cardId === "sv2-12"), false);
+check("a spike unwinding is not a drop (Fighting Energy $37.49 → $11)", (await topMovers("pokemon", TODAY, { direction: "down", limit: 20 })).some((m) => m.cardId === "sv2-13"), false);
 check("pct signed", movers.map((m) => Math.round(m.pct)), [50, -50, 40, 30, 20]);
 check("art upgraded to high.webp", movers[0].imageUrl.endsWith("/high.webp"));
 check("catalog fields joined", [movers[0].name, movers[0].number], ["Miraidon ex", "81"]);

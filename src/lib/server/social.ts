@@ -168,7 +168,7 @@ async function freshSeries(game: GameId, day: string, days: number) {
           .all(game, since, POOL_MIN_USD)
   ) as unknown as SeriesRow[];
   if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
-  const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number }>();
+  const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number; fromSettled: boolean }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
@@ -188,8 +188,25 @@ async function freshSeries(game: GameId, day: string, days: number) {
     // Median of the window: the price to show when today's point has not held (Pikachu Star $3,217 → $900 in a day, 09-25).
     window.sort((a, b) => a - b);
     const median = window.length ? window[Math.floor((window.length - 1) / 2)] : to;
+    // The same test for the OLD price over the week before it: a drop from a one-day spike
+    // (Fighting Energy "$37.49 → $10", 09-30) is the spike ending, not news. Days with no
+    // point do not count against it (Magic has no history 09-16 → 09-23; a card priced
+    // once a week has nothing to hold), so it asks HELD_DAYS of the days that have a price.
+    let fromSettled = true;
+    if (from != null) {
+      const fromIdx = todayIdx - days;
+      let seen = 0;
+      let fromHeld = 0;
+      for (let i = Math.max(0, fromIdx - days + 1); i <= fromIdx; i++) {
+        const v = priceAt(prices, i, CARRY_DAYS);
+        if (v == null) continue;
+        seen++;
+        if (Math.abs(v - from) / from <= 0.15) fromHeld++;
+      }
+      fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
+    }
     const have = out.get(r.card_id);
-    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held, median });
+    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held, median, fromSettled });
   }
   return out;
 }
@@ -233,7 +250,8 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 
 /**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
- * worth at least MOVER_MIN_PRICE on either end. Sorted by |%| desc.
+ * worth at least MOVER_MIN_PRICE on both ends, where the old and the new
+ * price each held HELD_DAYS days. Sorted by |%| desc.
  */
 export async function topMovers(
   game: GameId,
@@ -245,10 +263,14 @@ export async function topMovers(
   for (const [cardId, s] of series) {
     if (exclude.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
-    if (Math.max(s.from, s.to) < minPrice) continue;
+    // Both ends at the floor (09-30, was either end): a common "$8.64 → $49.99, +479%"
+    // (Team Aqua's Corphish) is one odd listing, not a move a collector believes.
+    if (Math.min(s.from, s.to) < minPrice) continue;
     const pct = ((s.to - s.from) / s.from) * 100;
     if (Math.abs(pct) < 1) continue;
     if (s.held < HELD_DAYS) continue;
+    // The old price must have held too, or the "move" is a spike unwinding.
+    if (!s.fromSettled) continue;
     if (direction === "down" && pct >= 0) continue;
     if (direction === "up" && pct <= 0) continue;
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
