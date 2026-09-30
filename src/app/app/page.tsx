@@ -40,6 +40,7 @@ import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { foilChoices } from "@/lib/yugioh";
+import { printingChoices } from "@/lib/onepiece";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
@@ -604,7 +605,9 @@ export default function AppPage() {
             const numberMismatch = Boolean(printed?.number) && !numberPinned;
             // Yu-Gi-Oh!: one set code in several foils is a photo guess, not a
             // match — the seller picks the foil (CardEditor "Which foil?").
-            const foils = next.game === "yugioh" ? foilChoices(card, matches).length : 0;
+            // One Piece: one number in several printings, same tap ("Which printing?", 09-30).
+            const foils =
+              next.game === "yugioh" ? foilChoices(card, matches).length : next.game === "onepiece" ? printingChoices(card, matches).length : 0;
             patchItem(next.id, {
               status: lowConfidence || ambiguous || numberMismatch || foils > 1 ? "review" : "ready",
               candidates: matches,

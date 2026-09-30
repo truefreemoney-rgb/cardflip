@@ -74,6 +74,13 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-sanji-r1", "onepiece", "Sanji", "", "ST15", "Starter 15", "P-029_r1", null, "", "C", "reprint", 1, null],
   ["op-law", "onepiece", "Trafalgar Law - OP05-069", "", "OP05", "Awakening", "OP05-069", null, "", "SR", "", 3, null],
   ["op-law-2", "onepiece", "Trafalgar Law", "", "OP01", "Romance Dawn", "OP01-047", null, "", "L", "", 2, null],
+  // Glare read "OP10-018" off OP13-118 (09-10 seller photo): the one-off
+  // row OP10-118 leads, the two-off rows must sit inside the tiebreak gap.
+  ["op-luffy-10", "onepiece", "Monkey.D.Luffy", "", "OP10", "Royal Blood", "OP10-118", null, "2025-01-01", "SEC", "", 5, null],
+  ["op-luffy-10-p1", "onepiece", "Monkey.D.Luffy", "", "OP10", "Royal Blood", "OP10-118", null, "2025-01-01", "SEC", "parallel", 43, null],
+  ["op-luffy-10-111", "onepiece", "Monkey.D.Luffy", "", "OP10", "Royal Blood", "OP10-111", null, "2025-01-01", "R", "parallel", 3, null],
+  ["op-luffy-13", "onepiece", "Monkey.D.Luffy", "", "OP13", "Carrying On His Will", "OP13-118", null, "2025-09-01", "SEC", "", 12, null],
+  ["op-luffy-13-p1", "onepiece", "Monkey.D.Luffy", "", "OP13", "Carrying On His Will", "OP13-118", null, "2025-09-01", "SEC", "parallel", 80, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -112,6 +119,28 @@ check("One Piece: full-art read prefers the special row over the plain reprint t
 check("One Piece: a feed key with its _r1 suffix still matches the printed number", await top("onepiece", "Sanji", pn("P-029")), "op-sanji-r1");
 check("One Piece: a catalog name carrying the number still counts as an exact name", await top("onepiece", "Trafalgar Law", pn("OP05-069")), "op-law");
 check("One Piece: a one-digit number misread with an exact name lands on the nearest number", await top("onepiece", "Nami", pn("OP01-017")), "op-nami");
+{
+  const { tiebreakIds } = await import(at("lib/tiebreak.ts"));
+  const { onePieceKey, printingChoices, printingLabel } = await import(at("lib/onepiece.ts"));
+  const found = await searchTcgCardsLocal("onepiece", "Monkey.D.Luffy", pn("OP10-018", null, "OP10"), 8, null, "parallel");
+  check("One Piece: two-digit misread — the one-off row still leads", found[0]?.id, "op-luffy-10-p1");
+  check("One Piece: two-digit misread — digits read as 0 (glare) rank before a firmly read digit", found.map((c) => c.id).indexOf("op-luffy-13-p1") < found.map((c) => c.id).indexOf("op-luffy-10-111"));
+  check("One Piece: the picture tiebreak sees each number once, the two-off card included", tiebreakIds(found, "onepiece"), ["op-luffy-10-p1", "op-luffy-13-p1", "op-luffy-10-111"]);
+  check("One Piece: base vs parallel of one number still sends #1 and #2",
+    tiebreakIds(await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("OP01-001"), 5, null, null), "onepiece").length, 2);
+  check("One Piece key drops the printing suffix", [onePieceKey("OP13-118_p2"), onePieceKey("p-030_r1"), onePieceKey("OP04-056_p2#2072"), onePieceKey("OP01-001")], ["OP13-118", "P-030", "OP04-056", "OP01-001"]);
+  const rows = [
+    { id: "b", number: "OP13-118", rarity: "SEC", variant: "", setCode: "OP13", imageSmall: "b.jpg" },
+    { id: "p", number: "OP13-118", rarity: "SEC", variant: "parallel", setCode: "OP13", imageSmall: "b.jpg" },
+    { id: "a2", number: "OP13-118", rarity: "SEC", variant: "alt-art", setCode: "OP13", imageSmall: "a2.jpg" },
+    { id: "a3", number: "OP13-118", rarity: "SEC", variant: "alt-art", setCode: "OP13", imageSmall: "a3.jpg" },
+    { id: "r", number: "OP13-118_r1", rarity: "SEC", variant: "reprint", setCode: "PRB03", imageSmall: "b.jpg" },
+    { id: "other", number: "OP10-118", rarity: "SEC", variant: "", setCode: "OP10", imageSmall: "o.jpg" },
+  ];
+  check("Which printing: one chip per printing of the number, pick first, two alt arts kept apart by picture", printingChoices(rows[1], rows).map((c) => c.id), ["p", "b", "a2", "a3", "r"]);
+  check("Which printing: a number in one printing asks nothing", printingChoices(rows[5], rows), []);
+  check("printing labels", [printingLabel(rows[0]), printingLabel(rows[1]), printingLabel(rows[4]), printingLabel({ rarity: "R", variant: "op15-109" }), printingLabel({ rarity: "SR", variant: "bentham" })], ["Standard · SEC", "Parallel · SEC", "Reprint (PRB03) · SEC", "Alt Art · R", "Bentham · SR"]);
+}
 const ygo = async (name, number, rarity = null, first = null) => (await searchTcgCardsLocal("yugioh", name, number ? pn(number) : null, 5, null, rarity, first))[0]?.id ?? null;
 check("Yu-Gi-Oh!: LOB-EN005 read finds the LOB-005 row", await ygo("Dark Magician", "LOB-EN005", null, false), "ygo-21876");
 check("Yu-Gi-Oh!: 1st Edition stamp seen → the -1st twin", await ygo("Dark Magician", "LOB-EN005", "ultra-rare", true), "ygo-21876-1st");

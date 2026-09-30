@@ -23,6 +23,7 @@ import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, descri
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
+import { printingChoices, printingLabel } from "@/lib/onepiece";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
@@ -533,7 +534,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // Magic names are exact — no suffix stripping there (lib/speciesName.ts).
   const speciesName = (name: string): string => (item.game === "mtg" ? name : speciesOf(name));
   // Yu-Gi-Oh!: one set code in several foils — the seller's tap picks it (09-29).
-  const foils = item.game === "yugioh" ? foilChoices(card, item.candidates) : [];
+  // One Piece: one number in several printings (standard / parallel / alt
+  // art / manga / reprint) — same tap, with a thumbnail since the arts differ (09-30).
+  const foils =
+    item.game === "yugioh" ? foilChoices(card, item.candidates) : item.game === "onepiece" ? printingChoices(card, item.candidates) : [];
+  const foilName = (c: PokemonCard) => (item.game === "onepiece" ? printingLabel(c) : foilLabel(c));
   const alternatives: PokemonCard[] =
     allMatches?.forId === card.id ? allMatches.cards : item.candidates;
 
@@ -769,7 +774,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   // picked IS the verification. Wrong card entirely → the
                   // "Not your card?" link below.
                   <div data-tour="verify">
-                    <p className="text-sm font-medium text-white">Which foil is yours? Tap it to confirm.</p>
+                    <p className="text-sm font-medium text-white">
+                      {item.game === "onepiece" ? "Which printing is yours? Tap it to confirm." : "Which foil is yours? Tap it to confirm."}
+                    </p>
                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {foils.map((c) => (
                         <button
@@ -795,13 +802,17 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                                   },
                             )
                           }
-                          className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                          className={`flex items-center justify-center gap-3 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
                             c.id === card.id
                               ? "bg-emerald-500 text-white hover:bg-emerald-400"
                               : "border border-edge text-zinc-200 hover:border-edge-strong hover:text-white"
                           }`}
                         >
-                          {foilLabel(c)}
+                          {item.game === "onepiece" && c.imageSmall ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={c.imageSmall} alt="" className="h-9 w-[26px] shrink-0 rounded-sm object-cover" />
+                          ) : null}
+                          <span>{foilName(c)}</span>
                         </button>
                       ))}
                     </div>

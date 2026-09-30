@@ -4,6 +4,8 @@
  * on /api/vision/tiebreak.
  */
 
+import { onePieceKey } from "@/lib/onepiece";
+
 /** Score gap at or under which #1 and #2 count as a tie (both rankers use 1-point tiebreaks). */
 export const TIEBREAK_GAP = 1;
 
@@ -23,8 +25,9 @@ export function isNearTie(cards: Array<{ id: string; rankScore?: number }>): boo
  * its face with the plain row and is never sent as a separate face.
  * Empty when there is no near-tie.
  */
-export function tiebreakIds(cards: Array<{ id: string; rankScore?: number }>, game: string): string[] {
+export function tiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string }>, game: string): string[] {
   if (!isNearTie(cards)) return [];
+  if (game === "onepiece") return onePieceTiebreakIds(cards);
   if (game !== "yugioh") return [cards[0].id, cards[1].id];
   const top = cards[0].rankScore as number;
   const out: string[] = [];
@@ -36,6 +39,29 @@ export function tiebreakIds(cards: Array<{ id: string; rankScore?: number }>, ga
     faces.add(face);
     out.push(c.id);
     if (out.length === 6) break;
+  }
+  return out.length >= 2 ? out : [cards[0].id, cards[1].id];
+}
+
+/**
+ * One Piece (09-30): a misread digit leaves several DIFFERENT cards of one
+ * name within the gap (OP10-118, OP13-118, OP11-118 off an "OP10-018" read —
+ * tcgCards twoDigitsOff). Send up to four distinct numbers, one face each,
+ * so the right card is in front of the picture. Printings of one number
+ * (base / parallel) collapse to the first, and fall back to #1 vs #2 when
+ * the tie is only between those.
+ */
+function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string }>): string[] {
+  const top = cards[0].rankScore as number;
+  const out: string[] = [];
+  const numbers = new Set<string>();
+  for (const c of cards) {
+    if (typeof c.rankScore !== "number" || c.rankScore - top > TIEBREAK_GAP) continue;
+    const key = onePieceKey(c.number ?? c.id);
+    if (numbers.has(key)) continue;
+    numbers.add(key);
+    out.push(c.id);
+    if (out.length === 4) break;
   }
   return out.length >= 2 ? out : [cards[0].id, cards[1].id];
 }

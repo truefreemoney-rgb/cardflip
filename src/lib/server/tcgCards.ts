@@ -125,6 +125,26 @@ function oneCharOff(a: string, b: string): boolean {
   return diff === 1;
 }
 
+/**
+ * Same shape, exactly two DIGITS different, letters and dashes intact
+ * ("op13-118" read as "op10-018"; never "op" vs "st"). Glare on a SEC foil
+ * did this to a 09-10 seller photo: the one-digit-off row (OP10-118) took
+ * the top spot and the picture tiebreak was handed two wrong faces.
+ */
+function twoDigitsOff(read: string, row: string): number | null {
+  if (read.length !== row.length || read === row) return null;
+  let diff = 0;
+  let firm = 0;
+  for (let i = 0; i < read.length; i++) {
+    if (read[i] === row[i]) continue;
+    if (!/\d/.test(read[i]) || !/\d/.test(row[i]) || ++diff > 2) return null;
+    // Glare wipes strokes: a digit read as 0 could have been anything; a
+    // digit read as something else is a firmer claim the row contradicts.
+    if (read[i] !== "0") firm++;
+  }
+  return diff === 2 ? firm : null;
+}
+
 export async function searchTcgCardsLocal(
   game: TcgGame,
   name: string,
@@ -188,6 +208,7 @@ export async function searchTcgCardsLocal(
     // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
     const rowNumber = normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
     const exactNumber = Boolean(wantedNumber) && rowNumber === wantedNumber;
+    const twoOff = exactName && !exactNumber && wantedNumber && game === "onepiece" ? twoDigitsOff(wantedNumber, rowNumber) : null;
     let tier: number;
     if (exactName && exactNumber) tier = 0;
     else if (exactNumber && needle === "") tier = 0;
@@ -195,10 +216,17 @@ export async function searchTcgCardsLocal(
     // no printing of that name carrying the read number, the row one
     // character off is the likeliest — ahead of every other same-name row.
     else if (exactName && wantedNumber && game === "onepiece" && oneCharOff(rowNumber, wantedNumber)) tier = 0.5;
+    // Two digits off lands 0.8 behind the one-off row: inside the near-tie
+    // gap (lib/tiebreak.ts), so the picture — not the misread — decides
+    // (tiebreakIds sends the distinct numbers within the gap).
+    else if (twoOff !== null) tier = 0.6;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;
     let p = tier * NAME_TIER;
+    // Among the two-off rows, the ones whose differing digits were read as 0
+    // (glare) come before the ones contradicting a firmly read digit.
+    if (twoOff) p += 0.1 * twoOff;
     // Set: Lorcana's set number / One Piece's OP01 prefix. A wrong set costs
     // more than a tiebreak — it is a different card — but less than a name.
     // One Piece: the "OP06" the read sees is the card number's prefix, printed
