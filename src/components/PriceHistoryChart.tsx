@@ -58,6 +58,14 @@ export interface TrendAverages {
 
 interface Props {
   cardId: string;
+  /**
+   * The card's series, already read on the server (the public card pages, 09-30).
+   * The chart draws from them on the first, server-rendered pass — real SVG in
+   * the HTML for crawlers — and never calls /api/price-history. Each series
+   * carries the price guard's `untrusted` verdict, exactly as that route serves
+   * it. Absent = the old behaviour: fetch on mount.
+   */
+  initialSeries?: Series[] | null;
   /** The variant the shown quote uses ("holofoil", "nonfoil"…) — chart that series first. */
   preferVariant?: string | null;
   /** Backward-looking averages from the price source, if it publishes them. */
@@ -178,7 +186,8 @@ export function useLastRecordedPrice(cardId: string, variant?: string | null) {
 const dayMs = 86_400_000;
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 function shortDay(day: string, withYear = false): string {
-  return new Date(parseDay(day)).toLocaleDateString(undefined, {
+  // en-US, not the viewer's locale: the same text on the server and in the browser (a server-rendered chart must hydrate), and the site is American.
+  return new Date(parseDay(day)).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     ...(withYear ? { year: "2-digit" } : {}),
@@ -206,8 +215,8 @@ function niceStep(range: number, target = 4): number {
 
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
-export default function PriceHistoryChart({ cardId, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
-  const [loadedForFactor, setLoadedForFactor] = useState<Series[] | null>(null);
+export default function PriceHistoryChart({ cardId, initialSeries, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
+  const [loadedForFactor, setLoadedForFactor] = useState<Series[] | null>(initialSeries ?? null);
   // A REAL series at the preferred variant (a recorded graded curve) beats
   // any rescaled estimate: when the picked series matches preferVariant
   // exactly, the data is already at the right altitude — no scaling, and the
@@ -248,24 +257,37 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Keyed by cardId so a re-open of another card starts from the loading state.
-  const [loaded, setLoaded] = useState<{ id: string; series: Series[] | null; failed: boolean }>({ id: "", series: null, failed: false });
+  // Server-provided series seed it, so the first render already has the data.
+  const [loaded, setLoaded] = useState<{ id: string; series: Series[] | null; failed: boolean }>(() =>
+    initialSeries ? { id: cardId, series: initialSeries, failed: false } : { id: "", series: null, failed: false },
+  );
   useEffect(() => {
     let alive = true;
     // A stub card (detail view still resolving the printing) has no id yet:
     // stay in the loading state instead of a 400 + "Couldn't load" flash.
     if (!cardId) return;
+    if (initialSeries) {
+      // Already here: no request, and any other panel of this card on the page reads the same series.
+      if (!cache.has(cardId)) cache.set(cardId, Promise.resolve(initialSeries));
+      return;
+    }
     loadSeries(cardId)
       .then((s) => { if (alive) { setLoaded({ id: cardId, series: s, failed: false }); setLoadedForFactor(s); } })
       .catch(() => { if (alive) { setLoaded({ id: cardId, series: null, failed: true }); setLoadedForFactor(null); } });
     return () => { alive = false; };
-  }, [cardId]);
+  }, [cardId, initialSeries]);
   const all = loaded.id === cardId ? loaded.series : null;
   const failed = loaded.id === cardId && loaded.failed;
 
   const series = useMemo(() => (all ? pickSeries(all, preferVariant) : null), [all, preferVariant]);
   const currency = (series?.currency ?? "USD") as Currency;
 
-  const [now] = useState(() => Date.now());
+  // With server-provided series the ranges count back from the newest recorded day, not the clock: a page cached for
+  // two days must draw the same chart on the server and in the browser (hydration) and "3M" still means the last 90 recorded days.
+  const [now] = useState(() => {
+    const newest = initialSeries ? Math.max(...initialSeries.map((s) => (s.points.length ? parseDay(s.points[s.points.length - 1].day) : NaN)).filter(Number.isFinite)) : NaN;
+    return Number.isFinite(newest) ? newest : Date.now();
+  });
   const shown = useMemo(() => {
     if (!series) return [];
     const pts = range === 0 ? series.points : (() => {
