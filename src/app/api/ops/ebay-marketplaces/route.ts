@@ -9,9 +9,11 @@ import { getUserAccessToken } from "@/lib/server/ebayAuth";
  * services look like on EBAY_GB / AU / CA / IE next to EBAY_US. GETs eBay's
  * public Taxonomy + Metadata APIs with the app token (the keyset only lives
  * on Vercel). ?user=<id> adds Trading GeteBayDetails shipping services with
- * that account's own token. CRON_SECRET bearer only; writes nothing.
+ * that account's own token. Bearer CRON_SECRET or the GitHub SOCIAL_POST_KEY
+ * (workflow ebay-research.yml; /api/ops sits outside the US-only admin fence,
+ * so a GitHub runner anywhere can call it). Writes nothing.
  *
- *   curl -H "Authorization: Bearer $CRON_SECRET" "https://cardflip.io/api/admin/ebay-marketplaces?mk=EBAY_GB"
+ *   curl -H "Authorization: Bearer $KEY" "https://cardflip.io/api/ops/ebay-marketplaces?mk=EBAY_GB"
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -34,7 +36,9 @@ async function get(url: string, token: string, mk: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = cronAuthError(req);
+  const k = process.env.SOCIAL_POST_KEY;
+  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const denied = k && given === k ? null : cronAuthError(req);
   if (denied) return denied;
   const mk = req.nextUrl.searchParams.get("mk") ?? "";
   if (!(MARKETPLACES as readonly string[]).includes(mk)) {

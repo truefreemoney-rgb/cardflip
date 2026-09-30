@@ -1,0 +1,32 @@
+# Read-only eBay marketplace research for per-country listing (09-30).
+# Calls /api/ops/ebay-marketplaces for each marketplace and uploads the JSON
+# as an artifact; the keyset only lives on Vercel. Run by hand:
+#   gh workflow run ebay-research.yml -R truefreemoney-rgb/cardflip
+name: ebay-research
+on:
+  workflow_dispatch:
+    inputs:
+      user:
+        description: "CardFlip user id whose eBay token reads GeteBayDetails shipping services (optional)"
+        required: false
+        default: ""
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch each marketplace
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          USER_ID: ${{ inputs.user }}
+        run: |
+          mkdir out
+          for mk in EBAY_US EBAY_GB EBAY_AU EBAY_CA EBAY_IE; do
+            code=$(curl -sS --max-time 90 -o "out/$mk.json" -w '%{http_code}' -H "Authorization: Bearer ${KEY}" "https://cardflip.io/api/ops/ebay-marketplaces?mk=$mk&user=${USER_ID}")
+            echo "$mk $code $(wc -c < out/$mk.json)"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ebay-marketplaces
+          path: out/
+          retention-days: 7
