@@ -59,15 +59,27 @@ export async function perDay(table: string, tsColumn: string, days: number, wher
 }
 
 /**
- * Distinct visitors per day from page_views (the visitor key already changes daily).
- * page_views.day is a stored UTC day key, so unlike perDay these buckets stay UTC days.
+ * Distinct visitors per Eastern day from page_views, bucketed on `at` exactly
+ * like the analytics page. (It used the stored UTC `day` key until 09-30, so
+ * the home chart's "today" started at 8pm ET and never matched Analytics.)
  */
 export async function visitorsPerDay(days: number, now = Date.now()): Promise<DaySeries> {
-  const since = new Date(now - days * DAY_MS).toISOString().slice(0, 10);
+  const since = now - (days + 1) * DAY_MS;
+  const offset = etOffsetMs(now);
   const rows = (await db
-    .prepare("SELECT day, COUNT(DISTINCT visitor) AS n FROM page_views WHERE day >= ? GROUP BY day")
+    .prepare(
+      `SELECT date((at + ${offset}) / 1000, 'unixepoch') AS day, COUNT(DISTINCT visitor) AS n
+         FROM page_views WHERE at >= ? GROUP BY day`,
+    )
     .all(since)) as unknown as { day: string; n: number }[];
-  return daySeries(rows, days, now);
+  const series = daySeries(rows, days, now);
+  // The visitor key rotates at UTC midnight, so one person can land in two Eastern-day buckets:
+  // the total is distinct keys over the window (as Analytics counts it), not the sum of the bars.
+  const total = (await db
+    .prepare("SELECT COUNT(DISTINCT visitor) AS n FROM page_views WHERE at >= ?")
+    .get(now - days * DAY_MS)) as unknown as { n: number } | undefined;
+  series.total = Number(total?.n ?? series.total);
+  return series;
 }
 
 export interface UserRollup {
