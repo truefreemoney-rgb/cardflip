@@ -36,7 +36,7 @@ export const helpArticles: HelpArticle[] = [
     id: "scan-limits",
     heading: "Scan limits",
     paragraphs: [
-      `A subscription includes ${SCANS.standard} scans per calendar month (${SCANS.pro} on Pro); the counter resets at the start of each month (8 PM ET on the month's last day, 7 PM ET in winter). A Scan Pack adds ${SCANS.pack} scans that never expire; on a subscription they are used after the month's allowance. Failed scans don't count against your allowance. New accounts get ${SCANS.trial} free scans first — scanning and pricing only; publishing to eBay starts with a Scan Pack or a subscription.`,
+      `A subscription includes ${SCANS.standard} scans per calendar month (${SCANS.pro} on Pro); the counter resets at the start of each month. A Scan Pack adds ${SCANS.pack} scans that never expire; on a subscription they are used after the month's allowance. Failed scans don't count against your allowance. New accounts get ${SCANS.trial} free scans first — scanning and pricing only; publishing to eBay starts with a Scan Pack or a subscription.`,
       "There are also daily and per-minute caps that protect the service from abuse. If you hit one, wait and try again — a normal scanning session never gets near them.",
     ],
   },
