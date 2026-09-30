@@ -2,6 +2,7 @@
 
 import { apiFetch } from "@/lib/client/basePath";
 import type { ScanQuota } from "@/lib/quotaTypes";
+import type { Touch } from "@/lib/attribution";
 
 export interface SessionUser {
   id: string;
@@ -114,11 +115,13 @@ export async function signup(
   email: string,
   password: string,
   ref?: string | null,
+  /** The first touch this browser kept (components/AttributionCapture.tsx): which post or site brought the person. */
+  touch?: Touch | null,
 ): Promise<SignupResult> {
   const res = await apiFetch("/api/auth/signup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(ref ? { name, email, password, ref } : { name, email, password }),
+    body: JSON.stringify({ name, email, password, ...(ref ? { ref } : {}), ...(touch ? { touch } : {}) }),
   });
   const data = await readJson(res);
   // A confirmation-code limit answers { error: "slow_down", message }: show the message.

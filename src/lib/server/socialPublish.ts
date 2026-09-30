@@ -23,6 +23,7 @@ import {
   type SocialPost,
 } from "@/lib/server/social";
 import { countWord, dayPlan } from "@/lib/socialPlan";
+import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
@@ -181,6 +182,8 @@ export interface SitePost {
   height: number;
   alt: string;
   video?: SitePostVideo;
+  /** The draft's campaign ("mtg-movers-0930", lib/attribution.ts draftCampaign), for sites that tag a link themselves (Bluesky's facet, Pinterest's link field). Never shown in the text. */
+  campaign?: string;
 }
 
 export interface SocialSite {
@@ -503,6 +506,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       width: POST_SIZES.square.width,
       height: POST_SIZES.square.height,
       alt: `${d.title}. ${d.caption.split("\n")[0]}`,
+      campaign: draftCampaign(d.id),
     };
     const video = site.postsVideo ? await videoOf(d) : null;
     if (!video) return site.post(base);

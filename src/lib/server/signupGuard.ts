@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import type { Touch } from "@/lib/attribution";
 import { TRIAL_SCANS } from "@/lib/server/users";
 
 /**
@@ -104,9 +105,22 @@ export async function recordSignup(
   repeat: boolean,
   country: string | null = null,
   now = Date.now(),
+  touch: Touch | null = null,
 ): Promise<void> {
   await db
     .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at, country) VALUES (?, ?, ?, ?, ?)")
     .run(userId, ipHash, deviceId, now, country);
+  // Where the signup came from (lib/attribution.ts): its own statement after the
+  // guard row, and best effort, so a bad value or a database without the columns
+  // can never cost a signup.
+  if (touch) {
+    try {
+      await db
+        .prepare("UPDATE signup_log SET src = ?, medium = ?, campaign = ?, landing = ?, ref_host = ? WHERE user_id = ?")
+        .run(touch.s, touch.m, touch.c, touch.landing, touch.refHost, userId);
+    } catch (err) {
+      console.warn("signup attribution skipped", err instanceof Error ? err.message : err);
+    }
+  }
   if (repeat) await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, userId);
 }

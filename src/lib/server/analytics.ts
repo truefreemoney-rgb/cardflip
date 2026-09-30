@@ -124,6 +124,23 @@ export interface Analytics {
     totalUsers: number;
   };
   social: { site: string; lastDay: string | null; postsThatDay: number }[];
+  attribution: Attribution;
+}
+
+/**
+ * Where people come from (09-30, lib/attribution.ts): accounts created in the
+ * range by the source the browser kept at signup, then by campaign (one post),
+ * with how many of them pay now; visitors by the source of their page load; and
+ * the first page signups landed on. `source` is a stored source (bluesky, x,
+ * search, direct, other:<host>) or "unknown" for accounts with nothing recorded
+ * (made before this shipped, or a browser with storage blocked).
+ */
+export interface Attribution {
+  signups: { source: string; signups: number; paying: number; campaigns: { campaign: string; signups: number; paying: number }[] }[];
+  visitors: { source: string; visitors: number }[];
+  landings: { path: string; signups: number }[];
+  /** True once any signup carries a source. */
+  collected: boolean;
 }
 
 export interface FunnelSteps {
@@ -217,6 +234,48 @@ async function metric(spec: Spec, since: number, now: number, hourly: boolean): 
   return { total, prior, series: fill(sparse, since, now, hourly, offset) };
 }
 
+/** Sign-ups and visitors by source, campaign and landing page for [since, end). Every query is wrapped: a database without the columns reads as zeros. */
+async function attribution(since: number, end: number): Promise<Attribution> {
+  const [signupRows, visitorRows, landingRows, anyRow] = await Promise.all([
+    rows<{ src: string; campaign: string; signups: number; paying: number }>(
+      `SELECT COALESCE(NULLIF(s.src, ''), 'unknown') AS src, COALESCE(s.campaign, '') AS campaign,
+              COUNT(*) AS signups, SUM(CASE WHEN u.sub_status IN ('active','trialing') THEN 1 ELSE 0 END) AS paying
+         FROM users u LEFT JOIN signup_log s ON s.user_id = u.id
+        WHERE u.created_at >= ? AND u.created_at < ?
+        GROUP BY 1, 2`,
+      since, end,
+    ),
+    rows<{ src: string; visitors: number }>(
+      "SELECT src, COUNT(DISTINCT visitor) AS visitors FROM page_views WHERE at >= ? AND at < ? AND src IS NOT NULL AND src <> '' GROUP BY src ORDER BY visitors DESC, src LIMIT 12",
+      since, end,
+    ),
+    rows<{ path: string; signups: number }>(
+      "SELECT landing AS path, COUNT(*) AS signups FROM signup_log WHERE at >= ? AND at < ? AND landing IS NOT NULL AND landing <> '' GROUP BY landing ORDER BY signups DESC, landing LIMIT 10",
+      since, end,
+    ),
+    rows<{ n: number }>("SELECT 1 AS n FROM signup_log WHERE src IS NOT NULL AND src <> '' LIMIT 1"),
+  ]);
+  const bySource = new Map<string, { source: string; signups: number; paying: number; campaigns: { campaign: string; signups: number; paying: number }[] }>();
+  for (const r of signupRows) {
+    const entry = bySource.get(r.src) ?? { source: r.src, signups: 0, paying: 0, campaigns: [] };
+    const signups = Number(r.signups);
+    const paying = Number(r.paying ?? 0);
+    entry.signups += signups;
+    entry.paying += paying;
+    if (r.campaign) entry.campaigns.push({ campaign: r.campaign, signups, paying });
+    bySource.set(r.src, entry);
+  }
+  const list = [...bySource.values()];
+  for (const e of list) e.campaigns.sort((a, b) => b.signups - a.signups || a.campaign.localeCompare(b.campaign));
+  list.sort((a, b) => b.signups - a.signups || a.source.localeCompare(b.source));
+  return {
+    signups: list,
+    visitors: visitorRows.map((r) => ({ source: r.src, visitors: Number(r.visitors) })),
+    landings: landingRows.map((r) => ({ path: r.path, signups: Number(r.signups) })),
+    collected: anyRow.length > 0,
+  };
+}
+
 async function funnel(since: number | null): Promise<FunnelSteps> {
   // Users created in the window (or everyone when since is null).
   const w = since === null ? "" : "AND u.created_at >= ?";
@@ -250,6 +309,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     subRows, ebayConnected, totalUsers,
     socialRows,
     lifeSoldUsd, lifeSold, lifeListed,
+    attrib,
   ] = await Promise.all([
     m({ table: "page_views", ts: "at", agg: "COUNT(DISTINCT visitor)" }),
     m({ table: "page_views", ts: "at", agg: "COUNT(*)" }),
@@ -300,6 +360,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     scalar("SELECT COALESCE(SUM(sold_price), 0) AS n FROM cards WHERE status = 'sold'"),
     scalar("SELECT COUNT(*) AS n FROM cards WHERE status = 'sold'"),
     scalar("SELECT COUNT(*) AS n FROM cards WHERE listed_at IS NOT NULL OR status IN ('listed','sold')"),
+    attribution(since, now + 1),
   ]);
 
   const visionCostUsd: Metric = {
@@ -350,6 +411,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
       totalUsers,
     },
     social: [...social.entries()].map(([site, v]) => ({ site, ...v })).sort((a, b) => a.site.localeCompare(b.site)),
+    attribution: attrib,
   };
 }
 

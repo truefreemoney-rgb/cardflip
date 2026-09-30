@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
+import { trackedUrl } from "@/lib/attribution";
 
 /**
  * Pinterest adapter (docs/SOCIAL-AUTOPILOT.md §5): a pin per post = the
@@ -243,7 +244,8 @@ export const pinterest: SocialSite = {
       title,
       description,
       alt_text: p.alt.slice(0, 500),
-      link: "https://cardflip.io/",
+      // The pin's own link field is clickable, so it carries the tagged URL (lib/attribution.ts).
+      link: p.campaign ? trackedUrl("pinterest", p.campaign) : "https://cardflip.io/",
       media_source: { source_type: "image_base64", content_type: p.mime === "image/jpeg" ? "image/jpeg" : "image/png", data: p.image.toString("base64") },
     });
     if (!pin.id) throw new Error("pinterest create pin: no id");

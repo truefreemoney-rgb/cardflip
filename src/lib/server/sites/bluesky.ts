@@ -1,5 +1,6 @@
 import "server-only";
 import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
+import { trackedUrl } from "@/lib/attribution";
 
 /**
  * Bluesky adapter (docs/SOCIAL-AUTOPILOT.md §2). Free API, no app review:
@@ -19,15 +20,19 @@ interface Facet {
   features: Array<{ $type: string; uri?: string; tag?: string }>;
 }
 
-/** Link + tag facets by UTF-8 byte offset (the AT Protocol counts bytes). */
-export function blueskyFacets(text: string): Facet[] {
+/**
+ * Link + tag facets by UTF-8 byte offset (the AT Protocol counts bytes). The
+ * link's visible text stays "cardflip.io"; `linkUri` is where it goes, which
+ * is the tagged URL (lib/attribution.ts trackedUrl) for a real post.
+ */
+export function blueskyFacets(text: string, linkUri = "https://cardflip.io"): Facet[] {
   const enc = new TextEncoder();
   const facets: Facet[] = [];
   const at = (idx: number) => enc.encode(text.slice(0, idx)).length;
   for (const m of text.matchAll(/(?<![\w.@])cardflip\.io(?![\w])/g)) {
     facets.push({
       index: { byteStart: at(m.index), byteEnd: at(m.index + m[0].length) },
-      features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://cardflip.io" }],
+      features: [{ $type: "app.bsky.richtext.facet#link", uri: linkUri }],
     });
   }
   for (const m of text.matchAll(/(?<![\w#])#([A-Za-z][A-Za-z0-9]*)/g)) {
@@ -182,7 +187,7 @@ export const bluesky: SocialSite = {
         record: {
           $type: "app.bsky.feed.post",
           text: p.text,
-          facets: blueskyFacets(p.text),
+          facets: blueskyFacets(p.text, p.campaign ? trackedUrl("bluesky", p.campaign) : undefined),
           createdAt: new Date().toISOString(),
           embed,
         },

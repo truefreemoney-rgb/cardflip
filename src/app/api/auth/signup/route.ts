@@ -28,6 +28,7 @@ import {
   repeatSignup,
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
+import { parseTouch } from "@/lib/attribution";
 
 /**
  * A signup that comes back for an account still waiting on its email code,
@@ -124,7 +125,8 @@ export async function POST(req: Request) {
     if (mailLimited) return mailLimited;
   }
   const created = await createUser(name, email, password, "user", { emailPending: confirm });
-  await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req));
+  // The first touch the browser kept (lib/attribution.ts); malformed = dropped, never an error.
+  await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch));
   let user: User = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
   // Invite a friend: ?ref=CODE captured on the landing page rides along.
   // Best effort — a bad or stale code never blocks the signup.

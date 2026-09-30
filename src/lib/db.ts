@@ -840,10 +840,16 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // user agent at insert (the UA itself is never stored); country = the
   // two-letter code Vercel stamps on the request. All three are aggregate
   // columns — still no cookie, no user id, no IP.
-  ["page_views", ["ref TEXT", "device TEXT", "country TEXT"]],
+  // Signup attribution (09-30, lib/attribution.ts): page_views.src = the
+  // classified source of the visit (bluesky, x, search, direct, other:<host>,
+  // ...) and camp = its utm_campaign, both only on a page load's first ping.
+  ["page_views", ["ref TEXT", "device TEXT", "country TEXT", "src TEXT", "camp TEXT"]],
   // Signup country (09-29, Chris asked where the Probe accounts came from):
   // Vercel's two-letter x-vercel-ip-country, shown on the admin user row.
-  ["signup_log", ["country TEXT"]],
+  // 09-30: the first touch the browser kept (source, medium, campaign, the
+  // first page it landed on, the external referrer host) for the analytics
+  // "where signups come from" tables; blank on accounts made before then.
+  ["signup_log", ["country TEXT", "src TEXT", "medium TEXT", "campaign TEXT", "landing TEXT", "ref_host TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",
