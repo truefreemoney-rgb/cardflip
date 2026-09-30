@@ -87,8 +87,8 @@ sentence case, no exclamation marks, ends on cardflip.io).
   (e) ☆/★ in names become the word "Star" (Satori has no glyph; drew a box).
   (f) Set spotlight rows read "#131 · Holo", the heading is the set name on
   one line (long names shrink), art is 126 px. Before changing the engine
-  again: render real pictures (local dev: CRON_SECRET=local-dev-only in
-  .env.local, `/api/social/image?kind=set&day=…&key=local-dev-only`) and
+  again: render real pictures (local dev: CRON_SECRET=<local value, see .env.local> in
+  .env.local, `/api/social/image?kind=set&day=…&key=<local value, see .env.local>`) and
   read them as a collector would; local price_series has ONE point per card
   (synced once), so locally every card reads "unsettled" and the movers
   posts are empty — that is the local mirror, not prod.
