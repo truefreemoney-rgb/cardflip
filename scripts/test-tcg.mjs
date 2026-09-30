@@ -81,6 +81,10 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-luffy-10-111", "onepiece", "Monkey.D.Luffy", "", "OP10", "Royal Blood", "OP10-111", null, "2025-01-01", "R", "parallel", 3, null],
   ["op-luffy-13", "onepiece", "Monkey.D.Luffy", "", "OP13", "Carrying On His Will", "OP13-118", null, "2025-09-01", "SEC", "", 12, null],
   ["op-luffy-13-p1", "onepiece", "Monkey.D.Luffy", "", "OP13", "Carrying On His Will", "OP13-118", null, "2025-09-01", "SEC", "parallel", 80, null],
+  // Event card whose art the read names ("Cross Guild" read as Buggy OP09-057, 09-30 seller photo).
+  ["op-crossguild", "onepiece", "Cross Guild", "", "OP09", "Emperors in the New World", "OP09-057", null, "2024-12-01", "R", "", 1, null],
+  ["op-crossguild-p1", "onepiece", "Cross Guild", "", "OP09", "Emperors in the New World", "OP09-057", null, "2024-12-01", "R", "manga", 60, null],
+  ["op-buggy-051-p1", "onepiece", "Buggy", "", "OP09", "Emperors in the New World", "OP09-051", null, "2024-12-01", "SR", "alt-art", 20, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -126,6 +130,9 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
   check("One Piece: two-digit misread — the one-off row still leads", found[0]?.id, "op-luffy-10-p1");
   check("One Piece: two-digit misread — digits read as 0 (glare) rank before a firmly read digit", found.map((c) => c.id).indexOf("op-luffy-13-p1") < found.map((c) => c.id).indexOf("op-luffy-10-111"));
   check("One Piece: the picture tiebreak sees each number once, the two-off card included", tiebreakIds(found, "onepiece"), ["op-luffy-10-p1", "op-luffy-13-p1", "op-luffy-10-111"]);
+  const cg = await searchTcgCardsLocal("onepiece", "Buggy", pn("OP09-057", null, "OP09"), 8, null, "full-art");
+  check("One Piece: the read key's own card joins the candidates and reaches the picture next to the same-name digit-off row",
+    tiebreakIds(cg, "onepiece").map((id) => id.replace(/-p1$/, "")).sort(), ["op-buggy-051", "op-crossguild"]);
   check("One Piece: base vs parallel of one number still sends #1 and #2",
     tiebreakIds(await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("OP01-001"), 5, null, null), "onepiece").length, 2);
   check("One Piece key drops the printing suffix", [onePieceKey("OP13-118_p2"), onePieceKey("p-030_r1"), onePieceKey("OP04-056_p2#2072"), onePieceKey("OP01-001")], ["OP13-118", "P-030", "OP04-056", "OP01-001"]);

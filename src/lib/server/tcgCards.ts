@@ -161,13 +161,14 @@ export async function searchTcgCardsLocal(
   let wantedNumber = printed ? normalizeNumber(printed.number) : null;
   let wantedCode = printed?.setCode ? printed.setCode.toUpperCase() : null;
   if (game === "yugioh") return searchYugioh(needle, name, printed, limit, variant, firstEdition);
+  let onePieceKeyRead: string | null = null;
   if (game === "onepiece" && wantedNumber) {
     // The read sometimes prepends the rarity printed beside the number
     // ("SP P-084", "SR OP05-119"); the catalog key is the number alone.
     const bare = printed!.number.trim().replace(/^(?:SP|SR|SEC|UC|R|C|L|P)\s+(?=[A-Z]{1,4}\d{0,3}-\d)/i, "");
     wantedNumber = normalizeNumber(bare);
     const split = splitOnePieceNumber(bare);
-    if (split.setCode) { wantedCode = split.setCode; wantedNumber = normalizeNumber(split.number); }
+    if (split.setCode) { wantedCode = split.setCode; wantedNumber = normalizeNumber(split.number); onePieceKeyRead = split.number; }
   }
 
   let rows: TcgRow[] = [];
@@ -182,6 +183,17 @@ export async function searchTcgCardsLocal(
         .all(game, `%${needle}%`)) as unknown as TcgRow[];
       const have = new Set(rows.map((r) => r.id));
       rows = rows.concat(wide.filter((r) => !have.has(r.id)));
+    }
+    // One Piece: no printing of the read name carries the read key, but the
+    // key names exactly one card — an event card whose art the read named
+    // ("Cross Guild" read as Buggy). Its rows join the candidates (tier 0.55
+    // below) so the picture can weigh it against the same-name digit-off rows.
+    if (game === "onepiece" && onePieceKeyRead && !numberSatisfied) {
+      const byKey = (await db
+        .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'onepiece' AND collector_number LIKE ? LIMIT 20`)
+        .all(`${onePieceKeyRead}%`)) as unknown as TcgRow[];
+      const have = new Set(rows.map((r) => r.id));
+      rows = rows.concat(byKey.filter((r) => !have.has(r.id)));
     }
   }
   // No usable name (glare on the name band) but a full key identifies:
@@ -220,6 +232,11 @@ export async function searchTcgCardsLocal(
     // gap (lib/tiebreak.ts), so the picture — not the misread — decides
     // (tiebreakIds sends the distinct numbers within the gap).
     else if (twoOff !== null) tier = 0.6;
+    // One Piece: a full key ("OP09-057") names exactly one card, and the
+    // read names the character in the art when the card is an event ("Cross
+    // Guild" read as Buggy, 09-30 seller photo). The number's row sits just
+    // behind a same-name one-digit-off row — inside the gap, the picture decides.
+    else if (exactNumber && game === "onepiece" && wantedCode) tier = 0.55;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;

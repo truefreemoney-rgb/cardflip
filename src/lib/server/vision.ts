@@ -874,7 +874,7 @@ export const SECOND_LOOK_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM_SECOND_LOOK = `This is an enlarged close-up of the BOTTOM part of one trading card (Pokémon or Magic: The Gathering). Read only what is printed here, exactly as printed, and return null for anything you cannot actually see in this crop. Do not guess from memory of the card.
+const SYSTEM_SECOND_LOOK = `This is an enlarged close-up of the BOTTOM part of one trading card (Pokémon, Magic: The Gathering or One Piece Card Game). Read only what is printed here, exactly as printed, and return null for anything you cannot actually see in this crop. Do not guess from memory of the card.
 
 What lives here: the collector number and its denominator or expansion code in the bottom corner; the copyright line and its last year; the artist credit; on Art Series cards the card's name in small type; on The List reprints a small white planeswalker symbol at the far bottom-left inside the black border; on prerelease cards a small rectangular foil date stamp; on in-store promos a large faint embossed symbol (the D&D ampersand '&') pressed across the text box; on serialized cards a printed serial like 045/500. The outer edge of the card, if visible, is black or white; on a white-bordered 1990s Magic card look at where the white border meets the coloured frame — Unlimited Edition has a thin dark bevelled line there, Revised and 4th Edition meet flat.`;
 
@@ -918,18 +918,24 @@ export async function secondLookReason(read: VisionCardRead, game: GameId): Prom
   return null;
 }
 
-/** Bottom 45% of the image, widened to at least 1400px, as JPEG. */
-async function bottomStrip(base64Image: string): Promise<{ base64: string; mediaType: ImageMediaType }> {
+/**
+ * Bottom 45% of the image, widened to at least 1400px, as JPEG. One Piece
+ * prints its key in small gold type at the bottom RIGHT ("OP06-119 SEC"),
+ * which a whole-card read of a SEC foil turned into "OP01-050" twice on the
+ * 09-30 seller batch — so its crop is the bottom-right third, enlarged more.
+ */
+async function bottomStrip(base64Image: string, game: GameId = "pokemon"): Promise<{ base64: string; mediaType: ImageMediaType }> {
   const sharp = (await import("sharp")).default;
   const input = Buffer.from(base64Image, "base64");
   const meta = await sharp(input).metadata();
   const w = meta.width ?? 0;
   const h = meta.height ?? 0;
   if (!w || !h) throw new Error("second look: unreadable image");
-  const top = Math.round(h * 0.55);
-  const targetWidth = Math.min(1568, Math.max(w, 1400));
+  const top = Math.round(h * (game === "onepiece" ? 0.66 : 0.55));
+  const left = game === "onepiece" ? Math.round(w * 0.38) : 0;
+  const targetWidth = Math.min(1568, Math.max(w - left, 1400));
   const out = await sharp(input)
-    .extract({ left: 0, top, width: w, height: h - top })
+    .extract({ left, top, width: w - left, height: h - top })
     .resize({ width: targetWidth, withoutEnlargement: false })
     .jpeg({ quality: 90 })
     .toBuffer();
@@ -937,7 +943,11 @@ async function bottomStrip(base64Image: string): Promise<{ base64: string; media
 }
 
 export async function secondLook(base64Image: string, game: GameId): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
-  const strip = await bottomStrip(base64Image);
+  const strip = await bottomStrip(base64Image, game);
+  const ask =
+    game === "onepiece"
+      ? "Read the printed details in this crop. The card is a One Piece Card Game card: its key is printed small at the bottom right, like 'OP06-119', 'ST16-004', 'EB02-061' or 'P-088', followed by the rarity (C, UC, R, SR, SEC, L, P, SP). Return the key exactly as cardNumber and its prefix before the dash ('OP06') as setCode. Read every digit from the print itself — foil glare often hides a stroke."
+      : `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.`;
   const response = await getClient().messages.create({
     model: VISION_MODEL,
     max_tokens: 600,
@@ -948,7 +958,7 @@ export async function secondLook(base64Image: string, game: GameId): Promise<{ r
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: strip.mediaType, data: strip.base64 } },
-          { type: "text", text: `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.` },
+          { type: "text", text: ask },
         ],
       },
     ],

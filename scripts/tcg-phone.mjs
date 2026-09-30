@@ -204,7 +204,9 @@ async function lookup(read) {
 function sameCard(c, p) {
   if (!c) return false;
   if (game === "yugioh") return yugiohKey(String(c.number)) === yugiohKey(p.number) && fold(c.name) === fold(p.name);
-  if (game === "onepiece") return baseNumber(c.number ?? c.collector_number) === p.number && fold(cleanName(c.name)) === fold(p.name);
+  // One Piece: the number names one card; the catalog spells a name two ways
+  // across printings ("Sakazuk" / "Sakazuki" OP16-065), so the name is not the truth.
+  if (game === "onepiece") return baseNumber(c.number ?? c.collector_number) === p.number;
   // Lorcana: the catalog card name is "Name - Version"; number/total pins the set.
   const [cName, ...rest] = String(c.name).split(" - ");
   const cSub = rest.join(" - ");
