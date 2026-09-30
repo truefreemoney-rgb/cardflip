@@ -611,6 +611,40 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("refusal names break-even", floorRefusal().includes("$1.22"), true);
 }
 
+// The price guard (lib/server/priceTrustSite.ts): a card whose market the rule flags gets no suggested price.
+{
+  const { currentPrice, priceFlagOf } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
+  const flag = { hard: true, reason: "flat 87d" };
+  const junk = (market, variant = "holofoil") => ({ ...usd(market, variant), untrusted: flag });
+  const today = new Date().toISOString().slice(0, 10);
+  const pt = (price, over = {}) => ({ price, day: today, variant: "holofoil", source: "tcgplayer", currency: "USD", ...over });
+  const ebaySold = { source: "ebay", currency: "USD", variant: "ebaySoldAverage", label: "eBay sold (12 sales, 90d)", market: 480, low: null, high: null };
+  const normal = { name: "Test", setName: "Test", prices: [usd(500)] };
+  const flagged = { name: "Test", setName: "Test", prices: [junk(500)] };
+
+  check("guard: a flagged row gets no quote at all", quotePrice(flagged, "Near Mint", "market"), null);
+  check("guard: ... on every strategy and condition", ["market", "quick"].map((st) => quotePrice(flagged, "Lightly Played", st)), [null, null]);
+  check("guard: the normal card next to it is quoted exactly as before", JSON.stringify(quotePrice(normal, "Near Mint", "market")), JSON.stringify({ price: usd(500), base: 500, suggested: 500 }));
+  check("guard: an untrusted mark alone changes nothing else (quote of a card with the flag removed is identical)", JSON.stringify(quotePrice({ ...flagged, prices: [{ ...junk(500), untrusted: undefined }] }, "Near Mint", "market")), JSON.stringify(quotePrice(normal, "Near Mint", "market")));
+  check("guard: a flagged explicit printing pick is not quoted either", quotePrice({ ...normal, prices: [usd(20, "normal"), junk(500)] }, "Near Mint", "market", "holofoil"), null);
+  check("guard: the same card on its normal printing is still quoted", quotePrice({ ...normal, prices: [usd(20, "normal"), junk(500)] }, "Near Mint", "market", "normal")?.base, 20);
+  check("guard: an eBay sold row outranks the flagged TCGplayer row, so the quote stands on real sales", quotePrice({ ...flagged, prices: [ebaySold, junk(500)] }, "Near Mint", "market")?.base, 480);
+  check("guard: a flagged chart point does not replace a good row", quotePrice(normal, "Near Mint", "market", undefined, pt(900, { untrusted: flag }))?.base, 500);
+  check("guard: a fine chart point still rebases", quotePrice(normal, "Near Mint", "market", undefined, pt(472.63))?.base, 472.63);
+  check("guard: a flagged chart point with no row: no quote", quotePrice({ name: "Test", setName: "Test", prices: [] }, "Near Mint", "market", undefined, pt(900, { untrusted: flag })), null);
+  check("guard: ... and a flagged row is not rescued by a good point either (today's live price is the suspect)", quotePrice(flagged, "Near Mint", "market", undefined, pt(472.63)), null);
+
+  check("guard: priceFlagOf names the flagged row", priceFlagOf(flagged), flag);
+  check("guard: ... null for a normal card", priceFlagOf(normal), null);
+  check("guard: ... null when eBay sold carries the price", priceFlagOf({ ...flagged, prices: [ebaySold, junk(500)] }), null);
+  check("guard: ... the chart point speaks when there is no row", priceFlagOf({ name: "T", setName: "T", prices: [] }, undefined, pt(900, { untrusted: flag })), flag);
+
+  const item = (c, extra = {}) => ({ card: c, status: "ready", condition: "Near Mint", strategy: "market", ...extra });
+  check("guard: currentPrice is 0 for a flagged card (queue, tally, Send All and the ledger fall out)", currentPrice(item(flagged)), 0);
+  check("guard: ... the seller's own price is kept", currentPrice(item(flagged, { priceOverride: 320 })), 320);
+  check("guard: ... a normal card is priced as before", currentPrice(item(normal)), 500);
+}
+
 console.log(
   failures === 0
     ? "\nAll pricing checks passed.\n"

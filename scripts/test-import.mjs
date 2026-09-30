@@ -78,8 +78,11 @@ await seed.run("sv03.5-25", "Pikachu", "sv03.5", "151", "25", "2023-09-22", "htt
 await seed.run("sv03.5-173", "Pikachu", "sv03.5", "151", "173", "2023-09-22", "https://img/sv03.5-173/low.webp", 165, 207, "MEW");
 await seed.run("swshp-1", "Grookey", "swshp", "SWSH Black Star Promos", "SWSH001", "2019-11-15", "https://img/swshp-1/low.webp", null, null, "SWSHP");
 await db.prepare("INSERT INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES (?, ?, ?, ?)").run(777, 1, "base2-4", "pokemon");
-await recordPoint("base1-4", "pokemon", "holofoil", "tcgplayer", "USD", 800);
-await recordPoint("base2-4", "pokemon", "holofoil", "tcgplayer", "USD", 400);
+// $100+ needs a real history (the site price guard): a liquid 60-day series ending on the price.
+const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
+await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(800));
+await recordSeries(recordPoint, addDays, todayUtc(), "base2-4", "pokemon", "holofoil", liquidPrices(400));
 await recordPoint("sv03.5-25", "pokemon", "normal", "tcgplayer", "USD", 10);
 
 const csv = [
@@ -115,6 +118,15 @@ check("Japanese → skipped", [row(12).status, row(12).reason], ["skip", "Only E
 check("sealed → skipped", [row(13).status, row(13).reason], ["skip", "Sealed products need your own photo — add them from the scanner"]);
 check("totals", [p.cards, p.matched, p.doubtful, p.skipped, p.truncated], [9, 6, 2, 4, false]);
 check("value = priced rows × quantity", p.value, Math.round((askingPriceFor(400, "Near Mint") + 2 * askingPriceFor(800, "Lightly Played") + askingPriceFor(400, "Near Mint") + askingPriceFor(10, "Near Mint") + askingPriceFor(400, "Near Mint") + askingPriceFor(10, "Near Mint")) * 100) / 100);
+
+console.log("\nthe price guard");
+await seed.run("col1-20", "Rayquaza", "col1", "Call of Legends", "20", "2011-02-09", "https://img/col1-20/low.webp", 95, 95, "CL");
+await recordSeries(recordPoint, addDays, todayUtc(), "col1-20", "pokemon", "holofoil", flatPrices(500, 87));
+const flagged = await previewImport("Name,Set,Number,Quantity\nRayquaza,Call of Legends,20/95,1\nCharizard,Base Set,4/102,1");
+const [junkRow, fineRow] = flagged.rows;
+check("a flagged market imports unpriced, with the flag for the review", [junkRow.status, junkRow.price, junkRow.flag], ["ok", 0, { hard: true, reason: "flat 87d" }]);
+check("a normal card next to it is priced as before", [fineRow.price, fineRow.flag], [askingPriceFor(800, "Near Mint"), undefined]);
+check("the flagged card adds nothing to the value", flagged.value, askingPriceFor(800, "Near Mint"));
 
 console.log("\ncap");
 const big = "Name,Set,Number,Quantity\n" + Array.from({ length: 12 }, () => "Pikachu,151,25,50").join("\n");

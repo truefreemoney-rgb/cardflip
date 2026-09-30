@@ -4,6 +4,7 @@
  */
 
 import type { HistoryPoint } from "@/lib/priceSeries";
+import type { PriceFlag } from "@/lib/priceFlag";
 export type { HistoryPoint } from "@/lib/priceSeries";
 
 export interface HistorySeries {
@@ -11,6 +12,10 @@ export interface HistorySeries {
   source: string;
   currency: string;
   points: HistoryPoint[];
+  /** The series' game (price_series.game). */
+  game?: string;
+  /** Set by /api/price-history on a TCGplayer USD series the price guard flags: the latest point is not a price to present. */
+  untrusted?: PriceFlag;
 }
 
 export interface HistoryStats {

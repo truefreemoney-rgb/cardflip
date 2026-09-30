@@ -9,7 +9,9 @@ import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { MatchHero } from "@/components/CenteringPhoto";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { formatMoney, pickPrice, plausiblePrices } from "@/lib/listing";
+import { ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
+import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -66,7 +68,9 @@ export default function CardDetailModal({
 
   async function handleSave() {
     setSaving(true);
-    const price = pickPrice(card)?.market ?? null;
+    // The price guard: a market the rule flags is not saved as the watchlist baseline.
+    const picked = pickPrice(card);
+    const price = picked?.untrusted ? null : (picked?.market ?? null);
     const result = await addToWishlist(card, language, price);
     setSaving(false);
     if (result) {
@@ -230,7 +234,21 @@ export default function CardDetailModal({
                         <td className="py-2 pr-4 capitalize text-zinc-300">{p.source}</td>
                         <td className="py-2 pr-4 text-zinc-400">{p.label}</td>
                         <td className="py-2 pr-4 text-right text-zinc-400">{formatMoney(p.low, p.currency)}</td>
-                        <td className="py-2 text-right font-semibold text-emerald-400">{formatMoney(p.market, p.currency)}</td>
+                        {p.untrusted ? (
+                          <td className="py-2 text-right text-xs leading-snug">
+                            <PriceFlagText className="inline-block max-w-[13rem]" />
+                            <a
+                              href={ebaySoldSearchUrl(card)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-0.5 block font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200"
+                            >
+                              {PRICE_FLAG_LINK}
+                            </a>
+                          </td>
+                        ) : (
+                          <td className="py-2 text-right font-semibold text-emerald-400">{formatMoney(p.market, p.currency)}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

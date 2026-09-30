@@ -1,3 +1,5 @@
+import type { PriceFlag } from "@/lib/priceFlag";
+
 export type ScanLanguage = "en" | "ja" | "zh";
 
 /**
@@ -34,6 +36,12 @@ export interface CardPrice {
    * own daily snapshots have accumulated — see PriceHistoryChart.
    */
   trend?: { avg1: number | null; avg7: number | null; avg30: number | null };
+  /**
+   * Set at response time on a TCGplayer USD row the price guard does not
+   * believe (lib/server/priceTrustSite.ts). Never stored: card_cache and
+   * price_checks keep payloads verbatim, so the flag is added on the way out.
+   */
+  untrusted?: PriceFlag;
 }
 
 export interface PokemonCard {
@@ -437,5 +445,5 @@ export interface ScanItem {
    * tiles $0.91 / $1.03, Your price and queue $1.83 — "everything is
    * totally screwed up"). Null until loaded, or when the card has none.
    */
-  currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency } | null;
+  currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag } | null;
 }

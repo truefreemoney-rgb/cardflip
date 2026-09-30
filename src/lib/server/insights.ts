@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
+import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
@@ -15,6 +16,12 @@ import type { GameId } from "@/lib/types";
  * "Holding" = every unsold row (draft, live, ended). Sold rows only appear
  * in the split and the sold total. Rows without a catalog id have no series,
  * so they count at their stored price and never move.
+ *
+ * The price guard (priceTrustSite): a copy whose market the rule flags today,
+ * and whose price the seller did not type, is left out of every number here
+ * (holding, movers, top, sets, split) and counted in `leftOut` for a one-line
+ * note. A mover's week-ago price is judged as an OLD price, so a junk plateau
+ * that just corrected is not a "loser".
  */
 
 const ROW_CAP = 600;
@@ -62,6 +69,8 @@ export interface Insights {
   };
   /** Verified drafts that are not listed: the nudge under the split. */
   unlistedVerified: { count: number; value: number };
+  /** Copies left out because their market price looks off. */
+  leftOut: number;
 }
 
 interface Row {
@@ -76,6 +85,7 @@ interface Row {
   sold_price: number | null;
   quantity: number | null;
   catalog_card_id: string | null;
+  game: string | null;
   ebay_ended_at: number | null;
   verified_at: number | null;
   price_locked: number;
@@ -93,7 +103,7 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   const rows = (await db
     .prepare(
       `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
-              catalog_card_id, ebay_ended_at, verified_at, price_locked
+              catalog_card_id, game, ebay_ended_at, verified_at, price_locked
        FROM cards WHERE user_id = ? AND game = ?
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
@@ -104,13 +114,25 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   const today = todayUtc(now);
   const lastWeek = addDays(today, -7);
 
+  // Judged on the default series, the one `series` above reads.
+  const trust = await heldTrustOrOpen(rows.flatMap((r) => (r.status !== "sold" && r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
+  let leftOut = 0;
   const cards: (InsightCard & { status: string; ended: boolean; verified: boolean })[] = [];
   for (const r of rows) {
     if (r.status === "sold") continue;
     const qty = r.quantity ?? 1;
     const s = r.catalog_card_id ? series.get(r.catalog_card_id) : undefined;
-    const marketNow = s ? onDay(s, today) : null;
-    const marketThen = s ? onDay(s, lastWeek) : null;
+    const held = r.catalog_card_id ? { catalog_card_id: r.catalog_card_id, variant: null, game: r.game } : null;
+    // A flagged market never prices a copy: the seller's own price still counts (below, as always), anything else is left out.
+    // A live listing's price is the seller's real ask, typed or suggested, so it counts like a typed one.
+    const junkMarket = held != null && s != null && trust.flag(held) != null;
+    if (junkMarket && !r.price_locked && r.status !== "listed") {
+      leftOut += qty;
+      continue;
+    }
+    const marketNow = s && !junkMarket ? onDay(s, today) : null;
+    let marketThen = s && !junkMarket ? onDay(s, lastWeek) : null;
+    if (held && marketThen != null && marketThen > 0 && trust.flagOld(held, 7, marketThen)) marketThen = null;
     // A hand-set price is the seller's number; otherwise today's market
     // through the condition math, falling back to the stored price.
     const price = r.price_locked ? r.price : marketNow != null && marketNow > 0 ? askingPriceFor(marketNow, r.condition) : r.price;
@@ -209,5 +231,6 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     bySet,
     split,
     unlistedVerified,
+    leftOut,
   };
 }

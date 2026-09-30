@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { heldTrust } from "@/lib/server/priceTrustSite";
 import { sendPushToUser } from "@/lib/server/push";
 import { tcgCatalogPrices } from "@/lib/server/tcgCards";
 import { wishlistDipPush } from "@/lib/pushMessages";
@@ -15,6 +16,8 @@ import { wishlistDipPush } from "@/lib/pushMessages";
  * card has several USD variants the reference is the one the wishlist saved
  * from ("normal" first, then holofoil, then whatever exists), not the
  * cheapest, so a holo target doesn't fire off the plain printing's price.
+ *
+ * A price the price guard flags (priceTrustSite) never fires an alert.
  *
  * One email per user per pass, listing every card that hit. A fired alert
  * stamps alerted_at and stays quiet until the seller changes the target
@@ -31,6 +34,7 @@ interface AlertRow {
   set_name: string;
   card_number: string;
   card_id: string;
+  game: string | null;
   alert_price: number;
   email: string;
 }
@@ -51,7 +55,7 @@ export async function sweepWishlistAlerts(
   const rows = (await db
     .prepare(
       `SELECT w.id, w.user_id, w.card_name, w.english_name, w.set_name, w.card_number,
-              w.card_id, w.alert_price, u.email
+              w.card_id, w.game, w.alert_price, u.email
        FROM wishlist_items w JOIN users u ON u.id = w.user_id
        WHERE w.alert_price IS NOT NULL AND w.alerted_at IS NULL AND w.card_id IS NOT NULL
          AND u.email_pending = 0
@@ -65,10 +69,12 @@ export async function sweepWishlistAlerts(
   const prices = await latestUsdPrices(ids);
   // Lorcana / One Piece / Yu-Gi-Oh! have no price_series: their catalog price.
   const catalog = await tcgCatalogPrices(ids.filter((id) => !prices.has(id)));
+  const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.card_id, variant: null, game: r.game })));
   const hitsByUser = new Map<string, { email: string; userId: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
     const price = prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
     if (price == null || price > row.alert_price) continue;
+    if (trust.flag({ catalog_card_id: row.card_id, variant: null, game: row.game })) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, userId: row.user_id, hits: [] };
     entry.hits.push({
       rowId: row.id,

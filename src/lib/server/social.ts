@@ -1,7 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { decodePrices, todayUtc } from "@/lib/priceSeries";
+import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
+import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
+import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 import { MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
 
@@ -42,6 +44,8 @@ const POOL_MIN_USD = MOVER_MIN_PRICE / 2;
  */
 const MTG_POOL_MIN_USD = MOVER_MIN_PRICE / 2;
 const MTG_POOL_CAP = 20000;
+/** The price guard logs a run's skipped cards once per game and day (freshSeries runs several times per run). */
+const guardLogged = new Set<string>();
 const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
 
 /**
@@ -77,7 +81,7 @@ export interface Mover {
   from: number;
   to: number;
   pct: number;
-  /** Today's point has not held HELD_DAYS days: `to` is the week's median and the % is not worth showing. */
+  /** No % is claimed: today's point has not held HELD_DAYS days (`to` is then the week's median), or the price a week ago did not pass the price guard. */
   unsettled?: boolean;
   /** Set on a mixed-game list (mixedMovers); a single-game list leaves it off. */
   game?: GameId;
@@ -106,6 +110,31 @@ interface SeriesRow {
   variant: string;
   start_day: string;
   prices: string;
+  /** Pokémon: the card's fresh Cardmarket 'average' series (EUR), null when it has none or it is stale. */
+  cm_prices?: string | null;
+  /** Magic: Scryfall's Cardmarket price (EUR) from mtg_cards. */
+  price_eur?: number | null;
+  /** Pokémon: the set's release date (priceTrust vintage). */
+  released?: string | null;
+}
+
+interface FreshCard {
+  variant: string;
+  from: number | null;
+  to: number;
+  held: number;
+  median: number;
+  fromSettled: boolean;
+  /** `from` passes the price guard as an old price (or there is no `from`): the old side of a printed move is judged too. */
+  fromOk: boolean;
+  /** `median` passes it too (only asked when today's point has not held HELD_DAYS days, the one case the median is printed). */
+  medianOk: boolean;
+}
+
+/** What freshSeries hands back: the clean cards, and the cards the guard could not vouch for (not proved wrong) with their price. */
+interface FreshSeries {
+  cards: Map<string, FreshCard>;
+  unverified: Map<string, number>;
 }
 
 interface CatalogRow {
@@ -140,14 +169,29 @@ function dayDiff(fromDay: string, toDay: string): number {
  * Every fresh USD series for the game, one per card (preferred variant),
  * with the latest price and the price `days` ago. Fresh = updated in the
  * last three days, so a card nobody has priced in a month never posts.
+ *
+ * The price guard lives here (09-30, lib/server/priceTrust.ts): a card whose
+ * chosen series fails it is left out of the Map, so movers, dips, the set
+ * spotlight, the card of the day and every video read only prices a
+ * collector would believe. The judged series is the one `to` comes from.
+ * The other printed numbers are judged too (the old price of a move, the
+ * week's median an unsettled card shows), as OLD prices: a junk price that
+ * has just corrected must not headline the drops post as "$1,013 -> $100".
+ * A card the guard could not prove wrong (soft signs only) is left out but
+ * remembered in `unverified`, so the set spotlight does not claim "the most
+ * valuable cards" of a set whose marquee card it had to drop.
+ * Only catalog cards come back (en_cards / mtg_cards): the price table also
+ * holds sealed products, which made "tcgp-sealed" count as a set and a quarter
+ * of the card-of-the-day pool a non-card.
  */
-async function freshSeries(game: GameId, day: string, days: number) {
+async function freshSeries(game: GameId, day: string, days: number): Promise<FreshSeries> {
   const since = new Date(Date.parse(day + "T00:00:00Z") - 3 * 86_400_000).toISOString().slice(0, 10);
+  const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
   const rows = (
     game === "mtg"
       ? await db
           .prepare(
-            `SELECT p.card_id, p.variant, p.start_day, p.prices FROM mtg_cards m
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, m.price_eur FROM mtg_cards m
               JOIN price_series p ON p.card_id = m.id AND p.game = 'mtg' AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ?
               WHERE p.variant = 'nonfoil' AND m.price_usd >= ?
               LIMIT ${MTG_POOL_CAP}`,
@@ -161,39 +205,88 @@ async function freshSeries(game: GameId, day: string, days: number) {
             // series' latest or week-ago point is at POOL_MIN_USD or more, and
             // then ALL its series come back, so the preferred variant still
             // speaks for it (filtering series alone let a $49.99 reverse holo
-            // stand in for a $1.02 Team Aqua's Corphish).
-            `SELECT card_id, variant, start_day, prices FROM price_series
-              WHERE game = ? AND currency = 'USD' AND updated_day >= ?
-                AND card_id IN (
+            // stand in for a $1.02 Team Aqua's Corphish). TCGplayer rows only
+            // (an eBay PSA 10 row sat in the pool at rank 99), catalog cards
+            // only, and the card's fresh Cardmarket average rides along as the
+            // price guard's second source (one PK lookup per row, no extra query).
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, c.prices AS cm_prices, e.set_release_date AS released
+               FROM price_series p
+               JOIN en_cards e ON e.id = p.card_id
+               LEFT JOIN price_series c ON c.card_id = p.card_id AND c.variant = 'average' AND c.source = 'cardmarket' AND c.updated_day >= ?
+              WHERE p.game = ? AND p.currency = 'USD' AND p.source = 'tcgplayer' AND p.updated_day >= ?
+                AND p.card_id IN (
                   SELECT card_id FROM price_series
-                   WHERE game = ? AND currency = 'USD' AND updated_day >= ?
+                   WHERE game = ? AND currency = 'USD' AND source = 'tcgplayer' AND updated_day >= ?
                      AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
                              COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?)
               LIMIT ${ROW_CAP}`,
           )
-          .all(game, since, game, since, POOL_MIN_USD)
+          .all(cmSince, game, since, game, since, POOL_MIN_USD)
   ) as unknown as SeriesRow[];
   if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
-  const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number; fromSettled: boolean }>();
+  // One entry per card: its series (so the preferred variant speaks for it and the rest are its siblings) and the second-source price.
+  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; released: string }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
     const to = priceAt(prices, todayIdx);
     if (to == null) continue;
+    let card = cards.get(r.card_id);
+    if (!card) {
+      const refEur = game === "mtg" ? (r.price_eur ?? null) : r.cm_prices ? lastPriced(decodePrices(r.cm_prices)) : null;
+      cards.set(r.card_id, (card = { series: [], refEur, released: r.released ?? "" }));
+    }
+    card.series.push({ variant: r.variant, prices, todayIdx, to });
+  }
+  const out = new Map<string, FreshCard>();
+  const unverified = new Map<string, number>();
+  const skipped: { id: string; reason: string }[] = [];
+  for (const [cardId, card] of cards) {
+    // The preferred variant (first among equals, as before).
+    const pref = card.series.reduce((a, b) => (rank(b.variant) < rank(a.variant) ? b : a));
+    const { prices, todayIdx, to } = pref;
+    const others = card.series.filter((s) => s !== pref);
+    const vintage = isVintage(pref.variant, card.released);
+    const trust = priceTrust({
+      to,
+      prices: todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1),
+      siblings: others.map((s) => s.to),
+      refEur: card.refEur,
+      vintage,
+    });
+    if (!trust.ok) {
+      skipped.push({ id: cardId, reason: trust.reason });
+      if (!trust.hard) unverified.set(cardId, to);
+      continue;
+    }
+    // A price `back` days before today, judged as an old price: this series up to that day, the siblings as they stood then.
+    const oldPriceOk = (back: number, value: number) =>
+      priceTrust({
+        to: value,
+        prices: prices.slice(0, todayIdx - back + 1),
+        siblings: others.flatMap((s) => (s.todayIdx - back >= 0 ? [priceAt(s.prices, s.todayIdx - back, CARRY_DAYS)] : [])).filter((v): v is number => v != null),
+        refEur: card.refEur,
+        vintage,
+        old: true,
+      }).ok;
     const from = todayIdx - days >= 0 ? priceAt(prices, todayIdx - days, CARRY_DAYS) : null;
+    const fromOk = from == null || oldPriceOk(days, from);
     // Days in the window whose price sits within 15% of today's: a real move holds, a stray sale does not.
     let held = 0;
-    const window: number[] = [];
+    const window: { v: number; back: number }[] = [];
     // Carry the last known price across a few days with no point, so a card priced twice a week still "holds".
     for (let i = Math.max(0, todayIdx - days + 1); i <= todayIdx; i++) {
       const v = priceAt(prices, i, CARRY_DAYS);
       if (v == null) continue;
-      window.push(v);
+      window.push({ v, back: todayIdx - i });
       if (Math.abs(v - to) / to <= 0.15) held++;
     }
     // Median of the window: the price to show when today's point has not held (Pikachu Star $3,217 → $900 in a day, 09-25).
-    window.sort((a, b) => a - b);
-    const median = window.length ? window[Math.floor((window.length - 1) / 2)] : to;
+    const sorted = window.map((w) => w.v).sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : to;
+    // Only asked when the median is what gets printed; judged on the most recent day that stood at it.
+    const medianDay = window.filter((w) => w.v === median).reduce((m, w) => Math.min(m, w.back), Infinity);
+    const medianOk = held >= HELD_DAYS || medianDay === Infinity || oldPriceOk(medianDay, median);
     // The same test for the OLD price over the week before it: a drop from a one-day spike
     // (Fighting Energy "$37.49 → $10", 09-30) is the spike ending, not news. Days with no
     // point do not count against it (Magic has no history 09-16 → 09-23; a card priced
@@ -211,10 +304,15 @@ async function freshSeries(game: GameId, day: string, days: number) {
       }
       fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
     }
-    const have = out.get(r.card_id);
-    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held, median, fromSettled });
+    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk });
   }
-  return out;
+  // Logged once per game and day, not once per call (drafts read this several times): the next session can see what the guard dropped.
+  const logKey = `${game}:${day}`;
+  if (skipped.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: price guard skipped ${skipped.length} ${game} cards (${skipped.slice(0, 5).map((s) => `${s.id} ${s.reason}`).join("; ")})`);
+  }
+  return { cards: out, unverified };
 }
 
 /**
@@ -248,6 +346,26 @@ async function catalogRows(game: GameId, ids: string[]): Promise<Map<string, Cat
   return out;
 }
 
+/**
+ * The Mover rows for cards a video froze (lib/socialVideo.ts VideoCard: the
+ * ids and numbers it drew, no art), with today's catalog art, so a picture
+ * can be drawn from exactly the list the caption names. null when a card is no
+ * longer in the catalog (the caller draws the live list instead).
+ */
+export async function moversFromCards(game: GameId, cards: VideoCard[]): Promise<Mover[] | null> {
+  const byGame = new Map<GameId, string[]>();
+  for (const c of cards) byGame.set(c.game ?? game, [...(byGame.get(c.game ?? game) ?? []), c.cardId]);
+  const art = new Map<string, string>();
+  for (const [g, ids] of byGame) for (const [id, row] of await catalogRows(g, ids)) art.set(`${g}:${id}`, postArtUrl(g, row.image_url));
+  const out: Mover[] = [];
+  for (const c of cards) {
+    const url = art.get(`${c.game ?? game}:${c.cardId}`);
+    if (url === undefined) return null;
+    out.push({ ...c, imageUrl: url, unsettled: Boolean(c.unsettled) });
+  }
+  return out;
+}
+
 /** Large art for the post image (Pokémon mirrors store the low.webp path, Magic's Scryfall "normal" one). */
 export function postArtUrl(game: GameId, imageUrl: string): string {
   if (!imageUrl) return "";
@@ -264,8 +382,9 @@ export async function topMovers(
   day = todayUtc(),
   { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down", exclude = new Set<string>() } = {},
 ): Promise<Mover[]> {
-  const series = await freshSeries(game, day, days);
+  const { cards: series } = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
+  const staleFrom: string[] = [];
   for (const [cardId, s] of series) {
     if (exclude.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
@@ -279,7 +398,18 @@ export async function topMovers(
     if (!s.fromSettled) continue;
     if (direction === "down" && pct >= 0) continue;
     if (direction === "up" && pct <= 0) continue;
+    // The old price is printed too ("$662 -> $345"), so it has to be a price a collector believes: a parked
+    // listing or a spike being unwound is not a market price (the doubling rule lives in priceTrust).
+    if (!s.fromOk) {
+      staleFrom.push(cardId);
+      continue;
+    }
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
+  }
+  const logKey = `${game}:${day}:from`;
+  if (staleFrom.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: ${staleFrom.length} ${game} moves left out, the old price fails the price guard (${staleFrom.slice(0, 5).join(", ")})`);
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
   const top = moves.slice(0, limit * 3);
@@ -390,8 +520,9 @@ function hashDay(day: string, game: string): number {
  * the pick and the pool cycles instead of repeating the top card.
  */
 export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = COTD_MIN_PRICE): Promise<Mover | null> {
-  const series = await freshSeries(game, day, MOVER_DAYS);
-  const pool = [...series.entries()].filter(([, s]) => s.to >= minPrice).map(([id]) => id).sort();
+  const { cards: series } = await freshSeries(game, day, MOVER_DAYS);
+  // The caption states the week's move, which is printed from the old price: it has to pass too.
+  const pool = [...series.entries()].filter(([, s]) => s.to >= minPrice && s.fromOk).map(([id]) => id).sort();
   if (pool.length === 0) return null;
   const pick = pool[hashDay(day, game) % pool.length];
   const s = series.get(pick)!;
@@ -424,28 +555,41 @@ export interface SetSpotlight {
  * every set with enough priced cards, so the sets cycle and every run
  * agrees. PokÃ©mon only: the set is the card id's prefix (sv1-2 â†’ sv1);
  * Magic ids are opaque and Magic is not posted anyway.
+ *
+ * The guard's survivors are all it ranks, so a set whose marquee card the
+ * guard could not vouch for (an unverified price that would rank inside the
+ * five) does not qualify: the captions say "five of the most valuable", and
+ * that stays true. A card proved wrong (a $1,013 Rayquaza at Cardmarket
+ * EUR 45) does not block its set; its real price is unknown, not high.
  */
 export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = SET_MIN_CARDS, minPrice = SET_MIN_PRICE } = {}): Promise<SetSpotlight | null> {
   if (game !== "pokemon") return null;
-  const series = await freshSeries(game, day, MOVER_DAYS);
-  const bySet = new Map<string, string[]>();
-  for (const [id, s] of series) {
-    if (s.to < minPrice) continue;
-    const dash = id.lastIndexOf("-");
-    if (dash <= 0) continue;
-    const setId = id.slice(0, dash);
-    bySet.set(setId, [...(bySet.get(setId) ?? []), id]);
-  }
-  const sets = [...bySet.entries()].filter(([, ids]) => ids.length >= minCards).map(([setId]) => setId).sort();
-  if (sets.length === 0) return null;
-  // A set Chris approved for the day wins (socialPlan.ts DayPlan.set), when it still qualifies.
-  const pinned = dayPlan(day).set;
-  const setId = pinned && sets.includes(pinned) ? pinned : sets[hashDay(day, `${game}:set`) % sets.length];
+  const { cards: series, unverified } = await freshSeries(game, day, MOVER_DAYS);
   // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
   const settled = (id: string) => {
     const s = series.get(id)!;
     return s.held >= HELD_DAYS ? s.to : s.median;
   };
+  const setOf = (id: string) => id.slice(0, id.lastIndexOf("-"));
+  const bySet = new Map<string, string[]>();
+  for (const [id, s] of series) {
+    // An unsettled card prints the week's median, which has to be a price the guard believes too.
+    if (s.to < minPrice || (s.held < HELD_DAYS && !s.medianOk)) continue;
+    const dash = id.lastIndexOf("-");
+    if (dash <= 0) continue;
+    const setId = id.slice(0, dash);
+    bySet.set(setId, [...(bySet.get(setId) ?? []), id]);
+  }
+  const blocked = (setId: string, ids: string[]) => {
+    const fifth = ids.map(settled).sort((a, b) => b - a)[minCards - 1];
+    for (const [id, price] of unverified) if (price > fifth && setOf(id) === setId) return true;
+    return false;
+  };
+  const sets = [...bySet.entries()].filter(([setId, ids]) => ids.length >= minCards && !blocked(setId, ids)).map(([setId]) => setId).sort();
+  if (sets.length === 0) return null;
+  // A set Chris approved for the day wins (socialPlan.ts DayPlan.set), when it still qualifies.
+  const pinned = dayPlan(day).set;
+  const setId = pinned && sets.includes(pinned) ? pinned : sets[hashDay(day, `${game}:set`) % sets.length];
   const top = (bySet.get(setId) ?? []).sort((a, b) => settled(b) - settled(a) || a.localeCompare(b)).slice(0, minCards * 2);
   const cat = await catalogRows(game, top);
   const cards: Mover[] = [];
@@ -453,9 +597,11 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
     const c = cat.get(id);
     if (!c) continue;
     const s = series.get(id)!;
-    const unsettled = s.held < HELD_DAYS;
-    const to = unsettled ? s.median : s.to;
-    const from = s.from ?? to;
+    // No week claim when today's point has not held (`to` is then the median) or the price a week ago is not one the guard believes.
+    const median = s.held < HELD_DAYS;
+    const unsettled = median || !s.fromOk;
+    const to = median ? s.median : s.to;
+    const from = s.fromOk ? (s.from ?? to) : to;
     cards.push({
       cardId: id,
       name: displayName(c.name),
@@ -611,11 +757,11 @@ export function setCaption(game: GameId, spot: SetSpotlight, alsoScans = false):
     const week = m.unsettled ? "" : Math.abs(m.pct) >= 1 ? `, ${pctLabel(m.pct)} this week` : ", steady this week";
     return `${m.name} #${m.number}${v ? ` ${v}` : ""}: ${money(m.to)}${week}`;
   });
-  return [`The five most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...signOff(alsoScans ? [game] : null)].join("\n");
+  return [`Five of the most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...signOff(alsoScans ? [game] : null)].join("\n");
 }
 
 export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = false): string {
-  return [`${spot.setName}: the five most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
+  return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
 /** Hashtags for a single-game post: the game's own, or the "also scans" set on a plan day. */

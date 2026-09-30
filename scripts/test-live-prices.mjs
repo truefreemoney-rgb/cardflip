@@ -6,6 +6,10 @@
  * but never rewritten; a listed row is reported but never rewritten; sold
  * rows and rows without a catalog id are skipped; unchanged rows come back
  * applied = false; the PATCH-side lock flag round-trips through updateCard.
+ * The site price guard (priceTrustSite): a card whose market the rule flags is
+ * reported with a flag and no suggestion, its stored draft price and its scan
+ * price is left alone, an unlocked draft's market-written price is blanked to 0,
+ * and a locked or listed flagged row keeps its price.
  *
  * Same throwaway-db trick as test-quota.mjs.
  */
@@ -26,6 +30,8 @@ const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { refreshLivePrices } = await import(at("lib/server/livePrices.ts"));
 const { askingPriceFor, CONDITION_MULTIPLIER } = await import(at("lib/listing.ts"));
 const { db } = await import(at("lib/db.ts"));
+const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
+const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -49,7 +55,11 @@ const mk = (extra) => createCard(user.id, { ...base, ...extra });
 
 // Catalog: one card at $20 today, another at $100.
 await recordPoint("base1-58", "pokemon", "normal", "tcgplayer", "USD", 20);
-await recordPoint("base1-4", "pokemon", "holofoil", "tcgplayer", "USD", 100);
+// $100+ needs a real history: a one-point series is "unverified" to the price guard.
+await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(100));
+// Junk: a round $500 for 87 days (Deoxys), and a healthy $300 card.
+await recordSeries(recordPoint, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", flatPrices(500, 87));
+await recordSeries(recordPoint, addDays, todayUtc(), "fine-300", "pokemon", "holofoil", liquidPrices(300));
 
 const draft = await mk({ price: 12.5, catalogCardId: "base1-58" });
 const played = await mk({ price: 12.5, catalogCardId: "base1-58", condition: "Lightly Played" });
@@ -70,6 +80,15 @@ await recordPoint("mtg-bolt", "mtg", "nonfoil", "tcgplayer", "USD", 2);
 await recordPoint("mtg-bolt", "mtg", "foil", "tcgplayer", "USD", 50);
 const foil = await mk({ price: 1, catalogCardId: "mtg-bolt", game: "mtg", cardName: "Lightning Bolt", variant: "foil" });
 const plain = await mk({ price: 1, catalogCardId: "mtg-bolt", game: "mtg", cardName: "Lightning Bolt" });
+
+const junkDraft = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
+const junkLocked = await mk({ price: 450, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
+await updateCard(junkLocked.id, user.id, { price: 450, priceLocked: true });
+const junkListed = await mk({ price: 500, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
+await updateCard(junkListed.id, user.id, { status: "listed", listedAt: Date.now() });
+const junkOld = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
+await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(junkOld.id);
+const fine = await mk({ price: 250, catalogCardId: "fine-300", cardName: "Fine" });
 
 console.log("askingPriceFor");
 check("NM = market rounded", askingPriceFor(20, "Near Mint"), 20);
@@ -102,6 +121,15 @@ check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, 50
 // $2 is a cheap card: value + fees + postage on top (09-30), same rule as the scanner.
 check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, askingPriceFor(2, "Near Mint"));
 check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
+
+console.log("the price guard");
+check("flagged draft: reported with the flag and no suggestion; its market-written price is blanked (applied)", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: true, suggested: 0, market: 500 });
+check("... the flag says why", by[junkDraft.id]?.flag, { hard: true, reason: "flat 87d" });
+check("... the stored 480 is blanked to 0 (the seller never typed it), and stays 0 on the next load", [(await getCardForUser(junkDraft.id, user.id)).price, (await refreshLivePrices(user.id)).find((p) => p.cardId === junkDraft.id)?.applied], [0, false]);
+check("flagged locked and listed rows are flagged too and keep their price", [by[junkLocked.id]?.flag?.hard, by[junkListed.id]?.flag?.hard, (await getCardForUser(junkLocked.id, user.id)).price, (await getCardForUser(junkListed.id, user.id)).price], [true, true, 450, 500]);
+check("flagged row: no scan-price backfill", [by[junkOld.id]?.scanned, (await getCardForUser(junkOld.id, user.id)).scanPrice], [null, null]);
+check("a normal $300 card: suggested as before, no flag", pick(by[fine.id], ["applied", "suggested", "flag"]), { applied: true, suggested: 300 });
+check("... and its draft price moved", (await getCardForUser(fine.id, user.id)).price, 300);
 
 console.log(failures === 0 ? "\nAll live-price checks passed." : `\n${failures} live-price check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

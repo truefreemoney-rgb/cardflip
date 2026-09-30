@@ -10,6 +10,14 @@ import type { PostKind } from "@/lib/server/social";
  * it up and every site adapter that can take video does, with the picture
  * as the fallback. Movers and drops stay pictures for now (variety).
  *
+ * 09-30: TikTok left the autopilot (its app was refused for production, so
+ * API posts stayed private) and Chris posts it by hand. Each night the same
+ * render job builds tomorrow's three TikTok videos (lib/socialTiktok.ts):
+ * the 1pm movers video is THIS registry's row (the file every site posts at
+ * 1:05pm), the 7am set and 7pm all-games videos are TikTok-only rows in their
+ * own namespace, so a video registered here still means "every site posts
+ * video in that slot" and the TikTok ones never do.
+ *
  * This file is the shared, pure part: timeline math and the settings key.
  */
 export const VIDEO_W = 1080;
@@ -53,6 +61,8 @@ export interface VideoCard {
   pct: number;
   /** Set on a mixed-game video (day plan mixedMovers, 09-30); older rows have none. */
   game?: GameId;
+  /** A set-spotlight card whose price had not held: no % is claimed for it (09-30, the 7am TikTok video). */
+  unsettled?: boolean;
 }
 
 function isVideoCard(v: unknown): v is VideoCard {
@@ -67,8 +77,28 @@ function isVideoCard(v: unknown): v is VideoCard {
     typeof c.from === "number" &&
     typeof c.to === "number" &&
     typeof c.pct === "number" &&
-    (c.game === undefined || typeof c.game === "string")
+    (c.game === undefined || typeof c.game === "string") &&
+    (c.unsettled === undefined || typeof c.unsettled === "boolean")
   );
+}
+
+/**
+ * One game's lead card as the all-games video showed it (09-30, the 7pm
+ * TikTok video). Frozen at render time like VideoCard, minus the art, so the
+ * caption is rebuilt from what the video drew and not from a fresh pick.
+ */
+export interface LeadCard {
+  game: GameId;
+  name: string;
+  setName: string;
+  number: string;
+  price: number;
+}
+
+function isLeadCard(v: unknown): v is LeadCard {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return typeof c.game === "string" && typeof c.name === "string" && typeof c.setName === "string" && typeof c.number === "string" && typeof c.price === "number";
 }
 
 /** What the render job registers; what the publisher hands the site adapters (bytes added). */
@@ -84,6 +114,10 @@ export interface VideoSpec {
   kind?: PostKind;
   /** The exact cards the video drew, in the same order (09-26). Older rows have none: the publisher computes text fresh for those. */
   cards?: VideoCard[];
+  /** The exact lead cards an all-games video drew, in order (TikTok 7pm). */
+  leads?: LeadCard[];
+  /** The day plan the video was made under (socialTiktok.ts planTag); a row whose tag no longer matches is remade. Older rows have none and count as fresh. */
+  plan?: string;
 }
 
 export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null {
@@ -92,6 +126,7 @@ export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null
     const v = JSON.parse(raw) as Partial<VideoSpec>;
     if (typeof v.url !== "string" || !/^https:\/\//.test(v.url) || typeof v.bytes !== "number") return null;
     const cards = Array.isArray(v.cards) && v.cards.every(isVideoCard) ? v.cards : undefined;
+    const leads = Array.isArray(v.leads) && v.leads.every(isLeadCard) ? v.leads : undefined;
     return {
       url: v.url,
       bytes: v.bytes,
@@ -102,6 +137,8 @@ export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null
       renderedAt: v.renderedAt ?? 0,
       kind: typeof v.kind === "string" ? (v.kind as PostKind) : undefined,
       cards,
+      leads,
+      plan: typeof v.plan === "string" ? v.plan : undefined,
     };
   } catch {
     return null;

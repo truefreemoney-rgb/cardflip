@@ -4,6 +4,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import {
   featuredByGame,
   markFeatured,
+  moversFromCards,
   socialDrafts,
   POST_SIZES,
   mixedMoversCaption,
@@ -12,15 +13,18 @@ import {
   moversShortCaption,
   dipsCaption,
   dipsShortCaption,
+  gamesCaption,
+  gamesShortCaption,
   setCaption,
   setShortCaption,
+  type GameLead,
   type Mover,
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { dayPlan } from "@/lib/socialPlan";
+import { countWord, dayPlan } from "@/lib/socialPlan";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
-import { parseVideoSpec, videoKey, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
+import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -35,6 +39,13 @@ import type { GameId } from "@/lib/types";
  * his board row, I put it on Vercel, nothing else. Each run leaves one
  * line on the board's Completed list so Chris sees what went out without
  * opening any social site.
+ *
+ * TikTok is NOT a site here any more (Chris 09-30): its developer app was
+ * refused for production ("personal use or internal company use"), so API
+ * posts would stay private forever, and he chose to post it by hand. The
+ * three TikTok videos a day are built the night before by the render job
+ * and shown on /admin/social (lib/socialTiktok.ts). Nothing in this file
+ * uploads to TikTok, alerts about it or marks a slot failed for it.
  */
 export const LAST_POST_PREFIX = "social_last_post:";
 
@@ -57,7 +68,9 @@ export type Slot = "morning" | "midday" | "evening";
  * drops picture). VIDEO_SLOT is the one slot the render job
  * (scripts/social-video.mjs) and its safety net (/api/cron/social-video) key
  * on; move the slot here and the schedules in social-post.yml + vercel.json
- * together.
+ * together. Since 09-30 the night render (8pm ET, /api/cron/social-tiktok is
+ * its net) builds tomorrow's VIDEO_SLOT video too, so the morning renders
+ * only run when that one is missing.
  */
 export const VIDEO_SLOT: Slot = "midday";
 export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
@@ -94,10 +107,14 @@ export function slotSchedule(day: string, now = Date.now()): Partial<Record<Post
   const out: Partial<Record<PostKind, { slot: Slot; when: string; past: boolean }>> = {};
   for (const slot of SLOT_ORDER) {
     const h = SLOTS[slot].hour;
-    const time = `${h % 12 || 12}:05${h < 12 ? "am" : "pm"}`;
-    out[slotKind(slot, day)] = { slot, when: `${date} · ${time} ET`, past: nowEt >= `${day} ${String(h).padStart(2, "0")}:05` };
+    out[slotKind(slot, day)] = { slot, when: `${date} · ${slotTimeLabel(slot)} ET`, past: nowEt >= `${day} ${String(h).padStart(2, "0")}:05` };
   }
   return out;
+}
+/** "7:05am" / "1:05pm" / "7:05pm": the crons fire at :05 (callers add " ET" where it is shown). */
+export function slotTimeLabel(slot: Slot): string {
+  const h = SLOTS[slot].hour;
+  return `${h % 12 || 12}:05${h < 12 ? "am" : "pm"}`;
 }
 export const SLOT_PREFIX = "social_slot:";
 export const ET_ZONE = "America/New_York";
@@ -174,8 +191,6 @@ export interface SocialSite {
   maxImageBytes: number;
   /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
   postsVideo?: boolean;
-  /** True when the site has no picture post (TikTok): slots without a rendered MP4 are skipped, and a failed video upload is a failure, not a picture. */
-  videoOnly?: boolean;
   /** Env vars exist (Chris pasted the app or token). */
   connected(): boolean;
   /** OAuth sites: the account has been connected in the browser (tokens in settings). Missing = connected() is enough. */
@@ -284,9 +299,50 @@ async function defaultFetchVideo(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/**
+ * The plan a slot's video was made under: its kind plus the day-plan flags
+ * that change what the video or its caption says. Stored on the row; a row
+ * whose tag differs from the current one is stale and gets remade.
+ */
+export function planTag(slot: Slot, day: string): string {
+  const p = dayPlan(day);
+  const kind = slotKind(slot, day);
+  return [kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : ""].filter(Boolean).join("+");
+}
+
 /** The MP4 registered for a draft by the render job, or null (picture post). */
 export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
   return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
+}
+
+/**
+ * videoFor, unless the video was made under a day plan that has since changed
+ * (a plan pushed after the night render: 09-30 review). Its cards are the old
+ * plan's, its caption would be rebuilt from them under the new plan's title
+ * and hashtags, and the filed "featured" list would name cards that never
+ * went out, so the post falls back to the picture (drawn fresh) until the
+ * render is redone. Rows from before rows carried a plan count as current.
+ */
+export async function currentVideoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
+  const spec = await videoFor(d);
+  if (spec?.plan && d.kind === SLOTS[VIDEO_SLOT].kind && spec.plan !== planTag(VIDEO_SLOT, d.day)) return null;
+  return spec;
+}
+
+/**
+ * The cards a registered video froze, as the picture posts should draw them.
+ * The video is rendered the evening before (the night render), the picture at
+ * 1:05pm, and the daily price ingestion runs in between: without this the
+ * picture showed the morning's prices and a different top five while the
+ * caption (frozen with the video) named the evening's: the 09-26 "Mysterious
+ * Treasures over Base Set 2" mismatch again, on every picture-only site and on
+ * every "video failed, picture posted". null = no current video, or a frozen
+ * card that is no longer in the catalog: the caller draws the live list.
+ */
+export async function frozenMovers(game: GameId, kind: PostKind, day: string): Promise<Mover[] | null> {
+  if (kind !== "movers" && kind !== "dips") return null;
+  const spec = await currentVideoFor({ game, kind, day });
+  return spec?.cards?.length ? moversFromCards(game, spec.cards) : null;
 }
 
 /**
@@ -297,7 +353,7 @@ export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Pr
  * imageUrl/unsettled; the caption builders never read either.
  */
 export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
-  const movers: Mover[] = cards.map((c) => ({ ...c, imageUrl: "", unsettled: false }));
+  const movers: Mover[] = cards.map((c) => ({ ...c, imageUrl: "", unsettled: Boolean(c.unsettled) }));
   if (movers.length === 0) return d;
   // A video whose cards carry a game is a mixed one (day plan mixedMovers):
   // the draft's title and hashtags already say so, the text is rebuilt per game.
@@ -318,6 +374,17 @@ export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
     return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot, also), shortCaption: setShortCaption(d.game, spot, also), cardIds: movers.map((m) => m.cardId) };
   }
   return d;
+}
+
+/**
+ * The all-games draft rebuilt from the exact lead cards a video drew (the 7pm
+ * TikTok video, 09-30), the same guarantee applyVideoCards gives the movers:
+ * the caption names what the video showed, not a fresh pick.
+ */
+export function applyGameLeads(d: SocialPost, leads: LeadCard[]): SocialPost {
+  if (d.kind !== "games" || leads.length < 3) return d;
+  const full: GameLead[] = leads.map((l) => ({ ...l, imageUrl: "" }));
+  return { ...d, title: `One scanner, ${countWord(full.length)} card games`, caption: gamesCaption(full), shortCaption: gamesShortCaption(full) };
 }
 
 /** Sites that can post right now: env vars present and, for OAuth sites, the account connected. */
@@ -363,7 +430,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   // fresh, same as always.
   const all = await Promise.all(
     rawDrafts.map(async (d) => {
-      const spec = await videoFor(d);
+      const spec = await currentVideoFor(d);
       return spec?.cards?.length ? applyVideoCards(d, spec.cards) : d;
     }),
   );
@@ -408,7 +475,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     let p = videos.get(d.id);
     if (!p) {
       p = (async () => {
-        const spec = await videoFor(d);
+        const spec = await currentVideoFor(d);
         if (!spec) return null;
         try {
           const bytes = await fetchVideo(spec.url);
@@ -435,16 +502,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       alt: `${d.title}. ${d.caption.split("\n")[0]}`,
     };
     const video = site.postsVideo ? await videoOf(d) : null;
-    if (!video) {
-      if (site.videoOnly) throw new Error("no video rendered for this post");
-      return site.post(base);
-    }
+    if (!video) return site.post(base);
     try {
       const { uri } = await site.post({ ...base, video });
       return { uri, video: "yes" };
     } catch (err) {
       // Video is the upgrade, the picture is the post: never lose the slot to a video upload.
-      if (site.videoOnly) throw err;
       const reason = err instanceof Error ? err.message : String(err);
       const { uri } = await site.post(base);
       return { uri, video: "fallback", error: `video failed, picture posted: ${reason}` };
@@ -464,17 +527,6 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
     }
-    if (site.videoOnly) {
-      // A video-only site owes nothing on a slot with no rendered MP4 (only the VIDEO_SLOT movers video is rendered today).
-      const withVideo: typeof plan = [];
-      for (const p of todo) {
-        const drafts: SocialPost[] = [];
-        for (const d of p.drafts) if (await videoFor(d)) drafts.push(d);
-        if (drafts.length) withVideo.push({ slot: p.slot, kind: p.kind, drafts });
-      }
-      todo = withVideo;
-      if (todo.length === 0) return { site: site.id, label: site.label, status: "skipped", reason: "video only, nothing rendered for this slot", posts: [] };
-    }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
     for (const p of todo) {
       // Same-day dedupe BY KIND (09-26): only when this SITE has not posted
@@ -482,13 +534,11 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       // repeat its own kind, not reroute) and that kind already went out
       // today under a DIFFERENT slot (the day the mapping changes, or a
       // late-connecting site catching up) — swap to the next kind in
-      // KIND_ROTATION this site has not posted today. Never for a
-      // video-only site: only one kind is rendered as video, so there is
-      // nothing to rotate to.
+      // KIND_ROTATION this site has not posted today.
       let kind = p.kind;
       let drafts = p.drafts;
       const slotAlreadyDone = (await getSetting(slotKey(site, p.slot))) === etDay;
-      if (!site.videoOnly && !slotAlreadyDone && (await getSetting(kindKey(site, kind))) === etDay) {
+      if (!slotAlreadyDone && (await getSetting(kindKey(site, kind))) === etDay) {
         let k = kind;
         for (let i = 1; i < KIND_ROTATION.length; i++) {
           k = nextKindInRotation(k);
@@ -507,7 +557,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       for (const d of drafts) {
         const text = fitText(d, site.maxChars);
         if (opts.dry) {
-          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await videoFor(d)) ? "yes" : undefined });
+          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;
         }
         try {

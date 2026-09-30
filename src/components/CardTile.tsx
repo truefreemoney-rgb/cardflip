@@ -4,6 +4,7 @@ import CardImage from "@/components/CardImage";
 import PriceSparkline from "@/components/PriceSparkline";
 import Spinner from "@/components/Spinner";
 import { formatMoney } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
 
 /**
  * The Watchlist's card tile, shared (Chris, 09-04: "I love the card view,
@@ -20,6 +21,8 @@ interface Props {
   subtitle: string;
   price: number | null;
   priceNote?: string;
+  /** The price guard does not believe this card's market (lib/priceFlag.ts): the note stands where the number would. */
+  flagged?: boolean;
   /** Rendered beside the price (a delta, a rarity chip…). */
   aside?: React.ReactNode;
   /** Catalog id for the price history sparkline; omit = no chart. */
@@ -41,6 +44,7 @@ export default function CardTile({
   subtitle,
   price,
   priceNote,
+  flagged = false,
   aside,
   sparkCardId,
   badge,
@@ -79,10 +83,16 @@ export default function CardTile({
 
       <div className="flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <p className={`font-display text-lg font-semibold leading-tight ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
-            {formatMoney(price)}
-          </p>
-          {priceNote && <p className="text-[11px] text-zinc-600">{priceNote}</p>}
+          {flagged ? (
+            <p className="text-xs font-medium leading-snug"><PriceFlagText /></p>
+          ) : (
+            <>
+              <p className={`font-display text-lg font-semibold leading-tight ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                {formatMoney(price)}
+              </p>
+              {priceNote && <p className="text-[11px] text-zinc-600">{priceNote}</p>}
+            </>
+          )}
         </div>
         {aside}
       </div>

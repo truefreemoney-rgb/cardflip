@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
 import type { Currency, PokemonCard } from "@/lib/types";
+import { PRICE_FLAG_NOTE, type PriceFlag } from "@/lib/priceFlag";
 
 /**
  * A card's price over time, drawn like a stock chart: quote header (current
@@ -27,7 +28,16 @@ export interface Series {
   source: string;
   currency: string;
   points: Point[];
+  /** The price guard flags this series (/api/price-history): the drawn history stays, the latest point is not presented as the price. */
+  untrusted?: PriceFlag;
 }
+
+/** The latest recorded point of a series, as the editor stores it (feeds pointCanRebase in lib/listing.ts). */
+export interface RecordedPoint { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag }
+const pointOf = (s: Series): RecordedPoint | null => {
+  const last = s.points[s.points.length - 1];
+  return last ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}) } : null;
+};
 
 type Range = 7 | 30 | 90 | 365 | 0;
 const RANGES: { value: Range; label: string }[] = [
@@ -142,15 +152,14 @@ export function pickSeries(all: Series[], prefer: string | null | undefined): Se
 export async function lastRecordedPoint(
   cardId: string,
   variant?: string | null,
-): Promise<{ price: number; day: string; variant: string; source: string; currency: Currency } | null> {
+): Promise<RecordedPoint | null> {
   const all = await loadSeries(cardId);
   const s = pickSeries(all, variant);
-  const last = s?.points[s.points.length - 1];
-  return last && s ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency } : null;
+  return s ? pointOf(s) : null;
 }
 
 export function useLastRecordedPrice(cardId: string, variant?: string | null) {
-  const [state, setState] = useState<{ id: string; point: { price: number; day: string; variant: string; source: string; currency: Currency } | null }>({ id: "", point: null });
+  const [state, setState] = useState<{ id: string; point: RecordedPoint | null }>({ id: "", point: null });
   useEffect(() => {
     if (!cardId) return; // caller has no catalogue card (hook-order placeholder)
     let alive = true;
@@ -158,8 +167,7 @@ export function useLastRecordedPrice(cardId: string, variant?: string | null) {
       .then((all) => {
         if (!alive) return;
         const s = pickSeries(all, variant);
-        const last = s?.points[s.points.length - 1];
-        setState({ id: cardId, point: last && s ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency } : null });
+        setState({ id: cardId, point: s ? pointOf(s) : null });
       })
       .catch(() => { if (alive) setState({ id: cardId, point: null }); });
     return () => { alive = false; };
@@ -341,6 +349,8 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
   const changeAbs = first && last ? last.price - first.price : null;
   const changePct = first && last && first.price > 0 ? ((last.price - first.price) / first.price) * 100 : null;
   const up = (changeAbs ?? 0) >= 0;
+  // The price guard: the history is still drawn, but its latest point is not presented as the card's price.
+  const flagged = Boolean(series?.untrusted);
   const stroke = up ? "#34d399" : "#f87171"; // emerald-400 / red-400 — stock convention
   const rangeLo = geo && !geo.single ? shown[geo.minI].price : null;
   const rangeHi = geo && !geo.single ? shown[geo.maxI].price : null;
@@ -373,12 +383,16 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
           </div>
           {last && (
             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-              <span className={`font-display ${compact ? "text-xl" : "text-2xl"} font-semibold tabular-nums text-white`}>
-                {formatMoney(hovered ? hovered.p.price : last.price, currency)}
-              </span>
+              {flagged && !hovered ? (
+                <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-amber-300`}>{PRICE_FLAG_NOTE}</span>
+              ) : (
+                <span className={`font-display ${compact ? "text-xl" : "text-2xl"} font-semibold tabular-nums text-white`}>
+                  {formatMoney(hovered ? hovered.p.price : last.price, currency)}
+                </span>
+              )}
               {hovered ? (
                 <span className={`${label} text-zinc-400`}>{shortDay(hovered.p.day, true)}</span>
-              ) : changeAbs !== null && shown.length > 1 ? (
+              ) : flagged ? null : changeAbs !== null && shown.length > 1 ? (
                 <span className={`${label} font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
                   {up ? "▲" : "▼"} {formatMoney(Math.abs(changeAbs), currency)} ({Math.abs(changePct ?? 0).toFixed(1)}%)
                   <span className="ml-1 font-normal text-zinc-500">{rangeLabel === "All" ? "all time" : rangeLabel}</span>
@@ -424,7 +438,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             style={{ height: H }}
             role="img"
             aria-label={
-              geo.single
+              flagged
+                ? "Price history"
+                : geo.single
                 ? `One price recorded so far: ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
                 : `Price from ${formatMoney(first.price, currency)} on ${shortDay(first.day)} to ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
             }
@@ -461,7 +477,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
                 <line x1={geo.pts[0].x} x2={geo.pts[1].x} y1={geo.pts[0].y} y2={geo.pts[1].y} stroke={stroke} strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
                 <circle cx={geo.pts[1].x} cy={geo.pts[1].y} r="4" fill={stroke} stroke="#08090d" strokeWidth="2" />
                 <text x={geo.pts[1].x - 8} y={geo.pts[1].y - 9} textAnchor="end" fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
-                  {formatMoney(last.price, currency)} · today
+                  {flagged ? "today" : `${formatMoney(last.price, currency)} · today`}
                 </text>
               </>
             ) : (
@@ -471,14 +487,18 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
                 {/* min / max direct labels — the two numbers a seller wants */}
                 {[geo.maxI, geo.minI].map((i, k) => {
                   const q = geo.pts[i];
+                  // A flagged series' latest point is not a price to print: its label is dropped, the dot stays.
+                  const printed = !(flagged && i === geo.pts.length - 1);
                   const isMax = k === 0;
                   const anchor = q.x > W - PAD.r - 60 ? "end" : q.x < PAD.l + 60 ? "start" : "middle";
                   return (
                     <g key={isMax ? "max" : "min"}>
                       <circle cx={q.x} cy={q.y} r="3" fill={stroke} stroke="#08090d" strokeWidth="2" />
-                      <text x={q.x} y={isMax ? q.y - 7 : q.y + 13} textAnchor={anchor} fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
-                        {formatMoney(q.p.price, currency)}
-                      </text>
+                      {printed && (
+                        <text x={q.x} y={isMax ? q.y - 7 : q.y + 13} textAnchor={anchor} fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
+                          {formatMoney(q.p.price, currency)}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
@@ -492,7 +512,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
                 <line x1={hovered.x} x2={hovered.x} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
                 <circle cx={hovered.x} cy={hovered.y} r="4.5" fill={stroke} stroke="#08090d" strokeWidth="2" />
                 {(() => {
-                  const text = `${shortDay(hovered.p.day)}  ${formatMoney(hovered.p.price, currency)}`;
+                  const text = flagged && hover === geo.pts.length - 1 ? shortDay(hovered.p.day) : `${shortDay(hovered.p.day)}  ${formatMoney(hovered.p.price, currency)}`;
                   const w = text.length * 6 + 12;
                   const x = Math.min(Math.max(hovered.x - w / 2, PAD.l), W - PAD.r - w);
                   const y = Math.max(PAD.t, hovered.y - 30);
@@ -513,7 +533,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             <span className="tabular-nums">
               {geo.single
                 ? `Tracking since ${shortDay(last.day)} — a new point lands every day`
-                : `${rangeLabel === "All" ? "All time" : rangeLabel} low ${formatMoney(rangeLo, currency)} · high ${formatMoney(rangeHi, currency)} · ${shown.length} days`}
+                : flagged
+                  ? `${rangeLabel === "All" ? "All time" : rangeLabel} · ${shown.length} days`
+                  : `${rangeLabel === "All" ? "All time" : rangeLabel} low ${formatMoney(rangeLo, currency)} · high ${formatMoney(rangeHi, currency)} · ${shown.length} days`}
             </span>
             {series && series.points.length > 1 && (
               <span>{shortDay(series.points[0].day, true)} → {shortDay(series.points[series.points.length - 1].day, true)}</span>

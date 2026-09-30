@@ -14,6 +14,7 @@ import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
 import { GAMES } from "@/lib/games";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
+import { withPriceFlags } from "@/lib/server/priceTrustSite";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
@@ -164,7 +165,7 @@ export default async function Home() {
   // "include the new games"). Admin-only games stay off the landing page.
   const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
   const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
-  const [featured, showcase, catalogLabel, stages] = await Promise.all([
+  const [featuredLive, showcaseLive, catalogLabel, stages] = await Promise.all([
     getFeaturedCard(),
     getShowcaseCards(magic),
     catalogSizeLabel(),
@@ -173,6 +174,13 @@ export default async function Home() {
     Promise.all(games.map(async (g) => ({ game: g, card: (await getGameStageCards(g).catch(() => ({ cards: [] as StageCard[] }))).cards.find((c) => c.lead) ?? null }))),
   ]);
   const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
+
+  // Data honesty: the hero card and the wall show real prices, so a card whose market the price guard flags
+  // (lib/server/priceTrustSite.ts) is dropped BEFORE the pick, exactly as the stage strip does. Fails open.
+  const guarded = await withPriceFlags([...(featuredLive ? [featuredLive] : []), ...showcaseLive]).catch(() => [...(featuredLive ? [featuredLive] : []), ...showcaseLive]);
+  const priceOk = (c: PokemonCard) => !c.prices.some((p) => p.untrusted);
+  const featured = featuredLive && priceOk(guarded[0]) ? featuredLive : null;
+  const showcase = showcaseLive.filter((_, i) => priceOk(guarded[(featuredLive ? 1 : 0) + i]));
 
   const heroCard = featured ?? showcase[0] ?? null;
   const market = heroCard ? quotePrice(heroCard, "Near Mint", "market") : null;

@@ -12,9 +12,25 @@ name: social-post
 # the `video` job renders it here (headless Chromium + ffmpeg do not fit a
 # Vercel function), parks it on Vercel Blob and registers it in the settings
 # table; the publisher then posts the MP4 on every site that takes one,
-# picture as the fallback. The render is pinged from 10:30am Eastern on,
-# three times, so a two-hour delay still lands before 1; /api/cron/social-video
-# (Vercel, 12:40) dispatches a render-only run if nothing is registered by then.
+# picture as the fallback. Since 09-30 the night render below makes
+# tomorrow's 1pm video the evening before, so the `video` job's pings (from
+# 10:30am Eastern, three times, so a two-hour delay still lands before 1)
+# only render when that did not happen, or when the day plan changed since
+# (a plan pushed after the night render); /api/cron/social-video (Vercel,
+# 12:40) dispatches a render-only run if nothing current is registered by
+# then, and checks the 7pm TikTok video for a changed plan too.
+#
+# TikTok is NOT posted from here (Chris 09-30): its developer app was refused
+# for production, so API posts would stay private, and he posts by hand. The
+# `tiktok` job is the NIGHT RENDER: after the 7:05pm post it builds
+# TOMORROW's three TikTok videos (7am set spotlight, the 1pm movers video, the
+# 7pm all-games video) with a caption each, and /admin/social hands them over
+# (lib/socialTiktok.ts). The 7am and 7pm videos are TikTok-only rows: the
+# other six sites keep posting those pictures live. The pings are 8pm
+# Eastern (both DST hours; the EST-side 7pm one waits, see --min-hour).
+# GitHub cron can run hours late, so /api/cron/social-tiktok (Vercel, 9:15pm,
+# and 5:45am for a day plan pushed overnight) dispatches this job when the
+# package is incomplete or was made under a plan that has since changed.
 on:
   schedule:
     - cron: "30 14 * * *" # 10:30am EDT: render the midday video
@@ -28,6 +44,8 @@ on:
     - cron: "5 18 * * *"  # 1pm EST
     - cron: "5 23 * * *"  # 7pm EDT
     - cron: "5 0 * * *"   # 7pm EST
+    - cron: "0 0 * * *"   # 8pm EDT: the night render, tomorrow's TikTok videos (7pm EST: waits for 8pm)
+    - cron: "0 1 * * *"   # 8pm EST (9pm EDT: a re-check that finds it done)
   workflow_dispatch:
     inputs:
       render_only:
@@ -46,14 +64,27 @@ on:
         description: "1 = render the midday video first (re-renders today's)"
         required: false
         default: ""
+      tiktok:
+        description: "1 = build the TikTok videos and stop (no post); what /api/cron/social-tiktok sends"
+        required: false
+        default: ""
+      tiktok_day:
+        description: "YYYY-MM-DD the TikTok videos are for (blank = tomorrow, Eastern)"
+        required: false
+        default: ""
+      tiktok_slots:
+        description: "morning,midday,evening: only these TikTok slots (blank = every one that is not ready)"
+        required: false
+        default: ""
 
 jobs:
   video:
     # The render pings and any dispatch that asks for it. The 1pm pings render
     # too when the earlier ones were skipped (GitHub cron is best-effort); the
-    # script exits at once when today's video is already registered.
+    # script exits at once when today's video is already registered. Not the
+    # TikTok dispatch (that is the `tiktok` job) and not the night pings.
     if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.video == '1' || inputs.render_only == '1' || inputs.slot == 'midday' || inputs.slot == '')
+      github.event_name == 'workflow_dispatch' && inputs.tiktok != '1' && (inputs.video == '1' || inputs.render_only == '1' || inputs.slot == 'midday' || inputs.slot == '')
       || contains(fromJSON('["30 14 * * *","30 15 * * *","15 16 * * *","30 16 * * *","15 17 * * *","5 17 * * *","5 18 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -84,13 +115,78 @@ jobs:
           path: midday-video.mp4
           retention-days: 3
 
+  tiktok:
+    # The night render (Chris 09-30): tomorrow's three TikTok videos, one per
+    # slot, each with its caption. Only slots with nothing usable registered
+    # are drawn (missing, or made under a day plan that has since changed), so
+    # the second ping and the safety net's dispatch are cheap when it is done.
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.tiktok == '1'
+      || contains(fromJSON('["0 0 * * *","0 1 * * *"]'), github.event.schedule)
+    runs-on: ubuntu-latest
+    # Three ~30s videos, drawn frame by frame: about 10 minutes plus setup.
+    timeout-minutes: 40
+    concurrency:
+      group: tiktok-night-render
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Render tomorrow's three videos, park on Blob, register
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          TIKTOK_DAY: ${{ inputs.tiktok_day }}
+          TIKTOK_SLOTS: ${{ inputs.tiktok_slots }}
+          # Only the schedule waits for 8pm Eastern; a dispatch (the safety net, a hand run) goes now.
+          EARLIEST_HOUR: ${{ github.event_name == 'schedule' && '20' || '' }}
+        run: |
+          day=""; if [ -n "$TIKTOK_DAY" ]; then day="--day $TIKTOK_DAY"; fi
+          min=""; if [ -n "$EARLIEST_HOUR" ]; then min="--min-hour $EARLIEST_HOUR"; fi
+          slots=""; if [ -n "$TIKTOK_SLOTS" ]; then slots="--slot $TIKTOK_SLOTS"; fi
+          node --experimental-strip-types --no-warnings --conditions=react-server \
+            --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs \
+            --package --register --out-dir tiktok-videos $day $min $slots
+      - name: Keep the MP4s for a look
+        if: hashFiles('tiktok-videos/*.mp4') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-videos
+          path: tiktok-videos
+          retention-days: 3
+      - name: Tell the site the videos are built (it mails Chris once)
+        if: success()
+        continue-on-error: true
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          TIKTOK_DAY: ${{ inputs.tiktok_day }}
+        run: |
+          q="notify=1"; if [ -n "$TIKTOK_DAY" ]; then q="$q&day=$TIKTOK_DAY"; fi
+          curl -sS --max-time 60 -H "Authorization: Bearer ${KEY}" "https://cardflip.io/api/cron/social-tiktok?$q"; echo
+      - name: Failure alert
+        if: failure()
+        continue-on-error: true
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          TIKTOK_DAY: ${{ inputs.tiktok_day }}
+        run: |
+          q="failed=1&why=the%20night%20render%20job%20failed"; if [ -n "$TIKTOK_DAY" ]; then q="$q&day=$TIKTOK_DAY"; fi
+          curl -sS --max-time 60 -H "Authorization: Bearer ${KEY}" "https://cardflip.io/api/cron/social-tiktok?$q"; echo
+
   post:
     needs: [video]
-    # Not on the render-only pings or a render_only dispatch; on every other ping, even when the render failed.
+    # Not on the render-only pings, the night render or a render_only/tiktok dispatch; on every other ping, even when the render failed.
     if: >-
       always()
       && inputs.render_only != '1'
-      && !contains(fromJSON('["30 14 * * *","30 15 * * *","15 16 * * *","30 16 * * *","15 17 * * *"]'), github.event.schedule)
+      && inputs.tiktok != '1'
+      && !contains(fromJSON('["30 14 * * *","30 15 * * *","15 16 * * *","30 16 * * *","15 17 * * *","0 0 * * *","0 1 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

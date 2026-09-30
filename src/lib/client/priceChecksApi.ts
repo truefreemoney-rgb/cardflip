@@ -2,6 +2,7 @@
 
 import { apiFetch } from "@/lib/client/basePath";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import type { PriceFlag } from "@/lib/priceFlag";
 
 export interface PriceCheckEntry {
   id: string;
@@ -12,6 +13,8 @@ export interface PriceCheckEntry {
   language: ScanLanguage;
   representativePrice: number | null;
   prices: PokemonCard["prices"];
+  /** The price guard flags the number this lookup saved (set on read): show the note, not the number. */
+  flag?: PriceFlag;
   checkedAt: number;
   /** Catalog id + game so the history can reopen the card. Null on old rows. */
   cardId: string | null;

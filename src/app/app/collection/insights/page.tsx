@@ -8,6 +8,7 @@ import InventoryValueChart from "@/components/InventoryValueChart";
 import { useSession } from "@/components/SessionProvider";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
+import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 import { readSavedGame, saveGame } from "@/lib/games";
 import type { GameId } from "@/lib/types";
 
@@ -51,6 +52,7 @@ interface Insights {
   bySet: Bucket[];
   split: { live: Slice; draft: Slice; ended: Slice; sold: Slice };
   unlistedVerified: Slice;
+  leftOut?: number;
 }
 
 const panel = "overflow-hidden rounded-2xl border border-edge bg-surface-1";
@@ -183,6 +185,11 @@ export default function InsightsPage() {
               <p className="mt-1 text-xs text-zinc-500">
                 Asking price of every unsold copy at today&apos;s market, {data.split.live.count + data.split.draft.count + data.split.ended.count} copies.
               </p>
+              {(data.leftOut ?? 0) > 0 && (
+                <p className="mt-1 text-xs text-amber-300">
+                  {priceFlagLeftOut(data.leftOut!)}. {PRICE_FLAG_LEFT_OUT_NEXT}
+                </p>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Change now={data.value.now} then={data.value.weekAgo} label="Past 7 days" />
                 <Change now={data.value.now} then={data.value.monthAgo} label="Past 30 days" />

@@ -18,7 +18,8 @@ import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote, priceFlagOf } from "@/lib/listing";
+import PriceFlagNote from "@/components/PriceFlagNote";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
@@ -514,6 +515,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const quote = quoteForItem(item, currentPoint);
   const quickQuote = quotePrice(card, item.condition, "quick", variant, currentPoint);
   const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
+  // The price guard: the market behind this card is one the rule does not believe, so no price is suggested (quote is null) and the note says why.
+  const priceFlag = priceFlagOf(card, variant, currentPoint);
   // Quick sale is a $5+ option (Chris, 09-03): under that, the only tile is
   // Market and it reads as selected whatever the remembered strategy says
   // (quotePrice already prices "quick" as market there). The test is on the
@@ -1044,7 +1047,14 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           hiding it behind "Change" read as "the listing data is gone"). */}
       {verified && (
       <>
-      {!quote && (
+      {/* Once the seller has typed a price the note would read as a verdict on their number: it is about the market. */}
+      {!quote && priceFlag && item.priceOverride == null && (
+        <PriceFlagNote
+          hint="Set your own price below."
+          soldUrl={facts.firstEdition || item.grading ? ebaySoldSearchUrl(card, facts) : (item.ebaySoldUrl ?? ebaySoldSearchUrl(card))}
+        />
+      )}
+      {!quote && !priceFlag && (
         <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
           No market price is available for this card — set your own price below.
         </p>
@@ -1220,7 +1230,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               )}
               {printings.map((p) => (
                 <option key={`${p.source}-${p.variant}`} value={p.variant}>
-                  {p.label} — {formatMoney(p.market ?? 0, p.currency)}
+                  {p.label} — {p.untrusted ? "price looks off" : formatMoney(p.market ?? 0, p.currency)}
                 </option>
               ))}
             </select>

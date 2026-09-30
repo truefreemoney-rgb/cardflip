@@ -109,6 +109,36 @@ r = await sweepCardAlerts(NOW, { send: boom, configured: on });
 check("failed send stamps nothing", [r.sent, (await getCardForUser(flat.id, u.id)).alertedAt], [0, null]);
 check("retry lands", (await sweepCardAlerts(NOW, { send, configured: on })).sent, 1);
 
+console.log("the price guard (priceTrustSite)");
+{
+  const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { addDays } = await import(at("lib/priceSeries.ts"));
+  const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
+  // A week of climbing after a long stretch at $100: 100 x41 (ending a week ago), then 110 ... 150 today.
+  const tail = [110, 120, 130, 140, 145, 148, 150];
+  await recordSeries(recordPoint, addDays, TODAY, "g-junk-target", "pokemon", "holofoil", flatPrices(500, 87));
+  await recordSeries(recordPoint, addDays, TODAY, "g-junk-spike", "pokemon", "holofoil", [...liquidPrices(100, 60), 700]);
+  await recordSeries(recordPoint, addDays, TODAY, "g-old-junk", "pokemon", "holofoil", [...flatPrices(100, 41), ...tail]);
+  await recordSeries(recordPoint, addDays, TODAY, "g-fine-spike", "pokemon", "holofoil", [...liquidPrices(100, 40), ...tail]);
+  await recordSeries(recordPoint, addDays, TODAY, "g-fine-target", "pokemon", "holofoil", liquidPrices(300));
+  const gc = (name, id) => createCard(g.id, { cardName: name, setName: "Base Set", cardNumber: "1", imageUrl: "", condition: "NM", price: 10, catalogCardId: id });
+  const junkTarget = await gc("JunkTarget", "g-junk-target");
+  await updateCard(junkTarget.id, g.id, { alertPrice: 400 });
+  await gc("JunkSpike", "g-junk-spike");
+  await gc("OldJunk", "g-old-junk");
+  await gc("FineSpike", "g-fine-spike");
+  const fineTarget = await gc("FineTarget", "g-fine-target");
+  await updateCard(fineTarget.id, g.id, { alertPrice: 250 });
+  sent.length = 0;
+  r = await sweepCardAlerts(NOW, { send, configured: on });
+  const mine = sent.filter((m) => m.to === "guard@example.com").flatMap((m) => m.hits.map((h) => [h[0], h[1]])).sort();
+  check("only the normal cards mail: a $300 target hit and a real +50% spike", mine, [["FineSpike", "spike"], ["FineTarget", "target"]]);
+  check("a flagged market fires no target (flat $500 for 87 days)", mine.some((h) => h[0] === "JunkTarget"), false);
+  check("... and no spike (a $700 jump that never came back)", mine.some((h) => h[0] === "JunkSpike"), false);
+  check("... and no spike from a stale plateau as the OLD price", mine.some((h) => h[0] === "OldJunk"), false);
+  check("the flagged target stays armed (nothing stamped)", (await getCardForUser(junkTarget.id, g.id)).alertedAt, null);
+}
+
 console.error = realError;
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

@@ -6,9 +6,11 @@ import { tiktokAuthUrl, TIKTOK_STATE_KEY } from "@/lib/server/sites/tiktok";
 
 /**
  * GET /api/social/tiktok/connect — owner only. Starts the TikTok OAuth
- * consent flow for the cardflipio account (the "connect" link on
- * /admin/social). A one-shot state token is parked in settings and checked
- * by ../callback.
+ * consent flow for the cardflipio account. TikTok is posted by hand since
+ * 09-30 (its app was refused for production), so the token only feeds the
+ * stats reader (socialPulse.ts, video.list) and nothing on /admin/social
+ * links here any more; open this URL to reconnect if the stats go quiet. A
+ * one-shot state token is parked in settings and checked by ../callback.
  */
 export const dynamic = "force-dynamic";
 

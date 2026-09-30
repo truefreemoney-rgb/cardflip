@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import PriceHistoryChart, { cardTrend, useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { etDate } from "@/lib/time";
+import { PRICE_FLAG_NOTE } from "@/lib/priceFlag";
 
 interface Props {
   card: PokemonCard;
@@ -59,12 +60,15 @@ function Metric({
   detail,
   driving,
   tone = "default",
+  flagged = false,
 }: {
   label: string;
   value: string;
   detail: string;
   driving: boolean;
   tone?: "default" | "strong";
+  /** The price guard does not believe this number: the note replaces it (lib/priceFlag.ts). */
+  flagged?: boolean;
 }) {
   return (
     <div
@@ -77,13 +81,17 @@ function Metric({
       <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
         {label}
       </p>
-      <p
-        className={`mt-1 font-semibold ${
-          tone === "strong" ? "text-lg text-white" : "text-base text-zinc-200"
-        }`}
-      >
-        {value}
-      </p>
+      {flagged ? (
+        <p className="mt-1 text-sm font-medium leading-snug text-amber-300">{PRICE_FLAG_NOTE}</p>
+      ) : (
+        <p
+          className={`mt-1 font-semibold ${
+            tone === "strong" ? "text-lg text-white" : "text-base text-zinc-200"
+          }`}
+        >
+          {value}
+        </p>
+      )}
       <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{detail}</p>
       {driving && (
         <p className="mt-1 text-[10px] font-medium text-emerald-400">
@@ -176,6 +184,9 @@ export default function MarketMetricsPanel({
       ? quoted
       : (tcgRows.find((p) => !isFirstEditionVariant(p.variant)) ?? tcgRows[0]);
 
+  // The price guard (lib/server/priceTrustSite.ts): a TCGplayer number the rule does not believe is never shown as a value.
+  const tcgFlag = tcg ? tcg.untrusted : recorded?.untrusted;
+
   // The sold tile needs eBay's Marketplace Insights, which eBay DENIED on
   // 2026-08-16 (partner-only). It isn't rendered; the plain "View sold on
   // eBay" link below still gives sellers the sold data by hand. Kept wired
@@ -205,7 +216,7 @@ export default function MarketMetricsPanel({
       ? `Sold ${money(sold.average)}`
       : null,
     active != null ? `Asking ${money(active.average)}` : null,
-    tcg ? `TCGplayer ${formatMoney(tcg.market, tcg.currency)}` : null,
+    tcg ? (tcgFlag ? "TCGplayer looks off" : `TCGplayer ${formatMoney(tcg.market, tcg.currency)}`) : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -283,7 +294,8 @@ export default function MarketMetricsPanel({
                 ? `Last recorded ${new Date(`${recorded.day}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} · live price unavailable`
                 : "No price for this card"
           }
-          driving={driving === tcg?.variant && tcg != null}
+          driving={driving === tcg?.variant && tcg != null && !tcgFlag}
+          flagged={Boolean(tcgFlag)}
         />
       </div>
 

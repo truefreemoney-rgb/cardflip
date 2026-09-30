@@ -2,7 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { plausiblePrices } from "@/lib/listing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
-import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
+import { trustedUsdPrices } from "@/lib/server/priceTrustLoad";
 import { gameOf, type CardPrice, type GameId, type PokemonCard } from "@/lib/types";
 
 /**
@@ -40,7 +41,8 @@ const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise
 // the retarget never reaches the card on screen.
 const STAGE_TARGET_USD = 35;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
-const cacheKey = (magic: boolean) => `stage:v7:${magic ? "magic" : "pokemon"}`;
+// v8 (09-30): the price guard (priceTrust) filters candidates; a cached list from before it can still hold a junk price.
+const cacheKey = (magic: boolean) => `stage:v8:${magic ? "magic" : "pokemon"}`;
 
 // v3–v6 (09-09): one slot was a full-art Pikachu near $35 (see git history).
 // v7 (09-30): Chris — "use popular cards, maybe update the pokemon card to
@@ -69,15 +71,19 @@ function pick(card: PokemonCard, lead: boolean): StageCard {
 }
 
 /** Real, priced cards from the local mirror — the dearest printing of each icon. */
-async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> {
+async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string; mirror?: boolean }> {
   try {
     const { hasEnglishMirror, searchEnglishCardsLocal } = await import("@/lib/server/enCards");
     if (!(await hasEnglishMirror())) return { cards: [] };
     const results = await Promise.all(ICONS.map((name) => searchEnglishCardsLocal(name, null, 40)));
     // Mirror rows carry no prices; our own price_series does (one batch query,
-    // the same join the set browser uses).
+    // the same join the set browser uses). Only prices priceTrust believes
+    // come back (09-30: an Eevee at $25.92 against EUR 3.71 was on the list),
+    // so an untrusted card has no price here and never becomes a candidate:
+    // filtered before the pick, not after.
     const all = results.flatMap((r) => r.cards);
-    const prices = await latestUsdPrices(all.map((c) => c.id));
+    const { prices, rejected } = await trustedUsdPrices(all.map((c) => c.id));
+    if (rejected.length) console.warn(`stage: price guard skipped ${rejected.length} Pokémon candidates (${rejected.slice(0, 5).map((r) => `${r.id} ${r.reason}`).join("; ")})`);
     for (const card of all) {
       const p = prices.get(card.id);
       if (!p) continue;
@@ -106,7 +112,7 @@ async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> 
     // ten-card cap (and the Magic interleave, which doubles the list) can
     // never slice it off.
     const sorted = out.sort((a, b) => nearTarget(a) - nearTarget(b));
-    return { cards: sorted.sort((a, b) => Number(b.id === leadId) - Number(a.id === leadId)), leadId };
+    return { cards: sorted.sort((a, b) => Number(b.id === leadId) - Number(a.id === leadId)), leadId, mirror: true };
   } catch {
     return { cards: [] };
   }
@@ -139,8 +145,10 @@ function finish(cards: PokemonCard[], magic: boolean, leadId?: string): StageCar
 }
 
 async function build(magic: boolean): Promise<StageCard[]> {
-  const { cards: pokemon, leadId } = await fromMirror();
-  if (pokemon.length >= 6) {
+  const { cards: pokemon, leadId, mirror } = await fromMirror();
+  // With the mirror, the guarded list is the list, however short: the upstream fallback below prints
+  // pokemontcg.io's prices, which nothing has judged. It is only for a fresh dev DB with no mirror.
+  if (mirror || pokemon.length >= 6) {
     if (!magic) return finish(pokemon, false, leadId);
     const mtg = await fromMagic();
     const mixed: PokemonCard[] = [];
@@ -178,13 +186,16 @@ const GAME_ICONS: Record<OtherGame, string[]> = {
 
 type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number };
 const ROW_COLS = "name, set_name, collector_number, image_url, price_usd";
+// Magic's price guard (priceTrust test 1, in SQL, shared with mtgShowcase): Scryfall's Cardmarket price is on the row,
+// so a TCGplayer price >= 5x it (EUR at 1.10; 4x under $100) is junk. A missing or sub-EUR 1 Cardmarket price is no referee.
+const MTG_REFEREE = MTG_REFEREE_SQL;
 
 /** The icon's printing nearest $50 inside the band. Exact name first; a prefix match ("Ragavan" → "Ragavan, Nimble Pilferer") when the mirror spells it longer. */
 async function iconRow(game: OtherGame, icon: string): Promise<GameRow | undefined> {
   const [lo, hi] = ICON_BAND;
   const sql =
     game === "mtg"
-      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ?
+      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ? AND ${MTG_REFEREE}
          ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`
       : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ?
          ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`;
@@ -198,7 +209,7 @@ async function bandRows(game: OtherGame): Promise<GameRow[]> {
   const [lo, hi] = ICON_BAND;
   const sql =
     game === "mtg"
-      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic')
+      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic') AND ${MTG_REFEREE}
          ORDER BY set_release_date DESC LIMIT 40`
       : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND image_url <> '' AND price_usd BETWEEN ? AND ?
          ORDER BY set_release_date DESC LIMIT 40`;
@@ -250,7 +261,8 @@ export async function getGameStageCards(game: GameId, now = Date.now()): Promise
   if (game === "pokemon") return getStageCards(false, now);
   // v10 (09-30): One Piece pictures moved to TCGplayer scans (no SAMPLE stamp).
   // v13 (09-30): One Piece leads with the pinned clean P-055 (LEAD_PIN).
-  const key = `stage:v13:${game}`;
+  // v14 (09-30): Magic rows pass the Cardmarket referee (MTG_REFEREE).
+  const key = `stage:v14:${game}`;
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {

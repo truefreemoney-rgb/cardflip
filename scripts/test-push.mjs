@@ -83,7 +83,10 @@ await db.prepare(
   `INSERT INTO wishlist_items (id, user_id, card_id, card_name, english_name, set_name, card_number, image_url, language, alert_price, added_at)
    VALUES ('w1', ?, 'base1-4', 'Charizard', NULL, 'Base Set', '4', '', 'en', 500, 1)`,
 ).run(u.id);
-await recordPoint("base1-4", "pokemon", "holofoil", "tcgplayer", "USD", 450);
+// $450 needs a real history for the site price guard (a one-point series is "unverified").
+const { liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
+await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(450));
 const pushed = [];
 const res = await sweepWishlistAlerts(Date.now(), { configured: () => true, send: async () => {}, push: async (userId, m) => { pushed.push([userId, m.title]); return { sent: 1, dropped: 0, failed: 0 }; } });
 check("dip mail sent and the banner followed", [res.sent, pushed], [1, [[u.id, "Charizard dipped to $450.00"]]]);

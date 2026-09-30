@@ -19,7 +19,9 @@ import {
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
-import { formatMoney, pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
+import { priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
@@ -143,6 +145,8 @@ interface Repriced {
   cardIds: Record<string, string>;
   /** item.id → the resolved catalog card, so a tile tap opens without a fetch. */
   cards: Record<string, PokemonCard>;
+  /** item.id → the price guard flags today's market (no number, out of the totals). */
+  flags: Record<string, PriceFlag>;
 }
 
 /** What the tile already knows about its card, shaped for the detail modal —
@@ -202,6 +206,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const prices: Record<string, number> = {};
   const cardIds: Record<string, string> = {};
   const resolved: Record<string, PokemonCard> = {};
+  const flags: Record<string, PriceFlag> = {};
   await Promise.all(
     targets.map(async (item) => {
       try {
@@ -220,13 +225,14 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
         resolved[item.id] = match;
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
         const usd = match.prices.find((p) => p.currency === "USD" && p.market != null);
-        if (usd?.market != null) prices[item.id] = usd.market;
+        if (usd?.untrusted) flags[item.id] = usd.untrusted;
+        else if (usd?.market != null) prices[item.id] = usd.market;
       } catch {
         // Row keeps its saved price; delta and sparkline just don't show.
       }
     }),
   );
-  return { prices, cardIds, cards: resolved };
+  return { prices, cardIds, cards: resolved, flags };
 }
 
 /** Since-saved move as a chip; quiet when under a dollar and 1%. */
@@ -258,6 +264,8 @@ export default function WishlistPage() {
   // The list couldn't load (offline, 5xx) — not the same as "empty".
   const [loadError, setLoadError] = useState<string | null>(null);
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
+  // Rows whose current market the price guard flags: the note instead of a number, and out of the totals.
+  const [nowFlags, setNowFlags] = useState<Record<string, PriceFlag>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
@@ -290,7 +298,7 @@ export default function WishlistPage() {
   const [resultSort, setResultSort] = useState<"match" | "price-high" | "price-low" | "set">("match");
   const sortedResults = useMemo(() => {
     if (resultSort === "match") return results;
-    const priceOf = (c: PokemonCard) => pickPrice(c)?.market ?? null;
+    const priceOf = (c: PokemonCard) => (priceFlagOf(c) ? null : (pickPrice(c)?.market ?? null));
     const sorted = [...results];
     if (resultSort === "price-high") sorted.sort((a, b) => (priceOf(b) ?? -1) - (priceOf(a) ?? -1));
     else if (resultSort === "price-low") sorted.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
@@ -318,9 +326,10 @@ export default function WishlistPage() {
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
         fetchCurrentPrices(list)
-          .then(({ prices, cardIds, cards }) => {
+          .then(({ prices, cardIds, cards, flags }) => {
             if (cancelled) return;
             setNowPrices(prices);
+            setNowFlags(flags);
             setResolvedIds(cardIds);
             resolvedCards.current = { ...resolvedCards.current, ...cards };
           })
@@ -423,7 +432,7 @@ export default function WishlistPage() {
 
   async function handleAdd(card: PokemonCard) {
     if (addedIds.has(card.id)) return;
-    const price = pickPrice(card)?.market ?? null;
+    const price = priceFlagOf(card) ? null : (pickPrice(card)?.market ?? null);
     const item = await addToWishlist(card, resultsLanguage, price);
     if (!item) {
       setAddError(`Couldn't add ${card.name} — check your connection and try again.`);
@@ -479,18 +488,21 @@ export default function WishlistPage() {
       : inGame;
     const sorted = [...filtered];
     if (sort === "name") sorted.sort((a, b) => a.cardName.localeCompare(b.cardName));
-    else if (sort === "price-high") sorted.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
+    // A row the price guard flags sorts as unpriced.
+    else if (sort === "price-high") sorted.sort((a, b) => (nowFlags[b.id] ? -1 : (b.price ?? -1)) - (nowFlags[a.id] ? -1 : (a.price ?? -1)));
     else if (sort === "price-low")
-      sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+      sorted.sort((a, b) => (nowFlags[a.id] ? Infinity : (a.price ?? Infinity)) - (nowFlags[b.id] ? Infinity : (b.price ?? Infinity)));
     // "newest" keeps the server order (added desc, new saves prepended).
     return sorted;
-  }, [items, sort, listFilter, game]);
+  }, [items, sort, listFilter, game, nowFlags]);
 
   if (!user) return <PageSkeleton />;
 
-  const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0);
+  // A row the price guard flags counts for nothing: its saved and current numbers are both left out.
+  const total = items.reduce((sum, i) => sum + (nowFlags[i.id] ? 0 : (i.price ?? 0)), 0);
   // Current market where the repricing pass has answered, saved price elsewhere.
-  const nowTotal = items.reduce((sum, i) => sum + (nowPrices[i.id] ?? i.price ?? 0), 0);
+  const nowTotal = items.reduce((sum, i) => sum + (nowFlags[i.id] ? 0 : (nowPrices[i.id] ?? i.price ?? 0)), 0);
+  const flaggedCount = items.filter((i) => nowFlags[i.id]).length;
   // Dip alerts already armed — the one thing about the list the summary strip
   // could answer without scrolling it.
   const alertCount = items.filter((i) => i.alertPrice != null).length;
@@ -530,6 +542,7 @@ export default function WishlistPage() {
                   <PriceDelta saved={total} now={nowTotal} />
                 )}
               </dd>
+              {flaggedCount > 0 && <p className="mt-1 text-xs text-amber-300">{priceFlagLeftOut(flaggedCount)}</p>}
             </div>
             <div className="border-r border-white/10 px-4 py-3 sm:px-5">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</dt>
@@ -688,7 +701,8 @@ export default function WishlistPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
               {sortedResults.map((card) => {
                 const added = addedIds.has(card.id);
-                const price = pickPrice(card)?.market ?? null;
+                const flagged = priceFlagOf(card) != null;
+                const price = flagged ? null : (pickPrice(card)?.market ?? null);
                 return (
                   <button
                     key={card.id}
@@ -710,9 +724,13 @@ export default function WishlistPage() {
                         {card.setName} · {displayCardNumber(card)}
                       </span>
                       <span className="flex items-center justify-between gap-2">
-                        <span className={`font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
-                          {formatMoney(price)}
-                        </span>
+                        {flagged ? (
+                          <span className="text-[11px] font-medium leading-snug"><PriceFlagText /></span>
+                        ) : (
+                          <span className={`font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                            {formatMoney(price)}
+                          </span>
+                        )}
                         <span className={`text-[11px] font-semibold ${added ? "text-emerald-400" : "text-brand-300"}`}>
                           {added ? "★ Saved" : "☆ Add"}
                         </span>
@@ -805,6 +823,7 @@ export default function WishlistPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {visibleItems.map((item) => {
                 const now = nowPrices[item.id];
+                const flagged = Boolean(nowFlags[item.id]);
                 const shownPrice = now ?? item.price;
                 return (
                   <div
@@ -859,13 +878,17 @@ export default function WishlistPage() {
                         sparkline across the full width, then the alert. */}
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
-                          {formatMoney(shownPrice)}
-                        </p>
-                        {item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
+                        {flagged ? (
+                          <p className="text-xs font-medium leading-snug"><PriceFlagText /></p>
+                        ) : (
+                          <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                            {formatMoney(shownPrice)}
+                          </p>
+                        )}
+                        {!flagged && item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
                       </div>
                       <p className="mt-1 truncate text-[11px] text-zinc-500">
-                        {now != null && item.price != null
+                        {!flagged && now != null && item.price != null
                           ? `Saved ${formatMoney(item.price)} · ${formatShortDate(item.addedAt)}`
                           : `Saved ${formatShortDate(item.addedAt)}`}
                       </p>

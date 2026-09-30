@@ -19,6 +19,7 @@ import {
 } from "@/lib/server/social";
 import type { GameId } from "@/lib/types";
 import { fallbackArtUrl } from "@/lib/cardArt";
+import { frozenMovers } from "@/lib/server/socialPublish";
 import { parseGame } from "@/lib/games";
 import { POST_GAME_NAMES, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
 
@@ -30,6 +31,11 @@ import { POST_GAME_NAMES, dayPlan, listNames, otherGameNames } from "@/lib/socia
  * publisher routine). Same dark frame as the site (docs/DESIGN.md): the
  * static layer carries the design, one indigo accent, holo only on the
  * price.
+ * The movers picture draws the cards the registered 1:05pm VIDEO froze (the
+ * night render draws it the evening before, and its caption is frozen with it),
+ * not a fresh top five: the daily price ingestion runs in between, and a
+ * picture-only site (or a "video failed, picture posted") would otherwise show
+ * other prices than its caption names. No current video row = the live list.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -142,8 +148,9 @@ export async function GET(req: NextRequest) {
       size,
     );
   }
+  const frozen = day && (kind === "movers" || kind === "dips") ? await frozenMovers(game, kind, day) : null;
   if (kind === "movers" && plan.mixedMovers && game === "pokemon") {
-    const movers = await mixedMovers(day);
+    const movers = frozen ?? (await mixedMovers(day));
     if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
     const games = [...new Set(movers.map((m) => m.game ?? game))];
     return new ImageResponse(
@@ -152,7 +159,7 @@ export async function GET(req: NextRequest) {
     );
   }
   const featuredKind = kind === "dips" ? "dips" : "movers";
-  const movers = await topMovers(game, day, { direction: kind === "dips" ? "down" : "up", exclude: await recentlyFeatured(game, featuredKind, day) });
+  const movers = frozen ?? (await topMovers(game, day, { direction: kind === "dips" ? "down" : "up", exclude: await recentlyFeatured(game, featuredKind, day) }));
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
   return new ImageResponse(
     <Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price gains this week"} alsoScans={alsoScans} />,
@@ -241,7 +248,7 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans }
         {headline}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
-        {price ? `The five most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
+        {price ? `Five of the most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : tight ? 10 : 12, marginTop: wide ? 14 : tall ? 40 : tight ? 18 : 24 }}>
         {rows.map((m) => (

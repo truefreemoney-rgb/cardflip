@@ -43,7 +43,13 @@ for (const [id, name, num] of [["jungle-1", "Clefable", "1"], ["jungle-2", "Elec
 await seed.run("fossil-1", "Aerodactyl", "fossil", "Fossil", "1", "1999-10-10", 1, 1, "FO");
 await recordPoint("base-2", "pokemon", "normal", "tcgplayer", "USD", 40);
 await recordPoint("base-3", "pokemon", "normal", "tcgplayer", "USD", 2.5);
-// base-4 has no price on purpose.
+// base-4 has no usable price on purpose: a stuck round $500 for 87 days, which the site price guard
+// (priceTrustSite) flags, so it counts as unpriced and adds nothing to the cost to finish.
+{
+  const { flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { addDays, todayUtc } = await import(new URL("../src/lib/priceSeries.ts", import.meta.url).href);
+  await recordSeries(recordPoint, addDays, todayUtc(), "base-4", "pokemon", "holofoil", flatPrices(500, 87));
+}
 
 const u = await createUser("Seller", "seller@example.com", "hunter22", "user");
 const card = (name, catalogId) => createCard(u.id, { cardName: name, setName: "x", cardNumber: "1", imageUrl: "", condition: "NM", price: 1, catalogCardId: catalogId });
