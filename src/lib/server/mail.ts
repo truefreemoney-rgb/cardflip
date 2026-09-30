@@ -1,6 +1,6 @@
 import "server-only";
 import nodemailer from "nodemailer";
-import { PRICE, SCANS } from "@/lib/pricing";
+import { PRICE, PRICING, SCANS } from "@/lib/pricing";
 import type { Digest } from "@/lib/server/digest";
 
 /**
@@ -23,6 +23,24 @@ export function isMailConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
+/**
+ * Local and CI only: with EMAIL_CONFIRM_DEV_ECHO=1 the email-confirmation code
+ * is logged instead of mailed, so the flow can be walked without SMTP. Never
+ * honoured in production, whatever the environment says.
+ */
+export function emailConfirmDevEcho(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.EMAIL_CONFIRM_DEV_ECHO === "1";
+}
+
+/**
+ * Can a confirmation code be delivered at all? Read at request time (never
+ * cached) so the wall lifts by itself if the SMTP variables ever disappear
+ * from a deploy; users.needsEmailConfirm and the signup route both ask this.
+ */
+export function emailConfirmActive(): boolean {
+  return isMailConfigured() || emailConfirmDevEcho();
+}
+
 function transport() {
   const host = process.env.SMTP_HOST!;
   const port = Number(process.env.SMTP_PORT ?? 465);
@@ -31,8 +49,23 @@ function transport() {
     port,
     secure: port === 465,
     auth: { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASS! },
+    // A stalled server must fail in seconds, not hold a signup or a resend
+    // past the phone's 15 s request timeout (nodemailer's own defaults are
+    // 30 s for the greeting and 10 minutes of socket silence).
     connectionTimeout: 10000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
   });
+}
+
+/**
+ * Connect and log in to the SMTP server without sending anything: the
+ * heartbeat behind /api/ops/mail-check. A revoked app password or a dead
+ * mailbox shows up here before a signup finds it.
+ */
+export async function verifyMailTransport(): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  await transport().verify();
 }
 
 function fromAddress(): string {
@@ -61,6 +94,40 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
     from: fromAddress(),
     to,
     subject: "Reset your CardFlip password",
+    text,
+    html,
+  });
+}
+
+/**
+ * The email-confirmation mail (emailVerify.ts): a 6-digit code to type in the
+ * app, plus a button that confirms the same request from any browser. Nothing
+ * a user typed goes in it (no name, no subject), so it can be sent to an
+ * address nobody has proven yet without carrying anyone's words to a stranger.
+ */
+export async function sendConfirmEmail(to: string, code: string, url: string): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const text = [
+    `Your CardFlip code is ${code}`,
+    "",
+    "Type it in the app, or open this link to confirm your email:",
+    url,
+    "",
+    "The code and the link work for 1 hour. If you didn't sign up for CardFlip, ignore this email.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>Your CardFlip code is:</p>
+    <p style="font-size:32px;font-weight:700;letter-spacing:4px;margin:4px 0 16px">${code}</p>
+    <p>Type it in the app, or tap the button to confirm your email.</p>
+    <p><a href="${esc(url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Confirm Email</a></p>
+    <p style="color:#666;font-size:13px">The code and the button work for 1 hour. If you didn't sign up for CardFlip, ignore this email.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: `${code} Is Your CardFlip Code`,
     text,
     html,
   });
@@ -224,39 +291,49 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
 }
 
 /**
- * Sent right after signup (Chris, 09-25: the site welcomes a new user; the
- * subscription mail below is a different moment). Fire-and-forget from the
- * signup route: a mail failure never fails the signup.
+ * The welcome (Chris, 09-25: the site welcomes a new user; the subscription
+ * mail below is a different moment). Goes out at signup while email
+ * confirmation is off, and right after the address is confirmed while it is
+ * on (emailVerify.ts), never before, so it only ever reaches a proven inbox.
+ * `trialLeft` is the account's free scans left: a repeat signup on a shared
+ * device or IP starts with none, and must not be promised any. The first name
+ * is user-typed, so it is escaped in the HTML. A mail failure never fails the
+ * caller.
  */
-export async function sendSignupWelcomeEmail(to: string, firstName: string): Promise<void> {
+export async function sendSignupWelcomeEmail(to: string, firstName: string, trialLeft: number = PRICING.trial.scans): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const scanUrl = `${site}/app`;
   const pricingUrl = `${site}/pricing`;
-  const hi = firstName ? `Welcome to CardFlip, ${firstName}.` : "Welcome to CardFlip.";
+  const first = firstName.replace(/[\r\n]+/g, " ").trim();
+  const hi = first ? `Welcome to CardFlip, ${first}.` : "Welcome to CardFlip.";
+  const free = trialLeft > 0;
+  const freeLine = `Your first ${trialLeft} scan${trialLeft === 1 ? " is" : "s are"} free. `;
+  const how = "Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing";
+  const plans = `A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}`;
   const text = [
     hi,
     "",
-    `Your first ${SCANS.trial} scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing:`,
-    scanUrl,
+    free ? `${freeLine}${how}:` : `${how}:`,
+    free ? scanUrl : pricingUrl,
     "",
-    `Want more? A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}: ${pricingUrl}`,
+    `${free ? "Want more?" : "To start scanning, pick one."} ${plans}: ${pricingUrl}`,
     "",
-    "Questions? Reply to this email.",
+    "Questions? Tap Help in the app.",
     "",
     "— CardFlip · support@cardflip.io",
   ].join("\n");
   const html = `
-    <p>${hi}</p>
-    <p>Your first ${SCANS.trial} scans are free. Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing.</p>
-    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
-    <p style="color:#666;font-size:13px">Want more? <a href="${pricingUrl}">A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}</a>.</p>
-    <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>
+    <p>${esc(hi)}</p>
+    <p>${free ? freeLine : ""}${how}.</p>
+    <p><a href="${free ? scanUrl : pricingUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">${free ? "Scan Your First Card" : "Pick a Plan"}</a></p>
+    <p style="color:#666;font-size:13px">${free ? "Want more?" : "To start scanning, pick one."} <a href="${pricingUrl}">${plans}</a>.</p>
+    <p style="color:#666;font-size:13px">Questions? Tap Help in the app.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({
     from: fromAddress(),
     to,
-    subject: firstName ? `Welcome to CardFlip, ${firstName}` : "Welcome to CardFlip",
+    subject: first ? `Welcome to CardFlip, ${first}` : "Welcome to CardFlip",
     text,
     html,
   });
@@ -413,7 +490,11 @@ interface TicketUser {
   email: string;
   plan: string | null;
   ebayConnected: boolean;
+  /** Still waiting on its email code: the address is unproven, so no Reply-To points at it. */
+  emailPending?: boolean;
 }
+
+const UNCONFIRMED_NOTE = "Email not confirmed yet: reply on the ticket, not by email.";
 
 const escHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 
@@ -437,6 +518,7 @@ export async function sendSupportTicketEmail(
     `Plan: ${user.plan ?? "none (trial or pack)"}`,
     `eBay connected: ${user.ebayConnected ? "yes" : "no"}`,
     `User id: ${user.id}`,
+    ...(user.emailPending ? [UNCONFIRMED_NOTE] : []),
   ];
   const chat = transcript.slice(-8).map((m) => `${m.role === "user" ? "Seller" : "Robot"}: ${m.content}`);
   const text = [
@@ -463,7 +545,7 @@ export async function sendSupportTicketEmail(
   await transport().sendMail({
     from: fromAddress(),
     to,
-    replyTo: `${user.name} <${user.email}>`,
+    replyTo: user.emailPending ? undefined : `${user.name} <${user.email}>`,
     subject: `${tag} · ${ticket.subject}`,
     text,
     html,
@@ -491,6 +573,7 @@ export async function sendSupportTicketNoteEmail(
     ...photosText(note.images),
     "",
     `From: ${user.name} <${user.email}>`,
+    ...(user.emailPending ? [UNCONFIRMED_NOTE] : []),
     `Reply on the ticket: ${adminUrl}`,
   ].join("\n");
   const html = `
@@ -504,7 +587,7 @@ export async function sendSupportTicketNoteEmail(
   await transport().sendMail({
     from: fromAddress(),
     to,
-    replyTo: `${user.name} <${user.email}>`,
+    replyTo: user.emailPending ? undefined : `${user.name} <${user.email}>`,
     subject: `Re: ${tag} · ${ticket.subject}`,
     text,
     html,

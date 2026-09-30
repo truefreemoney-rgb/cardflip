@@ -36,8 +36,9 @@ export default function AppHeader() {
   const personalStrip = (
     <>
           {user && <NavRobot />}
-          {/* Scans left, always in view; tap = more scans (Chris, 09-07). */}
-          {user && <ScanCounter user={user} />}
+          {/* Scans left, always in view; tap = more scans (Chris, 09-07). Not
+              while the email is unconfirmed: nothing can be scanned or bought yet. */}
+          {user && !user.mustConfirmEmail && <ScanCounter user={user} />}
           {/* Invite a friend (09-06): subscribers and the owner. A pill, not a
               banner — enticing, not loud (Chris: "dont go crazy"). */}
           {user && (user.tier === "subscribed" || user.tier === "owner") && (
@@ -65,12 +66,15 @@ export default function AppHeader() {
                 <span className="hidden sm:inline">eBay Connected</span>
               </Link>
             ) : user.tier === "trial" ? (
-              <Link
-                href="/pricing"
-                className="rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400"
-              >
-                Subscribe
-              </Link>
+              // Payment does not prove the inbox, so a walled account has no Subscribe yet.
+              user.mustConfirmEmail ? null : (
+                <Link
+                  href="/pricing"
+                  className="rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400"
+                >
+                  Subscribe
+                </Link>
+              )
             ) : (
               <Link
                 href="/connect-ebay"

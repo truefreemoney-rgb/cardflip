@@ -65,12 +65,26 @@ export function newDeviceId(): string {
   return randomUUID();
 }
 
-/** Why this signup gets no free scans, or null when the IP and device are new. */
+/**
+ * Why this signup gets no free scans, or null when the IP and device are new.
+ *
+ * With email confirmation on, the free trial goes to the first CONFIRMED
+ * account on a device or IP: a signup still waiting on its emailed code (a
+ * typo, an abandoned tab) has not used the slot and does not burn it, and one
+ * that was deleted before confirming leaves no row at all (users.deleteUser).
+ * Confirmed and deleted-after-confirming accounts still count, so deleting
+ * and re-signing up does not farm trials. The pending ones are settled when
+ * they confirm (emailVerify.markEmailConfirmed). With confirmation off no
+ * account is ever pending, so this is the plain one-row-counts rule.
+ */
 export async function repeatSignup(ipHash: string | null, deviceId: string | null): Promise<"same-device" | "same-ip" | null> {
-  if (deviceId && (await db.prepare("SELECT 1 FROM signup_log WHERE device_id = ? LIMIT 1").get(deviceId))) {
+  const counts = (column: "device_id" | "ip_hash") =>
+    `SELECT 1 FROM signup_log s LEFT JOIN users u ON u.id = s.user_id
+      WHERE s.${column} = ? AND (u.id IS NULL OR u.email_pending = 0) LIMIT 1`;
+  if (deviceId && (await db.prepare(counts("device_id")).get(deviceId))) {
     return "same-device";
   }
-  if (ipHash && (await db.prepare("SELECT 1 FROM signup_log WHERE ip_hash = ? LIMIT 1").get(ipHash))) {
+  if (ipHash && (await db.prepare(counts("ip_hash")).get(ipHash))) {
     return "same-ip";
   }
   return null;

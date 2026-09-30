@@ -7,6 +7,7 @@ import RobotBuddy from "@/components/RobotBuddy";
 import Spinner from "@/components/Spinner";
 import { PhotoPicker, ThreadBubble } from "@/components/TicketPhotos";
 import { apiPath } from "@/lib/client/basePath";
+import { useOptionalSession } from "@/components/SessionProvider";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { startGuide } from "@/components/TourOverlay";
@@ -103,6 +104,10 @@ interface Props {
 export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   const router = useRouter();
   const sheet = mode === "sheet";
+  // Waiting on the emailed code: the server sends this account no support mail
+  // (that address is unproven), so replies live in the Support Tickets tab only
+  // and the copy must not promise an email.
+  const emailPending = Boolean(useOptionalSession()?.user?.mustConfirmEmail);
   const [messages, setMessages] = useState<Msg[] | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -269,7 +274,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           {
             id: `local-ticket-${t.id}`,
             role: "assistant",
-            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies to your email, usually within 24 hours. Open the Support Tickets tab any time to check on it.`,
+            content: `Ticket #${t.number} is open. Status: In progress. A human reads it and replies ${emailPending ? "here" : "to your email"}, usually within 24 hours. Open the Support Tickets tab any time to check on it.`,
           },
         ]);
         setView("chat");
@@ -279,7 +284,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         setTBusy(false);
       }
     },
-    [tBusy, tBody, tSubject, tImages],
+    [tBusy, tBody, tSubject, tImages, emailPending],
   );
 
   // Add to an open ticket.
@@ -353,7 +358,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         ? "A human reads it and replies here"
         : view === "detail"
           ? detail?.status === "open"
-            ? "In progress. Replies show up here and in your email."
+            ? emailPending
+              ? "In progress. Replies show up here."
+              : "In progress. Replies show up here and in your email."
             : "Closed."
           : "Your tickets. Tap one to read the replies.";
   const field = "rounded-xl border border-edge bg-black/40 px-3.5 py-2 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm";
@@ -437,7 +444,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           <button type="submit" disabled={tBusy || (!tBody.trim() && tImages.length === 0)} className={primary}>
             {tBusy ? "Sending…" : "Send ticket"}
           </button>
-          <p className="text-center text-[11px] text-zinc-600">You get an email with the ticket number, and another when a human replies.</p>
+          <p className="text-center text-[11px] text-zinc-600">
+            {emailPending ? "A human replies on the ticket. Check the Support Tickets tab for the answer." : "You get an email with the ticket number, and another when a human replies."}
+          </p>
         </form>
       )}
 
@@ -446,7 +455,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           <button onClick={() => setView("ticket")} className={primary}>
             Open a support ticket
           </button>
-          <p className="text-center text-[11px] text-zinc-600">A human reads it and replies on the ticket, usually within 24 hours. You get an email when they do.</p>
+          <p className="text-center text-[11px] text-zinc-600">
+            A human reads it and replies on the ticket, usually within 24 hours.{emailPending ? "" : " You get an email when they do."}
+          </p>
           {tickets === null && (
             <p className="text-center text-[11px] text-zinc-600">
               <Spinner className="mr-1 inline h-3 w-3" /> Loading…
@@ -500,7 +511,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
                 ),
               )}
               {detail.notes.every((n) => n.author !== "admin") && detail.status === "open" && (
-                <p className="text-center text-[11px] text-zinc-600">A human replies here, usually within 24 hours. You get an email when they do.</p>
+                <p className="text-center text-[11px] text-zinc-600">
+                  A human replies here, usually within 24 hours.{emailPending ? "" : " You get an email when they do."}
+                </p>
               )}
               {detail.status === "open" ? (
                 <form onSubmit={submitNote} className="flex flex-col gap-2 rounded-xl border border-brand-400/30 bg-brand-500/5 px-3.5 py-3">

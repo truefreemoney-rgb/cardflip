@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
 import { PRICE, PRICING } from "@/lib/pricing";
+import { emailConfirmActive } from "@/lib/server/mail";
 
 export type Role = "user" | "admin";
 
@@ -50,6 +51,10 @@ export interface User {
   handlePublic: boolean;
   /** Last app open (/api/auth/me heartbeat, 10-minute grain); null = not since 09-30. */
   lastSeenAt: number | null;
+  /** Public signup that still owes an email confirmation (lib/server/emailVerify.ts). */
+  emailPending: boolean;
+  /** When an inbox was proven (code, link, reset link or an admin); null = never. */
+  emailVerifiedAt: number | null;
 }
 
 export interface UserRow {
@@ -83,6 +88,8 @@ export interface UserRow {
   handle: string | null;
   handle_public: number | null;
   last_seen_at: number | null;
+  email_pending: number | null;
+  email_verified_at: number | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -130,6 +137,8 @@ export function fromRow(row: UserRow): User {
     handle: row.handle ?? null,
     handlePublic: row.handle_public === 1,
     lastSeenAt: row.last_seen_at ?? null,
+    emailPending: row.email_pending === 1,
+    emailVerifiedAt: row.email_verified_at ?? null,
   };
 }
 
@@ -278,7 +287,23 @@ export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "crea
   return "trial";
 }
 
-export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt" | "accessOverride" | "extraScans">): boolean {
+/**
+ * Email confirmation wall (lib/server/emailVerify.ts). Only a trial account
+ * that signed up while the admin switch was on can be walled: scanTier already
+ * exempts the owner, admins, every override but "trial", subscribers, legacy
+ * and Scan Pack holders, and email_pending is 0 on every account that existed
+ * before this shipped. Fails open when mail vanishes from the server's
+ * environment, so a broken deploy can never wall people behind a code that
+ * cannot be sent.
+ */
+export function needsEmailConfirm(
+  user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "extraScans" | "emailPending">,
+): boolean {
+  return Boolean(user.emailPending) && scanTier(user) === "trial" && emailConfirmActive();
+}
+
+export function canUseApp(user: Pick<User, "email" | "role" | "subStatus" | "trialScansUsed" | "createdAt" | "accessOverride" | "extraScans" | "emailPending">): boolean {
+  if (needsEmailConfirm(user)) return false;
   const tier = scanTier(user);
   return tier !== "trial" || trialScansLeft(user) > 0;
 }
@@ -403,18 +428,21 @@ export async function createUser(
   email: string,
   password: string,
   role: Role = "user",
+  /** emailPending: only the public signup route passes true, and only while email confirmation is on. */
+  opts: { emailPending?: boolean } = {},
 ): Promise<User> {
   const id = randomUUID();
   const createdAt = Date.now();
   const passwordHash = hashPassword(password);
   const normalizedEmail = email.trim().toLowerCase();
+  const emailPending = opts.emailPending === true;
 
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
     )
-    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt);
+    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0);
 
   return {
     id,
@@ -447,6 +475,8 @@ export async function createUser(
     handle: null,
     handlePublic: false,
     lastSeenAt: null,
+    emailPending,
+    emailVerifiedAt: null,
   };
 }
 
@@ -487,6 +517,8 @@ export async function updateUserProfile(
       patch.email.trim().toLowerCase(),
       userId,
     );
+    // A reset link mailed to the old address must not outlive the move.
+    await db.prepare("DELETE FROM password_resets WHERE user_id = ? AND used_at IS NULL").run(userId);
   }
   if (patch.handle !== undefined) {
     await db.prepare("UPDATE users SET handle = ? WHERE id = ?").run(patch.handle, userId);
@@ -553,7 +585,12 @@ export async function deleteUser(userId: string): Promise<void> {
       "DELETE FROM help_messages WHERE user_id = ?",
       "DELETE FROM support_tickets WHERE user_id = ?",
       "DELETE FROM password_resets WHERE user_id = ?",
+      "DELETE FROM email_verifications WHERE user_id = ?",
       "DELETE FROM categories WHERE user_id = ?",
+      // A signup that never confirmed could not scan, so deleting it must not
+      // burn the device's free trial (typo the address, delete, sign up again).
+      // Confirmed accounts keep their row: delete-and-resign-up stays a repeat.
+      "DELETE FROM signup_log WHERE user_id IN (SELECT id FROM users WHERE id = ? AND email_pending = 1)",
       // scan_usage is kept on purpose: it is the cost ledger behind scan
       // margin (db.ts) and deliberately has no FK to users. It holds token
       // counts and dollars against an id that no longer resolves, nothing
@@ -615,6 +652,8 @@ export interface PublicUser {
   /** Public collection page: the chosen handle and whether /u/<handle> is open. */
   handle: string | null;
   handlePublic: boolean;
+  /** Email confirmation wall: true = the app is closed until the emailed code (or link) is used. */
+  mustConfirmEmail: boolean;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -634,5 +673,6 @@ export function toPublicUser(user: User): PublicUser {
     scans: scanQuota(user),
     handle: user.handle ?? null,
     handlePublic: Boolean(user.handlePublic),
+    mustConfirmEmail: needsEmailConfirm(user),
   };
 }

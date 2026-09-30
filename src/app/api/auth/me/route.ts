@@ -2,7 +2,8 @@ import { NextResponse, after } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
 import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
-import { markSeen, seenDue, toPublicUser } from "@/lib/server/users";
+import { markSeen, seenDue } from "@/lib/server/users";
+import { publicUserWithEmailState } from "@/lib/server/emailVerify";
 import { gameFeaturesFor } from "@/lib/server/settings";
 import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
 import { userHasCards } from "@/lib/server/cards";
@@ -17,7 +18,7 @@ export async function GET() {
   const user = await getCurrentUser();
   const res = NextResponse.json({
     user: user
-      ? { ...toPublicUser(user), features: await (async () => { const g = await gameFeaturesFor(user); return { magic: g.mtg, ...g }; })(), hasCards: await userHasCards(user.id) }
+      ? { ...(await publicUserWithEmailState(user)), features: await (async () => { const g = await gameFeaturesFor(user); return { magic: g.mtg, ...g }; })(), hasCards: await userHasCards(user.id) }
       : null,
   });
   // Every app page load passes through here, which makes it a heartbeat for

@@ -129,6 +129,26 @@ product does today.
 - App chrome: sticky header with holo hairline (same class string on all
   four app pages — keep them identical), `AppTabs` foil pill.
 - Legal pages stay sober: no holo, no foil. Reviewer-facing.
+- Email confirmation (09-30): one `ConfirmEmailPanel` serves signup step 2,
+  the `/app` wall (`SubscriptionGate`) and the account page. It never reads
+  `SessionProvider` (signup sits outside it) and reports back through props.
+  The code box has no `maxLength` (a paste of "482 913" must survive) and
+  submits on the sixth digit; `autoFocus` is a convenience, iOS raises the
+  keyboard only from a tap. The wall polls `GET /api/auth/verify-email` (5 s,
+  then 30 s) and on focus/visibility, because the mail's button opens in
+  Safari, a different cookie jar from the installed app. After the confirm
+  step the "You're in" screen promises the confirmed user's `trialScansLeft`,
+  never a constant: a second signup on a shared device starts at 0 and gets
+  plan-first copy. A signup without the confirm step (switch Off) gets exactly
+  the old screen, from `PRICING.trial.scans`. On the account page the code box
+  under Name & email always has "Use a Different Email" (a mistyped new
+  address must not hold the row for the code's hour), "Email changed" shows
+  only when the address really moved (`changeLanded`), and a walled Plan row
+  offers no Subscribe or Scan Pack. The Change Email form counts down only what
+  the server said (a signup mails its first code without using the resend
+  allowance). Help copy promises no email reply to an unconfirmed account. The
+  switch ships Off (`/admin/switches`), so none of this shows until Chris flips
+  it.
 
 ## Voice
 

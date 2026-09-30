@@ -2,9 +2,12 @@
 
 import { apiFetch } from "@/lib/client/basePath";
 import type { SessionUser } from "@/lib/client/auth";
+import { walledDestination } from "@/lib/client/emailConfirm";
 
 export interface AccountOverview {
   user: SessionUser;
+  /** An email change waiting for its code (established accounts, confirmation on); null = none. */
+  pendingEmail?: { email: string; expiresAt: number } | null;
   /** Scan metering; remaining is null when the cap isn't enforced (no subscription). */
   quota?: { used: number; included: number; remaining: number | null; bonus?: number };
   data: {
@@ -108,13 +111,23 @@ export async function deleteAccount(password: string): Promise<void> {
 
 // --- Billing (Stripe) -------------------------------------------------------
 
-/** Answers the Stripe Checkout URL to redirect to. */
+/**
+ * Answers the Stripe Checkout URL to redirect to. An account still waiting on
+ * its emailed code is refused (403 verifyEmail: paying does not prove the
+ * inbox); it is sent to /app instead, where the code screen lives, rather than
+ * left on a bare red error with nowhere to go.
+ */
 export async function startCheckout(plan: "standard" | "pro" | "pack" = "standard"): Promise<string> {
   const res = await apiFetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plan }),
   });
+  if (res.status === 403) {
+    const data = await readJson(res);
+    if (data.verifyEmail) return walledDestination();
+    throw new Error(data.error ?? `Request failed (${res.status})`);
+  }
   return (await expectOk<{ url: string }>(res)).url;
 }
 

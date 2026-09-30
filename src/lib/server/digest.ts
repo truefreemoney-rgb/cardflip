@@ -193,7 +193,7 @@ export async function sweepWeeklyDigest(
   const users = (await db
     .prepare(
       `SELECT u.id, u.email, u.digest_token, u.digest_sent_week FROM users u
-       WHERE u.digest_off = 0 AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id)
+       WHERE u.digest_off = 0 AND u.email_pending = 0 AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id)
        LIMIT ${USER_CAP}`,
     )
     .all()) as unknown as UserRow[];

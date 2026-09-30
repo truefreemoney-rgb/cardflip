@@ -48,7 +48,7 @@ async function signup(page: Page, opts: { tour?: boolean } = {}) {
 }
 
 test.describe("anonymous", () => {
-  for (const path of ["/", "/login", "/signup", "/forgot-password", "/pricing", "/help"]) {
+  for (const path of ["/", "/login", "/signup", "/forgot-password", "/pricing", "/help", "/confirm-email"]) {
     test(`${path} is clean at phone width`, async ({ page }) => {
       await page.goto(path);
       await expect(page.locator("h1").first()).toBeVisible();

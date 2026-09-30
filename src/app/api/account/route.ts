@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp, limitOrRespond, type RateLimitRule } from "@/lib/server/rateLimit";
 import {
   deleteUser,
   findUserByEmail,
   findUserByHandle,
-  toPublicUser,
+  findUserById,
+  needsEmailConfirm,
   updateUserProfile,
   userDataSummary,
 } from "@/lib/server/users";
@@ -17,12 +18,30 @@ import { destroyOtherSessions } from "@/lib/server/sessions";
 import { scanQuota } from "@/lib/server/scanQuota";
 import { isValidEmail } from "@/lib/emailAddress";
 import { isDisposableEmail } from "@/lib/server/signupGuard";
+import {
+  emailConfirmEnabled,
+  limitCodeMail,
+  limitWithMessage,
+  pendingEmailChange,
+  publicUserWithEmailState,
+  sendChangeCode,
+  sendWalledCode,
+} from "@/lib/server/emailVerify";
 
 /**
  * The account page's own endpoint.
  *
- *   GET    — profile + "your data" counts + eBay link + session count
- *   PATCH  — rename / change sign-in email (email change re-checks the password)
+ *   GET    — profile + "your data" counts + eBay link + session count, and
+ *            `pendingEmail` ({ email, expiresAt } | null): an email change
+ *            waiting for its code
+ *   PATCH  — rename / change sign-in email (email change re-checks the password).
+ *            With email confirmation on, a change on an established account
+ *            mails a code to the NEW address and leaves users.email alone
+ *            until it is typed (the old address keeps working): the response
+ *            carries `pendingEmail` and `emailCodeExpiresAt`, and the code
+ *            goes to POST /api/auth/verify-email. An account still waiting on
+ *            its first code just moves to the new address (no password; it
+ *            was never proven) and gets a code there.
  *   DELETE — remove the account and everything under it (password required)
  */
 
@@ -39,7 +58,8 @@ export async function GET() {
     const user = await requireUser();
     const link = await getEbayLink(user.id);
     return NextResponse.json({
-      user: toPublicUser(user),
+      user: await publicUserWithEmailState(user),
+      pendingEmail: await pendingEmailChange(user),
       quota: scanQuota(user),
       data: await userDataSummary(user.id),
       ebay: {
@@ -96,6 +116,11 @@ export async function PATCH(req: NextRequest) {
       patch.name = name;
     }
 
+    // Where a changed email goes once everything else checked out: straight
+    // into users.email (confirmation off), a code to the new address (an
+    // established account, confirmation on), or a move for an account still
+    // waiting on its first code.
+    let emailRoute: { kind: "write" | "code" | "walled"; email: string } | null = null;
     if (typeof body?.email === "string") {
       const email = body.email.trim().toLowerCase();
       if (!isValidEmail(email)) {
@@ -106,27 +131,77 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });
       }
       if (email !== user.email) {
-        // Changing the sign-in identity needs the password, like every other
-        // account-recovery-relevant change.
-        const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
-        if (!verifyPassword(currentPassword, user.passwordHash)) {
-          return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+        const walled = needsEmailConfirm(user);
+        if (!walled) {
+          // Changing the sign-in identity needs the password, like every other
+          // account-recovery-relevant change.
+          const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
+          if (!verifyPassword(currentPassword, user.passwordHash)) {
+            return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+          }
+        }
+        const sendsCode = walled || (await emailConfirmEnabled());
+        if (sendsCode) {
+          // The "already in use" answer below tells anyone who can reach it
+          // whether an address has an account, and a walled account gets here
+          // with no password, so the network's limit (shared with the resend
+          // route, on the shared counter, not this route's per-instance one)
+          // comes first.
+          const probeKeys: Array<[string, RateLimitRule[]]> = [[`auth:code:${clientIp(req)}`, LIMITS.authAttempt]];
+          if (walled) probeKeys.push([`auth:code:probe:${user.id}`, LIMITS.authAccount]);
+          const probed = await limitWithMessage(probeKeys);
+          if (probed) return probed;
         }
         const taken = await findUserByEmail(email);
         if (taken && taken.id !== user.id) {
           return NextResponse.json({ error: "That email is already in use" }, { status: 409 });
         }
-        patch.email = email;
+        if (sendsCode) {
+          // Mailing a code: one every 30 s per account and per address, and a
+          // day's share per network, on the shared counter.
+          const limited =
+            (await limitWithMessage([
+              [`auth:code:acct:${user.id}`, LIMITS.emailCode],
+              [`auth:code:to:${email}`, LIMITS.emailCode],
+            ])) ?? (await limitCodeMail(req));
+          if (limited) return limited;
+        }
+        emailRoute = { kind: walled ? "walled" : sendsCode ? "code" : "write", email };
+        if (emailRoute.kind === "write") patch.email = email;
       }
     }
 
-    if (patch.name === undefined && patch.email === undefined && patch.handle === undefined && patch.handlePublic === undefined) {
+    if (patch.name === undefined && patch.email === undefined && patch.handle === undefined && patch.handlePublic === undefined && !emailRoute) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
-    await updateUserProfile(user.id, patch);
+    if (Object.keys(patch).length > 0) await updateUserProfile(user.id, patch);
+
+    let current = user;
+    const extra: Record<string, unknown> = {};
+    if (emailRoute?.kind === "code") {
+      const sent = await sendChangeCode(user, emailRoute.email);
+      if (!sent.ok) return NextResponse.json({ error: sent.message, code: sent.error }, { status: sent.status });
+      extra.pendingEmail = sent.email;
+      extra.emailCodeExpiresAt = sent.expiresAt;
+    } else if (emailRoute?.kind === "walled") {
+      const out = await sendWalledCode(user, emailRoute.email);
+      if (out.kind === "problem") {
+        return NextResponse.json({ error: out.problem.message, code: out.problem.error }, { status: out.problem.status });
+      }
+      current = (await findUserById(user.id)) ?? user;
+      if (out.kind === "refused") {
+        return NextResponse.json(
+          { error: "That address didn't accept our email. Check it and try again.", code: "recipient_refused", user: await publicUserWithEmailState({ ...current, ...patch }) },
+          { status: 400 },
+        );
+      }
+      extra.emailSent = out.kind === "sent";
+      extra.released = out.kind === "released";
+    }
     return NextResponse.json({
       ok: true,
-      user: toPublicUser({ ...user, ...patch }),
+      user: await publicUserWithEmailState({ ...current, ...patch }),
+      ...extra,
     });
   } catch (err) {
     return unauthorized(err);

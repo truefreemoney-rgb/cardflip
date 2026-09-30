@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import PageSkeleton from "@/components/PageSkeleton";
+import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
+import { toast } from "@/components/Toaster";
 import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
+import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
 import { PRICE, PRICE_SHORT, SCANS } from "@/lib/pricing";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
@@ -191,6 +194,9 @@ function AccountSettings({
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // An email change waiting for its code (confirmation on): the code goes to
+  // the NEW address and the sign-in email switches only when it is typed.
+  const [pendingChange, setPendingChange] = useState<{ email: string; expiresAt: number | null } | null>(null);
 
   // fetchAccount answers null on any failure; without a retry the page used
   // to sit half-rendered forever (no data section, eBay stuck on "Loading…").
@@ -203,6 +209,12 @@ function AccountSettings({
         if (cancelled) return;
         setOverview(o);
         setOverviewFailed(o === null);
+        // A reload (or the phone killing the app while the person was in
+        // Mail) must not lose the waiting change: bring the code box back.
+        if (o?.pendingEmail) {
+          setPendingChange(o.pendingEmail);
+          setProfileOpen(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -212,7 +224,10 @@ function AccountSettings({
     };
   }, [reloadKey]);
 
-  const emailChanged = email.trim().toLowerCase() !== user.email;
+  // A walled account fixes its address in the code box above (Change Email),
+  // so the profile form leaves the email alone until it is confirmed.
+  const walled = Boolean(user.mustConfirmEmail);
+  const emailChanged = !walled && email.trim().toLowerCase() !== user.email;
   const nameChanged = name.trim() !== user.name;
 
   async function saveProfile(e: FormEvent) {
@@ -221,18 +236,53 @@ function AccountSettings({
     setProfileBusy(true);
     setProfileMsg(null);
     try {
-      const next = await updateProfile({
-        ...(nameChanged ? { name } : {}),
-        ...(emailChanged ? { email, currentPassword: emailPassword } : {}),
-      });
-      setUser(next);
-      setEmailPassword("");
-      setProfileMsg({ kind: "ok", text: emailChanged ? "Saved — sign in with your new email next time." : "Saved." });
+      if (emailChanged) {
+        // With confirmation on, this mails a code to the new address and does
+        // not change users.email yet; with it off, the address is written now.
+        const out = await changeAccountEmail({ email, currentPassword: emailPassword, ...(nameChanged ? { name } : {}) });
+        setUser(mergeUser(user, out.user));
+        setEmailPassword("");
+        if (out.pendingEmail) {
+          setPendingChange({ email: out.pendingEmail, expiresAt: out.emailCodeExpiresAt });
+        } else {
+          setProfileMsg({ kind: "ok", text: "Saved — sign in with your new email next time." });
+        }
+      } else {
+        setUser(mergeUser(user, await updateProfile({ name })));
+        setProfileMsg({ kind: "ok", text: "Saved." });
+      }
     } catch (err) {
       setProfileMsg({ kind: "err", text: err instanceof Error ? err.message : "Couldn't save" });
     } finally {
       setProfileBusy(false);
     }
+  }
+
+  // The code box is done (the wall never comes back: this account was already
+  // past it). Only an address that really moved is a change: "already
+  // confirmed" from the server means nothing is waiting, which is also what a
+  // code that ran out or a request another screen replaced looks like, and
+  // then the sign-in email is still the old one. Say so and bring the form back.
+  function emailChangeConfirmed(next: SessionUser) {
+    const landed = changeLanded(next, pendingChange);
+    setUser(mergeUser(user, next));
+    setEmail(next.email);
+    setPendingChange(null);
+    setProfileMsg(
+      landed
+        ? { kind: "ok", text: "Email changed — sign in with your new email next time." }
+        : { kind: "err", text: "That code ran out, so your email didn't change. Enter your new email again to get a new code." },
+    );
+  }
+
+  // A mistyped new address: drop the code box and show the form again. The
+  // code already sent stays good for its hour, and the next address submitted
+  // retires it.
+  function pickDifferentEmail() {
+    setPendingChange(null);
+    setEmail(user.email);
+    setEmailPassword("");
+    setProfileMsg(null);
   }
 
   // --- Public collection page (Tier 2 #10) --------------------------------
@@ -558,8 +608,28 @@ function AccountSettings({
         )}
       </section>
 
+      {/* Still waiting on the emailed code: the same screen the app shows,
+          here too so the address can be fixed and the code typed from Account. */}
+      {user.mustConfirmEmail && (
+        <section className="rounded-2xl border border-edge bg-surface-1 p-5">
+          <ConfirmEmailPanel
+            mode="wall"
+            heading="h2"
+            compact
+            user={user}
+            onUser={(next) => setUser(mergeUser(user, next))}
+            onConfirmed={(next, how) => {
+              setUser(mergeUser(user, next));
+              setEmail(next.email);
+              if (how !== "released") toast("Email confirmed");
+              void refresh();
+            }}
+          />
+        </section>
+      )}
+
       {loading && !overview && (
-        <div className="flex items-center gap-2 text-sm text-zinc-500"><Spinner /> Loading…</div>
+        <div className="flex items-center gap-2 text-sm text-zinc-500"><Spinner className="h-4 w-4" /> Loading…</div>
       )}
 
       {overviewFailed && !loading && (
@@ -824,7 +894,13 @@ function AccountSettings({
       <Group label="Profile">
         <Row
           title="Name & email"
-          status={profileOpen ? "Your name shows in the app header; the email is what you sign in with." : `${user.name} · ${user.email}`}
+          status={
+            profileOpen
+              ? "Your name shows in the app header; the email is what you sign in with."
+              : pendingChange
+                ? `${user.name} · ${user.email} · ${pendingChange.email} is waiting for its code`
+                : `${user.name} · ${user.email}`
+          }
           action={
             <button type="button" className={rowBtn} onClick={() => (profileOpen ? closeProfile() : setProfileOpen(true))} disabled={profileBusy}>
               {profileOpen ? "Cancel" : "Edit"}
@@ -832,30 +908,49 @@ function AccountSettings({
           }
           open={profileOpen}
         >
-          <form onSubmit={saveProfile} className="flex flex-col gap-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className={labelCls}>
-                Name
-                <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={profileBusy} maxLength={80} required autoComplete="name" />
-              </label>
-              <label className={labelCls}>
-                Email
-                <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={profileBusy} required autoComplete="email" inputMode="email" />
-              </label>
-            </div>
-            {emailChanged && (
-              <label className={labelCls}>
-                Current password <span className="text-zinc-600">(required to change email)</span>
-                <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={profileBusy} required autoComplete="current-password" />
-              </label>
-            )}
-            <div className="flex items-center gap-3">
-              <button type="submit" className={primaryBtn} disabled={profileBusy || (!nameChanged && !emailChanged)}>
-                {profileBusy ? "Saving…" : "Save Changes"}
-              </button>
-            </div>
-            {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
-          </form>
+          {pendingChange ? (
+            <ConfirmEmailPanel
+              key={pendingChange.email}
+              mode="change"
+              user={user}
+              pending={pendingChange}
+              onConfirmed={emailChangeConfirmed}
+              onCancel={pickDifferentEmail}
+            />
+          ) : (
+            <form onSubmit={saveProfile} className="flex flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={labelCls}>
+                  Name
+                  <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} disabled={profileBusy} maxLength={80} required autoComplete="name" />
+                </label>
+                {walled ? (
+                  <div className={labelCls}>
+                    Email
+                    <p className="mt-1 break-all text-sm text-zinc-300">{user.email}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">Not confirmed yet. Use Change Email in the box at the top of this page.</p>
+                  </div>
+                ) : (
+                  <label className={labelCls}>
+                    Email
+                    <input type="email" className={`${inputCls} mt-1`} value={email} onChange={(e) => setEmail(e.target.value)} disabled={profileBusy} required autoComplete="email" inputMode="email" />
+                  </label>
+                )}
+              </div>
+              {emailChanged && (
+                <label className={labelCls}>
+                  Current password <span className="text-zinc-600">(required to change email)</span>
+                  <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={profileBusy} required autoComplete="current-password" />
+                </label>
+              )}
+              <div className="flex items-center gap-3">
+                <button type="submit" className={primaryBtn} disabled={profileBusy || (!nameChanged && !emailChanged)}>
+                  {profileBusy ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          )}
+          {profileMsg && <Notice kind={profileMsg.kind}>{profileMsg.text}</Notice>}
         </Row>
         <Row
           title="Public collection page"
@@ -1111,7 +1206,14 @@ function PlanSection({
     }
   }
 
-  const status = subscribed ? (
+  // Waiting on the emailed code: nothing can be scanned or bought yet (the
+  // header hides Subscribe and the counter for the same reason), so no plan
+  // buttons that would bounce to the wall.
+  const walled = Boolean(user.mustConfirmEmail);
+
+  const status = walled ? (
+    "Confirm your email to start scanning. Plans open up right after."
+  ) : subscribed ? (
     <>
       <Dot on />
       {user.subStatus === "past_due"
@@ -1147,7 +1249,7 @@ function PlanSection({
       title="Plan"
       status={status}
       action={
-        subscribed ? (
+        walled ? null : subscribed ? (
           <button type="button" data-tour="subscribe" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
             {busy ? "Opening…" : "Manage Billing"}
           </button>

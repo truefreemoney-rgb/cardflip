@@ -5,8 +5,9 @@
 # block took every DB route down for ~35 minutes before anyone noticed;
 # this would have said so within 15.
 #
-# No secrets: every probe is a request a stranger could make. Nothing is
-# written, no account is used, eBay/Stripe are never touched.
+# The smoke probes need no secrets: every one is a request a stranger could
+# make. Nothing is written, no account is used, eBay/Stripe are never touched.
+# The ops key is used only by the mailbox check and the failure email.
 name: Production smoke
 
 on:
@@ -48,6 +49,21 @@ jobs:
       - if: github.event_name == 'deployment_status'
         run: sleep 45
       - run: node scripts/prod-smoke.mjs https://cardflip.io
+      # The mailbox that sends confirmation codes, password resets and the
+      # alerts below. A dead one fails open (codes are skipped, nobody is
+      # walled) and the site cannot mail anyone about it, so this asks the
+      # site to log in to the SMTP server (sending nothing) and lets GitHub's
+      # own failure email do the telling. Every deploy and by hand, and about
+      # once an hour on the schedule (each call is a real SMTP login).
+      - name: Mailbox check
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(date -u +%M)" -ge 20 ]; then
+            echo "Hourly check only; skipping this run."
+            exit 0
+          fi
+          curl -sS --fail --max-time 30 -H "Authorization: Bearer ${KEY}" https://cardflip.io/api/ops/mail-check
       - name: Email Chris
         if: failure()
         env:

@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireUser } from "@/lib/server/auth";
+import { AuthError, emailGate, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { isSubscribed, setStripeCustomer } from "@/lib/server/users";
 import { createCheckoutSession, createCustomer, createPackCheckoutSession, packConfigured, proConfigured, stripeConfigured } from "@/lib/server/stripe";
@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
+    // Paying does not prove the inbox, and Stripe is given user.email.
+    const unconfirmed = emailGate(user, "Confirm your email first, then you can subscribe.");
+    if (unconfirmed) return unconfirmed;
     if (!stripeConfigured()) {
       return NextResponse.json({ error: "Billing isn't available yet" }, { status: 503 });
     }

@@ -12,6 +12,7 @@ export default async function AdminUsersPage() {
     id: u.id, name: u.name, email: u.email, role: u.role, ebayConnected: u.ebayConnected, createdAt: u.createdAt,
     tier: scanTier(u), plan: u.plan, scansUsed: u.scansUsed, monthlyScans: monthlyScans(u), trialScansUsed: u.trialScansUsed, packScans: Math.max(0, u.extraScans ?? 0),
     accessOverride: u.accessOverride, subStatus: u.subStatus,
+    emailPending: u.emailPending, emailVerifiedAt: u.emailVerifiedAt,
   }));
   return (
     <section>

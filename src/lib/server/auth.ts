@@ -3,7 +3,7 @@ import { PRICE, PRICE_LINE } from "@/lib/pricing";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
-import { canUseApp, findUserById, scanTier, type User } from "@/lib/server/users";
+import { canUseApp, findUserById, needsEmailConfirm, scanTier, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = "cardflip_session";
 
@@ -50,6 +50,17 @@ export async function clearSessionCookie(): Promise<void> {
 export class AuthError extends Error {}
 
 /**
+ * Email confirmation wall (emailVerify.ts): a signup that has not typed its
+ * emailed code yet gets 403 { verifyEmail: true }, not the "out of scans" 402
+ * (a purchase does not prove the inbox either). Null for everyone else, which
+ * is everyone until the admin switch is turned on.
+ */
+export function emailGate(user: User, message = "Confirm your email to start scanning"): NextResponse | null {
+  if (!needsEmailConfirm(user)) return null;
+  return NextResponse.json({ error: message, verifyEmail: true }, { status: 403 });
+}
+
+/**
  * Paid-only (09-04, Chris: "demo is over"): the routes that cost money or
  * publish on the seller's behalf answer 402 for anyone without an active
  * subscription. Admins pass. The client's SubscriptionGate shows the wall
@@ -61,6 +72,8 @@ export class AuthError extends Error {}
  * left; everyone else falls through to the usual gate.
  */
 export function sellingGate(user: User): NextResponse | null {
+  const unconfirmed = emailGate(user);
+  if (unconfirmed) return unconfirmed;
   if (user.role !== "admin" && scanTier(user) === "trial") {
     return NextResponse.json(
       { error: "Publishing on eBay starts with a Scan Pack or a subscription — the free scans are for pricing", paywall: true, selling: true },
@@ -71,6 +84,8 @@ export function sellingGate(user: User): NextResponse | null {
 }
 
 export function subscriptionGate(user: User): NextResponse | null {
+  const unconfirmed = emailGate(user);
+  if (unconfirmed) return unconfirmed;
   if (user.role === "admin" || canUseApp(user)) return null;
   return NextResponse.json(
     { error: `You're out of scans — a Scan Pack is ${PRICE.pack}, or CardFlip is ${PRICE_LINE.standard}`, paywall: true, quota: true },

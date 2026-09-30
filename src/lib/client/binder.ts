@@ -56,7 +56,8 @@ export async function splitBinderPhoto(file: File): Promise<BinderSplit> {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      if (res.status === 402 && data?.quota) return { ...fail("quota", typeof data?.error === "string" ? data.error : null), usage: data?.usage ?? null };
+      // 403 verifyEmail (code not typed yet) is refused like an empty allowance.
+      if ((res.status === 402 && data?.quota) || (res.status === 403 && data?.verifyEmail)) return { ...fail("quota", typeof data?.error === "string" ? data.error : null), usage: data?.usage ?? null };
       return fail(data?.status === "unconfigured" ? "unconfigured" : "error");
     }
     if (data?.status === "unconfigured") return fail("unconfigured");

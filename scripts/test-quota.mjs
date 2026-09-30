@@ -118,6 +118,49 @@ check("sellingGate body flags selling, subscriptionGate body flags quota",
   [(await sellingGate(fresh({})).json()).selling === true, (await subscriptionGate(fresh({ trialScansUsed: TRIAL_SCANS })).json()).quota === true],
   [true, true]);
 
+// --- email confirmation wall (09-30): only a trial signup that is still pending ---
+{
+  const { needsEmailConfirm } = await import(at("lib/server/users.ts"));
+  const saved = { echo: process.env.EMAIL_CONFIRM_DEV_ECHO, host: process.env.SMTP_HOST, user: process.env.SMTP_USER, pass: process.env.SMTP_PASS };
+  for (const k of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"]) delete process.env[k];
+  process.env.EMAIL_CONFIRM_DEV_ECHO = "1";
+  const pending = (over) => fresh({ emailPending: true, trialScansUsed: 0, ...over });
+  check("wall: a pending trial signup cannot use the app while a code can be delivered",
+    [canUseApp(pending({})), needsEmailConfirm(pending({})), toPublicUser(pending({})).mustConfirmEmail, toPublicUser(pending({})).appAccess],
+    [false, true, true, false]);
+  check("wall: a pending signup with no scans used is walled, not 'out of scans'",
+    [subscriptionGate(pending({}))?.status, (await subscriptionGate(pending({})).json()).verifyEmail, sellingGate(pending({}))?.status],
+    [403, true, 403]);
+  check("wall: subscriber, pack holder, legacy, comped, owner and admin are never walled, even flagged pending",
+    [
+      pending({ subStatus: "active" }),
+      pending({ extraScans: 5 }),
+      pending({ createdAt: PAID_SWITCH_AT - 1 }),
+      pending({ accessOverride: "comp_standard" }),
+      pending({ accessOverride: "unlimited" }),
+      pending({ email: OWNER_EMAIL }),
+      pending({ role: "admin" }),
+    ].map((u) => [needsEmailConfirm(u), canUseApp(u), subscriptionGate(u)?.status ?? null]),
+    Array(7).fill([false, true, null]));
+  check("wall: an admin override of 'trial' on a pending signup is still the trial tier, so walled",
+    needsEmailConfirm(pending({ accessOverride: "trial" })), true);
+  check("wall: an ordinary account (email_pending 0) is untouched, wall or no wall",
+    [needsEmailConfirm(fresh({ emailPending: false })), canUseApp(fresh({ emailPending: false, trialScansUsed: 1 })), toPublicUser(fresh({ emailPending: false })).mustConfirmEmail],
+    [false, true, false]);
+  delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+  check("wall: with no way to deliver a code (no SMTP, no dev echo) it fails open",
+    [needsEmailConfirm(pending({})), canUseApp(pending({})), subscriptionGate(pending({}))],
+    [false, true, null]);
+  Object.assign(process.env, { SMTP_HOST: "127.0.0.1", SMTP_USER: "x@y.z", SMTP_PASS: "nope" });
+  check("wall: real SMTP configuration counts as a way to deliver",
+    needsEmailConfirm(pending({})), true);
+  for (const k of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"]) delete process.env[k];
+  if (saved.echo !== undefined) process.env.EMAIL_CONFIRM_DEV_ECHO = saved.echo;
+  if (saved.host !== undefined) process.env.SMTP_HOST = saved.host;
+  if (saved.user !== undefined) process.env.SMTP_USER = saved.user;
+  if (saved.pass !== undefined) process.env.SMTP_PASS = saved.pass;
+}
+
 check("exhausted exactly at the cap",
   scanQuotaExhausted(sub({ scansUsed: MONTHLY_SCANS })), true);
 check("one left ≠ exhausted",

@@ -208,6 +208,17 @@ a = await sweepWishlistAlerts(NOW, { send: failing, configured: on });
 check("alerts: re-armed target checked again; failed send stamps nothing", [a.sent, Boolean((await listWishlist(uid)).find((w) => w.id === w1.id).alertedAt)], [0, false]);
 a = await sweepWishlistAlerts(NOW, { send, configured: on });
 check("alerts: retried next pass", a.sent, 1);
+// A signup still waiting on its email code gets no alert mail at an address
+// nobody has proven (09-30); the alert waits, and fires once they are in.
+const waitingUser = await createUser("Waiting", "waiting@example.com", "hunter22", "user", { emailPending: true });
+const wp = await addToWishlist(waitingUser.id, pcard("cat-cheap", "Cheap"), "en", 8);
+await setWishlistAlert(wp.id, waitingUser.id, 10);
+mails.length = 0;
+a = await sweepWishlistAlerts(NOW, { send, configured: on });
+check("alerts: an unconfirmed signup is skipped", [a.sent, mails.length, Boolean((await listWishlist(waitingUser.id)).find((w) => w.id === wp.id).alertedAt)], [0, 0, false]);
+await db.prepare("UPDATE users SET email_pending = 0 WHERE id = ?").run(waitingUser.id);
+a = await sweepWishlistAlerts(NOW, { send, configured: on });
+check("alerts: ...and fires once they are confirmed", [a.sent, mails[0]?.to], [1, "waiting@example.com"]);
 // Lorcana / One Piece / Yu-Gi-Oh! have no price_series (09-30: their alerts
 // could never fire) — the catalog's own price answers.
 await db.prepare("INSERT INTO tcg_cards (id, game, name, subtitle, set_code, set_name, collector_number, image_url, price_usd, synced_at) VALUES (?, 'lorcana', 'Elsa', 'Spirit of Winter', '1', 'The First Chapter', '42', '', 3, 0)").run("tcg-elsa");

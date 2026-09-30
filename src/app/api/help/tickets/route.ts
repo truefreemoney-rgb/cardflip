@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { helpHistory } from "@/lib/server/helpChat";
 import { TICKET_STATUS_LABEL, TicketInputError, TicketLimitError, listUserTickets, openTicket } from "@/lib/server/supportTickets";
 
@@ -28,7 +29,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`ticket:${clientIp(req)}`, LIMITS.supportTicket);
+  // Shared counter, not per instance: every ticket mails the support inbox,
+  // and an unconfirmed signup can open one too (Help stays open on the wall).
+  const limited = await limitOrRespondAsync(`ticket:${clientIp(req)}`, LIMITS.supportTicket);
   if (limited) return limited;
   try {
     const user = await requireUser();

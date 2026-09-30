@@ -1,6 +1,8 @@
-const STEPS = ["Account", "Get started"];
+const STEPS = ["Account", "Get Started"];
+/** With email confirmation on, the code gets its own step between the two. */
+export const CONFIRM_STEPS = ["Account", "Confirm Email", "Get Started"];
 
-export default function OnboardingSteps({ current, steps = STEPS }: { current: 0 | 1; steps?: string[] }) {
+export default function OnboardingSteps({ current, steps = STEPS }: { current: 0 | 1 | 2; steps?: string[] }) {
   return (
     <ol className="mb-6 flex items-center gap-2 text-xs font-medium text-zinc-500">
       {steps.map((label, i) => {
@@ -9,9 +11,9 @@ export default function OnboardingSteps({ current, steps = STEPS }: { current: 0
 
         return (
           <li key={label} className="flex items-center gap-2">
-            {i > 0 && <span className="h-px w-6 bg-white/10" aria-hidden />}
+            {i > 0 && <span className="h-px w-3 bg-white/10 sm:w-6" aria-hidden />}
             <span
-              className={`flex items-center gap-1.5 ${
+              className={`flex items-center gap-1.5 whitespace-nowrap ${
                 active ? "text-brand-300" : done ? "text-zinc-400" : ""
               }`}
               aria-current={active ? "step" : undefined}

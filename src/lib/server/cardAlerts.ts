@@ -71,7 +71,7 @@ export async function sweepCardAlerts(
       `SELECT c.id, c.user_id, u.email, c.card_name, c.set_name, c.card_number, c.condition,
               c.catalog_card_id, c.variant, c.alert_price, c.alerted_at, c.spike_alerted_at
        FROM cards c JOIN users u ON u.id = c.user_id
-       WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL
+       WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL AND u.email_pending = 0
          AND ((c.alert_price IS NOT NULL AND c.alerted_at IS NULL)
               OR c.spike_alerted_at IS NULL OR c.spike_alerted_at < ?)
        LIMIT ${CHECK_CAP}`,

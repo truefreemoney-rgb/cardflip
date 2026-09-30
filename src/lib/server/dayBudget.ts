@@ -30,6 +30,14 @@ export async function dayBudgetSpent(name: string, budget: number): Promise<bool
   return Number(row?.value ?? 0) > budget;
 }
 
+/** Today's count for a budget, without spending any (admin readouts). */
+export async function dayBudgetUsed(name: string): Promise<number> {
+  const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(`${name}_${todayUtc()}`)) as
+    | { value: string }
+    | undefined;
+  return Number(row?.value ?? 0);
+}
+
 // Drop a name's counters older than a week, once per process per name, so
 // per-user names (scan_<id>) don't accrete a row per user per day forever.
 // ISO days compare correctly as strings.

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { helpArticlesFor } from "@/lib/helpArticles";
 import { GUIDES, HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { magicVisibleFor } from "@/lib/server/settings";
-import { monthlyScans, packScans, scanTier, type User } from "@/lib/server/users";
+import { monthlyScans, needsEmailConfirm, packScans, scanTier, type User } from "@/lib/server/users";
 import { LADDER_SENTENCE, PRICING } from "@/lib/pricing";
 import { TICKET_STATUS_LABEL, TicketInputError, TicketLimitError, listUserTickets, openTicket, type Ticket } from "@/lib/server/supportTickets";
 
@@ -22,6 +22,8 @@ import { TICKET_STATUS_LABEL, TicketInputError, TicketLimitError, listUserTicket
 export const HELP_MODEL = "claude-haiku-4-5";
 /** User messages per rolling day, per account. */
 export const HELP_DAILY_CAP = 40;
+/** A signup still waiting on its email code gets a handful (a way to say "the code never came"), not the full 40 paid questions. */
+export const HELP_PENDING_CAP = 5;
 const HISTORY_TURNS = 16;
 const MAX_MESSAGE_CHARS = 600;
 
@@ -163,7 +165,14 @@ async function save(userId: string, role: "user" | "assistant", content: string)
   return { id, role, content: split.content, actions: split.actions, createdAt };
 }
 
-export class HelpCapError extends Error {}
+export class HelpCapError extends Error {
+  /** The cap that was hit: HELP_DAILY_CAP, or HELP_PENDING_CAP for an unconfirmed email. */
+  cap: number;
+  constructor(cap: number = HELP_DAILY_CAP) {
+    super("Help daily cap reached");
+    this.cap = cap;
+  }
+}
 export class HelpNotConfiguredError extends Error {}
 
 /** Append the seller's message, answer it, store both. Returns the reply. */
@@ -171,7 +180,8 @@ export async function askHelp(user: User, text: string): Promise<HelpMessage> {
   const message = text.trim().slice(0, MAX_MESSAGE_CHARS);
   if (!message) throw new Error("Empty message");
   if (!process.env.ANTHROPIC_API_KEY) throw new HelpNotConfiguredError();
-  if ((await userMessagesToday(user.id)) >= HELP_DAILY_CAP) throw new HelpCapError();
+  const cap = needsEmailConfirm(user) ? HELP_PENDING_CAP : HELP_DAILY_CAP;
+  if ((await userMessagesToday(user.id)) >= cap) throw new HelpCapError(cap);
 
   const [magic, tickets] = await Promise.all([magicVisibleFor(user), listUserTickets(user.id, 5)]);
 
@@ -230,7 +240,9 @@ async function actOnTicketTag(user: User, reply: string, transcript: { role: "us
   const text = reply.replace(OPEN_TICKET_RE, "").replace(/\n{3,}/g, "\n\n").trim();
   try {
     const ticket = await openTicket(user, { subject, body }, transcript);
-    return `${text}\n\nTicket #${ticket.number} is open. A human reads it and replies to your email, usually within 24 hours. The Support Tickets tab has the status. {{opened:${ticket.number}}}`;
+    // An account still waiting on its email code gets no support mail (that address is unproven), so no email is promised.
+    const where = needsEmailConfirm(user) ? "here" : "to your email";
+    return `${text}\n\nTicket #${ticket.number} is open. A human reads it and replies ${where}, usually within 24 hours. The Support Tickets tab has the status. {{opened:${ticket.number}}}`;
   } catch (err) {
     if (err instanceof TicketLimitError || err instanceof TicketInputError) return `${text}\n\n${err.message}`;
     console.error("[help] robot could not open a ticket:", err);

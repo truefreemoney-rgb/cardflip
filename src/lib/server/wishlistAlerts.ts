@@ -54,6 +54,7 @@ export async function sweepWishlistAlerts(
               w.card_id, w.alert_price, u.email
        FROM wishlist_items w JOIN users u ON u.id = w.user_id
        WHERE w.alert_price IS NOT NULL AND w.alerted_at IS NULL AND w.card_id IS NOT NULL
+         AND u.email_pending = 0
        LIMIT ${CHECK_CAP}`,
     )
     .all()) as unknown as AlertRow[];

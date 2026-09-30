@@ -39,6 +39,10 @@ export interface SessionUser {
   /** Public collection page: the /u/<handle> slug and whether it is open. */
   handle?: string | null;
   handlePublic?: boolean;
+  /** Email confirmation wall: true = the app is closed until the emailed code (or link) is used. */
+  mustConfirmEmail?: boolean;
+  /** Walled accounts only (auth/me, verify-email, signup): when the newest code stops working; null = none live. */
+  emailCodeExpiresAt?: number | null;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */
@@ -86,20 +90,40 @@ export async function fetchCurrentUser(): Promise<SessionUser | null> {
   return data.user ?? null;
 }
 
+/**
+ * What a signup answers. With email confirmation on, `user.mustConfirmEmail`
+ * is true and a code is on its way (`emailSent`); `emailProblem: "recipient"`
+ * means the mail server refused that address (ask for a corrected one).
+ * `resumed`: the same email and password came back for an account still
+ * waiting on its code, so it was signed in again instead of refused.
+ */
+export interface SignupResult {
+  user: SessionUser;
+  emailSent: boolean;
+  emailProblem: "recipient" | null;
+  resumed: boolean;
+}
+
 export async function signup(
   name: string,
   email: string,
   password: string,
   ref?: string | null,
-): Promise<SessionUser> {
+): Promise<SignupResult> {
   const res = await apiFetch("/api/auth/signup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ref ? { name, email, password, ref } : { name, email, password }),
   });
   const data = await readJson(res);
-  if (!res.ok) throw new Error(data.error ?? "Sign up failed.");
-  return data.user;
+  // A confirmation-code limit answers { error: "slow_down", message }: show the message.
+  if (!res.ok) throw new Error(data.message ?? data.error ?? "Sign up failed.");
+  return {
+    user: data.user,
+    emailSent: Boolean(data.emailSent),
+    emailProblem: data.emailProblem === "recipient" ? "recipient" : null,
+    resumed: Boolean(data.resumed),
+  };
 }
 
 export async function login(email: string, password: string, code?: string): Promise<SessionUser> {

@@ -36,7 +36,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ reply });
     } catch (err) {
       if (err instanceof HelpCapError) {
-        return NextResponse.json({ error: `That's ${HELP_DAILY_CAP} questions today. I need to recharge. Email support@cardflip.io.` }, { status: 429 });
+        // An unconfirmed email gets a few questions; the way on is a ticket (a human reads those on the site).
+        const error =
+          err.cap < HELP_DAILY_CAP
+            ? `That's ${err.cap} questions until your email is confirmed. Open a support ticket and a human will help.`
+            : `That's ${HELP_DAILY_CAP} questions today. I need to recharge. Email support@cardflip.io.`;
+        return NextResponse.json({ error }, { status: 429 });
       }
       if (err instanceof HelpNotConfiguredError) {
         return NextResponse.json({ error: "The robot is offline here. Email support@cardflip.io." }, { status: 503 });

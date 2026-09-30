@@ -107,8 +107,10 @@ export async function scanCardWithVision(
 
     if (!res.ok) {
       // 402 = monthly scan allowance exhausted. Still falls back to OCR like
-      // any other failure, but the caller can now tell the user why.
-      if (res.status === 402 && data?.quota) {
+      // any other failure, but the caller can now tell the user why. A 403
+      // verifyEmail (the emailed code is not typed yet) reads the same way:
+      // the scanner re-reads the session, which puts up the code screen.
+      if ((res.status === 402 && data?.quota) || (res.status === 403 && data?.verifyEmail)) {
         return {
           status: "quota",
           read: null,

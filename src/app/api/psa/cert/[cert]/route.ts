@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, emailGate } from "@/lib/server/auth";
 import { GRADED_LOCKED } from "@/lib/grading";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { LIMITS, limitOrRespond } from "@/lib/server/rateLimit";
@@ -22,6 +22,9 @@ export async function GET(
 ) {
   try {
     const user = await requireUser();
+    // PSA's free tier is shared by the whole app: not for unconfirmed signups.
+    const unconfirmed = emailGate(user);
+    if (unconfirmed) return unconfirmed;
     if (GRADED_LOCKED) {
       return NextResponse.json({ error: "Graded cards aren't accepted yet" }, { status: 503 });
     }

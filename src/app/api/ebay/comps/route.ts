@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, emailGate } from "@/lib/server/auth";
 import {
   EbayNotConfiguredError,
   ebaySearchUrl,
@@ -25,6 +25,9 @@ import {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    // Spends eBay Browse calls: not for a signup that has not proven its inbox.
+    const unconfirmed = emailGate(user);
+    if (unconfirmed) return unconfirmed;
     enforceRateLimit(`comps:${user.id}`, ...LIMITS.ebayComps);
     const body = await req.json().catch(() => null);
     const card = body?.card as PokemonCard | undefined;

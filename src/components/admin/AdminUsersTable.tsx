@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
 import RoleToggle from "@/components/admin/RoleToggle";
+import MarkConfirmedButton from "@/components/admin/MarkConfirmedButton";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
@@ -28,6 +29,9 @@ export interface AdminUserRow {
   packScans: number;
   accessOverride: AccessOverride | null;
   subStatus: string | null;
+  /** Email confirmation: waiting on the emailed code, and when the inbox was proven (null = never). */
+  emailPending: boolean;
+  emailVerifiedAt: number | null;
 }
 
 /** The Eastern calendar day (was the viewer's zone, UTC on the server render). */
@@ -279,6 +283,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-white">{u.name}</span>
                         {u.role === "admin" && <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-medium text-brand-300">admin</span>}
+                        {u.emailPending && <span className="whitespace-nowrap rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">Waiting for Code</span>}
                         {u.ebayConnected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" title="eBay connected" />}
                       </span>
                       <span className="block truncate text-xs text-zinc-500">{u.email}</span>
@@ -329,6 +334,10 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Admin</span>
                       <RoleToggle userId={u.id} role={u.role} isSelf={false} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-zinc-600">Email</span>
+                      <MarkConfirmedButton userId={u.id} pending={u.emailPending} verifiedAt={u.emailVerifiedAt} />
                     </div>
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     {r?.country && (

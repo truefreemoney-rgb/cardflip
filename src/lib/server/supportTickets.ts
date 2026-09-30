@@ -8,7 +8,7 @@ import {
   sendSupportTicketReceiptEmail,
   sendSupportTicketReplyEmail,
 } from "@/lib/server/mail";
-import type { User } from "@/lib/server/users";
+import { findUserById, needsEmailConfirm, type User } from "@/lib/server/users";
 import { sendPushToUser } from "@/lib/server/push";
 import { ticketReplyPush } from "@/lib/pushMessages";
 
@@ -202,13 +202,23 @@ export async function openTicket(
     } catch (err) {
       console.error(`[tickets] support mail failed for #${number}:`, err);
     }
-    try {
-      await mail.receipt(user.email, ticket);
-    } catch (err) {
-      console.error(`[tickets] receipt mail failed for #${number}:`, err);
+    // No mail to an address nobody has proven yet (a signup still waiting on
+    // its email code): the ticket, the thread and the phone banner are on the site.
+    if (!needsEmailConfirm(user)) {
+      try {
+        await mail.receipt(user.email, ticket);
+      } catch (err) {
+        console.error(`[tickets] receipt mail failed for #${number}:`, err);
+      }
     }
   }
   return ticket;
+}
+
+/** True while the ticket's owner has not proven their inbox: their address gets no support mail. */
+async function sellerUnconfirmed(userId: string): Promise<boolean> {
+  const seller = await findUserById(userId);
+  return seller ? needsEmailConfirm(seller) : false;
 }
 
 async function insertNote(ticketId: string, sellerId: string, author: NoteAuthor, body: string, images: string[]): Promise<TicketNote> {
@@ -272,7 +282,7 @@ export async function replyToTicket(
   if (!body && images.length === 0) throw new TicketInputError("Write something or add a photo first.");
 
   const note = await insertNote(ticketId, ticket.userId, "admin", body, images);
-  if (deps.replyMail || isMailConfigured()) {
+  if ((deps.replyMail || isMailConfigured()) && !(await sellerUnconfirmed(ticket.userId))) {
     try {
       await (deps.replyMail ?? sendSupportTicketReplyEmail)(ticket.userEmail, ticket, note);
     } catch (err) {
@@ -370,7 +380,7 @@ export async function setTicketStatus(
     .prepare("UPDATE support_tickets SET status = ?, updated_at = ?, closed_at = ? WHERE id = ?")
     .run(status, now, status === "closed" ? now : null, id);
   const after = { ...before, status, updatedAt: now, closedAt: status === "closed" ? now : null };
-  if (status === "closed" && (deps.closedMail || isMailConfigured())) {
+  if (status === "closed" && (deps.closedMail || isMailConfigured()) && !(await sellerUnconfirmed(before.userId))) {
     try {
       await (deps.closedMail ?? sendSupportTicketClosedEmail)(before.userEmail, after);
     } catch (err) {

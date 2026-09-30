@@ -416,6 +416,25 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
 
+  -- Email confirmation (emailVerify.ts): one row per code+link mailed. A user
+  -- can hold two live rows at once (a resend does not kill the mail already in
+  -- the inbox); confirmed_at / dead_at keep the row so an old link can say
+  -- "already confirmed" or "replaced" instead of a bare "expired". email is
+  -- the address the code went to (the signup address, or a new address on a
+  -- change). Only sha256 hashes are stored, never the code or the token.
+  CREATE TABLE IF NOT EXISTS email_verifications (
+    link_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    confirmed_at INTEGER,
+    dead_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
+
   -- eBay OAuth tokens, AES-256-GCM sealed (ebayAuth.ts).
   CREATE TABLE IF NOT EXISTS ebay_tokens (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -861,7 +880,23 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // markSeen). NULL = not opened since the column shipped. No index: the
     // only reader walks users anyway, and an index would double the write.
     "last_seen_at INTEGER",
+    // Email confirmation (emailVerify.ts). email_pending = 1 only on a public
+    // signup made while the admin switch email_confirm is "1"; every existing
+    // row and every other way of making an account reads 0, so nobody who
+    // was already in can be walled. email_verified_at = when an inbox was
+    // proven (NULL for accounts that never were).
+    "email_pending INTEGER NOT NULL DEFAULT 0",
+    "email_verified_at INTEGER",
   ]],
+  [
+    // The address a reset link was mailed to (passwordReset.ts), so consuming
+    // it can only vouch for that inbox: a link is bound to the user, not the
+    // address, and the address can move (email confirmation's Change Email).
+    // NULL on links made before this column: they reset a password as ever
+    // but prove no inbox.
+    "password_resets",
+    ["email TEXT"],
+  ],
 ];
 
 /**
@@ -886,12 +921,20 @@ async function initSchema(): Promise<void> {
     // First run on an empty database — the table doesn't exist yet.
   }
   await client.executeMultiple(SCHEMA);
+  // Only "duplicate column name" means the column is already there. Any other
+  // error (a Turso hiccup while several cold instances run this pass at once)
+  // leaves it missing, and stamping the fingerprint after that would skip the
+  // pass for good: the next cold start must run it again.
+  let probeFailed = false;
   for (const [table, columns] of COLUMN_PROBES) {
     for (const column of columns) {
       try {
         await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column}`);
-      } catch {
-        // Already present.
+      } catch (err) {
+        if (!/duplicate column/i.test(err instanceof Error ? err.message : String(err))) {
+          probeFailed = true;
+          console.error(`schema: ALTER TABLE ${table} ADD COLUMN ${column} failed:`, err);
+        }
       }
     }
   }
@@ -910,6 +953,7 @@ async function initSchema(): Promise<void> {
   await client.execute(
     "CREATE INDEX IF NOT EXISTS idx_mtg_cards_flavor ON mtg_cards(REPLACE(LOWER(flavor_name), ',', '')) WHERE flavor_name <> ''",
   );
+  if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",
     args: [SCHEMA_META_KEY, SCHEMA_FINGERPRINT],

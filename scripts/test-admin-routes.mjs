@@ -38,7 +38,9 @@ const userById = await import(at("app/api/admin/users/[id]/route.ts"));
 const access = await import(at("app/api/admin/users/[id]/access/route.ts"));
 const role = await import(at("app/api/admin/users/[id]/role/route.ts"));
 const resetLink = await import(at("app/api/admin/users/[id]/reset-link/route.ts"));
+const verifyEmail = await import(at("app/api/admin/users/[id]/verify-email/route.ts"));
 const settings = await import(at("app/api/admin/settings/route.ts"));
+const { getSetting } = await import(at("lib/server/settings.ts"));
 const { ADMIN_COOKIE } = await import(at("lib/adminAuth.ts"));
 const { SESSION_COOKIE } = await import(at("lib/server/auth.ts"));
 const { createSession } = await import(at("lib/server/sessions.ts"));
@@ -143,6 +145,43 @@ check("settings: flip on", (await (await settings.PATCH(req("PATCH", { magicPubl
 check("settings: static cache busted from the root layout", revalidated, [{ path: "/", type: "layout" }]);
 check("settings: GET reads it back", (await (await settings.GET()).json()).magicPublic, true);
 check("settings: flip off", (await (await settings.PATCH(req("PATCH", { magicPublic: false }))).json()).magicPublic, false);
+
+// --- email confirmation (09-30): Mark Confirmed and the switch ------------------
+const waiting = await createUser("Waiting", "waiting@example.com", "hunter22", "user", { emailPending: true });
+const waiting2 = await createUser("Waiting Too", "waiting2@example.com", "hunter22", "user", { emailPending: true });
+const waiting3 = await createUser("Waiting Three", "waiting3@example.com", "hunter22", "user", { emailPending: true });
+delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+check("email switch: no row means off", (await getSetting("email_confirm")), null);
+check("email switch: GET reports it off with nobody released yet", [(await (await settings.GET()).json()).emailConfirm.on, (await (await settings.GET()).json()).emailConfirm.deliverable], [false, false]);
+check("email switch: turning it on with no mail set up is refused (400)", await status(settings.PATCH(req("PATCH", { emailConfirm: true }))), 400);
+check("email switch: ...and wrote nothing", await getSetting("email_confirm"), null);
+process.env.EMAIL_CONFIRM_DEV_ECHO = "1";
+revalidated.length = 0;
+const swOn = await (await settings.PATCH(req("PATCH", { emailConfirm: true }))).json();
+check("email switch: on when a code can be delivered", [swOn.emailConfirm.on, swOn.released, await getSetting("email_confirm")], [true, 0, "1"]);
+check("email switch: the page cache is left alone (only game flips bust it)", revalidated, []);
+check("email switch: GET reads it back with the accounts waiting", [(await (await settings.GET()).json()).emailConfirm.on, (await (await settings.GET()).json()).emailConfirm.waiting], [true, 3]);
+check("email switch: a game flip still works beside it", (await (await settings.PATCH(req("PATCH", { games: { lorcana: true }, emailConfirm: true }))).json()).games.lorcana, true);
+await settings.PATCH(req("PATCH", { games: { lorcana: false } }));
+
+check("verify-email: unknown user → 404", await status(verifyEmail.PATCH(req("PATCH"), ctx("nope"))), 404);
+const savedAdmin = testCookies.get(ADMIN_COOKIE);
+testCookies.delete(ADMIN_COOKIE);
+check("verify-email without the panel cookie → 403", await status(verifyEmail.PATCH(req("PATCH"), ctx(waiting.id))), 403);
+testCookies.set(ADMIN_COOKIE, savedAdmin);
+const mark = await verifyEmail.PATCH(req("PATCH"), ctx(waiting.id));
+const markBody = await mark.json();
+const waitingRow = await findUserById(waiting.id);
+check("verify-email: Mark Confirmed lets the account in and stamps it proven", [mark.status, markBody.changed, markBody.user.mustConfirmEmail, waitingRow.emailPending, typeof waitingRow.emailVerifiedAt], [200, true, false, false, "number"]);
+check("verify-email: marking again is a no-op", (await (await verifyEmail.PATCH(req("PATCH"), ctx(waiting.id))).json()).changed, false);
+
+const swOff = await (await settings.PATCH(req("PATCH", { emailConfirm: false }))).json();
+check("email switch: off writes 0 and lets everyone waiting straight in", [swOff.emailConfirm.on, swOff.released, await getSetting("email_confirm")], [false, 2, "0"]);
+check("email switch: those accounts are open now, and not stamped as verified", [
+  (await findUserById(waiting2.id)).emailPending, (await findUserById(waiting3.id)).emailPending, (await findUserById(waiting2.id)).emailVerifiedAt,
+], [false, false, null]);
+check("email switch: off again releases nobody", (await (await settings.PATCH(req("PATCH", { emailConfirm: false }))).json()).released, 0);
+delete process.env.EMAIL_CONFIRM_DEV_ECHO;
 
 // --- expired cookie ----------------------------------------------------------
 testCookies.set(ADMIN_COOKIE, `${Date.now() - 1000}.deadbeef`);
