@@ -446,10 +446,12 @@ export function quotePrice(
   const adjusted = conditioned * STRATEGY_MULTIPLIER[effective];
 
   const rounded = roundPrice(adjusted, effective);
-  // Cheap cards (under $5, Chris 09-30): value + fees + postage, never under
-  // the floor. USD listings only (a euro reference can't set a dollar price
-  // anyway), and only when there IS a price.
-  const covered = price.currency === "USD" ? coveredAsk(rounded) : null;
+  // Cheap cards (under $5, Chris 09-30): value + fees + postage. USD listings
+  // only (a euro reference can't set a dollar price anyway), and only when
+  // there IS a price. The market quote only: quick sale exists from a $5
+  // value up, so its 12% cut is the seller's chosen discount on a $5+ card —
+  // covering it put a $5.00 card's Quick sale at $6.29, above Full value.
+  const covered = price.currency === "USD" && effective === "market" ? coveredAsk(rounded) : null;
 
   return {
     price,

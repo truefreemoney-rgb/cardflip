@@ -228,9 +228,21 @@ await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 2 * DAY });
 await listedCard({ price: 10, catalogId: null, listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-none", listedAt: NOW - 8 * DAY });
 const nudges = (await getRepriceNudges(uid, NOW)).sort((x, y) => x.drift - y.drift);
-check("nudges: only 15%+ drift after 7 days with a series", nudges.map((x) => [x.cardId, x.market, x.listedPrice, x.drift]), [
-  [down.id, 8, 10, -0.2],
-  [up.id, 20, 10, 1],
+check("nudges: only 15%+ drift after 7 days with a series", nudges.map((x) => [x.cardId, x.market, x.target, x.listedPrice, x.drift]), [
+  [down.id, 8, 8, 10, -0.2],
+  [up.id, 20, 20, 10, 1],
+]);
+// 09-30: the nudge offers the scanner's price, not raw market. Under $5 that
+// is value + fees + postage — a $1.30 card listed at $2.71 is already right
+// (raw market nudged it to $1.30 = 8¢ net), and a $0.25 Spidops listed at
+// the old $1.79 minimum is nudged down to $1.50, not to $0.25 (refused).
+await recordPoint("cat-cheap", "pokemon", "normal", "tcgplayer", "USD", 1.3);
+await recordPoint("cat-spidops", "pokemon", "normal", "tcgplayer", "USD", 0.25);
+const cheapRight = await listedCard({ price: 2.71, catalogId: "cat-cheap", listedAt: NOW - 8 * DAY });
+const oldFloor = await listedCard({ price: 1.79, catalogId: "cat-spidops", listedAt: NOW - 8 * DAY });
+const cheapNudges = (await getRepriceNudges(uid, NOW)).filter((x) => [cheapRight.id, oldFloor.id].includes(x.cardId));
+check("nudges: cheap cards target value + costs, not raw market", cheapNudges.map((x) => [x.cardId, x.market, x.target]), [
+  [oldFloor.id, 0.25, 1.5],
 ]);
 
 console.error = realError;

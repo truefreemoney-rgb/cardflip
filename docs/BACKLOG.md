@@ -128,6 +128,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Move support@ out of personal Fastmail triage. DONE 09-06: Fastmail rule To/Cc/Bcc support@cardflip.io → folder "CardFlip Support", Notify on; tested from Gmail.
 - [ ] Infra tiers: Vercel (now Pro) / Turso plan at 10k+ users.
 - [x] Vercel Hobby cap note retired (Pro since 09-04).
+- [ ] LORCANA "FORMAT COCONUT" PICTURES (Chris 09-30): all 18 cards (set_code Coconut, 2026, unpriced) show Lorcast's grayscale "FOR BETA TEST ONLY" stock images. Swap them when the real cards are out. Should be automatic: sync-lorcana overwrites image_url every run (the Lorcast URL carries a ?version stamp) and scripts/catalog-sync.cmd (Task Scheduler "CardFlip catalog sync", weekly) pushes it to prod. CHECK after the real release: prod `SELECT image_url FROM tcg_cards WHERE game='lorcana' AND set_code='Coconut'` no longer ends ?1785781319, and By set → Format Coconut shows color cards. If Lorcast never replaces them, the only other source is real photos (no free catalog has them), same as One Piece.
 
 ### G. Pre-scale / business (unchanged from §0 PRE-SCALE)
 - [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).

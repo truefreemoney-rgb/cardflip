@@ -516,8 +516,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
   // Quick sale is a $5+ option (Chris, 09-03): under that, the only tile is
   // Market and it reads as selected whatever the remembered strategy says
-  // (quotePrice already prices "quick" as market there).
-  const showQuick = Boolean(item.grading) || quickSaleEligible(marketQuote?.suggested);
+  // (quotePrice already prices "quick" as market there). The test is on the
+  // card's VALUE: a $4 card's covered price ($5.83) is not a $5+ card.
+  const showQuick = Boolean(item.grading) || quickSaleEligible(marketQuote?.covers ?? marketQuote?.suggested);
   const selectedStrategy: PriceStrategy = showQuick ? item.strategy : "market";
 
   const facts = { firstEdition: itemFirstEdition(item), grading: item.grading };

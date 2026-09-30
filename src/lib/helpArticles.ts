@@ -79,7 +79,7 @@ export const helpArticles: HelpArticle[] = [
     id: "reprice",
     heading: "Reprice nudges",
     paragraphs: [
-      "When a listing is at least a week old and the market has moved 15% or more from your asking price, a nudge appears on the card. Tapping it updates both your ledger and the live eBay listing in one step.",
+      "When a listing is at least a week old and today's suggested price is 15% or more away from your asking price, a nudge appears on the card. The suggested price is today's market for the card's condition, and for cards under $5 it adds eBay fees and postage on top so you keep the full value. Tapping it updates both your ledger and the live eBay listing in one step.",
       "If eBay rejects the price change, CardFlip tells you — your ledger keeps the new price and the live listing keeps the old one until you retry.",
     ],
   },

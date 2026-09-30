@@ -536,6 +536,14 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice({ name: "Test", setName: "Test", prices: [usd(20)] }, "Near Mint", "quick").suggested,
     16.99,
   );
+  // A $5.00 card's quick sale ($4.40) is under $5 — covering it gave $6.29,
+  // above Full value. The cover follows the card's value, not the discount.
+  for (const v of [5, 5.5, 6.81]) {
+    const card = { name: "Test", setName: "Test", prices: [usd(v)] };
+    const quick = quotePrice(card, "Near Mint", "quick");
+    check(`$${v} card: quick sale is under full value, not covered`,
+      [quick.suggested < quotePrice(card, "Near Mint", "market").suggested, quick.floored ?? false], [true, false]);
+  }
   check(
     "cheap card: market value is left alone (base)",
     quotePrice(cheapCard, "Near Mint", "market").base,

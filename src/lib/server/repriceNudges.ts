@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { askingPriceFor } from "@/lib/listing";
 
 /**
  * The stale-listing half of BACKLOG's "auto-offers + reprice nudge": a card
@@ -9,9 +10,11 @@ import { latestUsdPrices } from "@/lib/server/priceHistory";
  * daily) — no external calls, so the collection page can ask on every load.
  *
  * Only rows that carry catalog_card_id qualify (scans after 09-01); a listing
- * has to be a week old before we second-guess its price, and the market has
- * to have moved ≥15% in either direction — down ("buyers see an overpriced
- * card") or up ("you're leaving money on the table").
+ * has to be a week old before we second-guess its price, and today's
+ * suggested price has to sit ≥15% away in either direction — below ("buyers
+ * see an overpriced card") or above ("you're leaving money on the table").
+ * Under $5 that can fire without a market move: a card listed at raw market
+ * before the 09-30 value + fees + postage rule nudges up to it.
  */
 
 const MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -22,21 +25,28 @@ export interface RepriceNudge {
   cardId: string;
   /** The latest market price we hold. */
   market: number;
+  /**
+   * The price the nudge offers: today's market through the same math the
+   * scanner uses (askingPriceFor — condition, and under $5 the card's value
+   * with eBay fees + postage on top). Raw market would undercut every
+   * cheap listing (a $1.30 card listed at $2.71 nudged to $1.30 nets 8¢).
+   */
+  target: number;
   /** What it's listed at. */
   listedPrice: number;
-  /** (market - listed) / listed, e.g. -0.18 = market is 18% below the ask. */
+  /** (target - listed) / listed, e.g. -0.18 = the target is 18% below the ask. */
   drift: number;
 }
 
 export async function getRepriceNudges(userId: string, now = Date.now()): Promise<RepriceNudge[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id FROM cards
+      `SELECT id, price, catalog_card_id, condition FROM cards
        WHERE user_id = ? AND status = 'listed' AND catalog_card_id IS NOT NULL
          AND price > 0 AND listed_at IS NOT NULL AND listed_at < ?
        LIMIT ${CHECK_CAP}`,
     )
-    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string }[];
+    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; condition: string }[];
 
   // One batched series read for every listed row — the per-row lookup was
   // up to 50 round trips on each collection load (Turso bills each one).
@@ -45,9 +55,11 @@ export async function getRepriceNudges(userId: string, now = Date.now()): Promis
   for (const row of rows) {
     const market = markets.get(row.catalog_card_id)?.price ?? null;
     if (market == null || market <= 0) continue;
-    const drift = (market - row.price) / row.price;
+    const target = askingPriceFor(market, row.condition);
+    if (!(target > 0)) continue;
+    const drift = (target - row.price) / row.price;
     if (Math.abs(drift) < MIN_DRIFT) continue;
-    nudges.push({ cardId: row.id, market: Math.round(market * 100) / 100, listedPrice: row.price, drift });
+    nudges.push({ cardId: row.id, market: Math.round(market * 100) / 100, target, listedPrice: row.price, drift });
   }
   return nudges;
 }

@@ -279,11 +279,11 @@ function RepriceSheet({
           {nudge && (
             <button
               type="button"
-              onClick={() => setPrice(nudge.market)}
+              onClick={() => setPrice(nudge.target)}
               className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition hover:border-amber-400/50"
-              title="TCGplayer market today"
+              title={`Today's market ${formatMoney(nudge.market)}, priced for this card's condition${nudge.target > nudge.market ? " with eBay fees and postage on top" : ""}`}
             >
-              Market {formatMoney(nudge.market)}
+              Suggested {formatMoney(nudge.target)}
             </button>
           )}
         </div>
@@ -835,7 +835,7 @@ export default function CollectionPage() {
   }, [userId]);
 
   async function applyReprice(card: ServerCard, nudge: RepriceNudge) {
-    await setAskingPrice(card, nudge.market);
+    await setAskingPrice(card, nudge.target);
   }
 
   /** Writes a new asking price to the ledger and, when the card has an eBay
@@ -2025,10 +2025,10 @@ export default function CollectionPage() {
                         <button
                           onClick={() => void applyReprice(card, nudges[card.id])}
                           disabled={repricing === card.id}
-                          title={`Market moved ${nudges[card.id].drift > 0 ? "up" : "down"} — reprice to ${formatMoney(nudges[card.id].market)} here and on eBay`}
+                          title={`Suggested price is ${formatMoney(nudges[card.id].target)} — reprice here and on eBay`}
                           className="rounded-full bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
                         >
-                          {nudges[card.id].drift > 0 ? "↑" : "↓"} {formatMoney(nudges[card.id].market)}
+                          {nudges[card.id].drift > 0 ? "↑" : "↓"} {formatMoney(nudges[card.id].target)}
                         </button>
                       )}
                       <button
@@ -2283,7 +2283,7 @@ export default function CollectionPage() {
                           <button
                             onClick={() => void applyReprice(card, nudges[card.id])}
                             disabled={repricing === card.id}
-                            title={`The market moved ${nudges[card.id].drift > 0 ? "up" : "down"} ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% since this listed — one tap updates the price here and on the live eBay listing.`}
+                            title={`Suggested price is ${formatMoney(nudges[card.id].target)}, ${Math.round(Math.abs(nudges[card.id].drift) * 100)}% ${nudges[card.id].drift > 0 ? "above" : "below"} your price — one tap updates the price here and on the live eBay listing.`}
                             className="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-400/20 disabled:opacity-50"
                           >
                             {repricing === card.id ? (
@@ -2291,7 +2291,7 @@ export default function CollectionPage() {
                             ) : (
                               <>
                                 <span aria-hidden>{nudges[card.id].drift > 0 ? "↑" : "↓"}</span>
-                                Reprice to {formatMoney(nudges[card.id].market)}
+                                Reprice to {formatMoney(nudges[card.id].target)}
                               </>
                             )}
                           </button>

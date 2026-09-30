@@ -70,7 +70,8 @@ export function belowFloor(price: number): boolean {
   return price > 0 && price < listingFloor() - 0.005;
 }
 export function floorRefusal(): string {
-  return `The lowest price is $${listingFloor().toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — anything under it loses money after eBay fees and postage.`;}
+  return `The lowest price is $${listingFloor().toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — anything under it loses money after eBay fees and postage.`;
+}
 
 /** What the seller pockets — actual fees when recorded, the estimate otherwise. */
 export function netAfterFees(gross: number, actualFees?: number | null): number {

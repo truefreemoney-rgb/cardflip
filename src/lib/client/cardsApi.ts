@@ -185,8 +185,10 @@ export async function fetchServerCards(): Promise<ServerCard[] | null> {
 export interface RepriceNudge {
   cardId: string;
   market: number;
+  /** What the nudge reprices to: market with condition + (under $5) fees and postage on top. */
+  target: number;
   listedPrice: number;
-  /** (market - listed) / listed; negative = market fell below the ask. */
+  /** (target - listed) / listed; negative = the target fell below the ask. */
   drift: number;
 }
 
