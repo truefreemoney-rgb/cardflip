@@ -69,7 +69,8 @@ for (const table of CATALOG_TABLES) {
     console.log(`${table}: not in local db — skipped`);
     continue;
   }
-  const cols = local.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  const localCols = local.prepare(`PRAGMA table_info(${table})`).all();
+  const cols = localCols.map((c) => c.name);
   const localCount = local.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
   let remoteCount = 0;
   try {
@@ -77,6 +78,16 @@ for (const table of CATALOG_TABLES) {
   } catch {
     console.log(`${table}: missing on Turso — will create rows only if the app's schema made the table; skipping`);
     continue;
+  }
+  // A column the local sync added (tcg_cards.ref_image_url, 09-30) has to
+  // exist upstream before the REPLACE names it; the app's own probe adds it
+  // on its next deploy, but the push must not wait for that.
+  const remoteCols = new Set((await remote.execute(`PRAGMA table_info(${table})`)).rows.map((r) => String(r.name)));
+  for (const c of localCols) {
+    if (remoteCols.has(c.name)) continue;
+    const def = `${c.name} ${c.type}${c.notnull ? " NOT NULL" : ""}${c.dflt_value != null ? ` DEFAULT ${c.dflt_value}` : ""}`;
+    console.log(`${table}: adding column ${def} on Turso${dry ? " [dry run]" : ""}`);
+    if (!dry) await remote.execute(`ALTER TABLE ${table} ADD COLUMN ${def}`);
   }
   // Catalog syncs only ever add or refresh rows, so equal MAX(synced_at)
   // and count means nothing new — skip the upload. species_names and

@@ -1084,8 +1084,8 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
     const { mtgCardById } = await import("@/lib/server/mtgCards");
     url = (await mtgCardById(id))[0]?.imageLarge ?? null;
   } else if (game === "lorcana" || game === "onepiece" || game === "yugioh") {
-    const { tcgCardById } = await import("@/lib/server/tcgCards");
-    url = (await tcgCardById(id))[0]?.imageLarge ?? null;
+    const { tcgReferenceImage } = await import("@/lib/server/tcgCards");
+    url = await tcgReferenceImage(id);
   } else {
     const { englishCardById } = await import("@/lib/server/enCards");
     url = (await englishCardById(id)).cards[0]?.imageLarge ?? null;

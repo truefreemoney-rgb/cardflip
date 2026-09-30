@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
-import { magicPublic } from "@/lib/server/settings";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -26,7 +25,7 @@ const sections: LegalSection[] = [
     paragraphs: [
       "To run the service: identifying the cards in your photos, quoting prices, generating listings, and keeping your ledger. Nothing else — we do not sell your data, share it with advertisers, or use it to build profiles.",
       "When you use photo scanning, the card photo is sent to our AI image-reading provider (Anthropic) to read the card's name, number, and visible condition. Photos are sent for that reading only; under the provider's API terms they are not used to train their models.",
-      "Card names and numbers you search are matched against our own card catalogue, which is built from open catalogue sources (TCGdex and pokemontcg.io for Pokémon, Scryfall for Magic: The Gathering). Price data comes from public market sources (such as TCGplayer's published prices); your personal information is never sent to any of them.",
+      "Card names and numbers you search are matched against our own card catalogue, which is built from open catalogue sources (TCGdex and pokemontcg.io for Pokémon, Scryfall for Magic: The Gathering, and TCGplayer's public catalogue for Disney Lorcana, Yu-Gi-Oh! and One Piece). Price data comes from public market sources (such as TCGplayer's published prices); your personal information is never sent to any of them.",
     ],
   },
   {
@@ -76,24 +75,15 @@ const sections: LegalSection[] = [
   },
 ];
 
-/** Magic is mentioned only while the site switch has it public (Chris, 09-05). */
-function forViewer(magic: boolean): LegalSection[] {
-  if (magic) return sections;
-  return sections.map((s) => ({
-    ...s,
-    paragraphs: s.paragraphs.map((p) =>
-      p.replace("(TCGdex and pokemontcg.io for Pokémon, Scryfall for Magic: The Gathering)", "(TCGdex and pokemontcg.io)"),
-    ),
-  }));
-}
-
-export default async function PrivacyPage() {
+// The games were named per site switch until 09-30; the lineup is closed at
+// five (Chris), so the copy is static.
+export default function PrivacyPage() {
   return (
     <LegalArticle
       title="Privacy Policy"
       effectiveDate="September 2, 2026"
       intro="CardFlip collects the minimum it needs to identify, price, and track the cards you sell. This page lists exactly what that is, where it goes, and how to get it deleted."
-      sections={forViewer(await magicPublic())}
+      sections={sections}
     />
   );
 }

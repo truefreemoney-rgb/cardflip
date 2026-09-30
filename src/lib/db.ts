@@ -688,6 +688,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "attraction_lights TEXT NOT NULL DEFAULT ''",
     ],
   ],
+  // One Piece (09-30): Bandai's stamped card-list art for the picture
+  // tiebreak only; image_url is the clean TCGplayer scan people see, or ''.
+  ["tcg_cards", ["ref_image_url TEXT NOT NULL DEFAULT ''"]],
   // Ticket photos (Chris 09-26): JSON array of Blob URLs. Prod's table
   // predates the column.
   ["support_tickets", ["images TEXT NOT NULL DEFAULT '[]'"]],

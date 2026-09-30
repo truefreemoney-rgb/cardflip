@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import SubscriptionGate from "@/components/SubscriptionGate";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
-import { magicPublic } from "@/lib/server/settings";
+import { NOT_AFFILIATED } from "@/lib/games";
 
 export const metadata: Metadata = { title: "Scanner", robots: { index: false, follow: false } };
 
@@ -16,8 +16,7 @@ export const metadata: Metadata = { title: "Scanner", robots: { index: false, fo
  * The session is looked up once here (SessionProvider) and the header lives
  * here too, so switching tabs doesn't blank the page or re-ask /api/auth/me.
  */
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const magic = await magicPublic();
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -40,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             Contact
           </a>
-          <span>Not affiliated with Nintendo, The Pokémon Company, {magic ? "Wizards of the Coast, " : ""}or eBay Inc.</span>
+          <span>{NOT_AFFILIATED}</span>
         </nav>
       </footer>
     </SessionProvider>

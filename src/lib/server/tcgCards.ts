@@ -82,6 +82,23 @@ function toCard(row: TcgRow): PokemonCard {
   } as PokemonCard;
 }
 
+/**
+ * The picture the vision tiebreak compares against. One Piece keeps Bandai's
+ * stamped card-list art in ref_image_url for exactly this (the model reads
+ * through a "SAMPLE" stamp fine; people must never see it — image_url is the
+ * clean scan or nothing). Other games: the shown picture.
+ */
+export async function tcgReferenceImage(id: string): Promise<string | null> {
+  try {
+    const row = (await db.prepare("SELECT image_url, ref_image_url FROM tcg_cards WHERE id = ?").get(id)) as { image_url: string; ref_image_url: string } | undefined;
+    if (!row) return null;
+    return row.ref_image_url || row.image_url || null;
+  } catch {
+    // Prod before the column probe ran: the shown picture.
+    return (await tcgCardById(id))[0]?.imageLarge ?? null;
+  }
+}
+
 export async function tcgCardById(id: string): Promise<PokemonCard[]> {
   const row = (await db.prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE id = ?`).get(id)) as TcgRow | undefined;
   return row ? [toCard(row)] : [];

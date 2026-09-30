@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
-import { magicPublic } from "@/lib/server/settings";
 import { PRICE, SCANS } from "@/lib/pricing";
 
 export const metadata: Metadata = {
@@ -14,7 +13,7 @@ const sections: LegalSection[] = [
   {
     heading: "What CardFlip is",
     paragraphs: [
-      "CardFlip is a tool for people selling Pokémon and Magic: The Gathering trading cards. It identifies cards from photos or search, shows market price information for the matched printing, generates listing titles and descriptions, and keeps a ledger of what you have drafted, listed, and sold. Listings are placed on eBay under your own eBay account — CardFlip is not a marketplace, does not host sales, and never handles the money from your sales.",
+      "CardFlip is a tool for people selling Pokémon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh! and One Piece trading cards. It identifies cards from photos or search, shows market price information for the matched printing, generates listing titles and descriptions, and keeps a ledger of what you have drafted, listed, and sold. Listings are placed on eBay under your own eBay account — CardFlip is not a marketplace, does not host sales, and never handles the money from your sales.",
     ],
   },
   {
@@ -56,7 +55,7 @@ const sections: LegalSection[] = [
     heading: "Third-party services",
     paragraphs: [
       "CardFlip works alongside services we do not control, including eBay (where your listings are placed under your account and eBay's own terms), market-data sources such as TCGplayer, and the open card catalogues our card database is built from (TCGdex and pokemontcg.io). Their availability and accuracy are not ours to guarantee, and your relationship with them is governed by their terms.",
-      "Pokémon, Magic: The Gathering, and all card names and images are trademarks of their respective owners, including Nintendo, Creatures Inc., Game Freak, and Wizards of the Coast LLC. CardFlip is not affiliated with, endorsed by, or sponsored by Nintendo, The Pokémon Company, Wizards of the Coast, Scryfall, TCGplayer, or eBay Inc. Card data and images are used to identify cards for resale purposes.",
+      "Pokémon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh!, One Piece, and all card names and images are trademarks of their respective owners, including Nintendo, Creatures Inc., Game Freak, Wizards of the Coast LLC, Ravensburger, Disney, Konami, Bandai, and Shueisha. CardFlip is not affiliated with, endorsed by, or sponsored by any of them, nor with Scryfall, TCGplayer, or eBay Inc. Card data and images are used to identify cards for resale purposes.",
     ],
   },
   {
@@ -92,28 +91,15 @@ const sections: LegalSection[] = [
   },
 ];
 
-/** Magic is mentioned only while the site switch has it public (Chris, 09-05). */
-function forViewer(magic: boolean): LegalSection[] {
-  if (magic) return sections;
-  return sections.map((s) => ({
-    ...s,
-    paragraphs: s.paragraphs.map((p) =>
-      p
-        .replace("Pokémon and Magic: The Gathering trading cards", "Pokémon trading cards")
-        .replace("Pokémon, Magic: The Gathering, and all card names", "Pokémon and all card names")
-        .replace("Nintendo, Creatures Inc., Game Freak, and Wizards of the Coast LLC", "Nintendo, Creatures Inc., and Game Freak")
-        .replace("Nintendo, The Pokémon Company, Wizards of the Coast, Scryfall, TCGplayer, or eBay Inc.", "Nintendo, The Pokémon Company, TCGplayer, or eBay Inc."),
-    ),
-  }));
-}
-
-export default async function TermsPage() {
+// 09-05 to 09-30 the games were named per site switch; the lineup is closed
+// at five now (Chris 09-30), so the copy is static.
+export default function TermsPage() {
   return (
     <LegalArticle
       title="Terms of Service"
       effectiveDate="September 2, 2026"
       intro="These terms are an agreement between you and CardFlip covering your use of the CardFlip website and app. They are written to be read — if anything is unclear, ask us before relying on it."
-      sections={forViewer(await magicPublic())}
+      sections={sections}
     />
   );
 }

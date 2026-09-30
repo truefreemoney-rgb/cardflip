@@ -11,7 +11,7 @@ first (no cards on hand), then on his phone batch.
 | Game | Source | What it gives | Sync |
 |---|---|---|---|
 | Lorcana | Lorcast, `https://api.lorcast.com/v0` (free, no key) | 25 sets, 3,198 cards; images small/normal/large (AVIF); TCGplayer USD + foil; set code, collector number, version line, rarity (Enchanted = the alt printing above the set total) | `npm run sync:lorcana` |
-| One Piece | optcgapi.com (free, no key, "go easy") | 58 sets incl. starter decks, 4,280 entries; JPEG images; daily market price; card id `OP01-077`; parallels / alt arts / manga / box toppers as separate entries with `_p1` image ids and "(Parallel)" name tags | `npm run sync:onepiece` (3 bulk calls) |
+| One Piece | optcgapi.com (free, no key, "go easy") for rows + prices; PICTURES from TCGplayer via tcgcsv category 68 (`sync-onepiece-images.mjs`, runs inside `sync:onepiece`) because every Bandai/optcgapi image carries a "SAMPLE" stamp and TCGplayer reuses it for ~3/4 of products; a mask check (`onepiece-stamp.mask.json`, per-product verdicts cached in `onepiece-stamp.cache.json`) keeps only real scans as `image_url`, everything else shows Bandai's stamped card (Chris 09-30: "you have to use the stamped cards, we can't have any image coming soon nonsense"); `ref_image_url` = the Bandai picture for the vision tiebreak | 58 sets incl. starter decks, 4,280 entries; daily market price; card id `OP01-077`; parallels / alt arts / manga / box toppers as separate entries with `_p1` image ids and "(Parallel)" name tags | `npm run sync:onepiece` (3 bulk calls) |
 
 Both land in one table, **`tcg_cards`** (src/lib/db.ts): id, game, name,
 subtitle, set_code, set_name, collector_number, set_total, release date,

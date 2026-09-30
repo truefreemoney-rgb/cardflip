@@ -22,6 +22,11 @@ db.exec(`CREATE TABLE IF NOT EXISTS tcg_cards (
   set_release_date TEXT NOT NULL DEFAULT '', rarity TEXT NOT NULL DEFAULT '', variant TEXT NOT NULL DEFAULT '',
   image_url TEXT NOT NULL DEFAULT '', price_usd REAL, price_usd_foil REAL, art_hash TEXT NOT NULL DEFAULT '',
   synced_at INTEGER NOT NULL)`);
+// ref_image_url (09-30): Bandai's card-list art, "SAMPLE" stamp and all —
+// never shown, only fetched server-side by the picture tiebreak (vision.ts
+// catalogPicture). image_url is what people see: a clean TCGplayer scan
+// from sync-onepiece-images.mjs, or nothing.
+if (!db.prepare("PRAGMA table_info(tcg_cards)").all().some((c) => c.name === "ref_image_url")) db.exec("ALTER TABLE tcg_cards ADD COLUMN ref_image_url TEXT NOT NULL DEFAULT ''");
 
 async function getJson(url) {
   const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(120_000) });
@@ -29,11 +34,14 @@ async function getJson(url) {
   return res.json();
 }
 
-const upsert = db.prepare(`INSERT INTO tcg_cards (id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, price_usd, price_usd_foil, synced_at)
-  VALUES (?, 'onepiece', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+// image_url is never written here: a new row starts empty and the images
+// pass (sync-onepiece-images.mjs, same npm script) gives it a clean scan
+// when TCGplayer has one; an existing row keeps what that pass decided.
+const upsert = db.prepare(`INSERT INTO tcg_cards (id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, ref_image_url, price_usd, price_usd_foil, synced_at)
+  VALUES (?, 'onepiece', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET name = excluded.name, subtitle = excluded.subtitle, set_code = excluded.set_code, set_name = excluded.set_name,
     collector_number = excluded.collector_number, set_total = excluded.set_total, rarity = excluded.rarity, variant = excluded.variant,
-    image_url = excluded.image_url, price_usd = excluded.price_usd, price_usd_foil = excluded.price_usd_foil, synced_at = excluded.synced_at`);
+    ref_image_url = excluded.ref_image_url, price_usd = excluded.price_usd, price_usd_foil = excluded.price_usd_foil, synced_at = excluded.synced_at`);
 
 // "Perona (Parallel)" → variant "parallel"; "(Box Topper)" → "box-topper";
 // "(Alternate Art)" / "(Alt Art)" → "alt-art"; "(Manga)" → "manga";
@@ -107,7 +115,8 @@ for (const [label, url] of [["sets", `${API}/allSetCards/`], ["starter decks", `
       "",
       String(c.rarity ?? ""),
       variant,
-      image,
+      "", // shown picture: the images pass fills it with a clean scan, or leaves it empty
+      image, // reference picture for the tiebreak (stamped is fine there)
       c.market_price != null ? Number(c.market_price) : null,
       null,
       now,

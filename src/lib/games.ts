@@ -139,6 +139,10 @@ export const GAMES: Record<GameId, GameInfo> = {
 
 export const GAME_IDS: GameId[] = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"];
 
+/** The footer's disclaimer, one line for every game we read (09-30: the lineup is closed at five, so no more per-switch wording). */
+export const NOT_AFFILIATED =
+  "Not affiliated with Nintendo, The Pokémon Company, Wizards of the Coast, Ravensburger, Disney, Konami, Bandai, or eBay Inc.";
+
 /** Games whose printed number is one token with the set inside ("OP01-077", "LOB-EN005"). */
 export const SET_IN_NUMBER_GAMES: GameId[] = ["onepiece", "yugioh"];
 
