@@ -61,6 +61,10 @@ const sessionCookie = (res) => res.cookies.get(SESSION_COOKIE)?.value ?? null;
 // --- signup -----------------------------------------------------------------
 check("signup: name required", (await signup.POST(post({ email: "a@b.co", password: "123456" }))).status, 400);
 check("signup: real email required", (await signup.POST(post({ name: "A", email: "not-an-email", password: "123456" }))).status, 400);
+// 09-30: "a@x.com,b@y.com" passed the old check and the mailer sent the welcome mail to every address in it.
+for (const many of ["a@x.com,b@y.com", "a@x.com;b@y.com", "A <a@x.com>", "\"a\"@x.com"]) {
+  check(`signup: one address only (${many})`, (await signup.POST(post({ name: "A", email: many, password: "123456" }))).status, 400);
+}
 check("signup: password floor", (await signup.POST(post({ name: "A", email: "a@b.co", password: "12345" }))).status, 400);
 check("signup: name capped at 80", (await signup.POST(post({ name: "N".repeat(81), email: "a@b.co", password: "123456" }))).status, 400);
 

@@ -17,6 +17,7 @@ import {
   repeatSignup,
 } from "@/lib/server/signupGuard";
 import { TRIAL_SCANS } from "@/lib/server/users";
+import { isValidEmail } from "@/lib/emailAddress";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
   if (name.length > 80) {
     return NextResponse.json({ error: "Name must be 80 characters or fewer." }, { status: 400 });
   }
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
+  if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
   }
   if (password.length < 6) {

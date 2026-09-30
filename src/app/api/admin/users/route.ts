@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { createUser, findUserByEmail, toPublicUser, type Role } from "@/lib/server/users";
+import { isValidEmail } from "@/lib/emailAddress";
 
 /**
  * Admin: create an account by hand (Chris, 09-04: "add new accounts from
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     const role: Role = body?.role === "admin" ? "admin" : "user";
 
     if (!name || name.length > 80) return NextResponse.json({ error: "Name is required (1–80 characters)." }, { status: 400 });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    if (!isValidEmail(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
     if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
     if (await findUserByEmail(email)) return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
 

@@ -15,6 +15,8 @@ import { handleProblem, normalizeHandle } from "@/lib/handle";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
 import { scanQuota } from "@/lib/server/scanQuota";
+import { isValidEmail } from "@/lib/emailAddress";
+import { isDisposableEmail } from "@/lib/server/signupGuard";
 
 /**
  * The account page's own endpoint.
@@ -24,7 +26,6 @@ import { scanQuota } from "@/lib/server/scanQuota";
  *   DELETE — remove the account and everything under it (password required)
  */
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function unauthorized(err: unknown) {
   if (err instanceof AuthError) {
@@ -97,8 +98,12 @@ export async function PATCH(req: NextRequest) {
 
     if (typeof body?.email === "string") {
       const email = body.email.trim().toLowerCase();
-      if (!EMAIL_RE.test(email)) {
+      if (!isValidEmail(email)) {
         return NextResponse.json({ error: "That doesn't look like an email address" }, { status: 400 });
+      }
+      // Same rule as signup: no throwaway inboxes on an account.
+      if (isDisposableEmail(email)) {
+        return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });
       }
       if (email !== user.email) {
         // Changing the sign-in identity needs the password, like every other

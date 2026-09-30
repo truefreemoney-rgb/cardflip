@@ -74,6 +74,17 @@ export function enforceRateLimit(key: string, ...rules: RateLimitRule[]): void {
 /** Best-effort client IP behind Fly's proxy; falls back to a shared bucket. */
 export function clientIp(req: Request): string {
   const h = req.headers;
+  // On Vercel only Vercel's own headers can be trusted (09-30 review): it
+  // passes a client's "fly-client-ip" through untouched, so anyone could pick
+  // their IP and dodge every per-IP limit and the one-trial-per-IP guard.
+  if (process.env.VERCEL) {
+    return (
+      h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+      h.get("x-real-ip") ||
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown"
+    );
+  }
   return (
     h.get("fly-client-ip") ??
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
