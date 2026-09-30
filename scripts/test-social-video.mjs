@@ -11,6 +11,9 @@
  * uploadVideo → job poll → embed.video record), X (initialize → append →
  * finalize → STATUS → tweet with the media id), Threads (VIDEO container
  * from the Blob URL, no parking), Instagram (REELS), Facebook (file_url).
+ * TikTok is not an adapter any more (posted by hand since 09-30, see
+ * test-social-tiktok.mjs); only its OAuth token, which the stats reader uses,
+ * is pinned here.
  *
  * Same throwaway-db trick as test-social-publish.mjs.
  */
@@ -272,21 +275,22 @@ const fbBody = new URLSearchParams(calls.at(-1).body);
 check("facebook: Page /videos with file_url + description", [fbBody.get("file_url"), fbBody.get("description"), fbBody.get("access_token"), out.uri], [VIDEO.url, POST.text, "page-token", "https://www.facebook.com/123/videos/v9"]);
 for (const k of ["THREADS_TOKEN", "INSTAGRAM_TOKEN", "META_PAGE_TOKEN", "META_PAGE_ID"]) delete process.env[k];
 
-// TikTok (OAuth tokens in settings, video only)
+// TikTok, read-only since 09-30 (posted by hand): the OAuth token the stats reader uses. There is no adapter to post with.
 Object.assign(process.env, { TIKTOK_CLIENT_KEY: "ck", TIKTOK_CLIENT_SECRET: "cs" });
-const { tiktok, tiktokAuthUrl, tiktokExchangeCode, tiktokAccessToken, pickPrivacy, TIKTOK_TOKEN_KEY } = await import(at("lib/server/sites/tiktok.ts"));
-check("tiktok: env present but never connected → connected yes, authorized no", [tiktok.connected(), await tiktok.authorized(), tiktok.videoOnly, tiktok.postsVideo], [true, false, true, true]);
+const tiktokMod = await import(at("lib/server/sites/tiktok.ts"));
+const { tiktokAuthUrl, tiktokExchangeCode, tiktokAccessToken, TIKTOK_TOKEN_KEY } = tiktokMod;
+check("tiktok: no adapter left to post with (not a site, no post, no pickPrivacy)", ["tiktok", "post", "pickPrivacy"].map((k) => k in tiktokMod), [false, false, false]);
+check("tiktok: env present but never connected → no token, quiet", await tiktokAccessToken(), null);
 const authUrl = new URL(tiktokAuthUrl("https://cardflip.io", "st8"));
 check("tiktok: consent url carries key, scopes, callback, state", [authUrl.origin + authUrl.pathname, authUrl.searchParams.get("client_key"), authUrl.searchParams.get("scope"), authUrl.searchParams.get("redirect_uri"), authUrl.searchParams.get("state")], ["https://www.tiktok.com/v2/auth/authorize/", "ck", "user.info.basic,video.publish,video.upload,video.list", "https://cardflip.io/api/social/tiktok/callback", "st8"]);
-check("tiktok: privacy falls back to private unless the account may go public", [pickPrivacy(["SELF_ONLY"], "PUBLIC_TO_EVERYONE"), pickPrivacy(["SELF_ONLY", "PUBLIC_TO_EVERYONE"], "PUBLIC_TO_EVERYONE"), pickPrivacy(undefined, "PUBLIC_TO_EVERYONE")], ["SELF_ONLY", "PUBLIC_TO_EVERYONE", "SELF_ONLY"]);
 stub((u) => {
-  if (u.endsWith("/v2/oauth/token/")) return { access_token: "acc1", refresh_token: "ref1", expires_in: 86400, refresh_expires_in: 31536000, open_id: "open1", scope: "video.publish" };
+  if (u.endsWith("/v2/oauth/token/")) return { access_token: "acc1", refresh_token: "ref1", expires_in: 86400, refresh_expires_in: 31536000, open_id: "open1", scope: "video.list" };
   return { status: 500, body: { error: `unexpected ${u}` } };
 });
 await tiktokExchangeCode("the-code", "https://cardflip.io");
 const exch = new URLSearchParams(calls[0].body);
 check("tiktok: code exchange is a form post with the app secret and the callback", [calls[0].ct, exch.get("grant_type"), exch.get("code"), exch.get("client_secret"), exch.get("redirect_uri")], ["application/x-www-form-urlencoded", "authorization_code", "the-code", "cs", "https://cardflip.io/api/social/tiktok/callback"]);
-check("tiktok: tokens stored, now authorized, fresh token needs no refresh", [await tiktok.authorized(), await tiktokAccessToken(), calls.length], [true, "acc1", 1]);
+check("tiktok: tokens stored, a fresh token needs no refresh", [await tiktokAccessToken(), calls.length], ["acc1", 1]);
 const storedTok = JSON.parse(await getSetting(TIKTOK_TOKEN_KEY));
 await setSetting(TIKTOK_TOKEN_KEY, JSON.stringify({ ...storedTok, expires_at: Date.now() + 60_000 }));
 stub((u) => {
@@ -294,47 +298,11 @@ stub((u) => {
   return { status: 500, body: {} };
 });
 check("tiktok: a token about to expire is refreshed with the refresh token", [await tiktokAccessToken(), new URLSearchParams(calls[0].body).get("grant_type"), new URLSearchParams(calls[0].body).get("refresh_token"), JSON.parse(await getSetting(TIKTOK_TOKEN_KEY)).refresh_token], ["acc2", "refresh_token", "ref1", "ref2"]);
-let ttPolls = 0;
-stub((u) => {
-  if (u.endsWith("/creator_info/query/")) return { data: { creator_username: "cardflipio", privacy_level_options: ["SELF_ONLY"], max_video_post_duration_sec: 600 }, error: { code: "ok" } };
-  if (u.endsWith("/video/init/")) return { data: { publish_id: "pub1", upload_url: "https://upload.tiktok/abc" }, error: { code: "ok" } };
-  if (u === "https://upload.tiktok/abc") return { status: 201, body: {} };
-  if (u.endsWith("/status/fetch/")) return { data: ++ttPolls < 2 ? { status: "PROCESSING_UPLOAD" } : { status: "PUBLISH_COMPLETE", publicaly_available_post_id: [7355608] }, error: { code: "ok" } };
-  return { status: 500, body: { error: { code: "unexpected", message: u } } };
-});
-out = await tiktok.post(POST);
-check("tiktok: creator info → init → PUT bytes → poll → done", calls.map((c) => `${c.method} ${c.url.replace("https://open.tiktokapis.com", "")}`), ["POST /v2/post/publish/creator_info/query/", "POST /v2/post/publish/video/init/", "PUT https://upload.tiktok/abc", "POST /v2/post/publish/status/fetch/", "POST /v2/post/publish/status/fetch/"]);
-const ttInit = JSON.parse(calls[1].body);
-check("tiktok: init = private direct post, one chunk of the whole file", [ttInit.post_info.title, ttInit.post_info.privacy_level, ttInit.source_info], [POST.text, "SELF_ONLY", { source: "FILE_UPLOAD", video_size: 9, chunk_size: 9, total_chunk_count: 1 }]);
-check("tiktok: upload is the raw MP4 with a content-range", [calls[2].ct, calls[2].body], ["video/mp4", "<bytes 9>"]);
-check("tiktok: post url from the published id", out.uri, "https://www.tiktok.com/@cardflipio/video/7355608");
-stub((u) => {
-  if (u.endsWith("/creator_info/query/")) return { data: { privacy_level_options: ["SELF_ONLY"] }, error: { code: "ok" } };
-  if (u.endsWith("/video/init/")) return { data: { publish_id: "pub2", upload_url: "https://upload.tiktok/def" }, error: { code: "ok" } };
-  if (u === "https://upload.tiktok/def") return { status: 201, body: {} };
-  if (u.endsWith("/status/fetch/")) return { data: { status: "FAILED", fail_reason: "video_too_short" }, error: { code: "ok" } };
-  return { status: 500, body: {} };
-});
-check("tiktok: failed publish throws", await tiktok.post(POST).then(() => "posted", (e) => e.message), "tiktok publish failed: video_too_short");
-check("tiktok: no video → throws, never a picture", await tiktok.post({ ...POST, video: undefined }).then(() => "posted", (e) => e.message), "tiktok: video only, no MP4 for this post");
-stub((u) => {
-  if (u.endsWith("/creator_info/query/")) return { status: 401, body: { error: { code: "access_token_invalid", message: "The access token is invalid" } } };
-  return { status: 500, body: {} };
-});
-check("tiktok: api error surfaces the message", await tiktok.post(POST).then(() => "posted", (e) => e.message), "tiktok creator info 401 [access_token_invalid]: The access token is invalid");
 delete process.env.TIKTOK_CLIENT_KEY;
 delete process.env.TIKTOK_CLIENT_SECRET;
-check("tiktok: keys gone → not connected", tiktok.connected(), false);
+check("tiktok: keys gone → no token, quiet", await tiktokAccessToken(), null);
 
-console.log("publisher, video-only site");
-const vonly = fakeSite("vonly", { postsVideo: true });
-vonly.videoOnly = true;
-const vbroken = fakeSite("vbroken", { postsVideo: true, failVideo: true });
-vbroken.videoOnly = true;
-r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [pic, vonly], fetchImage, fetchVideo });
-check("video-only site skips a slot with no rendered video, picture site posts", [r.sites[0].status, r.sites[1].status, r.sites[1].reason, vonly.posts.length], ["posted", "skipped", "video only, nothing rendered for this slot", 0]);
-r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [vonly, vbroken], fetchImage, fetchVideo });
-check("video-only site posts the 1pm video; a failed upload is a failure, not a picture", [r.sites[0].status, r.sites[0].posts[0].video, vonly.posts[0].video.url, r.sites[1].status, r.sites[1].posts[0].error, vbroken.posts.length, await getSetting(`${SLOT_PREFIX}vbroken:midday`)], ["posted", "yes", "https://blob/pokemon-movers-2.mp4", "failed", "video upload boom", 0, null]);
+console.log("publisher, OAuth site");
 const gated = { ...fakeSite("gated"), authorized: async () => false };
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [gated], fetchImage, fetchVideo });
 check("an OAuth site that is not authorized reads as not connected", [r.sites[0].status, r.sites[0].reason], ["skipped", "not connected"]);

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
+import TikTokPackage from "@/components/admin/TikTokPackage";
 import { eastern, siteStatus, slotAt, slotSchedule, socialGames, videoFor } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
+import { loadPackage } from "@/lib/server/socialTiktok";
+import { tiktokHandle } from "@/lib/server/sites/tiktok";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
 import { countNew } from "@/lib/server/socialInbox";
@@ -14,6 +17,9 @@ export const dynamic = "force-dynamic";
  * Social autopilot preview (docs/SOCIAL-AUTOPILOT.md): today's drafts for
  * both games, made from our own price history. No account is needed to
  * look; the publisher routine posts the same drafts once the tokens exist.
+ * The TikTok card above them is the hand-over for the by-hand TikTok posts
+ * (lib/socialTiktok.ts): tomorrow's three videos and today's, always the real
+ * Eastern days, whatever ?day= the drafts below are showing.
  */
 export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string }> }) {
   await requireOwnerPage();
@@ -21,7 +27,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   // api/social/<site>/callback lands here with ?<site>=connected or ?<site>=error:<why>.
   const notice =
     tiktok === "connected"
-      ? "TikTok connected. It posts the 1pm video, private until the app audit passes."
+      ? "TikTok connected for its counts on the Posts page. Its videos are posted by hand from the card below."
       : tiktok?.startsWith("error:")
         ? `TikTok connect failed: ${tiktok.slice(6)}`
         : pinterest === "connected"
@@ -30,11 +36,18 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
             ? `Pinterest connect failed: ${pinterest.slice(6)}`
             : null;
   // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
-  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : eastern().day;
+  const today = eastern().day;
+  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
   const games = await socialGames();
-  const [perGame, sites, waiting] = await Promise.all([Promise.all(games.map((g) => socialDrafts(g, day))), siteStatus(SOCIAL_SITES), countNew()]);
+  const [perGame, sites, waiting, tiktokTomorrow, tiktokToday] = await Promise.all([
+    Promise.all(games.map((g) => socialDrafts(g, day))),
+    siteStatus(SOCIAL_SITES),
+    countNew(),
+    loadPackage(addDays(today, 1)),
+    loadPackage(today),
+  ]);
   const drafts = perGame.flat();
-  // The rendered MP4 for any draft the 6:50am job registered (set spotlight), shown before it posts.
+  // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts.
   const videos: Record<string, string> = {};
   for (const d of drafts) {
     const v = await videoFor(d);
@@ -56,6 +69,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
         </nav>
       </div>
       <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} />
+      <TikTokPackage tomorrow={tiktokTomorrow} today={tiktokToday} handle={tiktokHandle()} />
       <SocialPreview drafts={drafts} videos={videos} schedule={slotSchedule(day)} />
     </section>
   );

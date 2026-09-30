@@ -129,12 +129,14 @@ exclusion the movers post uses — never a junk mover.
   `spec.cards` when a video is registered for that draft, instead of
   computing fresh; with no registered video it computes at post time as
   before, so the picture and its caption still agree.
-- **Where**: the `video` job in `.github/workflows/social-post.yml`, 6:50am
-  ET (Chromium + ffmpeg do not fit a Vercel function). Secrets
+- **Where**: the `video` job in `.github/workflows/social-post.yml`, pinged
+  from 10:30am ET for the 1pm post (09-27; the `tiktok` job below now makes
+  tomorrow's the evening before, so these pings usually find it done)
+  (Chromium + ffmpeg do not fit a Vercel function). Secrets
   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BLOB_READ_WRITE_TOKEN` are on
   the repo. `--register` parks the MP4 on Vercel Blob
   (`social/video/<game>-<kind>-<day>.mp4`) and writes settings row
-  `social_video:<game>:<kind>:<day>` (`videoKey`, kind = `SLOTS.morning.kind`);
+  `social_video:<game>:<kind>:<day>` (`videoKey`, kind = `SLOTS[VIDEO_SLOT].kind`, movers);
   `--skip-if-done` makes the second cron ping and the 7am fallback render a
   no-op. Run workflow with `video=1` re-renders today's.
 - **Publish**: `publishSocial()` reads that row for each draft, fetches the
@@ -151,18 +153,102 @@ exclusion the movers post uses — never a junk mover.
   nothing is parked for video.
 - **Admin**: `/admin/social` shows the registered MP4 in a `<video>` on the
   draft (Video tab, default when one exists).
-- **TikTok** (09-26, `lib/server/sites/tiktok.ts`): video only, so the
-  publisher skips it on slots with no rendered MP4 (`videoOnly`) and a failed
-  upload is a failure, never a picture. Real OAuth2, not a pasted token:
-  Vercel env `TIKTOK_CLIENT_KEY` + `TIKTOK_CLIENT_SECRET` from the developer
-  app (redirect URI `https://cardflip.io/api/social/tiktok/callback`, scopes
-  user.info.basic, video.upload, video.publish), then the owner clicks
-  "connect" on `/admin/social` (`api/social/tiktok/connect` → consent →
-  `callback`). Tokens live in settings `social_token:tiktok` and refresh
-  themselves (access 24h, refresh 365d). Post = creator_info/query →
-  video/init FILE_UPLOAD one chunk → PUT bytes → poll status/fetch. Unaudited
-  apps may only post SELF_ONLY (private); set `TIKTOK_PRIVACY=PUBLIC_TO_EVERYONE`
-  after the audit passes. `TIKTOK_HANDLE` defaults to cardflipio.
+- **TikTok** (09-26 → 09-30): was a video-only API adapter; it left the
+  autopilot on 09-30 and is posted by hand. See "TikTok by hand" below.
+
+## TikTok by hand (Chris 09-30)
+
+TikTok refused the developer app for production ("Applications intended for
+personal use or internal company use are not eligible"), so API uploads could
+only ever be private (`SELF_ONLY`). Chris declined a paid posting service and
+chose to post TikTok himself: THREE videos a day, one per slot, ready as a
+package the night before ("basically convert the 7am and 7pm static images to
+a video … the night before the next day, you should have all 3 videos for
+tiktok with descriptions or any info needed for the post ready for me in a
+nice little package").
+
+**The autopilot no longer touches TikTok.** It is not in `SOCIAL_SITES`; the
+publisher has no video-only logic left; nothing uploads to it, alerts about it
+or writes a `failed` slot row for it. `sites/tiktok.ts` keeps only the OAuth
+token for the stats reader (`socialPulse.ts`, `video.list`), which stays quiet
+when no token exists. The inbox never read TikTok. The other six sites are
+unchanged: pictures at 7:05am and 7:05pm, the movers video at 1:05pm, same
+captions, same featured-card filing.
+
+**The package** (`lib/socialTiktok.ts`, `lib/server/socialTiktok.ts`): for one
+Eastern day, three 9:16 videos, each registered with its caption.
+
+| Slot | Video | Registered as |
+|---|---|---|
+| 7:05am | the morning picture post as video: `slotKind("morning", day)`, normally the set spotlight | `social_tiktok:morning:<day>` (TikTok only) |
+| 1:05pm | the movers video, the SAME file every site posts at 1:05pm | `social_tiktok:midday:<day>` AND `social_video:pokemon:movers:<day>` |
+| 7:05pm | the evening picture post as video: the all-games post, one lead card per public game | `social_tiktok:evening:<day>` (TikTok only) |
+
+- The 7am and 7pm rows live in their OWN namespace on purpose: a row in
+  `social_video:` means "every site posts video in this slot", and the other
+  six sites keep posting those pictures live.
+- A row is the site-video row plus `slot`, `day`, `title`, `caption`, `plan`,
+  `kind`, `audio`. The caption (text + hashtags) comes from the publisher's own
+  text builder (`applyVideoCards` / `applyGameLeads` → `fitText` at TikTok's
+  2200 characters) and the EXACT cards the video drew, frozen at render time,
+  so the text always matches the video.
+- If a slot's own kind has no draft that day, the video follows the
+  publisher's fallback chain (`FALLBACK_KINDS`), like the picture post does.
+- **Staleness**: each row stores `plan`, the kind plus the day-plan flags that
+  change the video or caption (`planTag`: mixed movers, also-scans, a pinned
+  set). A row whose tag no longer matches the current plan (a push before 7am
+  changed `DAY_PLANS`) counts as not ready and is remade; so does a 1pm row
+  whose file is no longer the one the other sites post.
+- **Audio**: the day's tracks rotate by slot (`social-video.mjs`): 1pm keeps the
+  plain day rotation (so the shared file sounds as it always did), 7am is one
+  track on, 7pm two. With fewer tracks than slots (only
+  `cinematic-soul-…511436.mp3` is committed, so production has ONE), the videos
+  that land on the same track start 8 bars further in (bar-aligned, still on the
+  beat, checked to fit inside the track). Every video note still holds: two bars
+  per card, cuts and the price pop on the beat, the green price with its glow
+  flare and shine sweep, real MP3s only.
+
+**Schedule** (Eastern; cron is UTC, EDT = UTC-4 until Nov 1, then EST = UTC-5):
+
+| What | When (ET) | Where |
+|---|---|---|
+| Night render, GitHub cron | 8pm (`0 0 * * *` EDT, `0 1 * * *` EST; the 7pm-EST one exits at once, `--min-hour 20`) | `social-post.yml` job `tiktok` |
+| Safety net, tomorrow's package | 9:15pm (`15 1 * * *` EDT, `15 2 * * *` EST; acts from 9pm on) | Vercel Cron → `/api/cron/social-tiktok` |
+| Safety net, overnight plan change | 5:45am (`45 9 * * *` EDT, `45 10 * * *` EST; acts before 7am, on TODAY's package) | same route |
+
+The night render is for the day AFTER the ping's Eastern day (`tiktokTargetDay`:
+calendar arithmetic on the Eastern date, never UTC's; a ping that GitHub ran
+past midnight still means the day that is now today). The job remakes only the
+slots with nothing usable registered and is cheap when it is done. The safety
+net dispatches it (`tiktok=1`, `tiktok_day=`) when a slot is missing or stale,
+gives a dispatch 45 minutes, and mails the failure alert (once a day, through
+`sendSocialFailureEmail`) when the package is still incomplete after that or the
+dispatch fails; the workflow's failure step mails it too. The 10:30/11:30/12:15
+render pings and the 12:40pm safety net (`/api/cron/social-video`) stay as
+backstops: they render the 1pm video only when nothing is registered for today.
+
+**Mail**: when tomorrow's three videos are ready the owner (never anyone else,
+`OWNER_EMAIL` through `mail.ts`) gets ONE mail per package day, subject
+"Tomorrow's TikTok Videos Are Ready": the three post times with their captions
+and a link to /admin/social (`notifyPackageReady`; claimed before it is sent).
+
+**/admin/social → "TikTok — Post by Hand"** (`TikTokPackage.tsx`): a Tomorrow and
+a Today section, three rows each (7:05am / 1:05pm / 7:05pm ET). Per row: a muted
+inline preview, the caption with Copy Caption, **Share Video** (the MP4 is
+fetched into a `File` when the row scrolls into view, because on iOS Safari an
+await before `navigator.share` loses the tap; the tap copies the caption and
+calls `navigator.share({ files })` so the share sheet offers TikTok), Download
+Video when the browser cannot share files or the fetch failed, and **Mark
+Posted** (`social_slot:tiktok:<slot>` = the Eastern day, the publisher's own key
+shape; Undo clears it). A slot not made yet says when it will be. The fetch
+tries the Blob URL first and falls back to the owner-only same-origin stream
+`GET /api/admin/social/tiktok/video?slot=&day=` (no CORS dependency).
+
+**Render by hand**: `node --experimental-strip-types --no-warnings
+--conditions=react-server --import ./scripts/lib/register-next-stubs.mjs
+scripts/social-video.mjs --package [--day D] [--register]` (all three),
+`--slot morning|midday|evening` (one), no flag (the 1pm movers video).
+`SOCIAL_AUDIO_DIR` points at another track folder.
 
 ## Plan, image sites only
 

@@ -2,8 +2,14 @@
 
 Drop royalty-free MP3s in this folder. `scripts/social-video.mjs` rotates
 through them one per day (sorted by file name) and mixes the day's track
-into the set-spotlight video, trimmed to length with a 0.5s fade-out. No
-files here = silent video.
+into the day's videos, trimmed to length with a fade-out. No files here =
+silent video. The three videos of a day (the 1pm movers video every site
+posts, and the 7am and 7pm TikTok videos) are offset by slot so they do not
+all use one track: 1pm keeps the plain day rotation, 7am is one track on, 7pm
+two. With fewer than three tracks committed, videos that land on the same track
+start 8 bars further in instead of repeating the opening. Only tracks in git
+reach the GitHub runner (today: the one below); `SOCIAL_AUDIO_DIR` points a
+local render at another folder.
 
 Source: Pixabay Music (https://pixabay.com/music/). Its Content License
 allows commercial use in videos with no attribution, which matters because

@@ -10,7 +10,10 @@ import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
  * Safety net for the social video (Chris 09-26, the GitHub cron was two
  * hours late: "this cannot happen again"). The video posts at 1pm since
  * 09-27 (VIDEO_SLOT); Vercel Cron pings this at 12:40 Eastern (vercel.json,
- * both DST hours). If today's video (the video slot's kind, movers) is
+ * both DST hours). Since 09-30 the night render (lib/socialTiktok.ts,
+ * /api/cron/social-tiktok) makes tomorrow's 1pm video the evening before, so
+ * this is the second line: it only has work when that render did not land.
+ * If today's video (the video slot's kind, movers) is
  * already registered it says so and stops. If not, it dispatches the
  * social-post workflow render-only, so the MP4 is on Blob before the 1:05
  * publish cron; the publisher still falls back to the picture if the render

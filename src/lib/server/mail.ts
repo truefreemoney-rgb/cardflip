@@ -344,24 +344,55 @@ export async function sendErrorDigestEmail(to: string, total: number, groups: Er
 }
 
 /** A site that used to post just failed (socialPublish.ts alertFailures, 09-29). */
-export async function sendSocialFailureEmail(to: string, failures: Array<{ label: string; error: string }>): Promise<void> {
+export async function sendSocialFailureEmail(
+  to: string,
+  failures: Array<{ label: string; error: string }>,
+  /** Other wording for a failure that is not a post (the night TikTok render, 09-30). */
+  opts: { intro?: string; subject?: string } = {},
+): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const adminUrl = `${site}/admin/social`;
   const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   const names = failures.map((f) => f.label).join(", ");
+  const intro = opts.intro ?? `The social robot could not post to ${names}.`;
   const text = [
-    `The social robot could not post to ${names}.`,
+    intro,
     "",
     ...failures.map((f) => `${f.label}: ${f.error.slice(0, 300)}`),
     "",
     `Details: ${adminUrl}`,
   ].join("\n");
   const html = `
-    <p>The social robot could not post to <strong>${esc(names)}</strong>.</p>
+    <p>${opts.intro ? esc(opts.intro) : `The social robot could not post to <strong>${esc(names)}</strong>.`}</p>
     ${failures.map((f) => `<p><strong>${esc(f.label)}</strong><br><span style="color:#666;font-size:13px">${esc(f.error.slice(0, 300))}</span></p>`).join("")}
     <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Social</a></p>`;
-  await transport().sendMail({ from: fromAddress(), to, subject: `CardFlip: Social Post Failed on ${names}`, text, html });
+  await transport().sendMail({ from: fromAddress(), to, subject: opts.subject ?? `CardFlip: Social Post Failed on ${names}`, text, html });
+}
+
+/**
+ * Tomorrow's three TikTok videos are built (socialTiktok.ts, 09-30): the post
+ * times with each caption and a link to the hand-over card. Owner only.
+ */
+export async function sendTiktokReadyEmail(
+  to: string,
+  m: { label: string; rows: Array<{ time: string; title: string; caption: string }> },
+): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const adminUrl = `${site}/admin/social`;
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  const text = [
+    `The three TikTok videos for ${m.label} are ready to post by hand.`,
+    "",
+    ...m.rows.flatMap((r) => [`${r.time}${r.title ? ` · ${r.title}` : ""}`, r.caption, ""]),
+    `Open the videos: ${adminUrl}`,
+  ].join("\n");
+  const html = `
+    <p>The three TikTok videos for <strong>${esc(m.label)}</strong> are ready to post by hand.</p>
+    ${m.rows.map((r) => `<p><strong>${esc(r.time)}</strong>${r.title ? ` · ${esc(r.title)}` : ""}<br><span style="color:#444;font-size:13px;white-space:pre-line">${esc(r.caption)}</span></p>`).join("")}
+    <p><a href="${adminUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Social</a></p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: "Tomorrow's TikTok Videos Are Ready", text, html });
 }
 
 /** CI or the prod smoke check failed (lib/server/opsAlert.ts, 09-29). */
