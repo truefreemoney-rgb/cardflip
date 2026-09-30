@@ -66,11 +66,11 @@ check("held count excludes sold", d.held, 6);
 check("value moved by the net change (Up +10, Down -12, everything else flat)", d.valueNow < d.valueBefore, true);
 check("gainers = Up only", d.gainers.map((c) => [c.name, c.change > 0, c.pct]), [["Up", true, 100]]);
 // The digest compares ASKING prices (askingPriceFor), so the $8 end carries the
-// $5–$10 fees + postage taper (09-30): $20 → $8.98 = -55.1%, not the raw -60%.
+// $5–$10 fees + postage taper (09-30; $0.40 order fee over $10 from 09-30): $20 → $9.02 = -54.9%, not the raw -60%.
 const { askingPriceFor } = await import(at("lib/listing.ts"));
 const downPct = Math.round(((askingPriceFor(8, "NM") - askingPriceFor(20, "NM")) / askingPriceFor(20, "NM")) * 1000) / 10;
 check("losers = Down only, % on the asking prices", d.losers.map((c) => [c.name, c.change < 0, c.pct]), [["Down", true, downPct]]);
-check("the Down card's % is the tapered one (-55.1)", downPct, -55.1);
+check("the Down card's % is the tapered one (-54.9)", downPct, -54.9);
 check("a series younger than a week is flat, not a gainer", d.gainers.concat(d.losers).some((c) => c.name === "New"), false);
 check("sold this week only", d.sold.map((c) => [c.name, c.price]), [["Sold", 30]]);
 check("listed 30+ days only", d.stale.map((c) => [c.name, c.days, c.price]), [["Stale", 40, 12]]);
