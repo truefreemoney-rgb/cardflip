@@ -50,12 +50,15 @@ export async function perDay(table: string, tsColumn: string, days: number, wher
   const offset = etOffsetMs(now);
   const rows = (await db
     .prepare(
-      `SELECT date((${tsColumn} + ${offset}) / 1000, 'unixepoch') AS day, COUNT(*) AS n
+      // Alias `et_day`, never `day`: page_views HAS a `day` column (the UTC visitor-key day), and
+      // SQLite's GROUP BY prefers a real column over an alias, so "GROUP BY day" silently bucketed
+      // by UTC and two UTC days could land on one Eastern label (the 09-30 missing 26th/29th).
+      `SELECT date((${tsColumn} + ${offset}) / 1000, 'unixepoch') AS et_day, COUNT(*) AS n
          FROM ${table} WHERE ${tsColumn} >= ? ${where ? `AND ${where}` : ""}
-        GROUP BY day`,
+        GROUP BY et_day`,
     )
-    .all(since)) as unknown as { day: string; n: number }[];
-  return daySeries(rows, days, now);
+    .all(since)) as unknown as { et_day: string; n: number }[];
+  return daySeries(rows.map((r) => ({ day: r.et_day, n: Number(r.n) })), days, now);
 }
 
 /**
@@ -68,11 +71,12 @@ export async function visitorsPerDay(days: number, now = Date.now()): Promise<Da
   const offset = etOffsetMs(now);
   const rows = (await db
     .prepare(
-      `SELECT date((at + ${offset}) / 1000, 'unixepoch') AS day, COUNT(DISTINCT visitor) AS n
-         FROM page_views WHERE at >= ? GROUP BY day`,
+      // `et_day`, not `day`: see perDay (page_views.day is the UTC column and would win the GROUP BY).
+      `SELECT date((at + ${offset}) / 1000, 'unixepoch') AS et_day, COUNT(DISTINCT visitor) AS n
+         FROM page_views WHERE at >= ? GROUP BY et_day`,
     )
-    .all(since)) as unknown as { day: string; n: number }[];
-  const series = daySeries(rows, days, now);
+    .all(since)) as unknown as { et_day: string; n: number }[];
+  const series = daySeries(rows.map((r) => ({ day: r.et_day, n: Number(r.n) })), days, now);
   // The visitor key rotates at UTC midnight, so one person can land in two Eastern-day buckets:
   // the total is distinct keys over the window (as Analytics counts it), not the sum of the bars.
   const total = (await db

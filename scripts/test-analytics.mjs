@@ -222,6 +222,22 @@ check("parseRange", [parseRange("30d"), parseRange("junk"), parseRange(undefined
   check("lifetime money is present", typeof custom.lifetime.soldUsd, "number");
 }
 
+// Overview charts (adminStats.ts, 09-30): page_views has a real `day` column (UTC), and SQLite's
+// GROUP BY prefers a column over a same-named alias, so "AS day ... GROUP BY day" bucketed by UTC
+// under Eastern labels and dropped days (26th/29th). The real query on a temp db, then a source guard.
+console.log("overview day buckets");
+{
+  const off = etOffsetMs(Date.now());
+  const t0 = Date.parse("2026-09-27T02:00:00Z"); // 10pm ET on the 26th, already the 27th in UTC
+  await db.prepare("DELETE FROM page_views").run();
+  db.prepare("INSERT INTO page_views (day, visitor, path, at) VALUES (?, ?, ?, ?)").run("2026-09-27", "late26", "/", t0);
+  const fixed = await db.prepare(`SELECT date((at + ${off}) / 1000, 'unixepoch') AS et_day, COUNT(DISTINCT visitor) AS n FROM page_views GROUP BY et_day`).all();
+  check("a 10pm-ET visit lands on the Eastern day (the 26th), not the UTC one", fixed.map((r) => r.et_day), ["2026-09-26"]);
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/lib/server/adminStats.ts", import.meta.url), "utf8");
+  check("adminStats never aliases a bucket `day` and groups by it (page_views.day would win)", /AS day\b[\s\S]{0,300}GROUP BY day\b/.test(src), false);
+}
+
 if (failures) {
   console.log(`\n${failures} failure(s)`);
   process.exit(1);
