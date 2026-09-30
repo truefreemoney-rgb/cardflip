@@ -200,7 +200,7 @@ console.log("loader: one batch, only flagged cards come back");
     await loadTrustData(ids);
     check("a later call is served from the memo", reads, 1);
     clearTrustMemo();
-    db.prepare = (sql) => { throw new Error("db down"); };
+    db.prepare = () => { throw new Error("db down"); };
     check("heldTrustOrOpen: a failed read is 'no verdicts', not a throw", (await heldTrustOrOpen([{ catalog_card_id: "junk-deoxys", variant: null, game: "pokemon" }])).flag({ catalog_card_id: "junk-deoxys", variant: null, game: "pokemon" }), null);
     let threw = false;
     try { await loadTrustData(ids); } catch { threw = true; }
