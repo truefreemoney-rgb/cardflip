@@ -39,6 +39,14 @@ const upsert = db.prepare(`INSERT INTO tcg_cards (id, game, name, subtitle, set_
     collector_number = excluded.collector_number, set_total = excluded.set_total, set_release_date = excluded.set_release_date, rarity = excluded.rarity,
     variant = excluded.variant, image_url = excluded.image_url, price_usd = excluded.price_usd, price_usd_foil = excluded.price_usd_foil, synced_at = excluded.synced_at`);
 
+// ref_image_url (09-30): some printings are printed with an EMPTY text box —
+// 15/P2 Mickey is a signing card (blank for autographs). Chris: every stock
+// picture must show the card's words, so those rows show a sibling printing
+// that has them (same name + version) and keep their own picture in
+// ref_image_url, which the vision tiebreak reads (tcgReferenceImage).
+if (!db.prepare("PRAGMA table_info(tcg_cards)").all().some((c) => c.name === "ref_image_url")) db.exec("ALTER TABLE tcg_cards ADD COLUMN ref_image_url TEXT NOT NULL DEFAULT ''");
+const seen = [];
+
 const now = Date.now();
 const sets = await getJson(`${API}/sets`);
 const list = Array.isArray(sets) ? sets : sets.results ?? sets.data ?? [];
@@ -73,6 +81,17 @@ for (const set of list) {
     const rarity = String(c.rarity ?? "");
     const num = Number(c.collector_number);
     const variant = /enchanted/i.test(rarity) ? "enchanted" : /special/i.test(rarity) ? "special" : setTotal && Number.isFinite(num) && num > setTotal ? "special" : "";
+    seen.push({
+      id: c.id,
+      key: `${c.name ?? ""}|${c.version ?? ""}`.toLowerCase(),
+      words: Boolean(String(c.text ?? "").trim() || String(c.flavor_text ?? "").trim()),
+      // Iconic / Epic / Enchanted are full art with no text box by design
+      // (Steamboat Pilot 9-231, Hunny Wizard 9-227) — never swap those.
+      fullArt: /iconic|epic|enchanted/i.test(rarity),
+      promo: /promo/i.test(rarity) || /^(P\d|C\d|D23|DIS|cp|CC\d|PD\d)$/i.test(String(set.code)),
+      released: c.released_at ?? set.released_at ?? "",
+      image: c.image_uris?.digital?.large ?? c.image_uris?.digital?.normal ?? "",
+    });
     upsert.run(
       c.id,
       c.name ?? "",
@@ -95,5 +114,22 @@ for (const set of list) {
   console.log(`  ${set.code.padEnd(6)} ${set.name.padEnd(34)} ${rows.length} cards, /${setTotal ?? "?"} (${[...rarities].join(", ")})`);
   await sleep(150);
 }
+// Blank-box printings borrow a worded sibling's picture: a main-set printing
+// first (not a promo), oldest first. No worded sibling = the card really has
+// no words anywhere, keep its own picture.
+const byKey = new Map();
+for (const s of seen) if (s.words && s.image) (byKey.get(s.key) ?? byKey.set(s.key, []).get(s.key)).push(s);
+for (const list of byKey.values()) list.sort((a, b) => Number(a.promo) - Number(b.promo) || a.released.localeCompare(b.released));
+const setPicture = db.prepare("UPDATE tcg_cards SET image_url = ?, ref_image_url = ? WHERE id = ?");
+const blank = [];
+db.exec("BEGIN");
+for (const s of seen) {
+  const donor = s.words || s.fullArt ? null : byKey.get(s.key)?.find((d) => !d.fullArt);
+  if (donor) blank.push(`${s.id} ${s.key}`);
+  setPicture.run(donor ? donor.image : s.image, donor ? s.image : "", s.id);
+}
+db.exec("COMMIT");
+console.log(`blank text box: ${blank.length} printings now show a worded sibling's picture`);
+for (const b of blank) console.log(`  ${b}`);
 const n = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'lorcana'").get().n;
 console.log(`lorcana: ${total} cards written, ${n} rows in the mirror`);

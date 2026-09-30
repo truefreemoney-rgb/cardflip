@@ -169,8 +169,9 @@ const ICON_BAND: [number, number] = [15, 300];
 type OtherGame = Exclude<GameId, "pokemon">;
 const GAME_ICONS: Record<OtherGame, string[]> = {
   mtg: ["Sol Ring", "Lightning Bolt", "Sheoldred, the Apocalypse", "Ragavan, Nimble Pilferer", "The One Ring", "Teferi, Hero of Dominaria", "Force of Will", "Elesh Norn, Mother of Machines", "Atraxa, Praetors' Voice", "Jace, the Mind Sculptor"],
-  // Mickey leads (Chris 09-30: Elsa's $130 printing read too rich).
-  lorcana: ["Mickey Mouse", "Elsa", "Stitch", "Maleficent", "Simba", "Ariel", "Belle", "Moana", "Genie", "Ursula"],
+  // Elsa leads (Chris 09-30, after Mickey's $80 printing turned out to be the
+  // blank-box signing promo 15/P2).
+  lorcana: ["Elsa", "Mickey Mouse", "Stitch", "Maleficent", "Simba", "Ariel", "Belle", "Moana", "Genie", "Ursula"],
   yugioh: ["Dark Magician", "Blue-Eyes White Dragon", "Red-Eyes Black Dragon", "Exodia the Forbidden One", "Dark Magician Girl", "Kuriboh", "Slifer the Sky Dragon", "Obelisk the Tormentor", "Ash Blossom & Joyous Spring", "Pot of Greed"],
   onepiece: ["Monkey.D.Luffy", "Roronoa Zoro", "Shanks", "Nami", "Trafalgar Law", "Portgas.D.Ace", "Boa Hancock", "Sanji", "Kaido", "Nico Robin"],
 };
@@ -231,7 +232,7 @@ async function buildGame(game: OtherGame): Promise<StageCard[]> {
 export async function getGameStageCards(game: GameId, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
   if (game === "pokemon") return getStageCards(false, now);
   // v10 (09-30): One Piece pictures moved to TCGplayer scans (no SAMPLE stamp).
-  const key = `stage:v11:${game}`;
+  const key = `stage:v12:${game}`;
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {
