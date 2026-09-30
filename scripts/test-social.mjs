@@ -184,7 +184,7 @@ for (let i = 0; i < 3; i++) { const c = await cardOfTheDay("pokemon", addDays(PI
 check("card of the day, wide pool: never junk, sealed or an eBay-only row", cotdJunk, 0);
 check("movers never read the junk either", (await topMovers("pokemon", PIN, { limit: 30 })).some((m) => junk.has(m.cardId)), false);
 
-console.log("gains: a doubling to $100+ needs Cardmarket to agree");
+console.log("a doubling to $100+ needs Cardmarket to agree (priceTrust test 5, so gains, drops, spotlights and the card of the day all read it)");
 // Machamp shape (Stormfront $64 -> $146 in a day, held, no second source) beside the same move Cardmarket confirms.
 const jump = () => [...liquid(64, 50), 146, 147, 146, 148];
 await real("hs2-1", "Machamp", "1", "hs2", "Stormfront", jump());
@@ -204,6 +204,50 @@ check("the loader the stage strip uses: junk rejected with its reason, real card
   return [r.rejected.map((x) => x.id).sort(), r.prices.get("col1-22")?.price, r.prices.get("col1-1")?.variant];
 })(), [["col1-20", "col1-SL1"], 198.26, "holofoil"]);
 
+// ---- 10-01 review: every printed number is judged, not just today's
+console.log("drops: the OLD price is judged too (it is printed: \"$1,013 -> $100\")");
+// A junk plateau that has just corrected: Rayquaza-shaped, $1,013 for 30 days, now $100 with Cardmarket agreeing (EUR 90).
+await real("zz1-1", "Corrected Rayquaza", "1", "zz1", "Review Set", [...Array(30).fill(1013.27), ...Array(5).fill(100)], { eur: 90 });
+// A listing parked at $15.50 for two months, then $10 (Metagross ex8-11): the "drop" is a listing being updated.
+await real("zz1-2", "Parked Metagross", "2", "zz1", "Review Set", [...Array(60).fill(15.5), ...Array(5).fill(10)]);
+// A real drop: a liquid $200 card, now a settled $150.
+await real("zz1-3", "Real drop", "3", "zz1", "Review Set", [...liquid(200, 40), ...Array(5).fill(150)]);
+const dips = (await topMovers("pokemon", PIN, { direction: "down", limit: 30 })).map((m) => m.cardId);
+check("the corrected junk plateau is not a drop (its $1,013 old price fails the guard)", dips.includes("zz1-1"), false);
+check("a parked $15.50 listing is not a drop to $10", dips.includes("zz1-2"), false);
+check("a real drop from a moving price still posts", dips.includes("zz1-3"), true);
+check("no post prints the $1,013 old price, up or down", (await topMovers("pokemon", PIN, { limit: 50 })).every((m) => m.from < 1000), true);
+// The card of the day states the week's move from the old price too: six corrected-junk cards and one clean card, one day of their own, so the pick can only be the clean one.
+const D5 = addDays(PIN, 24);
+for (let n = 1; n <= 6; n++) await real(`zz6-${n}`, `Corrected ${n}`, String(n), "zz6", "Review Set Six", [...Array(30).fill(1013.27), ...Array(5).fill(100)], { eur: 90, end: D5 });
+await real("zz6-7", "Clean", "7", "zz6", "Review Set Six", liquid(100), { end: D5 });
+check("the card of the day is never one whose week-ago price is junk", (await cardOfTheDay("pokemon", D5, 15))?.cardId, "zz6-7");
+
+console.log("set spotlight: the printed median and week are judged; an unverified marquee card blocks its set");
+const D2 = addDays(PIN, 6);
+const setD2 = async (id, name, prices, extra = {}) => real(id, name, id.split("-")[1], "zz9", "Review Set Nine", prices, { end: D2, ...extra });
+for (const [n, p] of [[1, 25], [2, 30], [3, 40], [4, 60], [5, 20]]) await setD2(`zz9-${n}`, `Clean ${n}`, liquid(p));
+// Corrected TODAY: the point has not held, so the card would print the week's median, which is still the junk price.
+await setD2("zz9-6", "Corrected today", [...Array(30).fill(1013.27), 100], { eur: 90 });
+// Corrected a week ago and settled: the $100 is fine, the "week" it would claim starts at $1,013.27.
+await setD2("zz9-7", "Corrected a week ago", [...Array(30).fill(1013.27), ...Array(7).fill(100)], { eur: 90 });
+const nine = await setSpotlight("pokemon", D2);
+check("the unsettled card whose median is the junk price is left out of the set", nine?.cards.some((c) => c.cardId === "zz9-6"), false);
+check("its five: the settled corrected card on top, then the clean ones", nine?.cards.map((c) => c.cardId), ["zz9-7", "zz9-4", "zz9-3", "zz9-2", "zz9-1"]);
+check("the corrected card shows today's $100 and claims no week (its old price is junk)", [nine?.cards[0].to, nine?.cards[0].from, nine?.cards[0].unsettled, nine?.cards[0].pct], [100, 100, true, 0]);
+check("its caption says five of the most valuable, and claims no week for it", [setCaption("pokemon", nine).includes("Five of the most valuable Pokémon cards"), /Corrected a week ago #7 Holo: \$100\n/.test(setCaption("pokemon", nine))], [true, true]);
+// A set whose marquee card the guard could not vouch for (thin + round at $250, unverified, not proved wrong) is not "the most valuable" post.
+const D3 = addDays(PIN, 12);
+const setD3 = async (id, name, prices, extra = {}) => real(id, name, id.split("-")[1], "zz8", "Review Set Eight", prices, { end: D3, ...extra });
+for (const [n, p] of [[1, 25], [2, 30], [3, 40], [4, 60], [5, 20]]) await setD3(`zz8-${n}`, `Clean ${n}`, liquid(p));
+await setD3("zz8-6", "Unverified marquee", [...Array(40).fill(200), 250]);
+check("a set with an unverified card that would rank in its five is not spotlighted", await setSpotlight("pokemon", D3), null);
+// A card the guard proved wrong (Cardmarket says 15x) has an unknown real price, not a high one: it does not block the set.
+const D4 = addDays(PIN, 18);
+for (const [n, p] of [[1, 25], [2, 30], [3, 40], [4, 60], [5, 20]]) await real(`zz7-${n}`, `Clean ${n}`, String(n), "zz7", "Review Set Seven", liquid(p), { end: D4 });
+await real("zz7-6", "Junk marquee", "6", "zz7", "Review Set Seven", liquid(300), { eur: 18, end: D4 });
+check("a card proved wrong does not block its set", (await setSpotlight("pokemon", D4))?.cards.map((c) => c.cardId), ["zz7-4", "zz7-3", "zz7-2", "zz7-1", "zz7-5"]);
+
 console.log("Magic: Scryfall's EUR price is the referee");
 const mtg = async (id, name, usd, eur, rarity = "") => {
   await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, rarity, price_usd, price_eur, synced_at) VALUES (?, ?, 'lea', 'Alpha', '1', 'https://cards.scryfall.io/normal/y.jpg', ?, ?, ?, 0)").run(id, name, rarity, usd, eur);
@@ -216,6 +260,15 @@ await mtg("mtg-5", "Stage junk", 120, 10, "rare");
 await mtg("mtg-6", "Stage real", 120, 100, "rare");
 const stage = (await getGameStageCards("mtg")).cards.map((c) => c.name);
 check("the all-games picture / stage: Magic rows pass the same referee", [stage.includes("Stage junk"), stage.includes("Stage real")], [false, true]);
+
+// The homepage / scanner stage with Magic on reads mtgShowcase: the dearest printing per iconic name, which was the junk row.
+const { mtgShowcase } = await import(at("lib/server/mtgCards.ts"));
+await mtg("mtg-8", "Sol Ring", 400, 30);   // 12x
+await mtg("mtg-9", "Sol Ring", 60, 50);    // agrees
+await mtg("mtg-10", "Lightning Bolt", 45, 12); // 3.4x: under the 4x line, kept
+await mtg("mtg-11", "Lightning Bolt", 70, 12); // 5.3x: junk
+const shelf = new Map((await mtgShowcase(12)).map((c) => [c.name, c.prices.find((p) => p.source === "tcgplayer")?.market]));
+check("the landing showcase takes the dearest printing Cardmarket does not call junk", [shelf.get("Sol Ring"), shelf.get("Lightning Bolt")], [60, 45]);
 
 console.log("Pokémon stage strip: a junk price never reaches the pick");
 // Eevee, McDonald's Collection 2019 #12: $25.92 against EUR 3.71, one priced day. Seven real icons keep the mirror path (no upstream call).

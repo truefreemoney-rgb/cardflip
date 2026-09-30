@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { PRICE_TRUST, lastPriced, priceTrust } from "@/lib/server/priceTrust";
+import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 
 /**
  * priceTrust for a batch of Pokémon cards (one query per 400 ids): the
@@ -47,10 +47,14 @@ export async function trustedUsdPrices(
       if (r.source === "cardmarket") c.cm = last;
       else c.usd.push({ variant: r.variant, prices: series, last });
     }
+    // Vintage (1st Edition, pre-2010 sets) is judged on its own terms: thin and round are its ordinary state.
+    const released = new Map(
+      ((await db.prepare(`SELECT id, set_release_date FROM en_cards WHERE id IN (${chunk.map(() => "?").join(",")})`).all(...chunk)) as unknown as { id: string; set_release_date: string }[]).map((r) => [r.id, r.set_release_date]),
+    );
     for (const [id, c] of byCard) {
       if (c.usd.length === 0) continue;
       const pref = c.usd.reduce((a, b) => (rank(b.variant) < rank(a.variant) ? b : a));
-      const verdict = priceTrust({ to: pref.last, prices: pref.prices, siblings: c.usd.filter((s) => s !== pref).map((s) => s.last), refEur: c.cm });
+      const verdict = priceTrust({ to: pref.last, prices: pref.prices, siblings: c.usd.filter((s) => s !== pref).map((s) => s.last), refEur: c.cm, vintage: isVintage(pref.variant, released.get(id) ?? "") });
       if (verdict.ok) prices.set(id, { price: pref.last, variant: pref.variant });
       else rejected.push({ id, reason: verdict.reason });
     }

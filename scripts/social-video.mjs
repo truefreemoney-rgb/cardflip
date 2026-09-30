@@ -198,13 +198,13 @@ async function build(kind, strict) {
     if (!spot) throw new Error(`no set spotlight for ${day}`);
     console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards`);
     const shown = await withArt([...spot.cards].reverse(), strict);
-    // The caption says "the five most valuable": a set short of one card's art is not that post.
+    // The caption says "five of the most valuable": a set short of one card's art is not that post.
     if (shown.length !== spot.cards.length) throw new Error(`card art missing for the ${spot.setName} spotlight`);
     const n = shown.length;
     return {
       kind,
       mixed: false,
-      intro: { kicker: "Pokémon · set spotlight", title: spot.setName, sub: `The ${countWord(n)} most valuable cards right now` },
+      intro: { kicker: "Pokémon · set spotlight", title: spot.setName, sub: `${countWord(n).replace(/^./, (c) => c.toUpperCase())} of the most valuable cards right now` },
       cards: shown.map((c, i) => ({
         rank: `No. ${n - i}`,
         art: c.art,

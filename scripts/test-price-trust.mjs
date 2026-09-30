@@ -7,7 +7,7 @@
  * test and threshold. Every "must survive" card is a real card a collector
  * would call correctly priced.
  */
-const { priceTrust, isRoundPrice, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
+const { priceTrust, isRoundPrice, isVintage, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -58,7 +58,8 @@ check("Steel Legend hgss4-94 $561, no Cardmarket: one 1.26x step is not a spike"
 console.log("test 1: the second source decides when it is there");
 check("under $10 nothing is checked", verdict([9, 9, 9], { refEur: 0.5 }), [true, ""]);
 check("5x fails even for a liquid card", judge(liquid(60), { refEur: 10 }).ok, false); // 60 / 11 = 5.45x
-check("just under 5x is inconclusive, not a fail", judge(liquid(50), { refEur: 10 }).ok); // 50 / 11 = 4.5x
+check("just under 5x is inconclusive, not a fail (from $100)", judge(liquid(117.3), { refEur: 24 }).ok); // 117.3 / 26.4 = 4.4x
+check("under $100 the fail line is 4x: no soft sign runs there to back up a gap", [judge(liquid(50), { refEur: 10 }).ok, judge(liquid(50), { refEur: 12.5 }).ok], [false, true]); // 4.5x, 3.6x
 check("under 3x agrees and stops: flat, round and $500 no longer matter", judge(Array(90).fill(500), { refEur: 200 }).ok); // 500 / 220 = 2.3x
 check("a EUR 0.02 second-source price is a glitch, not a referee", judge(liquid(30), { refEur: 0.02 }).ok);
 check("a 3-5x gap alone never fails ($152.90, liquid)", judge(liquid(152.9), { refEur: 35 }).ok); // 150 / 38.5 = 3.9x
@@ -88,18 +89,70 @@ console.log("test 5: graded evidence ($100+)");
 check("$250 with one sign (round) passes", judge([...liquid(240, 40), 250]).ok);
 check("$250 with two signs (round + thin) fails", verdict([...Array(40).fill(200), 250]), [false, "thin, round"]);
 check("$600 needs only one (round)", judge([...liquid(590, 40), 600]).ok, false);
+check("$600 thin only (a flat 25 days, not round) fails: a modern card that trades that rarely is unverified", verdict([...liquid(590, 40), ...Array(25).fill(603.17)]), [false, "thin"]);
 check("$600 liquid, not round: passes", judge([...liquid(590, 40), 603.17]).ok);
+check("$600 with a strong sign alone fails (2x its sibling)", verdict([...liquid(590, 40), 603.17], { siblings: [300] })[0], false);
+check("$600 with too few priced days alone fails (unverifiable)", verdict([560, 580, 603.17])[0], false);
 check("under 14 priced days is a sign (new + round at $250)", verdict([200, 210, 230, 250], {})[0], false);
-check("a 2x rise that held is a sign (spike + round at $300)", verdict([...liquid(140, 30), 300, 300], {})[0], false);
+check("a 2x rise that held, older than 10 priced days, is a sign (spike + round at $300)", verdict([...liquid(140, 30), 300, ...Array.from({ length: 12 }, (_, i) => 300 + (i % 2) * 0.5), 300], {})[0], false);
 check("a 2x sibling is a sign (sibling + round at $250 vs $120)", judge([...liquid(240, 40), 250], { siblings: [120] }).ok, false);
 check("under $100 no soft sign applies", judge([...Array(40).fill(90), 95]).ok);
+
+console.log("10-01 review: the price BEFORE the jump is a level, not a spike (short glitch-lows that recover)");
+const LUGIA_1ST = expand([[1299.96, 21], [1599.98, 30], [1299.96, 48], [1100.75, 2], [null, 2], [1085.03, 17], [1079.79, 11], [164.8, 4], [1134.85, 1]]); // neo1-9-1st 1st Ed Holo: 164.80 for 4 days, back to 1,135
+const HOOH_1ST = expand([[350, 2], [72, 2], [350, 14], [70.01, 4], [488.52, 17], [72, 10], [488.52, 52], [null, 2], [488.52, 33]]); // neo3-7-1st: flaps between 72 and 488, then sits at 488.52 for 87 days
+check("1st Ed Lugia $1,135 after a 4-day $165 dip is not a spike (it traded there for a month)", judge(LUGIA_1ST).ok);
+check("Rayquaza col1-20 is still a spike: it never traded near $536 before", verdict(RAYQUAZA.slice(0, 92))[1].startsWith("spike"));
+check("1st Ed Ho-oh is out for what it is: no sale at $488.52 in 87 days, not a spike", verdict(HOOH_1ST), [false, "flat 87d"]);
+check("a glitch-low that recovers is not a spike at any price ($150 x60, $40 x5, $150)", judge([...Array(60).fill(0).map((_, i) => 150 + (i % 4)), ...Array(5).fill(40), 150]).ok);
+check("one earlier blip does not turn a real spike into a recovery ($100 x60, $520 once, $100 x3, $530)", verdict([...liquid(100, 60), 520, 100, 100, 100, 530])[0], false);
+
+console.log("10-01 review: below $100 a 3-5x Cardmarket gap is not free");
+check("bw11-RC7 Pikachu $97.72 vs EUR 23.56 (3.8x), 3 priced days in 27: unverifiable", verdict([97.11, ...Array(21).fill(null), 97.56, null, null, null, 97.72], { refEur: 23.56 }), [false, "thin, cardmarket 3.8x"]);
+check("2019sm-6 Pikachu $36.82 vs EUR 8.64 (3.9x), 4 priced days", verdict([36.5, 36.6, 36.7, 36.82], { refEur: 8.64 })[0], false);
+check("a soft failure says so (hard = false): the site can show 'unverified'", judge([36.5, 36.6, 36.7, 36.82], { refEur: 8.64 }).hard, false);
+check("Rayquaza GX sm7-109 $37.59 vs EUR 7.52 (4.5x): over the 4x line, evidence it is wrong", [judge(liquid(37.59), { refEur: 7.52 }).ok, judge(liquid(37.59), { refEur: 7.52 }).hard], [false, true]);
+check("a liquid $60 at 3.6x still passes (the gap alone never fails)", judge(liquid(60), { refEur: 15 }).ok);
+check("a 3.6x gap next to a flat 21+ days fails at $40", verdict([...liquid(40, 30), ...Array(22).fill(40)], { refEur: 10 })[0], false);
+
+console.log("10-01 review: a vintage print is not junk for being thin or round (1st Editions, pre-2010 sets)");
+check("$10,000 1st Ed Charizard (thin + round) is a vintage print: passes", judge([...Array(20).fill(9500), 10000], { vintage: true }).ok);
+check("the same numbers on a modern card are unverified, not wrong", [judge([...Array(20).fill(9500), 10000]).ok, judge([...Array(20).fill(9500), 10000]).hard], [false, false]);
+check("Magikarp & Wailord GX $882.13 (modern) flat 22 days, no second source: still unverified", verdict([...liquid(880, 40), ...Array(22).fill(882.13)]), [false, "thin"]);
+check("vintage still needs to trade: flat 45 days is a listing at any age", verdict(Array(50).fill(1200.5), { vintage: true }), [false, "flat 50d"]);
+check("the excuse starts at $500: a vintage $250 that is thin and round still fails", verdict([...Array(40).fill(200), 250], { vintage: true })[0], false);
+check("a second source that disagrees (3-5x) takes the excuse away ($949 vintage, thin, Cardmarket 4.0x)", verdict([...liquid(940, 40), ...Array(22).fill(949.79)], { vintage: true, refEur: 216 })[0], false);
+check("a vintage sign that is not thin or round still counts (spike at $1,900)", verdict([...liquid(900, 30), 1900, 1900, ...Array(12).fill(1899.99)], { vintage: true })[0], false);
+check("vintage does not excuse a sibling gap (3x its unlimited)", verdict([...liquid(900, 40), 903.17], { vintage: true, siblings: [300] })[0], false);
+check("isVintage: 1st Edition, pre-2010 sets, in both date spellings", [isVintage("1stEditionHolofoil"), isVintage("holofoil", "2002-09-01"), isVintage("holofoil", "2009/12/31"), isVintage("holofoil", "2010-01-01"), isVintage("holofoil", "")], [true, true, true, false, false]);
+
+console.log("10-01 review: a fresh doubling to $100+ needs a second source");
+const MACHAMP = expand([[64.05, 24], [64.44, 4], [64.76, 8], [64.67, 1], [64.55, 7], [63.96, 10], [null, 2], [64.32, 5], [80, 1], [64.32, 16], [64.42, 8], [145.85, 3]]); // dp7-98 holofoil
+check("Machamp dp7-98 $64 -> $146 in one step 3 days ago, no Cardmarket: junk", verdict(MACHAMP)[1].startsWith("doubled 2.3x"));
+check("the same move with Cardmarket agreeing (EUR 110) is a real one", judge(MACHAMP, { refEur: 110 }).ok);
+check("a doubling older than 10 priced days is judged by the soft signs only", judge([...MACHAMP.slice(0, -3), ...liquid(146, 12)]).ok);
+check("a recovery from a glitch-low is not a doubling (ecard1-4 Blastoise $400 -> $94 -> $251)", judge(expand([[400, 57], [400, 26], [251.55, 2], [94.22, 4], [251.55, 1]])).ok);
+
+console.log("10-01 review: the OLD price of a move is judged strictly (old: true)");
+const oldSide = (series, back = 7) => { const cut = series.slice(0, series.length - back); return priceTrust({ to: last(cut), prices: cut, old: true }); };
+const METAGROSS = expand([[15.5, 5], [15.93, 2], [15.5, 7], [15.75, 22], [null, 14], [15.75, 2], [null, 10], [15.5, 20], [null, 9], [15.5, 1], [null, 5], [15.5, 4], [null, 2], [15.5, 3], [null, 4], [15.5, 21], [10, 5]]); // ex8-11 normal: parked at $15.50 for months, then $10
+check("Metagross $15.50 -> $10: a $15.50 listing parked for 30+ days is no old price", [oldSide(METAGROSS).ok, oldSide(METAGROSS).reason.startsWith("flat")], [false, true]);
+check("the same $15.50 as a current price is fine (the flat rule is for the old side, from $10)", judge(METAGROSS.slice(0, -5)).ok);
+const TYRANITAR = expand([[670, 60], [507.5, 38], [null, 2], [507.5, 8], [345, 2], [662.25, 18], [345, 5]]); // neo4-113 unlimited holo: 345 -> 662.25 for 18 days -> 345
+check("Shining Tyranitar $662 -> $345: the $662 was a plateau, thin, so not an old price", oldSide(TYRANITAR), { ok: false, hard: false, reason: "thin" });
+check("old: thin alone fails from $500 even on a vintage print", priceTrust({ to: 662.25, prices: TYRANITAR.slice(0, -7), old: true, vintage: true }).ok, false);
+check("the $345 side, printed as a current price: fine", judge(TYRANITAR).ok);
+const BLASTOISE_ECARD = expand([[400, 15], [568, 13], [400, 3], [260.1, 4], [260, 9], [400, 57], [null, 2], [400, 26], [251.55, 2], [94.22, 4], [251.55, 1]]); // ecard1-4 holofoil
+check("Blastoise ecard1-4 $400 -> $252: $400 sat for 85 days", oldSide(BLASTOISE_ECARD).reason, "flat 85d");
+check("a moving old price passes as before ($944 Base Charizard a week ago)", oldSide(CHARIZARD_BASE, 0).ok);
+check("under $10 nothing is checked, old or not", priceTrust({ to: 8, prices: Array(60).fill(8), old: true }).ok);
 
 console.log("isRoundPrice");
 check("$1,013.27 is not round", isRoundPrice(1013.27), false);
 check("$500 and $499.99 and $999.95 are", [isRoundPrice(500), isRoundPrice(499.99), isRoundPrice(999.95)], [true, true, true]);
 check("$749.98, $1,249.94 (x4.94) and $2,500.99 are not", [isRoundPrice(749.98), isRoundPrice(1249.94), isRoundPrice(2500.99)], [false, false, false]);
 check("under $100 never round", isRoundPrice(99.99), false);
-check("thresholds are the calibrated ones", [PRICE_TRUST.refFail, PRICE_TRUST.refClear, PRICE_TRUST.spikeRise, PRICE_TRUST.spikeHold, PRICE_TRUST.siblingFail, PRICE_TRUST.stuckDays, PRICE_TRUST.softNeed, PRICE_TRUST.softNeedBig], [5, 3, 3, 3, 3, 45, 2, 1]);
+check("thresholds are the calibrated ones", [PRICE_TRUST.refFail, PRICE_TRUST.refFailLow, PRICE_TRUST.refClear, PRICE_TRUST.spikeRise, PRICE_TRUST.spikeHold, PRICE_TRUST.siblingFail, PRICE_TRUST.stuckDays, PRICE_TRUST.staleOldDays, PRICE_TRUST.softNeed, PRICE_TRUST.softNeedBig], [5, 4, 3, 3, 3, 3, 45, 30, 2, 1]);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

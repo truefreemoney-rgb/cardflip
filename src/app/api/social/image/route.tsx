@@ -248,7 +248,7 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans }
         {headline}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
-        {price ? `The five most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
+        {price ? `Five of the most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : tight ? 10 : 12, marginTop: wide ? 14 : tall ? 40 : tight ? 18 : 24 }}>
         {rows.map((m) => (

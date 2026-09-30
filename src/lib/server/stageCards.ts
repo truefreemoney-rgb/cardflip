@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { plausiblePrices } from "@/lib/listing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
-import { PRICE_TRUST } from "@/lib/server/priceTrust";
+import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import { trustedUsdPrices } from "@/lib/server/priceTrustLoad";
 import { gameOf, type CardPrice, type GameId, type PokemonCard } from "@/lib/types";
 
@@ -71,7 +71,7 @@ function pick(card: PokemonCard, lead: boolean): StageCard {
 }
 
 /** Real, priced cards from the local mirror — the dearest printing of each icon. */
-async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> {
+async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string; mirror?: boolean }> {
   try {
     const { hasEnglishMirror, searchEnglishCardsLocal } = await import("@/lib/server/enCards");
     if (!(await hasEnglishMirror())) return { cards: [] };
@@ -112,7 +112,7 @@ async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> 
     // ten-card cap (and the Magic interleave, which doubles the list) can
     // never slice it off.
     const sorted = out.sort((a, b) => nearTarget(a) - nearTarget(b));
-    return { cards: sorted.sort((a, b) => Number(b.id === leadId) - Number(a.id === leadId)), leadId };
+    return { cards: sorted.sort((a, b) => Number(b.id === leadId) - Number(a.id === leadId)), leadId, mirror: true };
   } catch {
     return { cards: [] };
   }
@@ -145,8 +145,10 @@ function finish(cards: PokemonCard[], magic: boolean, leadId?: string): StageCar
 }
 
 async function build(magic: boolean): Promise<StageCard[]> {
-  const { cards: pokemon, leadId } = await fromMirror();
-  if (pokemon.length >= 6) {
+  const { cards: pokemon, leadId, mirror } = await fromMirror();
+  // With the mirror, the guarded list is the list, however short: the upstream fallback below prints
+  // pokemontcg.io's prices, which nothing has judged. It is only for a fresh dev DB with no mirror.
+  if (mirror || pokemon.length >= 6) {
     if (!magic) return finish(pokemon, false, leadId);
     const mtg = await fromMagic();
     const mixed: PokemonCard[] = [];
@@ -184,9 +186,9 @@ const GAME_ICONS: Record<OtherGame, string[]> = {
 
 type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number };
 const ROW_COLS = "name, set_name, collector_number, image_url, price_usd";
-// Magic's price guard (priceTrust test 1, in SQL): Scryfall's Cardmarket price is on the row, so a
-// TCGplayer price >= 5x it (EUR at 1.10) is junk. A missing or sub-EUR 1 Cardmarket price is no referee.
-const MTG_REFEREE = `(price_eur IS NULL OR price_eur < ${PRICE_TRUST.refMinEur} OR price_usd < ${PRICE_TRUST.refFail * PRICE_TRUST.eurToUsd} * price_eur)`;
+// Magic's price guard (priceTrust test 1, in SQL, shared with mtgShowcase): Scryfall's Cardmarket price is on the row,
+// so a TCGplayer price >= 5x it (EUR at 1.10; 4x under $100) is junk. A missing or sub-EUR 1 Cardmarket price is no referee.
+const MTG_REFEREE = MTG_REFEREE_SQL;
 
 /** The icon's printing nearest $50 inside the band. Exact name first; a prefix match ("Ragavan" → "Ragavan, Nimble Pilferer") when the mirror spells it longer. */
 async function iconRow(game: OtherGame, icon: string): Promise<GameRow | undefined> {

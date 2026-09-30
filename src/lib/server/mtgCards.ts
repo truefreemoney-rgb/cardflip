@@ -17,6 +17,7 @@
 
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { db } from "@/lib/db";
+import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
 import { MTG_FINISH_LABEL } from "@/lib/games";
@@ -647,9 +648,10 @@ export async function mtgShowcase(limit = 12): Promise<PokemonCard[]> {
     "Liliana of the Veil",
     "Teferi, Time Raveler",
   ];
+  // The dearest printing that Cardmarket does not call junk (priceTrust's referee): the raw dearest was a 12x Alpha row.
   const stmt = db.prepare(
     `SELECT ${CARD_COLUMNS} FROM mtg_cards
-      WHERE REPLACE(LOWER(name), ',', '') = ? AND image_url <> '' AND price_usd IS NOT NULL
+      WHERE REPLACE(LOWER(name), ',', '') = ? AND image_url <> '' AND price_usd IS NOT NULL AND ${MTG_REFEREE_SQL}
       ORDER BY price_usd DESC LIMIT 1`,
   );
   // The comma-stripped expression is what idx_mtg_cards_folded indexes; a
