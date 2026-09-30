@@ -7,6 +7,7 @@ import {
   creditForInvoice,
   creditPlanScans,
   ledgerKeysPresent,
+  markNoSeedOwed,
   recordRefundBeforeCredit,
   rememberCharge,
   reversePlanScans,
@@ -14,6 +15,7 @@ import {
 import {
   fetchCharge,
   invoiceIdForPaymentIntent,
+  listCustomerPaidInvoices,
   listPaidInvoices,
   priceInfo,
   stripeConfigured,
@@ -21,7 +23,7 @@ import {
   type StripePlan,
   type SubscriptionState,
 } from "@/lib/server/stripe";
-import { OWNER_EMAIL, findUserByStripeCustomer, isSubscribed, type User } from "@/lib/server/users";
+import { OWNER_EMAIL, findUserById, findUserByStripeCustomer, isSubscribed, planSeedFor, spendsPlanScans, type User } from "@/lib/server/users";
 
 /**
  * Turning Stripe money events into scan credits (Chris, 09-30). Scans are
@@ -163,7 +165,7 @@ async function alertIfSecondPayer(user: User, subscriptionId: string | null, inv
  * reports and answers), but a database error propagates so the webhook answers
  * 500 and Stripe retries: the credit is all-or-nothing (scanCredits.ts).
  */
-export async function creditPaidInvoice(inv: StripeObject, source: "webhook" | "reconcile"): Promise<InvoiceOutcome> {
+export async function creditPaidInvoice(inv: StripeObject, source: "webhook" | "reconcile" | "first-use"): Promise<InvoiceOutcome> {
   const id = str(inv.id);
   if (!id) return { result: "ignored", note: "invoice without an id" };
   const subscriptionId = invoiceSubscriptionId(inv);
@@ -315,6 +317,52 @@ export async function handleDisputeCreated(dispute: StripeObject): Promise<Rever
   const found = await creditBehind(chargeId, idOf(dispute.payment_intent), null, null);
   if (!found.row) return { result: found.invoiceId ? "no_credit" : "ignored", note: found.invoiceId ?? "not a subscription payment" };
   return reverseCredit("dispute", `dispute:${disputeId}`, found.row, 1, chargeId);
+}
+
+// --- first use, deploy day ---------------------------------------------------------
+
+/**
+ * A live subscriber whose balance is still NULL and who owes no seed (an
+ * account made on or after CREDITS_FROM, so its payment happened under the old
+ * code, which handed out the scans at once and sent this code no invoice.paid).
+ * Left alone they read 0 and hit the 402 wall until the daily reconcile ran.
+ */
+export function needsFirstUseCredit(user: User, now = Date.now()): boolean {
+  return Boolean(user.stripeCustomerId) && user.planScans === null && spendsPlanScans(user) && planSeedFor(user, now) === null;
+}
+
+/** A Stripe outage must not turn every request of such an account into a Stripe call: one try a minute per account. */
+const healTried = new Map<string, number>();
+const HEAL_RETRY_MS = 60_000;
+
+/**
+ * Credit that customer's paid invoices now (the same idempotent credit as the
+ * webhook and the daily reconcile: whichever comes first wins, the rest see the
+ * invoice id), then mark the balance 0 if nothing was owed so the check stops
+ * asking Stripe. Best effort: any failure is reported and the caller carries on
+ * with the row it had. Returns the fresh row when it changed.
+ */
+export async function creditFirstUse(user: User, opts: { now?: number; list?: typeof listCustomerPaidInvoices } = {}): Promise<User> {
+  const now = opts.now ?? Date.now();
+  if (!needsFirstUseCredit(user, now)) return user;
+  const list = opts.list ?? listCustomerPaidInvoices;
+  if (!opts.list && !stripeConfigured()) return user;
+  const last = healTried.get(user.id);
+  if (last !== undefined && now - last < HEAL_RETRY_MS) return user;
+  healTried.set(user.id, now);
+  try {
+    const got = await list(user.stripeCustomerId!, Math.floor(CREDITS_FROM / 1000));
+    for (const inv of got.data) {
+      if (invoicePaidAt(inv) < CREDITS_FROM) continue;
+      await creditPaidInvoice(inv, "first-use");
+    }
+    await markNoSeedOwed(user.id);
+    healTried.delete(user.id);
+    return (await findUserById(user.id)) ?? user;
+  } catch (err) {
+    await reportServerError("billing/first-use credit", err);
+    return user;
+  }
 }
 
 // --- daily reconcile ---------------------------------------------------------------

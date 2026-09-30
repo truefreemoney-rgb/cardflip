@@ -39,7 +39,7 @@ const { SEED_MONTH, CREDITS_FROM, seedAmount } = await import(at("lib/planSeed.t
 const { createUser, findUserById, planSeedFor, scanQuota, setSubscription, PAID_SWITCH_AT, OWNER_EMAIL } = await import(at("lib/server/users.ts"));
 const { adjustPlanScans, creditPlanScans, ensurePlanSeed, ledgerForUser, reversePlanScans } = await import(at("lib/server/scanCredits.ts"));
 const { outOfScansMessage, reserveScan, reserveScans } = await import(at("lib/server/scanQuota.ts"));
-const { reconcilePaidInvoices, planCreditFor, handleChargeRefunded, handleDisputeCreated } = await import(at("lib/server/billingCredits.ts"));
+const { creditFirstUse, needsFirstUseCredit, reconcilePaidInvoices, planCreditFor, handleChargeRefunded, handleDisputeCreated } = await import(at("lib/server/billingCredits.ts"));
 const { run: runMigration } = await import(new URL("./migrate-plan-balance.mjs", import.meta.url).href);
 
 let failures = 0;
@@ -421,8 +421,53 @@ console.log("\nreview fixes");
   check("an account created after the flip owes no seed", [planSeedFor(await get(born), OCT_4), await atTime(OCT_4, () => ensurePlanSeed(born))], [null, 0]);
   const dryNew = await atTime(OCT_4, () => runMigration(["--db", dbFile], () => {}));
   check("…and the migration skips it", dryNew.entries.find((e) => e.id === born)?.action, "skip");
+  // Deploy day: paid under the old code after Oct 1, so no seed is owed and no invoice.paid is coming.
+  const fresh = await mkUser({ created_at: CREDITS_FROM + 5000, stripe_customer_id: "cus_after_flip", scan_month: "2026-10", scans_used: 2 });
+  const calls = [];
+  const listFor = (data) => async (cus, gte) => { calls.push([cus, gte]); return { data, hasMore: false }; };
+  const wall = await atTime(OCT_4, async () => {
+    const q = scanQuota(await get(fresh));
+    const r = await reserveScan(await get(fresh));
+    return [q.remaining, r.taken];
+  });
+  check("unhealed, that account reads 0 scans and cannot scan (the wall the heal exists to remove)", wall, [0, 0]);
+  check("a healthy, credited or seeded account is not a candidate", [needsFirstUseCredit(await get(born), OCT_4), needsFirstUseCredit(await get(re), OCT_4), needsFirstUseCredit(await get(nu), OCT_4)], [false, false, false]);
+  check("the account with a customer id and no balance is", needsFirstUseCredit(await get(fresh), OCT_4), true);
+  const healed = await atTime(OCT_4, async () => creditFirstUse(await get(fresh), { now: OCT_4, list: listFor([first("in_first_born", "cus_after_flip", OCT_3)]) }));
+  check("first use credits their paid invoice: one allowance, no seed", [healed.planScans, scanQuota(healed).remaining], [STD, STD]);
+  check("…asking Stripe for that customer from Oct 1 on, once", calls, [["cus_after_flip", Math.floor(CREDITS_FROM / 1000)]]);
+  check("…the ledger has the payment and nothing else", (await rows("SELECT credit_key, kind, applied FROM scan_credits WHERE user_id = ?", fresh)).map((r) => [r.credit_key, r.kind, r.applied]), [["in_first_born", "payment", STD]]);
+  const spent = await atTime(OCT_4, async () => (await reserveScan(await get(fresh))).taken);
+  check("and they can scan", spent, 1);
+  const later = await atTime(OCT_4 + 3_600_000, () => reconcilePaidInvoices({ now: OCT_4 + 3_600_000, list: async () => ({ data: [first("in_first_born", "cus_after_flip", OCT_3)], hasMore: false }) }));
+  check("the daily reconcile then finds the invoice already credited and adds nothing", [later.credited, (await get(fresh)).planScans], [0, STD - 1]);
+  await atTime(OCT_4, async () => creditFirstUse(await get(fresh), { now: OCT_4 + 120_000, list: listFor([]) }));
+  check("a credited account never asks Stripe again", calls.length, 1);
+
+  // Nothing paid in Stripe yet: the balance is marked 0 so the check stops, and a later payment still credits.
+  const unpaid = await mkUser({ created_at: CREDITS_FROM + 6000, stripe_customer_id: "cus_unpaid" });
+  const none = await atTime(OCT_4, async () => creditFirstUse(await get(unpaid), { now: OCT_4, list: listFor([]) }));
+  check("no paid invoice: the balance becomes 0 (not NULL), nothing is credited", [none.planScans, (await rows("SELECT 1 AS x FROM scan_credits WHERE user_id = ?", unpaid)).length], [0, 0]);
+  await atTime(OCT_4, () => credit(unpaid, "in_first_late", { seed: false }));
+  check("the invoice that lands later still credits", (await get(unpaid)).planScans, STD);
+
+  // Stripe down: reported once, the account carries on with the row it had, and is retried after a minute, not on every request.
+  const down = await mkUser({ created_at: CREDITS_FROM + 7000, stripe_customer_id: "cus_down" });
+  let downCalls = 0;
+  const failing = async () => { downCalls++; throw new Error("stripe: invoices unreachable (first use)"); };
+  const t1 = await atTime(OCT_4, async () => creditFirstUse(await get(down), { now: OCT_4, list: failing }));
+  const t2 = await atTime(OCT_4, async () => creditFirstUse(await get(down), { now: OCT_4 + 1000, list: failing }));
+  const t3 = await atTime(OCT_4, async () => creditFirstUse(await get(down), { now: OCT_4 + 61_000, list: failing }));
+  check("a Stripe failure leaves the balance NULL, is reported, and is retried at most once a minute", [t1.planScans, t2.planScans, t3.planScans, downCalls, (await errorsFrom("first-use credit")).length], [null, null, null, 2, 2]);
+  const unknown = await mkUser({ created_at: CREDITS_FROM + 8000, stripe_customer_id: "cus_unknown" });
+  const strange = first("in_first_strange", "cus_unknown", OCT_3);
+  strange.lines.data[0].pricing.price_details.price = "price_zzz";
+  const u2 = await atTime(OCT_4, async () => creditFirstUse(await get(unknown), { now: OCT_4, list: listFor([strange]) }));
+  check("an invoice on an unknown price credits nothing and reports (never guesses)", [u2.planScans, (await errorsFrom("unknown price id")).some((m) => m.includes("in_first_strange"))], [0, true]);
+  check("the check is wired into every signed-in read (getCurrentUser)", src("lib/server/auth.ts").includes("needsFirstUseCredit(user) ? creditFirstUse(user)"), true);
+
   const dryLog = [];
-  const odd = await mkUser({ scan_month: "2026-10", scans_used: 3 });
+  const odd =await mkUser({ scan_month: "2026-10", scans_used: 3 });
   const dry2 = await atTime(OCT_4, () => runMigration(["--db", dbFile], (l) => dryLog.push(l)));
   check("the dry run flags a subscriber whose counter is not September (may have first paid after Oct 1)", [dry2.entries.find((e) => e.id === odd).check?.includes("Stripe"), dryLog.some((l) => l.includes("Check in Stripe before --apply"))], [true, true]);
 

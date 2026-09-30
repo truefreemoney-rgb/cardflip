@@ -202,6 +202,14 @@ export async function listPaidInvoices(createdGte: number, startingAfter?: strin
   return { data: res.data ?? [], hasMore: res.has_more === true };
 }
 
+/** One customer's recently paid invoices, newest first (one GET, no writes at Stripe): the deploy-day heal for an account whose payment predates the webhook. */
+export async function listCustomerPaidInvoices(customerId: string, createdGte: number): Promise<{ data: StripeObject[]; hasMore: boolean }> {
+  const res = await stripeRequest<{ data?: StripeObject[]; has_more?: boolean }>(
+    `invoices?status=paid&limit=20&customer=${encodeURIComponent(customerId)}&created[gte]=${Math.floor(createdGte)}`,
+  );
+  return { data: res.data ?? [], hasMore: res.has_more === true };
+}
+
 /** A charge, for a refund or dispute that names only the charge id. */
 export async function fetchCharge(chargeId: string): Promise<StripeObject> {
   return stripeRequest<StripeObject>(`charges/${encodeURIComponent(chargeId)}`);

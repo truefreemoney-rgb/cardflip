@@ -3,6 +3,7 @@ import { PRICE, PRICE_LINE } from "@/lib/pricing";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
+import { creditFirstUse, needsFirstUseCredit } from "@/lib/server/billingCredits";
 import { canUseApp, findUserById, needsEmailConfirm, scanTier, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = "cardflip_session";
@@ -15,7 +16,10 @@ export async function getCurrentUser(): Promise<User | null> {
   const userId = await getSessionUserId(token);
   if (!userId) return null;
 
-  return findUserById(userId);
+  const user = await findUserById(userId);
+  // Deploy day: a subscriber who paid under the old code has no invoice.paid coming and no seed
+  // owed; credit their paid invoices now instead of a 0 counter and a 402 until the daily reconcile.
+  return user && needsFirstUseCredit(user) ? creditFirstUse(user) : user;
 }
 
 export async function requireUser(): Promise<User> {
