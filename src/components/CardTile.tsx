@@ -3,7 +3,7 @@
 import CardImage from "@/components/CardImage";
 import PriceSparkline from "@/components/PriceSparkline";
 import Spinner from "@/components/Spinner";
-import { formatMoney } from "@/lib/listing";
+import Price from "@/components/Price";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 
 /**
@@ -88,7 +88,7 @@ export default function CardTile({
           ) : (
             <>
               <p className={`font-display text-lg font-semibold leading-tight ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
-                {formatMoney(price)}
+                <Price usd={price} />
               </p>
               {priceNote && <p className="text-[11px] text-zinc-600">{priceNote}</p>}
             </>

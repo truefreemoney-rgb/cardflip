@@ -150,6 +150,8 @@ export const LIMITS = {
   emailCodeIpDay: [{ limit: 30, windowMs: DAY }] as RateLimitRule[],
   /** Help robot: per-IP burst guard; the per-account daily cap lives in helpChat.ts. */
   helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
+  /** "Email me when CardFlip opens here" (/unavailable). Per IP. */
+  waitlist: [{ limit: 5, windowMs: 10 * MINUTE }, { limit: 20, windowMs: DAY }] as RateLimitRule[],
   /** Support tickets: a person opens one, not twenty. Per IP. */
   supportTicket: [{ limit: 3, windowMs: 10 * MINUTE }, { limit: 10, windowMs: DAY }] as RateLimitRule[],
   /** Notes added to an open ticket. Per IP. */

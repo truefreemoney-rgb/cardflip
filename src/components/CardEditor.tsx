@@ -19,6 +19,7 @@ import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
+import Price from "@/components/Price";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote, priceFlagOf } from "@/lib/listing";
 import PriceFlagNote from "@/components/PriceFlagNote";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
@@ -836,7 +837,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 label: "Market",
                 value: (
                   <>
-                    <span className="font-display text-white">{formatMoney(quote.base, quote.price.currency)}</span>
+                    {quote.price.currency === "USD" ? (
+                      <Price usd={quote.base} className="font-display text-white" />
+                    ) : (
+                      <span className="font-display text-white">{formatMoney(quote.base, quote.price.currency)}</span>
+                    )}
                     {!ebayBasis && <span className="ml-1.5 text-xs text-zinc-500">{quote.price.label}</span>}
                   </>
                 ),

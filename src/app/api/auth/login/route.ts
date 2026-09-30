@@ -6,6 +6,9 @@ import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { countryFrom } from "@/lib/server/signupGuard";
+import { isAllowedCountry } from "@/lib/countries";
+import { setHomeCookie } from "@/lib/homeCookie";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -57,8 +60,19 @@ export async function POST(req: Request) {
     }
   }
 
+  // Travel rule (Chris 09-30): from outside the open countries, only an
+  // account created inside them (or a legacy one with no recorded home) gets in.
+  const here = countryFrom(req);
+  if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry)) {
+    return NextResponse.json(
+      { error: "CardFlip isn't available in your country yet.", unavailable: true },
+      { status: 403 },
+    );
+  }
+
   const session = await createSession(user.id);
   const res = NextResponse.json({ user: toPublicUser(user) });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+  setHomeCookie(res, user.id, user.homeCountry, session.token);
   return res;
 }

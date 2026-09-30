@@ -7,6 +7,7 @@ import { publicUserWithEmailState } from "@/lib/server/emailVerify";
 import { gameFeaturesFor } from "@/lib/server/settings";
 import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
 import { userHasCards } from "@/lib/server/cards";
+import { HOME_COOKIE, clearHomeCookie, homeCookieDue, setHomeCookie } from "@/lib/homeCookie";
 
 /**
  * Who's signed in — every app page asks on load. That makes it the natural
@@ -42,11 +43,21 @@ export async function GET() {
         }
       });
     }
-    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    const jar = await cookies();
+    const token = jar.get(SESSION_COOKIE)?.value;
     const renewed = token ? await touchSession(token) : null;
     if (renewed) {
       res.cookies.set(SESSION_COOKIE, renewed.token, sessionCookieOptions(renewed.expiresAt));
     }
+    // The proxy's no-DB view of this account's home country (lib/homeCookie.ts),
+    // bound to whichever session token the browser holds after this response.
+    // Also covers everyone signed in before the gate shipped (no cf_home yet).
+    const live = renewed?.token ?? token;
+    if (live && (renewed || homeCookieDue(jar.get(HOME_COOKIE)?.value, user.id, user.homeCountry, live))) {
+      setHomeCookie(res, user.id, user.homeCountry, live);
+    }
+  } else if ((await cookies()).get(HOME_COOKIE)) {
+    clearHomeCookie(res);
   }
   return res;
 }

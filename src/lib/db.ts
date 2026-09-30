@@ -706,6 +706,14 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_signup_log_ip ON signup_log (ip_hash);
   CREATE INDEX IF NOT EXISTS idx_signup_log_device ON signup_log (device_id);
+  -- "Tell me when CardFlip opens in my country" (Chris 09-30, /unavailable).
+  -- country is x-vercel-ip-country, never client-sent; one row per email.
+  CREATE TABLE IF NOT EXISTS waitlist (
+    email TEXT PRIMARY KEY,
+    country TEXT,
+    created_at INTEGER NOT NULL,
+    ip_hash TEXT
+  );
 `;
 
 /**
@@ -934,6 +942,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "plan_credit_scans INTEGER NOT NULL DEFAULT 0",
     "plan_credit_at INTEGER",
     "sub_cancel_at INTEGER",
+    // Country the account was created in (x-vercel-ip-country at signup, Chris
+    // 09-30). Access abroad + display currency follow it; NULL = legacy = allowed.
+    "home_country TEXT",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming

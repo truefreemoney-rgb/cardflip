@@ -3,10 +3,11 @@ import { PRICE, PRICE_LINE } from "@/lib/pricing";
 import { cookies } from "next/headers";
 import { getSessionUserId, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
+import { HOME_COOKIE, SESSION_COOKIE_NAME } from "@/lib/homeCookie";
 import { creditFirstUse, needsFirstUseCredit } from "@/lib/server/billingCredits";
 import { canUseApp, findUserById, needsEmailConfirm, scanTier, type User } from "@/lib/server/users";
 
-export const SESSION_COOKIE = "cardflip_session";
+export const SESSION_COOKIE = SESSION_COOKIE_NAME;
 
 export async function getCurrentUser(): Promise<User | null> {
   const store = await cookies();
@@ -49,6 +50,7 @@ export async function clearSessionCookie(): Promise<void> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) await destroySession(token);
   store.delete(SESSION_COOKIE);
+  store.delete(HOME_COOKIE); // signed out = no travel pass (lib/homeCookie.ts)
 }
 
 export class AuthError extends Error {}

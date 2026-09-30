@@ -70,6 +70,8 @@ export interface User {
   emailPending: boolean;
   /** When an inbox was proven (code, link, reset link or an admin); null = never. */
   emailVerifiedAt: number | null;
+  /** ISO country the account was created in (x-vercel-ip-country); null = legacy/unknown = allowed. */
+  homeCountry: string | null;
 }
 
 export interface UserRow {
@@ -109,6 +111,7 @@ export interface UserRow {
   last_seen_at: number | null;
   email_pending: number | null;
   email_verified_at: number | null;
+  home_country: string | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -162,6 +165,7 @@ export function fromRow(row: UserRow): User {
     lastSeenAt: row.last_seen_at ?? null,
     emailPending: row.email_pending === 1,
     emailVerifiedAt: row.email_verified_at ?? null,
+    homeCountry: row.home_country ?? null,
   };
 }
 
@@ -498,21 +502,25 @@ export async function createUser(
   email: string,
   password: string,
   role: Role = "user",
-  /** emailPending: only the public signup route passes true, and only while email confirmation is on. */
-  opts: { emailPending?: boolean } = {},
+  /**
+   * emailPending: only the public signup route passes true, and only while email confirmation is on.
+   * homeCountry: the signup route's x-vercel-ip-country; null off Vercel / admin-made accounts.
+   */
+  opts: { emailPending?: boolean; homeCountry?: string | null } = {},
 ): Promise<User> {
   const id = randomUUID();
   const createdAt = Date.now();
   const passwordHash = hashPassword(password);
   const normalizedEmail = email.trim().toLowerCase();
   const emailPending = opts.emailPending === true;
+  const homeCountry = opts.homeCountry ?? null;
 
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     )
-    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0);
+    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry);
 
   return {
     id,
@@ -551,6 +559,7 @@ export async function createUser(
     lastSeenAt: null,
     emailPending,
     emailVerifiedAt: null,
+    homeCountry,
   };
 }
 
@@ -732,6 +741,8 @@ export interface PublicUser {
   handlePublic: boolean;
   /** Email confirmation wall: true = the app is closed until the emailed code (or link) is used. */
   mustConfirmEmail: boolean;
+  /** Signup country (ISO); drives the home-currency price hint. null = legacy/unknown (USD). */
+  homeCountry: string | null;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -754,5 +765,6 @@ export function toPublicUser(user: User): PublicUser {
     handle: user.handle ?? null,
     handlePublic: Boolean(user.handlePublic),
     mustConfirmEmail: needsEmailConfirm(user),
+    homeCountry: user.homeCountry ?? null,
   };
 }

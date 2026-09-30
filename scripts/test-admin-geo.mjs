@@ -36,7 +36,7 @@ check("Stripe webhook is exempt from the block", hit("/api/stripe/webhook", "IN"
 check("eBay account-deletion is exempt", hit("/api/ebay/account-deletion", "IN").status, 200);
 check("cron routes are exempt", hit("/api/cron/pokemon-prices", "IN").status, 200);
 check("US visitor reaches the homepage", hit("/", "US").status, 200);
-check("DE visitor reaches the homepage (only admin is US-only)", hit("/", "DE").status, 200);
+check("GB visitor reaches the homepage (only admin is US-only)", hit("/", "GB").status, 200);
 check("no country header is not blocked", countryBlocked(null, "/"), false);
 delete process.env.VERCEL;
 

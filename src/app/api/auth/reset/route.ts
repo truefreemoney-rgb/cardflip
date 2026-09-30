@@ -9,6 +9,7 @@ import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { setHomeCookie } from "@/lib/homeCookie";
 
 /** Is this link still good? Lets the page say so before the seller types a password. */
 export async function GET(req: Request) {
@@ -48,5 +49,6 @@ export async function POST(req: Request) {
   const session = await createSession(user.id);
   const res = NextResponse.json({ user: toPublicUser(user) });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+  setHomeCookie(res, user.id, user.homeCountry, session.token);
   return res;
 }

@@ -29,6 +29,7 @@ import {
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { parseTouch } from "@/lib/attribution";
+import { setHomeCookie } from "@/lib/homeCookie";
 
 /**
  * A signup that comes back for an account still waiting on its email code,
@@ -57,6 +58,7 @@ async function resumeSignup(existing: User, req: Request) {
     resumed: true,
   });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+  setHomeCookie(res, existing.id, existing.homeCountry, session.token);
   return res;
 }
 
@@ -124,7 +126,9 @@ export async function POST(req: Request) {
       (await limitCodeMail(req)) ?? (await limitWithMessage([[`auth:code:to:${email.toLowerCase()}`, LIMITS.emailCode]]));
     if (mailLimited) return mailLimited;
   }
-  const created = await createUser(name, email, password, "user", { emailPending: confirm });
+  // Home country = where the account is made (Chris 09-30 travel rule); the proxy
+  // already refused signups from outside the open countries.
+  const created = await createUser(name, email, password, "user", { emailPending: confirm, homeCountry: countryFrom(req) });
   // The first touch the browser kept (lib/attribution.ts); malformed = dropped, never an error.
   await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch));
   let user: User = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
@@ -161,6 +165,7 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ user: await publicUserWithEmailState(user), emailSent, emailProblem }, { status: 201 });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+  setHomeCookie(res, user.id, user.homeCountry, session.token);
   res.cookies.set(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     sameSite: "lax",

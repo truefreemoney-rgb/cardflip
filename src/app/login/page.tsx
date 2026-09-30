@@ -3,7 +3,6 @@
 import PasswordField from "@/components/PasswordField";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
@@ -14,7 +13,6 @@ const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -35,13 +33,15 @@ export default function LoginPage() {
     let alive = true;
     fetchCurrentUser()
       .then((user) => {
-        if (alive && user) router.replace(afterLoginPath());
+        // A full load, not router.replace: from abroad the router may hold prefetched
+        // copies of the waitlist screen (proxy.ts country gate) under real URLs.
+        if (alive && user) window.location.replace(afterLoginPath());
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [router]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +58,8 @@ export default function LoginPage() {
     try {
       await login(email.trim(), password, needsCode ? code.trim() : undefined);
       // replace, not push: Back from the app must not land on a login form.
-      router.replace(afterLoginPath());
+      // Full load (see above): drops any cached waitlist-screen prefetches.
+      window.location.replace(afterLoginPath());
     } catch (err) {
       if (err instanceof TotpRequiredError) {
         // Password was right; the account has two-step on. First time through

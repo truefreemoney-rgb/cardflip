@@ -49,6 +49,8 @@ export interface SessionUser {
   mustConfirmEmail?: boolean;
   /** Walled accounts only (auth/me, verify-email, signup): when the newest code stops working; null = none live. */
   emailCodeExpiresAt?: number | null;
+  /** Signup country (ISO): the home-currency price hint follows it, never the IP. null = legacy/unknown. */
+  homeCountry?: string | null;
 }
 
 /** Login needs a 6-digit authenticator code (two-step verification). */

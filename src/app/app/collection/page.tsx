@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
+import Price from "@/components/Price";
 import CardDetailModal from "@/components/CardDetailModal";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import CategoryManager from "@/components/CategoryManager";
@@ -1343,7 +1344,7 @@ export default function CollectionPage() {
           <div className="p-5">
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
             <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-white">
-              {formatMoney(stats.inPlay)}
+              <Price usd={stats.inPlay} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
             </p>
             <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             {stats.leftOut > 0 && (
@@ -1366,7 +1367,7 @@ export default function CollectionPage() {
                 does). */}
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
             <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-emerald-400">
-              {formatMoney(stats.net)}
+              <Price usd={stats.net} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               {stats.sold.length === 0
