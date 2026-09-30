@@ -62,7 +62,7 @@ async function downscale(file: File, maxEdge = MAX_EDGE): Promise<{ base64: stri
  * photo decides. Returns the winning id or null (keep the ranker's order).
  * Never throws.
  */
-export async function tiebreakCard(file: File, game: GameId, ids: [string, string]): Promise<string | null> {
+export async function tiebreakCard(file: File, game: GameId, ids: string[]): Promise<string | null> {
   try {
     const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
     if (!base64) return null;

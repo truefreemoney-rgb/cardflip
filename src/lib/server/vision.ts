@@ -1041,8 +1041,8 @@ export const TIEBREAK_SCHEMA = {
   type: "object",
   properties: {
     pick: {
-      anyOf: [{ type: "string", enum: ["A", "B"] }, { type: "null" }],
-      description: "Which catalog picture shows the SAME printing as the photo: 'A' (second image) or 'B' (third image). Null when the two catalog pictures are the same printing to your eye or the photo cannot settle it.",
+      anyOf: [{ type: "string", enum: ["A", "B", "C", "D", "E", "F"] }, { type: "null" }],
+      description: "Which catalog picture shows the SAME printing as the photo: 'A' (second image), 'B' (third image), and 'C'–'F' when more are shown. Null when the catalog pictures are the same printing to your eye or the photo cannot settle it.",
     },
     confidence: { type: "number", description: "0 to 1." },
     reason: { type: "string", description: "One short sentence: the printed detail that decided it (border, set symbol, copyright line, stamp, frame, art)." },
@@ -1051,13 +1051,15 @@ export const TIEBREAK_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM_TIEBREAK = `You compare trading cards for a seller's listing. The FIRST image is the seller's photo. The SECOND (A) and THIRD (B) images are two catalog pictures of different printings that share the same name. Decide which catalog printing the photo shows.
+const SYSTEM_TIEBREAK = `You compare trading cards for a seller's listing. The FIRST image is the seller's photo. The SECOND (A) and THIRD (B) images — and C, D, E, F after them when given — are catalog pictures of different printings that share the same name. Decide which catalog printing the photo shows.
 
-Judge only by what is printed: border colour and its inner edge, the set symbol or expansion code, the collector number and denominator, the copyright line and its year, a 1st Edition stamp, a promo or date stamp, a List icon in the bottom-left corner, frame style, and the artwork. Ignore lighting, glare, sleeves, angle and wear. If the two catalog pictures show no printed difference you can see, or the photo does not show the deciding detail, answer null rather than guess.`;
+Judge only by what is printed: border colour and its inner edge, the set symbol or expansion code, the collector number and denominator, the copyright line and its year, a 1st Edition stamp, a promo or date stamp, a List icon in the bottom-left corner, frame style, and the artwork. Ignore lighting, glare, sleeves, angle and wear. If the catalog pictures show no printed difference you can see, or the photo does not show the deciding detail, answer null rather than guess.
+
+Yu-Gi-Oh! printings of one set code often differ ONLY by foil, and the foil is the answer: the colour of the name foil (plain, silver, gold, blue, green, purple, red, bronze), whether the artwork is flat, smoothly holographic or covered in grainy sparkle, whether the foil runs over the whole card (frame and text box too) and its pattern (dots/stars, large shards, square tiles, raised lines), and stamps such as "25th" or "DUEL TERMINAL". Here glare that shows a foil pattern is evidence, not noise.`;
 
 export interface TiebreakResult {
   id: string | null;
-  pick: "A" | "B" | null;
+  pick: "A" | "B" | "C" | "D" | "E" | "F" | null;
   confidence: number;
   reason: string;
   usage: VisionUsage;
@@ -1104,19 +1106,27 @@ export async function toClaudeImage(bytes: Buffer): Promise<{ base64: string; me
 }
 
 /**
- * Which of two catalog printings the photo shows. Returns id null when the
+ * Which of two (up to six — Yu-Gi-Oh! rarities of one code, lib/tiebreak.ts
+ * tiebreakIds) catalog printings the photo shows. Returns id null when the
  * model declines or a catalog picture is missing — the caller keeps the
  * ranker's order then.
  */
+const LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
 export async function tiebreakByPicture(
   base64Image: string,
   mediaType: string,
   game: GameId,
-  ids: [string, string],
+  ids: string[],
 ): Promise<TiebreakResult> {
   const zero: VisionUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
-  const [a, b] = await Promise.all([catalogPicture(ids[0], game), catalogPicture(ids[1], game)]);
-  if (!a || !b) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
+  ids = ids.slice(0, LETTERS.length);
+  const pictures = await Promise.all(ids.map((id) => catalogPicture(id, game)));
+  if (ids.length < 2 || pictures.some((p) => !p)) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
+  const letters = LETTERS.slice(0, ids.length);
+  const catalogBlocks = pictures.flatMap((p, i) => [
+    { type: "text" as const, text: `Catalog printing ${letters[i]}:` },
+    { type: "image" as const, source: { type: "base64" as const, media_type: p!.mediaType, data: p!.base64 } },
+  ]);
   const response = await getClient().messages.create({
     model: TIEBREAK_MODEL,
     // Opus 5 thinks by default and those tokens count against max_tokens;
@@ -1131,18 +1141,15 @@ export async function tiebreakByPicture(
         content: [
           { type: "text", text: "Seller's photo:" },
           { type: "image", source: { type: "base64", media_type: normalizeMediaType(mediaType), data: base64Image } },
-          { type: "text", text: "Catalog printing A:" },
-          { type: "image", source: { type: "base64", media_type: a.mediaType, data: a.base64 } },
-          { type: "text", text: "Catalog printing B:" },
-          { type: "image", source: { type: "base64", media_type: b.mediaType, data: b.base64 } },
-          { type: "text", text: `Which printing is the photo, A or B? The game is ${game === "mtg" ? "Magic: The Gathering" : game === "onepiece" ? "One Piece Card Game" : game === "lorcana" ? "Disney Lorcana" : game === "yugioh" ? "Yu-Gi-Oh!" : "Pokémon"}.` },
+          ...catalogBlocks,
+          { type: "text", text: `Which printing is the photo, ${letters.slice(0, -1).join(", ")} or ${letters[letters.length - 1]}? The game is ${game === "mtg" ? "Magic: The Gathering" : game === "onepiece" ? "One Piece Card Game" : game === "lorcana" ? "Disney Lorcana" : game === "yugioh" ? "Yu-Gi-Oh!" : "Pokémon"}.` },
         ],
       },
     ],
   });
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error(`tiebreak: no readable result (stop_reason ${response.stop_reason})`);
-  const parsed = JSON.parse(text.text) as { pick: "A" | "B" | null; confidence: number; reason: string };
+  const parsed = JSON.parse(text.text) as { pick: TiebreakResult["pick"]; confidence: number; reason: string };
   const u = response.usage;
   const usage: VisionUsage = {
     inputTokens: u.input_tokens,
@@ -1150,7 +1157,8 @@ export async function tiebreakByPicture(
     cacheReadTokens: u.cache_read_input_tokens ?? 0,
     cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
   };
-  const pick = parsed.pick === "A" || parsed.pick === "B" ? parsed.pick : null;
+  const at = parsed.pick ? (letters as readonly string[]).indexOf(parsed.pick) : -1;
+  const pick = at > -1 ? letters[at] : null;
   const sure = typeof parsed.confidence === "number" && parsed.confidence >= 0.6;
-  return { id: pick && sure ? ids[pick === "A" ? 0 : 1] : null, pick, confidence: parsed.confidence ?? 0, reason: parsed.reason ?? "", usage };
+  return { id: pick && sure ? ids[at] : null, pick, confidence: parsed.confidence ?? 0, reason: parsed.reason ?? "", usage };
 }

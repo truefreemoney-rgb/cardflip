@@ -29,14 +29,15 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     const image = body?.image as string | undefined;
     const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
-    const ids = Array.isArray(body?.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 2) : [];
-    if (!image || ids.length !== 2 || ids[0] === ids[1]) {
+    // Two ids, up to six for Yu-Gi-Oh! rarities of one code (lib/tiebreak.ts tiebreakIds).
+    const ids = Array.isArray(body?.ids) ? [...new Set((body.ids as unknown[]).filter((x): x is string => typeof x === "string"))].slice(0, 6) : [];
+    if (!image || ids.length < 2) {
       return NextResponse.json({ error: "Need an image and two different ids" }, { status: 400 });
     }
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
 
     const game = parseGame(body?.game);
-    const result = await tiebreakByPicture(image, mediaType, game, [ids[0], ids[1]]);
+    const result = await tiebreakByPicture(image, mediaType, game, ids);
     await recordScanUsage(user.id, TIEBREAK_MODEL, result.usage, {
       game,
       tiebreak: ids,

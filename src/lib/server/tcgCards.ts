@@ -330,19 +330,26 @@ async function searchYugioh(
   const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s);
   // The foil read off a photo is the weak link (09-29 panel: right code,
   // wrong rarity on most misses). When the winning code also comes in
-  // another rarity or tag, bring the best such row up to #2 at a near-tie
-  // score so the picture tiebreak (lib/tiebreak.ts) compares the two faces.
+  // another rarity or tag, bring the best row of each other face (up to
+  // five) up behind it at a near-tie score, so the picture tiebreak
+  // (lib/tiebreak.ts tiebreakIds) compares all the faces at once.
   // The "-1st" twin shares the face and is not a rival.
   const base = (id: string) => id.replace(/-1st$/, "");
   const top = scored[0];
   if (top) {
     const topKey = yugiohKey(top.row.collector_number);
-    const rivalAt = scored.findIndex(
-      (x, i) => i > 0 && base(x.row.id) !== base(top.row.id) && yugiohKey(x.row.collector_number) === topKey && (x.row.rarity !== top.row.rarity || x.row.variant !== top.row.variant),
-    );
-    if (rivalAt > 1 || (rivalAt === 1 && scored[1].s - top.s > TIEBREAK_GAP)) {
-      const [rival] = scored.splice(rivalAt, 1);
-      scored.splice(1, 0, { row: rival.row, s: top.s + TIEBREAK_GAP });
+    const faceOf = (r: TcgRow) => `${r.rarity}|${r.variant}`;
+    const seen = new Set([faceOf(top.row)]);
+    const rivals: typeof scored = [];
+    for (const x of scored.slice(1)) {
+      if (rivals.length === 5) break;
+      if (base(x.row.id) === base(top.row.id) || yugiohKey(x.row.collector_number) !== topKey || seen.has(faceOf(x.row))) continue;
+      seen.add(faceOf(x.row));
+      rivals.push(x);
+    }
+    if (rivals.length) {
+      const rest = scored.filter((x) => x !== top && !rivals.includes(x));
+      scored.splice(0, scored.length, top, ...rivals.map((x) => ({ row: x.row, s: Math.min(x.s, top.s + TIEBREAK_GAP) })), ...rest);
     }
   }
   return scored.slice(0, limit).map((x) => ({ ...toCard(x.row), rankScore: x.s }));

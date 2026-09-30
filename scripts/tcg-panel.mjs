@@ -21,7 +21,7 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchTcgCardsLocal, splitOnePieceNumber } = await import(at("lib/server/tcgCards.ts"));
 const { analyzeCardImageWithUsage, tiebreakByPicture, toClaudeImage } = await import(at("lib/server/vision.ts"));
-const { isNearTie } = await import(at("lib/tiebreak.ts"));
+const { tiebreakIds } = await import(at("lib/tiebreak.ts"));
 const { UNREADABLE_CONFIDENCE } = await import(at("lib/types.ts"));
 
 const args = process.argv.slice(2);
@@ -154,12 +154,14 @@ for (const p of panel) {
     await sleep(120);
   }
   let found = await lookup(read);
-  if (isNearTie(found) && !flag("no-tiebreak")) {
+  const tieIds = tiebreakIds(found, game);
+  if (tieIds.length >= 2 && !flag("no-tiebreak")) {
     try {
       image ??= await fetchImage();
-      const t = await tiebreakByPicture(image.base64, image.mediaType, game, [found[0].id, found[1].id]);
+      const t = await tiebreakByPicture(image.base64, image.mediaType, game, tieIds);
       tiebreaks++;
-      if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+      const at = t.id && t.id !== found[0].id ? found.findIndex((c) => c.id === t.id) : -1;
+      if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
     } catch (err) {
       console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`);
     }

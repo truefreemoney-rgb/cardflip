@@ -38,7 +38,7 @@ import { apiPath } from "@/lib/client/basePath";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
-import { isNearTie } from "@/lib/tiebreak";
+import { tiebreakIds } from "@/lib/tiebreak";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
@@ -549,9 +549,11 @@ export default function AppPage() {
           // Two printings within a point of each other: the printed key has
           // run out, so the picture decides (09-10, the 99% push). One call
           // to the stronger model on ties only; on null the order stands.
-          if (isNearTie(matches) && vision.status === "done") {
-            const winner = await tiebreakCard(next.file, next.game, [matches[0].id, matches[1].id]);
-            if (winner === matches[1].id) matches = [matches[1], matches[0], ...matches.slice(2)];
+          const tieIds = tiebreakIds(matches, next.game);
+          if (tieIds.length >= 2 && vision.status === "done") {
+            const winner = await tiebreakCard(next.file, next.game, tieIds);
+            const at = winner && winner !== matches[0].id ? matches.findIndex((m) => m.id === winner) : -1;
+            if (at > 0) matches = [matches[at], ...matches.filter((_, i) => i !== at)];
           }
 
           // >= rather than ==: the number-only fallback above can add an error

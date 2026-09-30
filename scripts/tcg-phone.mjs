@@ -28,15 +28,19 @@ import { devAnthropicKey } from "./lib/dev-key.mjs";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { searchTcgCardsLocal, splitOnePieceNumber } = await import(at("lib/server/tcgCards.ts"));
+const { searchTcgCardsLocal, splitOnePieceNumber, yugiohKey } = await import(at("lib/server/tcgCards.ts"));
 const { analyzeCardImageWithUsage, tiebreakByPicture, toClaudeImage } = await import(at("lib/server/vision.ts"));
-const { isNearTie } = await import(at("lib/tiebreak.ts"));
+const { tiebreakIds } = await import(at("lib/tiebreak.ts"));
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i > -1 ? args[i + 1] : null; };
 const game = opt("game") ?? "onepiece";
-if (game !== "onepiece" && game !== "lorcana") { console.error("--game onepiece | lorcana"); process.exit(2); }
+// Yu-Gi-Oh! (09-29): no --pull; the batch was scraped from eBay search pages
+// in the browser pane (backups/yugioh-phone/raw.json → batch.json rows
+// { id, name, number, wantRarity, first, title, listing }). Exact printing =
+// the rarity the title names.
+if (game !== "onepiece" && game !== "lorcana" && game !== "yugioh") { console.error("--game onepiece | lorcana | yugioh"); process.exit(2); }
 const PHOTO_DIR = path.join(root, `backups/${game}-phone`);
 const LIST_PATH = path.join(PHOTO_DIR, "batch.json");
 const CACHE_PATH = path.join(root, `scripts/${game}-phone.cache.json`);
@@ -165,6 +169,7 @@ async function pull() {
 
 let batch = flag("pull") || !fs.existsSync(LIST_PATH) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
+if (opt("id")) batch = batch.filter((p) => opt("id").split(",").includes(p.id));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of batch) delete cache[p.id];
 const VISION_CALL_CAP = 40;
@@ -186,18 +191,19 @@ async function lookup(read) {
   }
   let matches = [];
   for (const candidate of [read.name, read.englishName].filter(Boolean)) {
-    const found = await searchTcgCardsLocal(game, candidate, printed, 5, read.subtitle ?? null, read.variant ?? null);
+    const found = await searchTcgCardsLocal(game, candidate, printed, 5, read.subtitle ?? null, read.variant ?? null, read.firstEdition ?? null);
     if (found.length === 0) continue;
     if (matches.length === 0) matches = found;
     if (found[0].name.split(" - ")[0].trim().toLowerCase() === candidate.trim().toLowerCase()) { matches = found; break; }
   }
-  if (matches.length === 0 && printed) matches = await searchTcgCardsLocal(game, "", printed, 5, read.subtitle ?? null, read.variant ?? null);
+  if (matches.length === 0 && printed) matches = await searchTcgCardsLocal(game, "", printed, 5, read.subtitle ?? null, read.variant ?? null, read.firstEdition ?? null);
   return matches;
 }
 
 /** Card-level truth: the same card, any printing. */
 function sameCard(c, p) {
   if (!c) return false;
+  if (game === "yugioh") return yugiohKey(String(c.number)) === yugiohKey(p.number) && fold(c.name) === fold(p.name);
   if (game === "onepiece") return baseNumber(c.number ?? c.collector_number) === p.number && fold(cleanName(c.name)) === fold(p.name);
   // Lorcana: the catalog card name is "Name - Version"; number/total pins the set.
   const [cName, ...rest] = String(c.name).split(" - ");
@@ -222,12 +228,14 @@ for (const p of batch) {
     await new Promise((r) => setTimeout(r, 120));
   }
   let found = await lookup(read);
-  if (isNearTie(found) && !flag("no-tiebreak")) {
+  const tieIds = tiebreakIds(found, game);
+  if (tieIds.length >= 2 && !flag("no-tiebreak")) {
     try {
       const img = await load();
-      const t = await tiebreakByPicture(img.base64, img.mediaType, game, [found[0].id, found[1].id]);
+      const t = await tiebreakByPicture(img.base64, img.mediaType, game, tieIds);
       tiebreaks++;
-      if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+      const at = t.id && t.id !== found[0].id ? found.findIndex((c) => c.id === t.id) : -1;
+      if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
     } catch (err) { console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`); }
   }
   const top = found[0];
@@ -235,8 +243,9 @@ for (const p of batch) {
   const hit = rank === 0;
   n++;
   if (hit) cardHit++;
-  if (top?.id === p.want) printHit++;
-  else if (hit) printMisses.push(`${p.name}${p.subtitle ? " - " + p.subtitle : ""}: listing says ${p.wantVariant || "base"} ${p.want}, we picked ${top?.variant || "base"} ${top?.id} [${top?.setCode}]  title: ${p.title}  ${p.listing}`);
+  const printOk = game === "yugioh" ? hit && top.rarity === p.wantRarity : top?.id === p.want;
+  if (printOk) printHit++;
+  else if (hit) printMisses.push(`${p.name}${p.subtitle ? " - " + p.subtitle : ""}: listing says ${p.wantRarity ?? p.wantVariant ?? "base"} ${p.want ?? ""}, we picked ${top?.rarity ?? ""} ${top?.variant || "base"} ${top?.id} [${top?.setCode}]  read=${read?.variant} 1st=${read?.firstEdition}  title: ${p.title}  ${p.listing}`);
   const tally = byBucket.get(p.bucket) ?? { hit: 0, n: 0 };
   tally.n++; if (hit) tally.hit++;
   byBucket.set(p.bucket, tally);
