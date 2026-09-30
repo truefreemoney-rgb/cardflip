@@ -8,6 +8,8 @@ import { parsePrintedNumber, normalizeNumber } from "@/lib/cardNumber";
 import { normalizeSetName } from "@/lib/tcgcsv";
 import { classifySealedProduct } from "@/lib/sealedProducts";
 import { askingPriceFor } from "@/lib/listing";
+import { heldTrust } from "@/lib/server/priceTrustSite";
+import type { PriceFlag } from "@/lib/priceFlag";
 import type { PokemonCard } from "@/lib/types";
 
 /**
@@ -48,6 +50,8 @@ export interface PreviewRow {
   imageUrl: string | null;
   /** Today's asking price for the condition, 0 = unpriced yet. */
   price: number;
+  /** The price guard flagged this card's market: price stays 0 (the seller types their own) and the review says why. */
+  flag?: PriceFlag;
   paid: number | null;
   firstEdition: boolean;
 }
@@ -257,11 +261,15 @@ export async function previewImport(csv: string, scansLeft: number | null = null
 
   const ids = [...new Set(rows.map((r) => r.catalogCardId).filter((x): x is string => Boolean(x)))];
   const prices = ids.length ? await latestUsdPrices(ids) : new Map<string, { price: number; variant: string }>();
+  const trust = await heldTrust(ids.map((id) => ({ catalog_card_id: id, variant: null, game: "pokemon" })));
   let value = 0;
   for (const r of rows) {
     if (!r.catalogCardId) continue;
     const market = prices.get(r.catalogCardId)?.price ?? 0;
-    r.price = market > 0 ? askingPriceFor(market, r.condition) : 0;
+    // A market the price guard flags is not a price to import at: unpriced, the seller types their own.
+    const flag = market > 0 ? trust.flag({ catalog_card_id: r.catalogCardId, variant: null, game: "pokemon" }) : null;
+    if (flag) r.flag = flag;
+    r.price = market > 0 && !flag ? askingPriceFor(market, r.condition) : 0;
     value += r.price * r.quantity;
   }
 

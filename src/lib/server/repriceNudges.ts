@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { askingPriceFor } from "@/lib/listing";
+import { heldTrust } from "@/lib/server/priceTrustSite";
 
 /**
  * The stale-listing half of BACKLOG's "auto-offers + reprice nudge": a card
@@ -15,6 +16,9 @@ import { askingPriceFor } from "@/lib/listing";
  * see an overpriced card") or above ("you're leaving money on the table").
  * Under $10 that can fire without a market move: a card listed at raw market
  * before the 09-30 value + fees + postage rule nudges up to it.
+ *
+ * A market the price guard flags (priceTrustSite) never nudges: a junk-high
+ * price would otherwise tell the seller to reprice a LIVE eBay listing to it.
  */
 
 const MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -41,20 +45,23 @@ export interface RepriceNudge {
 export async function getRepriceNudges(userId: string, now = Date.now()): Promise<RepriceNudge[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id, condition FROM cards
+      `SELECT id, price, catalog_card_id, game, condition FROM cards
        WHERE user_id = ? AND status = 'listed' AND catalog_card_id IS NOT NULL
          AND price > 0 AND listed_at IS NOT NULL AND listed_at < ?
        LIMIT ${CHECK_CAP}`,
     )
-    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; condition: string }[];
+    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; game: string | null; condition: string }[];
 
   // One batched series read for every listed row — the per-row lookup was
   // up to 50 round trips on each collection load (Turso bills each one).
   const markets = await latestUsdPrices([...new Set(rows.map((r) => r.catalog_card_id))]);
+  // Judged on the series the market comes from (the card's default, as latestUsdPrices reads it).
+  const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.catalog_card_id, variant: null, game: r.game })));
   const nudges: RepriceNudge[] = [];
   for (const row of rows) {
     const market = markets.get(row.catalog_card_id)?.price ?? null;
     if (market == null || market <= 0) continue;
+    if (trust.flag({ catalog_card_id: row.catalog_card_id, variant: null, game: row.game })) continue;
     const target = askingPriceFor(market, row.condition);
     if (!(target > 0)) continue;
     const drift = (target - row.price) / row.price;

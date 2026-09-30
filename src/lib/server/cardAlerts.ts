@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/server/mail";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
+import { heldTrust } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import { sendPushToUser } from "@/lib/server/push";
 import { cardAlertPush } from "@/lib/pushMessages";
@@ -21,6 +22,11 @@ import { cardAlertPush } from "@/lib/pushMessages";
  *            it to one nudge per card per SPIKE_COOLDOWN_DAYS.
  *
  * Same price_series the charts draw, so the sweep costs no external calls.
+ *
+ * Neither alert fires from a price the price guard flags (priceTrustSite): a
+ * junk spike must not mail "you hit your target" or "sell now", and the spike's
+ * "before" price is judged as an OLD price, so a junk plateau that has just
+ * corrected does not mail a phantom "up 25%" either.
  */
 
 const CHECK_CAP = 400;
@@ -39,6 +45,7 @@ interface Row {
   condition: string;
   catalog_card_id: string;
   variant: string | null;
+  game: string | null;
   alert_price: number | null;
   alerted_at: number | null;
   spike_alerted_at: number | null;
@@ -69,7 +76,7 @@ export async function sweepCardAlerts(
   const rows = (await db
     .prepare(
       `SELECT c.id, c.user_id, u.email, c.card_name, c.set_name, c.card_number, c.condition,
-              c.catalog_card_id, c.variant, c.alert_price, c.alerted_at, c.spike_alerted_at
+              c.catalog_card_id, c.variant, c.game, c.alert_price, c.alerted_at, c.spike_alerted_at
        FROM cards c JOIN users u ON u.id = c.user_id
        WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL
          AND ((c.alert_price IS NOT NULL AND c.alerted_at IS NULL)
@@ -80,6 +87,7 @@ export async function sweepCardAlerts(
   if (rows.length === 0) return { checked: 0, sent: 0, nudged: 0 };
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
+  const trust = await heldTrust(rows, todayUtc(now));
   const today = todayUtc(now);
   const weekAgo = addDays(today, -7);
   const byUser = new Map<string, { email: string; userId: string; hits: Array<CardAlertHit & { rowId: string }> }>();
@@ -88,6 +96,7 @@ export async function sweepCardAlerts(
     if (!s) continue;
     const market = onDay(s, today);
     if (market == null || !(market > 0)) continue;
+    if (trust.flag(r)) continue;
     const price = Math.round(askingPriceFor(market, r.condition) * 100) / 100;
     const hits: Array<CardAlertHit & { rowId: string }> = [];
     if (r.alert_price != null && r.alerted_at == null && price >= r.alert_price) {
@@ -97,7 +106,7 @@ export async function sweepCardAlerts(
       const firstIdx = s.prices.findIndex((p) => p != null);
       const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
       const marketBefore = firstDay > weekAgo ? null : onDay(s, weekAgo);
-      if (marketBefore != null && marketBefore > 0) {
+      if (marketBefore != null && marketBefore > 0 && !trust.flagOld(r, 7, marketBefore)) {
         const before = Math.round(askingPriceFor(marketBefore, r.condition) * 100) / 100;
         if (price - before >= SPIKE_MIN && (price - before) / before >= SPIKE_PCT / 100) {
           hits.push({ rowId: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price, target: before, kind: "spike" });

@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { latestUsdPrice, latestUsdPrices } from "@/lib/server/priceHistory";
+import { heldTrust, priceIsFlagged } from "@/lib/server/priceTrustSite";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
@@ -99,6 +100,8 @@ export async function addToWishlist(
   // no prices, and Watch while it loads saved null — the tile then showed
   // nothing): our own series knows today's market for the catalog id.
   if (price == null && card.id) price = await latestUsdPrice(card.id);
+  // The price guard: a market the rule flags is not saved as the baseline (the since-saved delta would compare against junk).
+  if (price != null && card.id && (await priceIsFlagged(card.id, card.game ?? "pokemon", price))) price = null;
 
   await db.prepare(
     `INSERT INTO wishlist_items
@@ -164,9 +167,11 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
   const missing = items.filter((i) => i.price == null && i.cardId);
   if (missing.length > 0) {
     const latest = await latestUsdPrices(missing.map((i) => i.cardId!));
+    const trust = await heldTrust(missing.map((i) => ({ catalog_card_id: i.cardId!, variant: null, game: i.game })));
     for (const item of missing) {
       const hit = latest.get(item.cardId!);
       if (!hit || !(hit.price > 0)) continue;
+      if (trust.flag({ catalog_card_id: item.cardId!, variant: null, game: item.game })) continue;
       item.price = hit.price;
       await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, item.id, userId);
     }

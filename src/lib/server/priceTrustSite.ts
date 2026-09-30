@@ -129,7 +129,7 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
   const refEur = data.game === "mtg" ? (variant === "nonfoil" ? (data.eur?.nonfoil ?? null) : (data.eur?.foil ?? null)) : data.game === "pokemon" ? data.cmEur : null;
   const verdict = priceTrust({ to, prices, siblings, refEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
   if (verdict.ok) return null;
-  const priced = prices.reduce((n, v) => n + (v != null ? 1 : 0), 0);
+  const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
   // Unverified only (soft signs): not evidence on a series too young to have any, or a price the table has no series for.
   if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return null;
   return { hard: !!verdict.hard, reason: verdict.reason };
@@ -272,4 +272,57 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
     if (!c.prices.some((p) => isTrustedRow(p) && flags.has(trustKey(c.id, p.variant)))) return c;
     return { ...c, prices: c.prices.map((p) => (isTrustedRow(p) && flags.has(trustKey(c.id, p.variant)) ? { ...p, untrusted: flags.get(trustKey(c.id, p.variant)) } : p)) };
   });
+}
+
+/**
+ * Is `price` (a market number a client sends back: a wishlist baseline) one the
+ * rule flags? Matched to the card's own variant series by value: the series
+ * whose latest point is that price. A price that matches no series (a live
+ * price the table has not recorded yet) is not judged.
+ */
+export async function priceIsFlagged(cardId: string, game: GameId, price: number, day = todayUtc()): Promise<boolean> {
+  const d = (await loadTrustData([{ cardId, game }], day)).get(cardId);
+  if (!d) return false;
+  return d.series.some((s) => Math.abs((lastIn(s) ?? -1) - price) < 0.005 && judgeSeries(d, { variant: s.variant, exact: true, day }) != null);
+}
+
+// ---------------------------------------------------------------------------
+// Held rows (the ledger, wishlist, alerts, reports)
+
+/** A row that keeps a catalog card id, the variant it was kept as and its game (cards.game; absent = Pokemon). */
+export interface HeldRow {
+  catalog_card_id: string;
+  variant: string | null;
+  game?: string | null;
+}
+
+export interface HeldTrust {
+  /** The verdict on the row's current market price (its own variant's line, else the card's default), null = fine. */
+  flag(row: HeldRow, live?: number | null): PriceFlag | null;
+  /** The same for a price it stood at `back` days ago: judged as an OLD price (strictest), siblings as they stood. */
+  flagOld(row: HeldRow, back: number, value: number): PriceFlag | null;
+}
+
+const GAME_IDS: ReadonlySet<string> = new Set(["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]);
+const gameOf = (row: HeldRow): GameId => (row.game && GAME_IDS.has(row.game) ? (row.game as GameId) : "pokemon");
+
+/**
+ * One batched trust read for a set of held rows (two queries per 400 distinct
+ * cards), then in-memory verdicts per row: what every sweep and report that
+ * prices a held card asks before it trusts the market.
+ */
+export async function heldTrust(rows: HeldRow[], day = todayUtc()): Promise<HeldTrust> {
+  const seen = new Map<string, GameId>();
+  for (const r of rows) if (r.catalog_card_id) seen.set(r.catalog_card_id, gameOf(r));
+  const data = await loadTrustData([...seen].map(([cardId, game]) => ({ cardId, game })), day);
+  return {
+    flag(row, live) {
+      const d = data.get(row.catalog_card_id);
+      return d ? judgeSeries(d, { variant: row.variant, liveUsd: live, day }) : null;
+    },
+    flagOld(row, back, value) {
+      const d = data.get(row.catalog_card_id);
+      return d ? judgeSeries(d, { variant: row.variant, day, old: { back, value } }) : null;
+    },
+  };
 }

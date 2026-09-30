@@ -246,6 +246,34 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
   [oldFloor.id, 0.25, 1.5],
 ]);
 
+// --- the price guard (priceTrustSite): a flagged market never nudges, dips or becomes a baseline ---------
+{
+  const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
+  const today = todayUtc();
+  await recordSeries(recordPoint, addDays, today, "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // a stuck round $500
+  await recordSeries(recordPoint, addDays, today, "g-fine", "pokemon", "holofoil", liquidPrices(300));
+  const junkListed = await listedCard({ price: 200, catalogId: "g-junk", listedAt: NOW - 8 * DAY });
+  const fineListed = await listedCard({ price: 150, catalogId: "g-fine", listedAt: NOW - 8 * DAY });
+  const gn = await getRepriceNudges(uid, NOW);
+  check("guard: a listing whose market is flagged gets no reprice nudge", gn.some((x) => x.cardId === junkListed.id), false);
+  check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, 300);
+
+  const wJunk = await addToWishlist(uid, pcard("g-junk", "GuardJunk"), "en", 500);
+  const wFine = await addToWishlist(uid, pcard("g-fine", "GuardFine"), "en", 300);
+  const wNull = await addToWishlist(uid, pcard("g-junk", "GuardJunkNoPrice"), "en", null);
+  check("guard: a flagged price is not saved as the wishlist baseline (sent or looked up)", [wJunk.price, wNull.price], [null, null]);
+  check("guard: a normal price is saved as before", wFine.price, 300);
+  await setWishlistAlert(wJunk.id, uid, 600);
+  await setWishlistAlert(wFine.id, uid, 400);
+  mails.length = 0;
+  await sweepWishlistAlerts(NOW, { send, configured: on });
+  const dips = mails.flatMap((m) => m.hits.map((h) => h[0]));
+  check("guard: no dip mail from a flagged price; the normal one still mails", [dips.includes("GuardJunk"), dips.includes("GuardFine")], [false, true]);
+  const rows = await listWishlist(uid);
+  check("guard: listing the wishlist does not backfill a flagged baseline either", rows.find((w) => w.id === wNull.id).price, null);
+}
+
 console.error = realError;
 console.warn = realWarn;
 globalThis.fetch = realFetch;

@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
+import { heldTrust } from "@/lib/server/priceTrustSite";
+import type { PriceFlag } from "@/lib/priceFlag";
 
 /**
  * "Live" Inventory prices (Chris, 09-07: "it stays at the original value when
@@ -17,7 +19,10 @@ import { dayIndex } from "@/lib/priceSeries";
  *    are REWRITTEN to that asking price, so the editor and the eBay draft
  *    start from today's number;
  *  - listed rows are never rewritten here — their price IS the live eBay
- *    ask; the reprice nudge stays the seller's decision.
+ *    ask; the reprice nudge stays the seller's decision;
+ *  - a market the price guard (priceTrustSite) flags is reported with `flag`
+ *    and nothing else: no suggestion, no rewrite, no scan-price backfill. A
+ *    draft price already stored is left as it is, not blanked.
  *
  * Rows scanned before catalog_card_id existed (09-01) are skipped.
  */
@@ -32,6 +37,8 @@ export interface LivePrice {
   applied: boolean;
   /** Scan-time price: stored on create, else backfilled here from the series on the scan day. */
   scanned: number | null;
+  /** The price guard does not believe this market: the screens show the note, not a suggestion (suggested is 0). */
+  flag?: PriceFlag;
 }
 
 interface Row {
@@ -39,6 +46,7 @@ interface Row {
   price: number;
   catalog_card_id: string;
   variant: string | null;
+  game: string | null;
   condition: string;
   status: string;
   price_locked: number | null;
@@ -64,7 +72,7 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 export async function refreshLivePrices(userId: string, now = Date.now()): Promise<LivePrice[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id, variant, condition, status, price_locked, scan_price, created_at FROM cards
+      `SELECT id, price, catalog_card_id, variant, game, condition, status, price_locked, scan_price, created_at FROM cards
        WHERE user_id = ? AND status != 'sold' AND catalog_card_id IS NOT NULL
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
@@ -72,6 +80,8 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
   if (rows.length === 0) return [];
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
+  // The price guard: a market the rule does not believe is neither suggested nor written (see below).
+  const trust = await heldTrust(rows);
   const out: LivePrice[] = [];
   // Writes are collected and flushed as multi-row UPDATE ... FROM (VALUES)
   // statements below: per-row UPDATEs were up to 2 x ROW_CAP round trips on
@@ -82,6 +92,11 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     const s = heldSeries(series, row);
     const market = s ? lastOf(s.prices) : null;
     if (!s || market == null || !(market > 0)) continue;
+    const flag = trust.flag(row);
+    if (flag) {
+      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: false, scanned: row.scan_price, flag });
+      continue;
+    }
     const suggested = askingPriceFor(market, row.condition);
     // Scan-time price for rows from before scan_price existed: the series
     // value on the scan day through the same condition math, stored once.
