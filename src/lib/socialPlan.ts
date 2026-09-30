@@ -18,12 +18,19 @@ export interface DayPlan {
   mixedMovers?: boolean;
   /** Pokémon pictures and captions say the scanner also reads the other games. */
   alsoScans?: boolean;
+  /**
+   * The set spotlight's set (a Pokémon set id, "base4"), when Chris approved a
+   * preview: the date hash runs over the sets that qualify that minute, so a
+   * price run or an engine change can move the pick after he said yes (09-30:
+   * Base Set 2 approved, a pool fix turned it into Call of Legends).
+   */
+  set?: string;
 }
 
 export const DAY_PLANS: Record<string, DayPlan> = {
   // 7am keeps the set spotlight (Pokémon, "also scans"), 7pm is the all-games picture (Chris: "switch 7am and 7pm";
   // that day's drops were -8% moves, so the set post stayed and the drops sat out).
-  "2026-09-30": { mixedMovers: true, alsoScans: true, evening: "games" },
+  "2026-09-30": { mixedMovers: true, alsoScans: true, evening: "games", set: "base4" },
 };
 
 /** "five" for the small counts a caption says out loud. */

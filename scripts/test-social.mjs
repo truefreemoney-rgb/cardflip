@@ -73,6 +73,10 @@ check("gainers only for the 1pm post", (await topMovers("pokemon", TODAY, { dire
 check("a month-old point never stands in for last week's price", movers.some((m) => m.cardId === "sv1-11"), false);
 check("a one-day spike is not a move (Grass Energy +650%)", movers.some((m) => m.cardId === "sv1-8"), false);
 check("a cheap card jumping past the floor is not a move (Corphish $8.64 → $49.99)", movers.some((m) => m.cardId === "sv2-12"), false);
+// The real 09-30 shape: the plain card is $1.02 and only the REVERSE HOLO jumped. The plain print must still speak for the card.
+await catalog("sv2-14", "Corphish plain", "51"); for (const b of [13, 10, 7, 4, 2, 1, 0]) await recordPoint("sv2-14", "pokemon", "normal", "tcgplayer", "USD", 1.02, day(b));
+for (const b of [13, 10, 7]) await recordPoint("sv2-14", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 12, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-14", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 49.99, day(b));
+check("a pricey reverse holo never stands in for its cheap plain card", (await topMovers("pokemon", TODAY, { limit: 20 })).some((m) => m.cardId === "sv2-14"), false);
 check("a spike unwinding is not a drop (Fighting Energy $37.49 → $11)", (await topMovers("pokemon", TODAY, { direction: "down", limit: 20 })).some((m) => m.cardId === "sv2-13"), false);
 check("pct signed", movers.map((m) => Math.round(m.pct)), [50, -50, 40, 30, 20]);
 check("art upgraded to high.webp", movers[0].imageUrl.endsWith("/high.webp"));

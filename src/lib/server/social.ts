@@ -155,17 +155,23 @@ async function freshSeries(game: GameId, day: string, days: number) {
           .all(since, MTG_POOL_MIN_USD)
       : await db
           .prepare(
-            // Only series worth posting (09-30): the unordered ROW_CAP sample was
+            // Only cards worth posting (09-30): the unordered ROW_CAP sample was
             // 6k of ~36k fresh Pokémon rows, so "the five most valuable cards in
-            // Base Set" left out a $944 Charizard. Keep a series when its latest
-            // point or the one a week back is at POOL_MIN_USD or more (~11k rows).
+            // Base Set" left out a $944 Charizard. A card is in when any of its
+            // series' latest or week-ago point is at POOL_MIN_USD or more, and
+            // then ALL its series come back, so the preferred variant still
+            // speaks for it (filtering series alone let a $49.99 reverse holo
+            // stand in for a $1.02 Team Aqua's Corphish).
             `SELECT card_id, variant, start_day, prices FROM price_series
               WHERE game = ? AND currency = 'USD' AND updated_day >= ?
-                AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
-                        COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?
+                AND card_id IN (
+                  SELECT card_id FROM price_series
+                   WHERE game = ? AND currency = 'USD' AND updated_day >= ?
+                     AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
+                             COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?)
               LIMIT ${ROW_CAP}`,
           )
-          .all(game, since, POOL_MIN_USD)
+          .all(game, since, game, since, POOL_MIN_USD)
   ) as unknown as SeriesRow[];
   if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
   const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number; fromSettled: boolean }>();
@@ -423,7 +429,9 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   }
   const sets = [...bySet.entries()].filter(([, ids]) => ids.length >= minCards).map(([setId]) => setId).sort();
   if (sets.length === 0) return null;
-  const setId = sets[hashDay(day, `${game}:set`) % sets.length];
+  // A set Chris approved for the day wins (socialPlan.ts DayPlan.set), when it still qualifies.
+  const pinned = dayPlan(day).set;
+  const setId = pinned && sets.includes(pinned) ? pinned : sets[hashDay(day, `${game}:set`) % sets.length];
   // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
   const settled = (id: string) => {
     const s = series.get(id)!;
