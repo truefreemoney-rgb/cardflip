@@ -3,7 +3,8 @@
 Drop royalty-free MP3s in this folder. `scripts/social-video.mjs` mixes one
 into each video, trimmed to length with a fade-out. No files here = silent
 video. Chris 09-30: "randomize the audio to audio we used in previous posts",
-so the folder holds the three tracks that have aired, and each day shuffles
+so the folder holds the tracks that have aired (six since 09-30 night, Chris:
+"join them in the rotation"), and each day shuffles
 them (seeded by the day, `scripts/lib/audio-plan.mjs`) across the day's three
 videos (the 1pm movers video every site posts, and the 7am and 7pm TikTok
 videos): three tracks, three videos, never the same one twice in a day. With
@@ -26,6 +27,9 @@ it starts mid-phrase.
 | cinematic-soul-upbeat-success-happy-corporate-music-511436.mp3 (113 bpm, 1:13, opens at about 9.6s; a 3s breakdown at about 34.6-37.7s) | https://pixabay.com/music/electronic-upbeat-success-happy-corporate-music-511436/ (Pixabay Content License; Chris picked it 09-27 night, first airs 09-28 7am) |
 | echoes_of_lumen-upbeat-music-happy-commercial-586975.mp3 (95.5 bpm, 0:52, start 2.95s) | https://pixabay.com/music/beats-upbeat-music-happy-commercial-586975/ (Pixabay Content License; aired 09-27, back in rotation 09-30) |
 | the_mountain-upbeat-upbeat-music-567448.mp3 (92.5 bpm, 3:15) | https://pixabay.com/music/old-school-rnb-upbeat-upbeat-music-567448/ (Pixabay Content License; aired 09-26, back in rotation 09-30) |
+| cinematic-soul-dance-upbeat-background-music-success-vibes-511439.mp3 (123 bpm, 1:36, start 17.0s) | https://pixabay.com/music/dance-dance-upbeat-background-music-success-vibes-511439/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
+| cinematic-soul-motivational-upbeat-music-winning-spirit-511443.mp3 (123 bpm, 2:23; drumless gaps early, so the first video opens about 73s in) | https://pixabay.com/music/dance-motivational-upbeat-music-winning-spirit-511443/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
+| prettyjohn1-promo-promo-music_68sec-595667.mp3 (74 bpm, 1:08; one bar per card, ~3.2s, the quickest of the six) | https://pixabay.com/music/corporate-promo-promo-music-68sec-595667/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
 
 Tried and set aside, never aired (drop the file back in only with Chris's yes):
 
