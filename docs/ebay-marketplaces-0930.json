@@ -1,0 +1,466 @@
+{
+ "US": {
+  "treeId": "0",
+  "statuses": {
+   "tree": 200,
+   "ret": 200,
+   "ls": 200,
+   "ship": 200
+  },
+  "categories": {
+   "183454": {
+    "name": "CCG Individual Cards",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "2750",
+     "3000",
+     "4000"
+    ]
+   },
+   "183456": {
+    "name": "CCG Sealed Packs",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   },
+   "261044": {
+    "name": "CCG Sealed Boxes",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   }
+  },
+  "requiredAspects": [
+   "Game"
+  ],
+  "game": {
+   "mode": "FREE_TEXT",
+   "values": [
+    "Pokémon TCG",
+    "Magic: The Gathering",
+    "Yu-Gi-Oh! TCG",
+    "Disney Lorcana TCG",
+    "One Piece CCG"
+   ],
+   "notExact": [
+    "Disney Lorcana",
+    "One Piece Card Game"
+   ]
+  },
+  "aspectsAbsent": [
+   "Graded",
+   "Professional Grader",
+   "Grade",
+   "Card Condition"
+  ],
+  "cond4000": {
+   "desc": "Ungraded",
+   "descriptor40001": [
+    "400010:Near mint or better",
+    "400015:Lightly played (Excellent)",
+    "400016:Moderately played (Very good)",
+    "400017:Heavily played (Poor)"
+   ]
+  },
+  "returns": {
+   "domesticPeriods": [
+    14,
+    30,
+    60
+   ],
+   "returnMethods": [
+    "REPLACEMENT"
+   ],
+   "policyDescriptionEnabled": false,
+   "shippingPayers": [
+    "SELLER",
+    "BUYER"
+   ],
+   "refund": [
+    "MONEY_BACK"
+   ]
+  },
+  "variationsSupported": true,
+  "shipping": {
+   "cardflipDefault": "USPSGroundAdvantage (Trading code is USPSParcel; note Sell API code may differ)",
+   "untrackedLetter": "US_eBayStandardEnvelope (up to $20; WeightRequired)",
+   "cheapTracked": "USPSParcel / USPSFirstClass (WeightRequired)"
+  }
+ },
+ "GB": {
+  "treeId": "3",
+  "statuses": {
+   "tree": 200,
+   "ret": 200,
+   "ls": 200,
+   "ship": 200
+  },
+  "categories": {
+   "183454": {
+    "name": "CCG Individual Cards",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "2750",
+     "3000",
+     "4000"
+    ]
+   },
+   "183456": {
+    "name": "CCG Sealed Packs",
+    "leaf": true,
+    "conditionRequired": false,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   },
+   "261044": {
+    "name": "CCG Sealed Boxes",
+    "leaf": true,
+    "conditionRequired": false,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   }
+  },
+  "requiredAspects": [
+   "Game"
+  ],
+  "game": {
+   "mode": "FREE_TEXT",
+   "values": [
+    "Pokémon TCG",
+    "Magic: The Gathering",
+    "Yu-Gi-Oh! TCG",
+    "Disney Lorcana TCG",
+    "One Piece CCG"
+   ],
+   "notExact": [
+    "Disney Lorcana",
+    "One Piece Card Game"
+   ]
+  },
+  "aspectsAbsent": [
+   "Graded",
+   "Professional Grader",
+   "Grade",
+   "Card Condition"
+  ],
+  "cond4000": {
+   "desc": "Ungraded",
+   "descriptor40001": [
+    "400010:Near mint or better",
+    "400015:Lightly played (Excellent)",
+    "400016:Moderately played (Very good)",
+    "400017:Heavily played (Poor)"
+   ]
+  },
+  "returns": {
+   "domesticPeriods": [
+    30,
+    60
+   ],
+   "returnMethods": null,
+   "policyDescriptionEnabled": null,
+   "shippingPayers": [
+    "SELLER",
+    "BUYER"
+   ],
+   "refund": [
+    "MONEY_BACK"
+   ]
+  },
+  "variationsSupported": true,
+  "shipping": {
+   "untrackedLetter": "UK_RoyalMail2ndClassLetter (also UK_RoyalMail1stClassLetter, UK_RoyalMailSecondClassStandard, UK_PackLinkPostable Evri Postable)",
+   "cheapTracked": "UK_RoyalMailTracked (Tracked 48), UK_myHermesDoorToDoorService (Evri Tracked), UK_RoyalMailNextDay (Tracked 24)",
+   "notes": "all Flat; no weight/dim required; no ShippingCategory NONE issues; signed-for: UK_RoyalMailSecondClassRecorded/FirstClassRecorded"
+  }
+ },
+ "AU": {
+  "treeId": "15",
+  "statuses": {
+   "tree": 200,
+   "ret": 200,
+   "ls": 200,
+   "ship": 200
+  },
+  "categories": {
+   "183454": {
+    "name": "CCG Individual Cards",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "2750",
+     "3000",
+     "4000"
+    ]
+   },
+   "183456": {
+    "name": "CCG Sealed Packs",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   },
+   "261044": {
+    "name": "CCG Sealed Boxes",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   }
+  },
+  "requiredAspects": [
+   "Game"
+  ],
+  "game": {
+   "mode": "FREE_TEXT",
+   "values": [
+    "Pokémon TCG",
+    "Magic: The Gathering",
+    "Yu-Gi-Oh! TCG",
+    "Disney Lorcana TCG",
+    "One Piece CCG"
+   ],
+   "notExact": [
+    "Disney Lorcana",
+    "One Piece Card Game"
+   ]
+  },
+  "aspectsAbsent": [
+   "Graded",
+   "Professional Grader",
+   "Grade",
+   "Card Condition"
+  ],
+  "cond4000": {
+   "desc": "Ungraded",
+   "descriptor40001": [
+    "400010:Near mint or better",
+    "400015:Lightly played (Excellent)",
+    "400016:Moderately played (Very good)",
+    "400017:Heavily played (Poor)"
+   ]
+  },
+  "returns": {
+   "domesticPeriods": [
+    30,
+    60
+   ],
+   "returnMethods": null,
+   "policyDescriptionEnabled": null,
+   "shippingPayers": [
+    "SELLER",
+    "BUYER"
+   ],
+   "refund": [
+    "MONEY_BACK"
+   ]
+  },
+  "variationsSupported": true,
+  "shipping": {
+   "untrackedLetter": "AU_AusPostStandardLetter (Regular Letter Untracked)",
+   "cheapTracked": "AU_AusPostStandardLetterWithTracking; AU_Sendle250ParcelDelivery (dim+weight required); AU_AusPostPriorityLetterWithTracking",
+   "intlFromNZPerspective": "AU has no NZ-specific service; AU_IntlEconomyUntracked (Economy International, untracked 11-35d), AU_AirMailInternational, AU_AusPostRegisteredPostInternationalParcel, AU_StandardInternational exist"
+  }
+ },
+ "CA": {
+  "treeId": "2",
+  "statuses": {
+   "tree": 200,
+   "ret": 200,
+   "ls": 200,
+   "ship": 200
+  },
+  "categories": {
+   "183454": {
+    "name": "CCG Individual Cards",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "2750",
+     "3000",
+     "4000"
+    ]
+   },
+   "183456": {
+    "name": "CCG Sealed Packs",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   },
+   "261044": {
+    "name": "CCG Sealed Boxes",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   }
+  },
+  "requiredAspects": [
+   "Game"
+  ],
+  "game": {
+   "mode": "FREE_TEXT",
+   "values": [
+    "Pokémon TCG",
+    "Magic: The Gathering",
+    "Yu-Gi-Oh! TCG",
+    "Disney Lorcana TCG",
+    "One Piece CCG"
+   ],
+   "notExact": [
+    "Disney Lorcana",
+    "One Piece Card Game"
+   ]
+  },
+  "aspectsAbsent": [
+   "Graded",
+   "Professional Grader",
+   "Grade",
+   "Card Condition"
+  ],
+  "cond4000": {
+   "desc": "Ungraded",
+   "descriptor40001": [
+    "400010:Near Mint or Better",
+    "400015:Lightly Played (Excellent)",
+    "400016:Moderately Played (Very Good)",
+    "400017:Heavily Played (Poor)"
+   ]
+  },
+  "returns": {
+   "domesticPeriods": [
+    30,
+    60
+   ],
+   "returnMethods": null,
+   "policyDescriptionEnabled": null,
+   "shippingPayers": [
+    "SELLER",
+    "BUYER"
+   ],
+   "refund": [
+    "MONEY_BACK"
+   ]
+  },
+  "variationsSupported": true,
+  "shipping": {
+   "untrackedLetter": "CA_PostLettermail (Canada Post Lettermail, 4-6d)",
+   "cheapTracked": "CA_PostRegularParcel (dim+weight required), CA_StandardShipping (generic flat); no cheap letter-tracked domestic code",
+   "notes": ""
+  }
+ },
+ "IE": {
+  "treeId": "205",
+  "statuses": {
+   "tree": 200,
+   "ret": 200,
+   "ls": 200,
+   "ship": 200
+  },
+  "categories": {
+   "183454": {
+    "name": "CCG Individual Cards",
+    "leaf": true,
+    "conditionRequired": true,
+    "conditionIds": [
+     "2750",
+     "3000",
+     "4000"
+    ]
+   },
+   "183456": {
+    "name": "CCG Sealed Packs",
+    "leaf": true,
+    "conditionRequired": false,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   },
+   "261044": {
+    "name": "CCG Sealed Boxes",
+    "leaf": true,
+    "conditionRequired": false,
+    "conditionIds": [
+     "1000",
+     "3000"
+    ]
+   }
+  },
+  "requiredAspects": [
+   "Game"
+  ],
+  "game": {
+   "mode": "FREE_TEXT",
+   "values": [
+    "Pokémon TCG",
+    "Magic: The Gathering",
+    "Yu-Gi-Oh! TCG",
+    "Disney Lorcana TCG",
+    "One Piece CCG"
+   ],
+   "notExact": [
+    "Disney Lorcana",
+    "One Piece Card Game"
+   ]
+  },
+  "aspectsAbsent": [
+   "Graded",
+   "Professional Grader",
+   "Grade",
+   "Card Condition"
+  ],
+  "cond4000": {
+   "desc": "Ungraded",
+   "descriptor40001": [
+    "400010:Near Mint or Better",
+    "400015:Lightly Played (Excellent)",
+    "400016:Moderately Played (Very Good)",
+    "400017:Heavily Played (Poor)"
+   ]
+  },
+  "returns": {
+   "domesticPeriods": [
+    14,
+    30,
+    60
+   ],
+   "returnMethods": null,
+   "policyDescriptionEnabled": null,
+   "shippingPayers": [
+    "SELLER",
+    "BUYER"
+   ],
+   "refund": [
+    "MONEY_BACK"
+   ]
+  },
+  "variationsSupported": true,
+  "shipping": {
+   "untrackedLetter": "IE_FirstClassLetterService",
+   "cheapTracked": "IE_RegisteredPost (closest; signed) ; IE_SellersStandardRate generic",
+   "notes": "only 12 domestic valid; Flat only; no carrier/category fields"
+  }
+ }
+}
