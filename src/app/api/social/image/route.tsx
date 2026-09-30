@@ -12,6 +12,7 @@ import {
   setSpotlight,
   topMovers,
   variantLabel,
+  displayName,
   type GameLead,
   type Mover,
   type PostSize,
@@ -351,6 +352,8 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
   // Outer cards first, the centre last, so the centre sits on top.
   const order = leads.map((_, i) => i).sort((a, b) => Math.abs(b - mid) - Math.abs(a - mid));
   const fs = wide ? 22 : 30;
+  // Columns are ~165px wide in the square picture, so names run smaller than the old game labels.
+  const nameFs = wide ? 18 : 23;
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 44 : tall ? 84 : 72, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.04, flexDirection: wide ? "row" : "column" }}>
@@ -388,12 +391,14 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
           );
         })}
       </div>
-      {/* One column per card, centred under it. */}
-      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: fs * 2.3, marginTop: wide ? 6 : 18 }}>
+      {/* One column per card, centred under it: the card's name and price, its game underneath
+          (Chris 09-30: "Pokémon $39.07" priced no card). A long name wraps to two lines. */}
+      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: nameFs * 2.4 + fs * 0.8 * 1.3 + fs * 0.62 * 1.3, marginTop: wide ? 6 : 18 }}>
         {leads.map((l, i) => (
-          <div key={l.game} style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "absolute", top: 0, left: i * step + cardW / 2 - step / 2, width: step }}>
-            <div style={{ display: "flex", fontSize: fs, fontWeight: 600, whiteSpace: "nowrap" }}>{POST_GAME_NAMES[l.game]}</div>
-            <div style={{ display: "flex", fontSize: fs * 0.85, color: MUTED, whiteSpace: "nowrap" }}>{money(l.price)}</div>
+          <div key={l.game} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", position: "absolute", top: 0, bottom: 0, left: i * step + cardW / 2 - step / 2, width: step }}>
+            <div style={{ display: "flex", fontSize: nameFs, fontWeight: 600, lineHeight: 1.15, textAlign: "center", justifyContent: "center", width: step - 6 }}>{displayName(l.name)}</div>
+            <div style={{ display: "flex", fontSize: fs * 0.8, fontWeight: 600, marginTop: 2, backgroundImage: HOLO, backgroundClip: "text", color: "transparent", whiteSpace: "nowrap" }}>{money(l.price)}</div>
+            <div style={{ display: "flex", fontSize: fs * 0.62, color: MUTED, whiteSpace: "nowrap" }}>{POST_GAME_NAMES[l.game]}</div>
           </div>
         ))}
       </div>

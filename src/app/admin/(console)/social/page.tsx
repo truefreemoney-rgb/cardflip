@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
-import { eastern, siteStatus, slotAt, socialGames, videoFor } from "@/lib/server/socialPublish";
+import { eastern, siteStatus, slotAt, slotSchedule, socialGames, videoFor } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
@@ -56,7 +56,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
         </nav>
       </div>
       <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} />
-      <SocialPreview drafts={drafts} videos={videos} />
+      <SocialPreview drafts={drafts} videos={videos} schedule={slotSchedule(day)} />
     </section>
   );
 }

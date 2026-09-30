@@ -69,6 +69,25 @@ export function slotKind(slot: Slot, day: string): PostKind {
   const plan = dayPlan(day);
   return (slot === "morning" ? plan.morning : slot === "evening" ? plan.evening : undefined) ?? SLOTS[slot].kind;
 }
+/**
+ * When each kind goes live on an Eastern day, for the /admin/social cards
+ * (Chris 09-30: "put a time/date on the preview posts"): "Wed, Sep 30 ·
+ * 7:05am ET" (the crons fire at :05) and whether that moment has passed.
+ * A kind with no slot that day is absent (a spare draft that does not post).
+ */
+export function slotSchedule(day: string, now = Date.now()): Partial<Record<PostKind, { slot: Slot; when: string; past: boolean }>> {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: ET_ZONE, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date(now));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  const nowEt = `${get("year")}-${get("month")}-${get("day")} ${String(Number(get("hour")) % 24).padStart(2, "0")}:${get("minute")}`;
+  const date = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const out: Partial<Record<PostKind, { slot: Slot; when: string; past: boolean }>> = {};
+  for (const slot of SLOT_ORDER) {
+    const h = SLOTS[slot].hour;
+    const time = `${h % 12 || 12}:05${h < 12 ? "am" : "pm"}`;
+    out[slotKind(slot, day)] = { slot, when: `${date} · ${time} ET`, past: nowEt >= `${day} ${String(h).padStart(2, "0")}:05` };
+  }
+  return out;
+}
 export const SLOT_PREFIX = "social_slot:";
 export const ET_ZONE = "America/New_York";
 

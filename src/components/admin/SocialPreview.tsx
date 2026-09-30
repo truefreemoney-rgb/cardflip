@@ -29,8 +29,11 @@ const SIZES = [
   ["landscape", "Landscape", "aspect-[1200/628]"],
 ] as const;
 
-/** videos: draft id → public MP4 URL, for drafts the render job registered (the 7am set spotlight goes out as video). */
-export default function SocialPreview({ drafts, videos = {} }: { drafts: DraftView[]; videos?: Record<string, string> }) {
+/** When a kind goes live that day (socialPublish.ts slotSchedule); a kind missing from it does not post. */
+export type Schedule = Partial<Record<DraftView["kind"], { slot: string; when: string; past: boolean }>>;
+
+/** videos: draft id → public MP4 URL, for drafts the render job registered (the 1pm movers go out as video). */
+export default function SocialPreview({ drafts, videos = {}, schedule = {} }: { drafts: DraftView[]; videos?: Record<string, string>; schedule?: Schedule }) {
   if (drafts.length === 0) {
     return (
       <p className="rounded-2xl border border-edge bg-surface-1 p-4 text-sm text-zinc-400">
@@ -41,15 +44,26 @@ export default function SocialPreview({ drafts, videos = {} }: { drafts: DraftVi
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {drafts.map((d) => (
-        <Draft key={d.id} draft={d} video={videos[d.id]} />
+        <Draft key={d.id} draft={d} video={videos[d.id]} goesLive={schedule[d.kind]} />
       ))}
     </div>
   );
 }
 
+/** "Goes Live Wed, Sep 30 · 7:05am ET" on top of each card; a spare draft says it does not post. */
+function GoesLive({ at, video }: { at?: Schedule[keyof Schedule]; video: boolean }) {
+  if (!at) return <p className="text-xs font-medium text-zinc-500">Not Posting This Day</p>;
+  return (
+    <p className={`text-xs font-medium ${at.past ? "text-zinc-400" : "text-brand-300"}`}>
+      {at.past ? "Went Live" : "Goes Live"} {at.when}
+      {video ? " · as the video" : ""}
+    </p>
+  );
+}
+
 type Size = (typeof SIZES)[number][0] | "video";
 
-function Draft({ draft, video }: { draft: DraftView; video?: string }) {
+function Draft({ draft, video, goesLive }: { draft: DraftView; video?: string; goesLive?: Schedule[keyof Schedule] }) {
   const [size, setSize] = useState<Size>(video ? "video" : "square");
   const [copied, setCopied] = useState(false);
   const aspect = size === "video" ? "aspect-[9/16]" : SIZES.find((s) => s[0] === size)![2];
@@ -70,6 +84,7 @@ function Draft({ draft, video }: { draft: DraftView; video?: string }) {
     <article className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-4">
       <header className="flex items-center justify-between gap-3">
         <div>
+          <GoesLive at={goesLive} video={draft.kind === "movers"} />
           <h2 className="font-semibold text-white">{draft.title}</h2>
           <p className="text-xs text-zinc-500">
             {draft.kind === "games" ? "Every game" : POST_GAME_NAMES[draft.game]} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : draft.kind === "games" ? "one scanner, every game" : "card of the day"} · {draft.day}
