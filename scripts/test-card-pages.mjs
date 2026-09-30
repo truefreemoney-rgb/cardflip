@@ -159,7 +159,7 @@ const young = (p) => cp.variantPrices("yugioh", [mk("normal", "2026-09-30", [p])
 const old = (p) => cp.variantPrices("yugioh", [mk("normal", "2026-09-01", Array.from({ length: 30 }, () => p))], today);
 check("a priced day is counted per printing", [young(10)[0].days, old(10)[0].days], [1, 30]);
 check("an unverified price: four figures on a day of history", [cp.isUnverified({ price: 1000, days: 1 }), cp.isUnverified({ price: 999, days: 1 }), cp.isUnverified({ price: 5000, days: cp.MATURE_PRICED_DAYS })], [true, false, false]);
-check("a day-old $213,589 card is noindex (unverified), its price is still a price", [cp.indexDecision(young(213589)), young(213589)[0].price], [{ index: false, reason: "unverified" }, 213589]);
+check("a day-old $213,589 card is noindex and never printed (soft flag, no headline)", [cp.indexDecision(young(213589)), young(213589)[0].flag?.hard, cp.headlinePrice(young(213589))], [{ index: false, reason: "flagged" }, false, null]);
 check("the same price with two weeks of history is indexed", cp.indexDecision(old(2500)), { index: true, reason: "ok" });
 check("a day-old $40 card is indexed", cp.indexDecision(young(40)), { index: true, reason: "ok" });
 check("mature days match the guard's minPricedDays", cp.MATURE_PRICED_DAYS, (await import(at("lib/server/priceTrust.ts"))).PRICE_TRUST.minPricedDays);

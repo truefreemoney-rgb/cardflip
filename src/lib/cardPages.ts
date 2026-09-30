@@ -248,7 +248,11 @@ export function variantPrices(game: GameId, series: SeriesInput[], today: string
   for (const s of series) {
     const last = lastPoint(s.startDay, s.prices);
     if (!last || !isFresh(last.day, today)) continue;
-    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days: s.prices.filter((p) => p != null && p > 0).length, flag: s.flag });
+    const days = s.prices.filter((p) => p != null && p > 0).length;
+    // A four-figure price on a few days of history is never printed either (a $213k Yu-Gi-Oh! common got past the guard on day one).
+    const young = !s.flag && isUnverified({ price: last.price, days });
+    const flag = young ? { hard: false, reason: `unverified ${days}d` } : s.flag;
+    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag });
   }
   return out.sort((a, b) => variantRank(a.variant) - variantRank(b.variant) || a.variant.localeCompare(b.variant));
 }
