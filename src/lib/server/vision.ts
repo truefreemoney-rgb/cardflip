@@ -284,7 +284,7 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sl
 export const YUGIOH_RARITIES = [
   "common", "rare", "super-rare", "ultra-rare", "secret-rare", "ultimate-rare", "ghost-rare", "starlight-rare",
   "quarter-century-secret-rare", "platinum-secret-rare", "prismatic-secret-rare", "collectors-rare", "gold-rare", "starfoil-rare", "mosaic-rare",
-  "shatterfoil-rare", "duel-terminal",
+  "shatterfoil-rare", "duel-terminal", "premium-gold-rare", "gold-secret-rare",
   // Colored-name Ultra Rares (Legendary Duelists / Duelist Saga reprints): the ranker splits the color off (tcgCards searchYugioh).
   "ultra-rare-blue", "ultra-rare-green", "ultra-rare-purple", "ultra-rare-red", "ultra-rare-bronze", "ultra-rare-silver",
 ] as const;
@@ -318,7 +318,7 @@ Where things are printed:
 - "1st Edition" is printed under the artwork on the LEFT side, opposite the set code. Report it in firstEdition: true when you see those words, false when that spot is visible and blank or says "LIMITED EDITION". It matters: a 1st Edition copy can sell for many times the Unlimited one.
 
 Rarity (variant) — judge from the foil, since the same set code can come in several rarities:
-- First look at the WHOLE card: is only the name/artwork foil, or does the foil run over the frame and text box too? Whole-card foils are starfoil, shatterfoil, mosaic, starlight and duel terminal — pick one of those before any of the name/art rarities below.
+- First look at the FRAME (the card's outer border and the box around the art), before the name or the art. A GOLD frame is a gold-rare / premium-gold-rare / gold-secret-rare, never secret-rare, whatever the art does. A frame covered in small dots, stars or sparkle is a whole-card foil: starfoil, shatterfoil, mosaic, starlight or duel-terminal (Duel Terminal and Hidden Arsenal sets: DT01–DT07, DTP1, HAC1 — dots over the frame, art and text box). Pick one of those before any of the name/art rarities below; only a plain-coloured frame goes on to the name/art rules.
 - common: name in plain black or white ink, artwork not foil.
 - rare: name in silver foil, artwork not foil.
 - super-rare: name in plain ink, artwork holographic with a smooth, even shine (no visible grain).
@@ -333,6 +333,9 @@ Rarity (variant) — judge from the foil, since the same set code can come in se
 - prismatic-secret-rare: artwork with a strong textured prism/glitter pattern, rainbow name.
 - collectors-rare: the artwork carries a fine textured foil that follows the drawing's lines, rainbow name.
 - gold-rare: gold card border and gold name, gold foil in the art.
+- premium-gold-rare: like gold-rare but the gold frame and art are covered in a coarse gold glitter (Maximum Gold, Premium Gold sets: MAGO, MGED, PGL3).
+- gold-secret-rare: gold border and name with a secret-rare diagonal sparkle in the art (Premium Gold PGLD / PGL2).
+Gold foils decide the set: a gold card is almost never a plain booster printing, so read its set code carefully (MAGO-EN046, MGED-EN026, PGL2-EN024).
 - starfoil-rare: the whole face has a glittery star/confetti foil pattern (often older tins and Battle Packs).
 - mosaic-rare: the whole face has a foil made of small square/triangular tiles.
 - shatterfoil-rare: the whole face, frame included, has a cracked-glass foil of large irregular shards (Battle Pack 3 and later tins); starfoil is small round dots/stars instead.

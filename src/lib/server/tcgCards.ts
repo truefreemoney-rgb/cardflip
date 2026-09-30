@@ -104,6 +104,19 @@ export function splitOnePieceNumber(number: string): { setCode: string | null; n
 
 const NAME_TIER = 8;
 
+/** Levenshtein distance (short strings: set codes and card names). */
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 3) return 99;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
 /** Same length, same letters, exactly one character different ("op13-118" vs "op10-018" is two — not this). */
 function oneCharOff(a: string, b: string): boolean {
   if (a.length !== b.length || a === b) return false;
@@ -285,6 +298,21 @@ async function searchYugioh(
       .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 200`)
       .all(`%${sqlFold(rawName)}%`)) as unknown as TcgRow[];
   }
+  // Name AND code both misread by a letter or two ("Materia Beast" PGL2-EN066
+  // for Naturia Beast PGL2-EN086, 09-29 panel): the set's rows whose code is
+  // a character off and whose name is a couple of letters off.
+  let fuzzyIds = new Set<string>();
+  if (wantedKey && needle && !rows.some((r) => fold(r.name) === needle)) {
+    const prefix = wantedKey.split("-")[0];
+    const setRows = (await db
+      // A range, not LIKE: LIKE is case-insensitive and skips the (game, collector_number) index. "." sorts right after "-".
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND collector_number >= ? AND collector_number < ? LIMIT 800`)
+      .all(`${prefix}-`, `${prefix}.`)) as unknown as TcgRow[];
+    const near = setRows.filter((r) => editDistance(yugiohKey(r.collector_number) ?? "", wantedKey) <= 1 && editDistance(fold(r.name), needle) <= 2);
+    fuzzyIds = new Set(near.map((r) => r.id));
+    const have = new Set(rows.map((r) => r.id));
+    rows = rows.concat(near.filter((r) => !have.has(r.id)));
+  }
   if (rows.length === 0) return [];
 
   let wantRarity = rarity && rarity !== "unknown" && rarity !== "standard" ? raritySlug(rarity) : null;
@@ -294,13 +322,24 @@ async function searchYugioh(
   const wantColor = colorMatch && COLORS.includes(colorMatch[1]) ? colorMatch[1] : null;
   if (wantColor) wantRarity = "ultra-rare";
   const score = (row: TcgRow): number => {
-    const exactName = needle !== "" && fold(row.name) === needle;
-    const exactNumber = Boolean(wantedKey) && yugiohKey(row.collector_number) === wantedKey;
-    // One character off on the code with the name exact ("SGX3-EN127" for ENI27, "MP15" for SP15): that printing, ahead of the name's other sets.
-    const nearNumber = !exactNumber && Boolean(wantedKey) && oneCharOff(yugiohKey(row.collector_number) ?? "", wantedKey!);
+    const exactName = needle !== "" && (fold(row.name) === needle || fuzzyIds.has(row.id));
+    const rowKey = yugiohKey(row.collector_number) ?? "";
+    const exactNumber = Boolean(wantedKey) && rowKey === wantedKey;
+    // Up to two characters off on the code with the name exact ("SGX3-EN127"
+    // for ENI27, "MP15" for SP15, "PST-054" for PSV-064): that printing, ahead
+    // of the name's other sets. Same digits in another set ("MP23-EN001" for
+    // SR01-EN001) is the next-best clue.
+    // At most one slip in the set part AND one in the number: "YS14-EN028"
+    // must not pull YS14-EN033 over the real YS16-EN035 (two digit slips).
+    const [rowSet, rowDigits] = rowKey.split("-");
+    const [wantSet, wantDigits] = (wantedKey ?? "-").split("-");
+    const nearNumber = !exactNumber && Boolean(wantedKey) && Boolean(rowKey) && editDistance(rowSet, wantSet) <= 1 && editDistance(rowDigits ?? "", wantDigits) <= 1;
+    const sameDigits = !exactNumber && Boolean(wantedKey) && rowDigits === wantDigits;
     let tier: number;
     if (exactNumber && (exactName || needle === "")) tier = 0;
     else if (exactName && nearNumber) tier = 0.5;
+    // A soft clue: a rarity read that fits another printing still outweighs it.
+    else if (exactName && sameDigits) tier = 0.9;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;
@@ -308,7 +347,12 @@ async function searchYugioh(
     // Rarity off the foil: "prismatic secret" read against a "secret" row is closer than "common".
     if (wantRarity) {
       const have = raritySlug(row.rarity);
-      p += have === wantRarity || (wantRarity === "duel-terminal" && have.startsWith("duel-terminal")) ? 0 : have.includes(wantRarity) || wantRarity.includes(have) ? 0.75 : 1.5;
+      // Same family (gold / premium gold / gold secret; any two duel terminal foils) beats a foil from another family.
+      const family = (s: string) => (s.includes("gold") ? "gold" : s.startsWith("duel-terminal") ? "duel-terminal" : null);
+      // "secret-rare" inside "prismatic-secret-rare" is a partial match; plain "rare" inside everything is not.
+      const shorter = have.length < wantRarity.length ? have : wantRarity;
+      const partial = shorter !== "rare" && shorter !== "common" && (have.includes(wantRarity) || wantRarity.includes(have));
+      p += have === wantRarity || (wantRarity === "duel-terminal" && have.startsWith("duel-terminal")) ? 0 : partial ? 0.75 : family(have) && family(have) === family(wantRarity) ? 0.75 : 1.5;
     }
     const isFirst = row.id.endsWith("-1st");
     if (firstEdition === true) p += isFirst ? 0 : 1.5;
@@ -342,7 +386,10 @@ async function searchYugioh(
     }
     if (rivals.length) {
       const rest = scored.filter((x) => x !== top && !rivals.includes(x));
-      scored.splice(0, scored.length, top, ...rivals.map((x) => ({ row: x.row, s: Math.min(x.s, top.s + TIEBREAK_GAP) })), ...rest);
+      // Re-sort after the lift: a better-scoring row from another set (the
+      // real printing, code misread) must stay ahead of the lifted foils.
+      const lifted = rivals.map((x) => ({ row: x.row, s: Math.min(x.s, top.s + TIEBREAK_GAP) }));
+      scored.splice(0, scored.length, top, ...[...lifted, ...rest].sort((a, b) => a.s - b.s));
     }
   }
   return scored.slice(0, limit).map((x) => ({ ...toCard(x.row), rankScore: x.s }));
