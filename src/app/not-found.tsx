@@ -1,6 +1,9 @@
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
+import { PRIVATE_META } from "@/lib/pageMeta";
+
+export const metadata = PRIVATE_META.notFound;
 
 export default function NotFound() {
   return (

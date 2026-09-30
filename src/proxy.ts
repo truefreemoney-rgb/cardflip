@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SITE_URL } from "@/lib/siteUrl";
 
 /**
  * Two geofences, both keyed on x-vercel-ip-country (Vercel stamps every
@@ -43,9 +44,22 @@ export function countryBlocked(country: string | null | undefined, pathname: str
 const isAdminPath = (pathname: string) =>
   pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/api/admin/");
 
+/**
+ * www.cardflip.io served the whole site (200) next to cardflip.io, so every page
+ * existed at two addresses (SEO sweep 09-30). The www host sends a 308 to the
+ * apex with the path and query kept; null = this request is not on www.
+ */
+export function wwwRedirectUrl(host: string | null, pathname: string, search: string): string | null {
+  const apex = new URL(SITE_URL);
+  const bare = (host ?? "").toLowerCase().replace(/:\d+$/, "");
+  return bare === `www.${apex.hostname}` ? `${apex.origin}${pathname}${search}` : null;
+}
+
 export function proxy(req: NextRequest) {
   const country = req.headers.get("x-vercel-ip-country");
   const { pathname } = req.nextUrl;
+  const www = wwwRedirectUrl(req.headers.get("host"), pathname, req.nextUrl.search);
+  if (www) return NextResponse.redirect(www, 308);
   const isApi = pathname.startsWith("/api/");
   if (countryBlocked(country, pathname)) {
     return isApi

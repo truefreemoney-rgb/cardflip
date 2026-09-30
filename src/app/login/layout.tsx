@@ -1,11 +1,7 @@
-import type { Metadata } from "next";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = {
-  title: "Log in",
-  description: "Log in to CardFlip to scan, price and list your cards.",
-  alternates: { canonical: "/login" },
-  openGraph: { url: "/login", title: "Log in · CardFlip" },
-};
+// Out of the index and the sitemap (09-30): people reach sign-in from the nav, never from a search.
+export const metadata = PRIVATE_META.login;
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
   return children;

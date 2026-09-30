@@ -1,13 +1,8 @@
-import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
 import { FROZEN_SENTENCE, PRICE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { PUBLIC_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "The terms that govern your use of CardFlip.",
-  alternates: { canonical: "/terms" },
-  openGraph: { url: "/terms", title: "CardFlip terms of service" },
-};
+export const metadata = PUBLIC_META.terms;
 
 const sections: LegalSection[] = [
   {

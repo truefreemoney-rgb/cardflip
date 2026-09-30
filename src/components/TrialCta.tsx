@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchCurrentUser } from "@/lib/client/auth";
+import { SCANS } from "@/lib/pricing";
 
 /**
  * The landing page's "Try 5 Scans Free" button, session-aware (Chris,
@@ -31,7 +32,7 @@ export default function TrialCta({ className }: { className: string }) {
     </Link>
   ) : (
     <Link href="/signup" className={className}>
-      Try 5 Scans Free
+      Try {SCANS.trial} Scans Free
     </Link>
   );
 }

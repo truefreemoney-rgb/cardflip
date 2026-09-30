@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = { title: "Admin sign-in", robots: { index: false, follow: false } };
+export const metadata = PRIVATE_META.adminLogin;
 
 export default function AdminLoginLayout({ children }: { children: React.ReactNode }) {
   return children;

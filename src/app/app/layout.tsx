@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import SessionProvider from "@/components/SessionProvider";
 import AppHeader from "@/components/AppHeader";
@@ -6,8 +5,9 @@ import SubscriptionGate from "@/components/SubscriptionGate";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
 import { NOT_AFFILIATED } from "@/lib/games";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = { title: "Scanner", robots: { index: false, follow: false } };
+export const metadata = PRIVATE_META.app;
 
 /**
  * The signed-in app carries the same legal surface as the marketing pages.

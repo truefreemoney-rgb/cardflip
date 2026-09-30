@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
@@ -233,12 +234,12 @@ function PsaCertVerify({
       {error && (
         <p className="text-xs text-red-400">
           {error}{" "}
-          <a
-            href="/help#graded"
+          <Link
+            href="/help/graded"
             className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
           >
             How Graded Cards Work
-          </a>
+          </Link>
         </p>
       )}
     </div>

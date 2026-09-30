@@ -27,7 +27,7 @@ export default function CardWall({ cards }: { cards: PokemonCard[] }) {
               i % 2 ? "rotate-2" : "-rotate-2"
             }`}
           >
-            <ArtImg src={card.imageSmall} loading="lazy" className="w-full rounded-md shadow-lg shadow-black/40" />
+            <ArtImg src={card.imageSmall} loading="lazy" width={245} height={342} className="w-full rounded-md shadow-lg shadow-black/40" />
           </button>
         ))}
       </div>

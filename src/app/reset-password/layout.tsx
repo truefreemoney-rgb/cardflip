@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = { title: "Reset password", robots: { index: false, follow: false } };
+export const metadata = PRIVATE_META.resetPassword;
 
 export default function ResetPasswordLayout({ children }: { children: React.ReactNode }) {
   return children;

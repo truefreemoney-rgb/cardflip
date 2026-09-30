@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { publicCollection } from "@/lib/server/publicCollection";
 import { normalizeHandle } from "@/lib/handle";
 import { formatMoney } from "@/lib/listing";
+import { pageMetadata } from "@/lib/seo";
 
 /**
  * cardflip.io/u/<handle> — a seller's public collection (Tier 2 #10).
@@ -26,12 +27,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!c) return { title: "Collection", robots: { index: false } };
   const title = `${c.name}'s collection`;
   const description = `${c.count} card${c.count === 1 ? "" : "s"} worth ${formatMoney(c.value)} at today's prices${c.forSale ? `, ${c.forSale} for sale on eBay` : ""}. Tracked with CardFlip.`;
-  return {
-    title,
-    description,
-    alternates: { canonical: `/u/${handle}` },
-    openGraph: { url: `/u/${handle}`, title, description, images: c.cards[0]?.imageUrl ? [c.cards[0].imageUrl] : undefined },
-  };
+  // The shared helper, so this page keeps the site name and the twitter card; the first card's picture is its share image.
+  return pageMetadata({ title, description, path: `/u/${handle}`, image: c.cards[0]?.imageUrl });
 }
 
 export default async function PublicCollectionPage({ params }: Params) {

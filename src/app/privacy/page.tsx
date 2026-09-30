@@ -1,12 +1,7 @@
-import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
+import { PUBLIC_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "What data CardFlip collects and what happens to it.",
-  alternates: { canonical: "/privacy" },
-  openGraph: { url: "/privacy", title: "CardFlip privacy policy" },
-};
+export const metadata = PUBLIC_META.privacy;
 
 const sections: LegalSection[] = [
   {

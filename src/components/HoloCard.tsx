@@ -8,6 +8,10 @@ interface Props {
   src: string;
   alt: string;
   className?: string;
+  /** The page's largest picture above the fold: fetched first and never lazy (the landing hero). */
+  priority?: boolean;
+  /** Below the fold: load when scrolled near. Default = the browser's own choice (eager). */
+  lazy?: boolean;
 }
 
 /**
@@ -22,7 +26,7 @@ interface Props {
  * (or be zeroed by reduced-motion, which left the tilt snapping stepwise).
  * Cursor-following is interaction feedback, same ruling as the scanner HUD.
  */
-export default function HoloCard({ src, alt, className = "" }: Props) {
+export default function HoloCard({ src, alt, className = "", priority = false, lazy = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const target = useRef({ x: 0, y: 0, px: 50, py: 50, s: 1, o: 0 });
@@ -108,6 +112,11 @@ export default function HoloCard({ src, alt, className = "" }: Props) {
         <img
           src={shown}
           alt={alt}
+          // Card art is 5:7; the box is sized by its container, the attributes just reserve the ratio before the bytes land.
+          width={500}
+          height={700}
+          {...(priority ? { fetchPriority: "high" as const, loading: "eager" as const } : lazy ? { loading: "lazy" as const } : {})}
+          decoding="async"
           className="block h-full w-full object-cover"
           onError={() => {
             if (stage === null && fallbackArtUrl(src)) setArtState({ src, stage: "fallback" });

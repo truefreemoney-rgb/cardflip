@@ -371,7 +371,9 @@ const spec = read("e2e/mobile.spec.ts");
 assert.match(spec, /"\/help", "\/confirm-email"\]/, "the anonymous phone-width loop covers /confirm-email");
 
 const linkPage = read("src/app/confirm-email/page.tsx");
-assert.match(read("src/app/confirm-email/layout.tsx"), /index: false/, "the link page is noindex");
+// The layout takes its metadata from lib/pageMeta.ts PRIVATE_META (09-30 SEO sweep): check the wiring and the noindex itself.
+assert.match(read("src/app/confirm-email/layout.tsx"), /PRIVATE_META\.confirmEmail/, "the link page takes the private metadata");
+assert.equal((await import(new URL("../src/lib/pageMeta.ts", import.meta.url).href)).PRIVATE_META.confirmEmail.robots.index, false, "the link page is noindex");
 // Opening the page must only peek: confirmLink (the POST) is called from the button handler alone.
 assert.equal((linkPage.match(/confirmLink\(/g) ?? []).length, 1, "exactly one caller of the POST");
 assert.match(linkPage, /async function confirm\(\)[\s\S]*?confirmLink\(token\)/);

@@ -1611,12 +1611,12 @@ export default function CollectionPage() {
               <p className="mt-1 text-sm text-zinc-500">
                 eBay emails a private discount to everyone watching a listing. One offer per
                 buyer per listing — pick the card, pick the cut, send.{" "}
-                <a
-                  href="/help#offers"
+                <Link
+                  href="/help/offers"
                   className="text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200"
                 >
                   How Offers Work
-                </a>
+                </Link>
               </p>
             </div>
             <button
