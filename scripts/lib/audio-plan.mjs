@@ -1,14 +1,14 @@
 // Which backing track a video gets, and where in it (scripts/social-video.mjs).
 // Pure, so the rotation and the timeline are testable (scripts/test-social-tiktok.mjs).
 //
-// The three videos of a day are offset by slot: the 1pm movers video keeps the
-// plain day rotation (dayIndex % tracks), so the file every site posts sounds
-// as it always did; 7am is one track on, 7pm two. With fewer tracks than
-// slots the videos that land on the same track do not repeat the opening:
-// each further one starts SECTION_BARS bars deeper in (a whole number of
-// bars, so the cut still lands on the beat). Only tracks committed to git
-// reach the GitHub runner, and that is ONE today, so this is what production
-// does. Two things keep that honest (09-30 review):
+// Chris 09-30: "randomize the audio to audio we used in previous posts". The
+// folder holds the tracks that have aired; each day shuffles them (seeded by
+// the day, so a re-render the same day picks the same) and hands them out
+// 1pm, 7am, 7pm, so with three tracks the day's three videos never share
+// one. With fewer tracks than slots the videos that land on the same track
+// do not repeat the opening: each further one starts SECTION_BARS bars
+// deeper in (a whole number of bars, so the cut still lands on the beat).
+// Two things keep that honest (09-30 review):
 //  - the start is then moved onto the beat of the stretch it lands in
 //    (scripts/lib/beat.mjs phaseAt): a breakdown can shift the groove by
 //    tens of ms, and a grid measured in the opening is that much off after it;
@@ -16,7 +16,6 @@
 //    breakdown: the price pop would land with no kick under it, or the video
 //    would open on silence), so a section that would is moved to the nearest
 //    bar that clears it, and never onto a bar another video of the day has.
-export const AUDIO_OFFSET = { midday: 0, morning: 1, evening: 2 };
 const ORDER = ["midday", "morning", "evening"];
 export const SECTION_BARS = 8;
 /** The fade-out after the last frame. */
@@ -26,9 +25,27 @@ export const NUDGE_MAX = 0.15;
 /** Under this a stretch has no clear beat to move onto (0..1, see beat.mjs). */
 export const NUDGE_MIN_STRENGTH = 0.03;
 
+/** The day's shuffle of track indices 0..trackCount-1 (Fisher-Yates on a mulberry32 stream seeded by the day). */
+export function dayShuffle(dayIndex, trackCount) {
+  let a = (Math.imul(dayIndex ^ 0x9e3779b9, 0x85ebca6b) ^ 0xc2b2ae35) >>> 0;
+  const rand = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const order = Array.from({ length: trackCount }, (_, i) => i);
+  for (let i = trackCount - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
 /** Index into the sorted track list for a slot on a day. */
 export function trackIndex(slot, dayIndex, trackCount) {
-  return (dayIndex + AUDIO_OFFSET[slot]) % trackCount;
+  return dayShuffle(dayIndex, trackCount)[ORDER.indexOf(slot) % trackCount];
 }
 
 /** How many earlier videos of the same day share this slot's track (0 = it opens the track). */

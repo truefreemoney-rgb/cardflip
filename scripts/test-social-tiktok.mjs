@@ -356,10 +356,15 @@ check("marking posted is not a failure and is not a post: no failed/alerted rows
 console.log("audio rotation");
 {
   const di = 20_000;
-  check("three tracks: the three videos of a day get three different ones; 1pm keeps the plain day rotation", [["midday", "morning", "evening"].map((s) => audio.trackIndex(s, di, 3)), audio.trackIndex("midday", di, 3) === di % 3], [[di % 3, (di + 1) % 3, (di + 2) % 3], true]);
-  check("three tracks: nobody starts deeper in", ["midday", "morning", "evening"].map((s) => audio.sectionFor(s, di, 3)), [0, 0, 0]);
-  check("one track (all that is committed): the opening, then 8 bars in, then 16", ["midday", "morning", "evening"].map((s) => audio.sectionFor(s, di, 1)), [0, 1, 2]);
-  check("two tracks: only the two that share a track differ", [["midday", "morning", "evening"].map((s) => audio.trackIndex(s, di, 2)), ["midday", "morning", "evening"].map((s) => audio.sectionFor(s, di, 2))], [[0, 1, 0], [0, 0, 1]]);
+  // Chris 09-30: "randomize the audio to audio we used in previous posts" — a seeded shuffle per day, no repeat inside a day.
+  const slots = ["midday", "morning", "evening"];
+  const days = Array.from({ length: 90 }, (_, k) => di + k);
+  check("three tracks: every day's three videos get three different ones", days.every((d) => new Set(slots.map((s) => audio.trackIndex(s, d, 3))).size === 3), true);
+  check("three tracks: the same day always picks the same (a re-render sounds the same)", slots.map((s) => audio.trackIndex(s, di, 3)), slots.map((s) => audio.trackIndex(s, di, 3)));
+  check("three tracks: random, not a rotation — over 90 days every track lands in every slot and the day orders vary", [slots.every((s) => new Set(days.map((d) => audio.trackIndex(s, d, 3))).size === 3), new Set(days.map((d) => slots.map((s) => audio.trackIndex(s, d, 3)).join(""))).size >= 5], [true, true]);
+  check("three tracks: nobody starts deeper in", slots.map((s) => audio.sectionFor(s, di, 3)), [0, 0, 0]);
+  check("one track: the opening, then 8 bars in, then 16", [slots.map((s) => audio.trackIndex(s, di, 1)), slots.map((s) => audio.sectionFor(s, di, 1))], [[0, 0, 0], [0, 1, 2]]);
+  check("two tracks: 7am gets the other track, 7pm shares 1pm's and starts deeper", days.every((d) => audio.trackIndex("morning", d, 2) !== audio.trackIndex("midday", d, 2) && audio.trackIndex("evening", d, 2) === audio.trackIndex("midday", d, 2)) && slots.map((s) => audio.sectionFor(s, di, 2)).join() === "0,0,1", true);
   const track = { start: 10.08, duration: 73.35 }, bar = 2.1333;
   check("a later section starts a whole number of bars in (8 per step) and fits the track", [audio.audioStart(track, bar, 0, 26.2), +audio.audioStart(track, bar, 1, 26.2).toFixed(3), +audio.audioStart(track, bar, 2, 26.2).toFixed(3)], [10.08, +(10.08 + 8 * bar).toFixed(3), +(10.08 + 16 * bar).toFixed(3)]);
   check("a video too long to fit that deep starts at the deepest bar that does, then at the opening", [+audio.audioStart(track, bar, 2, 40).toFixed(3), audio.audioStart(track, bar, 2, 70)], [+(10.08 + 10 * bar).toFixed(3), 10.08]);
