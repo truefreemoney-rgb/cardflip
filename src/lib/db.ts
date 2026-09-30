@@ -831,10 +831,23 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Seller-chosen folder ("Binder 1", "For sale", ...) — free text, null =
       // uncategorized (Chris, 09-04: organise Inventory by category).
       "category TEXT",
+      // Per-country eBay listing (docs/EBAY_COUNTRIES_PLAN.md, increment 1):
+      // which eBay site the listing lives on, the currency it was priced in
+      // and the asking price actually sent, in that currency. All NULL =
+      // EBAY_US / USD, i.e. every row that exists today; cards.price stays
+      // the USD figure. Nothing writes them until increment 2.
+      "ebay_marketplace TEXT",
+      "list_currency TEXT",
+      "list_price_local REAL",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,
   // cleared when the target changes (lib/server/wishlistAlerts.ts).
+  // eBay account facts from Commerce Identity getUser at connect (increment 1):
+  // INDIVIDUAL | BUSINESS picks the fee model (UK/AU private sellers pay no
+  // final value fee), registration_marketplace (EBAY_GB, ...) must agree with
+  // users.home_country before a seller routes to a local site.
+  ["ebay_tokens", ["account_type TEXT", "registration_marketplace TEXT"]],
   ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
   // Catalog id + game so a history row can reopen its card.
   ["price_checks", ["card_id TEXT", "game TEXT", "image_url TEXT"]],

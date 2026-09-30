@@ -342,8 +342,9 @@ export async function completeEbayConnect(userId: string, code: string): Promise
   await db.prepare(
     `INSERT INTO ebay_tokens
        (user_id, access_token, access_expires_at, refresh_token, refresh_expires_at,
-        ebay_user_id, ebay_username, scopes, connected_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ebay_user_id, ebay_username, scopes, connected_at, updated_at,
+        account_type, registration_marketplace)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        access_token = excluded.access_token,
        access_expires_at = excluded.access_expires_at,
@@ -353,7 +354,9 @@ export async function completeEbayConnect(userId: string, code: string): Promise
        ebay_username = excluded.ebay_username,
        scopes = excluded.scopes,
        connected_at = excluded.connected_at,
-       updated_at = excluded.updated_at`,
+       updated_at = excluded.updated_at,
+       account_type = excluded.account_type,
+       registration_marketplace = excluded.registration_marketplace`,
   ).run(
     userId,
     seal(tokens.access_token),
@@ -365,22 +368,46 @@ export async function completeEbayConnect(userId: string, code: string): Promise
     USER_SCOPES.join(" "),
     now,
     now,
+    identity?.accountType ?? null,
+    identity?.registrationMarketplace ?? null,
   );
   await setEbayConnected(userId, true);
 
   return (await getEbayLink(userId))!;
 }
 
-async function fetchIdentity(
-  accessToken: string,
-): Promise<{ userId: string | null; username: string | null }> {
+/**
+ * Commerce Identity getUser. Besides who the seller is, it reports the
+ * accountType (INDIVIDUAL | BUSINESS — picks the local fee model) and the
+ * registrationMarketplaceId (EBAY_GB, ... — must agree with the seller's home
+ * country before they route to a local site). Both are stored for the
+ * per-country work (docs/EBAY_COUNTRIES_PLAN.md); anything unrecognised is null.
+ */
+async function fetchIdentity(accessToken: string): Promise<{
+  userId: string | null;
+  username: string | null;
+  accountType: "INDIVIDUAL" | "BUSINESS" | null;
+  registrationMarketplace: string | null;
+}> {
   const res = await fetch(EBAY_IDENTITY_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`eBay identity request failed (${res.status})`);
-  const json = (await res.json()) as { userId?: string; username?: string };
-  return { userId: json.userId ?? null, username: json.username ?? null };
+  const json = (await res.json()) as {
+    userId?: string;
+    username?: string;
+    accountType?: string;
+    registrationMarketplaceId?: string;
+  };
+  const accountType = String(json.accountType ?? "").toUpperCase();
+  const registration = String(json.registrationMarketplaceId ?? "").trim().toUpperCase();
+  return {
+    userId: json.userId ?? null,
+    username: json.username ?? null,
+    accountType: accountType === "INDIVIDUAL" || accountType === "BUSINESS" ? accountType : null,
+    registrationMarketplace: /^EBAY_[A-Z]{2,4}$/.test(registration) ? registration : null,
+  };
 }
 
 /**
