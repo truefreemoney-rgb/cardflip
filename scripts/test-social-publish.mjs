@@ -58,10 +58,10 @@ await catalog("sv1-7", "Pawmi", "74"); await series("sv1-7", 12, 16); // +33%: t
 
 const fetched = [];
 const fetchImage = async (url) => { fetched.push(url); return Buffer.from("png"); };
-function fakeSite(id, { connected = true, fail = false, maxChars = 5000 } = {}) {
+function fakeSite(id, { connected = true, fail = false, maxChars = 5000, maxTags, backlink, linkChars } = {}) {
   const posts = [];
   return {
-    id, label: id, maxChars, maxImageBytes: 1_000_000, posts,
+    id, label: id, maxChars, maxTags, backlink, linkChars, maxImageBytes: 1_000_000, posts,
     connected: () => connected,
     async post(p) { if (fail) throw new Error("boom"); posts.push(p); return { uri: `https://${id}/${posts.length}` }; },
   };
@@ -170,8 +170,35 @@ await setSetting(`${KIND_PREFIX}dedupe2:set`, THU);
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [ded2], fetchImage, force: true });
 check("every rotation candidate already posted or unavailable → the slot still posts its own kind (set), never skipped", [r.sites[0].status, ded2.posts[0].alt.startsWith("Set spotlight:")], ["posted", true]);
 
+console.log("tracked links per site (lib/attribution.ts, 09-30)");
+{
+  // Same run, five sites: X/Facebook/Threads end on a short tracked path, Instagram says "Link in bio", Bluesky keeps the plain address (its facet carries the utm).
+  const { x: realX } = await import(at("lib/server/sites/x.ts"));
+  const xs = fakeSite("x", { maxChars: realX.maxChars, backlink: realX.backlink, linkChars: realX.linkChars });
+  const fb = fakeSite("facebook", { backlink: "path" });
+  const th = fakeSite("threads", { maxChars: 500, backlink: "path" });
+  const ig = fakeSite("instagram", { maxChars: 2200, maxTags: 5, backlink: "bio" });
+  const bs = fakeSite("bluesky", { maxChars: 300 });
+  r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [xs, fb, th, ig, bs], fetchImage });
+  check("all five post the 7am set spotlight", r.sites.map((s) => s.status), ["posted", "posted", "posted", "posted", "posted"]);
+  const ep = "pokemon-set-0910";
+  check("the campaign is the draft id with the day as MMDD, handed to every site", [xs, fb, th, ig, bs].map((s) => s.posts[0].campaign), [ep, ep, ep, ep, ep]);
+  check("X: ends on cardflip.io/x/<campaign> (tags after it)", xs.posts[0].text.includes(`cardflip.io/x/${ep}\n\n#`), true);
+  check("X: fits 280 with the link counted as a t.co (23)", xs.posts[0].text.length - `cardflip.io/x/${ep}`.length + 23 <= 280, true);
+  check("Facebook: cardflip.io/f/<campaign>", fb.posts[0].text.includes(`cardflip.io/f/${ep}`), true);
+  check("Threads: cardflip.io/th/<campaign>, within 500", [th.posts[0].text.includes(`cardflip.io/th/${ep}`), th.posts[0].text.length <= 500], [true, true]);
+  check("Instagram: Link in bio, no address, at most five tags", [ig.posts[0].text.includes("Link in bio"), ig.posts[0].text.includes("cardflip.io"), (ig.posts[0].text.match(/#[A-Za-z]\w*/g) ?? []).length <= 5], [true, false, true]);
+  check("Bluesky: the visible text is the plain address", [bs.posts[0].text.includes("cardflip.io"), bs.posts[0].text.includes("cardflip.io/"), bs.posts[0].text.length <= 300], [true, false, true]);
+  check("every site's text still ends on its hashtags", [xs, fb, th, ig, bs].every((s) => /\n\n(#\w+ ?)+$/.test(s.posts[0].text)), true);
+  const meta0 = await import(at("lib/server/sites/meta.ts"));
+  const { bluesky } = await import(at("lib/server/sites/bluesky.ts"));
+  const pin0 = await import(at("lib/server/sites/pinterest.ts"));
+  check("real sites: X/Facebook/Threads = path, Instagram = bio, Bluesky/Pinterest untouched", [realX.backlink, meta0.facebook.backlink, meta0.threads.backlink, meta0.instagram.backlink, bluesky.backlink, pin0.pinterest.backlink], ["path", "path", "path", "bio", undefined, undefined]);
+  check("X counts the path as the 11-character address it replaces (body budget unchanged)", realX.linkChars, 11);
+}
+
 console.log("text fitting");
-const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
+const long ={ caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
 check("fits: caption + tags when room", fitText({ caption: "hi cardflip.io", shortCaption: "hi", hashtags: ["A"] }, 300), "hi cardflip.io\n\n#A");
 // 09-30 (Chris: "make sure to use hashtags to tag all the posts"): tags
 // outrank the long caption — the short caption WITH tags beats the long one without.

@@ -51,6 +51,16 @@ sentence case, no exclamation marks, ends on cardflip.io).
   posted today (or has no draft), the slot's own kind repeats.
 - Text is fitted to the site's limit: caption + hashtags → caption alone →
   `shortCaption` (name + % only) → cut on a line with `cardflip.io` kept.
+- Tracked links (09-30, `lib/attribution.ts`; signups by source on
+  /admin/analytics). The campaign is the draft id with the day as MMDD
+  (`pokemon-set-1001`). Bluesky: the link facet's uri is the full
+  `?utm_source=bluesky&utm_medium=social&utm_campaign=…` URL, the text still says
+  cardflip.io. X / Facebook / Threads: the caption ends on a short path
+  (`cardflip.io/x/pokemon-set-1001`, `/f/`, `/th/`) that `src/proxy.ts` answers with a
+  302 to `/?utm_…`; fitText reserves its length (`backlink` / `linkChars` on the
+  site). Instagram and TikTok: captions are not clickable, so they say "Link in
+  bio"; the owner sets the bio links to `https://cardflip.io/i` and
+  `https://cardflip.io/tt`. Pinterest: the pin's link field carries the utm URL.
 - Picture: the square PNG from `/api/social/image` (fetched from the same
   deployment with the cron key), turned into a JPEG when the site caps
   bytes (Bluesky: 1 MB).

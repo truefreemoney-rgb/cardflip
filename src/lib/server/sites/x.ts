@@ -17,7 +17,14 @@ import type { SocialSite, SitePost } from "@/lib/server/socialPublish";
  */
 const API = process.env.X_API_BASE ?? "https://api.x.com";
 const UPLOAD_V1 = process.env.X_UPLOAD_BASE ?? "https://upload.twitter.com";
-/** 280 minus a t.co link (23) so a caption ending in cardflip.io still fits. */
+/**
+ * 280 minus a t.co link (23) so a caption ending in a link still fits. The
+ * closing link is a short tracked path (cardflip.io/x/pokemon-set-0930, up to
+ * 34 typed characters); X counts any link as 23, so fitText counts it as the
+ * 11-character cardflip.io it replaces (`linkChars`), which keeps every body
+ * budget as it was: 246 + 23 = 269 <= 280, and 246 + 34 = 280 even if X did
+ * not recognise the path as a link.
+ */
 export const X_MAX_CHARS = 257;
 /** X takes images up to 5 MB. */
 export const X_MAX_IMAGE_BYTES = 4_900_000;
@@ -254,6 +261,8 @@ export const x: SocialSite = {
   id: "x",
   label: "X",
   maxChars: X_MAX_CHARS,
+  backlink: "path",
+  linkChars: "cardflip.io".length,
   maxImageBytes: X_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => creds() !== null,
