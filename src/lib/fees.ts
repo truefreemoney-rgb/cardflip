@@ -29,8 +29,31 @@ export function estimatedEbayFees(gross: number): number {
 export const MIN_NET_USD = 0.5;
 export const POSTAGE_USD = 0.75;
 
+/**
+ * The asking price at which the seller KEEPS `net` after eBay's cut and
+ * postage — the fee is a share of the sale price, so it compounds:
+ * gross = (net + flat + postage) / (1 − rate), rounded up to the cent.
+ */
+export function costCoveredPrice(net: number): number {
+  return Math.ceil(((net + EBAY_FLAT_FEE + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+}
+
+/**
+ * Cheap cards list at their value PLUS fees and postage (Chris, 09-30: "start
+ * with the total cost of fees and postage then attach the tcg price of the
+ * card on top" — a $1.50 card at $1.50 nets a quarter). Below this value the
+ * suggested price is costCoveredPrice(value), so the seller pockets the
+ * card's full market value; from here up the card is worth enough that the
+ * market price already clears costs and stays competitive with other eBay
+ * listings, so it prices as before.
+ */
+export const COST_COVERED_MAX_USD = 5;
+export function coversCosts(value: number): boolean {
+  return value > 0 && value < COST_COVERED_MAX_USD;
+}
+
 export function listingFloor(): number {
-  return Math.ceil(((MIN_NET_USD + EBAY_FLAT_FEE + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+  return costCoveredPrice(MIN_NET_USD);
 }
 
 /**

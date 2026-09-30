@@ -99,7 +99,8 @@ check("older row: scanned backfilled from the series on its scan day (LP)", by[o
 check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, 17);
 check("variant stored on create and read back", (await getCardForUser(foil.id, user.id)).variant, "foil");
 check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, 50);
-check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, 2);
+// $2 is a cheap card: value + fees + postage on top (09-30), same rule as the scanner.
+check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, askingPriceFor(2, "Near Mint"));
 check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
 
 console.log(failures === 0 ? "\nAll live-price checks passed." : `\n${failures} live-price check(s) FAILED.`);

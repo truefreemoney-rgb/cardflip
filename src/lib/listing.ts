@@ -19,11 +19,26 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
-import { listingFloor, MIN_NET_USD, POSTAGE_USD } from "./fees.ts";
+import { costCoveredPrice, coversCosts, listingFloor, MIN_NET_USD, POSTAGE_USD } from "./fees.ts";
 
-/** The one-line reason a floored price shows beside the tile. */
-export function floorNote(): string {
-  return `Raised to $${listingFloor().toFixed(2)} so you clear $${MIN_NET_USD.toFixed(2)} after eBay fees and $${POSTAGE_USD.toFixed(2)} postage`;
+/** The one-line reason a cost-covered price shows beside the tile. */
+export function floorNote(quote?: { covers?: number } | null): string {
+  const keep = quote?.covers ?? MIN_NET_USD;
+  return keep > MIN_NET_USD
+    ? `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`
+    : `Raised to $${listingFloor().toFixed(2)} so you clear $${MIN_NET_USD.toFixed(2)} after eBay fees and $${POSTAGE_USD.toFixed(2)} postage`;
+}
+
+/**
+ * A cheap card's asking price: its (condition-adjusted) value with eBay fees
+ * and postage on top, never under the floor. Returns null when the value is
+ * high enough to price at market.
+ */
+function coveredAsk(value: number): { price: number; covers: number } | null {
+  if (!coversCosts(value)) return null;
+  const covered = costCoveredPrice(value);
+  const floor = listingFloor();
+  return covered >= floor ? { price: covered, covers: Math.round(value * 100) / 100 } : { price: floor, covers: MIN_NET_USD };
 }
 
 // eBay's CCG leaf categories are shared by every game since the 2020
@@ -352,8 +367,7 @@ export function askingPriceFor(market: number, condition: string): number {
   if (!(market > 0)) return 0;
   const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
   const rounded = roundPrice(market * mult, "market");
-  const floor = listingFloor();
-  return rounded > 0 && rounded < floor ? floor : rounded;
+  return coveredAsk(rounded)?.price ?? rounded;
 }
 
 /**
@@ -434,16 +448,16 @@ export function quotePrice(
   const adjusted = conditioned * STRATEGY_MULTIPLIER[effective];
 
   const rounded = roundPrice(adjusted, effective);
-  // The fee-aware floor: USD listings only (a euro reference can't set a
-  // dollar price anyway), and only when there IS a price to raise.
-  const floor = listingFloor();
-  const floored = price.currency === "USD" && rounded > 0 && rounded < floor;
+  // Cheap cards (under $5, Chris 09-30): value + fees + postage, never under
+  // the floor. USD listings only (a euro reference can't set a dollar price
+  // anyway), and only when there IS a price.
+  const covered = price.currency === "USD" ? coveredAsk(rounded) : null;
 
   return {
     price,
     base: price.market,
-    suggested: floored ? floor : rounded,
-    ...(floored ? { floored: true } : {}),
+    suggested: covered ? covered.price : rounded,
+    ...(covered ? { floored: true, covers: covered.covers } : {}),
   };
 }
 

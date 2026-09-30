@@ -8,6 +8,7 @@
  * wearing a dollar sign, one dropdown click away from becoming the listing.
  */
 import {
+  askingPriceFor,
   buildListing,
   buildSealedListing,
   canBeFirstEdition,
@@ -20,6 +21,7 @@ import {
   quoteForItem,
   quotePrice,
 } from "../src/lib/listing.ts";
+import { costCoveredPrice } from "../src/lib/fees.ts";
 import {
   gradeLabel,
   gradesFor,
@@ -482,25 +484,45 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice(card, "Near Mint", "market", undefined, point(400, { currency: "EUR", source: "cardmarket", variant: "average" })).base,
     520.47,
   );
-  // 09-03 fee-aware floor (Chris: $0.50 net, $0.75 postage): a cheap card's
-  // suggested price rises to the least a single eBay listing can clear.
+  // 09-30 cheap cards (Chris: "start with the total cost of fees and postage
+  // then attach the tcg price of the card on top"): under $5 the suggested
+  // price is the card's value + 13.25% + $0.30 + $0.75 postage, so the seller
+  // keeps the full value. (1.03 + 0.30 + 0.75) / 0.8675 = 2.40.
   const cheapCard = { name: "Test", setName: "Test", prices: [usd(1.03)] };
   check(
-    "cheap card: quick sale is raised to the fee-aware floor",
+    "cheap card: quick sale is priced to cover fees and postage",
     quotePrice(cheapCard, "Near Mint", "quick").suggested,
-    1.79,
+    2.4,
   );
   check(
-    "cheap card: the floor is flagged",
+    "cheap card: the cover-up is flagged",
     quotePrice(cheapCard, "Near Mint", "quick").floored,
     true,
   );
-  // 09-03 quick sale is a $5+ option: below it "quick" quotes the market.
+  check("cheap card: the note says what the seller keeps", quotePrice(cheapCard, "Near Mint", "quick").covers, 1.03);
+  check(
+    "Chris's example: a $1.50 card lists at $2.94 and nets $1.50",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(1.5)] }, "Near Mint", "market").suggested,
+    2.94,
+  );
+  check(
+    "condition first: a $1.50 card in Lightly Played covers its $1.27 LP value",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(1.5)] }, "Lightly Played", "market").suggested,
+    costCoveredPrice(1.27), // 1.5 × 0.85 rounds to 1.27 in floating point (roundPrice)
+  );
+  // Worth less than $0.50: the old floor still applies (nets $0.50, not the value).
+  const pennyCard = { name: "Test", setName: "Test", prices: [usd(0.3)] };
+  check("penny card: the $1.79 floor", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.79);
+  check("penny card: covers $0.50", quotePrice(pennyCard, "Near Mint", "market").covers, 0.5);
+  check("askingPriceFor agrees with quotePrice for cheap cards", askingPriceFor(1.5, "Near Mint"), 2.94);
+  check("askingPriceFor leaves a $5 card at market", askingPriceFor(5, "Near Mint"), 5);
+  // 09-03 quick sale is a $5+ option: below it "quick" quotes the market
+  // (then covers costs like any cheap card).
   const fourDollar = { name: "Test", setName: "Test", prices: [usd(4.2)] };
   check(
-    "under $5: quick sale quotes the market price (no undercut, no charm)",
+    "under $5: quick sale quotes the market price (no undercut, no charm), costs on top",
     quotePrice(fourDollar, "Near Mint", "quick").suggested,
-    4.2,
+    costCoveredPrice(4.2),
   );
   check(
     "at $5+: quick sale still undercuts",
