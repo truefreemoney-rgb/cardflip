@@ -145,7 +145,7 @@ export async function searchTyped(
     const { name, number, setCode } = parseMtgQuery(query);
     if (!name && !(number && setCode)) return null;
     const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-    const found = await searchCards(name, printed, lang, limit, "mtg");
+    const found = await searchCards(name, printed, lang, limit, "mtg", null, false, null, null, true);
     if (!exact || !number) return found;
     const hit = found.filter((c) => bareNumber(c.number) === bareNumber(number));
     return hit.length > 0 ? hit : found;

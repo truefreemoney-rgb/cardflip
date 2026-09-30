@@ -316,6 +316,10 @@ export async function searchMtgCardsLocal(
   artOnly = false,
   /** Everything else the scan read (finish, treatment, marks, artist, year, border). */
   cues: MtgCues | null = null,
+  /** A seller typed it: "bolt" must reach Lightning Bolt (09-30), so the
+   * substring tier runs whenever the range came back short. Scanner reads
+   * leave it off — the walk is ~94k rows and they read full names. */
+  typed = false,
 ): Promise<PokemonCard[]> {
   // Commas are punctuation, not identity: "Ragavan Nimble Pilferer" must
   // find "Ragavan, Nimble Pilferer".
@@ -378,8 +382,8 @@ export async function searchMtgCardsLocal(
       const seen = new Set(rows.map((r) => r.id));
       for (const r of older) if (!seen.has(r.id)) rows.push(r);
     }
-    if (rows.length === 0 && needle.length >= 5) {
-      rows = (await db
+    if ((rows.length === 0 && needle.length >= 5) || (typed && rows.length < limit && needle.length >= 3)) {
+      const wide = (await db
         .prepare(
           `SELECT ${CARD_COLUMNS_JOINED}
              FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
@@ -388,6 +392,8 @@ export async function searchMtgCardsLocal(
             LIMIT 600`,
         )
         .all(`%${needle}%`)) as unknown as MtgCardRow[];
+      const seen = new Set(rows.map((r) => r.id));
+      for (const r of wide) if (!seen.has(r.id)) rows.push(r);
     }
   } else if (wantedNumber && wantedCode) {
     // No name but number + set code is itself an identification.
@@ -429,7 +435,8 @@ export async function searchMtgCardsLocal(
   const boundary = (text: string, at: number) => at >= text.length || /[\s,'’\-:]/.test(text[at]);
   const wordPrefix = (text: string) => text.startsWith(needle) && boundary(text, needle.length);
   const wordInside = (text: string) => {
-    if (needle.length < 5) return false;
+    // A typed word is deliberate, not OCR debris: "bolt", "ring" count.
+    if (needle.length < (typed ? 3 : 5)) return false;
     let from = 0;
     for (;;) {
       const i = text.indexOf(needle, from);

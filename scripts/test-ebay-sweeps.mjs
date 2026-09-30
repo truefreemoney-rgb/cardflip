@@ -208,6 +208,14 @@ a = await sweepWishlistAlerts(NOW, { send: failing, configured: on });
 check("alerts: re-armed target checked again; failed send stamps nothing", [a.sent, Boolean((await listWishlist(uid)).find((w) => w.id === w1.id).alertedAt)], [0, false]);
 a = await sweepWishlistAlerts(NOW, { send, configured: on });
 check("alerts: retried next pass", a.sent, 1);
+// Lorcana / One Piece / Yu-Gi-Oh! have no price_series (09-30: their alerts
+// could never fire) — the catalog's own price answers.
+await db.prepare("INSERT INTO tcg_cards (id, game, name, subtitle, set_code, set_name, collector_number, image_url, price_usd, synced_at) VALUES (?, 'lorcana', 'Elsa', 'Spirit of Winter', '1', 'The First Chapter', '42', '', 3, 0)").run("tcg-elsa");
+const w5 = await addToWishlist(uid, { ...pcard("tcg-elsa", "Elsa - Spirit of Winter"), game: "lorcana" }, "en", 3);
+await setWishlistAlert(w5.id, uid, 4);
+mails.length = 0;
+a = await sweepWishlistAlerts(NOW, { send, configured: on });
+check("alerts: Lorcana row fires off the catalog price", mails[0]?.hits, [["Elsa - Spirit of Winter", 3, 4]]);
 
 // --- reprice nudges --------------------------------------------------------------
 await recordPoint("cat-up", "pokemon", "normal", "tcgplayer", "USD", 20);

@@ -4,6 +4,8 @@ import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { TIEBREAK_GAP } from "@/lib/tiebreak";
 import { yugiohKey } from "@/lib/yugioh";
+import type { SetInfo } from "@/lib/grading";
+import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 
 /**
  * Lorcana + One Piece identification off the shared mirror (tcg_cards, see
@@ -102,6 +104,62 @@ export async function tcgReferenceImage(id: string): Promise<string | null> {
 export async function tcgCardById(id: string): Promise<PokemonCard[]> {
   const row = (await db.prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE id = ?`).get(id)) as TcgRow | undefined;
   return row ? [toCard(row)] : [];
+}
+
+/**
+ * The set browser (Search Cards / Watchlist "By set"). Until 09-30 /api/sets
+ * and /api/set-cards knew only Pokémon + Magic, so Lorcana / One Piece /
+ * Yu-Gi-Oh! listed Pokémon's sets. Key = "code|name": Yu-Gi-Oh! reuses a
+ * code across sets (DCR-EN = Dark Crisis 25th and Worldwide English).
+ */
+export async function listTcgSets(game: TcgGame): Promise<SetInfo[]> {
+  return cachedList(`sets:v1:${game}`, SET_LIST_TTL_MS, async () => {
+    const rows = (await db
+      .prepare(
+        `SELECT set_code, set_name, MIN(set_release_date) AS release_date
+           FROM tcg_cards WHERE game = ?
+          GROUP BY set_code, set_name
+          ORDER BY release_date DESC, set_name`,
+      )
+      .all(game)) as unknown as { set_code: string; set_name: string; release_date: string }[];
+    return rows.map((r) => ({ name: r.set_name || r.set_code, releaseDate: r.release_date ?? "", logoUrl: "", code: `${r.set_code}|${r.set_name}` }));
+  });
+}
+
+/** Every card in one set ("code|name" from listTcgSets, or a bare code), printed order. */
+export async function tcgCardsBySet(game: TcgGame, key: string): Promise<PokemonCard[]> {
+  const cut = key.indexOf("|");
+  const code = cut < 0 ? key : key.slice(0, cut);
+  const name = cut < 0 ? null : key.slice(cut + 1);
+  const rows = (await db
+    .prepare(
+      `SELECT ${COLUMNS} FROM tcg_cards
+        WHERE game = ? AND set_code = ? ${name != null ? "AND set_name = ?" : ""}
+        ORDER BY CAST(collector_number AS INTEGER), collector_number, variant`,
+    )
+    .all(...(name != null ? [game, code, name] : [game, code]))) as unknown as TcgRow[];
+  return rows.map(toCard);
+}
+
+/**
+ * Current catalog price per id (plain, else foil) for Lorcana / One Piece /
+ * Yu-Gi-Oh! rows — they have no price_series, so the watchlist alert sweep
+ * reads this instead (09-30: alerts on those games could never fire).
+ */
+export async function tcgCatalogPrices(ids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    if (!chunk.length) break;
+    const rows = (await db
+      .prepare(`SELECT id, price_usd, price_usd_foil FROM tcg_cards WHERE id IN (${chunk.map(() => "?").join(",")})`)
+      .all(...chunk)) as unknown as { id: string; price_usd: number | null; price_usd_foil: number | null }[];
+    for (const r of rows) {
+      const p = r.price_usd ?? r.price_usd_foil;
+      if (p != null) out.set(r.id, p);
+    }
+  }
+  return out;
 }
 
 export async function hasTcgMirror(game: TcgGame): Promise<boolean> {

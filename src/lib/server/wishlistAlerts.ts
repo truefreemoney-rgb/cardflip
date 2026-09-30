@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { sendPushToUser } from "@/lib/server/push";
+import { tcgCatalogPrices } from "@/lib/server/tcgCards";
 import { wishlistDipPush } from "@/lib/pushMessages";
 
 /**
@@ -59,10 +60,13 @@ export async function sweepWishlistAlerts(
 
   // One batched series read for the whole sweep instead of one per row (up
   // to 200 round trips on Turso).
-  const prices = await latestUsdPrices([...new Set(rows.map((r) => r.card_id))]);
+  const ids = [...new Set(rows.map((r) => r.card_id))];
+  const prices = await latestUsdPrices(ids);
+  // Lorcana / One Piece / Yu-Gi-Oh! have no price_series: their catalog price.
+  const catalog = await tcgCatalogPrices(ids.filter((id) => !prices.has(id)));
   const hitsByUser = new Map<string, { email: string; userId: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
-    const price = prices.get(row.card_id)?.price ?? null;
+    const price = prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
     if (price == null || price > row.alert_price) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, userId: row.user_id, hits: [] };
     entry.hits.push({

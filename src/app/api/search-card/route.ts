@@ -246,7 +246,7 @@ export async function GET(req: NextRequest) {
     const rawName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim();
     const artOnly = req.nextUrl.searchParams.get("art_series") === "1";
     const cues: MtgCues | null = parseMtgCuesParams(req.nextUrl.searchParams);
-    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly, cues);
+    const cards = await searchMtgCardsLocal(rawName, number || null, setCode, limit, art, artOnly, cues, req.nextUrl.searchParams.get("typed") === "1");
     const matchedOn = !name ? "number+set" : number ? (setCode ? "name+number+set" : "name+number") : "name";
     if (cards.length === 0) {
       // Vercel keeps console output per request; the request log itself

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { setLogoFromCardImage, type SetInfo } from "@/lib/grading";
 import { parseGame } from "@/lib/games";
 import { listMtgSets } from "@/lib/server/mtgCards";
+import { isTcgGame, listTcgSets } from "@/lib/server/tcgCards";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 
 /**
@@ -29,8 +30,13 @@ export async function GET(req: NextRequest) {
 
 async function listSets(req: NextRequest) {
   // ?game=mtg → the Scryfall mirror's sets (with their set icons).
-  if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
+  const game = parseGame(req.nextUrl.searchParams.get("game"));
+  if (game === "mtg") {
     return NextResponse.json({ sets: await listMtgSets() });
+  }
+  // Lorcana / One Piece / Yu-Gi-Oh! — the shared tcg_cards mirror.
+  if (isTcgGame(game)) {
+    return NextResponse.json({ sets: await listTcgSets(game) });
   }
 
   // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06).

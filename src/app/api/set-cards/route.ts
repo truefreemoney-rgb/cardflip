@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseGame } from "@/lib/games";
 import { englishCardsBySet } from "@/lib/server/enCards";
 import { mtgCardsBySet } from "@/lib/server/mtgCards";
+import { isTcgGame, tcgCardsBySet } from "@/lib/server/tcgCards";
 import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
 
 /**
@@ -17,8 +18,13 @@ export async function GET(req: NextRequest) {
   const set = (req.nextUrl.searchParams.get("set") ?? "").trim().slice(0, 120);
   if (!set) return NextResponse.json({ error: "Missing set" }, { status: 400 });
   try {
-    if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
+    const game = parseGame(req.nextUrl.searchParams.get("game"));
+    if (game === "mtg") {
       return NextResponse.json({ cards: await mtgCardsBySet(set) });
+    }
+    // Lorcana / One Piece / Yu-Gi-Oh!: ?set=<code|name> from /api/sets.
+    if (isTcgGame(game)) {
+      return NextResponse.json({ cards: await tcgCardsBySet(game, set) });
     }
     const cards = await englishCardsBySet(set);
     const prices = await latestUsdPrices(cards.map((c) => c.id));
