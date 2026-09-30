@@ -35,7 +35,8 @@ const REGISTER = has("--register");
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { topMovers, recentlyFeatured, money } = await import(at("lib/server/social.ts"));
+const { topMovers, mixedMovers, recentlyFeatured, variantLabel } = await import(at("lib/server/social.ts"));
+const { dayPlan, POST_GAME_NAMES, POST_GAME_ORDER } = await import(at("lib/socialPlan.ts"));
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
 const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
@@ -68,15 +69,22 @@ console.log(withAudio ? `audio: ${path.basename(AUDIO)} (${tracks.length} in rot
 // (topMovers gainers only, same MOVER_MIN_PRICE/HELD_DAYS quality floors,
 // same no-repeat exclusion) so the video never shows a junk mover and never
 // repeats a card the movers post already featured this week.
-const exclude = await recentlyFeatured(game, "movers", day);
-const movers = await topMovers(game, day, { direction: "up", exclude });
+// A day plan (lib/socialPlan.ts, Chris 09-30: "a video that mixes both magic
+// and pokemon … the last content on the video should mention the other game
+// types") swaps in mixedMovers: each game's top three, alternating, every
+// card labelled with its game and its rank inside that game, and an outro
+// that names every game the scanner reads. The registry key stays the
+// Pokémon one (KEY above), so the publisher and the 12:40 safety net find it.
+const MIXED = Boolean(dayPlan(day).mixedMovers);
+const movers = MIXED ? await mixedMovers(day) : await topMovers(game, day, { direction: "up", exclude: await recentlyFeatured(game, "movers", day) });
 if (movers.length < 3) { console.error("not enough movers for", day); process.exit(1); }
-console.log(`movers: ${movers.length} cards, top gain ${movers[0].name} +${movers[0].pct.toFixed(1)}%`);
+console.log(`movers: ${movers.length} cards${MIXED ? " (mixed)" : ""}, first ${movers[0].name} +${movers[0].pct.toFixed(1)}%`);
 
 async function artDataUri(url) {
   const grab = async (u) => {
     try {
-      const r = await fetch(u, { signal: AbortSignal.timeout(6000) });
+      // Scryfall refuses Node's default User-Agent (400 generic_user_agent): every Magic card drew blank without a name.
+      const r = await fetch(u, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "image/*" }, signal: AbortSignal.timeout(6000) });
       if (!r.ok) return null;
       return { bytes: Buffer.from(await r.arrayBuffer()), type: r.headers.get("content-type") ?? "image/png" };
     } catch { return null; }
@@ -84,9 +92,18 @@ async function artDataUri(url) {
   const a = (await grab(url)) ?? (fallbackArtUrl(url) ? await grab(fallbackArtUrl(url)) : null);
   return a ? `data:${a.type};base64,${a.bytes.toString("base64")}` : "";
 }
-// Countdown: smallest gain first, the week's biggest mover last (No. 1).
+// Countdown: smallest gain first, the week's biggest mover last (No. 1). A
+// mixed list is ranked inside each game (P1, M1, P2, M2, … reversed ends on
+// a No. 1), so the label says the game: "Magic · No. 2".
+const inGame = new Map();
+const ranked = movers.map((c) => {
+  const g = c.game ?? game;
+  inGame.set(g, (inGame.get(g) ?? 0) + 1);
+  return { ...c, rankLabel: MIXED ? `${POST_GAME_NAMES[g]} · No. ${inGame.get(g)}` : "" };
+});
 const cards = [];
-for (const c of [...movers].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
+for (const c of [...ranked].reverse()) cards.push({ ...c, art: await artDataUri(c.imageUrl) });
+if (MIXED && cards.some((c) => !c.art)) { console.error("card art missing:", cards.filter((c) => !c.art).map((c) => c.name).join(", ")); process.exit(1); }
 const logo = `data:image/png;base64,${fs.readFileSync(path.join(root, "public/brand/cardflip-logo.png")).toString("base64")}`;
 
 // Timeline (seconds): intro → one beat per card → outro (lib/socialVideo.ts
@@ -108,11 +125,17 @@ if (withAudio) {
   // with the 92.5 bpm track, ~31s for five. Intro and outro stay one bar.
   BEAT = 2 * oneBar;
   INTRO = oneBar;
-  OUTRO = oneBar + 0.6;
+  // The mixed outro names five games one per beat, then the address: two bars.
+  OUTRO = (MIXED ? 2 : 1) * oneBar + 0.6;
   AUDIO_START = b.start;
   console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, audio from ${AUDIO_START.toFixed(2)}s`);
+} else if (MIXED) {
+  OUTRO = 5;
 }
-const TOTAL = withAudio ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
+const TOTAL = withAudio || MIXED ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
+const mixedGames = POST_GAME_ORDER.filter((g) => movers.some((m) => (m.game ?? game) === g)).map((g) => POST_GAME_NAMES[g]);
+// Satori-style glyph gaps: the Ubuntu runner may have no ★ (Scryfall's foil-only numbers).
+const numberText = (n) => String(n).replace(/\s*[☆★]\s*/g, " Star ").trim();
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -137,6 +160,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
   .beat .art { width:720px; height:1000px; border-radius:36px; object-fit:cover; margin-top:34px;
     box-shadow:0 40px 120px rgba(0,0,0,.6), 0 0 0 2px rgba(255,255,255,.12); background:#1c1d27; }
   .beat .name { font-size:72px; line-height:1.05; margin-top:52px; text-align:center; }
+  .beat .name.long { font-size:58px; }
   .beat .meta { font-size:36px; margin-top:12px; }
   .beat .price { font-size:164px; line-height:1; margin-top:22px; font-variant-numeric:tabular-nums; padding:0 20px;
     background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
@@ -148,30 +172,40 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
   #outro img { width:560px; }
   #outro .line { font-size:56px; margin-top:60px; line-height:1.2; }
   #outro .url { font-size:64px; font-weight:700; margin-top:40px; }
+  #outro .now { font-size:40px; font-weight:600; color:#a5b4fc; letter-spacing:.18em; text-transform:uppercase; margin-top:64px; }
+  #outro .games { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:30px; }
+  #outro .games .g { font-size:88px; line-height:1.05; }
+  #outro .tag { font-size:44px; margin-top:52px; }
   #footer { position:absolute; left:0; right:0; bottom:110px; display:flex; align-items:center; justify-content:center; gap:18px; font-size:34px; }
   #footer .dot { width:22px; height:22px; border-radius:999px; background:#6366f1; }
   #bar { position:absolute; left:80px; right:80px; bottom:70px; height:8px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
   #bar i { display:block; height:100%; width:0; }
 </style></head><body>
 <div id="intro" class="abs">
-  <div class="kicker">Pokémon · movers of the week</div>
+  <div class="kicker">${MIXED ? esc(mixedGames.join(" + ")) : "Pokémon · movers of the week"}</div>
   <div class="title display holo-text">Biggest movers</div>
-  <div class="sub muted">This week's top gainers, No. 5 to No. 1</div>
+  <div class="sub muted">${MIXED ? `This week's top ${Math.ceil(cards.length / Math.max(1, mixedGames.length)) === 3 ? "three" : Math.ceil(cards.length / Math.max(1, mixedGames.length))} gainers in each game` : `This week's top gainers, No. ${cards.length} to No. 1`}</div>
 </div>
 ${cards.map((c, i) => `
 <div class="abs beat" id="beat${i}">
-  <div class="rank">No. ${cards.length - i}</div>
+  <div class="rank">${MIXED ? esc(c.rankLabel) : `No. ${cards.length - i}`}</div>
   ${c.art ? `<img class="art" src="${c.art}">` : `<div class="art"></div>`}
-  <div class="name display">${esc(c.name)}</div>
-  <div class="meta muted">#${esc(c.number)}${c.variant && c.variant !== "normal" ? ` · ${esc(c.variant)}` : ""}</div>
+  <div class="name display${c.name.length > 22 ? " long" : ""}">${esc(c.name)}</div>
+  <div class="meta muted">${MIXED ? `${esc(c.setName)} · ` : ""}#${esc(numberText(c.number))}${variantLabel(c.variant) ? ` · ${esc(variantLabel(c.variant))}` : ""}</div>
   <div class="price display" data-to="${c.to}">$0</div>
   <div class="pct ${c.unsettled ? "muted" : Math.abs(c.pct) < 1 ? "muted" : c.pct > 0 ? "up" : "down"}">${c.unsettled ? "" : Math.abs(c.pct) < 1 ? "steady this week" : `${c.pct > 0 ? "▲" : "▼"} ${Math.abs(c.pct).toFixed(1)}% this week`}</div>
 </div>`).join("")}
-<div id="outro" class="abs">
+${MIXED ? `<div id="outro" class="abs">
+  <img src="${logo}">
+  <div class="now">Now scanning</div>
+  <div class="games">${POST_GAME_ORDER.map((g) => `<div class="g display">${esc(POST_GAME_NAMES[g])}</div>`).join("")}</div>
+  <div class="tag muted">Scan a card. See what it's worth.</div>
+  <div class="url display holo-text">cardflip.io</div>
+</div>` : `<div id="outro" class="abs">
   <img src="${logo}">
   <div class="line muted">Scan a card.<br>See what it's worth.<br>List it on eBay.</div>
   <div class="url display holo-text">cardflip.io</div>
-</div>
+</div>`}
 <div id="footer"><span class="dot"></span><span style="font-weight:600">CardFlip</span><span class="muted">cardflip.io</span></div>
 <div id="bar"><i class="holo"></i></div>
 <script>
@@ -232,7 +266,19 @@ ${cards.map((c, i) => `
     }
     const ot=t-(INTRO+N*BEAT);
     show(outro, ot>=0);
-    if(ot>=0){
+    if(ot>=0 && outro.querySelector(".games")){
+      // Mixed outro: logo, then one game name per beat, then the address.
+      fadeIn(outro.querySelector("img"), ot, .4, 30);
+      fadeIn(outro.querySelector(".now"), ot-P*.5, .35, 20);
+      outro.querySelectorAll(".games .g").forEach((g, i) => {
+        const gt = ot-P*(1+i);
+        fadeIn(g, gt, .3, 30);
+        const pop = gt>=0 ? Math.exp(-gt*9) : 0;
+        g.style.transform += " scale("+(1+.14*pop)+")";
+      });
+      fadeIn(outro.querySelector(".tag"), ot-P*6, .4);
+      fadeIn(outro.querySelector(".url"), ot-P*6.5, .45);
+    } else if(ot>=0){
       fadeIn(outro.querySelector("img"), ot, .5, 30);
       fadeIn(outro.querySelector(".line"), ot-.3, .5);
       fadeIn(outro.querySelector(".url"), ot-.7, .5);
@@ -281,7 +327,7 @@ if (REGISTER) {
   // the publisher builds the post text from THIS list, never a fresh one
   // computed at post time — that gap is what let the text and video
   // disagree on 09-26.
-  const specCards = movers.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct }));
+  const specCards = movers.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct, ...(c.game ? { game: c.game } : {}) }));
   await setSetting(KEY, JSON.stringify({ url: blob.url, bytes, mime: "video/mp4", width: W, height: H, seconds: TOTAL, renderedAt: Date.now(), kind: KIND, cards: specCards }));
   console.log(`registered ${KEY} → ${blob.url}`);
 }

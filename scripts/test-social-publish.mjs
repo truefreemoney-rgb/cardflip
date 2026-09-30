@@ -79,6 +79,15 @@ check("Eastern day rolls at midnight ET, not UTC", eastern(Date.UTC(2026, 8, 11,
 console.log("slot → kind mapping (09-27: the movers video moved from 7am to 1pm; morning is the set spotlight picture)");
 check("morning=set, midday=movers (video), evening=dips", [SLOTS.morning.kind, SLOTS.midday.kind, SLOTS.evening.kind], ["set", "movers", "dips"]);
 check("the video slot is midday", [VIDEO_SLOT, SLOTS[VIDEO_SLOT].kind], ["midday", "movers"]);
+{
+  // Day plans (lib/socialPlan.ts, Chris 09-30): one day's slots can post other kinds; every other day keeps SLOTS.
+  const { slotKind } = await import(at("lib/server/socialPublish.ts"));
+  const { dayPlan, listNames, otherGameNames } = await import(at("lib/socialPlan.ts"));
+  check("09-30 plan: 7am set spotlight, 1pm movers (mixed), 7pm all games", ["morning", "midday", "evening"].map((s) => slotKind(s, "2026-09-30")), ["set", "movers", "games"]);
+  check("a day with no plan keeps the standing mix", ["morning", "midday", "evening"].map((s) => slotKind(s, "2026-10-01")), ["set", "movers", "dips"]);
+  check("09-30 plan mixes Magic into the movers and names the other games", [dayPlan("2026-09-30").mixedMovers, dayPlan("2026-09-30").alsoScans], [true, true]);
+  check("also-scans list names the games a Pokémon post leaves out", listNames(otherGameNames(["pokemon"])), "Magic, Lorcana, One Piece and Yu-Gi-Oh");
+}
 
 console.log("publish");
 const off = fakeSite("off", { connected: false });
@@ -161,7 +170,14 @@ check("every rotation candidate already posted or unavailable → the slot still
 console.log("text fitting");
 const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
 check("fits: caption + tags when room", fitText({ caption: "hi cardflip.io", shortCaption: "hi", hashtags: ["A"] }, 300), "hi cardflip.io\n\n#A");
-check("drops tags when the caption alone fits", fitText(long, 300), long.caption);
+// 09-30 (Chris: "make sure to use hashtags to tag all the posts"): tags
+// outrank the long caption — the short caption WITH tags beats the long one without.
+check("keeps the tags: short caption + tags beats the long caption alone", fitText(long, 300), `${long.shortCaption}\n\n#PokemonTCG #TCG`);
+{
+  const five = { caption: "c".repeat(200), shortCaption: "s".repeat(190), hashtags: ["AAAAAAAAAA", "BBBBBBBBBB", "CCCCCCCCCC", "DDDDDDDDDD", "EEEEEEEEEE"] };
+  check("trims the tag list from the end before dropping it (more tags first, long or short caption)", fitText(five, 240), `${"s".repeat(190)}\n\n#AAAAAAAAAA #BBBBBBBBBB #CCCCCCCCCC #DDDDDDDDDD`);
+  check("never fewer than two tags: untagged caption when even two do not fit", fitText({ ...five, shortCaption: "c".repeat(200) }, 215), "c".repeat(200));
+}
 check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
 
 #PokemonTCG #TCG`);

@@ -4,18 +4,22 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import {
   POST_SIZES,
   cardOfTheDay,
+  gameLeads,
+  mixedMovers,
   money,
   pctLabel,
   recentlyFeatured,
   setSpotlight,
   topMovers,
   variantLabel,
+  type GameLead,
   type Mover,
   type PostSize,
 } from "@/lib/server/social";
 import type { GameId } from "@/lib/types";
 import { fallbackArtUrl } from "@/lib/cardArt";
 import { parseGame } from "@/lib/games";
+import { POST_GAME_NAMES, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
 
 /**
  * The social post as a picture (docs/SOCIAL-AUTOPILOT.md): one PNG per
@@ -36,14 +40,19 @@ const DOWN = "#f87171";
 const HOLO = "linear-gradient(90deg, #7dd3fc, #a78bfa, #f0abfc, #fcd34d)";
 
 /**
- * Card art as a data URI. Satori draws PNG/JPEG only, and TCGdex serves
- * WebP, so the WebP is converted through sharp (Next ships it); when that
- * host or the conversion fails, the pokemontcg.io PNG twin (lib/cardArt.ts)
- * is used. Empty string = draw the placeholder.
+ * Card art as a data URI. Satori draws PNG/JPEG only, so EVERY picture goes
+ * through sharp (09-30, all five games): TCGdex serves WebP, Lorcast AVIF
+ * (Satori throws on it and the whole picture fails), optcgapi PNG bytes
+ * under an image/jpeg header (Satori throws too). Scryfall refuses Node's
+ * default User-Agent (400 generic_user_agent), so the fetch names us. When
+ * the host or the conversion fails, the pokemontcg.io PNG twin
+ * (lib/cardArt.ts) is tried. Empty string = draw the placeholder.
  */
+const ART_HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "image/*" };
+
 async function fetchBytes(url: string): Promise<{ bytes: Buffer; type: string } | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+    const res = await fetch(url, { headers: ART_HEADERS, signal: AbortSignal.timeout(4000), cache: "no-store" });
     if (!res.ok) return null;
     return { bytes: Buffer.from(await res.arrayBuffer()), type: res.headers.get("content-type") ?? "" };
   } catch {
@@ -51,24 +60,32 @@ async function fetchBytes(url: string): Promise<{ bytes: Buffer; type: string } 
   }
 }
 
-async function artDataUri(url: string): Promise<string> {
+/** JPEG at `width` (PNG when the source has alpha, so rounded corners stay clear). */
+async function normalise(bytes: Buffer, width: number): Promise<string> {
+  const sharp = (await import("sharp")).default;
+  const img = sharp(bytes).resize({ width, withoutEnlargement: true });
+  if ((await sharp(bytes).metadata()).hasAlpha) return `data:image/png;base64,${(await img.png().toBuffer()).toString("base64")}`;
+  return `data:image/jpeg;base64,${(await img.jpeg({ quality: 88 }).toBuffer()).toString("base64")}`;
+}
+
+async function artDataUri(url: string, width = 720): Promise<string> {
   if (!url) return "";
   const primary = await fetchBytes(url);
   if (primary) {
-    if (!/webp/.test(primary.type) && !url.endsWith(".webp")) {
-      return `data:${primary.type || "image/jpeg"};base64,${primary.bytes.toString("base64")}`;
-    }
     try {
-      const sharp = (await import("sharp")).default;
-      const png = await sharp(primary.bytes).png().toBuffer();
-      return `data:image/png;base64,${png.toString("base64")}`;
+      return await normalise(primary.bytes, width);
     } catch {
-      /* sharp missing or bad bytes: fall through to the PNG twin */
+      /* bad bytes: fall through to the PNG twin */
     }
   }
   const twin = fallbackArtUrl(url);
   const fb = twin ? await fetchBytes(twin) : null;
-  return fb ? `data:image/png;base64,${fb.bytes.toString("base64")}` : "";
+  if (!fb) return "";
+  try {
+    return await normalise(fb.bytes, width);
+  } catch {
+    return "";
+  }
 }
 
 async function withArt(m: Mover): Promise<Mover> {
@@ -91,15 +108,26 @@ async function allowed(req: NextRequest): Promise<boolean> {
 export async function GET(req: NextRequest) {
   if (!(await allowed(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = req.nextUrl.searchParams;
-  const kind = q.get("kind") === "card" ? "card" : q.get("kind") === "dips" ? "dips" : q.get("kind") === "set" ? "set" : "movers";
+  const kindParam = q.get("kind");
+  const kind = (["card", "dips", "set", "games"] as const).find((k) => k === kindParam) ?? "movers";
   const game: GameId = parseGame(q.get("game"));
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
   const size = POST_SIZES[sizeKey];
   const tall = sizeKey === "story";
   const wide = sizeKey === "landscape";
-  const label = game === "mtg" ? "Magic" : "Pokémon";
+  const label = POST_GAME_NAMES[game];
+  // Day plan (lib/socialPlan.ts): Pokémon pictures name the other games, and the movers picture can be a Pokémon + Magic mix.
+  const plan = dayPlan(day);
+  const alsoScans = plan.alsoScans && game === "pokemon" ? otherGameNames([game]) : undefined;
 
+  if (kind === "games") {
+    const leads = await gameLeads();
+    const drawn = await Promise.all(leads.map(async (l) => ({ ...l, imageUrl: await artDataUri(l.imageUrl, 540) })));
+    // A blank card in a five-card picture reads as broken: fail, and the publisher's next ping retries.
+    if (drawn.length < 3 || drawn.some((l) => !l.imageUrl)) return NextResponse.json({ error: "Game art missing" }, { status: 502 });
+    return new ImageResponse(<AllGames leads={drawn} tall={tall} wide={wide} />, size);
+  }
   if (kind === "card") {
     const card = await cardOfTheDay(game, day);
     if (!card) return NextResponse.json({ error: "No card today" }, { status: 404 });
@@ -109,17 +137,55 @@ export async function GET(req: NextRequest) {
     const spot = await setSpotlight(game, day);
     if (!spot) return NextResponse.json({ error: "No set today" }, { status: 404 });
     return new ImageResponse(
-      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" />,
+      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" alsoScans={alsoScans} />,
+      size,
+    );
+  }
+  if (kind === "movers" && plan.mixedMovers && game === "pokemon") {
+    const movers = await mixedMovers(day);
+    if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
+    const games = [...new Set(movers.map((m) => m.game ?? game))];
+    return new ImageResponse(
+      <Movers movers={await Promise.all(movers.map(withArt))} label="" tall={tall} wide={wide} heading={`${listNames(games.map((g) => POST_GAME_NAMES[g]))} price gains this week`} />,
       size,
     );
   }
   const featuredKind = kind === "dips" ? "dips" : "movers";
   const movers = await topMovers(game, day, { direction: kind === "dips" ? "down" : "up", exclude: await recentlyFeatured(game, featuredKind, day) });
   if (movers.length === 0) return NextResponse.json({ error: "No movers" }, { status: 404 });
-  return new ImageResponse(<Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price gains this week"} />, size);
+  return new ImageResponse(
+    <Movers movers={await Promise.all(movers.map(withArt))} label={label} tall={tall} wide={wide} heading={kind === "dips" ? "price drops this week" : "price gains this week"} alsoScans={alsoScans} />,
+    size,
+  );
 }
 
-function Frame({ children, tall, wide }: { children: React.ReactNode; tall: boolean; wide: boolean }) {
+/** "Also scans" + one pill per game the post does not cover (day plan alsoScans). */
+function AlsoScans({ games, wide }: { games: string[]; wide: boolean }) {
+  const fs = wide ? 20 : 28;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: wide ? 8 : 12, marginBottom: wide ? 8 : 16 }}>
+      <div style={{ display: "flex", fontSize: fs, color: MUTED, marginRight: 4 }}>Also scans</div>
+      {games.map((g) => (
+        <div
+          key={g}
+          style={{
+            display: "flex",
+            fontSize: fs,
+            padding: wide ? "4px 14px" : "6px 18px",
+            borderRadius: 9999,
+            background: "rgba(99,102,241,0.18)",
+            border: "1px solid rgba(165,180,252,0.45)",
+            color: "#e0e7ff",
+          }}
+        >
+          {g}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Frame({ children, tall, wide, alsoScans }: { children: React.ReactNode; tall: boolean; wide: boolean; alsoScans?: string[] }) {
   return (
     <div
       style={{
@@ -135,11 +201,14 @@ function Frame({ children, tall, wide }: { children: React.ReactNode; tall: bool
       }}
     >
       {children}
-      <div style={{ display: "flex", flexShrink: 0, alignItems: "center", gap: 14, marginTop: "auto", paddingTop: 16 }}>
-        <div style={{ display: "flex", width: 22, height: 22, borderRadius: 9999, background: "#6366f1" }} />
-        <div style={{ display: "flex", fontSize: wide ? 30 : 40, fontWeight: 600 }}>CardFlip</div>
-        <div style={{ display: "flex", fontSize: wide ? 24 : 30, color: MUTED, marginLeft: 8 }}>
-          Scan a card, see what it&apos;s worth. cardflip.io
+      <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, marginTop: "auto", paddingTop: 16 }}>
+        {alsoScans?.length ? <AlsoScans games={alsoScans} wide={wide} /> : null}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", width: 22, height: 22, borderRadius: 9999, background: "#6366f1" }} />
+          <div style={{ display: "flex", fontSize: wide ? 30 : 40, fontWeight: 600 }}>CardFlip</div>
+          <div style={{ display: "flex", fontSize: wide ? 24 : 30, color: MUTED, marginLeft: 8 }}>
+            Scan a card, see what it&apos;s worth. cardflip.io
+          </div>
         </div>
       </div>
     </div>
@@ -156,21 +225,24 @@ function Pct({ pct, size }: { pct: number; size: number }) {
 }
 
 /** mode "move" = from → to with the % (movers, dips); "price" = today's price with the week's % as a footnote (set spotlight). */
-function Movers({ movers, label, tall, wide, heading, mode = "move" }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price" }) {
+function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price"; alsoScans?: string[] }) {
   const rows = wide ? movers.slice(0, 3) : movers;
-  const art = wide ? 92 : tall ? 200 : 126;
+  // Six rows (a mixed list) or the "Also scans" pills: smaller art so the footer stays on the picture.
+  const tight = rows.length > 5 || Boolean(alsoScans?.length);
+  const art = wide ? 92 : tall ? 200 : rows.length > 5 ? 96 : tight ? 108 : 126;
   const fs = wide ? 24 : tall ? 38 : 28;
   const price = mode === "price";
+  const headline = price || !label ? heading : `${label} ${heading}`;
   return (
-    <Frame tall={tall} wide={wide}>
+    <Frame tall={tall} wide={wide} alsoScans={alsoScans}>
       {/* One line, always: a long set name ("Mysterious Treasures") shrinks instead of wrapping and pushing the footer off the picture. */}
       <div style={{ display: "flex", flexShrink: 0, fontSize: (wide ? 38 : tall ? 64 : 50) * (heading.length > 26 ? 0.72 : heading.length > 20 ? 0.86 : 1), fontWeight: 700, letterSpacing: -1, whiteSpace: "nowrap" }}>
-        {price ? heading : `${label} ${heading}`}
+        {headline}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
         {price ? `The five most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : 12, marginTop: wide ? 14 : tall ? 40 : 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : tight ? 10 : 12, marginTop: wide ? 14 : tall ? 40 : tight ? 18 : 24 }}>
         {rows.map((m) => (
           <div
             key={m.cardId}
@@ -195,7 +267,9 @@ function Movers({ movers, label, tall, wide, heading, mode = "move" }: { movers:
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", fontSize: fs, fontWeight: 600 }}>{m.name}</div>
               <div style={{ display: "flex", fontSize: fs * 0.72, color: MUTED }}>
-                {price ? `#${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}` : `${m.setName} · ${m.number}`}
+                {price
+                  ? `#${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}`
+                  : `${m.game ? `${POST_GAME_NAMES[m.game]} · ` : ""}${m.setName} · ${m.number}`}
               </div>
               {price ? (
                 m.unsettled ? null : (
@@ -255,6 +329,74 @@ function CardOfTheDay({ card, label, tall, wide }: { card: Mover; label: string;
             <div style={{ display: "flex", fontSize: wide ? 24 : 30, color: MUTED }}>last 7 days</div>
           </div>
         </div>
+      </div>
+    </Frame>
+  );
+}
+
+/**
+ * Every public game in one picture (day plan morning "games", Chris 09-30:
+ * "we feature all game types in the static image"): one real priced card
+ * per game (gameLeads = the homepage strip's picks), fanned edge to edge,
+ * the middle card on top, each game's name and today's price underneath.
+ */
+function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wide: boolean }) {
+  const n = leads.length;
+  // The fan spans the content width (canvas minus the frame's padding).
+  const inner = wide ? 1200 - 88 : tall ? 1080 - 160 : 1080 - 128;
+  const cardW = wide ? 168 : tall ? 300 : 290;
+  const cardH = Math.round(cardW / 0.716);
+  const step = (inner - cardW) / Math.max(1, n - 1);
+  const mid = (n - 1) / 2;
+  // Outer cards first, the centre last, so the centre sits on top.
+  const order = leads.map((_, i) => i).sort((a, b) => Math.abs(b - mid) - Math.abs(a - mid));
+  const fs = wide ? 22 : 30;
+  return (
+    <Frame tall={tall} wide={wide}>
+      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 44 : tall ? 84 : 72, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.04, flexDirection: wide ? "row" : "column" }}>
+        <div style={{ display: "flex" }}>One scanner.</div>
+        <div style={{ display: "flex", marginLeft: wide ? 14 : 0, backgroundImage: HOLO, backgroundClip: "text", color: "transparent" }}>
+          {n === 5 ? "Five" : String(n)} card games.
+        </div>
+      </div>
+      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 28, color: MUTED, marginTop: wide ? 6 : 14 }}>
+        One card from each game, market price today.
+      </div>
+      {/* Fan + names centred in the space left above the footer (no dead band under the names). */}
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", paddingBottom: wide ? 0 : 24 }}>
+      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: cardH + (wide ? 30 : 70) }}>
+        {order.map((i) => {
+          const off = i - mid;
+          return (
+            <div
+              key={leads[i].game}
+              style={{
+                display: "flex",
+                position: "absolute",
+                left: i * step,
+                top: Math.abs(off) * (wide ? 6 : 16) + (wide ? 6 : 24),
+                width: cardW,
+                height: cardH,
+                transform: `rotate(${off * (wide ? 4 : 6)}deg)`,
+                borderRadius: 14,
+                boxShadow: "0 10px 40px rgba(0,0,0,0.65)",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={leads[i].imageUrl} alt="" width={cardW} height={cardH} style={{ borderRadius: 14, objectFit: "cover" }} />
+            </div>
+          );
+        })}
+      </div>
+      {/* One column per card, centred under it. */}
+      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: fs * 2.3, marginTop: wide ? 6 : 18 }}>
+        {leads.map((l, i) => (
+          <div key={l.game} style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "absolute", top: 0, left: i * step + cardW / 2 - step / 2, width: step }}>
+            <div style={{ display: "flex", fontSize: fs, fontWeight: 600, whiteSpace: "nowrap" }}>{POST_GAME_NAMES[l.game]}</div>
+            <div style={{ display: "flex", fontSize: fs * 0.85, color: MUTED, whiteSpace: "nowrap" }}>{money(l.price)}</div>
+          </div>
+        ))}
+      </div>
       </div>
     </Frame>
   );

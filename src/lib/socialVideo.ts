@@ -51,6 +51,8 @@ export interface VideoCard {
   from: number;
   to: number;
   pct: number;
+  /** Set on a mixed-game video (day plan mixedMovers, 09-30); older rows have none. */
+  game?: GameId;
 }
 
 function isVideoCard(v: unknown): v is VideoCard {
@@ -64,7 +66,8 @@ function isVideoCard(v: unknown): v is VideoCard {
     typeof c.variant === "string" &&
     typeof c.from === "number" &&
     typeof c.to === "number" &&
-    typeof c.pct === "number"
+    typeof c.pct === "number" &&
+    (c.game === undefined || typeof c.game === "string")
   );
 }
 

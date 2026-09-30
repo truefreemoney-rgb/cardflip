@@ -2,9 +2,12 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import {
+  featuredByGame,
   markFeatured,
   socialDrafts,
   POST_SIZES,
+  mixedMoversCaption,
+  mixedMoversShortCaption,
   moversCaption,
   moversShortCaption,
   dipsCaption,
@@ -15,6 +18,7 @@ import {
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
+import { dayPlan } from "@/lib/socialPlan";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
@@ -59,6 +63,12 @@ export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }
   evening: { hour: 19, kind: "dips", label: "7pm price drops" },
 };
 export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
+
+/** The kind a slot posts on an Eastern day: SLOTS, unless that day's plan (lib/socialPlan.ts) says otherwise. */
+export function slotKind(slot: Slot, day: string): PostKind {
+  const plan = dayPlan(day);
+  return (slot === "morning" ? plan.morning : slot === "evening" ? plan.evening : undefined) ?? SLOTS[slot].kind;
+}
 export const SLOT_PREFIX = "social_slot:";
 export const ET_ZONE = "America/New_York";
 
@@ -166,15 +176,24 @@ export interface PublishReport {
   sites: SiteReport[];
 }
 
-/** Caption + hashtags, shortened until it fits the site's limit. */
+/**
+ * Caption + hashtags, shortened until it fits the site's limit. Hashtags
+ * outrank the long caption (Chris 09-30: "make sure to use hashtags to tag
+ * all the posts"): full caption with every tag, then the short caption with
+ * every tag, then either with the tag list trimmed from the end (never
+ * under two), and only then untagged text.
+ */
 export function fitText(post: SocialPost, maxChars: number): string {
-  const tags = post.hashtags.map((h) => `#${h}`).join(" ");
-  const full = `${post.caption}\n\n${tags}`;
-  if (full.length <= maxChars) return full;
-  if (post.caption.length <= maxChars) return post.caption;
   const short = post.shortCaption ?? post.caption;
-  const shortTagged = `${short}\n\n${tags}`;
-  if (shortTagged.length <= maxChars) return shortTagged;
+  for (let n = post.hashtags.length; n >= Math.min(2, post.hashtags.length); n--) {
+    const tags = post.hashtags.slice(0, n).map((h) => `#${h}`).join(" ");
+    for (const text of [post.caption, short]) {
+      const tagged = n > 0 ? `${text}\n\n${tags}` : text;
+      if (tagged.length <= maxChars) return tagged;
+    }
+    if (n === 0) break;
+  }
+  if (post.caption.length <= maxChars) return post.caption;
   if (short.length <= maxChars) return short;
   // Last resort: cut on a line boundary and keep the sign-off.
   const signOff = "cardflip.io";
@@ -244,16 +263,23 @@ export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Pr
 export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
   const movers: Mover[] = cards.map((c) => ({ ...c, imageUrl: "", unsettled: false }));
   if (movers.length === 0) return d;
+  // A video whose cards carry a game is a mixed one (day plan mixedMovers):
+  // the draft's title and hashtags already say so, the text is rebuilt per game.
+  const mixed = movers.some((m) => m.game);
+  const also = Boolean(dayPlan(d.day).alsoScans) && d.game === "pokemon";
+  if (d.kind === "movers" && mixed) {
+    return { ...d, caption: mixedMoversCaption(movers), shortCaption: mixedMoversShortCaption(movers), cardIds: movers.map((m) => m.cardId), featured: featuredByGame(movers) };
+  }
   if (d.kind === "movers") {
-    return { ...d, caption: moversCaption(d.game, movers), shortCaption: moversShortCaption(d.game, movers), cardIds: movers.map((m) => m.cardId) };
+    return { ...d, caption: moversCaption(d.game, movers, also), shortCaption: moversShortCaption(d.game, movers, also), cardIds: movers.map((m) => m.cardId) };
   }
   if (d.kind === "dips") {
-    return { ...d, caption: dipsCaption(d.game, movers), shortCaption: dipsShortCaption(d.game, movers), cardIds: movers.map((m) => m.cardId) };
+    return { ...d, caption: dipsCaption(d.game, movers, also), shortCaption: dipsShortCaption(d.game, movers, also), cardIds: movers.map((m) => m.cardId) };
   }
   if (d.kind === "set") {
     const setName = movers[0].setName;
     const spot = { setId: "", setName, cards: movers };
-    return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot), shortCaption: setShortCaption(d.game, spot), cardIds: movers.map((m) => m.cardId) };
+    return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot, also), shortCaption: setShortCaption(d.game, spot, also), cardIds: movers.map((m) => m.cardId) };
   }
   return d;
 }
@@ -311,7 +337,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   }
   // One draft per game per slot, of that slot's kind only: repeating the
   // midday picture at 7pm is worse than staying quiet on a thin day.
-  const plan = due.map((s) => ({ slot: s, drafts: draftsForKind(SLOTS[s].kind) })).filter((p) => p.drafts.length > 0);
+  const plan = due.map((s) => ({ slot: s, drafts: draftsForKind(slotKind(s, day)) })).filter((p) => p.drafts.length > 0);
   report.drafts = plan.reduce((n, p) => n + p.drafts.length, 0);
   if (report.drafts === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
@@ -414,7 +440,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       // KIND_ROTATION this site has not posted today. Never for a
       // video-only site: only one kind is rendered as video, so there is
       // nothing to rotate to.
-      let kind = SLOTS[p.slot].kind;
+      let kind = slotKind(p.slot, day);
       let drafts = p.drafts;
       const slotAlreadyDone = (await getSetting(slotKey(site, p.slot))) === etDay;
       if (!site.videoOnly && !slotAlreadyDone && (await getSetting(kindKey(site, kind))) === etDay) {
@@ -486,7 +512,10 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     // No-repeat rule: every gains/drops draft that landed anywhere keeps its cards out of that kind for FEATURED_DAYS.
     const landedIds = new Set(report.sites.flatMap((s) => s.posts.filter((p) => p.uri).map((p) => p.id)));
     for (const d of all) {
-      if ((d.kind === "movers" || d.kind === "dips") && landedIds.has(d.id)) await markFeatured(d.game, d.kind, day, d.cardIds);
+      if ((d.kind !== "movers" && d.kind !== "dips") || !landedIds.has(d.id)) continue;
+      // A mixed post files each card under its own game's list (a Magic card under Pokémon's would repeat on Magic's next post).
+      const byGame = d.featured ?? { [d.game]: d.cardIds };
+      for (const [g, ids] of Object.entries(byGame) as [GameId, string[]][]) await markFeatured(g, d.kind, day, ids);
     }
     await noteOnBoard(report, now);
     await alertFailures(report).catch((err) => console.warn("social: failure alert skipped", err instanceof Error ? err.message : err));

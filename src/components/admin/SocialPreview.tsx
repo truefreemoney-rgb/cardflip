@@ -4,6 +4,7 @@ import type { GameId } from "@/lib/types";
 
 import { useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
+import { POST_GAME_NAMES } from "@/lib/socialPlan";
 
 /**
  * /admin/social — what the social autopilot would post today, before any
@@ -13,7 +14,7 @@ import { apiPath } from "@/lib/client/basePath";
  */
 export interface DraftView {
   id: string;
-  kind: "movers" | "card" | "dips" | "set";
+  kind: "movers" | "card" | "dips" | "set" | "games";
   game: GameId;
   day: string;
   title: string;
@@ -71,7 +72,7 @@ function Draft({ draft, video }: { draft: DraftView; video?: string }) {
         <div>
           <h2 className="font-semibold text-white">{draft.title}</h2>
           <p className="text-xs text-zinc-500">
-            {draft.game === "mtg" ? "Magic" : "Pokémon"} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : "card of the day"} · {draft.day}
+            {draft.kind === "games" ? "Every game" : POST_GAME_NAMES[draft.game]} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : draft.kind === "games" ? "one scanner, every game" : "card of the day"} · {draft.day}
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-1">

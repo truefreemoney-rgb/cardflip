@@ -206,9 +206,26 @@ async function bandRows(game: OtherGame): Promise<GameRow[]> {
   return (await db.prepare(sql).all(...args)) as unknown as GameRow[];
 }
 
+/**
+ * A lead pinned by catalog id (09-30): the One Piece picture judge
+ * (sync-onepiece-images.mjs) called ST01-012's TCGplayer scan clean, but it
+ * carries Bandai's SAMPLE stamp, and the scan stage, the homepage strip and
+ * the social all-games picture all led with it. P-055 (Premium Booster -The
+ * Best-) is a real scan, checked by eye. Same name as the icon, so the
+ * stamped printing drops out on the name de-dupe below.
+ */
+const LEAD_PIN: Partial<Record<OtherGame, string>> = { onepiece: "P-055_p3" };
+
+async function pinnedRow(game: OtherGame): Promise<GameRow | undefined> {
+  const id = LEAD_PIN[game];
+  if (!id || game === "mtg") return undefined;
+  return (await db.prepare(`SELECT ${ROW_COLS} FROM tcg_cards WHERE id = ? AND game = ? AND image_url <> '' AND price_usd > 0`).get(id, game)) as GameRow | undefined;
+}
+
 async function buildGame(game: OtherGame): Promise<StageCard[]> {
   try {
-    const icons = (await Promise.all(GAME_ICONS[game].map((icon) => iconRow(game, icon)))).filter((r): r is GameRow => !!r);
+    const pinned = await pinnedRow(game);
+    const icons = [...(pinned ? [pinned] : []), ...(await Promise.all(GAME_ICONS[game].map((icon) => iconRow(game, icon)))).filter((r): r is GameRow => !!r)];
     const rows = icons.length < STAGE_CARDS ? [...icons, ...(await bandRows(game)).sort((a, b) => nearIconTarget(a.price_usd) - nearIconTarget(b.price_usd))] : icons;
     // Magic's mirror stores the Scryfall "normal" image; the stage wants the large one.
     const large = game === "mtg" ? (await import("@/lib/server/mtgCards")).largeImage : (u: string) => u;
@@ -232,7 +249,8 @@ async function buildGame(game: OtherGame): Promise<StageCard[]> {
 export async function getGameStageCards(game: GameId, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
   if (game === "pokemon") return getStageCards(false, now);
   // v10 (09-30): One Piece pictures moved to TCGplayer scans (no SAMPLE stamp).
-  const key = `stage:v12:${game}`;
+  // v13 (09-30): One Piece leads with the pinned clean P-055 (LEAD_PIN).
+  const key = `stage:v13:${game}`;
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {
