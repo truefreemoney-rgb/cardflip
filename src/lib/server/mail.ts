@@ -1,6 +1,6 @@
 import "server-only";
 import nodemailer from "nodemailer";
-import { PRICE, PRICING, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICE, PRICING, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import type { Digest } from "@/lib/server/digest";
 import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 
@@ -356,10 +356,10 @@ export async function sendWelcomeEmail(to: string, plan: "standard" | "pro" = "s
   const text = [
     "Your CardFlip subscription is active.",
     "",
-    `You have ${included} scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing:`,
+    `Each monthly payment adds ${included} scans. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing:`,
     scanUrl,
     "",
-    `Scans reset each billing month. Manage or cancel any time: ${accountUrl}`,
+    `${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} Manage or cancel any time: ${accountUrl}`,
     "",
     "Questions? Reply to this email.",
     "",
@@ -367,9 +367,9 @@ export async function sendWelcomeEmail(to: string, plan: "standard" | "pro" = "s
   ].join("\n");
   const html = `
     <p>Your CardFlip subscription is active.</p>
-    <p>You have ${included} scans a month. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing.</p>
-    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan your first card</a></p>
-    <p style="color:#666;font-size:13px">Scans reset each billing month. Manage or cancel any time from <a href="${accountUrl}">your account</a>.</p>
+    <p>Each monthly payment adds ${included} scans. Point the camera at a card and CardFlip reads it, prices it, and drafts the eBay listing.</p>
+    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Scan Your First Card</a></p>
+    <p style="color:#666;font-size:13px">${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} Manage or cancel any time from <a href="${accountUrl}">your account</a>.</p>
     <p style="color:#666;font-size:13px">Questions? Reply to this email.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({

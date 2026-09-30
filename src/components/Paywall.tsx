@@ -8,7 +8,7 @@ import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
 import { logout } from "@/lib/client/auth";
 import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
-import { PRICE, PRICE_LINE, SCANS } from "@/lib/pricing";
+import { PRICE, PRICE_LINE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 
 /**
  * What a signed-in seller without an active subscription sees on every app
@@ -26,6 +26,8 @@ export default function Paywall() {
   // "Ended" only when Stripe says the plan is gone. A trial override on a
   // subscribed account is still a trial, so it gets the trial copy.
   const lapsed = Boolean(user?.subStatus) && user?.tier !== "trial";
+  // Plan scans banked before the plan ended: paused, not lost (they come back on resubscribe).
+  const paused = user?.scans?.frozen ?? 0;
 
   async function go(kind: "checkout" | "pro" | "pack" | "portal", fn: () => Promise<string>) {
     setBusy(kind);
@@ -60,7 +62,14 @@ export default function Paywall() {
         {busy === "checkout" ? <Spinner className="h-4 w-4" /> : null}
         {busy === "checkout" ? "Opening checkout…" : lapsed ? "Resubscribe" : "Subscribe"}
       </button>
-      <p className="mt-2 text-xs text-zinc-500">{SCANS.standard} scans a month. Cancel any time.</p>
+      <p className="mt-2 text-xs text-zinc-500">
+        {SCANS.standard} scans a month. {ROLLOVER_SENTENCE} Cancel any time.
+      </p>
+      {paused > 0 && (
+        <p role="status" className="mt-4 w-full rounded-lg bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+          Your {paused.toLocaleString("en-US")} banked {paused === 1 ? "scan is" : "scans are"} paused. {paused === 1 ? "It comes" : "They come"} back when you resubscribe.
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="mt-4 w-full rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">

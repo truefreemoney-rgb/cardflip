@@ -167,6 +167,21 @@ the same: a collector cannot verify either. Sealed products are outside the rule
   switch ships Off (`/admin/switches`), so none of this shows until Chris flips
   it.
 
+- Scan balance (09-30, scans roll over): every string comes from `lib/scanCopy.ts`
+  and the two sentences in `lib/pricing.ts` (`ROLLOVER_SENTENCE`,
+  `FROZEN_SENTENCE`); nothing retypes the promise, and `npm run test:rollovercopy`
+  fails if a "resets on the 1st" line comes back. A subscriber's header reads
+  "488 scans" (no "/ 250": nothing resets; trial and legacy keep "3 / 5 free"
+  and "80 / 100 today"); the tooltip names the carried-over scans and the next
+  credit date. Every date is Eastern (`lib/time.ts`). The account Plan row lists
+  what is real (plan scans, carried over, bonus, Scan Pack, next credit) and no
+  bar, since nothing divides by a monthly cap. A plan set to end says "Plan ends
+  Oct 25; 238 banked scans pause until you resubscribe" in an amber line; an
+  ended plan's banked scans show as "paused" in the header, the wall and the
+  account row, never as zero. The welcome page and the account page's confirmed
+  state wait for scans > 0 (the webhook flips the status a beat before the
+  credit lands).
+
 ## Voice
 
 Plain, confident, a little dry ("CardFlip does the other nine."). No hype

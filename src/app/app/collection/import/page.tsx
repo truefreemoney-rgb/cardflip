@@ -8,6 +8,7 @@ import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
+import { moreScansSentence } from "@/lib/scanCopy";
 
 /**
  * Import from other apps (Tier 2 #12, 09-27): a Collectr / TCGplayer /
@@ -213,8 +214,8 @@ export default function ImportPage() {
             {preview.truncated && preview.truncatedBy === "scans" && (
               <p className="mt-1 text-xs text-amber-300">
                 {preview.scansLeft && preview.scansLeft > 0
-                  ? `Only ${preview.scansLeft} scan${preview.scansLeft === 1 ? "" : "s"} left this month — the rest of the file waits for more scans.`
-                  : "You're out of scans this month — the import waits for more scans."}
+                  ? `Only ${preview.scansLeft} scan${preview.scansLeft === 1 ? "" : "s"} left, so the rest of the file waits for more scans. ${moreScansSentence(user?.scans, user?.tier)}`
+                  : `You're out of scans, so the import waits for more. ${moreScansSentence(user?.scans, user?.tier)}`}
               </p>
             )}
             {preview.truncated && preview.truncatedBy === "file" && <p className="mt-1 text-xs text-amber-300">One import takes up to 500 cards — import the rest from a second file.</p>}

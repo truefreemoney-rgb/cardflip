@@ -1,7 +1,7 @@
 ﻿import "server-only";
 import crypto from "node:crypto";
 import { SITE_URL } from "@/lib/siteUrl";
-import { PRICING } from "@/lib/pricing";
+import { PRICING, scansForPriceId } from "@/lib/pricing";
 
 /**
  * Stripe billing, no SDK — the three calls we make (create customer, create
@@ -31,10 +31,20 @@ export function packConfigured(): boolean {
   return Boolean(env().packPriceId);
 }
 
-/** Which plan a Stripe price id belongs to. */
+/**
+ * Which plan a Stripe price id belongs to, for mirroring users.plan. Known
+ * ids (the environment, or pricing.ts with the retired ones) answer exactly;
+ * an id nobody knows falls back to standard, fine for a label but NEVER for a
+ * credit: scan credits use priceInfo, which says null instead of guessing.
+ */
 export function planForPrice(priceId: string | null | undefined): StripePlan {
-  const { proPriceId } = env();
-  return priceId && proPriceId && priceId === proPriceId ? "pro" : "standard";
+  return priceInfo(priceId)?.plan ?? "standard";
+}
+
+/** Plan, scans and price (cents) a price id was sold for, or null when the id is unknown. */
+export function priceInfo(priceId: string | null | undefined): { plan: StripePlan; scans: number; cents: number } | null {
+  const { priceId: standard, proPriceId } = env();
+  return scansForPriceId(priceId, { standard, pro: proPriceId });
 }
 
 export function stripeConfigured(): boolean {
@@ -150,17 +160,71 @@ export interface SubscriptionState {
   periodEnd: number | null;
   /** From the first item's price id. */
   plan: StripePlan;
+  /** The first item's price id (what a scan credit is worked out from). */
+  priceId: string | null;
+  /** When the subscription ends because it was set to cancel (ms epoch): the period end for cancel-at-period-end, cancel_at for a set date; null = not ending. */
+  cancelAt: number | null;
+}
+
+/** cancel_at_period_end / cancel_at off a subscription object -> the end date in ms, or null. */
+export function cancelAtFrom(sub: { cancel_at_period_end?: unknown; cancel_at?: unknown }, periodEndMs: number | null): number | null {
+  if (typeof sub.cancel_at === "number" && sub.cancel_at > 0) return sub.cancel_at * 1000;
+  return sub.cancel_at_period_end === true ? periodEndMs : null;
 }
 
 export async function fetchSubscription(subscriptionId: string): Promise<SubscriptionState> {
   const sub = await stripeRequest<{
     status: string;
     current_period_end?: number;
+    cancel_at_period_end?: boolean;
+    cancel_at?: number | null;
     items?: { data?: { current_period_end?: number; price?: { id?: string } }[] };
   }>(`subscriptions/${subscriptionId}`);
   const item = sub.items?.data?.[0];
   const end = item?.current_period_end ?? sub.current_period_end ?? null;
-  return { status: sub.status, periodEnd: end ? end * 1000 : null, plan: planForPrice(item?.price?.id) };
+  const periodEnd = end ? end * 1000 : null;
+  return {
+    status: sub.status,
+    periodEnd,
+    plan: planForPrice(item?.price?.id),
+    priceId: item?.price?.id ?? null,
+    cancelAt: cancelAtFrom(sub, periodEnd),
+  };
+}
+
+/** A Stripe invoice as far as scan crediting reads it (both API shapes; billingCredits.ts normalises). */
+export type StripeObject = Record<string, unknown>;
+
+/** Paid invoices created since `createdGte` (seconds), 100 a page, newest first; the reconcile job walks it. */
+export async function listPaidInvoices(createdGte: number, startingAfter?: string): Promise<{ data: StripeObject[]; hasMore: boolean }> {
+  const q = `invoices?status=paid&limit=100&created[gte]=${Math.floor(createdGte)}${startingAfter ? `&starting_after=${encodeURIComponent(startingAfter)}` : ""}`;
+  const res = await stripeRequest<{ data?: StripeObject[]; has_more?: boolean }>(q);
+  return { data: res.data ?? [], hasMore: res.has_more === true };
+}
+
+/** One customer's recently paid invoices, newest first (one GET, no writes at Stripe): the deploy-day heal for an account whose payment predates the webhook. */
+export async function listCustomerPaidInvoices(customerId: string, createdGte: number): Promise<{ data: StripeObject[]; hasMore: boolean }> {
+  const res = await stripeRequest<{ data?: StripeObject[]; has_more?: boolean }>(
+    `invoices?status=paid&limit=20&customer=${encodeURIComponent(customerId)}&created[gte]=${Math.floor(createdGte)}`,
+  );
+  return { data: res.data ?? [], hasMore: res.has_more === true };
+}
+
+/** A charge, for a refund or dispute that names only the charge id. */
+export async function fetchCharge(chargeId: string): Promise<StripeObject> {
+  return stripeRequest<StripeObject>(`charges/${encodeURIComponent(chargeId)}`);
+}
+
+/**
+ * The invoice a payment intent paid, or null (a one-time Scan Pack has none).
+ * Basil-era API: GET /invoice_payments filtered by payment intent.
+ */
+export async function invoiceIdForPaymentIntent(paymentIntent: string): Promise<string | null> {
+  const res = await stripeRequest<{ data?: { invoice?: string | { id?: string } }[] }>(
+    `invoice_payments?payment[type]=payment_intent&payment[payment_intent]=${encodeURIComponent(paymentIntent)}&limit=1`,
+  );
+  const inv = res.data?.[0]?.invoice;
+  return typeof inv === "string" ? inv : inv?.id ?? null;
 }
 
 /**

@@ -4,8 +4,9 @@ import { db } from "@/lib/db";
 import { helpArticlesFor } from "@/lib/helpArticles";
 import { GUIDES, HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { magicVisibleFor } from "@/lib/server/settings";
-import { monthlyScans, needsEmailConfirm, packScans, scanTier, type User } from "@/lib/server/users";
+import { monthlyScans, needsEmailConfirm, packScans, scanQuota, scanTier, spendsPlanScans, type User } from "@/lib/server/users";
 import { LADDER_SENTENCE, PRICING } from "@/lib/pricing";
+import { frozenSentence, hasPlanBalance, nextCreditSentence, planEndsSentence } from "@/lib/scanCopy";
 import { TICKET_STATUS_LABEL, TicketInputError, TicketLimitError, listUserTickets, openTicket, type Ticket } from "@/lib/server/supportTickets";
 
 /**
@@ -118,11 +119,23 @@ ${GUIDES.map((g) => `  {{guide:${g.id}}} — ${g.title}: use when ${g.when}.`).j
 
 function accountFacts(user: User, tickets: Ticket[] = []): string {
   const tier = scanTier(user);
+  // Scans roll over (09-30): a subscriber has a balance, not a monthly counter,
+  // so the bot is told what is left, what carried over, when more arrive (or
+  // that the plan is ending and the banked scans pause), never "scans used".
+  const q = scanQuota(user);
+  const rollover = spendsPlanScans(user) && hasPlanBalance(q);
   const lines = [
     `Name: ${user.name}`,
     `Access tier: ${tier}`,
-    `Plan: ${user.plan ?? "none"}; scans included per month: ${monthlyScans(user)}`,
-    `Scans used this period: ${user.scansUsed}`,
+    `Plan: ${user.plan ?? "none"}; scans added by each payment: ${monthlyScans(user)}`,
+    tier === "owner"
+      ? "Scans left: unlimited"
+      : tier === "legacy"
+        ? `Scans used today (of ${q.included} a day): ${q.used}`
+        : `Scans left right now: ${q.remaining}`,
+    rollover ? `Plan scans left: ${q.plan}, of which carried over from earlier payments: ${q.carried ?? 0}` : null,
+    rollover ? nextCreditSentence(q) ?? planEndsSentence(q) : null,
+    frozenSentence(q),
     tier === "trial" ? `Free-trial scans used (of ${PRICING.trial.scans}): ${user.trialScansUsed}` : null,
     packScans(user) > 0 ? `Scan Pack scans banked (never expire): ${packScans(user)}` : null,
     `Pricing today: ${LADDER_SENTENCE}`,

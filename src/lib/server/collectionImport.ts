@@ -294,37 +294,54 @@ export interface ImportResult {
   preview: ImportPreview;
 }
 
+/** How an import pays for its cards: scans are taken BEFORE any card is written and unused ones given back (Chris, 09-30). */
+export interface ImportScanHooks {
+  /** Take n scans; answers how many were actually taken (n, or fewer when the balance ran short). */
+  reserve: (n: number) => Promise<number>;
+  /** Give n scans back: fewer cards were written than were reserved. */
+  release: (n: number) => Promise<void>;
+}
+
 /**
  * Preview, then write: one card row per copy for every ok/check row.
- * `omit` = file lines the seller unticked in the review.
+ * `omit` = file lines the seller unticked in the review. With `scans`, the
+ * cards to write are reserved first (an atomic take, so a double-submitted
+ * import cannot write cards it did not pay for), only that many are written,
+ * and any shortfall (a write that threw, a smaller balance) goes back.
  */
-export async function commitImport(userId: string, csv: string, omit: number[] = [], scansLeft: number | null = null): Promise<ImportResult> {
+export async function commitImport(userId: string, csv: string, omit: number[] = [], scansLeft: number | null = null, scans?: ImportScanHooks): Promise<ImportResult> {
   const preview = await previewImport(csv, scansLeft);
   const skip = new Set(omit);
   const now = Date.now();
   const cards: CardRecord[] = [];
-  for (const r of preview.rows) {
-    if (r.status === "skip" || skip.has(r.line) || !r.catalogCardId) continue;
-    for (let i = 0; i < r.quantity; i++) {
-      cards.push(
-        await createCard(userId, {
-          kind: "card",
-          game: "pokemon",
-          cardName: r.name ?? "",
-          setName: r.setName ?? "",
-          cardNumber: r.number ?? "",
-          imageUrl: r.imageUrl ?? "",
-          condition: r.condition,
-          price: r.price,
-          catalogCardId: r.catalogCardId,
-          verifiedAt: r.status === "ok" ? now : null,
-          matchDoubt: r.status === "check" ? r.reason : null,
-          costBasis: r.paid,
-          firstEdition: r.firstEdition,
-          category: "Imported",
-        }),
-      );
+  const rows = preview.rows.filter((r) => r.status !== "skip" && !skip.has(r.line) && r.catalogCardId);
+  const want = rows.reduce((n, r) => n + r.quantity, 0);
+  const granted = scans && want > 0 ? Math.min(want, await scans.reserve(want)) : want;
+  try {
+    for (const r of rows) {
+      for (let i = 0; i < r.quantity && cards.length < granted; i++) {
+        cards.push(
+          await createCard(userId, {
+            kind: "card",
+            game: "pokemon",
+            cardName: r.name ?? "",
+            setName: r.setName ?? "",
+            cardNumber: r.number ?? "",
+            imageUrl: r.imageUrl ?? "",
+            condition: r.condition,
+            price: r.price,
+            catalogCardId: r.catalogCardId,
+            verifiedAt: r.status === "ok" ? now : null,
+            matchDoubt: r.status === "check" ? r.reason : null,
+            costBasis: r.paid,
+            firstEdition: r.firstEdition,
+            category: "Imported",
+          }),
+        );
+      }
     }
+  } finally {
+    if (scans && granted > cards.length) await scans.release(granted - cards.length);
   }
   return { created: cards.length, cards, preview };
 }

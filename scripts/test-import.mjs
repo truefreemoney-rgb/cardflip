@@ -154,21 +154,54 @@ check("doubtful row is unverified with the reason", byCatalog("sv03.5-25").map((
 check("unpriced promo has no scan price", byCatalog("swshp-1").map((c) => [c.price, c.scanPrice]), [[0, null]]);
 check("imported rows are tagged", new Set(cards.map((c) => c.category)).size === 1 && cards[0].category, "Imported");
 
-console.log("\nrecordScans");
-const { recordScans } = await import(at("lib/server/scanQuota.ts"));
+console.log("\nreserving scans (Chris 09-30: taken before any card is written, given back when unused)");
+const { reserveScans, giveBackScans, scanQuota } = await import(at("lib/server/scanQuota.ts"));
 const { findUserById, PLAN_SCANS } = await import(at("lib/server/users.ts"));
-const month = new Date().toISOString().slice(0, 7);
-const cap = PLAN_SCANS.standard;
-// A subscriber with 3 of the month left, 2 bonus, 5 pack: 8 imported cards take the month, the bonus, then 3 of the pack.
-await db.prepare("UPDATE users SET access_override = 'comp_standard', scan_month = ?, scans_used = ?, bonus_scans = 2, extra_scans = 5 WHERE id = ?").run(month, cap - 3, u.id);
+// The same hooks the import route hands commitImport.
+const hooksFor = (user) => {
+  const s = { held: null, given: 0 };
+  return { s, reserve: async (n) => { s.held = await reserveScans(user, n); return s.held.taken; }, release: async (n) => { s.given = n; await giveBackScans(user, s.held, n); } };
+};
+const setBalance = (id, plan, bonus, pack) =>
+  db.prepare("UPDATE users SET sub_status = 'active', plan = 'standard', plan_scans = ?, bonus_scans = ?, extra_scans = ? WHERE id = ?").run(plan, bonus, pack, id);
+// A subscriber with 3 plan scans, 2 bonus, 5 pack: 8 imported cards take the plan balance, the bonus, then 3 of the pack.
+await setBalance(u.id, 3, 2, 5);
 let sub = await findUserById(u.id);
-const q = await recordScans(sub, 8);
-check("month first, then bonus, then pack", [q.used, q.bonus, q.pack, q.remaining], [cap, 0, 2, 2]);
+const q = (await reserveScans(sub, 8)).usage;
+check("plan balance first, then bonus, then pack", [q.plan, q.bonus, q.pack, q.remaining], [0, 0, 2, 2]);
 sub = await findUserById(u.id);
-check("written to the row", [sub.scansUsed, sub.bonusScans, sub.extraScans], [cap, 0, 2]);
-check("zero is a no-op", (await recordScans(sub, 0)).remaining, 2);
-const commitCapped = await commitImport(u.id, csv, [], 2);
-check("commit honours the balance", commitCapped.created, 2);
+check("written to the row", [sub.planScans, sub.bonusScans, sub.extraScans], [0, 0, 2]);
+check("zero is a no-op", (await reserveScans(sub, 0)).usage.remaining, 2);
+const cap = scanQuota(sub).remaining;
+const h1 = hooksFor(sub);
+const commitCapped = await commitImport(u.id, csv, [], cap, h1);
+check("commit honours the balance, takes exactly what it writes, gives nothing back", [commitCapped.created, h1.s.held.taken, h1.s.given, (await findUserById(u.id)).extraScans], [2, 2, 0, 0]);
 
+// A file bigger than the balance (the caller passes no cap): only the paid-for cards are written.
+await setBalance(u.id, 5, 0, 0);
+const h2 = hooksFor(await findUserById(u.id));
+const big2 = await commitImport(u.id, csv, [], null, h2);
+check("a balance of 5 against a 9-card file writes 5 cards, never one it did not pay for", [big2.created, (await findUserById(u.id)).planScans], [5, 0]);
+
+// Double submit: two commits in flight against one balance of 6.
+await setBalance(u.id, 6, 0, 0);
+const sub6 = await findUserById(u.id);
+const [d1, d2] = await Promise.all([commitImport(u.id, csv, [], null, hooksFor(sub6)), commitImport(u.id, csv, [], null, hooksFor(sub6))]);
+check("double submit with 6 scans: 6 cards in all, balance zero, never negative", [d1.created + d2.created, (await findUserById(u.id)).planScans], [6, 0]);
+
+// A card write that throws: the scans for the cards never written go back.
+await setBalance(u.id, 20, 0, 0);
+const realPrepare = db.prepare.bind(db);
+let inserts = 0;
+db.prepare = (sql) => {
+  if (/INSERT INTO cards/.test(sql) && ++inserts === 4) throw new Error("db down");
+  return realPrepare(sql);
+};
+const h3 = hooksFor(await findUserById(u.id));
+let writeThrew = false;
+try { await commitImport(u.id, csv, [], null, h3); } catch { writeThrew = true; }
+db.prepare = realPrepare;
+check("a failing write throws, and the scans for the cards not written are given back",
+  [writeThrew, h3.s.held.taken, h3.s.given, (await findUserById(u.id)).planScans], [true, 9, 6, 20 - 3]);
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

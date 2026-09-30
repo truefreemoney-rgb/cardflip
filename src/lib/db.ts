@@ -488,6 +488,34 @@ const SCHEMA = `
     created_at INTEGER NOT NULL
   );
 
+  -- Scan rollover ledger (09-30): one row per change to users.plan_scans, so a
+  -- retried webhook (or the daily reconcile) credits an invoice once and every
+  -- balance can be explained. credit_key is the Stripe invoice id for a payment
+  -- credit, migration:<userId> for the one-time seed, refund:<charge>:<cents> /
+  -- dispute:<id> for a reversal and admin:<uuid> for a hand adjustment.
+  -- scans = what was asked (signed), applied = what actually moved the balance
+  -- (a reversal floors at zero, the optional cap trims a credit). ref_key ties a
+  -- reversal to the invoice it undoes. Kept when a user is deleted, like
+  -- scan_pack_purchases: it is the money record.
+  CREATE TABLE IF NOT EXISTS scan_credits (
+    credit_key TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    plan TEXT,
+    scans INTEGER NOT NULL,
+    applied INTEGER NOT NULL,
+    balance_before INTEGER,
+    price_id TEXT,
+    ref_key TEXT,
+    charge_id TEXT,
+    payment_intent TEXT,
+    note TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_scan_credits_user ON scan_credits(user_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_scan_credits_ref ON scan_credits(ref_key);
+  CREATE INDEX IF NOT EXISTS idx_scan_credits_charge ON scan_credits(charge_id);
+
   -- Categories a seller created on purpose (09-08: "add category"). Cards
   -- still carry the name in cards.category; this table only keeps EMPTY
   -- categories alive. The list a user sees is the union of both.
@@ -829,9 +857,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // creates a second Stripe subscription; without this the old one's
     // .deleted event (matched by customer id alone) cancelled a paying user.
     "stripe_subscription_id TEXT",
-    // Scan metering (lib/server/scanQuota.ts): scan_month is the yyyy-mm the
-    // counter belongs to (reset lazily on rollover); extra_scans is the bank
-    // of Scan Pack scans (one-time buys, 09-25), never expire, spent last.
+    // Scan metering (lib/server/scanQuota.ts): scan_month / scans_used is the
+    // calendar counter that still meters legacy (day), owner and comped accounts
+    // (a subscriber spends plan_scans, below); extra_scans is the bank of Scan
+    // Pack scans (one-time buys, 09-25), never expire, spent last.
     "scan_month TEXT",
     "scans_used INTEGER NOT NULL DEFAULT 0",
     "extra_scans INTEGER NOT NULL DEFAULT 0",
@@ -858,7 +887,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // share code (lazily minted); referred_by = the referrer's user id, set at
     // signup from ?ref=; referral_rewarded_at stamps the referred account once
     // the referrer has been credited; bonus_scans is the referrer's earned pool,
-    // spent only after the month's allowance (lib/server/referrals.ts).
+    // spent only after the plan balance (lib/server/referrals.ts).
     "referral_code TEXT",
     "referred_by TEXT",
     "referral_rewarded_at INTEGER",
@@ -887,6 +916,18 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // proven (NULL for accounts that never were).
     "email_pending INTEGER NOT NULL DEFAULT 0",
     "email_verified_at INTEGER",
+    // Scan rollover (09-30): plan_scans is the subscriber's balance, credited by
+    // each paid invoice (scan_credits) and spent first. NULL = not migrated yet
+    // (deliberately no default backfill): it is seeded once from the old
+    // calendar counter on first use (lib/planSeed.ts) so deploy day never walls
+    // a paying subscriber. plan_credit_scans / plan_credit_at = the latest
+    // payment's credit, for the "carried over" line. sub_cancel_at = when a
+    // subscription set to cancel ends (NULL = not ending); banked plan scans
+    // pause then and come back on resubscribe.
+    "plan_scans INTEGER",
+    "plan_credit_scans INTEGER NOT NULL DEFAULT 0",
+    "plan_credit_at INTEGER",
+    "sub_cancel_at INTEGER",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming

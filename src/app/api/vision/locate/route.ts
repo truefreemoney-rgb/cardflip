@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { VISION_MODEL, VisionNotConfiguredError, isVisionConfigured, locateCards } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
-import { scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { outOfScansMessage, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
 import { cleanBoxes } from "@/lib/binder";
 
@@ -20,6 +21,15 @@ export const maxDuration = 60;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Durable per-account daily cap (a db counter; the in-memory limiter never binds
+ * on serverless). Locating is a paid call that is not itself a scan (each card
+ * on the page is counted when it is read), so without a cap of its own it would
+ * cost money that no scan pays for. A page holds 9-12 cards, so 100 pages a day
+ * is far above the 500-scan daily budget it feeds.
+ */
+const LOCATE_DAILY_BUDGET = 100;
+
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
@@ -30,7 +40,7 @@ export async function POST(req: Request) {
 
     if (scanQuotaExhausted(user)) {
       return NextResponse.json(
-        { error: "You're out of scans — each card on the page is one scan", quota: true, usage: scanQuota(user) },
+        { error: outOfScansMessage(user), quota: true, usage: scanQuota(user) },
         { status: 402 },
       );
     }
@@ -40,6 +50,10 @@ export async function POST(req: Request) {
     const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
     if (!image) return NextResponse.json({ error: "Missing image" }, { status: 400 });
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
+
+    if (await dayBudgetSpent(`locate_${user.id}`, LOCATE_DAILY_BUDGET)) {
+      return NextResponse.json({ error: "Today's page budget is used up — try again tomorrow", retryAfterSeconds: 3600 }, { status: 429, headers: { "Retry-After": "3600" } });
+    }
 
     const result = await locateCards(image, mediaType);
     const cards = cleanBoxes(result.cards);

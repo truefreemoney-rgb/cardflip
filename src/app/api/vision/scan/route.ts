@@ -10,10 +10,9 @@ import { recordScanUsage } from "@/lib/server/scanUsage";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { gameFeaturesFor } from "@/lib/server/settings";
-import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
-import { isSubscribed, scanTier } from "@/lib/server/users";
+import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
+import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
-import { etTime } from "@/lib/time";
 import {
   LIMITS,
   RateLimitError,
@@ -31,6 +30,11 @@ const SCAN_DAILY_BUDGET = 500;
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/** The 402 for an empty balance (the message names the next credit date, a Scan Pack or the legacy reset: scanQuota.ts). */
+function outOfScans(user: User, usage: ScanQuota) {
+  return NextResponse.json({ error: outOfScansMessage(user, usage), quota: true, usage }, { status: 402 });
+}
+
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
@@ -43,24 +47,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // Plan cap a month per subscriber (lib/pricing.ts); the trial allowance lifetime; a Scan Pack balance until it is gone.
-    if (scanQuotaExhausted(user)) {
-      // The legacy day is a UTC day (users.ts quotaDay); the message says when it rolls over in Eastern (site-wide ET, 09-30).
-      const nextUtcMidnight = (Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000;
-      return NextResponse.json(
-        {
-          error:
-            scanTier(user) === "legacy"
-              ? `You've used today's 100 scans — the counter resets at ${etTime(nextUtcMidnight)}, or subscribe for a monthly allowance`
-              : isSubscribed(user)
-                ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
-                : "You're out of scans — subscribe or buy a Scan Pack to keep scanning",
-          quota: true,
-          usage: scanQuota(user),
-        },
-        { status: 402 },
-      );
-    }
+    // A subscriber's balance (each payment adds the plan's scans, unused scans stack); the trial allowance lifetime; a Scan Pack balance until it is gone.
+    // Fast answer from the row already in hand; the reservation below is the real, atomic check.
+    if (scanQuotaExhausted(user)) return outOfScans(user, scanQuota(user));
 
     const body = await req.json().catch(() => null);
     const image = body?.image as string | undefined;
@@ -88,23 +77,38 @@ export async function POST(req: Request) {
 
     // Only games this seller can see may take over a scan (gated games stay admin-only).
     const features: Record<string, boolean> = { pokemon: true, ...(await gameFeaturesFor(user)) };
-    const { read: card, usage: tokens } = await analyzeCardImageWithUsage(
-      image,
-      mediaType,
-      language,
-      parseGame(body?.game),
-      body?.pocket === true,
-      (g) => features[g] === true,
-    );
-    // Metered for everyone (launch pricing needs the data), enforced above
-    // for subscribers only. After the call — a failed scan shouldn't count.
+    // The scan is taken BEFORE the paid call (an atomic, guarded take: two
+    // photos in flight can never spend the same last scan, and none is lost
+    // to a stale read) and given back if the read fails: a failed scan
+    // shouldn't count. Metered for everyone (launch pricing needs the data).
+    const reservation = await reserveScan(user);
+    if (reservation.taken < 1) return outOfScans(user, reservation.usage);
+    let scanned;
+    try {
+      scanned = await analyzeCardImageWithUsage(
+        image,
+        mediaType,
+        language,
+        parseGame(body?.game),
+        body?.pocket === true,
+        (g) => features[g] === true,
+      );
+    } catch (err) {
+      await giveBackScans(user, reservation).catch((e) =>
+        console.error("scan give-back failed:", e instanceof Error ? e.message : e),
+      );
+      throw err;
+    }
+    const { read: card, usage: tokens } = scanned;
     // The token bill is written alongside; a ledger failure must never fail
     // a scan the seller already paid for.
     const [usage] = await Promise.all([
-      recordScan(user),
+      Promise.resolve(reservation.usage),
       recordScanUsage(user.id, VISION_MODEL, tokens, {
         game: card.game ?? parseGame(body?.game),
         ...(card.switchedFrom ? { from: card.switchedFrom } : {}),
+        // Stored so the second-look rate can be MEASURED next time, not inferred from token counts.
+        ...(card.secondLook ? { second: card.secondLook } : {}),
         name: card.name,
         number: card.cardNumber,
         total: card.setTotal,

@@ -3,13 +3,14 @@
 import { apiFetch } from "@/lib/client/basePath";
 import type { SessionUser } from "@/lib/client/auth";
 import { walledDestination } from "@/lib/client/emailConfirm";
+import type { ScanQuota } from "@/lib/quotaTypes";
 
 export interface AccountOverview {
   user: SessionUser;
   /** An email change waiting for its code (established accounts, confirmation on); null = none. */
   pendingEmail?: { email: string; expiresAt: number } | null;
-  /** Scan metering; remaining is null when the cap isn't enforced (no subscription). */
-  quota?: { used: number; included: number; remaining: number | null; bonus?: number };
+  /** Scan balance (the same snapshot as user.scans); remaining is null when the cap isn't enforced. */
+  quota?: ScanQuota;
   data: {
     cards: number;
     listed: number;

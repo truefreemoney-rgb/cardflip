@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import Spinner from "@/components/Spinner";
 import { fetchAccount } from "@/lib/client/accountApi";
-import { SCANS } from "@/lib/pricing";
+import { ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { paymentCredited } from "@/lib/scanCopy";
 
 /**
  * Where Stripe Checkout lands a new subscriber (Chris, 09-25: dropping them
@@ -20,6 +21,8 @@ import { SCANS } from "@/lib/pricing";
 export default function SubscribedPage() {
   const { user, refresh } = useSession();
   const [phase, setPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
+  // Scans the seller can spend, as the server counted them when the page confirmed.
+  const [ready, setReady] = useState<number | null>(null);
   // ?billing=pack = a one-time Scan Pack just paid (09-25); anything else is
   // a new subscription. Read before the URL is cleaned below.
   const [kind] = useState<"sub" | "pack">(() =>
@@ -32,6 +35,10 @@ export default function SubscribedPage() {
     }
   }, []);
 
+  // A plan credit written after this moment is the payment that brought them here
+  // (ten minutes of slack for a slow checkout; a credit older than that is a past month's).
+  const [since] = useState(() => Date.now() - 10 * 60_000);
+
   useEffect(() => {
     let cancelled = false;
     let tries = 0;
@@ -39,8 +46,15 @@ export default function SubscribedPage() {
       tries += 1;
       const o = await fetchAccount();
       if (cancelled) return true;
-      const ok = kind === "pack" ? (o?.user.packScans ?? 0) > 0 : o?.user.subStatus === "active" || o?.user.subStatus === "trialing";
+      // A subscription is confirmed only once the payment's scans are credited:
+      // the status flips first, and "250 scans, unlocked" over a 0 balance (a red
+      // header, a 402 on the first scan) reads as broken.
+      const ok =
+        kind === "pack"
+          ? (o?.user.packScans ?? 0) > 0
+          : (o?.user.subStatus === "active" || o?.user.subStatus === "trialing") && paymentCredited(o?.quota ?? o?.user.scans, since);
       if (o && ok) {
+        setReady((o.quota ?? o.user.scans)?.remaining ?? null);
         setPhase("confirmed");
         void refresh();
         return true;
@@ -61,10 +75,11 @@ export default function SubscribedPage() {
     return () => {
       cancelled = true;
     };
-  }, [refresh, kind]);
+  }, [refresh, kind, since]);
 
   const first = user?.name?.split(" ")[0];
-  const scans = user?.plan === "pro" ? SCANS.pro : SCANS.standard;
+  // The server's own count, once the payment is credited; no count while waiting (or for an unlimited account).
+  const scansReady = ready !== null && phase === "confirmed" ? `${ready.toLocaleString("en-US")} scans ready. ` : "";
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-10">
@@ -83,29 +98,29 @@ export default function SubscribedPage() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400" role="status">
           {phase === "stalled"
-            ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan will show as active"} shortly.`
+            ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan and scans will show up"} shortly.`
             : kind === "pack"
               ? `${SCANS.pack} scans added, they never expire. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`
-              : `${scans} scans a month, unlocked. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
+              : `${scansReady}${ROLLOVER_SENTENCE} Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
         </p>
 
         <Link
           href="/app"
           className="mt-7 flex w-full items-center justify-center rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
-          Scan a card
+          Scan a Card
         </Link>
         <Link
           href="/connect-ebay"
           className="mt-3 flex w-full items-center justify-center rounded-full border border-edge px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-surface-2"
         >
-          Connect eBay to sell
+          Connect eBay to Sell
         </Link>
 
         <p className="mt-5 text-xs text-zinc-500">
           A receipt is in your inbox.{" "}
           <Link href="/app/account" className="font-medium text-brand-300 transition hover:text-brand-200">
-            {kind === "pack" ? "Your account" : "Manage billing"}
+            {kind === "pack" ? "Your Account" : "Manage Billing"}
           </Link>
         </p>
       </div>

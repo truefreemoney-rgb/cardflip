@@ -7,9 +7,12 @@
  * scan count. Safe for client and server imports (no secrets, no db).
  *
  * After a change: grep src for `\$\d` and `\d+ scans` to prove nothing is
- * hardcoded, run `npm run test:quota`, then update the Stripe product
- * descriptions + prices (scripts/stripe-sync-pricing.mjs) so Checkout says
- * the same thing the site does.
+ * hardcoded, run `npm run test:quota` and `npm run test:rollover`, then edit
+ * the Stripe product descriptions + prices in the Stripe dashboard (test AND
+ * live mode; there is no sync script) so Checkout says the same thing the
+ * site does. A NEW Stripe price id must also be added to PRICE_IDS below (or
+ * set as STRIPE_PRICE_ID / STRIPE_PRO_PRICE_ID) before anyone pays it: an
+ * invoice on an unknown price credits no scans and lands on the Errors page.
  */
 
 export const PRICING = {
@@ -17,9 +20,9 @@ export const PRICING = {
   trial: { scans: 5 },
   /** One-time buy, no subscription. Never expires, stacks, every feature unlocked while scans remain. */
   pack: { price: 4.99, scans: 100 },
-  /** The subscription. Scans per calendar month. */
+  /** The subscription. Scans credited each time a payment clears (they stack, nothing resets). */
   standard: { price: 9.99, scans: 250 },
-  /** Volume tier. Scans per calendar month. */
+  /** Volume tier. Scans credited each time a payment clears (they stack, nothing resets). */
   pro: { price: 19.99, scans: 750 },
   /** Referral: bonus scans banked by the referrer when an invited friend subscribes (Chris 09-26: one pack's worth). */
   referral: { scans: 100 },
@@ -65,3 +68,71 @@ export const PLAN_NAME = { trial: "Free trial", pack: "Scan Pack", standard: "Ca
 export const LADDER_SENTENCE =
   `${SCANS.trial} scans free to start. Then a ${PRICE.pack} Scan Pack of ${SCANS.pack} scans with no subscription, ` +
   `or ${PRICE.standard} a month for ${SCANS.standard} scans, or Pro at ${PRICE.pro} a month for ${SCANS.pro}.`;
+
+/**
+ * Scan rollover (Chris, 09-30): scans arrive when a subscription payment
+ * clears (users.plan_scans, lib/server/scanCredits.ts), unused scans stack,
+ * and nothing resets on the 1st. One sentence so the pricing page, help
+ * articles, the help bot, the welcome email and the FAQ all say the same thing.
+ */
+export const ROLLOVER_SENTENCE = "Unused scans carry over each month while your plan is active.";
+
+/**
+ * What ending a plan does to banked scans (Chris, 09-30): plan scans pause
+ * (they stay on the account, usable only while subscribed) and come back on
+ * resubscribe with the new payment stacking on top. Scan Pack scans are not
+ * affected. Shared by the pricing FAQ, Terms, help, the help bot and the
+ * account page, so nobody ever reads a promise the code does not keep.
+ */
+export const FROZEN_SENTENCE = "If your plan ends, the scans you have banked pause and come back when you resubscribe.";
+
+/** The order scans are spent in, for the pages that explain bonus and pack scans. */
+export const DRAW_ORDER_SENTENCE = "Scans are used in this order: plan scans first, then bonus scans from friends, then Scan Pack scans.";
+
+export const ROLLOVER = {
+  /**
+   * Cap on banked plan scans, in months of the plan's own credit (2 = a Standard
+   * subscriber tops out at 2 x 250). null = no cap: Chris's rule is that nobody
+   * loses a scan they paid for. If set, it only limits NEW credits; scans
+   * already banked are never taken back.
+   */
+  maxMonths: null as number | null,
+};
+
+/**
+ * Every Stripe price id a subscription invoice can carry -> the plan it buys.
+ * Scans credited are ALWAYS PRICING[plan].scans and cents are what the id was
+ * sold for (only the proration maths needs them); an id that is not here or
+ * in STRIPE_PRICE_ID / STRIPE_PRO_PRICE_ID credits nothing and is reported,
+ * never guessed. Retired ids stay forever: an old subscriber can still be
+ * billed on one (a retired Pro id credits today's Pro amount).
+ */
+export interface PriceIdEntry {
+  plan: PaidPlan;
+  cents: number;
+  retired?: boolean;
+  note: string;
+}
+export const PRICE_IDS: Record<string, PriceIdEntry> = {
+  price_1UAjvlHrYyCaAIAxazDtv1Dz: { plan: "standard", cents: Math.round(PRICING.standard.price * 100), note: "live CardFlip $9.99/mo" },
+  price_1UJmWRHrYyCaAIAxR9eImYvs: { plan: "pro", cents: Math.round(PRICING.pro.price * 100), note: "live Pro $19.99/mo (09-25)" },
+  price_1UBwtjHrYyCaAIAxHtHBqUl7: { plan: "pro", cents: 2499, retired: true, note: "live Pro $24.99/mo, archived 09-25 (nobody was on it)" },
+  price_1UAeGnHzaqR7o9G2jhQpe38h: { plan: "standard", cents: 999, retired: true, note: "sandbox-era CardFlip $9.99/mo (08-31)" },
+};
+
+/**
+ * The plan, scans and price a Stripe price id stands for, or null when it is
+ * unknown. `current` = the ids from the environment (STRIPE_PRICE_ID and
+ * STRIPE_PRO_PRICE_ID), which win so test mode's ids work too.
+ */
+export function scansForPriceId(
+  priceId: string | null | undefined,
+  current: { standard?: string | null; pro?: string | null } = {},
+): { plan: PaidPlan; scans: number; cents: number } | null {
+  if (!priceId) return null;
+  const plan: PaidPlan | null =
+    current.pro && priceId === current.pro ? "pro" : current.standard && priceId === current.standard ? "standard" : (PRICE_IDS[priceId]?.plan ?? null);
+  if (!plan) return null;
+  const listed = PRICE_IDS[priceId];
+  return { plan, scans: PRICING[plan].scans, cents: listed?.cents ?? Math.round(PRICING[plan].price * 100) };
+}

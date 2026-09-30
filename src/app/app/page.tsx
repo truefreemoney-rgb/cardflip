@@ -381,10 +381,8 @@ export default function AppPage() {
           // SubscriptionGate swaps the scanner for the paywall.
           if (vision.status === "quota") void refresh();
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
-            setQuotaNote(
-              vision.error ??
-                "You've used all your scans this month — cards still scan by OCR, which reads less of the card.",
-            );
+            // The server's 402 names the next credit date, a Scan Pack or the paused scans.
+            setQuotaNote(vision.error ?? "You're out of scans.");
           }
 
           let nameCandidates: string[];
@@ -1086,7 +1084,7 @@ export default function AppPage() {
         const trimmed = split.found - n;
         const note =
           trimmed > 0
-            ? `Found ${split.found} cards — queued ${n}, the rest are past your scan allowance`
+            ? `Found ${split.found} cards — queued ${n}, the rest are past the scans you have left`
             : `Found ${n} ${n === 1 ? "card" : "cards"} — scanning ${n === 1 ? "it" : "them"} now`;
         flashPageNote(note);
         // No camera open on an upload: the trim has to be said somewhere.
@@ -1415,8 +1413,7 @@ export default function AppPage() {
           className="mx-auto mt-4 flex w-full max-w-7xl items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-200 sm:px-6"
         >
           <span>
-            <span className="font-semibold text-red-300">Out of scans.</span>{" "}
-            {quotaNote} Cards still scan by OCR, which reads less of the card.{" "}
+            <span className="font-semibold text-red-300">{quotaNote}</span> Cards still scan by OCR, which reads less of the card.{" "}
             <Link
               href="/app/account"
               className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"

@@ -10,7 +10,9 @@ import { toast } from "@/components/Toaster";
 import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
 import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
-import { PRICE, PRICE_SHORT, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICE, PRICE_SHORT, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import type { ScanQuota } from "@/lib/quotaTypes";
+import { frozenSentence, hasPlanBalance, paymentCredited, planEndsSentence, shortDate } from "@/lib/scanCopy";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from "@/lib/client/push";
@@ -156,6 +158,9 @@ function AccountSettings({
   useEffect(() => {
     if (billingReturn) window.history.replaceState(null, "", window.location.pathname);
   }, [billingReturn]);
+  // A plan credit written after this moment is the payment that brought them
+  // back (slack for a slow checkout); older ones are past months'.
+  const [since] = useState(() => Date.now() - 10 * 60_000);
   useEffect(() => {
     if (billingReturn !== "success") return;
     let cancelled = false;
@@ -166,7 +171,9 @@ function AccountSettings({
       if (cancelled) return;
       if (o) {
         setOverview(o);
-        if (o.user.subStatus === "active" || o.user.subStatus === "trialing") {
+        // Active AND the payment's scans credited: the webhook flips the status
+        // first, so "active" alone can still show 0 scans for a moment.
+        if ((o.user.subStatus === "active" || o.user.subStatus === "trialing") && paymentCredited(o.quota ?? o.user.scans, since)) {
           setBillingPhase("confirmed");
           void refresh();
           setUser(o.user);
@@ -185,7 +192,7 @@ function AccountSettings({
       cancelled = true;
       clearInterval(id);
     };
-  }, [billingReturn, setUser, refresh]);
+  }, [billingReturn, setUser, refresh, since]);
 
   // --- Profile -----------------------------------------------------------
   const [name, setName] = useState(user.name);
@@ -1178,7 +1185,7 @@ function PlanSection({
   billingPhase,
 }: {
   user: SessionUser;
-  quota?: { used: number; included: number; remaining: number | null; bonus?: number };
+  quota?: ScanQuota;
   billingReturn: "success" | "canceled" | "ending" | null;
   billingPhase: "waiting" | "confirmed" | "stalled";
 }) {
@@ -1211,16 +1218,41 @@ function PlanSection({
   // buttons that would bounce to the wall.
   const walled = Boolean(user.mustConfirmEmail);
 
+  // Scans roll over (Chris, 09-30): the balance, when the next payment credits
+  // more, and, once the plan is set to end, that the banked plan scans pause
+  // then. Dates are Eastern. `q` is the same snapshot as the header counter.
+  const q = quota ?? user.scans;
+  // Only a real rollover subscriber has a plan balance to describe. A subscriber
+  // on an admin override (legacy day counter, comp month counter, unlimited, trial)
+  // keeps the wording of that tier: the rollover promise is not theirs.
+  const rollover = hasPlanBalance(q);
+  const scansLeft = (q?.remaining ?? 0).toLocaleString("en-US");
+  const scansLeftText =
+    q?.remaining === null
+      ? "Unlimited scans"
+      : rollover
+        ? `${scansLeft} scans left`
+        : user.tier === "legacy"
+          ? `${scansLeft} of ${q?.included.toLocaleString("en-US")} scans left today`
+          : user.tier === "trial"
+            ? `${scansLeft} of ${q?.included.toLocaleString("en-US")} free scans left`
+            : `${scansLeft} scans left`;
+  const nextDate = rollover ? shortDate(q?.nextCreditAt) : "";
+  const endsDate = shortDate(q?.endsAt);
+  const ending = Boolean(user.cancelAtPeriodEnd) || Boolean(endsDate);
+  // Plan scans that are banked but cannot be spent (canceled, or the plan ended).
+  const pausedNote = q && frozenSentence(q) ? ` ${frozenSentence(q)}.` : "";
+
   const status = walled ? (
     "Confirm your email to start scanning. Plans open up right after."
   ) : subscribed ? (
     <>
       <Dot on />
       {user.subStatus === "past_due"
-        ? "Last payment failed — update your card."
-        : `${user.plan === "pro" ? `Pro · ${SCANS.pro}` : SCANS.standard} scans a month${user.subPeriodEnd ? ` · renews ${formatDate(user.subPeriodEnd)}` : ""}.${
-            user.packScans ? ` ${user.packScans.toLocaleString("en-US")} Scan Pack scans banked for after that.` : ""
-          }${user.plan === "pro" ? "" : ` Pro is ${SCANS.pro} for ${PRICE.pro} — switch in Manage billing.`}`}
+        ? `Last payment failed — update your card. ${scansLeftText}.`
+        : `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${scansLeftText}${
+            ending ? (endsDate ? ` · plan ends ${endsDate}` : "") : nextDate ? ` · next scans on ${nextDate}` : ""
+          }.${user.plan === "pro" || ending ? "" : ` Pro is ${SCANS.pro} for ${PRICE.pro} — switch in Manage Billing.`}`}
     </>
   ) : user.tier === "owner" ? (
     <>
@@ -1230,19 +1262,19 @@ function PlanSection({
   ) : user.tier === "legacy" ? (
     <>
       <Dot on />
-      {`Early account · ${Math.max(0, 100 - (quota?.used ?? 0))} of 100 scans left today. Subscribe for a monthly allowance: ${SCANS.standard} at ${PRICE.standard} or ${SCANS.pro} at ${PRICE.pro}.`}
+      {`Early account · ${Math.max(0, 100 - (quota?.used ?? 0))} of 100 scans left today. Subscribe for ${SCANS.standard} scans a month at ${PRICE.standard}, or ${SCANS.pro} at ${PRICE.pro}.${pausedNote}`}
     </>
   ) : user.tier === "pack" ? (
     <>
       <Dot on />
-      {`Scan Pack · ${(user.packScans ?? 0).toLocaleString("en-US")} scans left, they never expire. Another pack is ${PRICE.pack}; a subscription is ${SCANS.standard} a month at ${PRICE.standard}.`}
+      {`Scan Pack · ${(user.packScans ?? 0).toLocaleString("en-US")} scans left, they never expire. Another pack is ${PRICE.pack}; a subscription is ${SCANS.standard} a month at ${PRICE.standard}.${pausedNote}`}
     </>
   ) : user.subStatus === "canceled" ? (
-    `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Scan Pack, to keep scanning.`
+    `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Scan Pack, to keep scanning.${pausedNote}`
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.`
+    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.${pausedNote}`
   );
-  const showBody = billingReturn !== null || (subscribed && !!quota) || !!msg;
+  const showBody = billingReturn !== null || (subscribed && !!q) || !!msg;
 
   return (
     <Row
@@ -1285,32 +1317,76 @@ function PlanSection({
       {billingReturn === "ending" && (
         <Notice kind="ok">
           Your plan stays active until the end of this billing period, then ends. Nothing more will be
-          charged. Changed your mind? Manage Billing can undo it.
+          charged.
+          {q && (q.plan ?? 0) > 0
+            ? ` Your ${(q.plan ?? 0).toLocaleString("en-US")} banked plan scans pause then and come back if you resubscribe.`
+            : ""}{" "}
+          Changed your mind? Manage Billing can undo it.
         </Notice>
       )}
-      {subscribed && quota && (
+      {subscribed && q && (
         <div className="max-w-sm">
-          <p className="text-xs text-zinc-400">
-            {quota.used} of {quota.included} scans used this month
+          <p className="font-display text-2xl font-semibold tabular-nums text-white">
+            {q.remaining === null ? (
+              "Unlimited scans"
+            ) : (
+              <>
+                {scansLeft}{" "}
+                <span className="font-sans text-sm font-normal text-zinc-400">
+                  {rollover ? "scans left" : user.tier === "legacy" ? "scans left today" : user.tier === "trial" ? "free scans left" : "scans left"}
+                </span>
+              </>
+            )}
           </p>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full ${quota.remaining !== null && quota.remaining <= 0 ? "bg-red-400" : "bg-brand-400"}`}
-              style={{ width: `${Math.min(100, (quota.used / quota.included) * 100)}%` }}
-            />
-          </div>
-          <p className="mt-1.5 text-xs text-zinc-600">
-            Your allowance resets at the start of each month.
-            {quota.bonus ? ` Plus ${quota.bonus.toLocaleString("en-US")} bonus scans from friends, used after it.` : ""}
-          </p>
-          {billingReturn !== "ending" && (
+          {hasPlanBalance(q) && (
+            <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-xs text-zinc-400">
+              <dt>Plan scans</dt>
+              <dd className="text-right tabular-nums text-zinc-200">{q.plan.toLocaleString("en-US")}</dd>
+              {q.carried ? (
+                <>
+                  <dt className="pl-3 text-zinc-500">Carried over from earlier payments</dt>
+                  <dd className="text-right tabular-nums text-zinc-400">{q.carried.toLocaleString("en-US")}</dd>
+                </>
+              ) : null}
+              {q.bonus ? (
+                <>
+                  <dt>Bonus scans from friends</dt>
+                  <dd className="text-right tabular-nums text-zinc-200">{q.bonus.toLocaleString("en-US")}</dd>
+                </>
+              ) : null}
+              {q.pack ? (
+                <>
+                  <dt>Scan Pack scans</dt>
+                  <dd className="text-right tabular-nums text-zinc-200">{q.pack.toLocaleString("en-US")}</dd>
+                </>
+              ) : null}
+              {nextDate && (
+                <>
+                  <dt>Next scans arrive</dt>
+                  <dd className="text-right tabular-nums text-zinc-200">{nextDate}</dd>
+                </>
+              )}
+            </dl>
+          )}
+          {rollover && ending && billingReturn !== "ending" && planEndsSentence(q) && (
+            <p role="status" className="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+              {planEndsSentence(q)}. Changed your mind? Manage Billing can undo it.
+            </p>
+          )}
+          {rollover && (
+            <p className="mt-3 text-xs text-zinc-600">
+              {ROLLOVER_SENTENCE}
+              {ending ? "" : ` ${FROZEN_SENTENCE}`}
+            </p>
+          )}
+          {billingReturn !== "ending" && !ending && (
             <button
               type="button"
               onClick={() => go(() => openBillingPortal("cancel"))}
               disabled={busy}
               className="mt-3 text-xs text-zinc-500 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-300 disabled:opacity-60"
             >
-              Cancel plan
+              Cancel Plan
             </button>
           )}
         </div>
@@ -1323,7 +1399,7 @@ function PlanSection({
 /**
  * Invite a friend (Chris, 09-06): subscribers only. Share the link; when the
  * friend subscribes, SCANS.referral bonus scans land here and are spent after the
- * month's allowance. Trial accounts see the pitch, not a link.
+ * plan scans. Trial accounts see the pitch, not a link.
  */
 function InviteRow({ subscribed }: { subscribed: boolean }) {
   const [info, setInfo] = useState<InviteInfo | null>(null);
@@ -1384,7 +1460,7 @@ function InviteRow({ subscribed }: { subscribed: boolean }) {
         <div className="max-w-md">
           <p className="select-all break-all rounded-lg border border-edge bg-surface-2 px-3 py-2 font-mono text-xs text-zinc-300">{info.url}</p>
           <p className="mt-2 text-xs text-zinc-500">
-            {info.friendsJoined} joined so far. Bonus scans are used after your monthly allowance and never expire.{" "}
+            {info.friendsJoined} joined so far. Bonus scans are used after your plan scans and never expire.{" "}
             <Link href="/app/rewards" className="text-zinc-400 underline-offset-2 hover:underline">
               How It Works
             </Link>

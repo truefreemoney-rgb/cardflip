@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/client/basePath";
+import type { ScanQuota } from "@/lib/quotaTypes";
 
 export interface SessionUser {
   id: string;
@@ -17,7 +18,7 @@ export interface SessionUser {
   trialScansLeft?: number;
   /** 'standard' | 'pro' when subscribed. */
   plan?: "standard" | "pro" | null;
-  /** Scans included per month on the current plan. */
+  /** Scans each payment credits on the current plan. */
   monthlyScans?: number;
   /** owner | subscribed | legacy | pack | trial. */
   tier?: "owner" | "subscribed" | "legacy" | "pack" | "trial";
@@ -32,8 +33,12 @@ export interface SessionUser {
   features?: { magic: boolean; mtg?: boolean; lorcana?: boolean; onepiece?: boolean; yugioh?: boolean };
   /** Unused two-step backup codes left. */
   totpBackupCodesLeft?: number;
-  /** Scans used / included / left right now (header counter); remaining null = unlimited. */
-  scans?: { used: number; included: number; remaining: number | null; bonus?: number; pack?: number };
+  /** The scan balance (header counter, account page): remaining null = unlimited. One shared type, so no field is dropped. */
+  scans?: ScanQuota;
+  /** The subscription is set to cancel at the end of the period (subEndsAt); banked plan scans pause then. */
+  cancelAtPeriodEnd?: boolean;
+  /** When a canceling subscription ends (ms epoch); null/absent = not ending. */
+  subEndsAt?: number | null;
   /** Has this user scanned at least one card yet? Only set by /api/auth/me; drives the logo link. */
   hasCards?: boolean;
   /** Public collection page: the /u/<handle> slug and whether it is open. */

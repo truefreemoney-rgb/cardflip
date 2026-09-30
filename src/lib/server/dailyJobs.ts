@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { reconcilePaidInvoices, type ReconcileResult } from "@/lib/server/billingCredits";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
@@ -18,6 +19,8 @@ import type { TcgGame } from "@/lib/server/tcgCards";
 
 /**
  * The once-a-day maintenance run that keeps the charts moving:
+ *   0. Stripe reconcile: credit any paid subscription invoice whose
+ *      invoice.paid webhook never arrived (rides with steps 2+3+5, below)
  *   1. Magic prices from Scryfall's bulk file (mirror + history point)
  *   2. Pokémon points for every mapped card from TCGCSV (TCGplayer daily)
  *   3. Pokémon sweep of held / recently looked-up cards via pokemontcg.io
@@ -105,6 +108,8 @@ export interface DailyResult {
   cardAlerts?: { checked: number; sent: number; nudged: number } | { error: string };
   weeklyDigest?: { skipped?: string; users: number; sent: number } | { error: string };
   autoOffers?: { sellers: number; sent: number; failed: number } | { error: string };
+  /** Missed-webhook catch-up: paid Stripe invoices with no scan credit (lib/server/billingCredits.ts). */
+  billingReconcile?: ReconcileResult | { error: string };
   ms?: number;
 }
 
@@ -147,8 +152,18 @@ export async function runTcgStep(): Promise<NonNullable<DailyResult["tcg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers" | "billingReconcile">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers" | "billingReconcile"> = {};
+  // Money first: scans are credited by Stripe's invoice.paid webhook, and this
+  // walk of the recently paid invoices credits any that never arrived (by
+  // invoice id, so it can never double a credit). Capped at 20 s, never throws,
+  // and runs before the slow steps that a killed run would skip.
+  try {
+    result.billingReconcile = await reconcilePaidInvoices();
+  } catch (err) {
+    result.billingReconcile = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: billing reconcile failed:", err);
+  }
   try {
     if (await hasTcgplayerMap()) {
       // Sealed product map first (a few groups' product lists per run,

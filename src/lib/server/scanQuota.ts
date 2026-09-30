@@ -1,18 +1,40 @@
 import "server-only";
-import { monthlyScans, scanQuota, type ScanQuota } from "@/lib/server/users";
 import { db } from "@/lib/db";
-import { LEGACY_DAILY_SCANS, PLAN_SCANS, TRIAL_SCANS, scanTier, type User } from "@/lib/server/users";
+import { PRICE } from "@/lib/pricing";
+import { etDate, etTime } from "@/lib/time";
+import { ensurePlanSeed } from "@/lib/server/scanCredits";
+import {
+  LEGACY_DAILY_SCANS,
+  PLAN_SCANS,
+  TRIAL_SCANS,
+  findUserById,
+  isComped,
+  monthlyScans,
+  scanQuota,
+  scanTier,
+  spendsPlanScans,
+  type ScanQuota,
+  type User,
+} from "@/lib/server/users";
 
 // scanQuota itself lives in users.ts now (toPublicUser ships it to the
 // header counter); this module keeps the writes and the exhaustion check.
 export { scanQuota, type ScanQuota };
 
 /**
- * Scan metering. A subscription includes the plan's monthly cap (calendar
- * month, UTC; the counter resets lazily on rollover), then invite-a-friend
- * bonus scans, then Scan Pack scans (users.extra_scans, one-time buys that
- * never expire). An account with no subscription and a pack balance is the
- * "pack" tier: the balance is its whole allowance. Numbers: lib/pricing.ts.
+ * Scan metering. A subscriber spends the plan balance (users.plan_scans:
+ * every paid invoice adds the plan's scans, unused scans stack, nothing resets
+ * on the 1st), then invite-a-friend bonus scans, then Scan Pack scans
+ * (users.extra_scans, one-time buys that never expire). An account with no
+ * subscription and a pack balance is the "pack" tier: the balance is its whole
+ * allowance. Comped accounts (no payments) keep the calendar-month counter.
+ * Numbers: lib/pricing.ts.
+ *
+ * Spending is RESERVED before the paid work and given back if the work fails
+ * (Chris, 09-30). Each bucket is drawn with a guarded UPDATE (`... WHERE
+ * balance >= n`), so two scans in flight can never both spend the last scan
+ * and none is ever lost to a stale read: the old count-after read-modify-write
+ * let 20 real binder scans count as 12 (subscriber 6cd43f, 09-28).
  */
 
 /** @deprecated read PLAN_SCANS.standard (lib/pricing.ts is the source). */
@@ -23,113 +45,237 @@ const month = () => new Date().toISOString().slice(0, 7);
 // column (it's just the counter's period label).
 const day = () => new Date().toISOString().slice(0, 10);
 
-/** True when a subscriber has exhausted the month's allowance. */
+/** True when the seller has nothing left to spend. */
 export function scanQuotaExhausted(user: User): boolean {
   const q = scanQuota(user);
   return q.remaining !== null && q.remaining <= 0;
 }
 
 /**
- * Count `n` scans at once (a CSV import: every imported card is one scan —
- * Chris, 09-27, "if they import, I want each card to count as a scan").
- * Same order as recordScan: the month's allowance, then invite bonus, then
- * Scan Pack; the caller has already capped n at the remaining balance.
+ * The 402 message when nothing is left to spend. A subscriber is told when the
+ * next payment credits more (Eastern date), or that a Scan Pack works now; an
+ * account with paused plan scans is told they come back on resubscribe.
  */
-export async function recordScans(user: User, n: number): Promise<ScanQuota> {
-  if (n <= 0) return scanQuota(user);
-  const tier = scanTier(user);
-  if (tier === "trial") {
-    const t = (user.trialScansUsed ?? 0) + n;
-    await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(t, user.id);
-    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+export function outOfScansMessage(user: User, q: ScanQuota = scanQuota(user)): string {
+  // The legacy day is a UTC day (users.ts quotaDay); say when it rolls over in Eastern (site-wide ET, 09-30).
+  if (scanTier(user) === "legacy") {
+    const nextUtcMidnight = (Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000;
+    return `You've used today's ${LEGACY_DAILY_SCANS} scans. The counter resets at ${etTime(nextUtcMidnight)}, or subscribe for more scans.`;
   }
-  if (tier === "legacy") {
-    const d = day();
-    const used = (user.scanMonth === d ? user.scansUsed : 0) + n;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(d, used, user.id);
-    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
+  // Every message ends with a full stop: callers show it as a sentence of its own.
+  if (spendsPlanScans(user)) {
+    const next = q.nextCreditAt ? etDate(q.nextCreditAt, "", { month: "short", day: "numeric" }) : "";
+    return next
+      ? `You're out of scans. Your next scans arrive on ${next}, or add a Scan Pack (${PRICE.pack}) to keep scanning now.`
+      : `You're out of scans. Add a Scan Pack (${PRICE.pack}) to keep scanning.`;
   }
-  if (tier === "owner") {
-    const m = month();
-    const used = (user.scanMonth === m ? user.scansUsed : 0) + n;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
-    return { used, included: 0, remaining: null };
-  }
-  if (tier === "pack") {
-    const pack = Math.max(0, (user.extraScans ?? 0) - n);
-    await db.prepare("UPDATE users SET extra_scans = ? WHERE id = ?").run(pack, user.id);
-    return { used: 0, included: pack + n, remaining: pack, pack };
-  }
-  const m = month();
-  const cap = monthlyScans(user);
-  const before = user.scanMonth === m ? user.scansUsed : 0;
-  let bonus = user.bonusScans ?? 0;
-  let pack = user.extraScans ?? 0;
-  let left = n;
-  const fromMonth = Math.min(left, Math.max(0, cap - before));
-  const used = before + fromMonth;
-  left -= fromMonth;
-  const fromBonus = Math.min(left, bonus);
-  bonus -= fromBonus;
-  left -= fromBonus;
-  pack = Math.max(0, pack - left);
-  await db
-    .prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = ?, extra_scans = ? WHERE id = ?")
-    .run(m, used, bonus, pack, user.id);
-  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus + pack, bonus, pack };
+  return q.frozen
+    ? `You're out of scans. Your ${q.frozen.toLocaleString("en-US")} banked plan scans come back when you resubscribe, or buy a Scan Pack to keep scanning.`
+    : "You're out of scans. Subscribe or buy a Scan Pack to keep scanning.";
 }
 
-/** Count one scan, resetting the counter on month rollover. Answers the
- * post-scan quota so the scan response can carry usage without a re-read. */
-export async function recordScan(user: User): Promise<ScanQuota> {
+type Bucket = "plan" | "bonus" | "pack" | "counter" | "trial";
+
+/** What a reservation took from each bucket, so a failed read can put it back. */
+export interface ScanDraw {
+  plan: number;
+  bonus: number;
+  pack: number;
+  /** The calendar/day counter (comped, legacy, owner): scans added to scans_used. */
+  counter: number;
+  /** The counter's period key (yyyy-mm or yyyy-mm-dd) at draw time. */
+  counterKey: string | null;
+  /** The free trial's lifetime count. */
+  trial: number;
+}
+
+export interface ScanReservation {
+  /** Scans actually taken: the whole ask, or fewer when the balance ran short (0 = nothing left). */
+  taken: number;
+  draw: ScanDraw;
+  /** The balance after the reservation, ready to ship in the response. */
+  usage: ScanQuota;
+}
+
+const emptyDraw = (): ScanDraw => ({ plan: 0, bonus: 0, pack: 0, counter: 0, counterKey: null, trial: 0 });
+
+interface BalanceRow {
+  plan_scans: number | null;
+  bonus_scans: number | null;
+  extra_scans: number | null;
+  scan_month: string | null;
+  scans_used: number | null;
+  trial_scans_used: number | null;
+}
+
+/** The buckets this account spends, in draw order, with each one's cap on the counter kinds. */
+function bucketsFor(user: User): { order: Bucket[]; counterKey: string | null; counterCap: number | null } {
   const tier = scanTier(user);
-  if (tier === "trial") {
-    const t = (user.trialScansUsed ?? 0) + 1;
-    await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(t, user.id);
-    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+  if (tier === "trial") return { order: ["trial"], counterKey: null, counterCap: null };
+  if (tier === "legacy") return { order: ["counter"], counterKey: day(), counterCap: LEGACY_DAILY_SCANS };
+  if (tier === "owner") return { order: ["counter"], counterKey: month(), counterCap: null };
+  if (tier === "pack") return { order: ["pack"], counterKey: null, counterCap: null };
+  if (isComped(user)) return { order: ["counter", "bonus", "pack"], counterKey: month(), counterCap: monthlyScans(user) };
+  return { order: ["plan", "bonus", "pack"], counterKey: null, counterCap: null };
+}
+
+/** Guarded take of `k` scans from one bucket: true when the row changed. */
+async function take(bucket: Bucket, userId: string, k: number, counterKey: string | null, counterCap: number | null): Promise<boolean> {
+  let res;
+  if (bucket === "plan") {
+    res = await db.prepare("UPDATE users SET plan_scans = plan_scans - ? WHERE id = ? AND plan_scans >= ?").run(k, userId, k);
+  } else if (bucket === "bonus") {
+    res = await db.prepare("UPDATE users SET bonus_scans = bonus_scans - ? WHERE id = ? AND bonus_scans >= ?").run(k, userId, k);
+  } else if (bucket === "pack") {
+    res = await db.prepare("UPDATE users SET extra_scans = extra_scans - ? WHERE id = ? AND extra_scans >= ?").run(k, userId, k);
+  } else if (bucket === "trial") {
+    res = await db
+      .prepare("UPDATE users SET trial_scans_used = trial_scans_used + ? WHERE id = ? AND trial_scans_used + ? <= ?")
+      .run(k, userId, k, TRIAL_SCANS);
+  } else if (counterCap === null) {
+    // Owner: metered, never enforced.
+    res = await db
+      .prepare("UPDATE users SET scans_used = (CASE WHEN scan_month = ? THEN scans_used ELSE 0 END) + ?, scan_month = ? WHERE id = ?")
+      .run(counterKey, k, counterKey, userId);
+  } else {
+    res = await db
+      .prepare(
+        `UPDATE users SET scans_used = (CASE WHEN scan_month = ? THEN scans_used ELSE 0 END) + ?, scan_month = ?
+         WHERE id = ? AND (CASE WHEN scan_month = ? THEN scans_used ELSE 0 END) + ? <= ?`,
+      )
+      .run(counterKey, k, counterKey, userId, counterKey, k, counterCap);
   }
-  if (tier === "legacy") {
-    const d = day();
-    const used = (user.scanMonth === d ? user.scansUsed : 0) + 1;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(d, used, user.id);
-    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
+  return res.changes > 0;
+}
+
+/** How many scans one bucket could give right now, from a fresh row (a hint: the guarded UPDATE has the last word). */
+function headroom(bucket: Bucket, row: BalanceRow, counterKey: string | null, counterCap: number | null): number {
+  if (bucket === "plan") return Math.max(0, row.plan_scans ?? 0);
+  if (bucket === "bonus") return Math.max(0, row.bonus_scans ?? 0);
+  if (bucket === "pack") return Math.max(0, row.extra_scans ?? 0);
+  if (bucket === "trial") return Math.max(0, TRIAL_SCANS - (row.trial_scans_used ?? 0));
+  if (counterCap === null) return Number.MAX_SAFE_INTEGER;
+  const used = row.scan_month === counterKey ? row.scans_used ?? 0 : 0;
+  return Math.max(0, counterCap - used);
+}
+
+function record(draw: ScanDraw, bucket: Bucket, k: number, counterKey: string | null): void {
+  if (bucket === "counter") {
+    draw.counter += k;
+    draw.counterKey = counterKey;
+  } else {
+    draw[bucket] += k;
   }
-  if (tier === "owner") {
-    const m = month();
-    const used = (user.scanMonth === m ? user.scansUsed : 0) + 1;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
-    return { used, included: 0, remaining: null };
+}
+
+/**
+ * Take `n` scans BEFORE the paid work, in draw order (plan balance, then
+ * bonus, then Scan Pack; comped: the month counter first). One scan is a blind
+ * guarded UPDATE per bucket; several (a CSV import) read the balances once as a
+ * hint and take what each bucket can give, re-reading if another request got
+ * there first. Every take is a single guarded statement, so a balance can never
+ * go below zero and two reservations never spend the same scan.
+ * `taken` < n means the balance ran short (0 = nothing at all).
+ */
+export async function reserveScans(user: User, n: number): Promise<ScanReservation> {
+  const draw = emptyDraw();
+  const taken = () => draw.plan + draw.bonus + draw.pack + draw.counter + draw.trial;
+  try {
+    if (n > 0) {
+      // An unmigrated subscriber's balance is written from the old counter on
+      // first use, before the first guarded take (which would read NULL as 0).
+      if (spendsPlanScans(user) && user.planScans === null) await ensurePlanSeed(user.id);
+      const { order, counterKey, counterCap } = bucketsFor(user);
+      let left = n;
+      if (n === 1) {
+        for (const bucket of order) {
+          if (await take(bucket, user.id, 1, counterKey, counterCap)) {
+            record(draw, bucket, 1, counterKey);
+            left = 0;
+            break;
+          }
+        }
+      } else {
+        for (let attempt = 0; attempt < 6 && left > 0; attempt++) {
+          const row = (await db
+            .prepare("SELECT plan_scans, bonus_scans, extra_scans, scan_month, scans_used, trial_scans_used FROM users WHERE id = ?")
+            .get(user.id)) as BalanceRow | undefined;
+          if (!row) break;
+          let hinted = false;
+          for (const bucket of order) {
+            if (left <= 0) break;
+            const k = Math.min(left, headroom(bucket, row, counterKey, counterCap));
+            if (k <= 0) continue;
+            hinted = true;
+            if (await take(bucket, user.id, k, counterKey, counterCap)) {
+              record(draw, bucket, k, counterKey);
+              left -= k;
+            }
+          }
+          if (!hinted) break;
+        }
+      }
+    }
+  } catch (err) {
+    // A database error part-way through: each take was its own committed
+    // statement, so what was drawn so far is put back before the error goes up
+    // (the caller never got a reservation to give back).
+    if (taken() > 0) {
+      await giveBackScans(user, { taken: taken(), draw, usage: scanQuota(user) }).catch((e) =>
+        console.error("scan give-back after a failed reserve failed:", e instanceof Error ? e.message : e),
+      );
+    }
+    throw err;
   }
-  if (tier === "pack") {
-    const pack = Math.max(0, (user.extraScans ?? 0) - 1);
-    await db.prepare("UPDATE users SET extra_scans = ? WHERE id = ?").run(pack, user.id);
-    return { used: 0, included: pack + 1, remaining: pack, pack };
+  // The scans are already spent: a failed read of the fresh balance must not
+  // lose the reservation, so fall back to the row in hand (its numbers are
+  // stale, the caller only ships them as the usage snapshot).
+  let usage: ScanQuota;
+  try {
+    usage = scanQuota((await findUserById(user.id)) ?? user);
+  } catch {
+    usage = scanQuota(user);
   }
-  const m = month();
-  const cap = monthlyScans(user);
-  const before = user.scanMonth === m ? user.scansUsed : 0;
-  let bonus = user.bonusScans ?? 0;
-  let pack = user.extraScans ?? 0;
-  // The month's allowance goes first; invite-a-friend scans are spent only
-  // once it is gone, so they never evaporate at the month rollover; Scan
-  // Pack scans (never expire) go last.
-  if (before >= cap && bonus > 0) {
-    bonus -= 1;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = ? WHERE id = ?").run(m, before, bonus, user.id);
-    return { used: before, included: cap, remaining: bonus + pack, bonus, pack };
+  return { taken: taken(), draw, usage };
+}
+
+/** Reserve one scan (the single-card scan route). */
+export function reserveScan(user: User): Promise<ScanReservation> {
+  return reserveScans(user, 1);
+}
+
+/**
+ * Put scans back because the work they paid for did not happen (the vision
+ * read failed, an import wrote fewer cards than reserved). Returns them in the
+ * reverse of the draw order (the last scan taken is the first given back);
+ * `count` defaults to everything the reservation took. Never throws for a
+ * missing row; answers the balance afterwards.
+ */
+export async function giveBackScans(user: User, reservation: ScanReservation, count = reservation.taken): Promise<ScanQuota> {
+  let left = Math.max(0, Math.min(count, reservation.taken));
+  const d = reservation.draw;
+  const steps: [Bucket, number][] = [["pack", d.pack], ["bonus", d.bonus], ["plan", d.plan], ["counter", d.counter], ["trial", d.trial]];
+  for (const [bucket, drawn] of steps) {
+    const k = Math.min(left, drawn);
+    if (k <= 0) continue;
+    if (bucket === "plan") {
+      await db.prepare("UPDATE users SET plan_scans = COALESCE(plan_scans, 0) + ? WHERE id = ?").run(k, user.id);
+    } else if (bucket === "bonus") {
+      await db.prepare("UPDATE users SET bonus_scans = bonus_scans + ? WHERE id = ?").run(k, user.id);
+    } else if (bucket === "pack") {
+      await db.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(k, user.id);
+    } else if (bucket === "trial") {
+      await db.prepare("UPDATE users SET trial_scans_used = MAX(0, trial_scans_used - ?) WHERE id = ?").run(k, user.id);
+    } else {
+      // Only while the counter still belongs to the period it was drawn in.
+      await db.prepare("UPDATE users SET scans_used = MAX(0, scans_used - ?) WHERE id = ? AND scan_month = ?").run(k, user.id, d.counterKey);
+    }
+    left -= k;
   }
-  if (before >= cap && pack > 0) {
-    pack -= 1;
-    await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, extra_scans = ? WHERE id = ?").run(m, before, pack, user.id);
-    return { used: before, included: cap, remaining: pack, bonus, pack };
+  // The scans are back; a failed re-read only costs the fresh snapshot.
+  try {
+    return scanQuota((await findUserById(user.id)) ?? user);
+  } catch {
+    return scanQuota(user);
   }
-  const used = before + 1;
-  await db.prepare("UPDATE users SET scan_month = ?, scans_used = ? WHERE id = ?").run(m, used, user.id);
-  return {
-    used,
-    included: cap,
-    remaining: Math.max(0, cap - used) + bonus + pack,
-    bonus,
-    pack,
-  };
 }
