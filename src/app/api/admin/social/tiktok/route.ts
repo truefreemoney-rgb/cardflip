@@ -9,9 +9,9 @@ import { addDays } from "@/lib/priceSeries";
  * Owner only. "Mark Posted" on the /admin/social TikTok card (Chris posts
  * TikTok by hand, lib/socialTiktok.ts).
  *   POST { slot: "morning"|"midday"|"evening", day: "YYYY-MM-DD", posted?: false }
- * Records social_slot:tiktok:<slot> = the Eastern day (the key shape the
- * publisher uses for its sites), or clears it when posted is false (Undo).
- * Only yesterday, today or tomorrow: the key holds one day per slot.
+ * Records social_slot:tiktok:<slot>:<day> = "1" (one key per slot AND day, so
+ * marking tomorrow's never un-posts today's), or clears it when posted is
+ * false (Undo). Only yesterday, today or tomorrow: the card shows no other day.
  */
 export const dynamic = "force-dynamic";
 

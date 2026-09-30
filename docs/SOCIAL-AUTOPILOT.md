@@ -196,17 +196,52 @@ Eastern day, three 9:16 videos, each registered with its caption.
   publisher's fallback chain (`FALLBACK_KINDS`), like the picture post does.
 - **Staleness**: each row stores `plan`, the kind plus the day-plan flags that
   change the video or caption (`planTag`: mixed movers, also-scans, a pinned
-  set). A row whose tag no longer matches the current plan (a push before 7am
-  changed `DAY_PLANS`) counts as not ready and is remade; so does a 1pm row
-  whose file is no longer the one the other sites post.
+  set). A row whose tag no longer matches the current plan (a push after the
+  night render changed `DAY_PLANS`) counts as not ready and is remade; so does
+  a 1pm row whose file is no longer the one the other sites post. "A row
+  exists" is never the test: the 10:30/11:30/12:15 render pings
+  (`--skip-if-done`) and the 12:40 net compare the shared movers row's plan
+  tag too, and the publisher itself ignores a movers video made under an older
+  plan (`currentVideoFor`: the picture posts, fresh, until it is remade).
+- **The picture follows the video** (`frozenMovers`, the image route): the movers
+  video is drawn the evening before and its caption is frozen with it, while
+  the picture is drawn at 1:05pm after the daily price ingestion. The picture
+  therefore draws the SAME cards the video froze (today's catalog art), so a
+  picture-only site, and any "video failed, picture posted", say what the
+  caption says. No current video row = the live list, as before.
+- **Fallbacks never repeat**: when a slot's own kind cannot be drawn it falls
+  back like the picture post does, but the kinds the package's other videos
+  hold (registered, drawn earlier in the run) go last, so 7am and 7pm are never
+  the same video. The 1pm video keeps movers first: it is the shared file. An
+  all-games video short of any game's art is not made (the run fails and is
+  retried); art is retried with a pause between tries.
+- **Layout**: the 7am and 7pm videos go only to TikTok, whose feed covers the
+  bottom ~20% (caption, account, sound, nav), so their card stack is lifted
+  clear of it (`safeBottom` in `scripts/lib/social-scene.mjs`: art 616x860, the
+  price and its move line end above y=1540). The 1pm file every site posts keeps
+  the layout it was approved with, so its price line still sits under
+  TikTok's overlay there; giving it the same lift is one argument in
+  `social-video.mjs` but changes what the other six sites post, so it needs
+  Chris's yes.
 - **Audio**: the day's tracks rotate by slot (`social-video.mjs`): 1pm keeps the
   plain day rotation (so the shared file sounds as it always did), 7am is one
   track on, 7pm two. With fewer tracks than slots (only
   `cinematic-soul-…511436.mp3` is committed, so production has ONE), the videos
-  that land on the same track start 8 bars further in (bar-aligned, still on the
-  beat, checked to fit inside the track). Every video note still holds: two bars
-  per card, cuts and the price pop on the beat, the green price with its glow
-  flare and shine sweep, real MP3s only.
+  that land on the same track start 8 bars further in, checked to fit inside
+  the track. Every video note still holds: two bars per card, cuts and the price
+  pop on the beat, the green price with its glow flare and shine sweep, real
+  MP3s only. To keep "on the beat" true that deep into a track
+  (`scripts/lib/beat.mjs`, `audio-plan.mjs`): the tempo is refined past the
+  coarse 0.5 bpm pass (this track is 113 bpm, not 112.5: 2.4ms wrong per beat
+  was 76ms late at the 7am start and 100ms+ by the end of a video), a start is
+  moved onto the beat of the part of the track it lands in, and no intro or
+  card may play over a drumless breakdown (this track has one at about
+  34.6-37.7s; a section that would is moved to the nearest bar that clears it,
+  and never onto a bar another video of the day has). `npm run test:socialtiktok`
+  measures every cut against the audio itself (12s of onsets around each cut,
+  independent of the analyzer): within 40ms for all three videos. With three
+  licensed tracks committed none of the offset logic runs; adding them (with a
+  README license row each) is still the better fix for variety.
 
 **Schedule** (Eastern; cron is UTC, EDT = UTC-4 until Nov 1, then EST = UTC-5):
 
@@ -215,6 +250,7 @@ Eastern day, three 9:16 videos, each registered with its caption.
 | Night render, GitHub cron | 8pm (`0 0 * * *` EDT, `0 1 * * *` EST; the 7pm-EST one exits at once, `--min-hour 20`) | `social-post.yml` job `tiktok` |
 | Safety net, tomorrow's package | 9:15pm (`15 1 * * *` EDT, `15 2 * * *` EST; acts from 9pm on) | Vercel Cron → `/api/cron/social-tiktok` |
 | Safety net, overnight plan change | 5:45am (`45 9 * * *` EDT, `45 10 * * *` EST; acts before 7am, on TODAY's package) | same route |
+| Safety net, plan pushed after 7am | 12:40pm (`40 16 * * *` EDT, `40 17 * * *` EST; the other of the pair runs an hour off and is harmless; checks today's videos whose post time is still ahead: the 7pm one, and the 1pm one when the movers render is not already being dispatched) | Vercel Cron → `/api/cron/social-video` (`packageSafetyNet`, `sameDay`) |
 
 The night render is for the day AFTER the ping's Eastern day (`tiktokTargetDay`:
 calendar arithmetic on the Eastern date, never UTC's; a ping that GitHub ran
@@ -223,26 +259,37 @@ slots with nothing usable registered and is cheap when it is done. The safety
 net dispatches it (`tiktok=1`, `tiktok_day=`) when a slot is missing or stale,
 gives a dispatch 45 minutes, and mails the failure alert (once a day, through
 `sendSocialFailureEmail`) when the package is still incomplete after that or the
-dispatch fails; the workflow's failure step mails it too. The 10:30/11:30/12:15
-render pings and the 12:40pm safety net (`/api/cron/social-video`) stay as
-backstops: they render the 1pm video only when nothing is registered for today.
+dispatch fails; the workflow's failure step mails it too. A dispatch older than 6
+hours is history (last night's render, finished since), so a plan pushed at
+11pm is not met with a false "still missing after a render was started"; the
+render's own "ready" ping forgets its dispatch too. The dispatch names the slots
+it wants (`tiktok_slots`), so two runs never remake the same one. The
+10:30/11:30/12:15 render pings and the 12:40pm safety net
+(`/api/cron/social-video`) stay as backstops: they render the 1pm video when
+nothing CURRENT is registered for today (missing, or made under an older plan).
 
 **Mail**: when tomorrow's three videos are ready the owner (never anyone else,
 `OWNER_EMAIL` through `mail.ts`) gets ONE mail per package day, subject
 "Tomorrow's TikTok Videos Are Ready": the three post times with their captions
 and a link to /admin/social (`notifyPackageReady`; claimed before it is sent).
 
-**/admin/social → "TikTok — Post by Hand"** (`TikTokPackage.tsx`): a Tomorrow and
+**/admin/social → "TikTok — post by hand"** (`TikTokPackage.tsx`): a Tomorrow and
 a Today section, three rows each (7:05am / 1:05pm / 7:05pm ET). Per row: a muted
 inline preview, the caption with Copy Caption, **Share Video** (the MP4 is
 fetched into a `File` when the row scrolls into view, because on iOS Safari an
 await before `navigator.share` loses the tap; the tap copies the caption and
 calls `navigator.share({ files })` so the share sheet offers TikTok), Download
-Video when the browser cannot share files or the fetch failed, and **Mark
-Posted** (`social_slot:tiktok:<slot>` = the Eastern day, the publisher's own key
-shape; Undo clears it). A slot not made yet says when it will be. The fetch
-tries the Blob URL first and falls back to the owner-only same-origin stream
-`GET /api/admin/social/tiktok/video?slot=&day=` (no CORS dependency).
+Video when the browser cannot share files or the fetch failed (it is on offer
+while the fetch runs too), and **Mark Posted** (`social_slot:tiktok:<slot>:<day>`
+= `1`, a key per slot AND day: the card shows Tomorrow and Today at once, and
+one key per slot made marking tomorrow's 7:05am un-post today's; Undo clears
+it). A slot not made yet says when it will be. The fetch tries the Blob URL
+first and falls back to the owner-only same-origin stream
+`GET /api/admin/social/tiktok/video?slot=&day=` (no CORS dependency); each try
+has a deadline (30s / 60s) because a stalled socket on a phone never rejects.
+An installed iPhone PWA is resumed from memory, so coming back after midnight,
+to rows that were not ready, or after 5 minutes away refreshes the card
+(`router.refresh()`).
 
 **Render by hand**: `node --experimental-strip-types --no-warnings
 --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs

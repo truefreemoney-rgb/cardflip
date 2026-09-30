@@ -15,8 +15,10 @@ name: social-post
 # picture as the fallback. Since 09-30 the night render below makes
 # tomorrow's 1pm video the evening before, so the `video` job's pings (from
 # 10:30am Eastern, three times, so a two-hour delay still lands before 1)
-# only render when that did not happen; /api/cron/social-video (Vercel,
-# 12:40) dispatches a render-only run if nothing is registered by then.
+# only render when that did not happen, or when the day plan changed since
+# (a plan pushed after the night render); /api/cron/social-video (Vercel,
+# 12:40) dispatches a render-only run if nothing current is registered by
+# then, and checks the 7pm TikTok video for a changed plan too.
 #
 # TikTok is NOT posted from here (Chris 09-30): its developer app was refused
 # for production, so API posts would stay private, and he posts by hand. The
@@ -68,6 +70,10 @@ on:
         default: ""
       tiktok_day:
         description: "YYYY-MM-DD the TikTok videos are for (blank = tomorrow, Eastern)"
+        required: false
+        default: ""
+      tiktok_slots:
+        description: "morning,midday,evening: only these TikTok slots (blank = every one that is not ready)"
         required: false
         default: ""
 
@@ -137,14 +143,16 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           TIKTOK_DAY: ${{ inputs.tiktok_day }}
+          TIKTOK_SLOTS: ${{ inputs.tiktok_slots }}
           # Only the schedule waits for 8pm Eastern; a dispatch (the safety net, a hand run) goes now.
           EARLIEST_HOUR: ${{ github.event_name == 'schedule' && '20' || '' }}
         run: |
           day=""; if [ -n "$TIKTOK_DAY" ]; then day="--day $TIKTOK_DAY"; fi
           min=""; if [ -n "$EARLIEST_HOUR" ]; then min="--min-hour $EARLIEST_HOUR"; fi
+          slots=""; if [ -n "$TIKTOK_SLOTS" ]; then slots="--slot $TIKTOK_SLOTS"; fi
           node --experimental-strip-types --no-warnings --conditions=react-server \
             --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs \
-            --package --register --out-dir tiktok-videos $day $min
+            --package --register --out-dir tiktok-videos $day $min $slots
       - name: Keep the MP4s for a look
         if: hashFiles('tiktok-videos/*.mp4') != ''
         uses: actions/upload-artifact@v4

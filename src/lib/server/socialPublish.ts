@@ -4,6 +4,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import {
   featuredByGame,
   markFeatured,
+  moversFromCards,
   socialDrafts,
   POST_SIZES,
   mixedMoversCaption,
@@ -298,9 +299,50 @@ async function defaultFetchVideo(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/**
+ * The plan a slot's video was made under: its kind plus the day-plan flags
+ * that change what the video or its caption says. Stored on the row; a row
+ * whose tag differs from the current one is stale and gets remade.
+ */
+export function planTag(slot: Slot, day: string): string {
+  const p = dayPlan(day);
+  const kind = slotKind(slot, day);
+  return [kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : ""].filter(Boolean).join("+");
+}
+
 /** The MP4 registered for a draft by the render job, or null (picture post). */
 export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
   return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
+}
+
+/**
+ * videoFor, unless the video was made under a day plan that has since changed
+ * (a plan pushed after the night render: 09-30 review). Its cards are the old
+ * plan's, its caption would be rebuilt from them under the new plan's title
+ * and hashtags, and the filed "featured" list would name cards that never
+ * went out, so the post falls back to the picture (drawn fresh) until the
+ * render is redone. Rows from before rows carried a plan count as current.
+ */
+export async function currentVideoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
+  const spec = await videoFor(d);
+  if (spec?.plan && d.kind === SLOTS[VIDEO_SLOT].kind && spec.plan !== planTag(VIDEO_SLOT, d.day)) return null;
+  return spec;
+}
+
+/**
+ * The cards a registered video froze, as the picture posts should draw them.
+ * The video is rendered the evening before (the night render), the picture at
+ * 1:05pm, and the daily price ingestion runs in between: without this the
+ * picture showed the morning's prices and a different top five while the
+ * caption (frozen with the video) named the evening's: the 09-26 "Mysterious
+ * Treasures over Base Set 2" mismatch again, on every picture-only site and on
+ * every "video failed, picture posted". null = no current video, or a frozen
+ * card that is no longer in the catalog: the caller draws the live list.
+ */
+export async function frozenMovers(game: GameId, kind: PostKind, day: string): Promise<Mover[] | null> {
+  if (kind !== "movers" && kind !== "dips") return null;
+  const spec = await currentVideoFor({ game, kind, day });
+  return spec?.cards?.length ? moversFromCards(game, spec.cards) : null;
 }
 
 /**
@@ -388,7 +430,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   // fresh, same as always.
   const all = await Promise.all(
     rawDrafts.map(async (d) => {
-      const spec = await videoFor(d);
+      const spec = await currentVideoFor(d);
       return spec?.cards?.length ? applyVideoCards(d, spec.cards) : d;
     }),
   );
@@ -433,7 +475,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     let p = videos.get(d.id);
     if (!p) {
       p = (async () => {
-        const spec = await videoFor(d);
+        const spec = await currentVideoFor(d);
         if (!spec) return null;
         try {
           const bytes = await fetchVideo(spec.url);
@@ -515,7 +557,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       for (const d of drafts) {
         const text = fitText(d, site.maxChars);
         if (opts.dry) {
-          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await videoFor(d)) ? "yes" : undefined });
+          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;
         }
         try {

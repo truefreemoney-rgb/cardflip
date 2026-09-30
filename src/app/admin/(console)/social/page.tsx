@@ -2,7 +2,7 @@ import Link from "next/link";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
 import TikTokPackage from "@/components/admin/TikTokPackage";
-import { eastern, siteStatus, slotAt, slotSchedule, socialGames, videoFor } from "@/lib/server/socialPublish";
+import { currentVideoFor, eastern, siteStatus, slotAt, slotSchedule, socialGames } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { loadPackage } from "@/lib/server/socialTiktok";
 import { tiktokHandle } from "@/lib/server/sites/tiktok";
@@ -47,10 +47,10 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
     loadPackage(today),
   ]);
   const drafts = perGame.flat();
-  // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts.
+  // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts (one made under an older plan does not go out, so it is not shown).
   const videos: Record<string, string> = {};
   for (const d of drafts) {
-    const v = await videoFor(d);
+    const v = await currentVideoFor(d);
     if (v) videos[d.id] = v.url;
   }
   return (

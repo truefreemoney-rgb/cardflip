@@ -24,7 +24,11 @@ import { parseVideoSpec, type VideoSpec } from "@/lib/socialVideo";
  * this slot" and the other six sites keep posting those pictures live.
  */
 export const TIKTOK_PREFIX = "social_tiktok:";
-/** Mark Posted writes the same key shape the publisher uses for a site's slots: social_slot:tiktok:<slot> = the Eastern day. */
+/**
+ * Mark Posted: social_slot:tiktok:<slot>:<day> = "1". One key per slot AND day
+ * (09-30 review): the card shows Tomorrow and Today at once, and a key per slot
+ * holding a single day made marking tomorrow's 7:05am un-post today's.
+ */
 export const TIKTOK_POSTED_PREFIX = "social_slot:tiktok:";
 /** The "package is ready" mail went out for this target day (once per day). */
 export const TIKTOK_MAILED_PREFIX = "social_tiktok_mailed:";
@@ -40,9 +44,9 @@ export function tiktokKey(slot: Slot, day: string): string {
   return `${TIKTOK_PREFIX}${slot}:${day}`;
 }
 
-/** settings key that says whether Chris posted that slot by hand (value = the Eastern day). */
-export function tiktokPostedKey(slot: Slot): string {
-  return `${TIKTOK_POSTED_PREFIX}${slot}`;
+/** settings key that says whether Chris posted that slot on that day by hand ("1" = posted, "" = not). */
+export function tiktokPostedKey(slot: Slot, day: string): string {
+  return `${TIKTOK_POSTED_PREFIX}${slot}:${day}`;
 }
 
 /** One registered TikTok video with its caption. Extends the site video row so the movers file can be shared as is. */
@@ -96,7 +100,7 @@ export interface PackageRow {
   /** "7:05am ET" */
   time: string;
   state: PackageState;
-  /** Chris marked it posted (social_slot:tiktok:<slot> = this day). */
+  /** Chris marked it posted (social_slot:tiktok:<slot>:<day> = "1"). */
   posted: boolean;
   title: string | null;
   caption: string | null;

@@ -7,9 +7,12 @@ silent video. The three videos of a day (the 1pm movers video every site
 posts, and the 7am and 7pm TikTok videos) are offset by slot so they do not
 all use one track: 1pm keeps the plain day rotation, 7am is one track on, 7pm
 two. With fewer than three tracks committed, videos that land on the same track
-start 8 bars further in instead of repeating the opening. Only tracks in git
-reach the GitHub runner (today: the one below); `SOCIAL_AUDIO_DIR` points a
-local render at another folder.
+start 8 bars further in instead of repeating the opening (moved onto the beat
+of that part of the track, and off any drumless breakdown; `scripts/lib/audio-plan.mjs`).
+Only tracks in git reach the GitHub runner (today: the one below, so all three
+videos of a day use it; committing two more, each with its row below, is what
+gives the videos different music); `SOCIAL_AUDIO_DIR` points a local render at
+another folder.
 
 Source: Pixabay Music (https://pixabay.com/music/). Its Content License
 allows commercial use in videos with no attribution, which matters because
@@ -21,7 +24,7 @@ it starts mid-phrase.
 
 | file | Pixabay URL |
 | ---- | ----------- |
-| cinematic-soul-upbeat-success-happy-corporate-music-511436.mp3 (112.5 bpm, 1:13, start 10.08s) | https://pixabay.com/music/electronic-upbeat-success-happy-corporate-music-511436/ (Pixabay Content License; Chris picked it 09-27 night, first airs 09-28 7am) |
+| cinematic-soul-upbeat-success-happy-corporate-music-511436.mp3 (113 bpm, 1:13, opens at about 9.6s; a 3s breakdown at about 34.6-37.7s) | https://pixabay.com/music/electronic-upbeat-success-happy-corporate-music-511436/ (Pixabay Content License; Chris picked it 09-27 night, first airs 09-28 7am) |
 
 Tried and set aside (Chris picked one at a time; drop the file back in to use it):
 
@@ -32,7 +35,9 @@ Tried and set aside (Chris picked one at a time; drop the file back in to use it
 - vaitsez-fitness-fitness-workout-beat-582771.mp3 (107.5 bpm) https://pixabay.com/music/beats-fitness-fitness-workout-beat-582771/
 - Chris also linked https://pixabay.com/music/old-school-hip-hop-upbeat-564418/ ("Upbeat" by The_Mountain, a different track from the one in the folder, never downloaded).
 
-The cut follows the track: `scripts/lib/beat.mjs` finds the tempo, the
-downbeat and where the track gets loud; each card holds one bar, the price
-pops on beat 3, the art pulses on every beat (added 09-25, Chris: "match
-the feel of the beat").
+The cut follows the track: `scripts/lib/beat.mjs` finds the tempo (refined
+past the coarse pass to about 0.05 bpm), the downbeat, where the track gets
+loud and where it has no drums; each card holds two bars, the price pops on
+beat 3, the art pulses on every beat (added 09-25, Chris: "match the feel of
+the beat"). A new track needs no setup: `npm run test:socialtiktok` measures
+the committed one against its audio.

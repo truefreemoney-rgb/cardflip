@@ -22,7 +22,7 @@
 //                7:05pm  the all-games picture post as video
 //              [--min-hour N] exits when a schedule ping fires earlier than N
 //              o'clock Eastern (the EST-side 7pm ping runs an hour early).
-//   --slot morning|midday|evening   one TikTok slot by itself.
+//   --slot morning|midday|evening   one TikTok slot by itself (or a comma list of them).
 //
 // --register: parks the MP4 on Vercel Blob and writes the settings rows
 // (lib/server/socialTiktok.ts registerTiktokVideo). The 1pm movers video is
@@ -33,11 +33,12 @@
 // built from that same list, so text and video cannot disagree (09-26: a
 // caption once said "Mysterious Treasures" over Base Set 2 art because each
 // was computed at a different moment).
-// --skip-if-done: exit 0 without rendering when the row already exists.
+// --skip-if-done: exit 0 without rendering when the row already exists AND was made under the day plan in force now (the night render draws it
+// hours ahead; a plan pushed at 9am must not be answered by "it exists").
 import fs from "node:fs";
 import path from "node:path";
 import { artDataUri, renderMp4, sceneHtml } from "./lib/social-scene.mjs";
-import { audioStart, sectionFor, trackIndex } from "./lib/audio-plan.mjs";
+import { sectionFor, timelineFor, trackIndex } from "./lib/audio-plan.mjs";
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const has = (k) => process.argv.includes(k);
@@ -45,7 +46,7 @@ const FPS = Number(arg("--fps", 24));
 const REGISTER = has("--register");
 const FORCE = has("--force");
 const PACKAGE = has("--package");
-const ONLY = arg("--slot", "");
+const ONLY = arg("--slot", "").split(",").filter(Boolean);
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -55,10 +56,11 @@ const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
 const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
+const { parseVideoSpec } = await import(at("lib/socialVideo.ts"));
 const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
 
-if (ONLY && !TIKTOK_SLOTS.includes(ONLY)) { console.error(`--slot must be one of ${TIKTOK_SLOTS.join(", ")}`); process.exit(2); }
+if (ONLY.some((s) => !TIKTOK_SLOTS.includes(s))) { console.error(`--slot must be one of ${TIKTOK_SLOTS.join(", ")}`); process.exit(2); }
 
 // Same day the publisher keys on (Eastern). The night render means the day
 // AFTER the night it runs in (tiktokTargetDay), never a UTC date.
@@ -71,7 +73,12 @@ if (PACKAGE && !arg("--day")) {
 }
 // The legacy (no-mode) render is the 1pm movers video, keyed by the video slot's kind.
 const KIND = SLOTS[VIDEO_SLOT].kind;
-if (!PACKAGE && !ONLY && has("--skip-if-done") && (await getSetting(videoKey(game, KIND, day)))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
+if (!PACKAGE && !ONLY.length && has("--skip-if-done")) {
+  const row = parseVideoSpec(await getSetting(videoKey(game, KIND, day)));
+  // A row from before rows carried a plan counts as current; one made under another plan is remade.
+  if (row && (!row.plan || row.plan === planTag("midday", day))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
+  if (row) console.log(`the registered video for ${day} was made under "${row.plan}", the plan now is "${planTag("midday", day)}": remaking it`);
+}
 
 // Backing tracks: royalty-free MP3s Chris drops into public/social/audio
 // (Pixabay Content License, no attribution needed; see the README there).
@@ -80,10 +87,11 @@ if (!PACKAGE && !ONLY && has("--skip-if-done") && (await getSetting(videoKey(gam
 // rotation, so the shared movers video sounds as it always did; 7am is one
 // track on, 7pm two), so a day's videos do not share a track once the folder
 // holds three. With fewer tracks than slots the videos that land on the same
-// track start EIGHT BARS further in (a bar-aligned cut, still on the beat)
-// instead of repeating the same opening. --audio <mp3> forces one for every
-// video, --audio none forces silent. Trimmed to the video, fade-out at the
-// end. (A synthesized loop was tried 09-25: "i hate the audio".)
+// track start EIGHT BARS further in instead of repeating the same opening,
+// moved onto the beat of the part they land in and off any drumless breakdown
+// (lib/audio-plan.mjs). --audio <mp3> forces one for every video, --audio
+// none forces silent. Trimmed to the video, fade-out at the end. (A
+// synthesized loop was tried 09-25: "i hate the audio".)
 const AUDIO_DIR = process.env.SOCIAL_AUDIO_DIR ? path.resolve(process.env.SOCIAL_AUDIO_DIR) : path.join(root, "public/social/audio");
 const tracks = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR).filter((f) => /\.mp3$/i.test(f)).sort() : [];
 const dayIndex = Math.round(Date.parse(day) / 86_400_000);
@@ -115,12 +123,21 @@ function moveLine(c) {
   return { text: `${c.pct > 0 ? "▲" : "▼"} ${Math.abs(c.pct).toFixed(1)}% this week`, cls: c.pct > 0 ? "up" : "down" };
 }
 
-/** Art for each card; strict (the TikTok videos) retries and leaves out a card that still has none, never a blank box. */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/**
+ * Art for each card; strict (the TikTok videos) retries with a pause between
+ * tries (a host that failed three times in a row a second apart was down for
+ * that second, not for good) and leaves out a card that still has none, never
+ * a blank box. Each kind then decides whether a short list is still that video.
+ */
 async function withArt(list, strict) {
   const out = [];
   for (const c of list) {
     let art = await artDataUri(c.imageUrl, fallbackArtUrl);
-    for (let i = 0; strict && !art && i < 2; i++) art = await artDataUri(c.imageUrl, fallbackArtUrl);
+    for (let i = 1; strict && !art && i <= 4; i++) {
+      await sleep(i * 1500);
+      art = await artDataUri(c.imageUrl, fallbackArtUrl);
+    }
     if (!art && strict) { console.warn(`no art for ${c.name}, leaving it out`); continue; }
     out.push({ ...c, art });
   }
@@ -204,6 +221,8 @@ async function build(kind, strict) {
     const leads = await gameLeads(day);
     console.log(`games: ${leads.map((l) => `${l.game} ${l.name} $${l.price}`).join(" | ")}`);
     const shown = await withArt(leads, true);
+    // Every public game is in the 7pm post (Chris 09-30): a video short of one is not that post, and its caption says so. Fail, so the run is retried.
+    if (shown.length !== leads.length) throw new Error(`card art missing for the all-games video: ${leads.filter((l) => !shown.some((s) => s.game === l.game)).map((l) => `${l.game} (${l.name})`).join(", ")}`);
     if (shown.length < 3) throw new Error(`fewer than three games have card art for ${day}`);
     const n = shown.length;
     return {
@@ -242,26 +261,25 @@ async function makeSlot(slot, kind, out, strict) {
   let PERIOD = 0, AUDIO_START = 0;
   if (withAudio) {
     const b = await beatOf(track.file);
-    PERIOD = b.period;
-    const bar = 4 * PERIOD;
-    const oneBar = bar < 1.5 ? 2 * bar : bar > 2.9 ? bar / 2 : bar;
-    // Two bars per card (Chris 09-26: "flipping through the cards so fast, the
-    // user barely has time to read anything, make it slower"): ~4.3s a card
-    // with the 112.5 bpm track, ~26s for five. Intro and outro stay one bar.
-    BEAT = 2 * oneBar;
-    INTRO = oneBar;
-    // The mixed outro names five games one per beat, then the address: two bars.
-    OUTRO = (mixed ? 2 : 1) * oneBar + 0.6;
-    // A repeat of the day's track starts 8 bars further in, when that still leaves the whole video (and its fade) inside the track.
-    AUDIO_START = audioStart(b, oneBar, track.section, INTRO + BEAT * cards.length + OUTRO);
-    console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, ${track.name} from ${AUDIO_START.toFixed(2)}s${AUDIO_START !== b.start ? " (a later section: another video of the day has the opening)" : ""}`);
+    // Two bars per card (~4.2s with the 113 bpm track, ~26s for five), one-bar intro
+    // and outro; the mixed outro names five games one per beat, then the address: two
+    // bars. A repeat of the day's track starts 8 bars further in, moved off a drumless
+    // stretch and onto the beat of the part it lands in (lib/audio-plan.mjs).
+    const plan = timelineFor(b, { section: track.section, cards: cards.length, mixed });
+    PERIOD = plan.PERIOD;
+    ({ INTRO, BEAT, OUTRO } = plan);
+    AUDIO_START = plan.start;
+    const nudge = Math.round((plan.start - plan.rawStart) * 1000);
+    console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, ${track.name} from ${AUDIO_START.toFixed(2)}s${plan.rawStart !== b.start ? " (a later section: another video of the day has the opening)" : ""}${nudge ? ` (${nudge > 0 ? "+" : ""}${nudge}ms onto the beat of that part)` : ""}`);
   } else {
     console.log("audio: silent (drop MP3s into public/social/audio)");
     if (mixed) OUTRO = 5;
     withAudio = false;
   }
   const TOTAL = withAudio || mixed ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
-  const html = sceneHtml({ W, H, logo, intro: built.intro, cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL });
+  // The 7am and 7pm videos only go to TikTok, whose feed covers the bottom ~20% with the caption and nav: the card stack is lifted clear of it.
+  // The 1pm file is the one every site posts and keeps the layout it was approved with.
+  const html = sceneHtml({ W, H, logo, intro: built.intro, cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: slot !== "midday" });
   const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out, audio: withAudio ? { file: track.file, start: AUDIO_START } : null });
   console.log(`wrote ${out} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
   return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name };
@@ -290,7 +308,7 @@ const outFor = (slot) => {
   return path.resolve(arg("--out", "social-video.mp4"));
 };
 
-if (!PACKAGE && !ONLY) {
+if (!PACKAGE && !ONLY.length) {
   // The 1pm movers video, exactly as it has always been made (a thin movers list is an error, not a fallback).
   try {
     const drafts = REGISTER ? await socialDrafts(game, day) : [];
@@ -301,9 +319,10 @@ if (!PACKAGE && !ONLY) {
     process.exit(1);
   }
 } else {
-  const slots = ONLY ? [ONLY] : TIKTOK_SLOTS;
+  const slots = ONLY.length ? TIKTOK_SLOTS.filter((s) => ONLY.includes(s)) : TIKTOK_SLOTS;
   const drafts = await socialDrafts(game, day);
   console.log(`TikTok videos for ${day}: ${slots.join(", ")}`);
+  const madeKinds = [];
   for (const slot of slots) {
     try {
       const st = await readSlot(slot, day);
@@ -319,7 +338,15 @@ if (!PACKAGE && !ONLY) {
         }
       }
       // The slot's own kind, else the publisher's fallbacks (never skip a slot): the next kind is tried when one cannot be drawn.
-      const kinds = candidateKinds(slot, day, drafts);
+      // A fallback never repeats another slot's video (09-30 review: 7am with no set draft and 7pm both became the all-games video): the kinds the
+      // other slots hold (registered and current) or that this run drew already go last.
+      const used = [...madeKinds];
+      for (const other of TIKTOK_SLOTS) {
+        if (other === slot) continue;
+        const o = await readSlot(other, day);
+        if (o.state === "ready" && o.spec) used.push(o.spec.kind);
+      }
+      const kinds = candidateKinds(slot, day, drafts, used);
       if (!kinds.length) throw new Error(`no video kind has a draft for the ${slot} slot on ${day}`);
       const out = outFor(slot);
       let made = null;
@@ -333,6 +360,7 @@ if (!PACKAGE && !ONLY) {
           if (kind === kinds[kinds.length - 1]) throw err;
         }
       }
+      madeKinds.push(made.kind);
       if (REGISTER) await register(slot, made, out, drafts);
     } catch (err) {
       console.error(`${slot}: ${err instanceof Error ? err.message : err}`);

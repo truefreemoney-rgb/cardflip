@@ -47,7 +47,10 @@ function titleClass(t) {
  *   intro: { kicker, title, sub },
  *   cards: [{ rank, art, name, meta, to, pct: { text, cls } }],   in the order shown
  *   outro: { games?: [names] },     games = the "Now scanning" list (the mixed movers day plan); none = the standard outro
- *   INTRO, BEAT, OUTRO, PERIOD, MUSIC, TOTAL
+ *   INTRO, BEAT, OUTRO, PERIOD, MUSIC, TOTAL,
+ *   safeBottom?                     lift the card stack above TikTok's caption, account and nav overlay (the bottom ~20% of the
+ *                                   frame): the 7am and 7pm videos, which only TikTok gets. The 1pm file every site posts keeps
+ *                                   the layout it was approved with.
  * }
  */
 export function sceneHtml(o) {
@@ -66,6 +69,11 @@ export function sceneHtml(o) {
   .abs { position:absolute; left:0; top:0; width:100%; height:100%; }
   .holo { background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f0abfc,#fcd34d); }
   .holo-text { background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f0abfc,#fcd34d); -webkit-background-clip:text; color:transparent; }
+  /* TikTok's For You feed covers the bottom ~20% (caption, account, sound, nav): nothing that carries meaning sits under y=1550. */
+  .safe .beat { padding-top:130px; }
+  .safe .beat .art { width:616px; height:860px; margin-top:26px; }
+  .safe .beat .name { margin-top:44px; }
+  .safe .beat .name.long { font-size:52px; }
   #intro { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 90px; text-align:center; }
   #intro .kicker { font-size:38px; font-weight:600; color:#a5b4fc; text-transform:uppercase; letter-spacing:.18em; }
   #intro .title { font-size:132px; line-height:1; margin-top:28px; }
@@ -97,7 +105,7 @@ export function sceneHtml(o) {
   #footer .dot { width:22px; height:22px; border-radius:999px; background:#6366f1; }
   #bar { position:absolute; left:80px; right:80px; bottom:70px; height:8px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
   #bar i { display:block; height:100%; width:0; }
-</style></head><body>
+</style></head><body${o.safeBottom ? ' class="safe"' : ""}>
 <div id="intro" class="abs">
   <div class="kicker">${esc(intro.kicker)}</div>
   <div class="title display holo-text${titleClass(intro.title)}">${esc(intro.title)}</div>

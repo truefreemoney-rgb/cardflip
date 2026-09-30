@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { decodePrices, todayUtc } from "@/lib/priceSeries";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
+import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 import { MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
 
@@ -245,6 +246,26 @@ async function catalogRows(game: GameId, ids: string[]): Promise<Map<string, Cat
       : `SELECT id, name, set_name, local_id AS number, image_url FROM en_cards WHERE id IN (${marks})`;
   const rows = (await db.prepare(sql).all(...ids)) as unknown as CatalogRow[];
   for (const r of rows) out.set(r.id, r);
+  return out;
+}
+
+/**
+ * The Mover rows for cards a video froze (lib/socialVideo.ts VideoCard: the
+ * ids and numbers it drew, no art), with today's catalog art, so a picture
+ * can be drawn from exactly the list the caption names. null when a card is no
+ * longer in the catalog (the caller draws the live list instead).
+ */
+export async function moversFromCards(game: GameId, cards: VideoCard[]): Promise<Mover[] | null> {
+  const byGame = new Map<GameId, string[]>();
+  for (const c of cards) byGame.set(c.game ?? game, [...(byGame.get(c.game ?? game) ?? []), c.cardId]);
+  const art = new Map<string, string>();
+  for (const [g, ids] of byGame) for (const [id, row] of await catalogRows(g, ids)) art.set(`${g}:${id}`, postArtUrl(g, row.image_url));
+  const out: Mover[] = [];
+  for (const c of cards) {
+    const url = art.get(`${c.game ?? game}:${c.cardId}`);
+    if (url === undefined) return null;
+    out.push({ ...c, imageUrl: url, unsettled: Boolean(c.unsettled) });
+  }
   return out;
 }
 

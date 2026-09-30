@@ -17,7 +17,7 @@ import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTarget
  *   ...&dry=1                            → report only, never dispatch
  *   ...&force=1                          → check outside the windows and dispatch even right after a dispatch
  *   ...&day=YYYY-MM-DD                   → check that day's package
- *   ...&notify=1                         → the render job's last step: mail once if ready, never dispatch
+ *   ...&notify=1                         → the render job's last step: mail once if ready (tomorrow's package only), forget the dispatch, never dispatch
  *   ...&failed=1[&why=…]                 → the render job failed: the failure alert (once a day), never dispatch
  */
 export const dynamic = "force-dynamic";
