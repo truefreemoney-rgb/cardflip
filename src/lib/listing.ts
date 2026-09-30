@@ -372,6 +372,19 @@ export function askingPriceFor(market: number, condition: string): number {
 }
 
 /**
+ * floorNote for the price askingPriceFor gives — for screens that hold a
+ * market figure rather than a quote (the Inventory detail sheet, Chris 09-30:
+ * "where does it say Card value $0.25 plus…" beside a $1.50 price and a
+ * $0.25 chart). Null when nothing was added on top.
+ */
+export function askingNoteFor(market: number, condition: string): string | null {
+  if (!(market > 0)) return null;
+  const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
+  const covered = coveredAsk(roundPrice(market * mult, "market"));
+  return covered ? floorNote({ covers: covered.covers, coverPartial: covered.partial }) : null;
+}
+
+/**
  * The latest daily point from the card's price-history series (the number the
  * chart's right edge shows) — see useLastRecordedPrice in PriceHistoryChart.
  */

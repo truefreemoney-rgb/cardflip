@@ -38,7 +38,7 @@ import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, 
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
-import { formatMoney } from "@/lib/listing";
+import { askingNoteFor, formatMoney } from "@/lib/listing";
 import { saleBreakdown } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 
@@ -412,6 +412,10 @@ export default function CollectionPage() {
           : card.verifiedAt
             ? "Verified, not listed yet."
             : "Check the match against your photo before listing.";
+    // Why a cheap draft sits above its market (value + fees + postage): only
+    // while the price IS the suggested one, not a price the seller typed.
+    const lp = livePrices[card.id];
+    const costNote = draft && lp && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
     const facts: [string, string][] = [
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
@@ -489,6 +493,7 @@ export default function CollectionPage() {
               </button>
             )}
           </div>
+          {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
           {/* Scanned → now (Chris, 09-08): the original scanned price, the
               price today, and the move in $ and %. Sold rows tell the

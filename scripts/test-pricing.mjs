@@ -529,6 +529,13 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("taper: $7.50 carries half the costs", askingPriceFor(7.5, "Near Mint"), 8.68);
   check("taper: $9.99 → $10.00", askingPriceFor(9.99, "Near Mint"), 10);
   check("taper: $10 card at market", askingPriceFor(10, "Near Mint"), 10);
+  {
+    const { askingNoteFor } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
+    check("Inventory note: $0.25 Spidops names the value", askingNoteFor(0.25, "Near Mint"),
+      "Card value $0.25 plus eBay fees and $0.75 postage, so you keep the full value");
+    check("Inventory note: $7.50 is the taper line", askingNoteFor(7.5, "Near Mint"), "Card value $7.50 plus part of the eBay fees and postage");
+    check("Inventory note: none from $10", askingNoteFor(12, "Near Mint"), null);
+  }
   check("taper: $7.50 note says part of the costs",
     floorNote(quotePrice({ name: "Test", setName: "Test", prices: [usd(7.5)] }, "Near Mint", "market")),
     "Card value $7.50 plus part of the eBay fees and postage");
