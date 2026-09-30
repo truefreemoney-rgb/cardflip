@@ -41,6 +41,7 @@ import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } fro
 import { askingNoteFor, formatMoney } from "@/lib/listing";
 import { saleBreakdown } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
+import { etDate } from "@/lib/time";
 
 /**
  * Every card the seller has ever scanned, with where it is in its life:
@@ -127,12 +128,9 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: "soldRecent", label: "Recently sold" },
 ];
 
+/** "Sep 30, 2026" — the Eastern calendar day for every viewer (Chris 09-30). */
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return etDate(ts);
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1648,7 +1646,7 @@ export default function CollectionPage() {
                             </div>
                             {card.watcherOfferAt ? (
                               <span className="text-xs text-zinc-500">
-                                Offer sent {new Date(card.watcherOfferAt).toLocaleDateString()}
+                                Offer sent {formatDate(card.watcherOfferAt)}
                               </span>
                             ) : (
                               <button

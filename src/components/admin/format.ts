@@ -1,4 +1,5 @@
 import type { BoardOwner } from "@/lib/server/board";
+import { etDateTime } from "@/lib/time";
 
 /** Formatting shared by the admin console pages (app/admin/(console)/*). */
 
@@ -25,19 +26,12 @@ export function bytes(b: number): string {
   return `${Math.round(b / 1e3)} KB`;
 }
 /**
- * Server-rendered, so the zone is the server's — UTC on Vercel, local in dev.
- * The zone is printed because "Sep 4, 3:06 AM" on prod was read as local
- * time (issue #17); an ops page must say which clock it is on.
+ * Eastern, labelled "ET" (Chris 09-30: the Errors page still showed UTC).
+ * Was the server's zone — UTC on Vercel — with the zone printed because
+ * "Sep 4, 3:06 AM" on prod was read as local time (issue #17).
  */
 export function fmtDate(ts: number | null): string {
-  if (!ts) return "—";
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
+  return ts ? etDateTime(ts) : "—";
 }
 /** "3 h ago" / "2 d ago" — relative, so no zone question at all. */
 export function ago(ts: number | null, now = Date.now()): string {

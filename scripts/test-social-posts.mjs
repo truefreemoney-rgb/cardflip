@@ -49,8 +49,10 @@ assert.equal(siteLabel("newsite"), "Newsite");
 assert.equal(siteLabel(""), "");
 
 // time: Eastern, minute precision, never throws on junk
-assert.equal(whenET("2026-09-28T17:05:00Z"), "Sep 28, 1:05 PM");
-assert.equal(whenET(Date.UTC(2026, 0, 2, 5, 0)), "Jan 2, 12:00 AM");
+assert.equal(whenET("2026-09-28T17:05:00Z"), "Sep 28, 1:05 PM ET");
+assert.equal(whenET("2026-09-28T17:05:00+0000"), "Sep 28, 1:05 PM ET");
+assert.equal(whenET("2026-09-28T13:05:00-0400"), "Sep 28, 1:05 PM ET");
+assert.equal(whenET(Date.UTC(2026, 0, 2, 5, 0)), "Jan 2, 12:00 AM ET");
 assert.equal(whenET("nonsense"), "nonsense");
 assert.equal(whenET(""), "");
 

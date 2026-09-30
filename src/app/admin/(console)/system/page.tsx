@@ -138,7 +138,7 @@ export default async function AdminSystemPage() {
                 {o.system.crons.map((c) => (
                   <li key={c.path}>
                     <code className="text-[11px] text-zinc-300">{c.path}</code>
-                    <span className="ml-2">{cronLabel(c.schedule)}</span>
+                    <span className="ml-2">{cronLabel(c.schedule, now)}</span>
                     {c.nextAt && <span className="ml-2 text-zinc-600">next {fmtDate(c.nextAt)}</span>}
                   </li>
                 ))}
@@ -148,7 +148,7 @@ export default async function AdminSystemPage() {
                 Not on Vercel: an in-process hourly tick runs the whole job when it is due. The Vercel crons
                 {o.system.crons.map((c) => (
                   <span key={c.path}>
-                    {" "}<code className="text-[11px] text-zinc-300">{c.path}</code> ({cronLabel(c.schedule)})
+                    {" "}<code className="text-[11px] text-zinc-300">{c.path}</code> ({cronLabel(c.schedule, now)})
                   </span>
                 ))}{" "}
                 only fire on a deploy.

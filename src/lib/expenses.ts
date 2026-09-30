@@ -3,6 +3,9 @@
  * per-month math. No server imports so the client editor and the test can
  * share it (server storage is lib/server/expenses.ts).
  */
+// Relative ./time.ts (not @/lib/time) so plain node resolves it — see cronSchedule.ts.
+import { etDay } from "./time.ts";
+
 export type Period = "month" | "year" | "once";
 export const PERIODS: Period[] = ["month", "year", "once"];
 
@@ -25,14 +28,14 @@ function isoDay(d: Date): string {
 }
 
 /**
- * The next billing day on or after `now` (UTC days): monthly rows step a
+ * The next billing day on or after `now` (Eastern days): monthly rows step a
  * month at a time from dueDate, yearly rows a year, one-offs keep their date
  * (past or not). Null without a date. A 31st steps to the last day of shorter
  * months, the way card issuers do.
  */
 export function nextDue(e: Pick<Expense, "dueDate" | "period">, now: Date = new Date()): string | null {
   if (!e.dueDate || !DATE_RE.test(e.dueDate)) return null;
-  const today = isoDay(now);
+  const today = etDay(now);
   if (e.period === "once" || e.dueDate >= today) return e.dueDate;
   const [y, m, d] = e.dueDate.split("-").map(Number);
   const stepMonths = e.period === "year" ? 12 : 1;
@@ -47,11 +50,13 @@ export function nextDue(e: Pick<Expense, "dueDate" | "period">, now: Date = new 
   return null;
 }
 
-/** Whole days from `now` to an ISO day; negative = past. */
+/** Calendar days from today (the Eastern day of `now`) to an ISO day; negative = past. */
 export function daysUntil(day: string, now: Date = new Date()): number {
-  const a = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const [y, m, d] = day.split("-").map(Number);
-  return Math.round((Date.UTC(y, m - 1, d) - a) / 86_400_000);
+  const utcMidnight = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((utcMidnight(day) - utcMidnight(etDay(now))) / 86_400_000);
 }
 
 /** One clean row or null: name required, amount a finite non-negative number, period one of ours. */

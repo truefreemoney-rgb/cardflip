@@ -10,6 +10,7 @@ import { apiPath } from "@/lib/client/basePath";
 import { requestTourReplay } from "@/lib/client/tour";
 import { HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { startGuide } from "@/components/TourOverlay";
+import { etDate, etDateTime } from "@/lib/time";
 
 /**
  * The help robot's body: Chat / Support Tickets tabs, the ticket form, a
@@ -85,7 +86,8 @@ function parseReply(content: string): { text: string; guide: string | null; link
   return { text, guide, link, ticket };
 }
 
-const fmtWhen = (ms: number) => new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+/** "Sep 30, 6:22 AM ET" — Eastern for every viewer, same clock as the admin side (Chris 09-30). */
+const fmtWhen = (ms: number) => etDateTime(ms);
 
 interface Props {
   /** "sheet" = the desktop popover (has a close button, fixed height); "page" = /app/help (scrolls like a page). */
@@ -460,7 +462,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-zinc-400">#{t.number}</span>
                 <StatusChip status={t.status} label={t.statusLabel} />
-                <span className="ml-auto text-[11px] text-zinc-600">{new Date(t.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                <span className="ml-auto text-[11px] text-zinc-600">{etDate(t.createdAt, "", { month: "short", day: "numeric" })}</span>
               </div>
               <p className="mt-1 truncate text-sm text-zinc-200">{t.subject}</p>
             </button>

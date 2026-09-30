@@ -10,6 +10,7 @@ import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 import { SCANS } from "@/lib/pricing";
 import { formatMoney } from "@/lib/listing";
+import { etDate } from "@/lib/time";
 
 export interface AdminUserRow {
   id: string;
@@ -28,9 +29,10 @@ export interface AdminUserRow {
   subStatus: string | null;
 }
 
+/** The Eastern calendar day (was the viewer's zone, UTC on the server render). */
 function fmtDate(ts: number | null): string {
   if (!ts) return "—";
-  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
+  return etDate(ts, "—", { month: "short", day: "numeric", year: "2-digit" });
 }
 
 function initials(name: string): string {

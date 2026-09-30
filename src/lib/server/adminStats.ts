@@ -7,6 +7,8 @@ import { getPlatformStats, type PlatformStats } from "@/lib/server/cards";
 import { dailyStatus } from "@/lib/server/dailyJobs";
 import { adminUsingDefaults } from "@/lib/adminAuth";
 import { nextCronRun } from "@/lib/cronSchedule";
+import { etOffsetMs } from "@/lib/server/analytics";
+import { etDay } from "@/lib/time";
 import vercelConfig from "../../../vercel.json";
 
 /**
@@ -19,7 +21,7 @@ import vercelConfig from "../../../vercel.json";
 const DAY_MS = 86_400_000;
 
 export interface DaySeries {
-  /** ISO day, oldest first, exactly `days` entries. */
+  /** Eastern calendar day "YYYY-MM-DD", oldest first, exactly `days` entries. */
   days: string[];
   values: number[];
   total: number;
@@ -28,8 +30,11 @@ export interface DaySeries {
 function daySeries(rows: { day: string; n: number }[], days: number, now = Date.now()): DaySeries {
   const map = new Map(rows.map((r) => [r.day, r.n]));
   const out: DaySeries = { days: [], values: [], total: 0 };
+  // Walk calendar days back from today's Eastern day (not 24 h steps, so a
+  // DST change can't repeat or skip a day).
+  const [y, m, d0] = etDay(now).split("-").map(Number);
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
+    const d = new Date(Date.UTC(y, m - 1, d0 - i)).toISOString().slice(0, 10);
     const n = map.get(d) ?? 0;
     out.days.push(d);
     out.values.push(n);
@@ -38,11 +43,14 @@ function daySeries(rows: { day: string; n: number }[], days: number, now = Date.
   return out;
 }
 
+/** Rows per Eastern day: the timestamp is shifted by the Eastern offset before SQLite's date() (UTC-only) buckets it, as analytics.ts does. */
 export async function perDay(table: string, tsColumn: string, days: number, where = "", now = Date.now()): Promise<DaySeries> {
-  const since = now - days * DAY_MS;
+  // One day of slack: the oldest Eastern day starts up to a day (±1 h of DST) before now - days.
+  const since = now - (days + 1) * DAY_MS;
+  const offset = etOffsetMs(now);
   const rows = (await db
     .prepare(
-      `SELECT date(${tsColumn} / 1000, 'unixepoch') AS day, COUNT(*) AS n
+      `SELECT date((${tsColumn} + ${offset}) / 1000, 'unixepoch') AS day, COUNT(*) AS n
          FROM ${table} WHERE ${tsColumn} >= ? ${where ? `AND ${where}` : ""}
         GROUP BY day`,
     )
@@ -50,7 +58,10 @@ export async function perDay(table: string, tsColumn: string, days: number, wher
   return daySeries(rows, days, now);
 }
 
-/** Distinct visitors per UTC day from page_views (the visitor key already changes daily). */
+/**
+ * Distinct visitors per day from page_views (the visitor key already changes daily).
+ * page_views.day is a stored UTC day key, so unlike perDay these buckets stay UTC days.
+ */
 export async function visitorsPerDay(days: number, now = Date.now()): Promise<DaySeries> {
   const since = new Date(now - days * DAY_MS).toISOString().slice(0, 10);
   const rows = (await db

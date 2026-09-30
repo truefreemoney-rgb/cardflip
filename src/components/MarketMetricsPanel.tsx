@@ -18,6 +18,7 @@ import type {
   PokemonCard,
 } from "@/lib/types";
 import PriceHistoryChart, { cardTrend, useLastRecordedPrice } from "@/components/PriceHistoryChart";
+import { etDate } from "@/lib/time";
 
 interface Props {
   card: PokemonCard;
@@ -46,11 +47,10 @@ function money(value: number | null): string {
   return formatMoney(value, "USD");
 }
 
+/** eBay's lastSoldDate (a full ISO timestamp) as the Eastern day, "Sep 29". */
 function formatSoldDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return etDate(iso, "", { month: "short", day: "numeric" }) || null;
 }
 
 function Metric({

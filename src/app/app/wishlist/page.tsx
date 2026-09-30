@@ -23,6 +23,7 @@ import { formatMoney, pickPrice } from "@/lib/listing";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import { etDate } from "@/lib/time";
 
 const LANGUAGE_LABEL: Record<string, string> = {
   en: "English",
@@ -30,11 +31,10 @@ const LANGUAGE_LABEL: Record<string, string> = {
   zh: "Chinese",
 };
 
-/** "Sep 8" this year, "Sep 8, 2025" otherwise — the tile has no room for more. */
+/** "Sep 8" this year, "Sep 8, 2025" otherwise — the tile has no room for more. Eastern day. */
 function formatShortDate(ts: number): string {
-  const d = new Date(ts);
-  const thisYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(thisYear ? {} : { year: "numeric" }) });
+  const thisYear = etDate(ts, "", { year: "numeric" }) === etDate(Date.now(), "", { year: "numeric" });
+  return etDate(ts, "", { month: "short", day: "numeric", ...(thisYear ? {} : { year: "numeric" }) });
 }
 
 /**

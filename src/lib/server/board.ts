@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { helperName } from "@/lib/adminAuth";
+import { etDay } from "@/lib/time";
 
 /**
  * The board — Chris's organised task list, edited live in the admin console
@@ -100,7 +101,8 @@ export function serializeBoard(sections: BoardSection[]): string {
   for (const s of sections) {
     out.push(`## ${s.title}${s.hint ? ` — ${s.hint}` : ""}`, "");
     for (const it of s.items) {
-      const stamp = it.completedAt ? ` (completed ${new Date(it.completedAt).toISOString().slice(0, 10)}${it.from ? `, from ${it.from}` : ""})` : "";
+      // Eastern day (site-wide ET, 09-30) — read by people, never parsed back.
+      const stamp = it.completedAt ? ` (completed ${etDay(it.completedAt)}${it.from ? `, from ${it.from}` : ""})` : "";
       out.push(`- [${it.done ? "x" : " "}] ${it.owner ? `[${it.owner}] ` : ""}${it.text.replace(/\r?\n/g, " ⏎ ")}${(it.images ?? []).map((u) => ` [image](${u})`).join("")}${stamp}`);
     }
     out.push("");

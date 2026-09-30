@@ -13,6 +13,7 @@ import { gameFeaturesFor } from "@/lib/server/settings";
 import { recordScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { isSubscribed, scanTier } from "@/lib/server/users";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { etTime } from "@/lib/time";
 import {
   LIMITS,
   RateLimitError,
@@ -44,11 +45,13 @@ export async function POST(req: Request) {
 
     // Plan cap a month per subscriber (lib/pricing.ts); the trial allowance lifetime; a Scan Pack balance until it is gone.
     if (scanQuotaExhausted(user)) {
+      // The legacy day is a UTC day (users.ts quotaDay); the message says when it rolls over in Eastern (site-wide ET, 09-30).
+      const nextUtcMidnight = (Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000;
       return NextResponse.json(
         {
           error:
             scanTier(user) === "legacy"
-              ? "You've used today's 100 scans — the counter resets at midnight UTC, or subscribe for a monthly allowance"
+              ? `You've used today's 100 scans — the counter resets at ${etTime(nextUtcMidnight)}, or subscribe for a monthly allowance`
               : isSubscribed(user)
                 ? `You've used all ${scanQuota(user).included.toLocaleString("en-US")} scans this month — your allowance resets at the start of next month`
                 : "You're out of scans — subscribe or buy a Scan Pack to keep scanning",

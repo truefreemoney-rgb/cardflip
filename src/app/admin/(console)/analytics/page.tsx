@@ -7,6 +7,7 @@ import { deltaPct, getAnalytics, parseWindow, RANGES, type CustomWindow, type Me
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
 import { PRICE } from "@/lib/pricing";
+import { etDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 // ~45 small Turso queries in parallel; room for a slow one.
@@ -271,8 +272,9 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           ) : (
             <ul className="divide-y divide-white/5 text-xs">
               {a.social.map((s) => {
-                const today = new Date(a.now).toISOString().slice(0, 10);
-                const fresh = s.lastDay && s.lastDay >= new Date(a.now - 2 * 86_400_000).toISOString().slice(0, 10);
+                // lastDay is an Eastern day key, so compare it to Eastern days (UTC's said "tomorrow" after 8pm ET).
+                const today = etDay(a.now);
+                const fresh = s.lastDay && s.lastDay >= etDay(a.now - 2 * 86_400_000);
                 return (
                   <li key={s.site} className="flex items-center justify-between py-1.5">
                     <span className="capitalize text-zinc-200">{s.site}</span>

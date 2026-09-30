@@ -85,12 +85,13 @@ export function count(v: number | null | undefined): string {
   return v == null ? "—" : v.toLocaleString("en-US");
 }
 
-/** "Sep 28, 1:05 PM" in Eastern, the autopilot's clock. */
+/** "Sep 28, 1:05 PM ET" in Eastern, the autopilot's clock. */
 export function whenET(iso: string | number): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  // iPhone Safari can't parse a "+0000" offset; "+00:00" it can.
+  const d = new Date(typeof iso === "string" ? iso.replace(/([+-]\d{2})(\d{2})$/, "$1:$2") : iso);
   if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+  return `${d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET`;
 }
 
 /** One-line preview of a post's words. */

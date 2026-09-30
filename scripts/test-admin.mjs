@@ -49,7 +49,9 @@ check("cron later today", nextCronRun("45 9 * * *", t), Date.UTC(2026, 8, 9, 9, 
 check("cron already passed → tomorrow", nextCronRun("0 9 * * *", Date.UTC(2026, 8, 9, 9, 0)), Date.UTC(2026, 8, 10, 9, 0));
 check("cron exactly now → tomorrow", nextCronRun("0 8 * * *", t), Date.UTC(2026, 8, 10, 8, 0));
 check("non-daily shape is not guessed", [nextCronRun("*/15 * * * *", t), nextCronRun("0 9 * * 1", t), nextCronRun("99 9 * * *", t)], [null, null, null]);
-check("cron label", [cronLabel("45 9 * * *"), cronLabel("0 9 * * *"), cronLabel("*/15 * * * *")], ["09:45 UTC daily", "09:00 UTC daily", "*/15 * * * *"]);
+// The label is the next run's Eastern clock (Chris 09-30), so pin `now` and cover both sides of DST.
+check("cron label, summer (EDT = UTC-4)", [cronLabel("45 9 * * *", t), cronLabel("*/15 * * * *", t)], ["5:45 AM ET daily", "*/15 * * * *"]);
+check("cron label, winter (EST = UTC-5)", cronLabel("0 9 * * *", Date.UTC(2026, 11, 1, 8, 0)), "4:00 AM ET daily");
 
 
 // Helper role (09-10): a second login that only gets her own board category.

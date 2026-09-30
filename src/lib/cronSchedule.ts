@@ -1,3 +1,6 @@
+// Relative ./time.ts (not @/lib/time) so plain node resolves it — see below.
+import { etTime } from "./time.ts";
+
 /**
  * Next fire time of a Vercel Cron expression, in UTC (Vercel evaluates every
  * schedule in UTC). Only the daily "M H * * *" shape is computed — that is
@@ -17,9 +20,12 @@ export function nextCronRun(expr: string, now = Date.now()): number | null {
   return today > now ? today : today + 86_400_000;
 }
 
-/** "09:45 UTC" for the daily shape; the raw expression for anything else. */
-export function cronLabel(expr: string): string {
-  const m = /^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/.exec(expr.trim());
-  if (!m) return expr;
-  return `${m[2].padStart(2, "0")}:${m[1].padStart(2, "0")} UTC daily`;
+/**
+ * "5:45 AM ET daily" for the daily shape; the raw expression for anything
+ * else. Shown in Eastern (Chris 09-30, site-wide ET): the clock of the next
+ * run, so it moves an hour with daylight saving while the cron stays UTC.
+ */
+export function cronLabel(expr: string, now = Date.now()): string {
+  const next = nextCronRun(expr, now);
+  return next == null ? expr : `${etTime(next)} daily`;
 }

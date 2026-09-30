@@ -9,6 +9,7 @@ import { fetchServerCards, type ServerCard } from "@/lib/client/cardsApi";
 import { POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
 import { saleBreakdown, saleYear, saleYears, yearTotals } from "@/lib/profit";
+import { etDate } from "@/lib/time";
 
 /**
  * Sales report (09-27): one year at a time, every sale with what it sold
@@ -33,7 +34,7 @@ export default function SalesReportPage() {
   }, [status]);
 
   const years = useMemo(() => (cards ? saleYears(cards) : []), [cards]);
-  const shown = year ?? years[0] ?? new Date().getFullYear();
+  const shown = year ?? years[0] ?? Number(etDate(new Date(), "", { year: "numeric" }));
   const totals = useMemo(() => (cards ? yearTotals(cards, shown) : null), [cards, shown]);
   const sales = useMemo(
     () =>
@@ -42,7 +43,7 @@ export default function SalesReportPage() {
         .sort((a, b) => b.soldAt! - a.soldAt!),
     [cards, shown],
   );
-  const day = (ts: number) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
+  const day = (ts: number) => etDate(ts, "", { month: "short", day: "numeric" });
   const signed = (v: number) => (
     <span className={v < 0 ? "text-rose-400" : "text-emerald-400"}>
       {v < 0 ? "−" : ""}{formatMoney(Math.abs(v))}

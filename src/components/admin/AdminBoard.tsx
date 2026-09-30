@@ -5,6 +5,7 @@ import type { BoardItem, BoardOwner, BoardSection } from "@/lib/server/board";
 import { apiPath } from "@/lib/client/basePath";
 import { ownerLabel } from "@/components/admin/format";
 import type { RunStatus } from "@/lib/server/boardRuns";
+import { etDate, etDay } from "@/lib/time";
 
 /** Run outcomes by issue number, read once per visit (GET /api/admin/board/runs), plus a way to re-read them. */
 export const RunsContext = createContext<{ runs: Record<number, RunStatus>; reload: () => void }>({ runs: {}, reload: () => {} });
@@ -287,15 +288,15 @@ export function noteLines(text: string): { head: string; replies: string[] } {
   return { head, replies: rest.filter((l) => l.trim()) };
 }
 
+/** Completed-day heading, by the Eastern day (was the viewer's own zone). */
 function dayLabel(ms: number): string {
-  const d = new Date(ms);
-  const today = new Date();
-  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(d, today)) return "Today";
-  const y = new Date(today);
-  y.setDate(today.getDate() - 1);
-  if (same(d, y)) return "Yesterday";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const day = etDay(ms);
+  const today = etDay();
+  if (day === today) return "Today";
+  // Calendar step back, not now − 24h: a 23-hour DST day would skip one.
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  if (day === yesterday) return "Yesterday";
+  return etDate(ms, "", { month: "short", day: "numeric" });
 }
 
 /**

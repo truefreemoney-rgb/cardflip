@@ -22,14 +22,11 @@ import {
 } from "@/lib/client/priceChecksApi";
 import { toast } from "@/components/Toaster";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import { etDateTime } from "@/lib/time";
 
+/** "Sep 30, 6:22 AM ET" — Eastern for every viewer (Chris 09-30). */
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return etDateTime(ts);
 }
 
 type Mode = "search" | "browse";

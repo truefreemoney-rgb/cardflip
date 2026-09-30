@@ -49,5 +49,9 @@ check("yearly steps a year", nextDue({ period: "year", dueDate: "2025-09-01" }, 
 check("one-off keeps its past date", nextDue({ period: "once", dueDate: "2026-09-25" }, now), "2026-09-25");
 check("daysUntil: today 0, +8, past negative", [daysUntil("2026-09-27", now), daysUntil("2026-10-05", now), daysUntil("2026-09-25", now)], [0, 8, -2]);
 
+// Eastern "today": 02:00Z on the 28th is still the evening of the 27th in New York.
+const lateEt = new Date(Date.UTC(2026, 8, 28, 2));
+check("Eastern today: still due on the 27th at 22:00 ET", [nextDue({ period: "month", dueDate: "2026-09-27" }, lateEt), daysUntil("2026-09-27", lateEt), daysUntil("2026-09-28", lateEt)], ["2026-09-27", 0, 1]);
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

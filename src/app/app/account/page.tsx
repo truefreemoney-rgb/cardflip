@@ -28,6 +28,7 @@ import {
   type InviteInfo,
   type TotpSetup,
 } from "@/lib/client/accountApi";
+import { etDate } from "@/lib/time";
 
 /**
  * Account settings: who you are (name / sign-in email), password, eBay
@@ -42,8 +43,9 @@ const labelCls = "block text-xs font-medium text-zinc-400";
 const primaryBtn =
   "rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60";
 
+/** "Sep 30, 2026" — the Eastern calendar day for every viewer (Chris 09-30). */
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return etDate(ts);
 }
 
 /** A labelled cluster of rows (Selling / Security / ...). */

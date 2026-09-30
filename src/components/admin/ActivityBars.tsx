@@ -34,7 +34,7 @@ export default function ActivityBars({
   const label = (d: string) =>
     hourly
       ? new Date(`${d}:00:00Z`).toLocaleTimeString("en-US", { hour: "numeric", timeZone: "UTC" }) + " ET"
-      : new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+      : new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const show = (v: number) =>
     unit === "usd"
       ? `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
