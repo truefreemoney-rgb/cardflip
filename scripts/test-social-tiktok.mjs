@@ -77,11 +77,11 @@ await catalog("sv1-7", "Pawmi", "74"); await series("sv1-7", 12, 16);
 for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
 const stage = (name, setName, number, price, extra = {}) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, ...extra });
 const STAGES = {
-  "stage:v7:pokemon": [stage("Charizard ex", "Obsidian Flames", "125", 48.5, { lead: true })],
-  "stage:v13:mtg": [stage("Sol Ring", "Commander Masters", "410", 32.1, { lead: true })],
-  "stage:v13:lorcana": [stage("Elsa", "The First Chapter", "42", 61, { lead: true })],
-  "stage:v13:onepiece": [stage("Portgas.D.Ace", "Premium Booster", "P-055", 75, { lead: true })],
-  "stage:v13:yugioh": [stage("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
+  "stage:v8:pokemon": [stage("Charizard ex", "Obsidian Flames", "125", 48.5, { lead: true })],
+  "stage:v14:mtg": [stage("Sol Ring", "Commander Masters", "410", 32.1, { lead: true })],
+  "stage:v14:lorcana": [stage("Elsa", "The First Chapter", "42", 61, { lead: true })],
+  "stage:v14:onepiece": [stage("Portgas.D.Ace", "Premium Booster", "P-055", 75, { lead: true })],
+  "stage:v14:yugioh": [stage("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
 };
 for (const [key, cards] of Object.entries(STAGES)) await db.prepare("INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify(cards), Date.now());
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { decodePrices, todayUtc } from "@/lib/priceSeries";
+import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
+import { PRICE_TRUST, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
@@ -27,6 +28,9 @@ export const MOVER_LIMIT = 5;
 export const MOVER_MIN_PRICE = 10;
 /** A move counts once the new price has held this many of the last MOVER_DAYS days (one odd sale is not a move; Grass Energy +650%, 09-25). */
 export const HELD_DAYS = 3;
+/** Gains only (on top of the price guard): a one-step rise of this x to this price or more needs a second source (Cardmarket) to agree. */
+export const MOVER_JUMP_RISE = 2;
+export const MOVER_JUMP_MIN_PRICE = 100;
 /** Card of the day comes from the cards worth talking about. */
 export const COTD_MIN_PRICE = 15;
 /** A safety cap on series rows per call; the price filter keeps the pool well under it (~11k Pokémon rows, 09-30). */
@@ -43,6 +47,8 @@ const POOL_MIN_USD = MOVER_MIN_PRICE / 2;
  */
 const MTG_POOL_MIN_USD = MOVER_MIN_PRICE / 2;
 const MTG_POOL_CAP = 20000;
+/** The price guard logs a run's skipped cards once per game and day (freshSeries runs several times per run). */
+const guardLogged = new Set<string>();
 const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
 
 /**
@@ -107,6 +113,23 @@ interface SeriesRow {
   variant: string;
   start_day: string;
   prices: string;
+  /** Pokémon: the card's fresh Cardmarket 'average' series (EUR), null when it has none or it is stale. */
+  cm_prices?: string | null;
+  /** Magic: Scryfall's Cardmarket price (EUR) from mtg_cards. */
+  price_eur?: number | null;
+}
+
+interface FreshCard {
+  variant: string;
+  from: number | null;
+  to: number;
+  held: number;
+  median: number;
+  fromSettled: boolean;
+  /** Biggest one-step rise between consecutive priced points in the last `days` days (1 = none). */
+  stepRise: number;
+  /** A second source (Cardmarket) priced the card within 3x, so a big move is believable. */
+  confirmed: boolean;
 }
 
 interface CatalogRow {
@@ -141,14 +164,23 @@ function dayDiff(fromDay: string, toDay: string): number {
  * Every fresh USD series for the game, one per card (preferred variant),
  * with the latest price and the price `days` ago. Fresh = updated in the
  * last three days, so a card nobody has priced in a month never posts.
+ *
+ * The price guard lives here (09-30, lib/server/priceTrust.ts): a card whose
+ * chosen series fails it is left out of the Map, so movers, dips, the set
+ * spotlight, the card of the day and every video read only prices a
+ * collector would believe. The judged series is the one `to` comes from.
+ * Only catalog cards come back (en_cards / mtg_cards): the price table also
+ * holds sealed products, which made "tcgp-sealed" count as a set and a quarter
+ * of the card-of-the-day pool a non-card.
  */
 async function freshSeries(game: GameId, day: string, days: number) {
   const since = new Date(Date.parse(day + "T00:00:00Z") - 3 * 86_400_000).toISOString().slice(0, 10);
+  const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
   const rows = (
     game === "mtg"
       ? await db
           .prepare(
-            `SELECT p.card_id, p.variant, p.start_day, p.prices FROM mtg_cards m
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, m.price_eur FROM mtg_cards m
               JOIN price_series p ON p.card_id = m.id AND p.game = 'mtg' AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ?
               WHERE p.variant = 'nonfoil' AND m.price_usd >= ?
               LIMIT ${MTG_POOL_CAP}`,
@@ -162,25 +194,55 @@ async function freshSeries(game: GameId, day: string, days: number) {
             // series' latest or week-ago point is at POOL_MIN_USD or more, and
             // then ALL its series come back, so the preferred variant still
             // speaks for it (filtering series alone let a $49.99 reverse holo
-            // stand in for a $1.02 Team Aqua's Corphish).
-            `SELECT card_id, variant, start_day, prices FROM price_series
-              WHERE game = ? AND currency = 'USD' AND updated_day >= ?
-                AND card_id IN (
+            // stand in for a $1.02 Team Aqua's Corphish). TCGplayer rows only
+            // (an eBay PSA 10 row sat in the pool at rank 99), catalog cards
+            // only, and the card's fresh Cardmarket average rides along as the
+            // price guard's second source (one PK lookup per row, no extra query).
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, c.prices AS cm_prices
+               FROM price_series p
+               JOIN en_cards e ON e.id = p.card_id
+               LEFT JOIN price_series c ON c.card_id = p.card_id AND c.variant = 'average' AND c.source = 'cardmarket' AND c.updated_day >= ?
+              WHERE p.game = ? AND p.currency = 'USD' AND p.source = 'tcgplayer' AND p.updated_day >= ?
+                AND p.card_id IN (
                   SELECT card_id FROM price_series
-                   WHERE game = ? AND currency = 'USD' AND updated_day >= ?
+                   WHERE game = ? AND currency = 'USD' AND source = 'tcgplayer' AND updated_day >= ?
                      AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
                              COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?)
               LIMIT ${ROW_CAP}`,
           )
-          .all(game, since, game, since, POOL_MIN_USD)
+          .all(cmSince, game, since, game, since, POOL_MIN_USD)
   ) as unknown as SeriesRow[];
   if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
-  const out = new Map<string, { variant: string; from: number | null; to: number; held: number; median: number; fromSettled: boolean }>();
+  // One entry per card: its series (so the preferred variant speaks for it and the rest are its siblings) and the second-source price.
+  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
     const to = priceAt(prices, todayIdx);
     if (to == null) continue;
+    let card = cards.get(r.card_id);
+    if (!card) {
+      const refEur = game === "mtg" ? (r.price_eur ?? null) : r.cm_prices ? lastPriced(decodePrices(r.cm_prices)) : null;
+      cards.set(r.card_id, (card = { series: [], refEur }));
+    }
+    card.series.push({ variant: r.variant, prices, todayIdx, to });
+  }
+  const out = new Map<string, FreshCard>();
+  const skipped: { id: string; reason: string }[] = [];
+  for (const [cardId, card] of cards) {
+    // The preferred variant (first among equals, as before).
+    const pref = card.series.reduce((a, b) => (rank(b.variant) < rank(a.variant) ? b : a));
+    const { prices, todayIdx, to } = pref;
+    const trust = priceTrust({
+      to,
+      prices: todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1),
+      siblings: card.series.filter((s) => s !== pref).map((s) => s.to),
+      refEur: card.refEur,
+    });
+    if (!trust.ok) {
+      skipped.push({ id: cardId, reason: trust.reason });
+      continue;
+    }
     const from = todayIdx - days >= 0 ? priceAt(prices, todayIdx - days, CARRY_DAYS) : null;
     // Days in the window whose price sits within 15% of today's: a real move holds, a stray sale does not.
     let held = 0;
@@ -212,8 +274,23 @@ async function freshSeries(game: GameId, day: string, days: number) {
       }
       fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
     }
-    const have = out.get(r.card_id);
-    if (!have || rank(r.variant) < rank(have.variant)) out.set(r.card_id, { variant: r.variant, from, to, held, median, fromSettled });
+    // The biggest one-step rise inside the window (the point before it counts as the step's start): topMovers' extra test.
+    let stepRise = 1;
+    const start = Math.max(0, todayIdx - days);
+    let prev = start > 0 ? priceAt(prices, start - 1) : null;
+    for (let i = start; i <= todayIdx; i++) {
+      const v = prices[i];
+      if (v == null) continue;
+      if (prev != null && prev > 0) stepRise = Math.max(stepRise, v / prev);
+      prev = v;
+    }
+    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, stepRise, confirmed: Boolean(trust.agrees) });
+  }
+  // Logged once per game and day, not once per call (drafts read this several times): the next session can see what the guard dropped.
+  const logKey = `${game}:${day}`;
+  if (skipped.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: price guard skipped ${skipped.length} ${game} cards (${skipped.slice(0, 5).map((s) => `${s.id} ${s.reason}`).join("; ")})`);
   }
   return out;
 }
@@ -287,6 +364,7 @@ export async function topMovers(
 ): Promise<Mover[]> {
   const series = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
+  const unconfirmed: string[] = [];
   for (const [cardId, s] of series) {
     if (exclude.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
@@ -298,9 +376,20 @@ export async function topMovers(
     if (s.held < HELD_DAYS) continue;
     // The old price must have held too, or the "move" is a spike unwinding.
     if (!s.fromSettled) continue;
+    // A gain is by definition a jump in a thin market (34 of the top 40 gains 09-30 were single-day moves,
+    // Machamp $64 → $146 with no Cardmarket price): a doubling to $100+ that no second source confirms is left out.
+    if (pct > 0 && s.stepRise >= MOVER_JUMP_RISE && s.to >= MOVER_JUMP_MIN_PRICE && !s.confirmed) {
+      unconfirmed.push(cardId);
+      continue;
+    }
     if (direction === "down" && pct >= 0) continue;
     if (direction === "up" && pct <= 0) continue;
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
+  }
+  const logKey = `${game}:${day}:jumps`;
+  if (unconfirmed.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: ${unconfirmed.length} ${game} gains left out, a doubling to $${MOVER_JUMP_MIN_PRICE}+ with no Cardmarket price (${unconfirmed.slice(0, 5).join(", ")})`);
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
   const top = moves.slice(0, limit * 3);
