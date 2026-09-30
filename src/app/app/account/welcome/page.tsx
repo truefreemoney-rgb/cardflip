@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import Spinner from "@/components/Spinner";
 import { fetchAccount } from "@/lib/client/accountApi";
-import { SCANS } from "@/lib/pricing";
+import { ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { hasScansToUse } from "@/lib/scanCopy";
 
 /**
  * Where Stripe Checkout lands a new subscriber (Chris, 09-25: dropping them
@@ -20,6 +21,8 @@ import { SCANS } from "@/lib/pricing";
 export default function SubscribedPage() {
   const { user, refresh } = useSession();
   const [phase, setPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
+  // Scans the seller can spend, as the server counted them when the page confirmed.
+  const [ready, setReady] = useState<number | null>(null);
   // ?billing=pack = a one-time Scan Pack just paid (09-25); anything else is
   // a new subscription. Read before the URL is cleaned below.
   const [kind] = useState<"sub" | "pack">(() =>
@@ -39,8 +42,15 @@ export default function SubscribedPage() {
       tries += 1;
       const o = await fetchAccount();
       if (cancelled) return true;
-      const ok = kind === "pack" ? (o?.user.packScans ?? 0) > 0 : o?.user.subStatus === "active" || o?.user.subStatus === "trialing";
+      // A subscription is confirmed only once the payment's scans are credited:
+      // the status flips first, and "250 scans, unlocked" over a 0 balance (a red
+      // header, a 402 on the first scan) reads as broken.
+      const ok =
+        kind === "pack"
+          ? (o?.user.packScans ?? 0) > 0
+          : (o?.user.subStatus === "active" || o?.user.subStatus === "trialing") && hasScansToUse(o?.quota ?? o?.user.scans);
       if (o && ok) {
+        setReady((o.quota ?? o.user.scans)?.remaining ?? null);
         setPhase("confirmed");
         void refresh();
         return true;
@@ -64,7 +74,8 @@ export default function SubscribedPage() {
   }, [refresh, kind]);
 
   const first = user?.name?.split(" ")[0];
-  const scans = user?.plan === "pro" ? SCANS.pro : SCANS.standard;
+  // What the payment bought, until the server's own count is in.
+  const scans = ready !== null ? ready.toLocaleString("en-US") : user?.plan === "pro" ? SCANS.pro : SCANS.standard;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-10">
@@ -83,29 +94,29 @@ export default function SubscribedPage() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400" role="status">
           {phase === "stalled"
-            ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan will show as active"} shortly.`
+            ? `Payment received. Stripe is taking a moment to confirm — your ${kind === "pack" ? "scans will show up" : "plan and scans will show up"} shortly.`
             : kind === "pack"
               ? `${SCANS.pack} scans added, they never expire. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`
-              : `${scans} scans a month, unlocked. Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
+              : `${scans} scans ready. ${ROLLOVER_SENTENCE} Point the camera at a card and CardFlip names it, prices it, and drafts the eBay listing.`}
         </p>
 
         <Link
           href="/app"
           className="mt-7 flex w-full items-center justify-center rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
-          Scan a card
+          Scan a Card
         </Link>
         <Link
           href="/connect-ebay"
           className="mt-3 flex w-full items-center justify-center rounded-full border border-edge px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-surface-2"
         >
-          Connect eBay to sell
+          Connect eBay to Sell
         </Link>
 
         <p className="mt-5 text-xs text-zinc-500">
           A receipt is in your inbox.{" "}
           <Link href="/app/account" className="font-medium text-brand-300 transition hover:text-brand-200">
-            {kind === "pack" ? "Your account" : "Manage billing"}
+            {kind === "pack" ? "Your Account" : "Manage Billing"}
           </Link>
         </p>
       </div>

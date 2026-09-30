@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { SessionUser } from "@/lib/client/auth";
+import { scanCounterTitle } from "@/lib/scanCopy";
 
 /**
  * Header scan counter (Chris, 09-07: "a scan counter and total remaining
@@ -10,7 +11,13 @@ import type { SessionUser } from "@/lib/client/auth";
  * (server truth from /api/auth/me, patched after every scan by the scanner)
  * and links to /pricing (the next plan up, or a Scan Pack since 09-25).
  * Owner/unlimited accounts see their count with no link. Turns amber at
- * 10% left, red at zero.
+ * 10% of one payment's scans left, red at zero.
+ *
+ * Subscribers (09-30, scans roll over) read "488 scans": what they can spend
+ * now, with no "/ 250" because nothing resets; the tooltip says how many were
+ * carried over and when the next payment credits more. Trial and legacy keep
+ * their "3 / 5 free" and "80 / 100 today". An account whose plan ended shows
+ * how many banked scans are paused.
  */
 export default function ScanCounter({ user }: { user: SessionUser }) {
   const scans = user.scans;
@@ -30,7 +37,7 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
     );
   }
 
-  const period = user.tier === "trial" ? "free scans" : user.tier === "legacy" ? "today" : user.tier === "pack" ? "in your pack" : "this month";
+  const subscriber = user.tier === "subscribed";
   const low = scans.remaining <= Math.max(1, Math.round(scans.included * 0.1));
   const out = scans.remaining <= 0;
   const tone = out
@@ -38,9 +45,7 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
     : low
       ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
       : "border-edge bg-black/25 text-zinc-300 hover:border-edge-strong hover:text-white";
-  const title = out
-    ? `No scans left ${period === "free scans" ? "on the free trial" : period} — get more`
-    : `${fmt(scans.remaining)} of ${fmt(scans.included)} ${period} left${scans.bonus ? ` (includes ${fmt(scans.bonus)} bonus)` : ""}${scans.pack && user.tier !== "pack" ? ` (includes ${fmt(scans.pack)} pack scans)` : ""} — tap for more scans`;
+  const title = scanCounterTitle(scans, user.tier);
 
   return (
     <Link
@@ -52,13 +57,21 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
     >
       <ScanIcon />
       {out ? (
-        <span>Get more scans</span>
+        <>
+          <span>Get More Scans</span>
+          {scans.frozen ? <span className="hidden font-normal opacity-70 sm:inline">· {fmt(scans.frozen)} paused</span> : null}
+        </>
+      ) : subscriber ? (
+        <>
+          <span>{fmt(scans.remaining)}</span>
+          <span className="font-normal opacity-70">scans</span>
+        </>
       ) : (
         <>
           <span>{fmt(scans.remaining)}</span>
           <span className="font-normal opacity-70">
             / {fmt(scans.included)}
-            <span className="hidden sm:inline"> {period === "free scans" ? "free" : "scans"}</span>
+            <span className="hidden sm:inline"> {user.tier === "trial" ? "free" : "scans"}</span>
           </span>
         </>
       )}

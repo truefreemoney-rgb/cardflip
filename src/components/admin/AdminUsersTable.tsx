@@ -6,6 +6,7 @@ import { apiPath } from "@/lib/client/basePath";
 import ResetLinkButton from "@/components/admin/ResetLinkButton";
 import RoleToggle from "@/components/admin/RoleToggle";
 import MarkConfirmedButton from "@/components/admin/MarkConfirmedButton";
+import AdjustScansControl from "@/components/admin/AdjustScansControl";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
@@ -27,6 +28,8 @@ export interface AdminUserRow {
   monthlyScans: number;
   trialScansUsed: number;
   packScans: number;
+  /** Plan scans banked (users.plan_scans; an unmigrated subscriber's seed counts). Paused when the account is not subscribed. */
+  planScans: number;
   accessOverride: AccessOverride | null;
   subStatus: string | null;
   /** Email confirmation: waiting on the emailed code, and when the inbox was proven (null = never). */
@@ -255,16 +258,22 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
             const r = rollups[u.id];
             const open = openId === u.id;
             const tier = TIER_STYLE[u.tier];
+            // Scans roll over (09-30): a real subscriber shows plan scans LEFT, not used/cap.
+            // Comped accounts (no payments) still run the calendar counter. Banked plan
+            // scans on an account that is not subscribed are paused, and say so.
+            const paused = u.planScans > 0 && !(u.tier === "subscribed" && !u.accessOverride?.startsWith("comp_")) ? ` · ${u.planScans} plan scans paused` : "";
             const scansLabel =
               u.tier === "trial"
-                ? `${u.trialScansUsed}/${SCANS.trial} trial scans`
+                ? `${u.trialScansUsed}/${SCANS.trial} trial scans${paused}`
                 : u.tier === "pack"
-                  ? `${u.packScans} pack scans left`
+                  ? `${u.packScans} pack scans left${paused}`
                 : u.tier === "legacy"
-                  ? `${u.scansUsed}/100 today`
+                  ? `${u.scansUsed}/100 today${paused}`
                   : u.tier === "owner"
                     ? "unlimited"
-                    : `${u.scansUsed}/${u.monthlyScans} this month${u.packScans ? ` +${u.packScans} pack` : ""}`;
+                    : u.accessOverride?.startsWith("comp_")
+                      ? `${u.scansUsed}/${u.monthlyScans} used (comped)${u.packScans ? ` +${u.packScans} pack` : ""}`
+                      : `${u.planScans} plan scans left${u.packScans ? ` +${u.packScans} pack` : ""}`;
             return (
               <li key={u.id} className={open ? "bg-white/[0.03]" : ""}>
                 <div
@@ -339,6 +348,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Email</span>
                       <MarkConfirmedButton userId={u.id} pending={u.emailPending} verifiedAt={u.emailVerifiedAt} />
                     </div>
+                    {u.tier !== "owner" && <AdjustScansControl userId={u.id} planScans={u.planScans} />}
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     {r?.country && (
                       <span className="text-[11px] text-zinc-500" title="Where the signup came from">

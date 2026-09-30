@@ -154,7 +154,7 @@ export default function RewardsPage() {
           ))}
           {info.bonusScans > 0 && (
             <p className="col-span-3 text-center text-xs text-zinc-500">
-              {info.bonusScans.toLocaleString("en-US")} bonus scans banked. They are used after your monthly allowance and never expire.
+              {info.bonusScans.toLocaleString("en-US")} bonus scans banked. They are used after your plan scans and never expire.
             </p>
           )}
         </section>
@@ -176,14 +176,14 @@ export default function RewardsPage() {
         <p className="text-sm font-medium text-white">The math</p>
         <p className="mt-1 text-sm text-zinc-400">
           A Scan Pack is {SCANS.pack} scans for {PRICE.pack}. One friend is a free pack. Ten friends is a thousand scans. The scans
-          stack, they wait behind your monthly allowance, and they never expire.
+          stack, they wait behind your plan scans, and they never expire.
         </p>
       </section>
 
       <section className="px-1 text-xs text-zinc-600">
         <p>
           Subscribers only. The friend has to be new to CardFlip and sign up through your link. One reward per friend, credited when
-          their first payment clears. Bonus scans are used after the monthly allowance. Questions:{" "}
+          their first payment clears. Bonus scans are used after your plan scans. Questions:{" "}
           <Link href="/app/account" className="text-zinc-400 underline-offset-2 hover:underline">
             Account
           </Link>{" "}

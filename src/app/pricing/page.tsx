@@ -3,7 +3,7 @@ import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
-import { LADDER_SENTENCE, PRICE, PRICE_LINE, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, LADDER_SENTENCE, PRICE, PRICE_LINE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
 import JsonLd from "@/components/JsonLd";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 /**
  * /pricing — the ladder, spelled out. Same PlanCard as the landing page;
- * the extra here is what a scan is, what the month's allowance covers, and
+ * the extra here is what a scan is, what a month's scans cover and how they carry over, and
  * the billing questions a paying seller actually asks. Numbers come from
  * lib/pricing.ts, never typed here.
  */
@@ -26,22 +26,22 @@ export const metadata: Metadata = {
 const covers = [
   { n: "1", label: "scan", body: "One photo, one card. Camera or upload. A re-scan of the same card counts again; searching by name or number is free." },
   { n: String(PLAN.scans), label: "scans a month", body: `That's ${Math.floor(PLAN.scans / 9)} nine-pocket binder pages a month, or a few dozen cards a week with room to spare.` },
-  { n: "1st", label: "of the month", body: "The allowance resets on the first of each month. Unused scans don't roll over." },
-  { n: SCANS.pack, label: "in a Scan Pack", body: `${PRICE.pack} once, no subscription. Pack scans never expire, and on a subscription they are spent only after the month's allowance.` },
+  { n: "0", label: "scans expire", body: `${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE}` },
+  { n: SCANS.pack, label: "in a Scan Pack", body: `${PRICE.pack} once, no subscription. Pack scans never expire, and on a subscription they are spent only after your plan scans.` },
 ];
 
 const billing = [
   {
     q: "How does billing work?",
-    a: `Stripe charges the card on file ${PRICE.standard} (Pro: ${PRICE.pro}) each month from the day you subscribe. Invoices, card changes and cancellation are in Manage billing on your Account page. A Scan Pack is a single ${PRICE.pack} charge with nothing recurring.`,
+    a: `Stripe charges the card on file ${PRICE.standard} (Pro: ${PRICE.pro}) each month from the day you subscribe, and each payment adds ${SCANS.standard} scans (Pro: ${SCANS.pro}). Invoices, card changes and cancellation are in Manage billing on your Account page. A Scan Pack is a single ${PRICE.pack} charge with nothing recurring.`,
   },
   {
     q: "Can I cancel any time?",
-    a: "Yes. Cancel from Manage billing and the plan runs to the end of the period you've paid for. Your cards, categories and watchlist stay on the account, and the app opens again the moment you resubscribe.",
+    a: `Yes. Cancel from Manage Billing and the plan runs to the end of the period you've paid for. ${FROZEN_SENTENCE} Scan Pack scans keep working either way. Your cards, categories and watchlist stay on the account, and the app opens again the moment you resubscribe.`,
   },
   {
-    q: `What happens if I hit ${SCANS.standard} scans?`,
-    a: `The scanner pauses until the first of the next month, unless you have Scan Pack scans banked or switch to Pro (${SCANS.pro} a month). Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.`,
+    q: "What happens if I run out of scans?",
+    a: `The scanner pauses until your next payment adds more (${SCANS.standard} on CardFlip, ${SCANS.pro} on Pro), unless you have Scan Pack scans banked. A Scan Pack keeps you going right away. Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.`,
   },
   {
     q: "Does CardFlip take a cut of sales?",
@@ -57,7 +57,7 @@ const billing = [
   },
   {
     q: "What's the difference between CardFlip and Pro?",
-    a: `Only the scan cap: ${SCANS.standard} a month on CardFlip, ${SCANS.pro} on Pro. Pricing, eBay publishing, inventory and the watchlist are identical. Switch between them any time from Manage billing; the change takes effect on your next invoice.`,
+    a: `Only the scans: ${SCANS.standard} a month on CardFlip, ${SCANS.pro} on Pro. Pricing, eBay publishing, inventory and the watchlist are identical. Upgrade to Pro any time from Manage Billing: you pay the prorated difference right away and the matching extra scans arrive with that payment. A downgrade to CardFlip takes effect at the end of your billing period.`,
   },
 ];
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import LegalArticle, { type LegalSection } from "@/components/LegalArticle";
-import { PRICE, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -26,7 +26,7 @@ const sections: LegalSection[] = [
   {
     heading: "Early access and billing",
     paragraphs: [
-      `CardFlip costs ${PRICE.standard} per month, which includes ${SCANS.standard} card scans each month, or ${PRICE.pro} per month for ${SCANS.pro}. A Scan Pack is a one-time purchase of ${SCANS.pack} scans for ${PRICE.pack}; pack scans do not expire and are not refundable once used. Payment is handled by Stripe; nothing is charged without your explicit sign-up. Accounts created during early access remain free until they choose to subscribe.`,
+      `CardFlip costs ${PRICE.standard} per month, and each monthly payment adds ${SCANS.standard} card scans, or ${PRICE.pro} per month for ${SCANS.pro}. ${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} A Scan Pack is a one-time purchase of ${SCANS.pack} scans for ${PRICE.pack}; pack scans do not expire and are not refundable once used. Payment is handled by Stripe; nothing is charged without your explicit sign-up. Accounts created during early access remain free until they choose to subscribe.`,
       "Subscriptions renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. Fees paid to eBay for your listings are always between you and eBay.",
     ],
   },

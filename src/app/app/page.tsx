@@ -381,10 +381,8 @@ export default function AppPage() {
           // SubscriptionGate swaps the scanner for the paywall.
           if (vision.status === "quota") void refresh();
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
-            setQuotaNote(
-              vision.error ??
-                "You've used all your scans this month — cards still scan by OCR, which reads less of the card.",
-            );
+            // The server's 402 names the next credit date, a Scan Pack or the paused scans.
+            setQuotaNote(vision.error ?? "You're out of scans.");
           }
 
           let nameCandidates: string[];
@@ -1086,7 +1084,7 @@ export default function AppPage() {
         const trimmed = split.found - n;
         const note =
           trimmed > 0
-            ? `Found ${split.found} cards — queued ${n}, the rest are past your scan allowance`
+            ? `Found ${split.found} cards — queued ${n}, the rest are past the scans you have left`
             : `Found ${n} ${n === 1 ? "card" : "cards"} — scanning ${n === 1 ? "it" : "them"} now`;
         flashPageNote(note);
         // No camera open on an upload: the trim has to be said somewhere.

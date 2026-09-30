@@ -1,14 +1,11 @@
 "use client";
 
 import { apiPath } from "@/lib/client/basePath";
+import type { ScanQuota } from "@/lib/quotaTypes";
 import type { GameId, ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
 
-/** Mirror of the server's ScanQuota; remaining is null when the cap isn't enforced. */
-export interface ScanUsage {
-  used: number;
-  included: number;
-  remaining: number | null;
-}
+/** The server's ScanQuota (one shared type, so no field is dropped); remaining is null when the cap isn't enforced. */
+export type ScanUsage = ScanQuota;
 
 export interface VisionScanOutcome {
   status: VisionStatus;
@@ -106,7 +103,7 @@ export async function scanCardWithVision(
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      // 402 = monthly scan allowance exhausted. Still falls back to OCR like
+      // 402 = no scans left to spend. Still falls back to OCR like
       // any other failure, but the caller can now tell the user why. A 403
       // verifyEmail (the emailed code is not typed yet) reads the same way:
       // the scanner re-reads the session, which puts up the code screen.
