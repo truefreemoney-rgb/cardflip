@@ -33,10 +33,12 @@ import type {
 } from "@/lib/types";
 import { SITE_URL } from "./siteUrl.ts";
 import { belowFloor, floorRefusal } from "./fees.ts";
+import { US_MARKETPLACE, type Marketplace } from "./marketplaces.ts";
 import { GAMES, printedCardNumber } from "./games.ts";
 import { ebayFeatures, ebayFinish, ebayRarityWord } from "./ebayVocab.ts";
 
-export const EBAY_MARKETPLACE_ID = "EBAY_US";
+/** The US row is the only live marketplace in increment 1 (src/lib/marketplaces.ts). */
+export const EBAY_MARKETPLACE_ID = US_MARKETPLACE.marketplaceId;
 
 /** The categories buildListing/buildSealedListing can produce. */
 export const ALLOWED_CATEGORY_IDS = new Set(["183454", "183456", "261044"]);
@@ -341,7 +343,7 @@ export interface ItemDraftPayload {
   conditionDescriptors?: ConditionDescriptor[];
   format: "FIXED_PRICE";
   marketplaceId: string;
-  pricingSummary: { price: { currency: "USD"; value: string } };
+  pricingSummary: { price: { currency: string; value: string } };
   product: {
     title: string;
     description: string;
@@ -358,7 +360,7 @@ export function buildItemDraft(input: DraftInput): ItemDraftPayload {
     ...(conditionDescriptors ? { conditionDescriptors } : {}),
     format: "FIXED_PRICE",
     marketplaceId: EBAY_MARKETPLACE_ID,
-    pricingSummary: { price: { currency: "USD", value: input.listing.price.toFixed(2) } },
+    pricingSummary: { price: { currency: US_MARKETPLACE.currency, value: input.listing.price.toFixed(2) } },
     product: {
       title: clip(input.listing.title, 80),
       description: descriptionHtml(input.listing.description),
@@ -382,7 +384,7 @@ export interface OfferPayload {
   categoryId: string;
   listingDescription: string;
   listingDuration: "GTC";
-  pricingSummary: { price: { currency: "USD"; value: string } };
+  pricingSummary: { price: { currency: string; value: string } };
   listingPolicies?: ListingPolicies;
   merchantLocationKey?: string;
 }
@@ -403,7 +405,7 @@ export function buildOffer(
     listingDescription: descriptionHtml(input.listing.description),
     listingDuration: "GTC",
     pricingSummary: {
-      price: { currency: "USD", value: input.listing.price.toFixed(2) },
+      price: { currency: US_MARKETPLACE.currency, value: input.listing.price.toFixed(2) },
     },
     ...(Object.keys(policies).length ? { listingPolicies: policies } : {}),
     ...(extras.merchantLocationKey ? { merchantLocationKey: extras.merchantLocationKey } : {}),
@@ -441,6 +443,6 @@ export function validateDraftInput(input: DraftInput): string | null {
 }
 
 /** eBay's public URL for a live listing. */
-export function ebayListingUrl(listingId: string): string {
-  return `https://www.ebay.com/itm/${encodeURIComponent(listingId)}`;
+export function ebayListingUrl(listingId: string, marketplace: Marketplace = US_MARKETPLACE): string {
+  return `https://www.${marketplace.domain}/itm/${encodeURIComponent(listingId)}`;
 }
