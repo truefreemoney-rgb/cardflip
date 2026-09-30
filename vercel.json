@@ -7,6 +7,7 @@
   },
   "crons": [
     { "path": "/api/cron/mtg-prices", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/tcg-prices", "schedule": "25 9 * * *" },
     { "path": "/api/cron/pokemon-prices", "schedule": "45 9 * * *" },
     { "path": "/api/cron/social-video", "schedule": "40 16 * * *" },
     { "path": "/api/cron/social-video", "schedule": "40 17 * * *" },

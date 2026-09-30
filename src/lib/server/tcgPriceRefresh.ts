@@ -1,0 +1,273 @@
+import { db } from "@/lib/db";
+import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
+import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
+import type { TcgGame } from "@/lib/server/tcgCards";
+
+/**
+ * Daily Lorcana / One Piece / Yu-Gi-Oh! prices (09-30, Chris: "we need the
+ * history price data like pokemon has"). Until now these games only had the
+ * weekly catalog sync on Chris's PC, which overwrote one current price and
+ * kept no history — charts, alerts and inventory value had nothing to read.
+ * Every run refreshes tcg_cards' price columns and appends today's point to
+ * price_series (variant "normal" = price_usd, "foil" = price_usd_foil — the
+ * labels toCard gives them), same compact rows and 5¢ rule as Pokémon/Magic.
+ *
+ * Sources are the ones the syncs use, so ids line up without a map:
+ *   Lorcana  — Lorcast, one call per set (card id = row id)
+ *   One Piece — optcgapi, three bulk calls (card_image_id = row id)
+ *   Yu-Gi-Oh! — tcgcsv category 2, one /prices call per group
+ *               (ygo-<productId>, "-1st" = the 1st Edition subtype)
+ * No back-history exists to load: TCGplayer publishes none and tcgcsv's
+ * archive is offline ("temporarily removed", 09-30) — history starts today.
+ */
+
+const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
+const MIN_TRACKED_USD = 0.05;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const num = (v: unknown): number | null => {
+  const n = v == null || v === "" ? NaN : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+async function getJson<T>(url: string, attempt = 1): Promise<T> {
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(60_000) });
+  if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+    await sleep(1500 * attempt);
+    return getJson<T>(url, attempt + 1);
+  }
+  if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+  return (await res.json()) as T;
+}
+
+const listOf = <T>(data: unknown): T[] =>
+  Array.isArray(data) ? (data as T[]) : ((data as { results?: T[]; data?: T[] })?.results ?? (data as { data?: T[] })?.data ?? []);
+
+export interface TcgPoint {
+  id: string;
+  usd: number | null;
+  foil: number | null;
+  /** One Piece: the feed's set name + printing tag — an image id alone repeats across reprint sets. */
+  setName?: string;
+  variant?: string;
+}
+
+interface MirrorRow {
+  usd: number | null;
+  foil: number | null;
+  setName: string;
+  variant: string;
+}
+
+/**
+ * One Piece printing tag from the feed name, the same mapping as
+ * scripts/sync-onepiece.mjs splitVariant ("Perona (Parallel)" → "parallel").
+ * Keep the two in step.
+ */
+export function onePieceNameVariant(name: string): string {
+  let rest = (name ?? "").trim();
+  let variant = "";
+  for (;;) {
+    const m = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(rest);
+    if (!m) break;
+    rest = m[1].trim();
+    const tag = m[2].toLowerCase().trim();
+    if (/^\d+$/.test(tag)) continue;
+    const v = /parallel/.test(tag) ? "parallel"
+      : /box topper/.test(tag) ? "box-topper"
+      : /alt/.test(tag) ? "alt-art"
+      : /manga/.test(tag) ? "manga"
+      : /reprint/.test(tag) ? "reprint"
+      : /sp\b|special/.test(tag) ? "special"
+      : tag.replace(/[^a-z0-9]+/g, "-");
+    if (!variant) variant = v;
+  }
+  return variant;
+}
+
+async function lorcanaPoints(): Promise<{ points: TcgPoint[]; failed: number }> {
+  const API = "https://api.lorcast.com/v0";
+  const sets = listOf<{ code: string }>(await getJson(`${API}/sets`));
+  const points: TcgPoint[] = [];
+  let failed = 0;
+  for (const set of sets) {
+    try {
+      const cards = listOf<{ id: string; lang?: string; prices?: { usd?: unknown; usd_foil?: unknown } }>(
+        await getJson(`${API}/sets/${encodeURIComponent(set.code)}/cards`),
+      );
+      for (const c of cards) {
+        if (c.lang && c.lang !== "en") continue;
+        points.push({ id: c.id, usd: num(c.prices?.usd), foil: num(c.prices?.usd_foil) });
+      }
+    } catch (err) {
+      failed++;
+      console.warn(`lorcana prices ${set.code}:`, err instanceof Error ? err.message : err);
+    }
+    await sleep(150);
+  }
+  return { points, failed };
+}
+
+async function onePiecePoints(): Promise<{ points: TcgPoint[]; failed: number }> {
+  const API = "https://optcgapi.com/api";
+  const points: TcgPoint[] = [];
+  let failed = 0;
+  // "allPromoCards" became "allPromos" (404 on 09-30).
+  for (const path of ["allSetCards", "allSTCards", "allPromos"]) {
+    try {
+      const rows = listOf<{ card_set_id?: string; card_image_id?: string; card_name?: string; set_name?: string; market_price?: unknown }>(
+        await getJson(`${API}/${path}/`),
+      );
+      for (const c of rows) {
+        const key = String(c.card_set_id ?? "").trim();
+        if (!key) continue;
+        points.push({
+          id: String(c.card_image_id ?? key),
+          usd: num(c.market_price),
+          foil: null,
+          setName: String(c.set_name ?? ""),
+          variant: onePieceNameVariant(String(c.card_name ?? "")),
+        });
+      }
+    } catch (err) {
+      failed++;
+      console.warn(`onepiece prices ${path}:`, err instanceof Error ? err.message : err);
+    }
+  }
+  return { points, failed };
+}
+
+async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number }> {
+  const API = "https://tcgcsv.com/tcgplayer/2";
+  const groups = listOf<{ groupId: number }>(await getJson(`${API}/groups`));
+  const points: TcgPoint[] = [];
+  let failed = 0;
+  const queue = [...groups];
+  const worker = async () => {
+    for (let g = queue.shift(); g; g = queue.shift()) {
+      try {
+        const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown }>(
+          await getJson(`${API}/${g.groupId}/prices`),
+        );
+        const byProduct = new Map<number, Record<string, number | null>>();
+        for (const p of prices) {
+          const entry = byProduct.get(p.productId) ?? {};
+          entry[p.subTypeName ?? ""] = num(p.marketPrice) ?? num(p.midPrice);
+          byProduct.set(p.productId, entry);
+        }
+        // Same split as scripts/sync-yugioh.mjs: the unstamped row takes
+        // Unlimited (or Limited, or any other subtype), the -1st twin 1st Edition.
+        for (const [pid, priced] of byProduct) {
+          const first = priced["1st Edition"] ?? null;
+          const unl = priced["Unlimited"] ?? priced["Limited"] ?? null;
+          const other = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k))?.[1] ?? null;
+          if (unl != null || other != null) points.push({ id: `ygo-${pid}`, usd: unl ?? other, foil: null });
+          if (first != null) points.push({ id: `ygo-${pid}-1st`, usd: first, foil: null });
+        }
+      } catch (err) {
+        failed++;
+        console.warn(`yugioh prices group ${g.groupId}:`, err instanceof Error ? err.message : err);
+      }
+      await sleep(60);
+    }
+  };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  return { points, failed };
+}
+
+/** Every id the mirror carries for a game (rowid-paginated, Yu-Gi-Oh! is 60k). */
+async function mirrorIds(game: TcgGame): Promise<Map<string, MirrorRow>> {
+  const out = new Map<string, MirrorRow>();
+  const PAGE = 30_000;
+  let after = -1;
+  for (;;) {
+    const rows = (await db
+      .prepare(`SELECT rowid AS rid, id, price_usd, price_usd_foil, set_name, variant FROM tcg_cards WHERE game = ? AND rowid > ? ORDER BY rowid LIMIT ${PAGE}`)
+      .all(game, after)) as { rid: number; id: string; price_usd: number | null; price_usd_foil: number | null; set_name: string; variant: string }[];
+    for (const r of rows) out.set(r.id, { usd: r.price_usd, foil: r.price_usd_foil, setName: r.set_name ?? "", variant: r.variant ?? "" });
+    if (rows.length < PAGE) return out;
+    after = Number(rows[rows.length - 1].rid);
+  }
+}
+
+/** Batch price-column update, only rows whose price moved (Turso bills writes). */
+async function updatePriceColumns(rows: TcgPoint[]): Promise<void> {
+  const PER_STMT = 400;
+  for (let i = 0; i < rows.length; i += PER_STMT) {
+    const slice = rows.slice(i, i + PER_STMT);
+    const values = slice.map(() => "(?, ?, ?)").join(", ");
+    const args: (string | number | null)[] = [];
+    for (const r of slice) args.push(r.id, r.usd, r.foil);
+    await db
+      .prepare(
+        `UPDATE tcg_cards SET price_usd = v.column2, price_usd_foil = v.column3
+         FROM (VALUES ${values}) AS v WHERE tcg_cards.id = v.column1`,
+      )
+      .run(...args);
+  }
+}
+
+export interface TcgRefreshResult {
+  fetched: number;
+  sourcesFailed: number;
+  pricesChanged: number;
+  seriesTouched: number;
+  day: string;
+}
+
+/**
+ * Pure: today's points against what the mirror holds → the column updates and
+ * series upserts. Exported for scripts/test-tcg-prices.mjs.
+ */
+export function planTcgRefresh(
+  game: TcgGame,
+  points: TcgPoint[],
+  mirror: Map<string, { usd: number | null; foil: number | null; setName?: string; variant?: string }>,
+  existingSeries: Map<string, { startDay: string; prices: string }>,
+  day: string,
+): { columns: TcgPoint[]; upserts: SeriesUpsert[] } {
+  const byId = new Map(points.map((p) => [p.id, p]));
+  // One Piece: an image id repeats across reprint sets (OP09-077 is also the
+  // Premium Card Collection promo, $32 vs a few cents) and the sync stores
+  // the repeat as "<id>#n". Match on image id + set name, then printing tag.
+  const byPrinting = new Map<string, TcgPoint[]>();
+  if (game === "onepiece") {
+    for (const p of points) {
+      const k = `${p.id}|${p.setName ?? ""}`;
+      byPrinting.set(k, [...(byPrinting.get(k) ?? []), p]);
+    }
+  }
+  const columns: TcgPoint[] = [];
+  const upserts: SeriesUpsert[] = [];
+  for (const [id, held] of mirror) {
+    let p: TcgPoint | undefined;
+    if (game === "onepiece") {
+      const same = byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
+      p = same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
+    } else {
+      p = byId.get(id);
+    }
+    // No price today (source hiccup, delisted) → keep the last known price and series.
+    if (!p || (p.usd == null && p.foil == null)) continue;
+    if (p.usd !== held.usd || p.foil !== held.foil) columns.push({ id, usd: p.usd, foil: p.foil });
+    for (const [variant, price] of [["normal", p.usd], ["foil", p.foil]] as const) {
+      if (price == null) continue;
+      const existing = existingSeries.get(`${id}|${variant}`);
+      if (!existing && price < MIN_TRACKED_USD) continue;
+      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+      upserts.push({ cardId: id, game, variant, source: "tcgplayer", currency: "USD", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
+    }
+  }
+  return { columns, upserts };
+}
+
+export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
+  const { points, failed } = game === "lorcana" ? await lorcanaPoints() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
+  // A source that answered nothing at all must not look like "no prices".
+  if (points.length === 0) throw new Error(`${game}: no prices fetched (${failed} source calls failed)`);
+  const mirror = await mirrorIds(game);
+  const existingSeries = await readSeriesMap(game, "tcgplayer");
+  const { columns, upserts } = planTcgRefresh(game, points, mirror, existingSeries, day);
+  await updatePriceColumns(columns);
+  await upsertSeriesRows(upserts);
+  return { fetched: points.length, sourcesFailed: failed, pricesChanged: columns.length, seriesTouched: upserts.length, day };
+}

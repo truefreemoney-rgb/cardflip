@@ -12,6 +12,8 @@ import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
 import { scanSealedProducts } from "@/lib/server/sealedPrices";
+import { refreshTcgPrices, type TcgRefreshResult } from "@/lib/server/tcgPriceRefresh";
+import type { TcgGame } from "@/lib/server/tcgCards";
 
 /**
  * The once-a-day maintenance run that keeps the charts moving:
@@ -87,6 +89,8 @@ export async function dailyStatus(now = Date.now()) {
 export interface DailyResult {
   ran: boolean;
   mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
+  /** Lorcana / One Piece / Yu-Gi-Oh! daily prices + history (lib/server/tcgPriceRefresh.ts). */
+  tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string }>>;
   pokemonTcgcsv?:
     | { groups: number; groupsFailed: number; seriesTouched: number; sealedSeries?: number; sealedScan?: { groupsScanned: number; groupsFailed: number; products: number } | { error: string } }
     | { error: string }
@@ -110,6 +114,20 @@ export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
     console.error("daily: MTG price refresh failed:", err);
     return { error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Lorcana, One Piece, Yu-Gi-Oh! prices + today's history point, one game at a time. Never throws. */
+export async function runTcgStep(): Promise<NonNullable<DailyResult["tcg"]>> {
+  const out: NonNullable<DailyResult["tcg"]> = {};
+  for (const game of ["lorcana", "onepiece", "yugioh"] as const) {
+    try {
+      out[game] = await refreshTcgPrices(game);
+    } catch (err) {
+      console.error(`daily: ${game} price refresh failed:`, err);
+      out[game] = { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  return out;
 }
 
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
@@ -250,6 +268,7 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
   const result: DailyResult = { ran: true };
   try {
     result.mtg = await runMtgStep();
+    result.tcg = await runTcgStep();
     Object.assign(result, await runPokemonSteps(now));
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
