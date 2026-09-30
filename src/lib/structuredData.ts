@@ -1,5 +1,7 @@
 import { SITE_URL } from "@/lib/siteUrl";
 import type { HelpArticle } from "@/lib/helpArticles";
+import { PRICING } from "@/lib/pricing";
+import { cardPath, factsParagraph, gameTitle, shareImage, type CardView } from "@/lib/cardPages";
 
 /**
  * The schema.org graphs the public pages carry (components/JsonLd.tsx).
@@ -10,10 +12,35 @@ const ORG_ID = `${SITE_URL}/#organization`;
 const APP_ID = `${SITE_URL}/#app`;
 
 export const DESCRIPTION =
-  "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.";
+  "Scan your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and turn a whole binder into eBay listings in minutes.";
 
-/** Landing page: who we are, the site, and the product with its plans. */
-export function siteGraph(plans: { name: string; priceUsd: number; scans: number }[]) {
+const usd = (n: number) => n.toFixed(2);
+
+/** Every way in, from the same ladder the pricing page prints (lib/pricing.ts): the free trial, the Scan Pack, both plans. */
+function offers() {
+  const offer = (name: string, price: number, description: string, extra: Record<string, unknown> = {}) => ({
+    "@type": "Offer",
+    name,
+    price: usd(price),
+    priceCurrency: "USD",
+    description,
+    url: `${SITE_URL}/pricing`,
+    availability: "https://schema.org/InStock",
+    ...extra,
+  });
+  const monthly = (price: number) => ({
+    priceSpecification: { "@type": "UnitPriceSpecification", price: usd(price), priceCurrency: "USD", billingIncrement: 1, unitCode: "MON" },
+  });
+  return [
+    offer("Free trial", 0, `${PRICING.trial.scans} card scans, no card needed`),
+    offer("Scan Pack", PRICING.pack.price, `${PRICING.pack.scans.toLocaleString("en-US")} card scans, one time, no subscription`),
+    offer("CardFlip", PRICING.standard.price, `${PRICING.standard.scans.toLocaleString("en-US")} card scans a month`, monthly(PRICING.standard.price)),
+    offer("CardFlip Pro", PRICING.pro.price, `${PRICING.pro.scans.toLocaleString("en-US")} card scans a month`, monthly(PRICING.pro.price)),
+  ];
+}
+
+/** Landing page only (it was on every page, /app and /login included): who we are, the site, and the product with its plans. */
+export function siteGraph() {
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -43,22 +70,7 @@ export function siteGraph(plans: { name: string; priceUsd: number; scans: number
         operatingSystem: "Web, iOS, Android",
         image: `${SITE_URL}/opengraph-image`,
         publisher: { "@id": ORG_ID },
-        offers: plans.map((p) => ({
-          "@type": "Offer",
-          name: p.name,
-          price: p.priceUsd.toFixed(2),
-          priceCurrency: "USD",
-          description: `${p.scans.toLocaleString("en-US")} card scans a month`,
-          url: `${SITE_URL}/pricing`,
-          availability: "https://schema.org/InStock",
-          priceSpecification: {
-            "@type": "UnitPriceSpecification",
-            price: p.priceUsd.toFixed(2),
-            priceCurrency: "USD",
-            billingIncrement: 1,
-            unitCode: "MON",
-          },
-        })),
+        offers: offers(),
       },
     ],
   };
@@ -72,9 +84,28 @@ export function faqGraph(articles: HelpArticle[]) {
     mainEntity: articles.map((a) => ({
       "@type": "Question",
       name: a.heading,
-      url: `${SITE_URL}/help#${a.id}`,
+      url: `${SITE_URL}/help/${a.id}`,
       acceptedAnswer: { "@type": "Answer", text: a.paragraphs.join(" ") },
     })),
+  };
+}
+
+/**
+ * A card page: a minimal Product (name, picture, the game as brand, the URL key as sku) and nothing that claims a sale.
+ * NO offers, NO ratings: this is a price reference, not a merchant listing, and an Offer would promise a product we do not sell.
+ */
+export function cardGraph(v: CardView) {
+  const f = v.facts;
+  const image = shareImage(f);
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: [f.name, f.number, f.setName, ...f.tags].filter(Boolean).join(" "),
+    description: factsParagraph(f),
+    sku: f.key,
+    brand: { "@type": "Brand", name: gameTitle(f.game) },
+    url: `${SITE_URL}${cardPath(f.game, f.setSlug, f.name, f.key)}`,
+    ...(image ? { image } : {}),
   };
 }
 

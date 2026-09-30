@@ -1,20 +1,15 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import PlanCard, { PLAN, PRO } from "@/components/PlanCard";
-import { FROZEN_SENTENCE, LADDER_SENTENCE, PRICE, PRICE_LINE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
 import JsonLd from "@/components/JsonLd";
-import { breadcrumbGraph } from "@/lib/structuredData";
+import { breadcrumbGraph, siteGraph } from "@/lib/structuredData";
+import { PUBLIC_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = {
-  title: "Pricing",
-  description: `${LADDER_SENTENCE} Live pricing for the exact printing and eBay listings written and published for you. Cancel any time.`,
-  alternates: { canonical: "/pricing" },
-  openGraph: { url: "/pricing", title: `CardFlip pricing — ${PRICE_LINE.standard}, or a ${PRICE.pack} Scan Pack` },
-};
+export const metadata = PUBLIC_META.pricing;
 
 /**
  * /pricing — the ladder, spelled out. Same PlanCard as the landing page;
@@ -49,7 +44,7 @@ const billing = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes. Every new account gets 5 scans free with no card on file: scan, see live prices, build your inventory. Publishing to eBay starts with a subscription. When the free scans are used, the app asks you to subscribe; everything you scanned stays on the account.",
+    a: `Yes. Every new account gets ${SCANS.trial} scans free with no card on file: scan, see live prices, build your inventory. Publishing to eBay starts with a subscription. When the free scans are used, the app asks you to subscribe; everything you scanned stays on the account.`,
   },
   {
     q: "Do I need my own eBay account?",
@@ -66,6 +61,8 @@ export default function PricingPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <JsonLd data={breadcrumbGraph([{ name: "CardFlip", path: "/" }, { name: "Pricing", path: "/pricing" }])} />
+      {/* The plans and the free trial, from the same ladder the page prints (it was on every page; now here and on the landing page). */}
+      <JsonLd data={siteGraph()} />
       <MarketingNav />
       <main className="flex w-full flex-1 flex-col">
         <section className="hero-mesh grain relative overflow-hidden">

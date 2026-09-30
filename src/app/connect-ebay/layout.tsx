@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = { title: "Connect eBay", robots: { index: false, follow: false } };
+export const metadata = PRIVATE_META.connectEbay;
 
 export default function ConnectEbayLayout({ children }: { children: React.ReactNode }) {
   return children;

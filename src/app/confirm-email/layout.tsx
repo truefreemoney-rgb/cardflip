@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import { PRIVATE_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = { title: "Confirm email", robots: { index: false, follow: false } };
+export const metadata = PRIVATE_META.confirmEmail;
 
 export default function ConfirmEmailLayout({ children }: { children: React.ReactNode }) {
   return children;

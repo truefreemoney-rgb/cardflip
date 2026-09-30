@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { helpArticlesFor } from "@/lib/helpArticles";
 import { magicPublic } from "@/lib/server/settings";
 import Link from "next/link";
@@ -6,17 +5,15 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbGraph, faqGraph } from "@/lib/structuredData";
+import { PUBLIC_META } from "@/lib/pageMeta";
 
-export const metadata: Metadata = {
-  title: "Help",
-  description: "How CardFlip works — scanning, pricing, eBay listings, offers, and your account.",
-  alternates: { canonical: "/help" },
-  openGraph: { url: "/help", title: "CardFlip help" },
-};
+export const metadata = PUBLIC_META.help;
 
 /**
- * The help center: one page, one article per topic, each with a stable id so
- * error states and emails can deep-link straight to the answer
+ * The help center: the index. Every topic has its own page (/help/<id>, 09-30:
+ * own title, description and canonical, so a search for "where do CardFlip
+ * prices come from" lands on the answer), and the full text stays here under
+ * the same ids so error states and emails can still deep-link
  * (e.g. /help#scan-limits). Voice per DESIGN.md: plain, confident, dry — and
  * like the legal pages this stays sober, no holo. Every claim here must match
  * what the product does today (data honesty); update the article when the
@@ -45,7 +42,7 @@ export default async function HelpPage() {
           <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
             {articles.map((a) => (
               <li key={a.id}>
-                <Link href={`#${a.id}`} className="text-zinc-400 transition hover:text-zinc-200">
+                <Link href={`/help/${a.id}`} className="text-zinc-400 transition hover:text-zinc-200">
                   {a.heading}
                 </Link>
               </li>
@@ -56,7 +53,11 @@ export default async function HelpPage() {
         <div className="mt-12 space-y-12">
           {articles.map((article) => (
             <section key={article.id} id={article.id} className="scroll-mt-24">
-              <h2 className="text-lg font-semibold text-white">{article.heading}</h2>
+              <h2 className="text-lg font-semibold text-white">
+                <Link href={`/help/${article.id}`} className="transition hover:text-brand-200">
+                  {article.heading}
+                </Link>
+              </h2>
               {article.paragraphs.map((text) => (
                 <p key={text.slice(0, 40)} className="mt-3 text-sm leading-relaxed text-zinc-400">
                   {text}

@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { preconnect } from "react-dom";
 import MarketingNav from "@/components/MarketingNav";
 import TrialCta from "@/components/TrialCta";
 import Footer from "@/components/Footer";
 import HoloCard from "@/components/HoloCard";
+import JsonLd from "@/components/JsonLd";
+import { PUBLIC_META } from "@/lib/pageMeta";
+import { siteGraph } from "@/lib/structuredData";
 import HeroRelayout from "@/components/HeroRelayout";
 import CardWall from "@/components/CardWall";
 import DemoInventory from "@/components/DemoInventory";
@@ -159,6 +163,17 @@ function Brackets() {
 // force-dynamic story). Revalidate keeps the price chips fresh-ish.
 export const revalidate = 86400;
 
+export const metadata = PUBLIC_META.home;
+
+/** The origin of an image URL, or null: what the browser should connect to before the hero picture is asked for. */
+function originOf(url: string | undefined): string | null {
+  try {
+    return url ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Home() {
   const magic = await magicPublic();
   // Every game the public can scan, in the switch's order (09-30, Chris:
@@ -183,6 +198,9 @@ export default async function Home() {
   const showcase = showcaseLive.filter((_, i) => priceOk(guarded[(featuredLive ? 1 : 0) + i]));
 
   const heroCard = featured ?? showcase[0] ?? null;
+  // The hero picture is the page's LCP: open the connection to its host while the HTML is still parsing.
+  const heroHost = originOf(heroCard?.imageLarge || heroCard?.imageSmall);
+  if (heroHost) preconnect(heroHost);
   const market = heroCard ? quotePrice(heroCard, "Near Mint", "market") : null;
   const quick = heroCard ? quotePrice(heroCard, "Near Mint", "quick") : null;
   const listing =
@@ -210,6 +228,8 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      {/* Who we are and what it costs: the landing page only, not every page of the site. */}
+      <JsonLd data={siteGraph()} />
       <MarketingNav />
 
       <main className="flex w-full flex-1 flex-col">
@@ -304,7 +324,7 @@ export default async function Home() {
                     </div>
 
                     <div className="relative mx-4 mt-3 aspect-[5/7] overflow-hidden rounded-xl bg-black/40">
-                      <HoloCard src={heroCard.imageLarge || heroCard.imageSmall} alt={`${heroCard.name} — ${heroCard.setName}`} className="h-full w-full" />
+                      <HoloCard src={heroCard.imageLarge || heroCard.imageSmall} alt={`${heroCard.name} — ${heroCard.setName}`} className="h-full w-full" priority />
                       <Brackets />
                     </div>
 
@@ -368,7 +388,7 @@ export default async function Home() {
                     <div className="relative mx-auto aspect-[4/3] w-full max-w-[16rem] overflow-hidden rounded-xl bg-black/50">
                       {heroCard && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={heroCard.imageSmall} alt="" aria-hidden className="absolute left-1/2 top-1/2 w-[46%] -translate-x-1/2 -translate-y-1/2 rotate-[-4deg] rounded-md opacity-90 shadow-xl" />
+                        <img src={heroCard.imageSmall} alt="" aria-hidden width={245} height={342} loading="lazy" decoding="async" className="absolute left-1/2 top-1/2 w-[46%] -translate-x-1/2 -translate-y-1/2 rotate-[-4deg] rounded-md opacity-90 shadow-xl" />
                       )}
                       <Brackets />
                       <div className="absolute inset-x-3 bottom-3 rounded-lg bg-black/70 px-3 py-2 text-[11px] backdrop-blur">
@@ -450,7 +470,7 @@ export default async function Home() {
               {gameCards.map(({ game, card }) => (
                 <div key={game} className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-3 last:odd:col-span-2 sm:last:odd:col-span-1">
                   <div className="mx-auto w-full max-w-[11rem]">
-                    <HoloCard src={card.imageUrl} alt={`${card.name} — ${card.setName}`} className="aspect-[5/7] w-full" />
+                    <HoloCard src={card.imageUrl} alt={`${card.name} — ${card.setName}`} className="aspect-[5/7] w-full" lazy />
                   </div>
                   <div className="mt-3 flex items-baseline justify-between gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">{GAMES[game].label}</span>

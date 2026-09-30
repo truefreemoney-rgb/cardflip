@@ -36,7 +36,7 @@ export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]
             <li key={c.id} className="min-w-0">
               <div className="relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-black/50 shadow-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.imageLarge || c.imageSmall} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
+                <img src={c.imageLarge || c.imageSmall} alt="" aria-hidden width={500} height={700} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                 <span className="absolute left-2 top-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-200 backdrop-blur">
                   Example
                 </span>

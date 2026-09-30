@@ -6,9 +6,7 @@ import Prefetch from "@/components/Prefetch";
 import RefCapture from "@/components/RefCapture";
 import VisitPing from "@/components/VisitPing";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
-import JsonLd from "@/components/JsonLd";
-import { siteGraph } from "@/lib/structuredData";
-import { PLAN, PRO } from "@/components/PlanCard";
+import { DESCRIPTION } from "@/lib/structuredData";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,20 +29,17 @@ export const metadata: Metadata = {
     default: "CardFlip — Scan. Price. List.",
     template: "%s · CardFlip",
   },
-  description:
-    "Scan your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
-  // Every public page overrides this with its own path; the private ones
-  // are noindex anyway. Keeps ?ref= and tracking variants from splitting
-  // the landing page in search results.
-  alternates: { canonical: "/" },
+  description: DESCRIPTION,
+  // No canonical here on purpose: every public page sets its own through
+  // lib/seo.ts pageMetadata (which keeps ?ref= and tracking variants from
+  // splitting it in search results), and a private page must never point at
+  // the landing page.
   openGraph: {
     title: "CardFlip — Scan. Price. List.",
-    description:
-      "Scan your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+    description: DESCRIPTION,
     type: "website",
     siteName: "CardFlip",
     locale: "en_US",
-    url: "/",
   },
   // Search engine ownership proofs: paste the token each console hands out
   // into the Vercel env (GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION)
@@ -88,12 +83,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <RefCapture />
         <VisitPing />
         <GoogleAnalytics />
-        <JsonLd
-          data={siteGraph([
-            { name: "CardFlip", priceUsd: Number(PLAN.price.replace("$", "")), scans: PLAN.scans },
-            { name: "CardFlip Pro", priceUsd: Number(PRO.price.replace("$", "")), scans: PRO.scans },
-          ])}
-        />
       </body>
     </html>
   );
