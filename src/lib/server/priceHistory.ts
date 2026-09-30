@@ -107,6 +107,8 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
  * sweep and the reprice nudge.
  */
 const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil", "foil", "etched"];
+/** Position in the default-variant order (lower = the printing people usually mean); unknown variants rank last. */
+export const variantRank = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
 export async function latestUsdPrice(cardId: string): Promise<number | null> {
   const series = (await getPriceHistory(cardId)).filter(
     (s) => s.currency === "USD" && s.points.length > 0,
