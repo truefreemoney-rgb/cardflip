@@ -224,10 +224,12 @@ const snapshot = async (ids) => Object.fromEntries(await Promise.all(Object.entr
   const idx = after.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'scan_credits' AND name LIKE 'idx_%' ORDER BY name").all().map((r) => r.name);
   const seeded = after.prepare("SELECT plan_scans FROM users WHERE id = 'old1'").get();
   after.close();
-  const appDb = new DatabaseSync(dbFile);
-  const fromApp = { users: cols(appDb, "users", usersCols), ledger: cols(appDb, "scan_credits") };
-  const appIdx = appDb.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'scan_credits' AND name LIKE 'idx_%' ORDER BY name").all().map((r) => r.name);
-  appDb.close();
+  // The app's side is read through the app's own libsql connection: opening
+  // its live WAL file with node:sqlite and closing it checkpoints the WAL out
+  // from under libsql on Linux (SQLITE_CORRUPT in CI, 09-30).
+  const appCols = async (table, names) => (await rows(`PRAGMA table_info(${table})`)).filter((c) => !names || names.includes(c.name)).map((c) => [c.name, c.type, c.notnull, c.dflt_value]);
+  const fromApp = { users: await appCols("users", usersCols), ledger: await appCols("scan_credits") };
+  const appIdx = (await rows("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'scan_credits' AND name LIKE 'idx_%' ORDER BY name")).map((r) => r.name);
   check("--apply on the old database seeds it", seeded.plan_scans, STD - 7);
   check("the script's columns and ledger table match db.ts exactly (names, types, defaults, indexes)",
     [JSON.stringify(fromScript.users.sort()) === JSON.stringify(fromApp.users.sort()), JSON.stringify(fromScript.ledger) === JSON.stringify(fromApp.ledger), idx.join()], [true, true, appIdx.join()]);
