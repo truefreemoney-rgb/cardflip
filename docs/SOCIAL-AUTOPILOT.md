@@ -52,15 +52,17 @@ sentence case, no exclamation marks, ends on cardflip.io).
 - Text is fitted to the site's limit: caption + hashtags → caption alone →
   `shortCaption` (name + % only) → cut on a line with `cardflip.io` kept.
 - Tracked links (09-30, `lib/attribution.ts`; signups by source on
-  /admin/analytics). The campaign is the draft id with the day as MMDD
-  (`pokemon-set-1001`). Bluesky: the link facet's uri is the full
-  `?utm_source=bluesky&utm_medium=social&utm_campaign=…` URL, the text still says
-  cardflip.io. X / Facebook / Threads: the caption ends on a short path
-  (`cardflip.io/x/pokemon-set-1001`, `/f/`, `/th/`) that `src/proxy.ts` answers with a
-  302 to `/?utm_…`; fitText reserves its length (`backlink` / `linkChars` on the
-  site). Instagram and TikTok: captions are not clickable, so they say "Link in
-  bio"; the owner sets the bio links to `https://cardflip.io/i` and
-  `https://cardflip.io/tt`. Pinterest: the pin's link field carries the utm URL.
+  /admin/analytics). Captions are never changed: every site's text ends on the
+  plain cardflip.io (owner's rule, no short paths, no "Link in bio"). The
+  campaign is the draft id with the day as MMDD (`pokemon-set-1001`), handed to
+  a site as `SitePost.campaign`. Bluesky's link facet has a hidden uri, the full
+  `?utm_source=bluesky&utm_medium=social&utm_campaign=…` URL, and Pinterest's
+  pin link field is tagged the same way. X, Facebook and Threads cannot be
+  tagged, so their visits are told apart by referrer (t.co, l.facebook.com,
+  threads.net). The owner sets the Instagram and TikTok bio links to
+  `https://cardflip.io/i` and `https://cardflip.io/tt`; `src/proxy.ts` 302s
+  those (and `/b`, `/x`, `/f`, `/th`, optionally `/<code>/<campaign>`) to
+  `/?utm_source=…&utm_medium=social&utm_campaign=bio`.
 - Picture: the square PNG from `/api/social/image` (fetched from the same
   deployment with the cron key), turned into a JPEG when the site caps
   bytes (Bluesky: 1 MB).

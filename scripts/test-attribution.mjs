@@ -4,12 +4,11 @@
  *
  * Pins: classifySource (tag beats referrer; search, social hosts, other:<host>,
  * direct); parseTouch sanitizing and dropping what is malformed; first touch wins
- * for 30 days and a real source replaces a stored "direct"; trackedUrl / shortPath /
+ * for 30 days and a real source replaces a stored "direct"; trackedUrl /
  * draftCampaign; the proxy's short-link 302 (and that no real route uses those
  * segments); Bluesky's facet carries the utm uri while the text stays cardflip.io;
- * every site's post still fits its limit with the short path or "Link in bio" in
- * place of the plain address; and that the pages are wired (layout mounts the
- * capture, signup sends the touch, the first visit ping carries the tag, the
+ * captions stay exactly as they were (plain cardflip.io, within every limit);
+ * and that the pages are wired (layout mounts the capture, signup sends the touch, the first visit ping carries the tag, the
  * privacy page says so).
  *
  * The DB-backed halves live in test-analytics (visit ping, signups by source) and
@@ -97,16 +96,12 @@ check("31 days old has expired", A.chooseTouch(aged(google, 31), tagged, NOW), t
 check("an unstamped (t 0) touch is treated as expired", A.chooseTouch({ ...google, t: 0 }, tagged, NOW), tagged);
 check("a touch stamped far in the future is not trusted", A.chooseTouch({ ...google, t: NOW + 10 * DAY }, tagged, NOW), tagged);
 
-console.log("trackedUrl / shortPath / draftCampaign");
+console.log("trackedUrl / draftCampaign");
 check("campaign = the draft id with the day as MMDD", [A.draftCampaign("pokemon-set-2026-09-30"), A.draftCampaign("mtg-movers-2026-12-01"), A.draftCampaign("pokemon-games-2027-01-05"), A.draftCampaign("Odd Id!")], ["pokemon-set-0930", "mtg-movers-1201", "pokemon-games-0105", "oddid"]);
 check("trackedUrl: the full utm link", A.trackedUrl("bluesky", "mtg-movers-0930"), "https://cardflip.io/?utm_source=bluesky&utm_medium=social&utm_campaign=mtg-movers-0930");
 check("trackedUrl: Pinterest's link field", A.trackedUrl("pinterest", "pokemon-set-0930"), "https://cardflip.io/?utm_source=pinterest&utm_medium=social&utm_campaign=pokemon-set-0930");
 check("trackedUrl: the campaign is sanitized", A.trackedUrl("x", "A B&utm_source=evil"), "https://cardflip.io/?utm_source=x&utm_medium=social&utm_campaign=abutm_sourceevil");
-check("shortPath per site", ["bluesky", "x", "facebook", "threads", "instagram", "tiktok"].map((s) => A.shortPath(s, "mtg-movers-0930")), [
-  "cardflip.io/b/mtg-movers-0930", "cardflip.io/x/mtg-movers-0930", "cardflip.io/f/mtg-movers-0930", "cardflip.io/th/mtg-movers-0930", "cardflip.io/i/mtg-movers-0930", "cardflip.io/tt/mtg-movers-0930",
-]);
 check("the bio links the owner sets", A.BIO_URLS, { instagram: "https://cardflip.io/i", tiktok: "https://cardflip.io/tt" });
-check("the caption words", A.BIO_LINK_TEXT, "Link in bio");
 
 console.log("short links: a path -> /?utm_... (the proxy's 302)");
 const q = (u) => Object.fromEntries(new URL(u, "https://cardflip.io").searchParams);
@@ -155,24 +150,23 @@ console.log("Bluesky: the facet carries the utm uri, the text says cardflip.io")
   check("tag facets are unchanged", blueskyFacets(text, uri).slice(1).map((f) => f.features[0].tag), ["PokemonTCG", "TCG"]);
 }
 
-console.log("every site's post fits with its link in place of the plain address");
+console.log("captions are never touched: every site's text keeps the plain cardflip.io");
 {
-  const { fitText, backlinkFor } = await import(at("lib/server/socialPublish.ts"));
+  const { fitText } = await import(at("lib/server/socialPublish.ts"));
   const S = await import(at("lib/server/social.ts"));
   const { PLAN_TAGS } = await import(at("lib/socialPlan.ts"));
   const { x } = await import(at("lib/server/sites/x.ts"));
   const { bluesky } = await import(at("lib/server/sites/bluesky.ts"));
   const { facebook, instagram, threads } = await import(at("lib/server/sites/meta.ts"));
   const { pinterest } = await import(at("lib/server/sites/pinterest.ts"));
-  const SITES = [x, bluesky, facebook, instagram, threads];
+  const SITES = [x, bluesky, facebook, instagram, threads, pinterest];
 
-  const DAY_ID = "2026-09-30";
   const mover = (i, game) => ({ cardId: `c${i}`, name: `A Fairly Long Card Name Ex ${i}`, setName: "Scarlet & Violet Paldean Fates", number: `${100 + i}`, imageUrl: "", variant: "normal", from: 1234.5, to: 2345.6, pct: 90.5, game });
   const movers = (game) => [1, 2, 3, 4, 5].map((i) => mover(i, game));
   const leads = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"].map((g) => ({ game: g, cardId: g, name: "A Fairly Long Card Name Ex", setName: "Scarlet & Violet Paldean Fates", number: "199", price: 1234.56, imageUrl: "" }));
   const TAGS = { pokemon: ["PokemonTCG", "PokemonCards", "TCG"], mtg: ["MTG", "MagicTheGathering", "MTGFinance"], lorcana: ["DisneyLorcana", "Lorcana", "TCG"], onepiece: ["OnePieceCardGame", "OPTCG", "TCG"], yugioh: ["Yugioh", "YuGiOhTCG", "TCG"] };
   const drafts = [];
-  const add = (game, kind, caption, shortCaption, hashtags) => drafts.push({ id: `${game}-${kind}-${DAY_ID}`, kind, game, day: DAY_ID, title: kind, caption, shortCaption, hashtags, imagePath: "", cardIds: [] });
+  const add = (game, kind, caption, shortCaption, hashtags) => drafts.push({ id: `${game}-${kind}-2026-09-30`, kind, game, day: "2026-09-30", title: kind, caption, shortCaption, hashtags, imagePath: "", cardIds: [] });
   for (const game of Object.keys(TAGS)) {
     for (const also of [false, true]) {
       const spot = { setId: "s", setName: "Scarlet & Violet Paldean Fates", cards: movers(undefined) };
@@ -185,53 +179,23 @@ console.log("every site's post fits with its link in place of the plain address"
   add("pokemon", "movers", S.mixedMoversCaption(movers("mtg").concat(movers("pokemon"))), S.mixedMoversShortCaption(movers("mtg").concat(movers("pokemon"))), [...PLAN_TAGS.mixedMovers]);
   add("pokemon", "games", S.gamesCaption(leads), S.gamesShortCaption(leads), [...PLAN_TAGS.games]);
 
-  // X counts any link as 23 (a t.co); the typed path is at most 34 characters, so even an unrecognised link fits.
-  const xCount = (text, link) => text.length - link.length + 23;
-  let problems = [];
-  let longestLink = 0;
+  const problems = [];
   for (const d of drafts) {
     for (const site of SITES) {
-      const link = backlinkFor(site, d);
-      const out = fitText(d, site.maxChars, site.maxTags, link);
-      const counted = link?.chars != null ? out.length - link.text.length + link.chars : out.length;
+      const out = fitText(d, site.maxChars, site.maxTags);
       const tags = (out.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).length;
-      if (counted > site.maxChars) problems.push(`${site.id} ${d.id} is ${counted}/${site.maxChars}`);
+      if (out.length > site.maxChars) problems.push(`${site.id} ${d.id} is ${out.length}/${site.maxChars}`);
       if (site.maxTags && tags > site.maxTags) problems.push(`${site.id} ${d.id} has ${tags} tags`);
-      if (site.backlink === "path") {
-        if (site.id === "x") longestLink = Math.max(longestLink, link.text.length);
-        if (!out.includes(link.text)) problems.push(`${site.id} ${d.id} lost its link`);
-        if (site.id === "x" && (xCount(out, link.text) > 280 || out.length > 280)) problems.push(`x ${d.id} exceeds 280 (${xCount(out, link.text)} counted, ${out.length} typed)`);
-      } else if (site.backlink === "bio") {
-        if (!out.includes("Link in bio") || out.includes("cardflip.io")) problems.push(`${site.id} ${d.id} is not Link in bio`);
-      } else if (!out.includes("cardflip.io") || out.includes("cardflip.io/")) problems.push(`${site.id} ${d.id} lost its plain address`);
+      if (!out.includes("cardflip.io") || /cardflip\.io\/|utm_|Link in bio/.test(out)) problems.push(`${site.id} ${d.id} is not the plain address`);
     }
   }
-  check(`${drafts.length} drafts x ${SITES.length} sites: within each limit, at most five tags on Instagram, link or Link in bio present`, problems, []);
-  check("the longest short path is 34 characters or fewer (X's 246 + 34 = 280 even if it were not a link)", longestLink <= 34, true);
-
-  // Nothing else about a post changes: swap the link back and the text is what it was before this shipped.
-  let drift = [];
-  for (const d of drafts) {
-    for (const site of [x, instagram, facebook]) {
-      const link = backlinkFor(site, d);
-      const before = fitText(d, site.maxChars, site.maxTags);
-      const after = fitText(d, site.maxChars, site.maxTags, link).replace(link.text, "cardflip.io");
-      if (before !== after) drift.push(`${site.id} ${d.id}`);
-    }
-  }
-  check("X, Instagram and Facebook: same words, same tags, same cuts as the plain-address post", drift, []);
-
+  check(`${drafts.length} drafts x ${SITES.length} sites: within each limit, at most five tags on Instagram, plain cardflip.io, no path and no Link in bio`, problems, []);
+  check("fitText still takes (post, maxChars, maxTags = default) and no link: nothing can reserve room for one", fitText.length, 2);
+  check("a site has no backlink setting", SITES.some((s) => "backlink" in s || "linkChars" in s), false);
   const dd = { id: "pokemon-set-2026-10-01", kind: "set", game: "pokemon", day: "2026-10-01", caption: "c cardflip.io", shortCaption: "s cardflip.io", hashtags: ["A", "B"] };
-  check("Bluesky and Pinterest keep the plain address (their links are tagged in the facet and the link field)", [backlinkFor(bluesky, dd), backlinkFor(pinterest, dd)], [undefined, undefined]);
-  check("fitText with no link is exactly what it was", fitText(dd, 300), "c cardflip.io\n\n#A #B");
-  check("X: the path replaces the address and costs the address's 11 characters", fitText(dd, 300, undefined, backlinkFor(x, dd)), "c cardflip.io/x/pokemon-set-1001\n\n#A #B");
-  check("Instagram: Link in bio", fitText(dd, 300, undefined, backlinkFor(instagram, dd)), "c Link in bio\n\n#A #B");
-  // A caption that only just fits: the 11-character address is swapped for a 31-character path on Threads, which counts it in full.
-  const snug = { ...dd, caption: `${"w".repeat(470)} cardflip.io`, shortCaption: "s cardflip.io", hashtags: ["A", "B"] };
-  const t = fitText(snug, 500, undefined, backlinkFor(threads, snug));
-  check("Threads counts the path in full: the long caption no longer fits at 500, the short one (with its tags) goes out", [t.length <= 500, t.startsWith("s cardflip.io/th/"), t.endsWith("#A #B")], [true, true, true]);
-  const tiny = fitText({ ...dd, caption: "c".repeat(400), shortCaption: `${"s".repeat(30)}\n\nAlso scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io`, hashtags: [] }, 120, undefined, { text: "Link in bio" });
-  check("last resorts keep the sign-off the site uses", [tiny.length <= 120, tiny.endsWith("Link in bio"), tiny.includes("cardflip.io")], [true, true, false]);
+  check("fitText is exactly what it was", fitText(dd, 300), "c cardflip.io\n\n#A #B");
+  const src = (p) => readFileSync(repo(`src/${p}`), "utf8");
+  check("the TikTok package does not change its sign-off", /fitText\(applied, TIKTOK_MAX_CHARS\)/.test(src("lib/server/socialTiktok.ts")), true);
 }
 
 console.log("wiring (a browser is not run here)");

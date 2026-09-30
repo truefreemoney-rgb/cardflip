@@ -232,7 +232,6 @@ export const facebook: SocialSite = {
   id: "facebook",
   label: "Facebook",
   maxChars: FACEBOOK_MAX_CHARS,
-  backlink: "path",
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => fbCreds() !== null,
@@ -285,8 +284,6 @@ export const instagram: SocialSite = {
   id: "instagram",
   label: "Instagram",
   maxChars: INSTAGRAM_MAX_CHARS,
-  // Captions are not clickable on Instagram: "Link in bio", and the bio link is cardflip.io/i.
-  backlink: "bio",
   // Instagram accepts at most five hashtags a post.
   maxTags: 5,
   maxImageBytes: META_MAX_IMAGE_BYTES,
@@ -358,7 +355,6 @@ export const threads: SocialSite = {
   id: "threads",
   label: "Threads",
   maxChars: THREADS_MAX_CHARS,
-  backlink: "path",
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => threadsCreds() !== null,

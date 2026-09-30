@@ -7,13 +7,14 @@ import { referrerHost } from "@/lib/visit";
  * routes (they sanitize what the browser sends) and the social publisher
  * (what each site's post links to).
  *
- * How a post is tracked, per site (docs/SOCIAL-AUTOPILOT.md):
- *  - Bluesky: the link facet's uri is the full utm URL; the text still says cardflip.io.
- *  - X, Facebook, Threads: the caption ends on a short path, cardflip.io/x/pokemon-set-0930,
- *    which the proxy answers with a 302 to /?utm_source=...
- *  - Instagram, TikTok: captions are not clickable, so they say "Link in bio"
- *    and the profile link is cardflip.io/i or cardflip.io/tt.
- *  - Pinterest: the pin's own link field carries the utm URL.
+ * How a post is tracked (docs/SOCIAL-AUTOPILOT.md). Captions are never changed: every
+ * one still ends on the plain cardflip.io.
+ *  - Bluesky: the link facet's hidden uri is the full utm URL.
+ *  - Pinterest: the pin's link field carries the utm URL.
+ *  - X, Facebook, Threads: no tag is possible, so their visits are told apart by referrer
+ *    (t.co, l.facebook.com, threads.net; see classifySource).
+ *  - Instagram, TikTok: the owner sets the profile link to cardflip.io/i or cardflip.io/tt.
+ * Those short paths (and /b /x /f /th) are answered by the proxy with a 302 to /?utm_source=...
  * The campaign is the draft id with the day cut to MMDD ("mtg-movers-0930").
  *
  * Privacy: the touch lives in this browser's localStorage and is sent once,
@@ -25,7 +26,7 @@ export const SITE_ORIGIN = "https://cardflip.io";
 /** Short-link segment per site: cardflip.io/<code>/<campaign>. */
 const SITE_CODES = { bluesky: "b", x: "x", facebook: "f", threads: "th", instagram: "i", tiktok: "tt" } as const;
 export type TrackedSite = keyof typeof SITE_CODES;
-/** Sites whose post link carries utm directly (Pinterest's link field) on top of the short-link ones. */
+/** Sites a link can be tagged for: the short-link ones, plus Pinterest's link field. */
 export type UtmSite = TrackedSite | "pinterest";
 
 const CODE_SITES: Record<string, TrackedSite> = Object.fromEntries(Object.entries(SITE_CODES).map(([site, code]) => [code, site])) as Record<string, TrackedSite>;
@@ -33,8 +34,6 @@ const CODE_SITES: Record<string, TrackedSite> = Object.fromEntries(Object.entrie
 /** The proxy matches this: ^/(b|x|f|th|i|tt)(/campaign)?$ (a trailing slash is tolerated). */
 export const SHORT_LINK = /^\/(b|x|f|th|i|tt)(?:\/([a-z0-9-]+))?\/?$/;
 
-/** What Instagram and TikTok captions say where a link would go. */
-export const BIO_LINK_TEXT = "Link in bio";
 /** The profile links the owner sets in the Instagram and TikTok bios. */
 export const BIO_URLS: Record<"instagram" | "tiktok", string> = {
   instagram: `${SITE_ORIGIN}/${SITE_CODES.instagram}`,
@@ -56,11 +55,6 @@ export function draftCampaign(draftId: string): string {
 export function trackedUrl(site: UtmSite, campaign: string, origin = SITE_ORIGIN): string {
   const params = new URLSearchParams({ utm_source: site, utm_medium: "social", utm_campaign: clean(campaign) || "post" });
   return `${origin}/?${params.toString()}`;
-}
-
-/** The short path shown in a caption (no scheme): cardflip.io/x/mtg-movers-0930. */
-export function shortPath(site: TrackedSite, campaign: string): string {
-  return `cardflip.io/${SITE_CODES[site]}/${clean(campaign) || "post"}`;
 }
 
 /**

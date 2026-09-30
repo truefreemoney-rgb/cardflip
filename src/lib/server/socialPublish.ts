@@ -23,7 +23,7 @@ import {
   type SocialPost,
 } from "@/lib/server/social";
 import { countWord, dayPlan } from "@/lib/socialPlan";
-import { BIO_LINK_TEXT, draftCampaign, shortPath, type TrackedSite } from "@/lib/attribution";
+import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
@@ -182,7 +182,7 @@ export interface SitePost {
   height: number;
   alt: string;
   video?: SitePostVideo;
-  /** The draft's campaign ("mtg-movers-0930", lib/attribution.ts draftCampaign), for sites that tag a link themselves. */
+  /** The draft's campaign ("mtg-movers-0930", lib/attribution.ts draftCampaign), for sites that tag a link themselves (Bluesky's facet, Pinterest's link field). Never shown in the text. */
   campaign?: string;
 }
 
@@ -193,15 +193,6 @@ export interface SocialSite {
   maxChars: number;
   /** Most hashtags the site accepts (Instagram: 5); the tag list is cut from the end to it. */
   maxTags?: number;
-  /**
-   * What the post's closing "cardflip.io" turns into for this site (lib/attribution.ts):
-   * "path" = a short tracked path (cardflip.io/x/mtg-movers-0930, answered by src/proxy.ts),
-   * "bio" = "Link in bio" (captions that are not clickable). Omitted = the plain address
-   * (Bluesky tags its link facet, Pinterest its link field, from SitePost.campaign).
-   */
-  backlink?: "path" | "bio";
-  /** Characters the site counts the short path as when that is not its typed length (X: every link is a t.co at 23; see X_MAX_CHARS). */
-  linkChars?: number;
   maxImageBytes: number;
   /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
   postsVideo?: boolean;
@@ -242,56 +233,34 @@ export interface PublishReport {
  * every tag, then either with the tag list trimmed from the end (never
  * under two), and only then untagged text.
  */
-export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity, link?: FitLink): string {
+export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
   if (post.hashtags.length > maxTags) post = { ...post, hashtags: post.hashtags.slice(0, maxTags) };
-  // The closing "cardflip.io" becomes this site's tracked short path or "Link in bio"
-  // (lib/attribution.ts) before anything is measured, so the room it takes is reserved.
-  const signOff = link?.text ?? "cardflip.io";
-  const swap = (s: string) => (link ? s.replace(/cardflip\.io$/, link.text) : s);
-  const len = (s: string) => (link?.chars != null && s.includes(link.text) ? s.length - link.text.length + link.chars : s.length);
-  const caption = swap(post.caption);
-  const short = swap(post.shortCaption ?? post.caption);
+  const short = post.shortCaption ?? post.caption;
   // Before any tag goes: the short caption with its sign-off cut to the
   // address ("Also scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io"
   // → "cardflip.io"; the picture still carries the pills).
   const cut = short.lastIndexOf("\n");
-  const tiny = cut > 0 && short.endsWith(signOff) ? `${short.slice(0, cut)}\n${signOff}` : short;
-  const texts = tiny === short ? [caption, short] : [caption, short, tiny];
+  const tiny = cut > 0 && short.endsWith("cardflip.io") ? `${short.slice(0, cut)}\ncardflip.io` : short;
+  const texts = tiny === short ? [post.caption, short] : [post.caption, short, tiny];
   for (let n = post.hashtags.length; n >= Math.min(2, post.hashtags.length); n--) {
     const tags = post.hashtags.slice(0, n).map((h) => `#${h}`).join(" ");
     for (const text of texts) {
       const tagged = n > 0 ? `${text}\n\n${tags}` : text;
-      if (len(tagged) <= maxChars) return tagged;
+      if (tagged.length <= maxChars) return tagged;
     }
     if (n === 0) break;
   }
-  if (len(caption) <= maxChars) return caption;
-  if (len(short) <= maxChars) return short;
+  if (post.caption.length <= maxChars) return post.caption;
+  if (short.length <= maxChars) return short;
   // Last resort: cut on a line boundary and keep the sign-off.
+  const signOff = "cardflip.io";
   const lines = short.split("\n");
   let out = "";
   for (const line of lines) {
-    if (len(`${out}${line}\n${signOff}`) > maxChars) break;
+    if (`${out}${line}\n${signOff}`.length > maxChars) break;
     out += `${line}\n`;
   }
   return `${out}${signOff}`;
-}
-
-/**
- * What a site's post ends on instead of the plain "cardflip.io": its tracked
- * short path, or "Link in bio" where captions are not clickable. `chars` is
- * how many characters the site counts it as, when not its typed length.
- */
-export interface FitLink {
-  text: string;
-  chars?: number;
-}
-
-/** The closing link for one site's version of a draft; undefined = the plain address (Bluesky's and Pinterest's links are tagged elsewhere). */
-export function backlinkFor(site: Pick<SocialSite, "id" | "backlink" | "linkChars">, draft: Pick<SocialPost, "id">): FitLink | undefined {
-  if (site.backlink === "bio") return { text: BIO_LINK_TEXT };
-  if (site.backlink === "path") return { text: shortPath(site.id as TrackedSite, draftCampaign(draft.id)), chars: site.linkChars };
-  return undefined;
 }
 
 /** Shrink a PNG below the site's byte cap (JPEG, falling quality). */
@@ -593,7 +562,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       }
       let landed = 0;
       for (const d of drafts) {
-        const text = fitText(d, site.maxChars, site.maxTags, backlinkFor(site, d));
+        const text = fitText(d, site.maxChars, site.maxTags);
         if (opts.dry) {
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;

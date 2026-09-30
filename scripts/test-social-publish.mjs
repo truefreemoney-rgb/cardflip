@@ -58,10 +58,10 @@ await catalog("sv1-7", "Pawmi", "74"); await series("sv1-7", 12, 16); // +33%: t
 
 const fetched = [];
 const fetchImage = async (url) => { fetched.push(url); return Buffer.from("png"); };
-function fakeSite(id, { connected = true, fail = false, maxChars = 5000, maxTags, backlink, linkChars } = {}) {
+function fakeSite(id, { connected = true, fail = false, maxChars = 5000 } = {}) {
   const posts = [];
   return {
-    id, label: id, maxChars, maxTags, backlink, linkChars, maxImageBytes: 1_000_000, posts,
+    id, label: id, maxChars, maxImageBytes: 1_000_000, posts,
     connected: () => connected,
     async post(p) { if (fail) throw new Error("boom"); posts.push(p); return { uri: `https://${id}/${posts.length}` }; },
   };
@@ -170,35 +170,23 @@ await setSetting(`${KIND_PREFIX}dedupe2:set`, THU);
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [ded2], fetchImage, force: true });
 check("every rotation candidate already posted or unavailable → the slot still posts its own kind (set), never skipped", [r.sites[0].status, ded2.posts[0].alt.startsWith("Set spotlight:")], ["posted", true]);
 
-console.log("tracked links per site (lib/attribution.ts, 09-30)");
+console.log("tracked links never touch the words (09-30: the owner wants plain cardflip.io everywhere)");
 {
-  // Same run, five sites: X/Facebook/Threads end on a short tracked path, Instagram says "Link in bio", Bluesky keeps the plain address (its facet carries the utm).
-  const { x: realX } = await import(at("lib/server/sites/x.ts"));
-  const xs = fakeSite("x", { maxChars: realX.maxChars, backlink: realX.backlink, linkChars: realX.linkChars });
-  const fb = fakeSite("facebook", { backlink: "path" });
-  const th = fakeSite("threads", { maxChars: 500, backlink: "path" });
-  const ig = fakeSite("instagram", { maxChars: 2200, maxTags: 5, backlink: "bio" });
+  // Same run, four sites: every one gets the draft's campaign (Bluesky and Pinterest tag a hidden link with it) and the text is exactly what fitText gave before.
+  const xs = fakeSite("x", { maxChars: 257 });
+  const fb = fakeSite("facebook");
+  const ig = fakeSite("instagram", { maxChars: 2200 });
   const bs = fakeSite("bluesky", { maxChars: 300 });
-  r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [xs, fb, th, ig, bs], fetchImage });
-  check("all five post the 7am set spotlight", r.sites.map((s) => s.status), ["posted", "posted", "posted", "posted", "posted"]);
+  r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [xs, fb, ig, bs], fetchImage });
+  check("all four post the 7am set spotlight", r.sites.map((s) => s.status), ["posted", "posted", "posted", "posted"]);
   const ep = "pokemon-set-0910";
-  check("the campaign is the draft id with the day as MMDD, handed to every site", [xs, fb, th, ig, bs].map((s) => s.posts[0].campaign), [ep, ep, ep, ep, ep]);
-  check("X: ends on cardflip.io/x/<campaign> (tags after it)", xs.posts[0].text.includes(`cardflip.io/x/${ep}\n\n#`), true);
-  check("X: fits 280 with the link counted as a t.co (23)", xs.posts[0].text.length - `cardflip.io/x/${ep}`.length + 23 <= 280, true);
-  check("Facebook: cardflip.io/f/<campaign>", fb.posts[0].text.includes(`cardflip.io/f/${ep}`), true);
-  check("Threads: cardflip.io/th/<campaign>, within 500", [th.posts[0].text.includes(`cardflip.io/th/${ep}`), th.posts[0].text.length <= 500], [true, true]);
-  check("Instagram: Link in bio, no address, at most five tags", [ig.posts[0].text.includes("Link in bio"), ig.posts[0].text.includes("cardflip.io"), (ig.posts[0].text.match(/#[A-Za-z]\w*/g) ?? []).length <= 5], [true, false, true]);
-  check("Bluesky: the visible text is the plain address", [bs.posts[0].text.includes("cardflip.io"), bs.posts[0].text.includes("cardflip.io/"), bs.posts[0].text.length <= 300], [true, false, true]);
-  check("every site's text still ends on its hashtags", [xs, fb, th, ig, bs].every((s) => /\n\n(#\w+ ?)+$/.test(s.posts[0].text)), true);
-  const meta0 = await import(at("lib/server/sites/meta.ts"));
-  const { bluesky } = await import(at("lib/server/sites/bluesky.ts"));
-  const pin0 = await import(at("lib/server/sites/pinterest.ts"));
-  check("real sites: X/Facebook/Threads = path, Instagram = bio, Bluesky/Pinterest untouched", [realX.backlink, meta0.facebook.backlink, meta0.threads.backlink, meta0.instagram.backlink, bluesky.backlink, pin0.pinterest.backlink], ["path", "path", "path", "bio", undefined, undefined]);
-  check("X counts the path as the 11-character address it replaces (body budget unchanged)", realX.linkChars, 11);
+  check("the campaign is the draft id with the day as MMDD, handed to every site", [xs, fb, ig, bs].map((s) => s.posts[0].campaign), [ep, ep, ep, ep]);
+  check("no site's text carries a path, a utm or Link in bio", [xs, fb, ig, bs].every((s) => !/cardflip\.io\/|utm_|Link in bio/.test(s.posts[0].text)), true);
+  check("every site's text ends on the plain address and its tags, as before", [xs, fb, ig, bs].every((s) => /cardflip\.io\n\n(#\w+ ?)+$/.test(s.posts[0].text)), true);
+  check("X and Bluesky still fit their limits", [xs.posts[0].text.length <= 257, bs.posts[0].text.length <= 300], [true, true]);
 }
-
 console.log("text fitting");
-const long ={ caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
+const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "Pokémon price moves this week\nA +5%\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "TCG"] };
 check("fits: caption + tags when room", fitText({ caption: "hi cardflip.io", shortCaption: "hi", hashtags: ["A"] }, 300), "hi cardflip.io\n\n#A");
 // 09-30 (Chris: "make sure to use hashtags to tag all the posts"): tags
 // outrank the long caption — the short caption WITH tags beats the long one without.
@@ -239,6 +227,10 @@ check("link facet on cardflip.io by byte offset", facets[0], {
 check("tag facets", facets.slice(1).map((f) => f.features[0].tag), ["PokemonTCG", "TCG"]);
 check("no facet on support@cardflip.io", blueskyFacets("mail support@cardflip.io").length, 0);
 
+check("link facet can point at a tagged url while the text stays cardflip.io", blueskyFacets(text, "https://cardflip.io/?utm_source=bluesky&utm_medium=social&utm_campaign=pokemon-set-0910")[0], {
+  index: { byteStart: bytes("Pokémon moves. "), byteEnd: bytes("Pokémon moves. cardflip.io") },
+  features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://cardflip.io/?utm_source=bluesky&utm_medium=social&utm_campaign=pokemon-set-0910" }],
+});
 console.log("x oauth 1.0a");
 const { xAuthHeader, rfc3986, X_MAX_CHARS } = await import(at("lib/server/sites/x.ts"));
 check("x limit leaves room for the t.co link", X_MAX_CHARS, 257);
@@ -317,6 +309,25 @@ check("title = first line, description = whole caption", [f1.title, f1.descripti
 const longTitle = "word ".repeat(40).trim();
 const f2 = pin.pinterestFields(longTitle + "\n" + "x".repeat(600));
 check("title cut at a word under 100, description capped at 500", [f2.title.length <= 100, f2.title.endsWith("…"), f2.title.includes("  "), f2.description.length], [true, true, false, 500]);
+{
+  // The pin's link field is hidden from the caption text, so it carries the campaign (lib/attribution.ts).
+  const realFetch2 = globalThis.fetch;
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (u.includes("/oauth/token")) return new Response(JSON.stringify({ access_token: "at", refresh_token: "rt", expires_in: 3600, refresh_token_expires_in: 86400, scope: "pins:write" }), { status: 200 });
+    if (u.endsWith("/v5/pins")) { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ id: "pin1" }), { status: 200 }); }
+    return new Response("{}", { status: 404 });
+  };
+  await pin.pinterestExchangeCode("code", "https://cardflip.io");
+  await setSetting(pin.PINTEREST_BOARD_KEY, "board-1");
+  const base = { text: "Pokémon movers\ncardflip.io", image: Buffer.from("png"), mime: "image/png", width: 1, height: 1, alt: "a" };
+  await pin.pinterest.post({ ...base, campaign: "pokemon-set-0910" });
+  await pin.pinterest.post(base);
+  check("pin link field carries the campaign's utm; the description is the caption untouched", [sent[0].link, sent[0].description], ["https://cardflip.io/?utm_source=pinterest&utm_medium=social&utm_campaign=pokemon-set-0910", "Pokémon movers\ncardflip.io"]);
+  check("no campaign = the plain link, as before", sent[1].link, "https://cardflip.io/");
+  globalThis.fetch = realFetch2;
+}
 check("empty caption still has a title", pin.pinterestFields("").title, "CardFlip");
 delete process.env.PINTEREST_APP_ID;
 delete process.env.PINTEREST_APP_SECRET;

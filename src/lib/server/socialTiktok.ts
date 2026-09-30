@@ -1,6 +1,5 @@
 import "server-only";
 import { addDays } from "@/lib/priceSeries";
-import { BIO_LINK_TEXT } from "@/lib/attribution";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { TIKTOK_MAX_CHARS } from "@/lib/server/sites/tiktok";
@@ -106,8 +105,7 @@ export function candidateKinds(slot: Slot, day: string, drafts: Pick<SocialPost,
 export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[] }): { title: string; caption: string } {
   const applied = data.cards?.length ? applyVideoCards(d, data.cards) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
-  // TikTok captions are not clickable and the video is posted by hand: the sign-off says "Link in bio" (cardflip.io/tt, lib/attribution.ts), not an address.
-  return { title: applied.title, caption: fitText(applied, TIKTOK_MAX_CHARS, undefined, { text: BIO_LINK_TEXT }).replace(/^In the picture,/m, "In the video,") };
+  return { title: applied.title, caption: fitText(applied, TIKTOK_MAX_CHARS).replace(/^In the picture,/m, "In the video,") };
 }
 
 /** The movers row the other sites post at 1:05pm (settings social_video:pokemon:movers:<day>), if the render has made it. Raw: made under any plan. */
