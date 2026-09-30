@@ -3,7 +3,7 @@
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import { formatMoney } from "@/lib/listing";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { GAMES } from "@/lib/games";
 import type { GameId } from "@/lib/types";
 
@@ -204,6 +204,11 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
     );
   }
 
+  // The other ways in, as real buttons (09-30 makeover, Chris: the page "seems
+  // old and outdated"): they were a line of grey underlined text nobody read.
+  const tile =
+    "flex min-w-0 items-center gap-2.5 rounded-2xl border border-edge bg-surface-1 px-3 py-2.5 text-left transition hover:border-edge-strong hover:bg-surface-2";
+
   return (
     <div
       onDragOver={(e) => {
@@ -216,124 +221,173 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
         setDragOver(false);
         handle(e.dataTransfer.files);
       }}
-      // scan-stage: keeps the laser sweep looping under reduced motion (globals.css).
-      className={`scan-stage foil-edge relative w-full max-w-2xl overflow-hidden rounded-3xl [--foil-fill:#0a0b12] transition-transform duration-300 ${
-        dragOver ? "scale-[1.01]" : ""
-      }`}
+      className="grid w-full max-w-md gap-4 sm:max-w-3xl sm:grid-cols-2 sm:items-center sm:gap-6"
     >
-      {/* The stage (Chris, 09-04 "aggressive makeover"): the empty scanner
-          looks like the viewfinder it is about to become — dot grid, a card
-          guide with holo brackets, the laser sweep already running — so the
-          first tap feels like a continuation, not a form. */}
-      <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden />
+      {/* The viewfinder (09-30): a camera screen, not a marketing panel. The
+          example scan sits inside it the way the live HUD shows a match (Chris,
+          09-04: "give a view of what it's like to scan and find the card"),
+          labelled as an example. Nothing fabricated: a real catalog card with
+          its live price (lib/server/stageCards.ts). No card yet = an empty guide. */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_42%,rgba(99,102,241,0.22),transparent_70%)]"
-        aria-hidden
-      />
+        // scan-stage: keeps the laser sweep looping under reduced motion (globals.css).
+        className={`scan-stage relative isolate flex aspect-square w-full items-center sm:aspect-[4/5] justify-center overflow-hidden rounded-3xl border border-edge-strong bg-[#06070c] shadow-2xl shadow-black/50 transition-transform duration-300 ${
+          dragOver ? "scale-[1.02] border-brand-400" : ""
+        }`}
+      >
+        <div className="dot-grid pointer-events-none absolute inset-0 opacity-60" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_50%_45%,rgba(99,102,241,0.28),transparent_72%)]"
+          aria-hidden
+        />
+        {/* Screen vignette */}
+        <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_60px_rgba(0,0,0,0.85)]" aria-hidden />
 
-      <div className="relative flex flex-col items-center px-6 pb-6 pt-7 sm:pb-7 sm:pt-8">
-        {/* The scan, shown before the first scan (Chris, 09-04: "give a view
-            of what it's like to scan and find the card — this is the first
-            thing a new user sees after paying"): a real, live-priced card
-            sits in the viewfinder, the laser sweeps it, and the Found chip
-            reads the match and price under it — the reveal, at rest.
-            Nothing fabricated: the card and price are the landing page's
-            featured catalog row. No card yet = just the buttons. */}
-        {card && (
-          <div className="flex flex-col items-center">
-            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">A scan, start to finish</p>
-            <div className={`relative transition-transform duration-300 ${dragOver ? "scale-95 opacity-60" : ""}`}>
-              <div key={card.imageUrl} className="tour-in w-[150px] sm:w-[168px]">
-                <HoloCard src={card.imageUrl} alt={card.name} />
-              </div>
-              {/* The laser, over the card, clipped to its shape */}
-              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl" aria-hidden>
-                <span className="scan-sweep" />
-              </div>
-              {/* Holo brackets, one spectrum colour per corner */}
-              <span aria-hidden className="absolute -left-2.5 -top-2.5 h-7 w-7 rounded-tl-lg border-l-2 border-t-2 border-holo-sky" />
-              <span aria-hidden className="absolute -right-2.5 -top-2.5 h-7 w-7 rounded-tr-lg border-r-2 border-t-2 border-holo-violet" />
-              <span aria-hidden className="absolute -bottom-2.5 -left-2.5 h-7 w-7 rounded-bl-lg border-b-2 border-l-2 border-holo-pink" />
-              <span aria-hidden className="absolute -bottom-2.5 -right-2.5 h-7 w-7 rounded-br-lg border-b-2 border-r-2 border-holo-gold" />
+        <span className="absolute left-3 top-3 rounded-full border border-edge bg-black/50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400 backdrop-blur-sm">
+          {dragOver ? "Drop to scan" : card ? "Example scan" : "Ready"}
+        </span>
+
+        <div className={`relative transition duration-300 ${dragOver ? "scale-95 opacity-50" : ""} ${card ? "-mt-12 sm:-mt-10" : ""}`}>
+          {card ? (
+            <div key={card.imageUrl} className="tour-in w-[36vw] max-w-[150px] sm:w-[180px] sm:max-w-[190px]">
+              <HoloCard src={card.imageUrl} alt={card.name} />
             </div>
-            {/* The result chip, as the HUD shows it after a match */}
-            <div key={card.imageUrl + "-chip"} className="tour-in mt-5 flex max-w-full items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-400/10 py-1.5 pl-2 pr-4 text-left">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-[11px] font-bold text-black">✓</span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-white">{card.name}</span>
-                <span className="block truncate text-[11px] text-zinc-400">
-                  {card.setName} · {card.number}
-                </span>
-              </span>
-              {card.price != null && (
-                <span className="ml-1 shrink-0 font-display text-lg font-semibold text-emerald-300">{formatMoney(card.price)}</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        <p className={`text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 ${card ? "mt-5" : "mt-1"}`}>
-          {dragOver ? "Drop to scan" : card ? "Your turn to scan" : "Ready when you are"}
-        </p>
-
-        <div className="mt-3 flex w-full max-w-xs flex-col items-stretch gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
-          {/* Camera leads (Chris, 09-01): scanning live is the main road, the
-              photo picker is the fallback. */}
-          {onOpenCamera && (
-            <button
-              onClick={onOpenCamera}
-              data-tour="capture"
-              className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
-            >
-              {game ? `Scan ${GAMES[game].label} Cards` : "Scan a Card"}
-            </button>
+          ) : (
+            <div className="aspect-[63/88] w-[46vw] max-w-[190px] rounded-xl border border-dashed border-edge-strong sm:w-[180px]" />
           )}
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="rounded-full border border-edge bg-surface-2/80 px-6 py-3.5 text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:border-edge-strong"
-          >
-            Upload Photos
-          </button>
+          {/* The laser, over the card, clipped to its shape */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl" aria-hidden>
+            <span className="scan-sweep" />
+          </div>
+          {/* Holo brackets, one spectrum colour per corner */}
+          <span aria-hidden className="absolute -left-3 -top-3 h-8 w-8 rounded-tl-xl border-l-2 border-t-2 border-holo-sky" />
+          <span aria-hidden className="absolute -right-3 -top-3 h-8 w-8 rounded-tr-xl border-r-2 border-t-2 border-holo-violet" />
+          <span aria-hidden className="absolute -bottom-3 -left-3 h-8 w-8 rounded-bl-xl border-b-2 border-l-2 border-holo-pink" />
+          <span aria-hidden className="absolute -bottom-3 -right-3 h-8 w-8 rounded-br-xl border-b-2 border-r-2 border-holo-gold" />
         </div>
 
-        <p className="mt-3 text-[11px] text-zinc-600">
-          Or drop photos anywhere on this panel · JPG, PNG, HEIC · a whole stack at once is fine
+        {/* The result chip, where the HUD puts it after a match */}
+        {card && (
+          <div
+            key={card.imageUrl + "-chip"}
+            className="tour-in absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-950/70 py-2 pl-2.5 pr-3.5 backdrop-blur-md"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-xs font-bold text-black">✓</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-white">{card.name}</span>
+              <span className="block truncate text-[11px] text-emerald-100/60">
+                {card.setName} · {card.number}
+              </span>
+            </span>
+            {card.price != null && (
+              <span className="shrink-0 font-display text-xl font-semibold tabular-nums text-emerald-300">{formatMoney(card.price)}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {/* Desktop only: the phone layout stacks under the viewfinder and needs no words. */}
+        <div className="hidden sm:mb-2 sm:block">
+          <p className="font-display text-3xl font-bold tracking-tight text-white">Ready to scan</p>
+          <p className="mt-1.5 text-sm text-zinc-400">Point the camera at a card. CardFlip names it, prices it and writes the eBay listing.</p>
+        </div>
+        {/* Camera leads (Chris, 09-01): scanning live is the main road. */}
+        {onOpenCamera && (
+          <button
+            onClick={onOpenCamera}
+            data-tour="capture"
+            className="sheen flex w-full items-center justify-center gap-2.5 rounded-full bg-brand-500 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400"
+          >
+            <IconCamera />
+            {game ? `Scan ${GAMES[game].label} Cards` : "Scan a Card"}
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => inputRef.current?.click()} className={tile}>
+            <TileBody label="Photos" hint="Upload a stack" icon={<IconImage />} />
+          </button>
           {onPageFiles && (
-            <>
-              {" · "}
-              <button
-                type="button"
-                onClick={() => pageInputRef.current?.click()}
-                className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200"
-              >
-                Upload a binder page
-              </button>
-            </>
+            <button type="button" onClick={() => pageInputRef.current?.click()} className={tile}>
+              <TileBody label="Binder Page" hint="A whole page" icon={<IconGrid />} />
+            </button>
           )}
           {onSealed && (
-            <>
-              {" · "}
-              <button
-                type="button"
-                onClick={onSealed}
-                className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200"
-              >
-                Add a sealed product
-              </button>
-            </>
+            <button type="button" onClick={onSealed} className={tile}>
+              <TileBody label="Sealed" hint="Boxes and packs" icon={<IconBox />} />
+            </button>
           )}
-          {" · "}
-          <Link href="/app/collection/import" className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition hover:text-zinc-200">
-            Import from another app
+          <Link href="/app/collection/import" className={tile}>
+            <TileBody label="Import" hint="From other apps" icon={<IconFile />} />
           </Link>
+        </div>
+
+        {/* Drag and drop only exists with a mouse. */}
+        <p className="hidden text-center text-[11px] text-zinc-600 [@media(pointer:fine)]:block">
+          Or drop photos anywhere here · JPG, PNG, HEIC · a whole stack at once is fine
         </p>
         {pageError && (
-          <p role="status" className="mt-2 text-xs font-medium text-amber-300">
+          <p role="status" className="text-center text-xs font-medium text-amber-300">
             {pageError}
           </p>
         )}
       </div>
       {input}
     </div>
+  );
+}
+
+function TileBody({ label, hint, icon }: { label: string; hint: string; icon: ReactNode }) {
+  return (
+    <>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-300">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium text-zinc-100">{label}</span>
+        <span className="block truncate text-[11px] text-zinc-500">{hint}</span>
+      </span>
+    </>
+  );
+}
+
+const svg = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+function IconCamera() {
+  return (
+    <svg {...svg} width={20} height={20}>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+function IconImage() {
+  return (
+    <svg {...svg}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="m20.5 16-5-5-8 8.5" />
+    </svg>
+  );
+}
+function IconGrid() {
+  return (
+    <svg {...svg}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M9.33 4v16M14.67 4v16M4 9.33h16M4 14.67h16" />
+    </svg>
+  );
+}
+function IconBox() {
+  return (
+    <svg {...svg}>
+      <path d="M4 7.5 12 4l8 3.5v9L12 20l-8-3.5z" />
+      <path d="M4 7.5 12 11l8-3.5M12 11v9" />
+    </svg>
+  );
+}
+function IconFile() {
+  return (
+    <svg {...svg}>
+      <path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
+      <path d="M14 3.5V8h4.5M9 13h6M9 16.5h4" />
+    </svg>
   );
 }

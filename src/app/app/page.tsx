@@ -1474,30 +1474,15 @@ export default function AppPage() {
         // Top-anchored, not vertically centered: centering pushed the hero
         // halfway down a desktop viewport and left a wall of empty space
         // above it (Chris, 09-01).
-        <main className="flex flex-1 flex-col items-center gap-5 px-4 pb-12 pt-5 sm:pt-8">
-          {/* Empty scanner (Chris, 09-04 "aggressive makeover"): display-type
-              headline, one line of copy, the three beats as a strip, then
-              the stage. App-tight — no wall of intro text. */}
-          <div className="text-center">
-            <h1 className="font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Scan. Price. <span className="holo-text">List.</span>
-            </h1>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-zinc-400">
-              Point your phone at a card. CardFlip names it, prices it and writes the eBay listing.
-            </p>
-            <ol className="mx-auto mt-3 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-400">
-              {["Scan", "Matched & Priced", "Published on eBay"].map((step, i) => (
-                <li key={step} className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1.5 rounded-full border border-edge bg-surface-1 py-1 pl-1.5 pr-2.5">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-500/20 font-mono text-[10px] font-semibold text-brand-300">{i + 1}</span>
-                    {step}
-                  </span>
-                  {i < 2 && <span aria-hidden className="text-zinc-700">→</span>}
-                </li>
-              ))}
-            </ol>
+        <main className="flex flex-1 flex-col items-center gap-4 px-4 pb-12 pt-4 sm:gap-6 sm:pt-8">
+          {/* Empty scanner (09-30 makeover, Chris: "seems old and outdated"):
+              an app screen, not a landing page. The marketing headline and the
+              1-2-3 step chips are gone (the landing page sells; this screen
+              scans): the game switch, then the viewfinder and its buttons. */}
+          <h1 className="sr-only">Scanner</h1>
+          <div className="w-full max-w-md">
+            <GameToggle game={game} onChange={setGame} block />
           </div>
-          <GameToggle game={game} onChange={setGame} />
           <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} onSealed={() => setSealedOpen(true)} showcase={showcase} game={game} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris): eBay listings must show the actual item —

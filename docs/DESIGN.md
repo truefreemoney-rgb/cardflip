@@ -146,6 +146,15 @@ the same: a collector cannot verify either. Sealed products are outside the rule
 - App chrome: sticky header with holo hairline (same class string on all
   four app pages — keep them identical), `AppTabs` foil pill.
 - Legal pages stay sober: no holo, no foil. Reviewer-facing.
+- Empty scanner (09-30 makeover, Chris: "seems old and outdated"): an app
+  screen, not a landing page. No marketing headline or step chips. Full-width
+  game switch, then a camera-screen viewfinder (near-black, vignette, holo
+  brackets, laser sweep) holding the "Example scan" card with the result chip
+  docked inside its bottom edge, one big camera-icon Scan button, and the
+  other ways in (Photos / Binder Page / Sealed / Import) as a 2x2 grid of icon
+  tiles. Must fit one 375x812 screen. Desktop puts the viewfinder left and a
+  "Ready to scan" column right; the drag-and-drop hint shows only on a fine
+  pointer.
 - Email confirmation (09-30): one `ConfirmEmailPanel` serves signup step 2,
   the `/app` wall (`SubscriptionGate`) and the account page. It never reads
   `SessionProvider` (signup sits outside it) and reports back through props.
