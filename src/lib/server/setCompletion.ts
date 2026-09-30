@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { latestUsdWithTrust } from "@/lib/server/priceTrustSite";
 
 /**
  * Set completion (Tier 2 #6, 09-27): for every Pokémon set the seller owns
@@ -11,7 +11,9 @@ import { latestUsdPrices } from "@/lib/server/priceHistory";
  * en_cards (rows without a catalog id — pre-09-01 scans — do not count, the
  * same as the live refresh). A set's size is its row count in the mirror,
  * secret rares included; set_card_count_official rides along as "printed".
- * Prices come from price_series (latestUsdPrices), no external calls.
+ * Prices come from price_series (latestUsdWithTrust), no external calls. A missing
+ * card whose market the price guard flags counts as unpriced: a junk $1,013 must
+ * not turn "cost to finish" into a fantasy number.
  * Pokémon only for now: Magic is still admin-only.
  */
 
@@ -110,13 +112,14 @@ export async function setCompletion(userId: string): Promise<SetProgress[]> {
     });
   }
 
-  const prices = await latestUsdPrices([...new Set(missingAll.flat().map((m) => m.id))]);
+  const prices = await latestUsdWithTrust([...new Set(missingAll.flat().map((m) => m.id))]);
   out.forEach((set, i) => {
     const missing = missingAll[i];
     let cost = 0;
     let unpriced = 0;
     for (const m of missing) {
-      const p = prices.get(m.id)?.price ?? null;
+      const e = prices.get(m.id);
+      const p = e && !e.flag ? e.price : null;
       m.price = p != null && p > 0 ? round(p) : null;
       if (m.price == null) unpriced++;
       else cost += m.price;
@@ -140,9 +143,10 @@ export async function missingInSet(userId: string, setId: string): Promise<Missi
   );
   const rows = await setRows(setId);
   const missing = rows.filter((r) => !ownedIds.has(r.id));
-  const prices = await latestUsdPrices(missing.map((r) => r.id));
+  const prices = await latestUsdWithTrust(missing.map((r) => r.id));
   return missing.map((r) => {
-    const p = prices.get(r.id)?.price ?? null;
+    const e = prices.get(r.id);
+    const p = e && !e.flag ? e.price : null;
     return { id: r.id, name: r.name, number: r.local_id, imageUrl: r.image_url, price: p != null && p > 0 ? round(p) : null };
   });
 }

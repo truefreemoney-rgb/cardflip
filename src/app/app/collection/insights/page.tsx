@@ -51,6 +51,7 @@ interface Insights {
   bySet: Bucket[];
   split: { live: Slice; draft: Slice; ended: Slice; sold: Slice };
   unlistedVerified: Slice;
+  leftOut?: number;
 }
 
 const panel = "overflow-hidden rounded-2xl border border-edge bg-surface-1";
@@ -183,6 +184,11 @@ export default function InsightsPage() {
               <p className="mt-1 text-xs text-zinc-500">
                 Asking price of every unsold copy at today&apos;s market, {data.split.live.count + data.split.draft.count + data.split.ended.count} copies.
               </p>
+              {(data.leftOut ?? 0) > 0 && (
+                <p className="mt-1 text-xs text-amber-300">
+                  {data.leftOut} {data.leftOut === 1 ? "card" : "cards"} left out, {data.leftOut === 1 ? "its price looks" : "their prices look"} off.
+                </p>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Change now={data.value.now} then={data.value.weekAgo} label="Past 7 days" />
                 <Change now={data.value.now} then={data.value.monthAgo} label="Past 30 days" />

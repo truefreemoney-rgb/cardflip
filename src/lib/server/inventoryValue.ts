@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { heldTrust } from "@/lib/server/priceTrustSite";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -16,7 +17,9 @@ import type { GameId } from "@/lib/types";
  * across the whole window (a pile scanned this afternoon still gets a line —
  * Chris's first look at it was 40 cards scanned that day and an empty strip),
  * and a sold copy stops counting after its sale day. Rows without a catalog
- * id (pre-09-01 scans) are skipped, the same as the live refresh.
+ * id (pre-09-01 scans) are skipped, the same as the live refresh. A card whose
+ * market the price guard flags today (priceTrustSite) is left out of every day
+ * of the line, not just today: its plateau days are junk too.
  */
 
 const ROW_CAP = 400;
@@ -65,8 +68,10 @@ export async function inventoryValueSeries(
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
   const today = todayUtc(now);
+  const trust = await heldTrust(rows.map((r) => ({ ...r, game })), today);
   const firstDay = addDays(today, -(span - 1));
   const held = rows
+    .filter((r) => !trust.flag({ ...r, game }))
     .map((r) => ({
       series: heldSeries(series, r) ?? null,
       condition: r.condition,

@@ -76,6 +76,31 @@ check("sold this week only", d.sold.map((c) => [c.name, c.price]), [["Sold", 30]
 check("listed 30+ days only", d.stale.map((c) => [c.name, c.days, c.price]), [["Stale", 40, 12]]);
 check("no cards → null", await buildDigest(empty.id, SUNDAY), null);
 
+console.log("the price guard (priceTrustSite)");
+{
+  const { flatPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { addDays } = await import(at("lib/priceSeries.ts"));
+  const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
+  await recordSeries(recordPoint, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // stuck round $500
+  await recordSeries(recordPoint, addDays, "2026-09-27", "g-fine", "pokemon", "holofoil", [...liquidPrices(200, 50), 260]); // a real +30% week
+  // The week-ago side is a junk plateau (flat $100 for 40 days) that then moved: no honest "before".
+  await recordSeries(recordPoint, addDays, "2026-09-27", "g-old", "pokemon", "holofoil", [...flatPrices(100, 41), 110, 120, 130, 140, 145, 148, 150]);
+  const mk = (name, catalogId) => createCard(g.id, { cardName: name, setName: "Base Set", cardNumber: "1", imageUrl: "", condition: "NM", price: 10, catalogCardId: catalogId });
+  await mk("Junk", "g-junk");
+  const typed = await mk("Typed", "g-junk");
+  await db.prepare("UPDATE cards SET price_locked = 1 WHERE id = ?").run(typed.id);
+  await mk("Fine", "g-fine");
+  await mk("Old", "g-old");
+  const gd = await buildDigest(g.id, SUNDAY);
+  check("the flagged card is left out of the value and counted in leftOut", [gd.leftOut, gd.gainers.some((c) => c.name === "Junk"), gd.losers.some((c) => c.name === "Junk")], [1, false, false]);
+  const { askingPriceFor: ask } = await import(at("lib/listing.ts"));
+  check("the seller-typed price of the same junk market counts at the seller's price ($10), the junk market at nothing", [gd.held, Math.round(gd.valueNow * 100) / 100], [4, Math.round((ask(260, "NM") + ask(150, "NM") + 10) * 100) / 100]);
+  check("the normal +30% mover is still a gainer", gd.gainers.map((c) => c.name).includes("Fine"), true);
+  check("a junk week-ago price makes no honest mover: 'Old' counts as unchanged", gd.gainers.concat(gd.losers).some((c) => c.name === "Old"), false);
+  check("a seller with nothing flagged has no leftOut key", "leftOut" in (await buildDigest(u.id, SUNDAY)), false);
+  await db.prepare("DELETE FROM cards WHERE user_id = ?").run(g.id);
+}
+
 console.log("sweep");
 const sent = [];
 const send = async (to, digest, unsub) => { sent.push({ to, held: digest.held, unsub }); };

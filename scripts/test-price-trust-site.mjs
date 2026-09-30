@@ -34,6 +34,7 @@ function check(label, actual, expected = true) {
 }
 
 const TODAY = todayUtc();
+const flatPrices500 = (n) => Array(n).fill(500);
 const expand = (rle) => rle.flatMap(([v, n]) => Array(n).fill(v));
 /** A liquid series: moves every day (a real market), ending on `to`. */
 const liquid = (to, days = 60) => Array.from({ length: days }, (_, i) => Math.round((to * (1 + ((i * 7) % 5) / 100) - (i % 3)) * 100) / 100).concat(to);
@@ -143,6 +144,10 @@ console.log("loader: one batch, only flagged cards come back");
     { cardId: "mtg-fine", game: "mtg", variant: "nonfoil" },
     { cardId: "no-series-anywhere", game: "pokemon", variant: "normal", liveUsd: 400 },
   ]);
+  await put("sealed-pokemon-x-booster-box", "pokemon", "normal", flatPrices500(87));
+  clearTrustMemo();
+  check("a sealed product is never judged, however stuck its series", (await siteTrust([{ cardId: "sealed-pokemon-x-booster-box", game: "pokemon", variant: "normal" }])).size, 0);
+  clearTrustMemo();
   check("Rayquaza flagged with its Cardmarket reason", flags.get(trustKey("junk-rayquaza", "holofoil")), { hard: true, reason: "cardmarket 20.4x" });
   check("Umbreon (Cardmarket agrees) is absent", flags.has(trustKey("fine-umbreon", "holofoil")), false);
   check("Deoxys holofoil flagged flat", flags.get(trustKey("junk-deoxys", "holofoil"))?.reason, "flat 87d");

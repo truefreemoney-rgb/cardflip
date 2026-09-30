@@ -34,7 +34,12 @@ import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
  *    the price table has never seen): nothing to be suspicious of yet.
  *  - A live price that differs from the series' last point is judged as
  *    today's point (search results carry pokemontcg.io live prices).
+ *  - Sealed products (catalog ids "sealed-..." / "tcgp-sealed-...") are not
+ *    cards: the rule was calibrated on singles and never runs on them.
  */
+
+/** Sealed product series ids (lib/sealedProducts.ts): outside the rule. */
+const isSealedId = (id: string) => id.startsWith("sealed-") || id.startsWith("tcgp-sealed-");
 
 /** One series the rule reads (tcgplayer USD, oldest first, null = no point that day). */
 export interface TrustSeries {
@@ -165,6 +170,7 @@ export async function loadTrustData(cards: { cardId: string; game: GameId }[], d
   const now = Date.now();
   const byGame = new Map<GameId, Set<string>>();
   for (const c of cards) {
+    if (isSealedId(c.cardId)) continue;
     const hit = memo.get(c.cardId);
     if (hit && hit.day === day && now - hit.at < MEMO_MS && hit.data.game === c.game) {
       out.set(c.cardId, hit.data);

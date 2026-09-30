@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendWeeklyDigestEmail } from "@/lib/server/mail";
 import { usdSeries } from "@/lib/server/priceHistory";
+import { heldTrust } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 
 /**
@@ -11,7 +12,10 @@ import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
  * seller with cards — what the pile is worth now vs a week ago, the five
  * biggest gainers and losers, what sold this week, and what has sat listed
  * 30+ days. Same price_series and condition math as the Inventory value
- * strip (inventoryValue.ts), so the numbers match the app.
+ * strip (inventoryValue.ts), so the numbers match the app. A card whose market
+ * the price guard flags (priceTrustSite) and whose price the seller did not
+ * type is left out of the value and the movers (one plain footnote in the mail
+ * says how many); a mover's week-ago price that is junk counts as unchanged.
  *
  * Runs inside the daily job. digest_sent_week on users holds the Eastern
  * Sunday it last went out, so the job's repeated daily runs send once; the
@@ -41,6 +45,8 @@ export interface Digest {
   valueNow: number;
   valueBefore: number;
   held: number;
+  /** Cards left out because their market price looks off (only set when > 0). */
+  leftOut?: number;
   gainers: DigestCard[];
   losers: DigestCard[];
   sold: Array<{ id: string; name: string; set: string; number: string; price: number; soldAt: number }>;
@@ -60,6 +66,8 @@ interface Row {
   sold_at: number | null;
   listed_at: number | null;
   catalog_card_id: string | null;
+  game: string | null;
+  price_locked: number | null;
 }
 
 /** Series value on `day` (nearest earlier reading; the first reading when the series starts later). */
@@ -88,7 +96,7 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
   const rows = (await db
     .prepare(
       `SELECT id, card_name, set_name, card_number, condition, quantity, status, price,
-              sold_price, sold_at, listed_at, catalog_card_id
+              sold_price, sold_at, listed_at, catalog_card_id, game, price_locked
        FROM cards WHERE user_id = ? ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
     .all(userId)) as unknown as Row[];
@@ -99,6 +107,9 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
   const series = ids.length ? await usdSeries(ids) : new Map<string, { startDay: string; prices: (number | null)[] }>();
   const today = todayUtc(now);
   const weekAgo = addDays(today, -7);
+  // One batched trust read for this seller's pile, judged on the default series the value below reads.
+  const trust = await heldTrust(held.flatMap((r) => (r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
+  let leftOut = 0;
 
   const priced: DigestCard[] = [];
   let valueNow = 0;
@@ -116,10 +127,23 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
     }
     const market = onDay(s, today);
     if (market == null || !(market > 0)) continue;
+    const held1 = { catalog_card_id: r.catalog_card_id!, variant: null, game: r.game };
+    if (trust.flag(held1)) {
+      // The market is junk: the seller's own price counts flat, anything else is left out.
+      if (r.price_locked && r.price > 0) {
+        valueNow += r.price * qty;
+        valueBefore += r.price * qty;
+      } else {
+        leftOut += qty;
+      }
+      continue;
+    }
     const firstIdx = s.prices.findIndex((p) => p != null);
     const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
     // A series younger than a week has no honest "before": count it as unchanged.
-    const marketBefore = firstDay > weekAgo ? market : (onDay(s, weekAgo) ?? market);
+    let marketBefore = firstDay > weekAgo ? market : (onDay(s, weekAgo) ?? market);
+    // A week-ago price the guard calls junk (a plateau that just corrected) is no honest "before": unchanged.
+    if (marketBefore !== market && trust.flagOld(held1, 7, marketBefore)) marketBefore = market;
     const nowAsk = askingPriceFor(market, r.condition);
     const beforeAsk = askingPriceFor(marketBefore, r.condition);
     valueNow += nowAsk * qty;
@@ -148,7 +172,7 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
     .map((r) => ({ id: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price: round(r.price), days: Math.floor((now - r.listed_at!) / DAY) }))
     .sort((a, b) => b.days - a.days);
 
-  return { valueNow: round(valueNow), valueBefore: round(valueBefore), held: held.length, gainers, losers, sold, stale };
+  return { valueNow: round(valueNow), valueBefore: round(valueBefore), held: held.length, ...(leftOut > 0 ? { leftOut } : {}), gainers, losers, sold, stale };
 }
 
 export interface DigestSweepResult {

@@ -181,6 +181,8 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
   const soldLine = (c: { name: string; set: string; number: string; price: number }) => `${c.name} (${c.set} · ${c.number}) — sold for ${usd(c.price)}`;
   const staleLine = (c: { name: string; set: string; number: string; price: number; days: number }) => `${c.name} (${c.set} · ${c.number}) — ${usd(c.price)}, listed ${c.days} days`;
 
+  // The price guard: cards whose market price looks off are left out of the numbers above, said once, plainly.
+  const leftOutNote = d.leftOut ? `${d.leftOut} card${d.leftOut === 1 ? "" : "s"} left out, ${d.leftOut === 1 ? "its price looks" : "their prices look"} off.` : "";
   const sections: Array<{ title: string; lines: string[]; empty?: string }> = [
     { title: "Top Gainers", lines: d.gainers.map(cardLine), empty: "No card went up this week." },
     { title: "Top Losers", lines: d.losers.map(cardLine), empty: "No card went down this week." },
@@ -191,6 +193,7 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
   const text = [
     headline,
     `${d.held} card${d.held === 1 ? "" : "s"} in your collection.`,
+    ...(d.leftOut ? [leftOutNote] : []),
     "",
     ...sections.flatMap((s) => [s.title.toUpperCase(), ...(s.lines.length ? s.lines.map((l) => "· " + l) : [s.empty!]), ""]),
     `Your collection: ${site}/app/collection`,
@@ -202,7 +205,7 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
   ].join("\n");
   const html = `
     <p style="font-size:18px;font-weight:700;margin:0 0 4px">${esc(headline)}</p>
-    <p style="color:#666;margin:0 0 16px">${d.held} card${d.held === 1 ? "" : "s"} in your collection.</p>
+    <p style="color:#666;margin:0 0 16px">${d.held} card${d.held === 1 ? "" : "s"} in your collection.${leftOutNote ? ` ${esc(leftOutNote)}` : ""}</p>
     ${sections
       .map(
         (s) => `<p style="font-weight:600;margin:16px 0 4px">${esc(s.title)}</p>${
