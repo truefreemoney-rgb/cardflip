@@ -9,6 +9,8 @@
  * discounts make the flat formula wrong in both directions.
  */
 
+import { feeModelFor, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
+
 export const EBAY_FEE_RATE = 0.1325;
 /** Per-order fee: $0.30 on an order of $10 or less, $0.40 over $10 (eBay US since 03-2024; Chris 09-30). */
 export const EBAY_FLAT_FEE = 0.3;
@@ -112,4 +114,72 @@ export function floorRefusal(): string {
 /** What the seller pockets — actual fees when recorded, the estimate otherwise. */
 export function netAfterFees(gross: number, actualFees?: number | null): number {
   return gross - (actualFees ?? estimatedEbayFees(gross));
+}
+
+// ---------------------------------------------------------------------------
+// Per-marketplace variants (docs/EBAY_COUNTRIES_PLAN.md, increment 1).
+//
+// Same formulas as above with one marketplace's numbers. The exports above
+// are the US path and are NOT changed; scripts/test-marketplaces.mjs asserts
+// every `…For(US_MARKETPLACE)` equals its US twin across a price sweep. All
+// amounts are in the marketplace's own currency. Nothing calls these for a
+// non-US marketplace yet.
+
+export function ebayFlatFeeFor(mp: Marketplace, gross: number, account?: EbayAccountType | null): number {
+  const m = feeModelFor(mp, account);
+  return gross > m.flatStep ? m.flatOver : m.flat;
+}
+
+export function estimatedEbayFeesFor(mp: Marketplace, gross: number, account?: EbayAccountType | null): number {
+  return gross * feeModelFor(mp, account).rate + ebayFlatFeeFor(mp, gross, account);
+}
+
+export function costCoveredPriceFor(mp: Marketplace, net: number, account?: EbayAccountType | null): number {
+  const m = feeModelFor(mp, account);
+  const at = (flat: number) => Math.ceil(((net + flat + mp.postage) / (1 - m.rate)) * 100) / 100;
+  const low = at(m.flat);
+  return low > m.flatStep ? at(m.flatOver) : low;
+}
+
+export function coversCostsFor(mp: Marketplace, value: number): boolean {
+  return value > 0 && value < mp.taper.end;
+}
+
+export function coversAllCostsFor(mp: Marketplace, value: number): boolean {
+  return value > 0 && value < mp.taper.coveredMax;
+}
+
+export function costTaperedPriceFor(mp: Marketplace, value: number, account?: EbayAccountType | null): number {
+  const cents = Math.round(value * 100);
+  if (!coversCostsFor(mp, cents / 100)) return cents / 100;
+  const full = costCoveredPriceFor(mp, cents / 100, account);
+  if (coversAllCostsFor(mp, cents / 100)) return full;
+  const extra = Math.round(full * 100) - cents;
+  const end = mp.taper.end * 100;
+  const span = (mp.taper.end - mp.taper.coveredMax) * 100;
+  return (cents + Math.ceil((extra * (end - cents)) / span)) / 100;
+}
+
+export function listingFloorFor(mp: Marketplace, account?: EbayAccountType | null): number {
+  return costCoveredPriceFor(mp, 0, account);
+}
+
+export function belowFloorFor(mp: Marketplace, price: number, account?: EbayAccountType | null): boolean {
+  return price > 0 && price < listingFloorFor(mp, account) - 0.005;
+}
+
+export function floorRefusalFor(mp: Marketplace, account?: EbayAccountType | null): string {
+  const floor = listingFloorFor(mp, account);
+  const amount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: mp.currency,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(floor);
+  return `The lowest price is ${amount} — anything under it loses money after eBay fees and postage.`;
+}
+
+export function netAfterFeesFor(mp: Marketplace, gross: number, actualFees?: number | null, account?: EbayAccountType | null): number {
+  return gross - (actualFees ?? estimatedEbayFeesFor(mp, gross, account));
 }
