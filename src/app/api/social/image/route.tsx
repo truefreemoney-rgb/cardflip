@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
   const alsoScans = plan.alsoScans && game === "pokemon" ? otherGameNames([game]) : undefined;
 
   if (kind === "games") {
-    const leads = await gameLeads();
+    const leads = await gameLeads(day);
     const drawn = await Promise.all(leads.map(async (l) => ({ ...l, imageUrl: await artDataUri(l.imageUrl, 540) })));
     // A blank card in a five-card picture reads as broken: fail, and the publisher's next ping retries.
     if (drawn.length < 3 || drawn.some((l) => !l.imageUrl)) return NextResponse.json({ error: "Game art missing" }, { status: 502 });
@@ -351,9 +351,14 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
   const mid = (n - 1) / 2;
   // Outer cards first, the centre last, so the centre sits on top.
   const order = leads.map((_, i) => i).sort((a, b) => Math.abs(b - mid) - Math.abs(a - mid));
-  const fs = wide ? 22 : 30;
-  // Columns are ~165px wide in the square picture, so names run smaller than the old game labels.
-  const nameFs = wide ? 18 : 23;
+  // Label tiles: as wide as a fan step allows (~155px square), fixed height so every price sits on one line.
+  const tileW = Math.min(step - 10, wide ? 220 : 190);
+  const gameFs = wide ? 12 : 15;
+  const nameFs = wide ? 17 : 21;
+  const priceFs = wide ? 24 : 32;
+  // Long names step down so they stay on two lines ("Exodia the Forbidden One" ran to three at 21px).
+  const fitName = (name: string) => (name.length <= 14 ? nameFs : name.length <= 19 ? nameFs - 2 : nameFs - 4);
+  const tileH = Math.round((wide ? 16 : 24) + gameFs * 1.2 + (wide ? 3 : 6) + nameFs * 1.15 * 2 + (wide ? 2 : 4) + priceFs * 1.2);
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 44 : tall ? 84 : 72, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.04, flexDirection: wide ? "row" : "column" }}>
@@ -391,14 +396,34 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
           );
         })}
       </div>
-      {/* One column per card, centred under it: the card's name and price, its game underneath
-          (Chris 09-30: "Pokémon $39.07" priced no card). A long name wraps to two lines. */}
-      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: nameFs * 2.4 + fs * 0.8 * 1.3 + fs * 0.62 * 1.3, marginTop: wide ? 6 : 18 }}>
+      {/* One tile per card, centred under it (Chris 09-30: "i hate the size, labeling and grouping
+          of the text below the card pictures"): the game as a small caps label, the card's name
+          (two lines kept for every tile so the prices line up), then the price, large. */}
+      <div style={{ display: "flex", position: "relative", flexShrink: 0, width: inner, height: tileH, marginTop: wide ? 8 : 22 }}>
         {leads.map((l, i) => (
-          <div key={l.game} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", position: "absolute", top: 0, bottom: 0, left: i * step + cardW / 2 - step / 2, width: step }}>
-            <div style={{ display: "flex", fontSize: nameFs, fontWeight: 600, lineHeight: 1.15, textAlign: "center", justifyContent: "center", width: step - 6 }}>{displayName(l.name)}</div>
-            <div style={{ display: "flex", fontSize: fs * 0.8, fontWeight: 600, marginTop: 2, backgroundImage: HOLO, backgroundClip: "text", color: "transparent", whiteSpace: "nowrap" }}>{money(l.price)}</div>
-            <div style={{ display: "flex", fontSize: fs * 0.62, color: MUTED, whiteSpace: "nowrap" }}>{POST_GAME_NAMES[l.game]}</div>
+          <div
+            key={l.game}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              position: "absolute",
+              top: 0,
+              left: i * step + cardW / 2 - tileW / 2,
+              width: tileW,
+              height: tileH,
+              padding: wide ? "8px 6px" : "12px 8px",
+              borderRadius: 16,
+              backgroundColor: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: gameFs, fontWeight: 600, letterSpacing: 1.6, color: MUTED, whiteSpace: "nowrap" }}>{POST_GAME_NAMES[l.game].toUpperCase()}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: nameFs * 1.15 * 2, marginTop: wide ? 3 : 6, width: tileW - 12, overflow: "hidden", fontSize: fitName(l.name), fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>
+              {/* "Monkey.D.Luffy" has no space to wrap on: let it break after the dots. */}
+              {displayName(l.name).replace(/\./g, ".​")}
+            </div>
+            <div style={{ display: "flex", fontSize: priceFs, fontWeight: 700, marginTop: wide ? 2 : 4, backgroundImage: HOLO, backgroundClip: "text", color: "transparent", whiteSpace: "nowrap" }}>{money(l.price)}</div>
           </div>
         ))}
       </div>

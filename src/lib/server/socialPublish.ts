@@ -51,17 +51,28 @@ export type Slot = "morning" | "midday" | "evening";
  * The movers VIDEO goes out at 1pm (Chris 09-27: "switch the video to 1pm";
  * it ran at 7am from 09-26, when he asked for "the biggest movers and
  * shakers" so the countdown has something worth ranking No.5 → No.1).
- * Morning is the set spotlight picture, evening keeps the drops picture.
- * VIDEO_SLOT is the one slot the render job (scripts/social-video.mjs) and
- * its safety net (/api/cron/social-video) key on; move the slot here and
- * the schedules in social-post.yml + vercel.json together.
+ * Morning is the set spotlight picture; evening is the all-five-games
+ * picture every day (Chris 09-30: "the 7pm post is supposed to feature all
+ * 5 … every day for now until i come up with a different plan"; it was the
+ * drops picture). VIDEO_SLOT is the one slot the render job
+ * (scripts/social-video.mjs) and its safety net (/api/cron/social-video) key
+ * on; move the slot here and the schedules in social-post.yml + vercel.json
+ * together.
  */
 export const VIDEO_SLOT: Slot = "midday";
 export const SLOTS: Record<Slot, { hour: number; kind: PostKind; label: string }> = {
   morning: { hour: 7, kind: "set", label: "7am set spotlight" },
   midday: { hour: 13, kind: "movers", label: "1pm movers of the week" },
-  evening: { hour: 19, kind: "dips", label: "7pm price drops" },
+  evening: { hour: 19, kind: "games", label: "7pm all five games" },
 };
+/**
+ * Never skip a slot (Chris 09-30: "never skip posts, i dont care the
+ * excuse, 3 a day and the specific times"): when a slot's own kind has no
+ * draft that day (a thin set list, too few held movers), it posts the first
+ * of these that has one. The all-games picture comes first: it needs only
+ * the scanner-stage cards, so it is there every day.
+ */
+export const FALLBACK_KINDS: PostKind[] = ["games", "set", "movers", "dips"];
 export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
 
 /** The kind a slot posts on an Eastern day: SLOTS, unless that day's plan (lib/socialPlan.ts) says otherwise. */
@@ -100,7 +111,7 @@ export const ET_ZONE = "America/New_York";
  * instead — a slot always posts something; dedupe only picks WHAT.
  */
 export const KIND_PREFIX = "social_kind:";
-export const KIND_ROTATION: PostKind[] = ["movers", "set", "dips"];
+export const KIND_ROTATION: PostKind[] = ["movers", "set", "games", "dips"];
 function nextKindInRotation(kind: PostKind): PostKind {
   const i = KIND_ROTATION.indexOf(kind);
   return KIND_ROTATION[(i + 1) % KIND_ROTATION.length];
@@ -360,9 +371,18 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   function draftsForKind(kind: PostKind): SocialPost[] {
     return games.map((g) => all.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
   }
-  // One draft per game per slot, of that slot's kind only: repeating the
-  // midday picture at 7pm is worse than staying quiet on a thin day.
-  const plan = due.map((s) => ({ slot: s, drafts: draftsForKind(slotKind(s, day)) })).filter((p) => p.drafts.length > 0);
+  // One draft per game per slot, of that slot's kind; a kind with no draft
+  // today falls through FALLBACK_KINDS so the slot still posts (never skip).
+  const plan = due
+    .map((s) => {
+      const own = slotKind(s, day);
+      for (const kind of [own, ...FALLBACK_KINDS.filter((k) => k !== own)]) {
+        const drafts = draftsForKind(kind);
+        if (drafts.length > 0) return { slot: s, kind, drafts };
+      }
+      return { slot: s, kind: own, drafts: [] as SocialPost[] };
+    })
+    .filter((p) => p.drafts.length > 0);
   report.drafts = plan.reduce((n, p) => n + p.drafts.length, 0);
   if (report.drafts === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
@@ -450,7 +470,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       for (const p of todo) {
         const drafts: SocialPost[] = [];
         for (const d of p.drafts) if (await videoFor(d)) drafts.push(d);
-        if (drafts.length) withVideo.push({ slot: p.slot, drafts });
+        if (drafts.length) withVideo.push({ slot: p.slot, kind: p.kind, drafts });
       }
       todo = withVideo;
       if (todo.length === 0) return { site: site.id, label: site.label, status: "skipped", reason: "video only, nothing rendered for this slot", posts: [] };
@@ -465,7 +485,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       // KIND_ROTATION this site has not posted today. Never for a
       // video-only site: only one kind is rendered as video, so there is
       // nothing to rotate to.
-      let kind = slotKind(p.slot, day);
+      let kind = p.kind;
       let drafts = p.drafts;
       const slotAlreadyDone = (await getSetting(slotKey(site, p.slot))) === etDay;
       if (!site.videoOnly && !slotAlreadyDone && (await getSetting(kindKey(site, kind))) === etDay) {

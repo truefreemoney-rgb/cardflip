@@ -317,7 +317,14 @@ export async function mixedMovers(day = todayUtc(), games: GameId[] = MIXED_GAME
   return out;
 }
 
-/** One real, priced card per public game, for the all-games post (the homepage "Five games, one scanner" strip's picks). */
+/**
+ * One real, priced card per public game for the all-games post. It runs at
+ * 7pm every day (Chris 09-30: "the 7pm post is supposed to feature all 5 …
+ * every day for now"), so each game's card rotates by date through that
+ * game's scanner-stage picks (popular cards, $15–$300) instead of repeating
+ * the homepage strip's lead. One Piece keeps its pinned lead: most One Piece
+ * pictures carry Bandai's SAMPLE stamp, and P-055 is the one checked clean.
+ */
 export interface GameLead {
   game: GameId;
   name: string;
@@ -327,14 +334,16 @@ export interface GameLead {
   imageUrl: string;
 }
 
-export async function gameLeads(): Promise<GameLead[]> {
+export async function gameLeads(day = todayUtc()): Promise<GameLead[]> {
   const { getGameStageCards } = await import("@/lib/server/stageCards");
   const out: GameLead[] = [];
   for (const g of POST_GAME_ORDER) {
     if ((GATED_GAMES as readonly string[]).includes(g) && !(await gamePublic(g as GatedGame))) continue;
-    const lead = (await getGameStageCards(g)).cards.find((c) => c.lead);
-    if (!lead || !lead.imageUrl || !(lead.price && lead.price > 0)) continue;
-    out.push({ game: g, name: displayName(lead.name), setName: lead.setName, number: lead.number, price: lead.price, imageUrl: lead.imageUrl });
+    const cards = (await getGameStageCards(g)).cards.filter((c) => c.imageUrl && c.price != null && c.price > 0);
+    const pool = g === "onepiece" ? cards.filter((c) => c.lead) : cards;
+    if (pool.length === 0) continue;
+    const pick = pool[hashDay(day, `${g}:games`) % pool.length];
+    out.push({ game: g, name: displayName(pick.name), setName: pick.setName, number: pick.number, price: pick.price!, imageUrl: pick.imageUrl });
   }
   return out;
 }
@@ -626,7 +635,8 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
     mixed ? mixedMovers(day) : recentlyFeatured(game, "movers", day).then((exclude) => topMovers(game, day, { direction: "up", exclude })),
     setSpotlight(game, day),
     recentlyFeatured(game, "dips", day).then((exclude) => topMovers(game, day, { direction: "down", exclude })),
-    (plan.morning === "games" || plan.evening === "games") && game === "pokemon" ? gameLeads() : Promise.resolve([] as GameLead[]),
+    // The all-games post is the standing 7pm post (and the publisher's first fallback), so it is drafted every day.
+    game === "pokemon" ? gameLeads(day) : Promise.resolve([] as GameLead[]),
   ]);
   const posts: SocialPost[] = [];
   if (leads.length >= 3) {
