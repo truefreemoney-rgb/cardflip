@@ -185,9 +185,15 @@ export interface PublishReport {
  */
 export function fitText(post: SocialPost, maxChars: number): string {
   const short = post.shortCaption ?? post.caption;
+  // Before any tag goes: the short caption with its sign-off cut to the
+  // address ("Also scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io"
+  // → "cardflip.io"; the picture still carries the pills).
+  const cut = short.lastIndexOf("\n");
+  const tiny = cut > 0 && short.endsWith("cardflip.io") ? `${short.slice(0, cut)}\ncardflip.io` : short;
+  const texts = tiny === short ? [post.caption, short] : [post.caption, short, tiny];
   for (let n = post.hashtags.length; n >= Math.min(2, post.hashtags.length); n--) {
     const tags = post.hashtags.slice(0, n).map((h) => `#${h}`).join(" ");
-    for (const text of [post.caption, short]) {
+    for (const text of texts) {
       const tagged = n > 0 ? `${text}\n\n${tags}` : text;
       if (tagged.length <= maxChars) return tagged;
     }

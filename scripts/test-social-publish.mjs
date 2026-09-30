@@ -177,6 +177,8 @@ check("keeps the tags: short caption + tags beats the long caption alone", fitTe
   const five = { caption: "c".repeat(200), shortCaption: "s".repeat(190), hashtags: ["AAAAAAAAAA", "BBBBBBBBBB", "CCCCCCCCCC", "DDDDDDDDDD", "EEEEEEEEEE"] };
   check("trims the tag list from the end before dropping it (more tags first, long or short caption)", fitText(five, 240), `${"s".repeat(190)}\n\n#AAAAAAAAAA #BBBBBBBBBB #CCCCCCCCCC #DDDDDDDDDD`);
   check("never fewer than two tags: untagged caption when even two do not fit", fitText({ ...five, shortCaption: "c".repeat(200) }, 215), "c".repeat(200));
+  const also = { caption: "l".repeat(400), shortCaption: `${"s".repeat(160)}\n\nAlso scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io`, hashtags: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"] };
+  check("cuts the sign-off to the address before it drops a tag", fitText(also, 240), `${"s".repeat(160)}\n\ncardflip.io\n\n#PokemonTCG #PokemonCards #TCG #TradingCards`);
 }
 check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
 
