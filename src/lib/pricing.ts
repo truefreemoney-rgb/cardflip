@@ -22,8 +22,13 @@ export const PRICING = {
   pack: { price: 4.99, scans: 100 },
   /** The subscription. Scans credited each time a payment clears (they stack, nothing resets). */
   standard: { price: 9.99, scans: 250 },
-  /** Volume tier. Scans credited each time a payment clears (they stack, nothing resets). */
-  pro: { price: 19.99, scans: 750 },
+  /**
+   * Volume tier. Scans credited each time a payment clears (they stack, nothing resets).
+   * $24.99 from 09-30 (was $19.99, Chris: "go with A"): at 1.93 cents a scan a
+   * fully used Pro earned the same dollars as Standard on twice the price; now
+   * ~$9.32 a month vs Standard's ~$4.51, and still cheaper per scan (3.3 vs 4.0 cents).
+   */
+  pro: { price: 24.99, scans: 750 },
   /** Referral: bonus scans banked by the referrer when an invited friend subscribes (Chris 09-26: one pack's worth). */
   referral: { scans: 100 },
 } as const;
@@ -115,8 +120,8 @@ export interface PriceIdEntry {
 }
 export const PRICE_IDS: Record<string, PriceIdEntry> = {
   price_1UAjvlHrYyCaAIAxazDtv1Dz: { plan: "standard", cents: Math.round(PRICING.standard.price * 100), note: "live CardFlip $9.99/mo" },
-  price_1UJmWRHrYyCaAIAxR9eImYvs: { plan: "pro", cents: Math.round(PRICING.pro.price * 100), note: "live Pro $19.99/mo (09-25)" },
-  price_1UBwtjHrYyCaAIAxHtHBqUl7: { plan: "pro", cents: 2499, retired: true, note: "live Pro $24.99/mo, archived 09-25 (nobody was on it)" },
+  price_1UBwtjHrYyCaAIAxHtHBqUl7: { plan: "pro", cents: Math.round(PRICING.pro.price * 100), note: "live Pro $24.99/mo, archived 09-25, reactivated 09-30 for 750 scans" },
+  price_1UJmWRHrYyCaAIAxR9eImYvs: { plan: "pro", cents: 1999, retired: true, note: "live Pro $19.99/mo, 09-25 to 09-30 (nobody was on it)" },
   price_1UAeGnHzaqR7o9G2jhQpe38h: { plan: "standard", cents: 999, retired: true, note: "sandbox-era CardFlip $9.99/mo (08-31)" },
 };
 
