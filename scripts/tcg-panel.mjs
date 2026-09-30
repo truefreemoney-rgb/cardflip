@@ -28,7 +28,7 @@ const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i > -1 ? args[i + 1] : null; };
 const game = opt("game");
-if (game !== "lorcana" && game !== "onepiece") { console.error("--game lorcana | onepiece"); process.exit(2); }
+if (game !== "lorcana" && game !== "onepiece" && game !== "yugioh") { console.error("--game lorcana | onepiece | yugioh"); process.exit(2); }
 const PANEL_PATH = path.join(root, `scripts/tcg-panel.${game}.json`);
 const CACHE_PATH = path.join(root, `scripts/tcg-panel.${game}.cache.json`);
 const VISION_CALL_CAP = 40;
@@ -37,7 +37,9 @@ const db = new DatabaseSync(path.join(root, "data/cardflip.db"), { readOnly: tru
 
 // Spread across sets (one card per set first), ordered by a fixed hash so
 // --pick is deterministic. Every printing kind the ranker has a rule for.
-const HASH = "((CAST(REPLACE(REPLACE(collector_number, 'OP', ''), '-', '') AS INTEGER) + length(set_code) * 7 + unicode(substr(id, -1)) * 13) * 7919) % 97";
+const HASH = game === "yugioh"
+  ? "((unicode(substr(collector_number, -1)) * 31 + unicode(substr(collector_number, -2, 1)) * 17 + unicode(substr(id, -5, 1)) * 13 + length(set_code) * 7) * 7919) % 97"
+  : "((CAST(REPLACE(REPLACE(collector_number, 'OP', ''), '-', '') AS INTEGER) + length(set_code) * 7 + unicode(substr(id, -1)) * 13) * 7919) % 97";
 const BUCKETS = {
   lorcana: [
     ["standard", "variant = '' AND rarity NOT IN ('Enchanted')", 60],
@@ -55,6 +57,17 @@ const BUCKETS = {
     ["reprint (same id, later set)", "variant = 'reprint'", 10],
     ["same name, different id", "variant = '' AND name IN (SELECT name FROM tcg_cards WHERE game = 'onepiece' AND variant = '' GROUP BY name HAVING COUNT(DISTINCT collector_number) > 1)", 20],
   ],
+  // 09-29: rarity is the hard part (one code, many foils). The "-1st" twin
+  // shares the stock picture, so either twin at the top scores (sameFace).
+  yugioh: [
+    ["core rarities", "rarity IN ('Common', 'Rare', 'Super Rare', 'Ultra Rare', 'Secret Rare') AND variant = ''", 30],
+    ["one code, many rarities", "collector_number IN (SELECT collector_number FROM tcg_cards WHERE game = 'yugioh' GROUP BY collector_number HAVING COUNT(DISTINCT rarity) > 1)", 20],
+    ["old codes (LOB-005)", "collector_number NOT LIKE '%-E%'", 10],
+    ["duel terminal", "rarity LIKE 'Duel Terminal%'", 8],
+    ["starlight / QCSR / platinum / prismatic / collector's", "rarity IN ('Starlight Rare', 'Quarter Century Secret Rare', 'Platinum Secret Rare', 'Prismatic Secret Rare', 'Collector''s Rare', 'Ultimate Rare')", 15],
+    ["gold / ghost / mosaic / shatterfoil / starfoil", "rarity IN ('Gold Rare', 'Premium Gold Rare', 'Gold Secret Rare', 'Ghost Rare', 'Mosaic Rare', 'Shatterfoil Rare', 'Starfoil Rare')", 15],
+    ["alt art / colored", "variant IN ('alt-art', 'blue', 'green', 'purple', 'red', 'bronze', 'silver', 'extended-art')", 10],
+  ],
 };
 
 function pickPanel() {
@@ -63,13 +76,13 @@ function pickPanel() {
     const rows = db
       .prepare(
         `WITH pool AS (
-           SELECT id, name, subtitle, set_code, set_name, collector_number, set_total, variant, image_url,
+           SELECT id, name, subtitle, set_code, set_name, collector_number, set_total, variant, rarity, image_url,
                   ROW_NUMBER() OVER (PARTITION BY set_code ORDER BY ${HASH}, id) AS rn
              FROM tcg_cards WHERE game = ? AND image_url <> '' AND (${where}))
          SELECT * FROM pool ORDER BY rn, ${HASH}, id LIMIT ?`,
       )
       .all(game, n);
-    for (const r of rows) panel.push({ bucket, id: r.id, name: r.name, subtitle: r.subtitle, set: r.set_code, setName: r.set_name, number: r.collector_number, total: r.set_total, variant: r.variant, image: r.image_url });
+    for (const r of rows) if (!panel.some((p) => p.id === r.id)) panel.push({ bucket, id: r.id, name: r.name, subtitle: r.subtitle, set: r.set_code, setName: r.set_name, number: r.collector_number, total: r.set_total, variant: r.variant, rarity: r.rarity, image: r.image_url });
   }
   fs.writeFileSync(PANEL_PATH, JSON.stringify(panel, null, 1));
   console.log(`panel: ${panel.length} printings → ${path.relative(root, PANEL_PATH)}`);
@@ -107,12 +120,12 @@ async function lookup(read) {
   }
   let matches = [];
   for (const candidate of [read.name, read.englishName].filter(Boolean)) {
-    const found = await searchTcgCardsLocal(game, candidate, printed, 5, read.subtitle ?? null, read.variant ?? null);
+    const found = await searchTcgCardsLocal(game, candidate, printed, 5, read.subtitle ?? null, read.variant ?? null, read.firstEdition ?? null);
     if (found.length === 0) continue;
     if (matches.length === 0) matches = found;
     if (found[0].name.split(" - ")[0].trim().toLowerCase() === candidate.trim().toLowerCase()) { matches = found; break; }
   }
-  if (matches.length === 0 && printed) matches = await searchTcgCardsLocal(game, "", printed, 5, read.subtitle ?? null, read.variant ?? null);
+  if (matches.length === 0 && printed) matches = await searchTcgCardsLocal(game, "", printed, 5, read.subtitle ?? null, read.variant ?? null, read.firstEdition ?? null);
   return matches;
 }
 
@@ -154,7 +167,8 @@ for (const p of panel) {
   // A starter-deck reprint shares the base printing's face exactly (same
   // number, same art, no mark) — either twin at the top is the right answer.
   const plain = (v) => !v || v === "reprint";
-  const sameFace = (c) => c.id === p.id || (game === "onepiece" && plain(p.variant) && plain(c.variant) && String(c.number ?? c.collector_number).replace(/_[rp]\d+$/i, "") === String(p.number).replace(/_[rp]\d+$/i, "") && clean(c.name) === clean(p.name));
+  const no1st = (id) => String(id).replace(/-1st$/, "");
+  const sameFace = (c) => c.id === p.id || (game === "yugioh" && no1st(c.id) === no1st(p.id)) || (game === "onepiece" && plain(p.variant) && plain(c.variant) && String(c.number ?? c.collector_number).replace(/_[rp]\d+$/i, "") === String(p.number).replace(/_[rp]\d+$/i, "") && clean(c.name) === clean(p.name));
   function clean(n) { return String(n).replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, ""); }
   const rank = found.findIndex(sameFace);
   const hit = rank === 0;
@@ -169,9 +183,9 @@ for (const p of panel) {
     const top = found[0];
     misses.push({
       bucket: p.bucket,
-      want: `${p.name}${p.subtitle ? " - " + p.subtitle : ""} ${p.number}${p.total ? "/" + p.total : ""} [${p.set}] ${p.variant || "base"} ${p.id}`,
-      got: top ? `${top.name} ${top.number} [${top.setCode}] ${top.variant || "base"} ${top.id}` : "(nothing)",
-      read: `name=${read?.name} sub=${read?.subtitle} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} variant=${read?.variant} year=${read?.copyrightYear} conf=${read?.confidence} 2nd=${read?.secondLook ?? "-"}`,
+      want: `${p.name}${p.subtitle ? " - " + p.subtitle : ""} ${p.number}${p.total ? "/" + p.total : ""} [${p.set}] ${p.variant || "base"} ${p.rarity ?? ""} ${p.id}`,
+      got: top ? `${top.name} ${top.number} [${top.setCode}] ${top.variant || "base"} ${top.rarity ?? ""} ${top.id}` : "(nothing)",
+      read: `name=${read?.name} sub=${read?.subtitle} number=${read?.cardNumber} total=${read?.setTotal} code=${read?.setCode} variant=${read?.variant} 1st=${read?.firstEdition} year=${read?.copyrightYear} conf=${read?.confidence} 2nd=${read?.secondLook ?? "-"}`,
       rank,
     });
   }

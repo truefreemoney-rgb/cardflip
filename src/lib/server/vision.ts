@@ -284,6 +284,9 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sl
 export const YUGIOH_RARITIES = [
   "common", "rare", "super-rare", "ultra-rare", "secret-rare", "ultimate-rare", "ghost-rare", "starlight-rare",
   "quarter-century-secret-rare", "platinum-secret-rare", "prismatic-secret-rare", "collectors-rare", "gold-rare", "starfoil-rare", "mosaic-rare",
+  "shatterfoil-rare", "duel-terminal",
+  // Colored-name Ultra Rares (Legendary Duelists / Duelist Saga reprints): the ranker splits the color off (tcgCards searchYugioh).
+  "ultra-rare-blue", "ultra-rare-green", "ultra-rare-purple", "ultra-rare-red", "ultra-rare-bronze", "ultra-rare-silver",
 ] as const;
 
 export const YUGIOH_READ_SCHEMA = {
@@ -315,21 +318,25 @@ Where things are printed:
 - "1st Edition" is printed under the artwork on the LEFT side, opposite the set code. Report it in firstEdition: true when you see those words, false when that spot is visible and blank or says "LIMITED EDITION". It matters: a 1st Edition copy can sell for many times the Unlimited one.
 
 Rarity (variant) — judge from the foil, since the same set code can come in several rarities:
+- First look at the WHOLE card: is only the name/artwork foil, or does the foil run over the frame and text box too? Whole-card foils are starfoil, shatterfoil, mosaic, starlight and duel terminal — pick one of those before any of the name/art rarities below.
 - common: name in plain black or white ink, artwork not foil.
 - rare: name in silver foil, artwork not foil.
-- super-rare: name in plain ink, artwork holographic.
+- super-rare: name in plain ink, artwork holographic with a smooth, even shine (no visible grain).
 - ultra-rare: name in gold foil AND artwork holographic.
-- secret-rare: name in rainbow/prismatic foil with a fine diagonal pattern AND artwork holographic with a diagonal-line pattern.
+- ultra-rare-blue / -green / -purple / -red / -bronze / -silver: an Ultra Rare whose name foil is that colour instead of gold (Legendary Duelists, Duelist Saga, Dragons of Legend reprints). Look at the name's colour before answering ultra-rare or super-rare.
+- secret-rare: artwork covered in a fine GRAINY sparkle (tiny glitter points in diagonal lines, visible even in a flat scan), name in silver/rainbow foil that can look almost plain in a scan. Grainy sparkle on the art = secret, not super, even when the name looks plain.
 - ultimate-rare: artwork, card frame edges and attribute/level icons are embossed (raised, textured) and the name is gold.
 - ghost-rare: artwork is a pale, washed-out, silvery hologram (the picture looks ghostly), silver name.
 - starlight-rare: the WHOLE card — frame, text box and art — is covered in a rainbow sparkling foil with raised lines.
-- quarter-century-secret-rare: a secret-rare look plus the gold "25th Quarter Century" logo stamp in the bottom-right; the foil is a denser rainbow sparkle.
+- quarter-century-secret-rare: a secret-rare sparkle that is much denser and darker, with the frame around the art and the name bar also glittering (the card looks dark and speckled all over), and a gold "25th" stamp in the bottom-right corner. A plain-coloured frame with sparkle only in the art = secret-rare.
 - platinum-secret-rare: name in a cool silver-white platinum foil, artwork with a secret-rare pattern.
 - prismatic-secret-rare: artwork with a strong textured prism/glitter pattern, rainbow name.
 - collectors-rare: the artwork carries a fine textured foil that follows the drawing's lines, rainbow name.
 - gold-rare: gold card border and gold name, gold foil in the art.
 - starfoil-rare: the whole face has a glittery star/confetti foil pattern (often older tins and Battle Packs).
 - mosaic-rare: the whole face has a foil made of small square/triangular tiles.
+- shatterfoil-rare: the whole face, frame included, has a cracked-glass foil of large irregular shards (Battle Pack 3 and later tins); starfoil is small round dots/stars instead.
+- duel-terminal: "DUEL TERMINAL" is printed under the artwork on the left (where 1st Edition would be) and the whole card has a fine sparkling parallel foil. Set codes are DT01–DT07, DTP1, HAC1 and the like — read the small code carefully, it is not the passcode.
 - unknown: glare or a sleeve hides the foil.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sleeve. Glare can hide foil or fake it on a plain card — if the name ink is unclear, lower confidence rather than guess a rare. Judge condition only from what the photo can actually support. If more than one card is visible, read the largest or most central one and cap confidence at 0.5.`;

@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
+import { TIEBREAK_GAP } from "@/lib/tiebreak";
 
 /**
  * Lorcana + One Piece identification off the shared mirror (tcg_cards, see
@@ -54,7 +55,8 @@ export const isTcgGame = (g: GameId): g is TcgGame => g === "lorcana" || g === "
  * text is not a set code.
  */
 export function yugiohKey(number: string): string | null {
-  const m = /^([A-Z0-9]{2,6})\s*-\s*(?:EN|E|NA)?(\d{2,4}[A-Z]?)$/.exec(number.trim().toUpperCase());
+  // A letter may sit before the digits ("MVP1-ENG53", "LDK2-ENK14", "SGX1-ENB01"); tokens print "TKN".
+  const m = /^([A-Z0-9]{2,6})\s*-\s*(?:EN|E|NA)?([A-Z]?\d{2,4}[A-Z]?|TKN)$/.exec(number.trim().toUpperCase());
   return m ? `${m[1]}-${m[2]}` : null;
 }
 
@@ -132,7 +134,7 @@ export async function searchTcgCardsLocal(
   const needle = fold(name);
   let wantedNumber = printed ? normalizeNumber(printed.number) : null;
   let wantedCode = printed?.setCode ? printed.setCode.toUpperCase() : null;
-  if (game === "yugioh") return searchYugioh(needle, printed, limit, variant, firstEdition);
+  if (game === "yugioh") return searchYugioh(needle, name, printed, limit, variant, firstEdition);
   if (game === "onepiece" && wantedNumber) {
     // The read sometimes prepends the rarity printed beside the number
     // ("SP P-084", "SR OP05-119"); the catalog key is the number alone.
@@ -246,6 +248,7 @@ export async function searchTcgCardsLocal(
  */
 async function searchYugioh(
   needle: string,
+  rawName: string,
   printed: PrintedNumber | null,
   limit: number,
   rarity: string | null,
@@ -259,30 +262,52 @@ async function searchYugioh(
       .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND collector_number IN (?, ?, ?) LIMIT 60`)
       .all(`${prefix}-${digits}`, `${prefix}-EN${digits}`, `${prefix}-E${digits}`)) as unknown as TcgRow[];
   }
+  // The SQL fold turns "-" into a space but keeps the spaces around it
+  // ("destiny hero   plasma"); fold() collapses them, so range-scan with the
+  // SQL's own spelling or every "X - Y" name finds nothing (09-29 panel).
+  const sqlFold = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ").replace(/ - /g, " \u0000 ").replace(/-/g, " ").replace(/\u0000/g, " ").trim();
+  const byNameRows = async (n: string) => {
+    // INDEXED BY: prod's planner (no ANALYZE stats) picked the number index
+    // and walked all 60k rows (09-29 EXPLAIN on Turso).
+    const key = sqlFold(n);
+    return (await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards INDEXED BY idx_tcg_cards_game_folded WHERE game = 'yugioh' AND ${FOLDED} >= ? AND ${FOLDED} < ? ORDER BY set_release_date DESC LIMIT 400`)
+      .all(key, `${key}￿`)) as unknown as TcgRow[];
+  };
   // The number is unread, or it read wrong (none of its rows has this name):
   // every printing of the name, newest first.
   if (needle && !rows.some((r) => fold(r.name) === needle)) {
-    // INDEXED BY: prod's planner (no ANALYZE stats) picked the number index
-    // and walked all 60k rows (09-29 EXPLAIN on Turso).
-    const byName = (await db
-      .prepare(`SELECT ${COLUMNS} FROM tcg_cards INDEXED BY idx_tcg_cards_game_folded WHERE game = 'yugioh' AND ${FOLDED} >= ? AND ${FOLDED} < ? ORDER BY set_release_date DESC LIMIT 400`)
-      .all(needle, `${needle}￿`)) as unknown as TcgRow[];
+    let byName = await byNameRows(rawName);
+    // The card says "Ancient Gear Token"; most catalog rows say "Token: Ancient Gear".
+    const token = /^(.+) token$/.exec(needle);
+    if (token && !byName.some((r) => fold(r.name) === needle)) {
+      const alt = await byNameRows(`token: ${token[1]}`);
+      if (alt.length) { byName = alt.concat(byName); needle = fold(`token: ${token[1]}`); }
+    }
     const have = new Set(rows.map((r) => r.id));
     rows = rows.concat(byName.filter((r) => !have.has(r.id)));
   }
   if (rows.length === 0 && needle) {
     rows = (await db
       .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 200`)
-      .all(`%${needle}%`)) as unknown as TcgRow[];
+      .all(`%${sqlFold(rawName)}%`)) as unknown as TcgRow[];
   }
   if (rows.length === 0) return [];
 
-  const wantRarity = rarity && rarity !== "unknown" && rarity !== "standard" ? raritySlug(rarity) : null;
+  let wantRarity = rarity && rarity !== "unknown" && rarity !== "standard" ? raritySlug(rarity) : null;
+  // "ultra-rare-purple": an Ultra Rare whose name foil is purple — the catalog tags that row variant "purple".
+  const COLORS = ["blue", "green", "purple", "red", "bronze", "silver"];
+  const colorMatch = wantRarity ? /^ultra-rare-([a-z]+)$/.exec(wantRarity) : null;
+  const wantColor = colorMatch && COLORS.includes(colorMatch[1]) ? colorMatch[1] : null;
+  if (wantColor) wantRarity = "ultra-rare";
   const score = (row: TcgRow): number => {
     const exactName = needle !== "" && fold(row.name) === needle;
     const exactNumber = Boolean(wantedKey) && yugiohKey(row.collector_number) === wantedKey;
+    // One character off on the code with the name exact ("SGX3-EN127" for ENI27, "MP15" for SP15): that printing, ahead of the name's other sets.
+    const nearNumber = !exactNumber && Boolean(wantedKey) && oneCharOff(yugiohKey(row.collector_number) ?? "", wantedKey!);
     let tier: number;
     if (exactNumber && (exactName || needle === "")) tier = 0;
+    else if (exactName && nearNumber) tier = 0.5;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;
@@ -290,17 +315,35 @@ async function searchYugioh(
     // Rarity off the foil: "prismatic secret" read against a "secret" row is closer than "common".
     if (wantRarity) {
       const have = raritySlug(row.rarity);
-      p += have === wantRarity ? 0 : have.includes(wantRarity) || wantRarity.includes(have) ? 0.75 : 1.5;
+      p += have === wantRarity || (wantRarity === "duel-terminal" && have.startsWith("duel-terminal")) ? 0 : have.includes(wantRarity) || wantRarity.includes(have) ? 0.75 : 1.5;
     }
     const isFirst = row.id.endsWith("-1st");
     if (firstEdition === true) p += isFirst ? 0 : 1.5;
     else if (firstEdition === false) p += isFirst ? 1.5 : 0;
     else if (isFirst) p += 0.25;
     // Tagged rows ("(Red)", "(Alternate Art)") are the rarer face; the picture settles them.
-    if (row.variant) p += 0.25;
+    if (wantColor) p += row.variant === wantColor ? 0 : 1;
+    else if (row.variant) p += COLORS.includes(row.variant) && wantRarity ? 1 : 0.25;
     if (row.price_usd == null) p += 0.5;
     return p;
   };
-  const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);
-  return scored.map((x) => ({ ...toCard(x.row), rankScore: x.s }));
+  const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s);
+  // The foil read off a photo is the weak link (09-29 panel: right code,
+  // wrong rarity on most misses). When the winning code also comes in
+  // another rarity or tag, bring the best such row up to #2 at a near-tie
+  // score so the picture tiebreak (lib/tiebreak.ts) compares the two faces.
+  // The "-1st" twin shares the face and is not a rival.
+  const base = (id: string) => id.replace(/-1st$/, "");
+  const top = scored[0];
+  if (top) {
+    const topKey = yugiohKey(top.row.collector_number);
+    const rivalAt = scored.findIndex(
+      (x, i) => i > 0 && base(x.row.id) !== base(top.row.id) && yugiohKey(x.row.collector_number) === topKey && (x.row.rarity !== top.row.rarity || x.row.variant !== top.row.variant),
+    );
+    if (rivalAt > 1 || (rivalAt === 1 && scored[1].s - top.s > TIEBREAK_GAP)) {
+      const [rival] = scored.splice(rivalAt, 1);
+      scored.splice(1, 0, { row: rival.row, s: top.s + TIEBREAK_GAP });
+    }
+  }
+  return scored.slice(0, limit).map((x) => ({ ...toCard(x.row), rankScore: x.s }));
 }

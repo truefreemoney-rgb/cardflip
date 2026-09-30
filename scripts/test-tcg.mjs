@@ -37,6 +37,7 @@ check("parseGame falls back to Pokémon", parseGame("digimon"), "pokemon");
 check("eBay Game aspects set", Boolean(GAMES.lorcana.ebayGameAspect) && Boolean(GAMES.onepiece.ebayGameAspect) && Boolean(GAMES.yugioh.ebayGameAspect));
 check("Yu-Gi-Oh! number displays as printed", displayCardNumber({ number: "LOB-EN005", setTotal: 126, game: "yugioh" }), "LOB-EN005");
 check("Yu-Gi-Oh! key drops the language letters", [yugiohKey("lob-en005"), yugiohKey("LOB-005"), yugiohKey("SDY-E005"), yugiohKey("Dark Magician")], ["LOB-005", "LOB-005", "SDY-005", null]);
+check("Yu-Gi-Oh! key keeps a letter before the digits + tokens", [yugiohKey("MVP1-ENG53"), yugiohKey("LDK2-ENK14"), yugiohKey("SR03-ENTKN")], ["MVP1-G53", "LDK2-K14", "SR03-TKN"]);
 check("One Piece number displays as printed", displayCardNumber({ number: "OP01-077", game: "onepiece" }), "OP01-077");
 check("Lorcana number displays as a fraction", displayCardNumber({ number: "42", setTotal: 204, game: "lorcana" }), "42/204");
 check("split OP id", splitOnePieceNumber("op01-077"), { setCode: "OP01", number: "OP01-077" });
