@@ -96,6 +96,13 @@ export async function xSignedJson(method: "POST" | "PUT" | "DELETE", path: strin
   return signedFetch(c, method, `${API}${path}`, { json });
 }
 
+/** A signed form-encoded POST (v1.1 style endpoints such as account/update_profile.json) — null when X is not configured. */
+export async function xSignedForm(path: string, form: Record<string, string>): Promise<Response | null> {
+  const c = creds();
+  if (!c) return null;
+  return signedFetch(c, "POST", `${API}${path}`, { form });
+}
+
 async function signedFetch(
   c: XCreds,
   method: string,

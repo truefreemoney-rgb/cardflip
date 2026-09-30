@@ -1,0 +1,56 @@
+# Read or write the profile bio of each social account (09-30). Calls
+# /api/ops/social-bio on cardflip.io (the credentials only live on Vercel),
+# uploads the response JSON as an artifact and echoes it into the job summary.
+# Run by hand:
+#   gh workflow run social-bio.yml -R truefreemoney-rgb/cardflip
+#   gh workflow run social-bio.yml -R truefreemoney-rgb/cardflip -f mode=write -f bios_json='{"bluesky":"...","x":"..."}'
+# bios_json is the { site: text } map; add "_dryRun":true to it to preview the
+# before/after without writing anything.
+name: social-bio
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "read = GET the current bios; write = POST bios_json"
+        required: true
+        type: choice
+        options: [read, write]
+        default: read
+      bios_json:
+        description: 'write only: {"bluesky":"...","x":"...","facebook":"..."}; add "_dryRun":true to preview without writing'
+        required: false
+        default: "{}"
+jobs:
+  bio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call social-bio
+        env:
+          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          MODE: ${{ inputs.mode }}
+          BIOS_JSON: ${{ inputs.bios_json }}
+        run: |
+          mkdir out
+          URL="https://cardflip.io/api/ops/social-bio"
+          if [ "$MODE" = "write" ]; then
+            # bios_json -> { dryRun, bios }; the optional "_dryRun" key is lifted out.
+            printf '%s' "$BIOS_JSON" | jq -c '{dryRun: (._dryRun // false), bios: del(._dryRun)}' > out/request.json
+            code=$(curl -sS --max-time 90 -o out/response.json -w '%{http_code}' -X POST -H "Authorization: Bearer ${KEY}" -H "Content-Type: application/json" --data @out/request.json "$URL")
+          else
+            code=$(curl -sS --max-time 90 -o out/response.json -w '%{http_code}' -H "Authorization: Bearer ${KEY}" "$URL")
+          fi
+          echo "$MODE HTTP $code $(wc -c < out/response.json) bytes"
+          {
+            echo "### social-bio ($MODE) - HTTP $code"
+            echo '```json'
+            jq . out/response.json 2>/dev/null || cat out/response.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in 2*) ;; *) exit 1 ;; esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: social-bio
+          path: out/
+          retention-days: 7
