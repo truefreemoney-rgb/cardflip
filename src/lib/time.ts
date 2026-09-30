@@ -43,6 +43,21 @@ export function etDay(v: When = Date.now()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: ET_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
 
+/**
+ * The instant Eastern midnight starts v's Eastern day, as epoch ms ("Today"
+ * on the admin Active Users tab). EDT midnight is 04:00 UTC and EST is
+ * 05:00; the day-change test picks the right one on a DST switch day too.
+ */
+export function etDayStart(v: When = Date.now()): number {
+  const day = etDay(v);
+  const [y, m, d] = day.split("-").map(Number);
+  for (const h of [4, 5]) {
+    const t = Date.UTC(y, m - 1, d, h);
+    if (etDay(t) === day && etDay(t - 1) !== day) return t;
+  }
+  return Date.UTC(y, m - 1, d, 5);
+}
+
 function etYear(d: Date): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: ET_ZONE, year: "numeric" }).format(d);
 }

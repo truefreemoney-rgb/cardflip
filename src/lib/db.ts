@@ -856,6 +856,11 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // by default: a handle alone shows nothing.
     "handle TEXT",
     "handle_public INTEGER NOT NULL DEFAULT 0",
+    // Admin Active Users (09-30): when the account last opened the app,
+    // stamped by /api/auth/me at most once per 10 minutes (users.ts
+    // markSeen). NULL = not opened since the column shipped. No index: the
+    // only reader walks users anyway, and an index would double the write.
+    "last_seen_at INTEGER",
   ]],
 ];
 

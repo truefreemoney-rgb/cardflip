@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
 import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
-import { toPublicUser } from "@/lib/server/users";
+import { markSeen, seenDue, toPublicUser } from "@/lib/server/users";
 import { gameFeaturesFor } from "@/lib/server/settings";
 import { dailyDue, runDailyIfDue } from "@/lib/server/dailyJobs";
 import { userHasCards } from "@/lib/server/cards";
@@ -28,6 +28,19 @@ export async function GET() {
     after(() => runDailyIfDue());
   }
   if (user) {
+    // Opened the app (admin Active Users, 09-30): the row is already loaded,
+    // so this costs no read and at most one write per account per 10
+    // minutes, after the response. A missed stamp is not worth an error.
+    const now = Date.now();
+    if (seenDue(user, now)) {
+      after(async () => {
+        try {
+          await markSeen(user.id, now);
+        } catch {
+          // Next open tries again.
+        }
+      });
+    }
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
     const renewed = token ? await touchSession(token) : null;
     if (renewed) {

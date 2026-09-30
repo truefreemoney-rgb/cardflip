@@ -48,9 +48,11 @@ export interface User {
   /** Public collection page (Tier 2 #10): the /u/<handle> slug and whether the page is open. */
   handle: string | null;
   handlePublic: boolean;
+  /** Last app open (/api/auth/me heartbeat, 10-minute grain); null = not since 09-30. */
+  lastSeenAt: number | null;
 }
 
-interface UserRow {
+export interface UserRow {
   id: string;
   name: string;
   email: string;
@@ -80,6 +82,7 @@ interface UserRow {
   bonus_scans: number | null;
   handle: string | null;
   handle_public: number | null;
+  last_seen_at: number | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -92,7 +95,8 @@ function parseBackupCodes(raw: string | null): string[] {
   }
 }
 
-function fromRow(row: UserRow): User {
+/** Row → User. Exported for queries that join users (activeUsers.ts). */
+export function fromRow(row: UserRow): User {
   return {
     id: row.id,
     name: row.name,
@@ -125,6 +129,7 @@ function fromRow(row: UserRow): User {
     bonusScans: row.bonus_scans ?? 0,
     handle: row.handle ?? null,
     handlePublic: row.handle_public === 1,
+    lastSeenAt: row.last_seen_at ?? null,
   };
 }
 
@@ -346,6 +351,30 @@ export async function markTourSeen(userId: string): Promise<void> {
   await db.prepare("UPDATE users SET tour_seen_at = ? WHERE id = ?").run(Date.now(), userId);
 }
 
+/**
+ * Opened-the-app heartbeat for the admin Active Users tab (Chris 09-30).
+ * /api/auth/me runs on every app open; it writes last_seen_at at most once
+ * per SEEN_EVERY_MS per account, so a seller who opens the app all day
+ * costs a handful of row writes, not one per page.
+ */
+export const SEEN_EVERY_MS = 10 * 60_000;
+
+/** True when the heartbeat is due (never stamped, or the last one is 10+ minutes old). */
+export function seenDue(user: Pick<User, "lastSeenAt">, now = Date.now()): boolean {
+  return user.lastSeenAt === null || now - user.lastSeenAt >= SEEN_EVERY_MS;
+}
+
+/**
+ * Stamp last_seen_at. The throttle is re-checked in SQL, so two tabs (or two
+ * instances) that both saw a stale value still write once. True when it wrote.
+ */
+export async function markSeen(userId: string, now = Date.now()): Promise<boolean> {
+  const res = await db
+    .prepare("UPDATE users SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at <= ?)")
+    .run(now, userId, now - SEEN_EVERY_MS);
+  return res.changes > 0;
+}
+
 export async function disableTotp(userId: string): Promise<void> {
   await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_backup_codes = NULL WHERE id = ?").run(userId);
 }
@@ -417,6 +446,7 @@ export async function createUser(
     bonusScans: 0,
     handle: null,
     handlePublic: false,
+    lastSeenAt: null,
   };
 }
 

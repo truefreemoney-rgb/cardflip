@@ -174,7 +174,11 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
               (SELECT COUNT(*) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS sold,
               (SELECT COALESCE(SUM(sold_price), 0) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS revenue,
               (SELECT COUNT(*) FROM wishlist_items w WHERE w.user_id = u.id) AS wishlist,
-              (SELECT MAX(updated_at) FROM cards c WHERE c.user_id = u.id) AS lastActive,
+              -- Last app open or last saved card, whichever is later (09-30).
+              -- Not cards.updated_at: the daily price jobs write it for sellers
+              -- who never open the app. Scalar MAX() is NULL if either side is,
+              -- hence the COALESCE to 0 and back.
+              NULLIF(MAX(COALESCE(u.last_seen_at, 0), COALESCE((SELECT MAX(created_at) FROM cards c WHERE c.user_id = u.id), 0)), 0) AS lastActive,
               (SELECT country FROM signup_log s WHERE s.user_id = u.id) AS country
          FROM users u`,
     )

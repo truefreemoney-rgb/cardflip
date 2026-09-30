@@ -1,4 +1,5 @@
 import type { BoardOwner } from "@/lib/server/board";
+import type { ScanTier } from "@/lib/server/users";
 import { etDateTime } from "@/lib/time";
 
 /** Formatting shared by the admin console pages (app/admin/(console)/*). */
@@ -48,6 +49,19 @@ export function uptime(sec: number): string {
   if (sec < 86400) return `${(sec / 3600).toFixed(1)} h`;
   return `${(sec / 86400).toFixed(1)} d`;
 }
+
+/**
+ * Plan pill per scan tier. Here, not in AdminUsersTable, so the server-
+ * rendered Active Users page can read it too (a "use client" module's
+ * plain objects are not readable from a server component).
+ */
+export const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
+  owner: { label: "Owner", cls: "bg-holo-gold/15 text-holo-gold" },
+  subscribed: { label: "Subscribed", cls: "bg-emerald-400/10 text-emerald-300" },
+  legacy: { label: "Legacy", cls: "bg-sky-400/10 text-sky-300" },
+  pack: { label: "Scan Pack", cls: "bg-amber-400/10 text-amber-300" },
+  trial: { label: "Trial", cls: "bg-white/5 text-zinc-400" },
+};
 
 export const STATUS_STYLE: Record<string, string> = {
   ready: "bg-zinc-400/10 text-zinc-300",

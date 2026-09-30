@@ -32,9 +32,12 @@ const mtg = await import(at("lib/server/mtgCards.ts"));
 const en = await import(at("lib/server/enCards.ts"));
 const cjk = await import(at("lib/server/cjkCards.ts"));
 const bulk = await import(at("lib/server/priceBulkWrite.ts"));
+const active = await import(at("lib/server/activeUsers.ts"));
 
-// Tables where a bare scan is an outage waiting to happen.
-const BIG = ["en_cards", "mtg_cards", "mtg_sets", "price_series", "tcgplayer_products", "jp_cards", "zh_cards"];
+// Tables where a bare scan is an outage waiting to happen. scan_usage and
+// price_checks are the per-action ledgers (one row per scan / check, for
+// ever); both have a time index a windowed read must ride.
+const BIG = ["en_cards", "mtg_cards", "mtg_sets", "price_series", "tcgplayer_products", "jp_cards", "zh_cards", "scan_usage", "price_checks"];
 
 // --- seed a few rows so the planner has real tables ---------------------------
 const now = Date.now();
@@ -73,7 +76,7 @@ const seen = new Map(); // fn -> count of SELECTs graded
 
 db.prepare = (sql) => {
   const stmt = origPrepare(sql);
-  if (!current || !/^\s*select/i.test(sql)) return stmt;
+  if (!current || !/^\s*(select|with)\b/i.test(sql)) return stmt;
   const wrap = (method) => async (...args) => {
     await grade(sql, args);
     return stmt[method](...args);
@@ -155,6 +158,11 @@ await run("mtgShowcase", [], () => mtg.mtgShowcase(2));
 await run("searchCjkCardsLocal (ja)", [], () => cjk.searchCjkCardsLocal("ja", "ピカチュウ", "25"));
 await run("searchCjkCardsLocal (ja prefix)", [], () => cjk.searchCjkCardsLocal("ja", "ピカ", null));
 await run("searchCjkCardsLocal (zh)", [], () => cjk.searchCjkCardsLocal("zh", "皮卡丘", null));
+// Admin Active Users (09-30): the 30-day window must SEARCH the ledgers by
+// time. Without INDEXED BY, scan_usage was walked whole through
+// idx_scan_usage_user. The small tables (cards, wishlist, help, tickets)
+// are walked on purpose behind a 60 s memo; they are not on the BIG list.
+await run("loadActiveUsers", [], () => active.loadActiveUsers(now));
 
 // --- set lists are memoed: the second call must not touch the catalog at all ---
 const before = violations.length;

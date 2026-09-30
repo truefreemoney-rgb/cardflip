@@ -10,7 +10,8 @@ import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 import { SCANS } from "@/lib/pricing";
 import { formatMoney } from "@/lib/listing";
-import { etDate } from "@/lib/time";
+import { etDate, etDateTime } from "@/lib/time";
+import { ago, TIER_STYLE } from "@/components/admin/format";
 
 export interface AdminUserRow {
   id: string;
@@ -51,14 +52,6 @@ function hue(id: string): number {
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 360;
   return h;
 }
-
-const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
-  owner: { label: "Owner", cls: "bg-holo-gold/15 text-holo-gold" },
-  subscribed: { label: "Subscribed", cls: "bg-emerald-400/10 text-emerald-300" },
-  legacy: { label: "Legacy", cls: "bg-sky-400/10 text-sky-300" },
-  pack: { label: "Scan Pack", cls: "bg-amber-400/10 text-amber-300" },
-  trial: { label: "Trial", cls: "bg-white/5 text-zinc-400" },
-};
 
 const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
   { value: "", label: "Automatic" },
@@ -308,7 +301,10 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                     <span className="mt-0.5 block truncate text-[11px] text-zinc-600">{scansLabel}</span>
                   </span>
                   <span className="hidden text-xs text-zinc-500 md:block">{fmtDate(u.createdAt)}</span>
-                  <span className="hidden text-xs text-zinc-500 md:block">{fmtDate(r?.lastActive ?? null)}</span>
+                  {/* Relative, exact Eastern time on hover. The server and the phone can land on either side of a minute. */}
+                  <span className="hidden text-xs text-zinc-500 md:block" title={etDateTime(r?.lastActive ?? null)} suppressHydrationWarning>
+                    {r?.lastActive ? ago(r.lastActive) : "—"}
+                  </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
