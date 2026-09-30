@@ -7,6 +7,7 @@ import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
 
 /**
  * Import from other apps (Tier 2 #12, 09-27): a Collectr / TCGplayer /
@@ -28,6 +29,8 @@ interface PreviewRow {
   number: string | null;
   imageUrl: string | null;
   price: number;
+  /** The price guard flagged this card's market: it imports unpriced. */
+  flag?: { hard: boolean; reason: string };
   paid: number | null;
   firstEdition: boolean;
 }
@@ -249,6 +252,7 @@ export default function ImportPage() {
                         {r.setName} · #{r.number} · {r.condition}
                       </div>
                       {r.status === "check" && <div className="mt-0.5 truncate text-xs text-amber-300">{r.reason}</div>}
+                      {r.flag && <div className="mt-0.5 text-xs leading-snug"><PriceFlagText /></div>}
                     </div>
                     <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-white">{r.price > 0 ? formatMoney(r.price) : "—"}</span>
                   </li>

@@ -39,6 +39,7 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
 import { askingNoteFor, formatMoney } from "@/lib/listing";
+import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
 import { saleBreakdown } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 import { etDate } from "@/lib/time";
@@ -399,7 +400,9 @@ export default function CollectionPage() {
     const rowCls = "flex items-center justify-between gap-3 px-4 py-2.5";
     const rowLabel = "shrink-0 text-[10px] font-medium uppercase tracking-wide text-zinc-500";
     const rowValue = "flex min-w-0 justify-end text-right text-sm";
-    const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : "Suggested price";
+    // The price guard (lib/server/livePrices.ts): today's market is one the rule does not believe, so nothing is suggested from it.
+    const flagged = livePrices[card.id]?.flag != null && !sold;
+    const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : flagged ? "Price" : "Suggested price";
     const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
     const note = sold
       ? null
@@ -413,7 +416,7 @@ export default function CollectionPage() {
     // Why a cheap draft sits above its market (value + fees + postage): only
     // while the price IS the suggested one, not a price the seller typed.
     const lp = livePrices[card.id];
-    const costNote = draft && lp && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
+    const costNote = draft && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
     const facts: [string, string][] = [
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
@@ -491,6 +494,7 @@ export default function CollectionPage() {
               </button>
             )}
           </div>
+          {flagged && !live && !ended && <PriceFlagNote className="mt-2" />}
           {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
           {/* Scanned → now (Chris, 09-08): the original scanned price, the
@@ -498,7 +502,7 @@ export default function CollectionPage() {
               sale story instead. */}
           {(() => {
             const scanned = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
-            if (sold || scanned == null || !(scanned > 0)) return null;
+            if (sold || flagged || scanned == null || !(scanned > 0)) return null;
             const delta = priceValue - scanned;
             if (Math.abs(delta) < 0.01) {
               return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was scanned at {formatMoney(scanned)}.</p>;
@@ -1129,6 +1133,12 @@ export default function CollectionPage() {
     saveGame(next);
   }
 
+  // The price guard: drafts priced off a market the rule does not believe (and not typed by the seller) count for nothing
+  // in what is in play, so one junk $1,013 draft cannot double the number. A key, so the memo depends on a plain string.
+  const leftOutKey = gameCards
+    .filter((c) => c.status === "ready" && !c.priceLocked && livePrices[c.id]?.flag != null)
+    .map((c) => c.id)
+    .join(",");
   const stats = useMemo(() => {
     const drafts = gameCards.filter((c) => c.status === "ready");
     // "1 live" while nothing was live (Chris, 09-03): an ended auction is
@@ -1146,10 +1156,14 @@ export default function CollectionPage() {
     );
     // Every sale has its real fee recorded → the fee figure drops its "≈".
     const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null);
-    const inPlayGross = [...drafts, ...listed].reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
+    // Seller-typed and listed prices count; a flagged unlocked draft does not (leftOutKey above).
+    const leftOutIds = new Set(leftOutKey ? leftOutKey.split(",") : []);
+    const leftOut = drafts.filter((c) => leftOutIds.has(c.id));
+    const counted = [...drafts.filter((c) => !leftOut.includes(c)), ...listed];
+    const inPlayGross = counted.reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
     // What those listings would actually put in the seller's pocket: each
     // copy after the fee estimate and postage.
-    const inPlay = [...drafts, ...listed].reduce(
+    const inPlay = counted.reduce(
       (sum, c) => sum + (c.price > 0 ? Math.max(0, netAfterFees(c.price) - POSTAGE_USD) : 0) * (c.quantity || 1),
       0,
     );
@@ -1163,15 +1177,15 @@ export default function CollectionPage() {
         ? gaps.reduce((sum, days) => sum + days, 0) / gaps.length
         : null;
 
-    const inPlayCopies = [...drafts, ...listed].reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
+    const inPlayCopies = counted.reduce((sum, c) => sum + (c.price > 0 ? c.quantity || 1 : 0), 0);
     const soldCopies = sold.filter((c) => c.soldPrice != null).length;
     // Profit (09-27) = net take-home minus what the seller paid; only sales
     // with a purchase price on file count toward cost, the rest are flagged.
     const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, soldCopies, avgDays, cost, costKnown, profit };
-  }, [gameCards]);
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, avgDays, cost, costKnown, profit };
+  }, [gameCards, leftOutKey]);
 
 
   async function removeSelected() {
@@ -1330,6 +1344,11 @@ export default function CollectionPage() {
               {formatMoney(stats.inPlay)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
+            {stats.leftOut > 0 && (
+              <p className="mt-1 text-xs text-amber-300">
+                {stats.leftOut} {stats.leftOut === 1 ? "card" : "cards"} left out, {stats.leftOut === 1 ? "its price looks" : "their prices look"} off
+              </p>
+            )}
             <Breakdown
               rows={[
                 ["Asking", stats.inPlayGross],
@@ -2089,7 +2108,9 @@ export default function CollectionPage() {
               // The row chip compares against the SCANNED price, so it persists
               // across loads (Chris, 09-08: it vanished once the price settled).
               const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
-              const moved = !sold && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - card.price) >= 0.01;
+              // A flagged market moves nothing: no "was $X, now $Y" chip built on it (the price guard).
+              const rowFlag = !sold && livePrices[card.id]?.flag != null;
+              const moved = !sold && !rowFlag && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - card.price) >= 0.01;
               return (
               <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
                 <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
@@ -2282,6 +2303,7 @@ export default function CollectionPage() {
                             </span>
                           );
                         })()}
+                        {rowFlag && !liveRow && !ended && <p className="mt-0.5 max-w-[15rem] text-[11px] leading-snug"><PriceFlagText /></p>}
                         {card.status === "listed" && nudges[card.id] && (
                           <button
                             onClick={() => void applyReprice(card, nudges[card.id])}

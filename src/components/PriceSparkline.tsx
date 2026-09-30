@@ -63,11 +63,13 @@ export default function PriceSparkline({ cardId, preferVariant, days = 30, class
   const currency = series.currency as Currency;
   const up = geo.last >= geo.first;
   const stroke = up ? "#34d399" : "#f87171";
+  // The price guard: a +450% spike in a flagged series reads as a real move, so no direction chip (the line still draws).
+  const flagged = Boolean(series.untrusted);
 
   return (
     <div
       className={`flex items-center gap-2 ${className}`}
-      title={`${geo.n}-day price: ${formatMoney(geo.first, currency)} → ${formatMoney(geo.last, currency)}`}
+      title={flagged ? `${geo.n}-day price history` : `${geo.n}-day price: ${formatMoney(geo.first, currency)} → ${formatMoney(geo.last, currency)}`}
     >
       <svg
         viewBox={`0 0 ${geo.W} ${geo.H}`}
@@ -76,15 +78,17 @@ export default function PriceSparkline({ cardId, preferVariant, days = 30, class
         className={stretch ? "h-7 min-w-0 flex-1" : "h-7 w-24 shrink-0"}
         preserveAspectRatio={stretch ? "none" : undefined}
         role="img"
-        aria-label={`Price ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days`}
+        aria-label={flagged ? `Price history over ${geo.n} days` : `Price ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days`}
       >
         <path d={geo.d} fill="none" stroke={stroke} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
         <circle cx={geo.lastX} cy={geo.lastY} r="2" fill={stroke} />
       </svg>
-      <span className={`text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-        {up ? "▲" : "▼"} {Math.abs(geo.pct).toFixed(1)}%
-        <span className="ml-1 font-normal text-zinc-600">{days}d</span>
-      </span>
+      {!flagged && (
+        <span className={`text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+          {up ? "▲" : "▼"} {Math.abs(geo.pct).toFixed(1)}%
+          <span className="ml-1 font-normal text-zinc-600">{days}d</span>
+        </span>
+      )}
     </div>
   );
 }

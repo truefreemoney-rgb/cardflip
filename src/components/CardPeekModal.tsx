@@ -10,6 +10,7 @@ import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { formatMoney, pickPrice } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
 import type { PokemonCard } from "@/lib/types";
 
 interface Props {
@@ -77,7 +78,10 @@ export default function CardPeekModal({ card, onClose }: Props) {
           <p className="mt-1 text-sm text-zinc-500">
             {card.setName} · {card.game === "mtg" ? displayCardNumber(card) : `#${card.number}`}
           </p>
-          {price && (
+          {price?.untrusted && (
+            <p className="mt-3 text-sm"><PriceFlagText /></p>
+          )}
+          {price && !price.untrusted && (
             <p className="mt-3">
               <span className="holo-text font-display text-3xl font-bold">
                 {formatMoney(price.market ?? 0, price.currency)}

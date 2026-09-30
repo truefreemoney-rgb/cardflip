@@ -445,5 +445,5 @@ export interface ScanItem {
    * tiles $0.91 / $1.03, Your price and queue $1.83 — "everything is
    * totally screwed up"). Null until loaded, or when the card has none.
    */
-  currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency } | null;
+  currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag } | null;
 }

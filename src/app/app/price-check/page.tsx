@@ -12,7 +12,8 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
-import { formatMoney, pickPrice } from "@/lib/listing";
+import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
+import { PriceFlagText } from "@/components/PriceFlagNote";
 import {
   clearPriceChecks,
   deletePriceCheck,
@@ -56,7 +57,8 @@ function rarityRank(card: PokemonCard): number {
   }
   return card.isSecretRare ? 4 : 0;
 }
-const marketOf = (card: PokemonCard): number => pickPrice(card)?.market ?? -1;
+// A card whose market the price guard flags sorts as unpriced (lib/priceFlag.ts).
+const marketOf = (card: PokemonCard): number => (priceFlagOf(card) ? -1 : (pickPrice(card)?.market ?? -1));
 function sortCards(cards: PokemonCard[], sort: SortKey): PokemonCard[] {
   if (sort === "set") return cards;
   const out = [...cards];
@@ -435,6 +437,7 @@ export default function PriceCheckPage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {shown.map((card) => {
               const price = pickPrice(card);
+              const flagged = priceFlagOf(card) != null;
               return (
                 <CardTile
                   key={card.id}
@@ -442,8 +445,9 @@ export default function PriceCheckPage() {
                   name={card.name}
                   englishName={card.englishName}
                   subtitle={mode === "browse" ? displayCardNumber(card) : `${card.setName} · ${displayCardNumber(card)}`}
-                  price={price?.market ?? null}
+                  price={flagged ? null : (price?.market ?? null)}
                   priceNote={price?.label ? `${price.label} · market` : undefined}
+                  flagged={flagged}
                   aside={card.rarity ? <span className="max-w-[45%] truncate rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">{card.rarity}</span> : undefined}
                   selected={selected?.id === card.id}
                   onOpen={() => void selectCard(card)}
@@ -552,8 +556,9 @@ export default function PriceCheckPage() {
                 imageUrl={entry.imageUrl ?? ""}
                 name={entry.cardName}
                 subtitle={`${entry.setName} · ${entry.cardNumber}${entry.language !== "en" ? ` · ${entry.language === "ja" ? "Japanese" : "Chinese"}` : ""}`}
-                price={entry.representativePrice}
+                price={entry.flag ? null : entry.representativePrice}
                 priceNote={formatDate(entry.checkedAt)}
+                flagged={Boolean(entry.flag)}
                 sparkCardId={entry.cardId}
                 opening={openingId === entry.id}
                 onOpen={() => void openHistoryEntry(entry)}
@@ -608,9 +613,13 @@ export default function PriceCheckPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <div className="text-right">
-                    <span className="block font-display font-medium text-emerald-400">
-                      {formatMoney(entry.representativePrice)}
-                    </span>
+                    {entry.flag ? (
+                      <span className="block max-w-[11rem] text-xs font-medium leading-snug"><PriceFlagText /></span>
+                    ) : (
+                      <span className="block font-display font-medium text-emerald-400">
+                        {formatMoney(entry.representativePrice)}
+                      </span>
+                    )}
                     <span className="block text-[11px] text-zinc-600">
                       {formatDate(entry.checkedAt)}
                     </span>

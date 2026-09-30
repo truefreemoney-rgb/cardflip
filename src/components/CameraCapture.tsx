@@ -8,7 +8,7 @@ import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
-import { currentPrice, formatMoney } from "@/lib/listing";
+import { currentPrice, effectiveVariant, formatMoney, priceFlagOf } from "@/lib/listing";
 import {
   fxCapture,
   fxMatch,
@@ -887,6 +887,8 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
   const settled =
     item.ebayStatus !== "idle" && item.ebayStatus !== "loading" && item.currentPoint !== undefined;
   const market = settled ? revealMarket(item) : null;
+  // The price guard: a market the rule does not believe is never the reveal number (no count-up, no tier flourish).
+  const flagged = settled && market == null && priceFlagOf(card, effectiveVariant(item), item.currentPoint) != null;
   const tier = revealTier(market);
   const style = TIER_STYLE[tier];
   const counted = useCountUp(market);
@@ -934,8 +936,8 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
             <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">list price</p>
           </>
         ) : (
-          <p className={`text-[10px] uppercase tracking-[0.15em] text-zinc-500 ${settled ? "" : "animate-pulse"}`}>
-            {settled ? "no price yet" : "pricing…"}
+          <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
+            {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
           </p>
         )}
       </div>
