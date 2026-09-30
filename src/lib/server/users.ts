@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
 import { PRICE, PRICING } from "@/lib/pricing";
+import type { ScanQuota } from "@/lib/quotaTypes";
+import { SEED_WINDOW_ENDS_AT, seedAmount } from "@/lib/planSeed";
 import { emailConfirmActive } from "@/lib/server/mail";
+
+export type { ScanQuota };
 
 export type Role = "user" | "admin";
 
@@ -25,11 +29,22 @@ export interface User {
   stripeSubscriptionId: string | null;
   subStatus: string | null;
   subPeriodEnd: number | null;
+  /** When a subscription set to cancel ends (ms epoch); null = not ending. Banked plan scans pause then. */
+  subCancelAt: number | null;
   /** 'standard' | 'pro' — from the Stripe price on the subscription. */
   plan: Plan | null;
-  /** Scan metering: counter month (yyyy-mm), scans used in it, purchased bank. */
+  /**
+   * Scan metering: counter month (yyyy-mm), scans used in it, purchased bank.
+   * scanMonth/scansUsed still meter legacy (day), owner and comped accounts;
+   * a rollover subscriber spends planScans instead.
+   */
   scanMonth: string | null;
   scansUsed: number;
+  /** Rollover balance (payments credit it, scans spend it); null = not migrated yet (planSeedFor). */
+  planScans: number | null;
+  /** What the latest payment credited, and when (the "carried over" line). */
+  planCreditScans: number;
+  planCreditAt: number | null;
   extraScans: number;
   /** Free trial: scans taken without a subscription, lifetime. */
   trialScansUsed: number;
@@ -71,9 +86,13 @@ export interface UserRow {
   stripe_subscription_id: string | null;
   sub_status: string | null;
   sub_period_end: number | null;
+  sub_cancel_at: number | null;
   plan: string | null;
   scan_month: string | null;
   scans_used: number | null;
+  plan_scans: number | null;
+  plan_credit_scans: number | null;
+  plan_credit_at: number | null;
   extra_scans: number | null;
   trial_scans_used: number | null;
   auto_offer_percent: number | null;
@@ -118,9 +137,13 @@ export function fromRow(row: UserRow): User {
     stripeSubscriptionId: row.stripe_subscription_id ?? null,
     subStatus: row.sub_status ?? null,
     subPeriodEnd: row.sub_period_end ?? null,
+    subCancelAt: row.sub_cancel_at ?? null,
     plan: row.plan === "pro" ? "pro" : row.plan === "standard" ? "standard" : null,
     scanMonth: row.scan_month ?? null,
     scansUsed: row.scans_used ?? 0,
+    planScans: row.plan_scans ?? null,
+    planCreditScans: row.plan_credit_scans ?? 0,
+    planCreditAt: row.plan_credit_at ?? null,
     extraScans: row.extra_scans ?? 0,
     trialScansUsed: row.trial_scans_used ?? 0,
     autoOfferPercent: row.auto_offer_percent ?? null,
@@ -169,7 +192,7 @@ export function isComped(user: Pick<User, "accessOverride">): boolean {
   return user.accessOverride === "comp_standard" || user.accessOverride === "comp_pro";
 }
 
-/** The two paid tiers (09-04). Scan caps per calendar month, from lib/pricing.ts. */
+/** The two paid tiers (09-04). Scans each payment credits, from lib/pricing.ts. */
 export type Plan = "standard" | "pro";
 export const PLAN_SCANS: Record<Plan, number> = { standard: PRICING.standard.scans, pro: PRICING.pro.scans };
 export const PLAN_PRICE_USD: Record<Plan, string> = { standard: PRICE.standard, pro: PRICE.pro };
@@ -201,7 +224,8 @@ export function trialScansLeft(
 /**
  * Access tiers (Chris, 09-04, the paid switch):
  *  - owner: Chris's own account, unlimited.
- *  - subscribed: the plan's monthly cap (lib/pricing.ts), then bonus, then pack scans.
+ *  - subscribed: the plan balance (users.plan_scans, credited by each paid invoice; a comped
+ *    account keeps the calendar-month counter), then bonus, then pack scans.
  *  - legacy: accounts that existed before the switch get 100 scans a DAY,
  *    no subscription, no wall.
  *  - pack: no subscription but a Scan Pack balance (users.extra_scans > 0):
@@ -214,36 +238,50 @@ export const OWNER_EMAIL = "truefreemoney@gmail.com";
 export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
 export const LEGACY_DAILY_SCANS = 100;
 
-/**
- * Scan metering snapshot. Trial = lifetime allowance; legacy = per UTC day
- * (the day key shares scan_month); owner = metered, never enforced
- * (remaining null); subscribers = MONTHLY plan cap + banked invite scans.
- * Lives here (not scanQuota.ts) so toPublicUser can ship it to the header
- * pill without an import cycle; scanQuota.ts re-exports it.
- */
-export interface ScanQuota {
-  used: number;
-  included: number;
-  /** null = not enforced for this user (owner). */
-  remaining: number | null;
-  /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
-  bonus?: number;
-  /** Scan Pack scans still banked (never expire); counted in remaining. */
-  pack?: number;
-}
-
 const quotaMonth = () => new Date().toISOString().slice(0, 7);
 const quotaDay = () => new Date().toISOString().slice(0, 10);
 
-export function scanQuota(user: User): ScanQuota {
+/**
+ * A real subscriber (Stripe status live, no admin override): the one tier that
+ * spends users.plan_scans. Comped accounts read as the "subscribed" tier too
+ * (they have the plan's allowance with no Stripe behind it) but keep the
+ * calendar-month counter, so the branch is on isComped, not on the tier.
+ */
+export function spendsPlanScans(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "extraScans">): boolean {
+  return scanTier(user) === "subscribed" && !isComped(user);
+}
+
+/**
+ * What to seed users.plan_scans with, or null when nothing is owed: only a
+ * real subscriber whose balance is still NULL, inside the deploy-day window
+ * (lib/planSeed.ts has the rule and the why). Pure, so reads can show the
+ * balance before the row is ever written.
+ */
+export function planSeedFor(
+  user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "extraScans" | "planScans" | "plan" | "scanMonth" | "scansUsed">,
+  now = Date.now(),
+): number | null {
+  if (user.planScans !== null || now >= SEED_WINDOW_ENDS_AT || !spendsPlanScans(user)) return null;
+  return seedAmount(monthlyScans(user), user.scanMonth, user.scansUsed);
+}
+
+/** Plan scans the seller has, counting an unmigrated subscriber's seed (their old allowance) so nothing reads as zero on deploy day. */
+export function planScansLeft(user: Parameters<typeof planSeedFor>[0], now = Date.now()): number {
+  return Math.max(0, user.planScans ?? planSeedFor(user, now) ?? 0);
+}
+
+export function scanQuota(user: User, now = Date.now()): ScanQuota {
   const tier = scanTier(user);
+  // Banked plan scans that cannot be spent right now (canceled, or an override
+  // ignores them): shown so a paused balance never reads as lost.
+  const frozen = !spendsPlanScans(user) && tier !== "owner" && (user.planScans ?? 0) > 0 ? { frozen: user.planScans ?? 0 } : {};
   if (tier === "trial") {
     const t = user.trialScansUsed ?? 0;
-    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t) };
+    return { used: t, included: TRIAL_SCANS, remaining: Math.max(0, TRIAL_SCANS - t), ...frozen };
   }
   if (tier === "legacy") {
     const used = user.scanMonth === quotaDay() ? user.scansUsed : 0;
-    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used) };
+    return { used, included: LEGACY_DAILY_SCANS, remaining: Math.max(0, LEGACY_DAILY_SCANS - used), ...frozen };
   }
   if (tier === "owner") {
     const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
@@ -254,13 +292,31 @@ export function scanQuota(user: User): ScanQuota {
     // what the trial burned before they bought, so the counter reads
     // "100 / 100" the moment a pack lands.
     const pack = user.extraScans ?? 0;
-    return { used: 0, included: pack, remaining: pack, pack };
+    return { used: 0, included: pack, remaining: pack, pack, ...frozen };
   }
-  const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
   const cap = monthlyScans(user);
   const bonus = user.bonusScans ?? 0;
   const pack = user.extraScans ?? 0;
-  return { used, included: cap, remaining: Math.max(0, cap - used) + bonus + pack, bonus, pack };
+  if (isComped(user)) {
+    // Comped (an admin override, no payments): the old calendar-month counter.
+    const used = user.scanMonth === quotaMonth() ? user.scansUsed : 0;
+    return { used, included: cap, remaining: Math.max(0, cap - used) + bonus + pack, bonus, pack, ...frozen };
+  }
+  // Rollover subscriber: payments credit plan_scans, scans spend it, nothing resets.
+  const plan = planScansLeft(user, now);
+  const live = user.subStatus === "active" || user.subStatus === "trialing";
+  return {
+    used: 0,
+    included: cap,
+    remaining: plan + bonus + pack,
+    bonus,
+    pack,
+    plan,
+    carried: Math.max(0, plan - (user.planCreditScans ?? 0)),
+    ...(user.planCreditScans > 0 ? { lastCredit: user.planCreditScans, lastCreditAt: user.planCreditAt ?? null } : {}),
+    nextCreditAt: live && !user.subCancelAt ? user.subPeriodEnd ?? null : null,
+    endsAt: user.subCancelAt ?? null,
+  };
 }
 
 /** Scan Pack scans banked on the account (one-time buys, never expire). */
@@ -335,19 +391,30 @@ export async function setStripeSubscription(userId: string, subscriptionId: stri
   await db.prepare("UPDATE users SET stripe_subscription_id = ? WHERE id = ?").run(subscriptionId, userId);
 }
 
+/**
+ * Mirror the subscription. `plan` undefined = leave the plan column alone;
+ * `cancelAt` (when a subscription set to cancel ends, null = not ending)
+ * undefined = leave it alone too, so an event that does not say (or a
+ * checkout) never clears a pending cancel by accident.
+ */
 export async function setSubscription(
   userId: string,
   status: string | null,
   periodEnd: number | null,
   plan?: Plan | null,
+  cancelAt?: number | null,
 ): Promise<void> {
-  if (plan === undefined) {
-    await db.prepare("UPDATE users SET sub_status = ?, sub_period_end = ? WHERE id = ?").run(status, periodEnd, userId);
-  } else {
-    await db
-      .prepare("UPDATE users SET sub_status = ?, sub_period_end = ?, plan = ? WHERE id = ?")
-      .run(status, periodEnd, plan, userId);
+  const sets = ["sub_status = ?", "sub_period_end = ?"];
+  const args: (string | number | null)[] = [status, periodEnd];
+  if (plan !== undefined) {
+    sets.push("plan = ?");
+    args.push(plan);
   }
+  if (cancelAt !== undefined) {
+    sets.push("sub_cancel_at = ?");
+    args.push(cancelAt);
+  }
+  await db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...args, userId);
 }
 
 export async function findUserByStripeCustomer(customerId: string): Promise<User | null> {
@@ -458,9 +525,13 @@ export async function createUser(
     stripeSubscriptionId: null,
     subStatus: null,
     subPeriodEnd: null,
+    subCancelAt: null,
     plan: null,
     scanMonth: null,
     scansUsed: 0,
+    planScans: null,
+    planCreditScans: 0,
+    planCreditAt: null,
     extraScans: 0,
     trialScansUsed: 0,
     autoOfferPercent: null,
@@ -633,7 +704,7 @@ export interface PublicUser {
   trialScansLeft: number;
   /** 'standard' | 'pro' when subscribed. */
   plan: Plan | null;
-  /** Scans included per month on the current plan. */
+  /** Scans each payment credits on the current plan. */
   monthlyScans: number;
   /** owner | subscribed | legacy | trial — drives the wall and the plan copy. */
   tier: ScanTier;
@@ -643,12 +714,16 @@ export interface PublicUser {
   tourSeenAt: number | null;
   /** Unused two-step backup codes left (0 when two-step is off). */
   totpBackupCodesLeft: number;
-  /** Invite-a-friend scans banked, spent after the monthly allowance. */
+  /** Invite-a-friend scans banked, spent after the plan balance. */
   bonusScans: number;
   /** Scan Pack scans banked (one-time buys, never expire), spent last. */
   packScans: number;
-  /** Scans used / included / left right now — the header counter (09-07). */
+  /** The header counter (09-07) and account page: scans left plus, for subscribers, carried over, next credit and any pause. */
   scans: ScanQuota;
+  /** The subscription is set to cancel at the end of the period (subEndsAt): banked plan scans pause then. */
+  cancelAtPeriodEnd: boolean;
+  /** When a canceling subscription ends (ms epoch); null = not ending. */
+  subEndsAt: number | null;
   /** Public collection page: the chosen handle and whether /u/<handle> is open. */
   handle: string | null;
   handlePublic: boolean;
@@ -671,6 +746,8 @@ export function toPublicUser(user: User): PublicUser {
     bonusScans: user.bonusScans ?? 0,
     packScans: packScans(user),
     scans: scanQuota(user),
+    cancelAtPeriodEnd: isSubscribed(user) && Boolean(user.subCancelAt),
+    subEndsAt: isSubscribed(user) ? user.subCancelAt ?? null : null,
     handle: user.handle ?? null,
     handlePublic: Boolean(user.handlePublic),
     mustConfirmEmail: needsEmailConfirm(user),

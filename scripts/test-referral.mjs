@@ -6,8 +6,8 @@
  * friend's subscribed edge only when the referrer is a subscriber right now
  * (a trial referrer earns nothing, and stays unrewarded even if they
  * subscribe later), exactly once (retried webhook pays nothing); stats
- * count joined vs subscribed; bonus scans are spent only after the month's
- * allowance and survive the rollover; the invite API reports eligibility.
+ * count joined vs subscribed; bonus scans are spent only after the plan balance
+ * and are untouched by a calendar month change; the invite API reports eligibility.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,7 +22,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { attachReferral, ensureReferralCode, findUserByReferralCode, referralStats, referralUrl, rewardReferrerIfDue, REFERRAL_BONUS_SCANS } = await import(at("lib/server/referrals.ts"));
 const { createUser, findUserById, setSubscription, PLAN_SCANS } = await import(at("lib/server/users.ts"));
-const { recordScan, scanQuota } = await import(at("lib/server/scanQuota.ts"));
+const { reserveScan, scanQuota } = await import(at("lib/server/scanQuota.ts"));
 const signup = await import(at("app/api/auth/signup/route.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -76,23 +76,21 @@ check("stats: joined vs subscribed", await referralStats(alice.id), { friendsJoi
 await rewardReferrerIfDue(await u(dee.id));
 check("stats: second friend subscribes → 2× bonus banked", [(await u(alice.id)).bonusScans, (await referralStats(alice.id)).friendsSubscribed], [REFERRAL_BONUS_SCANS * 2, 2]);
 
-// --- quota: bonus spent after the allowance -------------------------------------
-const month = new Date().toISOString().slice(0, 7);
+// --- quota: bonus spent after the plan balance ------------------------------------
 const cap = PLAN_SCANS.standard;
-await db.prepare("UPDATE users SET scan_month = ?, scans_used = ?, bonus_scans = 2 WHERE id = ?").run(month, cap - 1, alice.id);
+await db.prepare("UPDATE users SET plan_scans = 1, bonus_scans = 2 WHERE id = ?").run(alice.id);
 let q = scanQuota(await u(alice.id));
-check("quota: remaining = allowance left + bonus", [q.used, q.included, q.remaining, q.bonus], [cap - 1, cap, 3, 2]);
-q = await recordScan(await u(alice.id));
-check("scan: last allowance scan counts against the month, bonus untouched", [q.used, q.remaining, q.bonus], [cap, 2, 2]);
-q = await recordScan(await u(alice.id));
-check("scan: past the cap → spends a bonus scan, used stays at cap", [q.used, q.remaining, q.bonus, (await u(alice.id)).bonusScans], [cap, 1, 1, 1]);
-q = await recordScan(await u(alice.id));
+check("quota: remaining = plan scans left + bonus", [q.plan, q.included, q.remaining, q.bonus], [1, cap, 3, 2]);
+q = (await reserveScan(await u(alice.id))).usage;
+check("scan: the last plan scan goes first, bonus untouched", [q.plan, q.remaining, q.bonus], [0, 2, 2]);
+q = (await reserveScan(await u(alice.id))).usage;
+check("scan: past the plan balance → spends a bonus scan", [q.plan, q.remaining, q.bonus, (await u(alice.id)).bonusScans], [0, 1, 1, 1]);
+q = (await reserveScan(await u(alice.id))).usage;
 check("scan: last bonus → 0 remaining", [q.remaining, q.bonus], [0, 0]);
 check("quota: exhausted at 0", scanQuota(await u(alice.id)).remaining, 0);
-await db.prepare("UPDATE users SET scan_month = '2000-01', scans_used = ?, bonus_scans = 5 WHERE id = ?").run(cap, alice.id);
+await db.prepare("UPDATE users SET scan_month = '2000-01', scans_used = ?, plan_scans = 4, bonus_scans = 5 WHERE id = ?").run(cap, alice.id);
 q = scanQuota(await u(alice.id));
-check("rollover: month resets, bonus carried", [q.used, q.remaining, q.bonus], [0, cap + 5, 5]);
-
+check("a stale calendar month resets nothing: the plan balance and the bonus stay as they are", [q.plan, q.remaining, q.bonus], [4, 9, 5]);
 // trial accounts never see a bonus in their quota
 await db.prepare("UPDATE users SET bonus_scans = 9 WHERE id = ?").run(cid.id);
 check("quota: a trial account's stray bonus is ignored", scanQuota(await u(cid.id)).bonus === undefined);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { previewImport, commitImport, MAX_CSV_BYTES } from "@/lib/server/collectionImport";
-import { recordScans, scanQuota } from "@/lib/server/scanQuota";
+import { giveBackScans, reserveScans, scanQuota, type ScanQuota, type ScanReservation } from "@/lib/server/scanQuota";
 
 /**
  * Import from other apps (Tier 2 #12): POST { csv, commit?, omit? }.
@@ -29,8 +29,19 @@ export async function POST(req: Request) {
         if (quota.remaining !== null && quota.remaining <= 0) {
           return NextResponse.json({ error: "You're out of scans — each imported card is one scan", quota: true, usage: quota }, { status: 402 });
         }
-        const result = await commitImport(user.id, csv, omit, quota.remaining);
-        const usage = await recordScans(user, result.created);
+        const paid: { held: ScanReservation | null; usage: ScanQuota } = { held: null, usage: quota };
+        const result = await commitImport(user.id, csv, omit, quota.remaining, {
+          reserve: async (n) => {
+            const r = await reserveScans(user, n);
+            paid.held = r;
+            paid.usage = r.usage;
+            return r.taken;
+          },
+          release: async (n) => {
+            if (paid.held) paid.usage = await giveBackScans(user, paid.held, n);
+          },
+        });
+        const usage = paid.usage;
         return NextResponse.json({ created: result.created, cards: result.cards, usage });
       }
       return NextResponse.json({ preview: await previewImport(csv, quota.remaining), usage: quota });

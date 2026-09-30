@@ -8,7 +8,7 @@ import { PRICING } from "@/lib/pricing";
  * Invite a friend (Chris, 09-06): subscribers only. A subscriber shares
  * their link; when a friend who signed up through it becomes a subscriber,
  * the referrer banks REFERRAL_BONUS_SCANS. The bonus is spent only after the
- * month's allowance (scanQuota.ts), so it never expires at the rollover.
+ * plan balance (scanQuota.ts) and never expires.
  *
  * Rules: the friend must be a NEW account (referred_by is written at signup
  * only); the referrer must be a subscriber at the moment the friend's first

@@ -30,6 +30,11 @@ const OVERDUE_MS = 26 * 60 * 60 * 1000;
 const STEPS: { key: string; label: string; read: (v: Record<string, unknown>) => string }[] = [
   { key: "mtg", label: "Magic (Scryfall bulk)", read: (v) => `${n(v.updated)} updated · ${n(v.seriesTouched)} series` },
   {
+    key: "billingReconcile",
+    label: "Stripe scan credits",
+    read: (v) => `${n(v.credited)} missed credited · ${n(v.checked)} paid invoices checked${Number(v.failed) ? ` (${n(v.failed)} failed)` : ""}${v.partial ? " · stopped early" : ""}`,
+  },
+  {
     key: "pokemonTcgcsv",
     label: "Pokémon (TCGCSV)",
     read: (v) => `${n(v.seriesTouched)} series · ${n(v.groups)} groups${Number(v.groupsFailed) ? ` (${n(v.groupsFailed)} failed)` : ""}`,

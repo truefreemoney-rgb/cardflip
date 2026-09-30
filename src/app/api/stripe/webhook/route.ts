@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { markNoSeedOwed } from "@/lib/server/scanCredits";
+import { creditCheckoutInvoice, creditPaidInvoice, handleChargeRefunded, handleDisputeCreated } from "@/lib/server/billingCredits";
 import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
 import { rewardReferrerIfDue } from "@/lib/server/referrals";
-import { fetchSubscription, verifyWebhook, planForPrice } from "@/lib/server/stripe";
+import { fetchSubscription, verifyWebhook, planForPrice, cancelAtFrom } from "@/lib/server/stripe";
 import { PRICING } from "@/lib/pricing";
 import {
   creditScanPack,
@@ -14,11 +16,26 @@ import {
 } from "@/lib/server/users";
 
 /**
- * Stripe webhook — the one writer of users.sub_status/sub_period_end.
- * Registered events: checkout.session.completed (first payment),
- * customer.subscription.updated (renewal, payment failure, cancel-at-end),
- * customer.subscription.deleted (fully ended). Everything else is 200-and-
- * ignored so Stripe doesn't retry. Signature checked before touching JSON.
+ * Stripe webhook — the one writer of users.sub_status/sub_period_end and of
+ * scan credits. Events to register on BOTH endpoints (test and live):
+ *   checkout.session.completed   first payment; credits the first invoice early
+ *   customer.subscription.created / .updated / .deleted   status, plan, period
+ *                                end, cancel-at-period-end (renewal, failure, cancel)
+ *   invoice.paid                 EVERY paid subscription invoice credits its plan's scans
+ *   charge.refunded              takes the invoice's credit back, in proportion
+ *   charge.dispute.created       takes the invoice's whole credit back
+ * Everything else is 200-and-ignored so Stripe doesn't retry. Signature
+ * checked before touching JSON.
+ *
+ * Scan rollover (Chris, 09-30): scans arrive when a payment clears and stack;
+ * nothing resets on the 1st. Credits come ONLY from a paid invoice, keyed by
+ * the invoice id (lib/server/billingCredits.ts), for ANY subscription of the
+ * customer: the pin below mirrors status and never gates money. Checkout and
+ * invoice.paid share the key, so whichever arrives first credits and the other
+ * does nothing; a database error is a 500 (Stripe retries) and leaves no half
+ * credit. A daily reconcile job catches an invoice.paid that never arrived.
+ * Portal settings the credits rely on: upgrades always_invoice (the proration
+ * invoice is paid at once), downgrades at period end.
  *
  * users.stripe_subscription_id pins WHICH subscription the status mirrors
  * (09-09). A re-subscribe creates a second subscription under the same
@@ -67,7 +84,18 @@ export async function POST(req: NextRequest) {
       } else if (user && subscriptionId) {
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const sub = await fetchSubscription(subscriptionId);
-        await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan);
+        // A brand-new subscription owes nothing from the old monthly counter (see markNoSeedOwed).
+        await markNoSeedOwed(user.id);
+        // The first invoice's scans are credited BEFORE the status flips (same
+        // key as invoice.paid, so whichever event lands first credits once). If
+        // the credit throws, the user is still "not subscribed", so Stripe's
+        // retry redoes everything, welcome email and referral reward included;
+        // credited after the flip, a failure would leave an active subscriber
+        // with no scans whose retry skips the welcome edge below.
+        const invoiceId = typeof obj.invoice === "string" ? obj.invoice : null;
+        const paid = obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
+        if (invoiceId && paid) await creditCheckoutInvoice(user, invoiceId, sub);
+        await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan, sub.cancelAt);
         await setStripeSubscription(user.id, subscriptionId);
         console.info(`stripe: ${user.email} subscribed (${sub.status}, ${sub.plan})`);
         // Welcome once, on the not-subscribed -> subscribed edge (`user` was
@@ -115,6 +143,7 @@ export async function POST(req: NextRequest) {
         if (subscriptionId && !deleted && status && ACTIVE_STATUSES.has(status) && subscriptionId !== stored) {
           await setStripeSubscription(user.id, subscriptionId);
         }
+        if (event.type === "customer.subscription.created") await markNoSeedOwed(user.id);
         const items = obj.items as { data?: { current_period_end?: number; price?: { id?: string } }[] } | undefined;
         const item = items?.data?.[0];
         const end = item?.current_period_end ?? (obj.current_period_end as number | undefined) ?? null;
@@ -123,9 +152,30 @@ export async function POST(req: NextRequest) {
         // "unknown" to standard would demote a Pro seller).
         const priceId = item?.price?.id;
         const plan = deleted || !priceId ? undefined : planForPrice(priceId);
-        await setSubscription(user.id, status, end ? end * 1000 : null, plan);
-        console.info(`stripe: ${user.email} subscription ${status}${plan ? ` (${plan})` : ""}`);
+        // Cancel-at-period-end: remember when the plan ends so the account page
+        // can say banked scans pause then. Only an event that carries the
+        // fields changes it (a fixture without them leaves it alone); the end
+        // of the subscription clears it.
+        const endMs = end ? end * 1000 : null;
+        const cancelAt = deleted
+          ? null
+          : "cancel_at_period_end" in obj || "cancel_at" in obj
+            ? cancelAtFrom(obj as { cancel_at_period_end?: unknown; cancel_at?: unknown }, endMs)
+            : undefined;
+        await setSubscription(user.id, status, endMs, plan, cancelAt);
+        console.info(`stripe: ${user.email} subscription ${status}${plan ? ` (${plan})` : ""}${cancelAt ? " ending" : ""}`);
       }
+    } else if (event.type === "invoice.paid") {
+      // Every paid subscription invoice credits its plan's scans (once, by
+      // invoice id), pinned subscription or not. A payload problem (unknown
+      // price, no such customer) is reported on the Errors page and answers
+      // 200; a database error throws into the 500 below so Stripe retries.
+      const out = await creditPaidInvoice(obj, "webhook");
+      if (out.result !== "credited") console.info(`stripe: invoice ${String(obj.id)} ${out.result}${out.note ? ` (${out.note})` : ""}`);
+    } else if (event.type === "charge.refunded") {
+      await handleChargeRefunded(obj);
+    } else if (event.type === "charge.dispute.created") {
+      await handleDisputeCreated(obj);
     }
     return NextResponse.json({ received: true });
   } catch (err) {

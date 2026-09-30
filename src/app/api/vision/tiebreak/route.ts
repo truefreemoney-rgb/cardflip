@@ -3,6 +3,7 @@ import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { TIEBREAK_MODEL, VisionNotConfiguredError, isVisionConfigured, tiebreakByPicture } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import { parseGame } from "@/lib/games";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
 
 /**
@@ -17,6 +18,14 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Durable per-account daily cap (a db counter: the in-memory limiter never
+ * binds on serverless). A tiebreak is an Opus call for a scan that was already
+ * paid for, so it cannot exceed one per scan and the scan budget's number is
+ * the ceiling; it stops a client calling this route directly for free Opus reads.
+ */
+const TIEBREAK_DAILY_BUDGET = 500;
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +44,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Need an image and two different ids" }, { status: 400 });
     }
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
+
+    if (await dayBudgetSpent(`tiebreak_${user.id}`, TIEBREAK_DAILY_BUDGET)) return NextResponse.json({ id: null, reason: "budget" });
 
     const game = parseGame(body?.game);
     const result = await tiebreakByPicture(image, mediaType, game, ids);

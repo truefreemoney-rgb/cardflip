@@ -39,6 +39,7 @@ const access = await import(at("app/api/admin/users/[id]/access/route.ts"));
 const role = await import(at("app/api/admin/users/[id]/role/route.ts"));
 const resetLink = await import(at("app/api/admin/users/[id]/reset-link/route.ts"));
 const verifyEmail = await import(at("app/api/admin/users/[id]/verify-email/route.ts"));
+const scansRoute = await import(at("app/api/admin/users/[id]/scans/route.ts"));
 const settings = await import(at("app/api/admin/settings/route.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
 const { ADMIN_COOKIE } = await import(at("lib/adminAuth.ts"));
@@ -72,6 +73,7 @@ testCookies.clear();
 check("users POST without cookie → 403", await status(users.POST(req("POST", { name: "x", email: "x@y.co", password: "123456" }))), 403);
 check("settings GET without cookie → 403", await status(settings.GET()), 403);
 check("access PATCH without cookie → 403", await status(access.PATCH(req("PATCH", { override: null }), ctx("nope"))), 403);
+check("scans POST without cookie → 403", await status(scansRoute.POST(req("POST", { delta: 5, note: "x y z" }), ctx("nope"))), 403);
 check("role PATCH without cookie → 403", await status(role.PATCH(req("PATCH", { role: "admin" }), ctx("nope"))), 403);
 check("reset-link without cookie → 403", await status(resetLink.POST(req("POST", {}), ctx("nope"))), 403);
 check("delete without cookie → 403", await status(userById.DELETE(req("DELETE"), ctx("nope"))), 403);
@@ -116,6 +118,18 @@ for (const value of ACCESS_OVERRIDES) {
 check("access: every override round-trips", seen, ACCESS_OVERRIDES.map((v) => [200, v]));
 await access.PATCH(req("PATCH", { override: null }), ctx(pat.id));
 check("access: null clears", (await findUserById(pat.id)).accessOverride, null);
+
+// --- adjust scans (Chris refunds a payment, a goodwill grant, a fix): a ledger row of kind admin ---
+for (const bad of [{ note: "why not" }, { delta: 0, note: "why not" }, { delta: 2.5, note: "why not" }, { delta: "5", note: "why not" }, { delta: 200_000, note: "why not" }]) {
+  check(`scans: ${JSON.stringify(bad)} → 400`, await status(scansRoute.POST(req("POST", bad), ctx(pat.id))), 400);
+}
+check("scans: a note is required", await status(scansRoute.POST(req("POST", { delta: 5 }), ctx(pat.id))), 400);
+check("scans: unknown user → 404", await status(scansRoute.POST(req("POST", { delta: 5, note: "goodwill" }), ctx("nope"))), 404);
+const grant = await scansRoute.POST(req("POST", { delta: 40, note: "goodwill for the outage" }), ctx(pat.id));
+const grantBody = await grant.json();
+check("scans: +40 lands on the balance and in the ledger", [grant.status, grantBody.applied, grantBody.balanceAfter, (await findUserById(pat.id)).planScans, grantBody.ledger[0].kind, grantBody.ledger[0].note], [200, 40, 40, 40, "admin", "goodwill for the outage"]);
+const take = await (await scansRoute.POST(req("POST", { delta: -100, note: "refunded the payment" }), ctx(pat.id))).json();
+check("scans: a take-back floors at zero and the ledger keeps what was asked", [take.applied, take.balanceAfter, (await findUserById(pat.id)).planScans, take.ledger[0].scans, take.ledger[0].applied], [-40, 0, 0, -100, -40]);
 
 // --- role --------------------------------------------------------------------
 check("role: garbage → 400", await status(role.PATCH(req("PATCH", { role: "owner" }), ctx(pat.id))), 400);
