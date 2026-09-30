@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     lines.push("");
     lines.push(["Total", `${t.sales} sales`, "", "", "", t.gross, t.fees, t.feesEstimated ? `${t.feesEstimated} estimated` : "all actual", t.postage, t.cost, t.profit, ""].map(csvCell).join(","));
     if (t.costMissing) lines.push(["", `${t.costMissing} sale${t.costMissing === 1 ? "" : "s"} ${t.costMissing === 1 ? "has" : "have"} no purchase price entered; profit for those is before cost.`].map(csvCell).join(","));
-    lines.push(["", "Fees are eBay's actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30. Postage is a flat allowance per sale. Check both against your own records."].map(csvCell).join(","));
+    lines.push(["", "Fees are eBay's actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat allowance per sale. Check both against your own records."].map(csvCell).join(","));
 
     return new NextResponse(lines.join("\r\n"), {
       headers: {

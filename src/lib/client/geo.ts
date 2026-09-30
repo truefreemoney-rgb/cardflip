@@ -34,6 +34,30 @@ function fxRates(): Promise<Record<string, number>> {
   return ratesPromise;
 }
 
+/**
+ * The viewer's billing/display currency code ("GBP"), or null until known and
+ * for USD viewers. Signed in: the HOME country; signed out: the IP country.
+ */
+export function useViewerCurrency(): string | null {
+  const session = useOptionalSession();
+  const signedIn = session?.status === "ready" && session.user;
+  const home = signedIn ? (session.user?.homeCountry ?? null) : undefined;
+  const [cur, setCur] = useState<string | null>(null);
+  useEffect(() => {
+    if (session?.status === "loading") return;
+    let alive = true;
+    (async () => {
+      const country = home !== undefined ? home : await visitorCountry();
+      const c = currencyFor(country);
+      if (alive) setCur(c === "USD" ? null : c);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [home, session?.status]);
+  return cur;
+}
+
 export interface HomeCurrency {
   currency: string;
   /** 1 USD = rate units of currency. */

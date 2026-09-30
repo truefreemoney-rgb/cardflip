@@ -10,10 +10,17 @@
  */
 
 export const EBAY_FEE_RATE = 0.1325;
+/** Per-order fee: $0.30 on an order of $10 or less, $0.40 over $10 (eBay US since 03-2024; Chris 09-30). */
 export const EBAY_FLAT_FEE = 0.3;
+export const EBAY_FLAT_FEE_OVER_10 = 0.4;
+export const EBAY_FLAT_FEE_STEP_USD = 10;
+
+export function ebayFlatFee(gross: number): number {
+  return gross > EBAY_FLAT_FEE_STEP_USD ? EBAY_FLAT_FEE_OVER_10 : EBAY_FLAT_FEE;
+}
 
 export function estimatedEbayFees(gross: number): number {
-  return gross * EBAY_FEE_RATE + EBAY_FLAT_FEE;
+  return gross * EBAY_FEE_RATE + ebayFlatFee(gross);
 }
 
 /**
@@ -29,7 +36,10 @@ export const POSTAGE_USD = 0.75;
  * gross = (net + flat + postage) / (1 − rate), rounded up to the cent.
  */
 export function costCoveredPrice(net: number): number {
-  return Math.ceil(((net + EBAY_FLAT_FEE + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+  const at = (flat: number) => Math.ceil(((net + flat + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+  const low = at(EBAY_FLAT_FEE);
+  // Over $10 the order fee is $0.40, so a price past the step must cover that instead.
+  return low > EBAY_FLAT_FEE_STEP_USD ? at(EBAY_FLAT_FEE_OVER_10) : low;
 }
 
 /**

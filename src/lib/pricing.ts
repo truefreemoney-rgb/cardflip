@@ -14,6 +14,7 @@
  * set as STRIPE_PRICE_ID / STRIPE_PRO_PRICE_ID) before anyone pays it: an
  * invoice on an unknown price credits no scans and lands on the Errors page.
  */
+import { currencyFor } from "@/lib/countries";
 
 export const PRICING = {
   /** Fresh account, no card: lifetime scans before the wall. */
@@ -32,6 +33,46 @@ export const PRICING = {
   /** Referral: bonus scans banked by the referrer when an invited friend subscribes (Chris 09-26: one pack's worth). */
   referral: { scans: 100 },
 } as const;
+
+/**
+ * Local price points for the other open countries (Chris 09-30: every price
+ * ends in .99; ≈ PRICING at the 09-30 ECB rate). NOT charged yet: Checkout
+ * still bills the USD price above until matching Stripe prices exist per
+ * currency. Keyed by ISO currency (lib/countries.ts COUNTRY_CURRENCY).
+ */
+export const LOCAL_PRICING = {
+  CAD: { pack: 6.99, standard: 13.99, pro: 34.99 },
+  GBP: { pack: 3.99, standard: 7.99, pro: 18.99 },
+  EUR: { pack: 4.99, standard: 8.99, pro: 21.99 },
+  AUD: { pack: 6.99, standard: 13.99, pro: 34.99 },
+  NZD: { pack: 8.99, standard: 17.99, pro: 43.99 },
+} as const;
+
+export type LocalCurrency = keyof typeof LOCAL_PRICING;
+
+/**
+ * The currency Checkout bills in, from the account's HOME country (Chris
+ * 09-30: prices follow home, never the IP). Lower-case for Stripe; null =
+ * the USD price as before (US, legacy/unknown home). The live Stripe prices
+ * carry these amounts as currency_options, so the price ids never change.
+ */
+export function checkoutCurrency(homeCountry: string | null | undefined): string | null {
+  const cur = currencyFor(homeCountry);
+  return cur in LOCAL_PRICING ? cur.toLowerCase() : null;
+}
+
+/** A plan's price in minor units of `currency` (any case); null when it is not a local currency. */
+export function localPlanCents(plan: PaidPlan | "pack", currency: string | null | undefined): number | null {
+  const cur = (currency ?? "").toUpperCase();
+  return cur in LOCAL_PRICING ? Math.round(LOCAL_PRICING[cur as LocalCurrency][plan] * 100) : null;
+}
+
+/** "£7.99" / "CA$13.99" / "$9.99": what a viewer paying in `currency` sees (USD or unknown = PRICE). */
+export function planPriceLabel(plan: PaidPlan | "pack", currency: string | null | undefined): string {
+  const cents = localPlanCents(plan, currency);
+  if (cents === null) return `$${PRICING[plan].price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency!.toUpperCase() }).format(cents / 100);
+}
 
 export type PaidPlan = "standard" | "pro";
 

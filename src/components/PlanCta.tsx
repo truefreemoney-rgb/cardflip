@@ -21,7 +21,7 @@ export default function PlanCta({
   primary,
 }: {
   plan: "trial" | "pack" | "standard" | "pro";
-  cta: string;
+  cta: React.ReactNode;
   primary: boolean;
 }) {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);

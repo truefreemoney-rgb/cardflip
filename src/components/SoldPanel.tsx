@@ -7,7 +7,7 @@ import type { ScanItem } from "@/lib/types";
 // Always the estimate here: this receipt renders the moment a sale is marked,
 // before the Finances sync could know the real fee. The ledger (My cards)
 // swaps in the actual figure once it lands.
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE, estimatedEbayFees } from "@/lib/fees";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, estimatedEbayFees } from "@/lib/fees";
 
 function daysBetween(start: number, end: number): string {
   const days = Math.round((end - start) / 86_400_000);
@@ -144,7 +144,7 @@ export default function SoldPanel({ item, onChange, onNext }: Props) {
         </div>
         <p className="mt-3 text-[11px] leading-snug text-zinc-600">
           Estimated at a {(EBAY_FEE_RATE * 100).toFixed(2)}% final value fee +
-          {formatMoney(EBAY_FLAT_FEE)} per order. Your actual fees depend on
+          {formatMoney(EBAY_FLAT_FEE)} per order ({formatMoney(EBAY_FLAT_FEE_OVER_10)} over ). Your actual fees depend on
           your eBay store tier and category.
         </p>
       </div>

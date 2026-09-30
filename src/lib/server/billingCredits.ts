@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { CREDITS_FROM } from "@/lib/planSeed";
+import { localPlanCents } from "@/lib/pricing";
 import { reportServerError } from "@/lib/server/errorLog";
 import {
   creditForCharge,
@@ -121,7 +122,12 @@ export function planCreditFor(inv: StripeObject): CreditPlan {
   const to = priceInfo(charge.priceId)!;
   const from = priceInfo(credit.priceId)!;
   const extraScans = to.scans - from.scans;
-  const extraCents = to.cents - from.cents;
+  // Line amounts are in the invoice's currency: a GBP subscriber's upgrade is
+  // measured against the GBP price gap, not the USD one (Chris 09-30 local prices).
+  const cur = str(inv.currency);
+  const localTo = localPlanCents(to.plan, cur);
+  const localFrom = localPlanCents(from.plan, cur);
+  const extraCents = localTo !== null && localFrom !== null ? localTo - localFrom : to.cents - from.cents;
   if (extraScans <= 0 || extraCents <= 0) return { kind: "none", reason: "a downgrade or same-plan change credits nothing" };
   const net = pro.reduce((sum, l) => sum + l.amount, 0);
   const scans = Math.round(extraScans * Math.min(1, Math.max(0, net / extraCents)));

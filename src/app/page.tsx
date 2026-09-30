@@ -20,7 +20,7 @@ import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
 import { withPriceFlags } from "@/lib/server/priceTrustSite";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD, netAfterFees } from "@/lib/fees";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, POSTAGE_USD, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -563,7 +563,7 @@ export default async function Home() {
             <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Fee-aware pricing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                Every suggestion accounts for eBay&apos;s {feePct} plus {money(EBAY_FLAT_FEE)} per order and {money(POSTAGE_USD)} postage, so a cheap card never lists at a loss.
+                Every suggestion accounts for eBay&apos;s {feePct} plus {money(EBAY_FLAT_FEE)} per order ({money(EBAY_FLAT_FEE_OVER_10)} over ) and {money(POSTAGE_USD)} postage, so a cheap card never lists at a loss.
               </p>
               <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[

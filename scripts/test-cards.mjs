@@ -56,8 +56,8 @@ const CHARIZARD = {
 };
 
 // --- fees: one shared formula, actuals win -------------------------------
-check("estimate = 13.25% + 30¢", near(estimatedEbayFees(100), 13.55));
-check("net falls back to the estimate", near(netAfterFees(100), 86.45));
+check("estimate over $10 = 13.25% + 40¢", near(estimatedEbayFees(100), 13.65));
+check("net falls back to the estimate", near(netAfterFees(100), 86.35));
 check("recorded actual fee wins", near(netAfterFees(100, 5), 95));
 check("a recorded fee of ZERO also wins (?? not ||)", near(netAfterFees(100, 0), 100));
 check("estimate scales, flat fee doesn't", near(estimatedEbayFees(200) - estimatedEbayFees(100), 100 * EBAY_FEE_RATE));
@@ -128,7 +128,7 @@ check("both rows in the ledger afterwards",
 // partial sold row (12, fees NULL). Give one of them an actual fee.
 await setCardSoldFees(card.id, alice.id, 60);
 const stats = await getPlatformStats();
-const expectedEstimate = 60 + (10 + 12) * EBAY_FEE_RATE + 2 * EBAY_FLAT_FEE;
+const expectedEstimate = 60 + (10 + 12) * EBAY_FEE_RATE + EBAY_FLAT_FEE + 0.4; // $10 sale 30¢, $12 sale 40¢
 check("stats: gross sums sold prices", near(stats.grossRevenue, 447.99 + 10 + 12));
 check("stats: fees = actuals + estimate for unfetched", near(stats.estimatedFees, expectedEstimate));
 check("stats: net = gross - fees", near(stats.netRevenue, stats.grossRevenue - stats.estimatedFees));

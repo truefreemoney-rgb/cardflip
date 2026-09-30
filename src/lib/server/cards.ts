@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { ebayListingUrl } from "@/lib/ebayInventory";
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE } from "@/lib/fees";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10 } from "@/lib/fees";
 import type { GameId } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 
@@ -709,7 +709,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
          (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold') as grossRevenue,
          (SELECT COALESCE(SUM(sold_fees), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NOT NULL) as actualFees,
          (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NULL) as unfetchedGross,
-         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price IS NOT NULL) as unfetchedCount
+         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price IS NOT NULL) as unfetchedCount,
+         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price > 10) as unfetchedOver10
       `,
     )
     .get()) as {
@@ -723,13 +724,14 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     actualFees: number;
     unfetchedGross: number;
     unfetchedCount: number;
+    unfetchedOver10: number;
   };
 
   // Actual Finances-API fees where recorded, the flat estimate for the rest.
-  const { actualFees, unfetchedGross, unfetchedCount, ...rest } = totals;
+  const { actualFees, unfetchedGross, unfetchedCount, unfetchedOver10, ...rest } = totals;
   const estimatedFees =
     actualFees +
-    (unfetchedGross > 0 ? unfetchedGross * EBAY_FEE_RATE + unfetchedCount * EBAY_FLAT_FEE : 0);
+    (unfetchedGross > 0 ? unfetchedGross * EBAY_FEE_RATE + unfetchedCount * EBAY_FLAT_FEE + unfetchedOver10 * (EBAY_FLAT_FEE_OVER_10 - EBAY_FLAT_FEE) : 0);
 
   return {
     ...rest,

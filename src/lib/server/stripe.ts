@@ -88,11 +88,33 @@ export async function createCustomer(email: string, userId: string): Promise<str
   return c.id;
 }
 
+/**
+ * Local-currency Checkout (Chris 09-30): `currency` picks one of the price's
+ * currency_options (pricing.ts LOCAL_PRICING / checkoutCurrency). If Stripe
+ * refuses it (a customer already billed in another currency is locked to it,
+ * or the option is missing on the price), the session is made again in the
+ * price's own USD rather than blocking the purchase.
+ */
+async function checkoutSession(params: Record<string, string>, currency: string | null | undefined): Promise<{ url: string }> {
+  if (!currency) return stripeRequest<{ url: string }>("checkout/sessions", params);
+  try {
+    return await stripeRequest<{ url: string }>("checkout/sessions", { ...params, currency });
+  } catch (err) {
+    console.error(`stripe: checkout in ${currency} refused, falling back to USD:`, err);
+    return stripeRequest<{ url: string }>("checkout/sessions", params);
+  }
+}
+
 /** Hosted Checkout for a subscription; returns the redirect URL. */
-export async function createCheckoutSession(customerId: string, userId: string, plan: StripePlan = "standard"): Promise<string> {
+export async function createCheckoutSession(
+  customerId: string,
+  userId: string,
+  plan: StripePlan = "standard",
+  currency: string | null = null,
+): Promise<string> {
   const { priceId, proPriceId } = env();
   const price = plan === "pro" && proPriceId ? proPriceId : priceId!;
-  const s = await stripeRequest<{ url: string }>("checkout/sessions", {
+  const s = await checkoutSession({
     mode: "subscription",
     customer: customerId,
     client_reference_id: userId,
@@ -103,7 +125,7 @@ export async function createCheckoutSession(customerId: string, userId: string, 
     // the Profile page (Chris, 09-25).
     success_url: `${SITE_URL}/app/account/welcome?billing=success`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
-  });
+  }, currency);
   return s.url;
 }
 
@@ -113,10 +135,10 @@ export async function createCheckoutSession(customerId: string, userId: string, 
  * metadata.packScans (the credit follows what was sold, not what the code
  * says today), keyed by the session id so a retry never credits twice.
  */
-export async function createPackCheckoutSession(customerId: string, userId: string): Promise<string> {
+export async function createPackCheckoutSession(customerId: string, userId: string, currency: string | null = null): Promise<string> {
   const { packPriceId } = env();
   if (!packPriceId) throw new Error("stripe: STRIPE_SCAN_PACK_PRICE_ID not set");
-  const s = await stripeRequest<{ url: string }>("checkout/sessions", {
+  const s = await checkoutSession({
     mode: "payment",
     customer: customerId,
     client_reference_id: userId,
@@ -127,7 +149,7 @@ export async function createPackCheckoutSession(customerId: string, userId: stri
     "metadata[packScans]": String(PRICING.pack.scans),
     success_url: `${SITE_URL}/app/account/welcome?billing=pack`,
     cancel_url: `${SITE_URL}/app/account?billing=canceled`,
-  });
+  }, currency);
   return s.url;
 }
 

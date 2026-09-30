@@ -446,6 +446,12 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   const unk = await mkPayer();
   await send(paid({ ...upgrade("in_h6", [-500, 1500]), customer: unk.cus, lines: { data: [line("price_std", -500), line("price_mystery", 1500)] } }));
   check("a proration on an unknown price credits nothing and is reported", [await planScans(unk.id), (await errorsFrom("unknown price id")).some((m) => m.includes("price_mystery"))], [0, true]);
+
+  // A UK home billed in GBP (Chris 09-30 local prices £7.99 / £18.99): the gap is measured in pence.
+  const gb = await mkPayer();
+  await send(paid(newInvoice("in_gb1", gb.cus, "sub_gb", "price_std", { billing_reason: "subscription_create", currency: "gbp", amount_paid: 799 })));
+  await send(paid({ ...upgrade("in_gb2", [-400, 950]), customer: gb.cus, currency: "gbp", parent: { subscription_details: { subscription: "sub_gb" } } }));
+  check("a GBP upgrade paid for half the period credits half the plan difference (pence vs the £11 gap, not USD cents)", await planScans(gb.id), STD + Math.round((PRO - STD) / 2));
 }
 
 // --- a customer on an admin override who still pays: banked, unusable, flagged ---

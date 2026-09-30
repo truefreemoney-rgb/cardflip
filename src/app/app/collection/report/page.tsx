@@ -143,7 +143,7 @@ export default function SalesReportPage() {
       </div>
 
       <p className="text-xs text-zinc-600">
-        Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30. Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale.
+        Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale.
         Check both against your own records before filing.
       </p>
     </main>

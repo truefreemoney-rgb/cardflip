@@ -1,5 +1,6 @@
 import PlanCta from "@/components/PlanCta";
-import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
+import PlanPrice from "@/components/PlanPrice";
+import { PRICING, SCANS } from "@/lib/pricing";
 
 /**
  * Free trial · Scan Pack · CardFlip · Pro, as matching cards (Chris, 09-04,
@@ -7,7 +8,7 @@ import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
  * comes from lib/pricing.ts so prices and scan counts can't drift apart.
  */
 export const PLAN = {
-  price: PRICE.standard,
+  price: <PlanPrice plan="standard" />,
   scans: PRICING.standard.scans,
   lines: [
     `${SCANS.standard} card scans a month, camera or photos`,
@@ -20,7 +21,7 @@ export const PLAN = {
 };
 
 export const PRO = {
-  price: PRICE.pro,
+  price: <PlanPrice plan="pro" />,
   scans: PRICING.pro.scans,
   lines: [
     `${SCANS.pro} card scans a month, camera or photos`,
@@ -34,7 +35,7 @@ export const PRO = {
 
 /** One-time Scan Pack (Chris, 09-25): no subscription, never expires, stacks. */
 export const PACK = {
-  price: PRICE.pack,
+  price: <PlanPrice plan="pack" />,
   scans: PRICING.pack.scans,
   lines: [
     `${SCANS.pack} card scans, camera or photos`,
@@ -80,10 +81,10 @@ function Card({
   plan: "trial" | "pack" | "standard" | "pro";
   name: string;
   sub: string;
-  price: string;
+  price: React.ReactNode;
   per: string;
   lines: string[];
-  cta: string;
+  cta: React.ReactNode;
   note: string;
   primary: boolean;
 }) {
@@ -147,7 +148,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price={PLAN.price}
         per="/month"
         lines={PLAN.lines}
-        cta={`Subscribe · ${PRICE_SHORT.standard}`}
+        cta={<>Subscribe · <PlanPrice plan="standard" />/mo</>}
         note="Cancel any time. You keep 100% of every eBay payout."
         primary
       />
@@ -158,7 +159,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         price={PRO.price}
         per="/month"
         lines={PRO.lines}
-        cta={`Go Pro · ${PRICE_SHORT.pro}`}
+        cta={<>Go Pro · <PlanPrice plan="pro" />/mo</>}
         note="For volume sellers. Cancel any time."
         primary={false}
       />
@@ -193,7 +194,7 @@ function PackStrip() {
         ))}
       </ul>
       <div className="-mt-7 md:w-60 md:shrink-0">
-        <PlanCta plan="pack" cta={`Buy ${SCANS.pack} Scans · ${PRICE.pack}`} primary={false} />
+        <PlanCta plan="pack" cta={<>Buy {SCANS.pack} Scans · <PlanPrice plan="pack" /></>} primary={false} />
         <p className="mt-3 text-center text-xs text-zinc-500">Pay once. Scans never expire.</p>
       </div>
     </div>
