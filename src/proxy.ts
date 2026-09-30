@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { shortLinkTarget } from "@/lib/attribution";
 
 /**
  * Two geofences, both keyed on x-vercel-ip-country (Vercel stamps every
@@ -52,6 +53,9 @@ export function proxy(req: NextRequest) {
       ? NextResponse.json({ error: "Not available from your region." }, { status: 403 })
       : new NextResponse("Not available in your region.", { status: 403, headers: { "content-type": "text/plain" } });
   }
+  // Tracked short links from social posts: cardflip.io/x/mtg-movers-0930 -> /?utm_source=x&... (lib/attribution.ts).
+  const tracked = shortLinkTarget(pathname);
+  if (tracked) return NextResponse.redirect(new URL(tracked, req.url), 302);
   if (!isAdminPath(pathname) || adminCountryAllowed(country)) return NextResponse.next();
   return isApi
     ? NextResponse.json({ error: "Not available from your region." }, { status: 403 })
