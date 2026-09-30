@@ -103,7 +103,7 @@ function pricesOf(row: MtgCardRow): CardPrice[] {
 }
 
 /** Scryfall image URLs carry the size in the path (.../normal/front/...). */
-function largeImage(url: string): string {
+export function largeImage(url: string): string {
   return url.replace("/normal/", "/large/");
 }
 

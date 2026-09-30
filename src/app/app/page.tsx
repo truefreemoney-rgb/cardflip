@@ -170,10 +170,15 @@ export default function AppPage() {
   // switching mid-session doesn't relabel what's already there.
   // The stage's real card (empty state only). One fetch, cached an hour
   // server-side; a miss just leaves the stage as the buttons.
+  const [game, setGameState] = useState<GameId>(readSavedGame);
   const [showcase, setShowcase] = useState<ShowcaseCard[]>([]);
+  // Follows the game switch (Chris 09-30): a One Piece card on the One Piece
+  // stage, about $50. Cleared on switch so the old game's card never sits
+  // under the new game's Scan button.
   useEffect(() => {
     let cancelled = false;
-    fetch(apiPath("/api/cards/featured"))
+    setShowcase([]);
+    fetch(apiPath(`/api/cards/featured${game === "pokemon" ? "" : `?game=${game}`}`))
       .then((r) => (r.ok ? r.json() : { cards: [] }))
       .then((d) => {
         if (!cancelled) setShowcase(Array.isArray(d.cards) ? d.cards : []);
@@ -182,8 +187,7 @@ export default function AppPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-  const [game, setGameState] = useState<GameId>(readSavedGame);
+  }, [game]);
   const setGame = useCallback((next: GameId) => {
     setGameState(next);
     saveGame(next);

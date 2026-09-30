@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { plausiblePrices } from "@/lib/listing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
-import { gameOf, type CardPrice, type PokemonCard } from "@/lib/types";
+import { gameOf, type CardPrice, type GameId, type PokemonCard } from "@/lib/types";
 
 /**
  * The cards on the empty scanner's stage (Uploader viewfinder). Chris,
@@ -165,6 +165,82 @@ async function build(magic: boolean): Promise<StageCard[]> {
   // No mirror here (fresh dev DB): the old upstream path.
   const [featured, showcase] = await Promise.all([getFeaturedCard(), getShowcaseCards(magic)]);
   return finish([featured, ...showcase].filter((c): c is PokemonCard => !!c), magic);
+}
+
+// ---- The other games' stages (09-30, Chris: "when you click a different
+// card type, it should change the example card in the middle to a card from
+// that game, average price of like $50"). Real, priced catalog rows from
+// the game's own mirror, nearest $50 inside a band, newest sets first, one
+// per name; the first is the lead. Same six-hour cache, one key per game.
+const GAME_TARGET_USD = 50;
+const GAME_BAND: [number, number][] = [
+  [40, 65],
+  [25, 100],
+];
+
+type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number; set_release_date: string | null };
+
+async function gameRows(game: Exclude<GameId, "pokemon">, band: [number, number]): Promise<GameRow[]> {
+  const sql =
+    game === "mtg"
+      ? `SELECT name, set_name, collector_number, image_url, price_usd, set_release_date FROM mtg_cards
+         WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic')
+         ORDER BY set_release_date DESC LIMIT 60`
+      : `SELECT name, set_name, collector_number, image_url, price_usd, set_release_date FROM tcg_cards
+         WHERE game = ? AND image_url <> '' AND price_usd BETWEEN ? AND ?
+         ORDER BY set_release_date DESC LIMIT 60`;
+  const args = game === "mtg" ? [band[0], band[1]] : [game, band[0], band[1]];
+  return (await db.prepare(sql).all(...args)) as unknown as GameRow[];
+}
+
+async function buildGame(game: Exclude<GameId, "pokemon">): Promise<StageCard[]> {
+  try {
+    let rows: GameRow[] = [];
+    for (const band of GAME_BAND) {
+      rows = await gameRows(game, band);
+      if (rows.length >= 3) break;
+    }
+    // Magic's mirror stores the Scryfall "normal" image; the stage wants the large one.
+    const large = game === "mtg" ? (await import("@/lib/server/mtgCards")).largeImage : (u: string) => u;
+    const seen = new Set<string>();
+    const out: StageCard[] = [];
+    // Newest sets first is the query's order; inside the band the nearest
+    // to $50 leads, so the card on screen is "about $50", not $64.
+    for (const r of rows.sort((a, b) => Math.abs(a.price_usd - GAME_TARGET_USD) - Math.abs(b.price_usd - GAME_TARGET_USD))) {
+      const key = r.name.toLowerCase().replace(/\s+-\s+[a-z]+\d*-\d+.*$/i, "");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ name: r.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, ""), setName: r.set_name, number: r.collector_number, imageUrl: large(r.image_url), price: r.price_usd });
+      if (out.length === STAGE_CARDS) break;
+    }
+    if (out[0]) out[0].lead = true;
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/** The stage for one game: Pokémon keeps its hand-tuned reel; the others come from their mirrors. */
+export async function getGameStageCards(game: GameId, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
+  if (game === "pokemon") return getStageCards(false, now);
+  const key = `stage:v7:${game}`;
+  try {
+    const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
+    if (row && now - row.cached_at < STAGE_TTL_MS) {
+      const cards = JSON.parse(row.payload) as StageCard[];
+      if (cards.length > 0) return { cards, cached: true };
+    }
+  } catch {
+    // Cache miss is fine.
+  }
+  const cards = await buildGame(game);
+  if (cards.length > 0) {
+    await db
+      .prepare(`INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`)
+      .run(key, JSON.stringify(cards), now)
+      .catch(() => {});
+  }
+  return { cards, cached: false };
 }
 
 export async function getStageCards(magic: boolean, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
