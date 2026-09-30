@@ -4,10 +4,12 @@ import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import {
-  readMtgCardIds,
+  readMtgCardPrices,
   readSeriesMap,
   updateMtgPriceColumns,
   upsertSeriesRows,
+  type MtgPriceRow,
+  type SeriesKeyed,
   type SeriesUpsert,
 } from "@/lib/server/priceBulkWrite";
 
@@ -50,6 +52,47 @@ export interface RefreshResult {
   updated: number;
   seriesTouched: number;
   day: string;
+  /** Mirror rows whose prices actually changed (only those are written). */
+  mirrorChanged?: number;
+  /** Series today's run had already written (a resumed run skips them). */
+  seriesSkipped?: number;
+}
+
+/**
+ * What one run writes, computed in memory (09-30: pure, so the resume rule is
+ * tested without Scryfall or Turso). Mirror rows are written only when a
+ * price changed (~40% of rows on a normal day). A series already written
+ * today is skipped, so a run killed half way (the 09-30 IOERR, the 300s cap)
+ * resumes where it stopped instead of starting over.
+ */
+export function planMtgWrites(
+  pending: MtgPriceRow[],
+  mirror: Map<string, MtgPriceRow>,
+  series: Map<string, SeriesKeyed>,
+  day: string,
+): { kept: MtgPriceRow[]; mirrorRows: MtgPriceRow[]; upserts: SeriesUpsert[]; seriesSkipped: number } {
+  const kept = pending.filter((c) => mirror.has(c.id));
+  const same = (a: MtgPriceRow, b: MtgPriceRow) => a.usd === b.usd && a.foil === b.foil && a.etched === b.etched && a.eur === b.eur && a.eurFoil === b.eurFoil;
+  const mirrorRows = kept.filter((c) => !same(c, mirror.get(c.id)!));
+  const upserts: SeriesUpsert[] = [];
+  let seriesSkipped = 0;
+  for (const c of kept) {
+    for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
+      if (price == null) continue;
+      const existing = series.get(`${c.id}|${variant}`);
+      if (!existing && price < MIN_TRACKED_USD) continue;
+      if (existing?.updatedDay === day) {
+        seriesSkipped++;
+        continue;
+      }
+      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+      upserts.push({
+        cardId: c.id, game: "mtg", variant, source: "tcgplayer", currency: "USD",
+        startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
+      });
+    }
+  }
+  return { kept, mirrorRows, upserts, seriesSkipped };
 }
 
 export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<RefreshResult> {
@@ -88,26 +131,18 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } else {
     await streamJsonObjects(res.body, 2, onCard);
   }
-  // Only printings we carry get written; the id set stands in for the old
-  // per-row UPDATE's changes==0 check.
-  const ids = await readMtgCardIds();
-  const kept = pending.filter((c) => ids.has(c.id));
-  await updateMtgPriceColumns(kept);
-
-  const existingSeries = await readSeriesMap("mtg", "tcgplayer");
-  const upserts: SeriesUpsert[] = [];
-  for (const c of kept) {
-    for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
-      if (price == null) continue;
-      const existing = existingSeries.get(`${c.id}|${variant}`);
-      if (!existing && price < MIN_TRACKED_USD) continue;
-      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
-      upserts.push({
-        cardId: c.id, game: "mtg", variant, source: "tcgplayer", currency: "USD",
-        startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
-      });
-    }
-  }
-  await upsertSeriesRows(upserts);
-  return { scanned, updated: kept.length, seriesTouched: upserts.length, day };
+  // Only printings we carry get written (the mirror's id set), and only the
+  // ones whose prices moved; series already written today are skipped.
+  const [mirror, existingSeries] = await Promise.all([readMtgCardPrices(), readSeriesMap("mtg", "tcgplayer")]);
+  const plan = planMtgWrites(pending, mirror, existingSeries, day);
+  await updateMtgPriceColumns(plan.mirrorRows);
+  await upsertSeriesRows(plan.upserts);
+  return {
+    scanned,
+    updated: plan.kept.length,
+    seriesTouched: plan.upserts.length,
+    day,
+    mirrorChanged: plan.mirrorRows.length,
+    seriesSkipped: plan.seriesSkipped,
+  };
 }

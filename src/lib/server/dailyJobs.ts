@@ -9,6 +9,7 @@ import { sweepWeeklyDigest } from "@/lib/server/digest";
 import { sweepCardAlerts } from "@/lib/server/cardAlerts";
 import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
+import { withDbRetry } from "@/lib/server/priceBulkWrite";
 import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
 import { scanSealedProducts } from "@/lib/server/sealedPrices";
@@ -53,12 +54,14 @@ const DUE_AFTER_MS = 20 * 60 * 60 * 1000;
 const STALE_START_MS = 10 * 60 * 1000;
 let running = false;
 
+// Retried like the bulk writes (09-30: the result write after the Magic run is
+// what threw the IOERR onto the Errors page); INSERT OR REPLACE is idempotent.
 async function metaGet(key: string): Promise<string | null> {
-  const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as { value: string } | undefined;
+  const row = (await withDbRetry(() => db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key))) as { value: string } | undefined;
   return row?.value ?? null;
 }
 async function metaSet(key: string, value: string): Promise<void> {
-  await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value);
+  await withDbRetry(() => db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, value));
 }
 
 /** True while another process's run is plausibly still going. */
@@ -88,7 +91,7 @@ export async function dailyStatus(now = Date.now()) {
 
 export interface DailyResult {
   ran: boolean;
-  mtg?: { scanned: number; updated: number; seriesTouched: number } | { error: string };
+  mtg?: { scanned: number; updated: number; seriesTouched: number; mirrorChanged?: number; seriesSkipped?: number } | { error: string } | { skipped: string };
   /** Lorcana / One Piece / Yu-Gi-Oh! daily prices + history (lib/server/tcgPriceRefresh.ts). */
   tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string }>>;
   pokemonTcgcsv?:
@@ -105,11 +108,22 @@ export interface DailyResult {
   ms?: number;
 }
 
-/** Step 1 alone: Magic prices from Scryfall's bulk file. Never throws. */
-export async function runMtgStep(): Promise<NonNullable<DailyResult["mtg"]>> {
+/**
+ * Step 1 alone: Magic prices from Scryfall's bulk file. Never throws.
+ * `skipIfDone` (the cron routes): a day already finished returns at once, so
+ * the second, later cron (vercel.json, 09-30) only does work when the first
+ * run died — and then resumes (planMtgWrites skips what it already wrote).
+ */
+export async function runMtgStep({ skipIfDone = false, now = Date.now() } = {}): Promise<NonNullable<DailyResult["mtg"]>> {
   try {
+    if (skipIfDone) {
+      const finished = Number((await metaGet(META.finished)) ?? 0);
+      if (finished && new Date(finished).toISOString().slice(0, 10) === new Date(now).toISOString().slice(0, 10)) {
+        return { skipped: "already finished today" };
+      }
+    }
     const r = await refreshMtgPricesFromBulk();
-    return { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched };
+    return { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched, mirrorChanged: r.mirrorChanged, seriesSkipped: r.seriesSkipped };
   } catch (err) {
     console.error("daily: MTG price refresh failed:", err);
     return { error: err instanceof Error ? err.message : String(err) };
