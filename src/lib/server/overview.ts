@@ -17,6 +17,22 @@ import { PRICING } from "@/lib/pricing";
 
 const DAY_MS = 86_400_000;
 
+/**
+ * Countries whose sellers could list on their own eBay site
+ * (docs/EBAY_COUNTRIES_PLAN.md). NZ is deliberately absent: it stays on eBay US
+ * until a NZ seller tests it. Mirrors LOCAL_MARKET_COUNTRIES in lib/marketplaces.ts.
+ */
+const LOCAL_TESTER_COUNTRIES = ["CA", "GB", "IE", "AU"];
+/** A connect stays a "Needs you" row for this long. */
+const LOCAL_TESTER_WINDOW_MS = 14 * DAY_MS;
+
+/** The overview row for sellers from a local-market country who connected eBay. */
+export function localTesterText(country: string, sellers: number): string {
+  return sellers === 1
+    ? `Seller from ${country} connected eBay — first local-market tester`
+    : `${sellers} sellers from ${country} connected eBay — local-market testers`;
+}
+
 export interface PulseTicket {
   id: string;
   number: number;
@@ -54,6 +70,8 @@ export interface OverviewPulse {
     sites: { id: string; label: string; connected: boolean; lastDay: string | null; postedToday: boolean }[];
   };
   errors: { last24h: number; groups: ErrorGroup[] };
+  /** Sellers whose home country is CA/GB/IE/AU and who connected eBay in the last 14 days, by country. */
+  localTesters: { country: string; sellers: number }[];
 }
 
 async function scalar(sql: string, ...args: (string | number)[]): Promise<number> {
@@ -76,7 +94,7 @@ export async function getOverviewPulse(now = Date.now()): Promise<OverviewPulse>
   const week = now - 7 * DAY_MS;
   const day = now - DAY_MS;
 
-  const [openRows, closed7d, helpMessages24h, subRows, expenses, errors24h, groups, socialRows] = await Promise.all([
+  const [openRows, closed7d, helpMessages24h, subRows, expenses, errors24h, groups, socialRows, testerRows] = await Promise.all([
     // Every open ticket with who spoke last; the page keeps the first few.
     rows<{ id: string; number: number; subject: string; user_name: string | null; created_at: number; updated_at: number; last_author: string | null }>(
       `SELECT t.id, t.number, t.subject, u.name AS user_name, t.created_at, t.updated_at,
@@ -94,6 +112,14 @@ export async function getOverviewPulse(now = Date.now()): Promise<OverviewPulse>
     errorCount24h(),
     errorGroups24h(3),
     rows<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key LIKE ?", `${LAST_POST_PREFIX}%`),
+    rows<{ country: string; n: number }>(
+      `SELECT u.home_country AS country, COUNT(*) AS n
+         FROM ebay_tokens t JOIN users u ON u.id = t.user_id
+        WHERE u.home_country IN (${LOCAL_TESTER_COUNTRIES.map(() => "?").join(", ")}) AND t.connected_at >= ?
+        GROUP BY u.home_country ORDER BY n DESC, u.home_country`,
+      ...LOCAL_TESTER_COUNTRIES,
+      now - LOCAL_TESTER_WINDOW_MS,
+    ),
   ]);
 
   const tickets: PulseTicket[] = openRows.map((r) => ({
@@ -157,5 +183,6 @@ export async function getOverviewPulse(now = Date.now()): Promise<OverviewPulse>
       }),
     },
     errors: { last24h: errors24h, groups },
+    localTesters: testerRows.map((r) => ({ country: r.country, sellers: Number(r.n) })),
   };
 }

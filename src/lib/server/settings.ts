@@ -21,6 +21,17 @@ export async function setSetting(key: string, value: string): Promise<void> {
     .run(key, value, Date.now());
 }
 
+/**
+ * Per-country eBay listing (docs/EBAY_COUNTRIES_PLAN.md). Off = every seller
+ * lists on EBAY_US exactly as today. Only the exact string "1" counts as on:
+ * a missing row, "0", "true", "on" or anything else is off.
+ */
+export const EBAY_LOCAL_MARKETS_KEY = "ebay_local_markets";
+
+export async function ebayLocalMarketsOn(): Promise<boolean> {
+  return (await getSetting(EBAY_LOCAL_MARKETS_KEY)) === "1";
+}
+
 /** Is Magic switched on for everyone? Default off until Chris says so. */
 export async function magicPublic(): Promise<boolean> {
   return (await getSetting(MAGIC_PUBLIC_KEY)) === "1";
