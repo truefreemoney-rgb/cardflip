@@ -105,8 +105,35 @@ check(
   "CA",
 );
 
+// --- signup attribution (lib/attribution.ts, 09-30) --------------------------------
+const touchOf = async (email) =>
+  db.prepare("SELECT s.src, s.medium, s.campaign, s.landing, s.ref_host FROM signup_log s JOIN users u ON u.id = s.user_id WHERE u.email = ?").get(email);
+const tagged = await signup.POST(post({ name: "T", email: "tagged@example.com", password: "123456", touch: { s: "bluesky", m: "social", c: "pokemon-set-0930", refHost: "", landing: "/", t: Date.now() } }));
+check("attribution: signup with a touch → 201", tagged.status, 201);
+check("attribution: the touch lands on the signup_log row", { ...(await touchOf("tagged@example.com")) }, { src: "bluesky", medium: "social", campaign: "pokemon-set-0930", landing: "/", ref_host: "" });
+const messy = await signup.POST(post({ name: "M", email: "messy@example.com", password: "123456", touch: { s: " BlueSky ", m: "Social!!", c: "Pokemon Set 0930<script>", refHost: "L.Facebook.com/x", landing: "/cards/pokemon?utm=1#top", t: 1 } }));
+check("attribution: messy fields are sanitized, not refused", [messy.status, { ...(await touchOf("messy@example.com")) }], [201, { src: "bluesky", medium: "social", campaign: "pokemonset0930script", landing: "/cards/pokemon", ref_host: "l.facebook.comx" }]);
+const other = await signup.POST(post({ name: "O", email: "other@example.com", password: "123456", touch: { s: "other:news.example.org", m: "", c: "", refHost: "news.example.org", landing: "/pricing", t: Date.now() } }));
+check("attribution: an outside referrer is kept as other:<host>", [other.status, (await touchOf("other@example.com")).src], [201, "other:news.example.org"]);
+let n = 0;
+for (const bad of ["nope", 5, [], {}, { s: "evil" }, { s: 5 }, { s: "x".repeat(500) }, null]) {
+  const email = `bad${++n}@example.com`;
+  const res = await signup.POST(post({ name: "B", email, password: "123456", touch: bad }));
+  check(`attribution: malformed touch dropped, signup unaffected (${JSON.stringify(bad)?.slice(0, 24)})`, [res.status, (await touchOf(email)).src], [201, null]);
+}
+const none = await signup.POST(post({ name: "N", email: "notouch@example.com", password: "123456" }));
+check("attribution: no touch at all is an ordinary signup", [none.status, (await touchOf("notouch@example.com")).src], [201, null]);
+// A database that never got the new columns must not cost a signup: drop one, sign up with a touch, put it back.
+await db.prepare("ALTER TABLE signup_log DROP COLUMN landing").run();
+const realWarn = console.warn;
+console.warn = () => {};
+const columnless = await signup.POST(post({ name: "Z", email: "columnless@example.com", password: "123456", touch: { s: "x", m: "social", c: "a", refHost: "", landing: "/", t: Date.now() } }));
+console.warn = realWarn;
+check("attribution: a missing column never fails the signup (the guard row is still written)", [columnless.status, Number((await db.prepare("SELECT COUNT(*) AS n FROM signup_log s JOIN users u ON u.id = s.user_id WHERE u.email = 'columnless@example.com'").get()).n)], [201, 1]);
+await db.prepare("ALTER TABLE signup_log ADD COLUMN landing TEXT").run();
+
 // --- login ------------------------------------------------------------------
-const unknown = await login.POST(post({ email: "ghost@example.com", password: "hunter22" }));
+const unknown =await login.POST(post({ email: "ghost@example.com", password: "hunter22" }));
 const wrongPw = await login.POST(post({ email: "sam@example.com", password: "wrong-pw" }));
 check("login: unknown email → 401", unknown.status, 401);
 check("login: wrong password → 401", wrongPw.status, 401);

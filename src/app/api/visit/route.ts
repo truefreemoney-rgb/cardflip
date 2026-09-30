@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { deviceClass, referrerHost } from "@/lib/visit";
+import { classifySource, clean } from "@/lib/attribution";
 
 /**
  * Visitor ping for the admin console's daily-visitors tiles (09-25).
@@ -14,6 +15,10 @@ import { deviceClass, referrerHost } from "@/lib/visit";
  * 09-26 (Analytics tab): the row also keeps the referrer's HOST (external
  * only), a device class and the country code Vercel stamps on the request.
  * Aggregates only — the raw referrer URL, user agent and IP are not stored.
+ *
+ * 09-30: a page load's first ping also carries `first` and the tagged link's
+ * utm_source / utm_campaign; the row keeps the classified source (src) and
+ * the campaign (camp) for the admin "where visitors come from" table.
  */
 export const dynamic = "force-dynamic";
 
@@ -29,6 +34,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = (await req.json().catch(() => null)) as {
       path?: unknown;
       ref?: unknown;
+      first?: unknown;
+      utm_source?: unknown;
+      utm_campaign?: unknown;
     } | null;
     let path = typeof body?.path === "string" ? body.path : "";
     if (!path.startsWith("/") || path.length > 200 || SKIP.test(path))
@@ -46,11 +54,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .digest("hex")
       .slice(0, 32);
     const country = (req.headers.get("x-vercel-ip-country") ?? "").toUpperCase().slice(0, 2);
-    await db
-      .prepare(
-        "INSERT OR IGNORE INTO page_views (day, visitor, path, at, ref, device, country) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .run(day, visitor, path, now, referrerHost(body?.ref), deviceClass(ua), country);
+    const ref = referrerHost(body?.ref);
+    // Source + campaign (lib/attribution.ts) ride a page load's first ping only; later client-side pages leave them blank.
+    const src = body?.first === true ? classifySource(body.utm_source, ref) : "";
+    const camp = body?.first === true ? clean(body.utm_campaign) : "";
+    try {
+      await db
+        .prepare(
+          "INSERT OR IGNORE INTO page_views (day, visitor, path, at, ref, device, country, src, camp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(day, visitor, path, now, ref, deviceClass(ua), country, src, camp);
+    } catch {
+      // A database that has not run the src/camp ALTERs yet still counts the visit.
+      await db
+        .prepare(
+          "INSERT OR IGNORE INTO page_views (day, visitor, path, at, ref, device, country) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(day, visitor, path, now, ref, deviceClass(ua), country);
+    }
   } catch {
     // Counting is best-effort.
   }

@@ -17,6 +17,7 @@ const sections: LegalSection[] = [
       "Billing details, if you subscribe: payments are processed by Stripe, which holds your card details — CardFlip never sees your card number, only your subscription status.",
       "Basic technical logs: requests to our servers, with timestamps and IP addresses, kept for debugging and abuse prevention.",
       "Visit counts: we count how many people visit each day using a one-way hash of your connection that changes every day, so it cannot identify you or follow you between days. We also use Google Analytics on the public pages (not inside your account) to see which pages people read; Google’s own policy covers what it collects.",
+      "If you arrive through a tagged link or another site, we remember that source in your browser and save it with your account at signup, so we know which posts bring people. It holds no personal details.",
       "That is the list. There is no advertising, no selling of data, and no profile built about you. The only cookies CardFlip itself sets are the session cookie that keeps you logged in, a device cookie set at signup so the free trial goes to one account per device, and Google Analytics’ measurement cookies.",
     ],
   },

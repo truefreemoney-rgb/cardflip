@@ -4,6 +4,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 import Prefetch from "@/components/Prefetch";
 import RefCapture from "@/components/RefCapture";
+import AttributionCapture from "@/components/AttributionCapture";
 import VisitPing from "@/components/VisitPing";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import JsonLd from "@/components/JsonLd";
@@ -86,6 +87,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Prefetch />
         <RefCapture />
+        <AttributionCapture />
         <VisitPing />
         <GoogleAnalytics />
         <JsonLd

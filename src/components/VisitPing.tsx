@@ -18,9 +18,14 @@ export default function VisitPing() {
   const pathname = usePathname();
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin")) return;
-    const ref = referrerSent ? "" : document.referrer;
+    const first = !referrerSent;
+    const ref = first ? document.referrer : "";
     referrerSent = true;
-    const body = JSON.stringify(ref ? { path: pathname, ref } : { path: pathname });
+    // The tagged link's source and campaign ride the first ping too (lib/attribution.ts); the server keeps only the classified source.
+    const q = first ? new URLSearchParams(window.location.search) : null;
+    const utm_source = q?.get("utm_source");
+    const utm_campaign = q?.get("utm_campaign");
+    const body = JSON.stringify({ path: pathname, ...(first ? { first: true } : {}), ...(ref ? { ref } : {}), ...(utm_source ? { utm_source } : {}), ...(utm_campaign ? { utm_campaign } : {}) });
     try {
       if (
         !navigator.sendBeacon?.(
