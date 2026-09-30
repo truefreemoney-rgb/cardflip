@@ -14,10 +14,9 @@ import ListingCopyFields from "@/components/ListingCopyFields";
 import PriceInput from "@/components/PriceInput";
 import { updateServerCard } from "@/lib/client/cardsApi";
 import { fetchEbayComps } from "@/lib/client/ebayApi";
-import { fetchCardById, searchCards } from "@/lib/cards";
-import { parseCardQuery } from "@/lib/cardNumber";
+import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { speciesName as speciesOf } from "@/lib/speciesName";
-import { displayCardNumber, parseMtgQuery } from "@/lib/games";
+import { displayCardNumber } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
@@ -377,15 +376,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     try {
       // "Charizard 4/102" — the number the seller can see is the fastest way
       // to correct a wrong match, so accept it alongside the name.
-      let found;
-      if (item.game === "mtg") {
-        const { name, number, setCode } = parseMtgQuery(term);
-        const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-        found = await searchCards(name, printed, item.language, undefined, "mtg");
-      } else {
-        const { name, printed } = parseCardQuery(term);
-        found = await searchCards(name, printed, item.language);
-      }
+      const found = (await searchTyped(term, item.game ?? "pokemon", item.language, { limit: 24, exact: false })) ?? [];
       if (found.length === 0) {
         setSearchError("No cards matched that search.");
       } else {

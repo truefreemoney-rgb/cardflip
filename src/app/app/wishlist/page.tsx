@@ -18,14 +18,10 @@ import {
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
-import { fetchCardById, searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { formatMoney, pickPrice } from "@/lib/listing";
-import {
-  filterByPrintedNumber,
-  normalizeNumber,
-  parseCardQuery,
-} from "@/lib/cardNumber";
-import { GAMES, displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
+import { normalizeNumber } from "@/lib/cardNumber";
+import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 const LANGUAGE_LABEL: Record<string, string> = {
@@ -400,26 +396,9 @@ export default function WishlistPage() {
     setAddError(null);
     setResults([]);
     try {
-      let found: PokemonCard[];
-      if (game === "mtg") {
-        const { name, number, setCode } = parseMtgQuery(query);
-        const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-        found = await searchCards(name, printed, addLanguage, 200, "mtg");
-        if (number) {
-          const wanted = number.replace(/^0+(?=\d)/, "");
-          const exact = found.filter((c) => c.number.replace(/^0+(?=\d)/, "").toLowerCase() === wanted);
-          if (exact.length > 0) found = exact;
-        }
-      } else {
-        const { name, printed } = parseCardQuery(query);
-        // Every printing, not the scanner's top-24 — someone hunting a card
-        // wants to see all of them. Unless they typed a number: that's
-        // deliberate, so show only the card it names.
-        found = filterByPrintedNumber(
-          await searchCards(name, printed, addLanguage, 200),
-          printed,
-        );
-      }
+      // Every printing — someone hunting a card wants to see all of them.
+      // Unless they typed a number: then only the card it names.
+      const found = (await searchTyped(query, game, addLanguage)) ?? [];
       setResults(found);
       setResultsLanguage(addLanguage);
       if (found.length === 0) setAddError("No cards matched that search.");

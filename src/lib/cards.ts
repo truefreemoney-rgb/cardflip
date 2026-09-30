@@ -2,6 +2,8 @@ import { apiPath } from "@/lib/client/basePath";
 import type { PrintedNumber } from "@/lib/cardNumber";
 import type { ArtStyle, GameId, MtgCues, PokemonCard, ScanLanguage } from "@/lib/types";
 import { mtgCuesToParams } from "@/lib/mtgCues";
+import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
+import { parseMtgQuery } from "@/lib/games";
 
 /**
  * `printed` carries the whole fraction, not just the collector number. The set
@@ -116,4 +118,51 @@ export async function searchCards(
 
   const data = await res.json();
   return data.cards ?? [];
+}
+
+const CODE_TOKEN = /^[A-Z0-9]{2,6}-[A-Z]{0,3}\d{1,4}[A-Z]?$/i;
+const bareNumber = (n: string) => n.replace(/^0+(?=\d)/, "").toLowerCase();
+
+/**
+ * What a seller types in a search box ("Charizard 4/102", "Lightning Bolt
+ * LTR 187", "Elsa 42/204", "Roronoa Zoro OP01-001", "Dark Magician
+ * LOB-EN005") → the right game's catalogue. Every typed-search box goes
+ * through here: until 09-30 each box sent only Magic with its game and let
+ * Lorcana / One Piece / Yu-Gi-Oh fall through to a Pokémon search (0 hits).
+ * `null` = nothing searchable was typed (the caller shows the game's example).
+ * `exact` keeps only the typed number when one was typed (a deliberate ask).
+ */
+export async function searchTyped(
+  query: string,
+  game: GameId,
+  lang: ScanLanguage,
+  { limit = 200, exact = true }: { limit?: number; exact?: boolean } = {},
+): Promise<PokemonCard[] | null> {
+  if (game === "mtg") {
+    const { name, number, setCode } = parseMtgQuery(query);
+    if (!name && !(number && setCode)) return null;
+    const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
+    const found = await searchCards(name, printed, lang, limit, "mtg");
+    if (!exact || !number) return found;
+    const hit = found.filter((c) => bareNumber(c.number) === bareNumber(number));
+    return hit.length > 0 ? hit : found;
+  }
+  if (game === "onepiece" || game === "yugioh") {
+    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    const code = tokens.find((t) => CODE_TOKEN.test(t))?.toUpperCase() ?? null;
+    const name = tokens.filter((t) => !CODE_TOKEN.test(t)).join(" ");
+    if (!name && !code) return null;
+    const found = await searchCards(name, code, lang, limit, game);
+    if (!exact || !code) return found;
+    const hit = found.filter((c) => c.number.toUpperCase() === code);
+    return hit.length > 0 ? hit : found;
+  }
+  const { name, printed } = parseCardQuery(query);
+  if (!name && !printed) return null;
+  const found = await searchCards(name, printed, lang, limit, game);
+  if (!exact) return found;
+  const hit = filterByPrintedNumber(found, printed);
+  // Lorcana's catalogue totals differ from the printed one on promos — never
+  // turn a real name hit into "no cards" over the denominator.
+  return game === "lorcana" && hit.length === 0 ? found : hit;
 }

@@ -10,9 +10,8 @@ import CardDetailModal from "@/components/CardDetailModal";
 import GameToggle from "@/components/GameToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { fetchCardById, searchCards } from "@/lib/cards";
-import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
-import { GAMES, displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
+import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
+import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import {
   clearPriceChecks,
@@ -166,25 +165,9 @@ export default function PriceCheckPage() {
       // Sellers type what's printed on the card they're holding — "Charizard
       // 4/102". Splitting the fraction out makes that the most precise query
       // the lookup can take, instead of a name that matches nothing.
-      let found: PokemonCard[];
-      if (game === "mtg") {
-        const { name, number, setCode } = parseMtgQuery(query);
-        const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-        found = await searchCards(name, printed, language, 200, "mtg");
-        if (number) {
-          const wanted = number.replace(/^0+(?=\d)/, "");
-          const exact = found.filter((c) => c.number.replace(/^0+(?=\d)/, "").toLowerCase() === wanted);
-          if (exact.length > 0) found = exact;
-        }
-      } else {
-        const { name, printed } = parseCardQuery(query);
-        // Every printing, not the scanner's top-24 — same as the wishlist search.
-        // But a typed number is deliberate: show only the card it names.
-        found = filterByPrintedNumber(
-          await searchCards(name, printed, language, 200),
-          printed,
-        );
-      }
+      // Every printing, not the scanner's top-24; a typed number shows only
+      // the card it names.
+      const found = (await searchTyped(query, game, language)) ?? [];
       if (seq !== searchSeq.current) return;
       setResults(found);
       setResultsTitle(

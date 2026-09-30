@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
-import { searchCards } from "@/lib/cards";
-import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
+import { searchTyped } from "@/lib/cards";
 import { gradeLabel, parseGradeQuery } from "@/lib/grading";
-import { GAMES, displayCardNumber, parseMtgQuery } from "@/lib/games";
+import { GAMES, displayCardNumber } from "@/lib/games";
 import type { GameId, GradedInfo, PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -47,35 +46,11 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
     try {
       // Grade first: left in, "PSA 10" reads as a collector number.
       const { rest, grading } = parseGradeQuery(query);
-      let found: PokemonCard[];
-      if (game === "mtg") {
-        // "Lightning Bolt LTR 187" — set code + collector number, no fraction
-        // needed; a number alone narrows to that number in every set.
-        const { name, number, setCode } = parseMtgQuery(rest);
-        if (!name && !(number && setCode)) {
-          setResults([]);
-          setError("Add the card's name — e.g. Lightning Bolt LTR 187.");
-          return;
-        }
-        const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-        found = await searchCards(name, printed, language, 200, "mtg");
-        if (number) {
-          const wanted = number.replace(/^0+(?=\d)/, "");
-          const exact = found.filter((c) => c.number.replace(/^0+(?=\d)/, "").toLowerCase() === wanted);
-          if (exact.length > 0) found = exact;
-        }
-      } else {
-        const { name, printed } = parseCardQuery(rest);
-        if (!name && !printed) {
-          setResults([]);
-          setError("Add the card's name too — e.g. Charizard 4/102 PSA 10.");
-          return;
-        }
-        // A typed number is deliberate — show only the card it names.
-        found = filterByPrintedNumber(
-          await searchCards(name, printed, language, 200),
-          printed,
-        );
+      const found = await searchTyped(rest, game, language);
+      if (!found) {
+        setResults([]);
+        setError(`Add the card's name — ${GAMES[game].searchPlaceholder}.`);
+        return;
       }
       setResults(found);
       setResultsGrading(grading);
