@@ -20,6 +20,7 @@ import {
   pickPrice,
   quoteForItem,
   quotePrice,
+  floorNote,
 } from "../src/lib/listing.ts";
 import { costCoveredPrice } from "../src/lib/fees.ts";
 import {
@@ -510,10 +511,16 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice({ name: "Test", setName: "Test", prices: [usd(1.5)] }, "Lightly Played", "market").suggested,
     costCoveredPrice(1.27), // 1.5 × 0.85 rounds to 1.27 in floating point (roundPrice)
   );
-  // Worth less than $0.50: the old floor still applies (nets $0.50, not the value).
-  const pennyCard = { name: "Test", setName: "Test", prices: [usd(0.3)] };
-  check("penny card: the $1.79 floor", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.79);
-  check("penny card: covers $0.50", quotePrice(pennyCard, "Near Mint", "market").covers, 0.5);
+  // Worth less than $0.50: same rule, no $1.79 minimum any more (Chris 09-30,
+  // Team Rocket's Spidops $0.25: "its the ebay fee plus postage, then the tcg
+  // amount on top"). (0.25 + 0.30 + 0.75) / 0.8675 = 1.4986 → $1.50.
+  const spidops = { name: "Test", setName: "Test", prices: [usd(0.25)] };
+  check("$0.25 Spidops lists at $1.50, not the old $1.79", quotePrice(spidops, "Near Mint", "market").suggested, 1.5);
+  check("$0.25 Spidops: the seller keeps the $0.25 value", quotePrice(spidops, "Near Mint", "market").covers, 0.25);
+  check("$0.25 Spidops: the note names the value", floorNote(quotePrice(spidops, "Near Mint", "market")),
+    "Card value $0.25 plus eBay fees and $0.75 postage, so you keep the full value");
+  const pennyCard = { name: "Test", setName: "Test", prices: [usd(0.02)] };
+  check("2¢ card: value + costs, still above break-even", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.24);
   check("askingPriceFor agrees with quotePrice for cheap cards", askingPriceFor(1.5, "Near Mint"), 2.94);
   check("askingPriceFor leaves a $5 card at market", askingPriceFor(5, "Near Mint"), 5);
   // 09-03 quick sale is a $5+ option: below it "quick" quotes the market
@@ -553,12 +560,14 @@ console.log("\nThe chart's current-day point rebases the quote:");
 
 {
   const { belowFloor, listingFloor, floorRefusal } = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
-  console.log("floor rule (Chris, 09-08: never under the floor)");
-  check("floor is $1.79 at 13.25% + $0.30 + $0.75 postage, $0.50 net", listingFloor(), 1.79);
-  check("$1.70 is under the floor", belowFloor(1.7), true);
-  check("$1.79 is not", belowFloor(1.79), false);
+  console.log("break-even rule (Chris, 09-08: never lose money; the $1.79 minimum went 09-30)");
+  // (0.30 + 0.75) / 0.8675 = 1.2104 → rounded up to the cent.
+  check("break-even is $1.22 at 13.25% + $0.30 + $0.75 postage", listingFloor(), 1.22);
+  check("$1.15 loses money", belowFloor(1.15), true);
+  check("$1.22 does not", belowFloor(1.22), false);
+  check("$1.50 (the Spidops price) saves", belowFloor(1.5), false);
   check("$0 (unpriced) passes", belowFloor(0), false);
-  check("refusal names the floor", floorRefusal().includes("$1.79"), true);
+  check("refusal names break-even", floorRefusal().includes("$1.22"), true);
 }
 
 console.log(

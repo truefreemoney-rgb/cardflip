@@ -19,26 +19,24 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
-import { costCoveredPrice, coversCosts, listingFloor, MIN_NET_USD, POSTAGE_USD } from "./fees.ts";
+import { costCoveredPrice, coversCosts, POSTAGE_USD } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
 export function floorNote(quote?: { covers?: number } | null): string {
-  const keep = quote?.covers ?? MIN_NET_USD;
-  return keep > MIN_NET_USD
-    ? `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`
-    : `Raised to $${listingFloor().toFixed(2)} so you clear $${MIN_NET_USD.toFixed(2)} after eBay fees and $${POSTAGE_USD.toFixed(2)} postage`;
+  const keep = quote?.covers ?? 0;
+  return `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`;
 }
 
 /**
  * A cheap card's asking price: its (condition-adjusted) value with eBay fees
- * and postage on top, never under the floor. Returns null when the value is
- * high enough to price at market.
+ * and postage on top — Chris's rule, every card under $5, no minimum on top
+ * of it (09-30: $0.25 Spidops → $1.50). Returns null when the value is high
+ * enough to price at market.
  */
 function coveredAsk(value: number): { price: number; covers: number } | null {
   if (!coversCosts(value)) return null;
-  const covered = costCoveredPrice(value);
-  const floor = listingFloor();
-  return covered >= floor ? { price: covered, covers: Math.round(value * 100) / 100 } : { price: floor, covers: MIN_NET_USD };
+  const covers = Math.round(value * 100) / 100;
+  return { price: costCoveredPrice(covers), covers };
 }
 
 // eBay's CCG leaf categories are shared by every game since the 2020

@@ -17,16 +17,10 @@ export function estimatedEbayFees(gross: number): number {
 }
 
 /**
- * The listing-price floor (Chris, 09-03): a single cheap card has to clear
- * MIN_NET_USD after eBay's fees AND the postage the seller pays, or the
- * listing is a guaranteed loss — a $0.91 Eri nets nothing after 13.25% +
- * $0.30 + a stamp. TCGplayer's market stays the card's VALUE; this is the
- * least an eBay listing can sensibly say. It never bites above a few
- * dollars, so mid and high value cards price exactly as before.
+ * Postage the seller pays on a single card (a stamp + a toploader mailer).
  *
  * gross − (gross·rate + flat) − postage ≥ net  ⇒  gross ≥ (net + flat + postage) / (1 − rate)
  */
-export const MIN_NET_USD = 0.5;
 export const POSTAGE_USD = 0.75;
 
 /**
@@ -52,14 +46,23 @@ export function coversCosts(value: number): boolean {
   return value > 0 && value < COST_COVERED_MAX_USD;
 }
 
+/**
+ * The break-even price: eBay's cut + postage and nothing else ($1.22 at
+ * 13.25% + $0.30 + $0.75). The old $1.79 minimum (clear $0.50 on every
+ * sale, 09-03) is gone — Chris 09-30: "if you follow these rules, you
+ * shouldnt need to have the minimum listing price any more"; a $0.25
+ * Spidops lists at $1.50, not $1.79. Suggested prices never come near this
+ * line (value + costs is always above it); it only stops a hand-typed price
+ * that would lose money.
+ */
 export function listingFloor(): number {
-  return costCoveredPrice(MIN_NET_USD);
+  return costCoveredPrice(0);
 }
 
 /**
  * HARD RULE (Chris, 09-08: "we can never go under the floor price, the user
  * has to at least break even or make a profit, never lose money"): no
- * listing price below the floor can be saved, repriced, drafted or
+ * listing price below break-even can be saved, repriced, drafted or
  * published. Servers refuse with this sentence; the UI clamps before it
  * gets there. $0 means "unpriced" and is not a listing price, so it passes.
  */
@@ -67,8 +70,7 @@ export function belowFloor(price: number): boolean {
   return price > 0 && price < listingFloor() - 0.005;
 }
 export function floorRefusal(): string {
-  return `The lowest price is $${listingFloor().toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — anything under it loses money after eBay fees and postage.`;
-}
+  return `The lowest price is $${listingFloor().toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — anything under it loses money after eBay fees and postage.`;}
 
 /** What the seller pockets — actual fees when recorded, the estimate otherwise. */
 export function netAfterFees(gross: number, actualFees?: number | null): number {

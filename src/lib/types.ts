@@ -285,9 +285,9 @@ export interface PriceQuote {
   suggested: number;
   /**
    * Set when `suggested` was raised above the card's value to cover eBay
-   * fees and postage (lib/fees.ts coversCosts / listingFloor): the UI says so
-   * beside the price. `covers` is what the seller keeps — the card's
-   * condition-adjusted value, or MIN_NET_USD when even that is too little.
+   * fees and postage (lib/fees.ts coversCosts / costCoveredPrice): the UI says
+   * so beside the price. `covers` is what the seller keeps — the card's
+   * condition-adjusted value.
    */
   floored?: boolean;
   covers?: number;
