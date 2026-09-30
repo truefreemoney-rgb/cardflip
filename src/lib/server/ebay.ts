@@ -71,7 +71,7 @@ const INSIGHTS_SCOPE =
 // token can't read sold data, and reusing one for the other 403s.
 const tokenCache = new Map<string, { value: string; expiresAt: number }>();
 
-async function getAppToken(scope: string): Promise<string> {
+export async function getAppToken(scope: string = BROWSE_SCOPE): Promise<string> {
   const cached = tokenCache.get(scope);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
 
