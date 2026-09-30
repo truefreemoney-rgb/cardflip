@@ -193,7 +193,8 @@ export function marketplaceFor(input: {
   if (!(LOCAL_MARKET_COUNTRIES as readonly string[]).includes(home)) return US_MARKETPLACE;
   const row = MARKETPLACES[home as MarketplaceKey];
   const registered = (input.ebayRegistrationMarketplace ?? "").trim().toUpperCase();
-  return registered === row.marketplaceId ? row : US_MARKETPLACE;
+  // A row goes live only after a real seller there has tested it (increment 2+): the switch alone never routes to an untested site.
+  return row.live && registered === row.marketplaceId ? row : US_MARKETPLACE;
 }
 
 /** The fee model for a marketplace + account type; unknown account = business (the higher price). */

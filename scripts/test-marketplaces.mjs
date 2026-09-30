@@ -72,9 +72,10 @@ console.log("marketplaceFor");
   check("switch off → US for every home + registration", ["US", "CA", "GB", "IE", "AU", "NZ", "", null, undefined].map((h) => us({ homeCountry: h, ebayRegistrationMarketplace: h ? `EBAY_${h}` : null, switchOn: false })).every((k) => k === "US"), true);
   check("switch omitted → US", us({ homeCountry: "GB", ebayRegistrationMarketplace: "EBAY_GB" }), "US");
   check("switch truthy-but-not-true → US", us({ homeCountry: "GB", ebayRegistrationMarketplace: "EBAY_GB", switchOn: "1" }), "US");
-  check("switch on, GB home + GB registration → GB", us({ homeCountry: "GB", ebayRegistrationMarketplace: "EBAY_GB", switchOn: true }), "GB");
+  // Increment 1: no local row is live, so even a full match stays on US. Increment 2 marks GB live and expects "GB" here.
+  check("switch on, GB home + GB registration, GB not live → US", us({ homeCountry: "GB", ebayRegistrationMarketplace: "EBAY_GB", switchOn: true }), "US");
   for (const c of ["CA", "GB", "IE", "AU"]) {
-    check(`switch on, ${c} home + ${c} registration → ${c}`, us({ homeCountry: c, ebayRegistrationMarketplace: `EBAY_${c}`, switchOn: true }), c);
+    check(`switch on, ${c} home + ${c} registration, not live → US`, us({ homeCountry: c, ebayRegistrationMarketplace: `EBAY_${c}`, switchOn: true }), "US");
     check(`switch on, ${c} home + US registration → US`, us({ homeCountry: c, ebayRegistrationMarketplace: "EBAY_US", switchOn: true }), "US");
     check(`switch on, ${c} home + no registration → US`, us({ homeCountry: c, ebayRegistrationMarketplace: null, switchOn: true }), "US");
   }
@@ -82,7 +83,7 @@ console.log("marketplaceFor");
   check("switch on, US home → US", us({ homeCountry: "US", ebayRegistrationMarketplace: "EBAY_US", switchOn: true }), "US");
   check("switch on, NZ home (even registered on AU) → US", us({ homeCountry: "NZ", ebayRegistrationMarketplace: "EBAY_AU", switchOn: true }), "US");
   check("switch on, unknown home → US", us({ homeCountry: "FR", ebayRegistrationMarketplace: "EBAY_FR", switchOn: true }), "US");
-  check("case-insensitive", us({ homeCountry: "gb", ebayRegistrationMarketplace: "ebay_gb", switchOn: true }), "GB");
+  check("every local row is still not live", ["CA", "GB", "IE", "AU", "NZ"].every((c) => MARKETPLACES[c].live === false), true);
   check("no input at all → the US row object itself", marketplaceFor({}) === US_MARKETPLACE, true);
 }
 

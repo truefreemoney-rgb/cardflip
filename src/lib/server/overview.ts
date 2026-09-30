@@ -5,6 +5,7 @@ import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/exp
 import { eastern, LAST_POST_PREFIX } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { PRICING } from "@/lib/pricing";
+import { LOCAL_MARKET_COUNTRIES } from "@/lib/marketplaces";
 
 /**
  * The "pulse" half of /admin (09-27): what needs Chris today. Support
@@ -17,12 +18,8 @@ import { PRICING } from "@/lib/pricing";
 
 const DAY_MS = 86_400_000;
 
-/**
- * Countries whose sellers could list on their own eBay site
- * (docs/EBAY_COUNTRIES_PLAN.md). NZ is deliberately absent: it stays on eBay US
- * until a NZ seller tests it. Mirrors LOCAL_MARKET_COUNTRIES in lib/marketplaces.ts.
- */
-const LOCAL_TESTER_COUNTRIES = ["CA", "GB", "IE", "AU"];
+/** Countries whose sellers could list on their own eBay site (NZ absent: it stays on eBay US until a NZ seller tests it). */
+const LOCAL_TESTER_COUNTRIES = LOCAL_MARKET_COUNTRIES;
 /** A connect stays a "Needs you" row for this long. */
 const LOCAL_TESTER_WINDOW_MS = 14 * DAY_MS;
 
