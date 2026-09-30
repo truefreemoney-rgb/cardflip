@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import ActivityBars from "@/components/admin/ActivityBars";
+import NeedsYouList, { type NeedsYouItem } from "@/components/admin/NeedsYouList";
+import { etDay } from "@/lib/time";
 import { ago, money, num } from "@/components/admin/format";
 import { getAdminOverview } from "@/lib/server/adminStats";
 import { getOverviewPulse } from "@/lib/server/overview";
@@ -26,7 +28,7 @@ export default async function AdminOverviewPage() {
   const now = p.now;
 
   // "Needs you": only rows with something behind them. Empty = all quiet.
-  const attention: { href: string; text: string; tone: "warn" | "bad" | "info" }[] = [];
+  const attention: NeedsYouItem[] = [];
   if (p.support.needsReply)
     attention.push({
       href: "/admin/support",
@@ -63,27 +65,8 @@ export default async function AdminOverviewPage() {
         <p className="mt-1 text-sm text-zinc-500">What needs you, then every account, card and dollar on CardFlip right now.</p>
       </div>
 
-      {/* Needs you */}
-      <div className="rounded-2xl border border-edge bg-surface-1 px-4 py-3">
-        {attention.length === 0 ? (
-          <p className="text-sm text-zinc-300">
-            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400 align-middle" />
-            All quiet. No tickets waiting, no errors, every connected site has posted today.
-          </p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {attention.map((a) => (
-              <li key={a.text}>
-                <Link href={a.href} className="flex items-center gap-3 py-2 text-sm text-zinc-200 hover:text-white">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${a.tone === "bad" ? "bg-rose-400" : a.tone === "warn" ? "bg-amber-400" : "bg-sky-400"}`} />
-                  <span className="min-w-0 flex-1">{a.text}</span>
-                  <span className="text-xs text-zinc-600">Open</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* Needs you (each row closable for the day, NeedsYouList) */}
+      <NeedsYouList items={attention} day={etDay(now)} />
 
       {/* Support */}
       <H2 href="/admin/support" link="All Tickets">Support</H2>
