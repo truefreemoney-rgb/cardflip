@@ -284,6 +284,8 @@ export const instagram: SocialSite = {
   id: "instagram",
   label: "Instagram",
   maxChars: INSTAGRAM_MAX_CHARS,
+  // Instagram accepts at most five hashtags a post.
+  maxTags: 5,
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => igCreds() !== null,

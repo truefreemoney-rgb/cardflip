@@ -182,6 +182,17 @@ check("keeps the tags: short caption + tags beats the long caption alone", fitTe
   check("never fewer than two tags: untagged caption when even two do not fit", fitText({ ...five, shortCaption: "c".repeat(200) }, 215), "c".repeat(200));
   const also = { caption: "l".repeat(400), shortCaption: `${"s".repeat(160)}\n\nAlso scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io`, hashtags: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"] };
   check("cuts the sign-off to the address before it drops a tag", fitText(also, 240), `${"s".repeat(160)}\n\ncardflip.io\n\n#PokemonTCG #PokemonCards #TCG #TradingCards`);
+  // The 7pm all-games tags (Chris 09-30: tags for every game, biggest reach):
+  // one per game first, so a cut list still names all five.
+  const { PLAN_TAGS } = await import(at("lib/socialPlan.ts"));
+  const games = { caption: "One scanner, five card games.\n\nScan a card, see what it's worth. cardflip.io", hashtags: [...PLAN_TAGS.games] };
+  const firstFive = "#PokemonTCG #MTG #DisneyLorcana #OPTCG #Yugioh";
+  check("all-games tags: Instagram keeps exactly five, one per game", fitText(games, 2200, 5).endsWith(`\n\n${firstFive}`), true);
+  check("all-games tags: roomy sites (Facebook, TikTok) get every tag", fitText(games, 5000).split("#").length - 1, PLAN_TAGS.games.length);
+  for (const [label, max] of [["X", 257], ["Bluesky", 300]]) {
+    const out = fitText(games, max);
+    check(`all-games tags: ${label} fits and still names all five games`, [out.length <= max, out.includes(firstFive)], [true, true]);
+  }
 }
 check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
 

@@ -188,6 +188,8 @@ export interface SocialSite {
   label: string;
   /** Post length the site allows; captions are fitted to it. */
   maxChars: number;
+  /** Most hashtags the site accepts (Instagram: 5); the tag list is cut from the end to it. */
+  maxTags?: number;
   maxImageBytes: number;
   /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
   postsVideo?: boolean;
@@ -228,7 +230,8 @@ export interface PublishReport {
  * every tag, then either with the tag list trimmed from the end (never
  * under two), and only then untagged text.
  */
-export function fitText(post: SocialPost, maxChars: number): string {
+export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
+  if (post.hashtags.length > maxTags) post = { ...post, hashtags: post.hashtags.slice(0, maxTags) };
   const short = post.shortCaption ?? post.caption;
   // Before any tag goes: the short caption with its sign-off cut to the
   // address ("Also scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io"
@@ -555,7 +558,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       }
       let landed = 0;
       for (const d of drafts) {
-        const text = fitText(d, site.maxChars);
+        const text = fitText(d, site.maxChars, site.maxTags);
         if (opts.dry) {
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;

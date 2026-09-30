@@ -70,12 +70,20 @@ export function otherGameNames(covered: GameId[]): string[] {
 }
 
 /**
- * Hashtags, at most five (Instagram's cap; Threads turns only the FIRST
- * into its topic, so the biggest community goes first). Bluesky makes a
- * facet only of [A-Za-z][A-Za-z0-9]*, so no hyphens.
+ * Hashtags. Threads turns only the FIRST into its topic, so the biggest
+ * community goes first; Bluesky makes a facet only of [A-Za-z][A-Za-z0-9]*,
+ * so no hyphens. Lists are cut from the END to fit a site (fitText: X and
+ * Bluesky by length, Instagram at five tags), so order = priority.
+ * games (Chris 09-30: "include hashtags for all the games, i want the
+ * biggest reach possible"): one tag per game first, so every site names all
+ * five, then a second tag per game, then the general card tags.
  */
 export const PLAN_TAGS = {
-  games: ["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"],
+  games: [
+    "PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh",
+    "PokemonCards", "MagicTheGathering", "Lorcana", "OnePieceCardGame", "YuGiOhTCG",
+    "TCG", "TradingCards", "CardCollector",
+  ],
   mixedMovers: ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"],
   pokemonAlsoScans: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"],
 } as const;
