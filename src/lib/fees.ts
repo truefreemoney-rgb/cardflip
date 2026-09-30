@@ -35,15 +35,41 @@ export function costCoveredPrice(net: number): number {
 /**
  * Cheap cards list at their value PLUS fees and postage (Chris, 09-30: "start
  * with the total cost of fees and postage then attach the tcg price of the
- * card on top" — a $1.50 card at $1.50 nets a quarter). Below this value the
- * suggested price is costCoveredPrice(value), so the seller pockets the
- * card's full market value; from here up the card is worth enough that the
- * market price already clears costs and stays competitive with other eBay
- * listings, so it prices as before.
+ * card on top" — a $1.50 card at $1.50 nets a quarter). Under
+ * COST_COVERED_MAX_USD the whole cost goes on top (costCoveredPrice), so the
+ * seller pockets the card's full market value. From there the added share
+ * TAPERS straight down to nothing at COST_TAPER_END_USD (Chris 09-30 picked
+ * the taper over a flat $10 line, which would list a $9.99 card at $12.73
+ * beside a $10.00 card at $10.00): $5 → $6.98, $7.50 → $8.68, $10 → $10.
+ * The curve only rises with value, so a cheaper card never lists higher —
+ * and a quick sale (a smaller value) always lands under full value. From
+ * $10 up the market price already clears costs and stays competitive.
  */
 export const COST_COVERED_MAX_USD = 5;
+export const COST_TAPER_END_USD = 10;
+/** Whether any fees/postage go on top of this value (under $10). */
 export function coversCosts(value: number): boolean {
+  return value > 0 && value < COST_TAPER_END_USD;
+}
+/** Whether ALL of them do (under $5) — the seller keeps the full value. */
+export function coversAllCosts(value: number): boolean {
   return value > 0 && value < COST_COVERED_MAX_USD;
+}
+
+/**
+ * The asking price for a card worth `value` under the rule above (the value
+ * itself from $10 up). Integer cents, rounded up, so the taper never lands a
+ * cent low and never dips below the full-cover price at $5.
+ */
+export function costTaperedPrice(value: number): number {
+  const cents = Math.round(value * 100);
+  if (!coversCosts(cents / 100)) return cents / 100;
+  const full = costCoveredPrice(cents / 100);
+  if (coversAllCosts(cents / 100)) return full;
+  const extra = Math.round(full * 100) - cents;
+  const end = COST_TAPER_END_USD * 100;
+  const span = (COST_TAPER_END_USD - COST_COVERED_MAX_USD) * 100;
+  return (cents + Math.ceil((extra * (end - cents)) / span)) / 100;
 }
 
 /**

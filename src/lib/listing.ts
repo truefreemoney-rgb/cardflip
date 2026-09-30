@@ -19,24 +19,27 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
-import { costCoveredPrice, coversCosts, POSTAGE_USD } from "./fees.ts";
+import { costTaperedPrice, coversAllCosts, coversCosts, POSTAGE_USD } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
-export function floorNote(quote?: { covers?: number } | null): string {
+export function floorNote(quote?: { covers?: number; coverPartial?: boolean } | null): string {
   const keep = quote?.covers ?? 0;
-  return `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`;
+  return quote?.coverPartial
+    ? `Card value $${keep.toFixed(2)} plus part of the eBay fees and postage`
+    : `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`;
 }
 
 /**
  * A cheap card's asking price: its (condition-adjusted) value with eBay fees
- * and postage on top — Chris's rule, every card under $5, no minimum on top
- * of it (09-30: $0.25 Spidops → $1.50). Returns null when the value is high
- * enough to price at market.
+ * and postage on top — Chris's rule, all of them under $5 (09-30: $0.25
+ * Spidops → $1.50), a share tapering to none at $10 (lib/fees.ts
+ * costTaperedPrice). Returns null when the value is high enough to price at
+ * market.
  */
-function coveredAsk(value: number): { price: number; covers: number } | null {
-  if (!coversCosts(value)) return null;
+function coveredAsk(value: number): { price: number; covers: number; partial: boolean } | null {
   const covers = Math.round(value * 100) / 100;
-  return { price: costCoveredPrice(covers), covers };
+  if (!coversCosts(covers)) return null;
+  return { price: costTaperedPrice(covers), covers, partial: !coversAllCosts(covers) };
 }
 
 // eBay's CCG leaf categories are shared by every game since the 2020
@@ -446,18 +449,19 @@ export function quotePrice(
   const adjusted = conditioned * STRATEGY_MULTIPLIER[effective];
 
   const rounded = roundPrice(adjusted, effective);
-  // Cheap cards (under $5, Chris 09-30): value + fees + postage. USD listings
-  // only (a euro reference can't set a dollar price anyway), and only when
-  // there IS a price. The market quote only: quick sale exists from a $5
-  // value up, so its 12% cut is the seller's chosen discount on a $5+ card —
-  // covering it put a $5.00 card's Quick sale at $6.29, above Full value.
-  const covered = price.currency === "USD" && effective === "market" ? coveredAsk(rounded) : null;
+  // Cheap cards (Chris 09-30): value + fees + postage under $5, a tapering
+  // share of them up to $10. USD listings only (a euro reference can't set a
+  // dollar price anyway), and only when there IS a price. Quick sale runs
+  // its discounted value through the same curve; the curve only rises, so
+  // Quick always lands under Full value (the old flat $5 line put a $5.00
+  // card's Quick at $6.29, above Full's $5.00).
+  const covered = price.currency === "USD" ? coveredAsk(rounded) : null;
 
   return {
     price,
     base: price.market,
     suggested: covered ? covered.price : rounded,
-    ...(covered ? { floored: true, covers: covered.covers } : {}),
+    ...(covered ? { floored: true, covers: covered.covers, ...(covered.partial ? { coverPartial: true } : {}) } : {}),
   };
 }
 

@@ -522,7 +522,34 @@ console.log("\nThe chart's current-day point rebases the quote:");
   const pennyCard = { name: "Test", setName: "Test", prices: [usd(0.02)] };
   check("2¢ card: value + costs, still above break-even", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.24);
   check("askingPriceFor agrees with quotePrice for cheap cards", askingPriceFor(1.5, "Near Mint"), 2.94);
-  check("askingPriceFor leaves a $5 card at market", askingPriceFor(5, "Near Mint"), 5);
+  // $5–$10 taper (Chris 09-30, over a flat $10 line): the added costs fade
+  // from all of them at $5 to none at $10 — no cliff at either end.
+  check("taper: $4.99 full cover", askingPriceFor(4.99, "Near Mint"), 6.97);
+  check("taper: $5.00 full cover, a cent above $4.99", askingPriceFor(5, "Near Mint"), 6.98);
+  check("taper: $7.50 carries half the costs", askingPriceFor(7.5, "Near Mint"), 8.68);
+  check("taper: $9.99 → $10.00", askingPriceFor(9.99, "Near Mint"), 10);
+  check("taper: $10 card at market", askingPriceFor(10, "Near Mint"), 10);
+  check("taper: $7.50 note says part of the costs",
+    floorNote(quotePrice({ name: "Test", setName: "Test", prices: [usd(7.5)] }, "Near Mint", "market")),
+    "Card value $7.50 plus part of the eBay fees and postage");
+  {
+    // Every cent $0.01–$15: the price never drops as the value rises, never
+    // loses money, and quick sale is never above full value.
+    const bad = [];
+    let prev = 0;
+    for (let c = 1; c <= 1500; c++) {
+      const v = c / 100;
+      const ask = askingPriceFor(v, "Near Mint");
+      if (ask < prev) bad.push(`drop at ${v}: ${prev} → ${ask}`);
+      if (ask * 0.8675 - 1.05 < -0.005) bad.push(`loss at ${v}: ${ask}`);
+      const card = { name: "Test", setName: "Test", prices: [usd(v)] };
+      const q = quotePrice(card, "Near Mint", "quick").suggested;
+      const m = quotePrice(card, "Near Mint", "market").suggested;
+      if (q > m) bad.push(`quick above full at ${v}: ${q} > ${m}`);
+      prev = ask;
+    }
+    check("taper sweep: monotone, never a loss, quick ≤ full", bad.slice(0, 5), []);
+  }
   // 09-03 quick sale is a $5+ option: below it "quick" quotes the market
   // (then covers costs like any cheap card).
   const fourDollar = { name: "Test", setName: "Test", prices: [usd(4.2)] };
@@ -536,13 +563,12 @@ console.log("\nThe chart's current-day point rebases the quote:");
     quotePrice({ name: "Test", setName: "Test", prices: [usd(20)] }, "Near Mint", "quick").suggested,
     16.99,
   );
-  // A $5.00 card's quick sale ($4.40) is under $5 — covering it gave $6.29,
-  // above Full value. The cover follows the card's value, not the discount.
-  for (const v of [5, 5.5, 6.81]) {
+  // The old flat $5 line put a $5.00 card's quick sale ($4.40 value, fully
+  // covered) at $6.29, above Full value's $5.00. On the taper Full is $6.98.
+  for (const v of [5, 5.5, 6.81, 10, 10.5]) {
     const card = { name: "Test", setName: "Test", prices: [usd(v)] };
-    const quick = quotePrice(card, "Near Mint", "quick");
-    check(`$${v} card: quick sale is under full value, not covered`,
-      [quick.suggested < quotePrice(card, "Near Mint", "market").suggested, quick.floored ?? false], [true, false]);
+    check(`$${v} card: quick sale under full value`,
+      quotePrice(card, "Near Mint", "quick").suggested < quotePrice(card, "Near Mint", "market").suggested, true);
   }
   check(
     "cheap card: market value is left alone (base)",
@@ -550,8 +576,8 @@ console.log("\nThe chart's current-day point rebases the quote:");
     1.03,
   );
   check(
-    "a $5 card is above the floor and unflagged",
-    quotePrice({ name: "Test", setName: "Test", prices: [usd(5)] }, "Near Mint", "market").floored,
+    "a $10 card is past the taper and unflagged",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(10)] }, "Near Mint", "market").floored,
     undefined,
   );
   check(

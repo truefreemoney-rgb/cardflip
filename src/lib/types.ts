@@ -285,12 +285,14 @@ export interface PriceQuote {
   suggested: number;
   /**
    * Set when `suggested` was raised above the card's value to cover eBay
-   * fees and postage (lib/fees.ts coversCosts / costCoveredPrice): the UI says
-   * so beside the price. `covers` is what the seller keeps — the card's
-   * condition-adjusted value.
+   * fees and postage (lib/fees.ts coversCosts / costTaperedPrice): the UI says
+   * so beside the price. `covers` is the card's condition-adjusted value —
+   * what the seller keeps when the whole cost is on top (under $5);
+   * `coverPartial` marks the $5–$10 taper, where only part of it is.
    */
   floored?: boolean;
   covers?: number;
+  coverPartial?: boolean;
 }
 
 export interface ListingDraft {

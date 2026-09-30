@@ -13,7 +13,7 @@ import { askingPriceFor } from "@/lib/listing";
  * has to be a week old before we second-guess its price, and today's
  * suggested price has to sit ≥15% away in either direction — below ("buyers
  * see an overpriced card") or above ("you're leaving money on the table").
- * Under $5 that can fire without a market move: a card listed at raw market
+ * Under $10 that can fire without a market move: a card listed at raw market
  * before the 09-30 value + fees + postage rule nudges up to it.
  */
 
@@ -27,8 +27,8 @@ export interface RepriceNudge {
   market: number;
   /**
    * The price the nudge offers: today's market through the same math the
-   * scanner uses (askingPriceFor — condition, and under $5 the card's value
-   * with eBay fees + postage on top). Raw market would undercut every
+   * scanner uses (askingPriceFor — condition, and under $10 the card's value
+   * with eBay fees + postage, or a tapering share of them, on top). Raw market would undercut every
    * cheap listing (a $1.30 card listed at $2.71 nudged to $1.30 nets 8¢).
    */
   target: number;

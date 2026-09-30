@@ -219,17 +219,18 @@ check("alerts: Lorcana row fires off the catalog price", mails[0]?.hits, [["Elsa
 
 // --- reprice nudges --------------------------------------------------------------
 await recordPoint("cat-up", "pokemon", "normal", "tcgplayer", "USD", 20);
-await recordPoint("cat-down", "pokemon", "normal", "tcgplayer", "USD", 8);
+// $10+ markets so the under-$10 cost taper stays out of these three.
+await recordPoint("cat-down", "pokemon", "normal", "tcgplayer", "USD", 16);
 await recordPoint("cat-flat", "pokemon", "normal", "tcgplayer", "USD", 10.5);
 const up = await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 8 * DAY });
-const down = await listedCard({ price: 10, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
+const down = await listedCard({ price: 20, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-flat", listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 2 * DAY });
 await listedCard({ price: 10, catalogId: null, listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-none", listedAt: NOW - 8 * DAY });
 const nudges = (await getRepriceNudges(uid, NOW)).sort((x, y) => x.drift - y.drift);
 check("nudges: only 15%+ drift after 7 days with a series", nudges.map((x) => [x.cardId, x.market, x.target, x.listedPrice, x.drift]), [
-  [down.id, 8, 8, 10, -0.2],
+  [down.id, 16, 16, 20, -0.2],
   [up.id, 20, 20, 10, 1],
 ]);
 // 09-30: the nudge offers the scanner's price, not raw market. Under $5 that

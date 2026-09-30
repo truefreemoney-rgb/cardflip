@@ -53,7 +53,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Where do the prices come from?",
-    a: "The TCGplayer market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $5 are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth.",
+    a: "The TCGplayer market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $5 are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth. From $5 to $10 part of those costs is added, less as the price goes up.",
   },
   {
     q: "Do I need my own eBay account?",

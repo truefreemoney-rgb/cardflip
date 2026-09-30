@@ -1299,7 +1299,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     ["market", "Full value", gradedMarket ?? 0, "What this grade is listed for"],
                   ] as [PriceStrategy, string, number, string][])
                 : ([
-                    ["quick", "Quick sale", quickQuote?.suggested ?? 0, quickQuote?.floored ? floorNote(quickQuote) : "Undercuts market to move fast"],
+                    // Quick shows only from a $5 value up; its cover is on the
+                    // discounted value, so "Card value $X" would name the wrong X.
+                    ["quick", "Quick sale", quickQuote?.suggested ?? 0, "Undercuts market to move fast"],
                     ["market", showQuick ? "Full value" : "Suggested listing price", marketQuote?.suggested ?? 0, marketQuote?.floored ? floorNote(marketQuote) : "Holds out for full value"],
                   ] as [PriceStrategy, string, number, string][])
             ).filter(([value]) => showQuick || value === "market").map(([value, label, amount, hint]) => (
