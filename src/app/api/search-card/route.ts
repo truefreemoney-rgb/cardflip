@@ -214,7 +214,8 @@ export async function GET(req: NextRequest) {
       const subtitle = sanitize(req.nextUrl.searchParams.get("sub") ?? "") || null;
       const variantParam = sanitize(req.nextUrl.searchParams.get("variant") ?? "") || null;
       const printedKey: PrintedNumber | null = number ? { number, setTotal, setCode, isSecretRare: false } : null;
-      const cards = await searchTcgCardsLocal(game, rawName, printedKey, limit, subtitle, variantParam, firstEdition);
+      const typed = req.nextUrl.searchParams.get("typed") === "1";
+      const cards = await searchTcgCardsLocal(game, rawName, printedKey, limit, subtitle, variantParam, firstEdition, typed);
       const matchedOn = !rawName ? "number+set" : number ? "name+number" : "name";
       if (cards.length === 0) {
         console.warn("search-card no match", JSON.stringify({ game, name: rawName, number, setTotal, setCode, subtitle, variant: variantParam }));

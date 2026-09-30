@@ -37,6 +37,8 @@ for (const [game, query, want] of cases) {
   assert.equal(p.get("game"), want.game, `${game} "${query}" game param`);
   assert.equal(p.get("name"), want.name, `${game} "${query}" name`);
   assert.equal(p.get("number"), want.number, `${game} "${query}" number`);
+  // "luffy" must reach Monkey.D.Luffy: the server's anywhere-in-the-name match.
+  if (["lorcana", "onepiece", "yugioh"].includes(game)) assert.equal(p.get("typed"), "1", `${game} "${query}" typed flag`);
 }
 assert.equal(await searchTyped("", "lorcana", "en"), null);
 console.log(`searchTyped: ${cases.length} cases pass — every game searches its own catalogue`);

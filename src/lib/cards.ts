@@ -66,9 +66,12 @@ export async function searchCards(
   firstEdition: boolean | null = null,
   /** MTG: the rest of the scan read (finish, treatment, marks, artist, year, border). */
   cues: MtgCues | null = null,
+  /** A seller typed the name: Lorcana / One Piece / Yu-Gi-Oh! match it anywhere in the card name. */
+  typed = false,
 ): Promise<PokemonCard[]> {
   const params = new URLSearchParams({ name, lang });
   if (game !== "pokemon") params.set("game", game);
+  if (typed) params.set("typed", "1");
   if (art) params.set("art", art);
   if (cues) for (const [k, v] of Object.entries(mtgCuesToParams(cues))) params.set(k, v);
   if (artOnly) params.set("art_series", "1");
@@ -152,14 +155,14 @@ export async function searchTyped(
     const code = tokens.find((t) => CODE_TOKEN.test(t))?.toUpperCase() ?? null;
     const name = tokens.filter((t) => !CODE_TOKEN.test(t)).join(" ");
     if (!name && !code) return null;
-    const found = await searchCards(name, code, lang, limit, game);
+    const found = await searchCards(name, code, lang, limit, game, null, false, null, null, true);
     if (!exact || !code) return found;
     const hit = found.filter((c) => c.number.toUpperCase() === code);
     return hit.length > 0 ? hit : found;
   }
   const { name, printed } = parseCardQuery(query);
   if (!name && !printed) return null;
-  const found = await searchCards(name, printed, lang, limit, game);
+  const found = await searchCards(name, printed, lang, limit, game, null, false, null, null, true);
   if (!exact) return found;
   const hit = filterByPrintedNumber(found, printed);
   // Lorcana's catalogue totals differ from the printed one on promos — never

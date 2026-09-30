@@ -173,11 +173,15 @@ export async function searchTcgCardsLocal(
   variant: string | null = null,
   /** Yu-Gi-Oh!: the "1st Edition" stamp seen (true), looked for and absent (false), unread (null). */
   firstEdition: boolean | null = null,
+  /** A seller typed this in a search box: match the words anywhere in the
+   * name ("luffy" → Monkey.D.Luffy, "magician" → Dark Magician), not only
+   * as its start. Scanner reads leave it off (full printed names). */
+  typed = false,
 ): Promise<PokemonCard[]> {
   const needle = fold(name);
   let wantedNumber = printed ? normalizeNumber(printed.number) : null;
   let wantedCode = printed?.setCode ? printed.setCode.toUpperCase() : null;
-  if (game === "yugioh") return searchYugioh(needle, name, printed, limit, variant, firstEdition);
+  if (game === "yugioh") return searchYugioh(needle, name, printed, limit, variant, firstEdition, typed);
   let onePieceKeyRead: string | null = null;
   if (game === "onepiece" && wantedNumber) {
     // The read sometimes prepends the rarity printed beside the number
@@ -194,7 +198,7 @@ export async function searchTcgCardsLocal(
       .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND ${FOLDED} >= ? AND ${FOLDED} < ? ORDER BY set_release_date DESC LIMIT 400`)
       .all(game, needle, `${needle}￿`)) as unknown as TcgRow[];
     const numberSatisfied = !wantedNumber || rows.some((r) => normalizeNumber(r.collector_number) === wantedNumber);
-    if (rows.length === 0 || !numberSatisfied) {
+    if (rows.length === 0 || !numberSatisfied || typed) {
       const wide = (await db
         .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 400`)
         .all(game, `%${needle}%`)) as unknown as TcgRow[];
@@ -321,6 +325,7 @@ async function searchYugioh(
   limit: number,
   rarity: string | null,
   firstEdition: boolean | null,
+  typed = false,
 ): Promise<PokemonCard[]> {
   const wantedKey = printed ? yugiohKey(printed.number) : null;
   let rows: TcgRow[] = [];
@@ -355,10 +360,12 @@ async function searchYugioh(
     const have = new Set(rows.map((r) => r.id));
     rows = rows.concat(byName.filter((r) => !have.has(r.id)));
   }
-  if (rows.length === 0 && needle) {
-    rows = (await db
+  if ((rows.length === 0 || (typed && rows.length < limit)) && needle) {
+    const wide = (await db
       .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 200`)
       .all(`%${sqlFold(rawName)}%`)) as unknown as TcgRow[];
+    const have = new Set(rows.map((r) => r.id));
+    rows = rows.concat(wide.filter((r) => !have.has(r.id)));
   }
   // Name AND code both misread by a letter or two ("Materia Beast" PGL2-EN066
   // for Naturia Beast PGL2-EN086, 09-29 panel): the set's rows whose code is
