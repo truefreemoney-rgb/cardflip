@@ -37,6 +37,14 @@ check("parseGame falls back to Pokémon", parseGame("digimon"), "pokemon");
 check("eBay Game aspects set", Boolean(GAMES.lorcana.ebayGameAspect) && Boolean(GAMES.onepiece.ebayGameAspect) && Boolean(GAMES.yugioh.ebayGameAspect));
 check("Yu-Gi-Oh! number displays as printed", displayCardNumber({ number: "LOB-EN005", setTotal: 126, game: "yugioh" }), "LOB-EN005");
 check("Yu-Gi-Oh! key drops the language letters", [yugiohKey("lob-en005"), yugiohKey("LOB-005"), yugiohKey("SDY-E005"), yugiohKey("Dark Magician")], ["LOB-005", "LOB-005", "SDY-005", null]);
+{
+  const { foilChoices, foilLabel } = await import(at("lib/yugioh.ts"));
+  const pick = { id: "a-1st", number: "RA02-EN001", rarity: "Secret Rare", variant: "secret-rare" };
+  const rows = [pick, { id: "a", number: "RA02-EN001", rarity: "Secret Rare", variant: "secret-rare" }, { id: "b-1st", number: "RA02-EN001", rarity: "Super Rare", variant: "" }, { id: "b", number: "RA02-EN001", rarity: "Super Rare", variant: "" }, { id: "c-1st", number: "RA02-EN001", rarity: "Super Rare", variant: "alt-art" }, { id: "d", number: "LOB-EN001", rarity: "Ultra Rare", variant: "" }];
+  check("Which foil: one chip per foil of the code, pick first, 1st Edition side kept", foilChoices(pick, rows).map((c) => c.id), ["a-1st", "b-1st", "c-1st"]);
+  check("Which foil: a code in one foil asks nothing", foilChoices(rows[5], rows), []);
+  check("foil label names tagged faces, not repeats", [foilLabel(rows[4]), foilLabel(pick), foilLabel({ rarity: "Ultra Rare", variant: "purple" }), foilLabel({ rarity: "Starfoil Rare", variant: "starfoil" })], ["Super Rare (Alt Art)", "Secret Rare", "Ultra Rare (Purple)", "Starfoil Rare"]);
+}
 check("Yu-Gi-Oh! key keeps a letter before the digits + tokens", [yugiohKey("MVP1-ENG53"), yugiohKey("LDK2-ENK14"), yugiohKey("SR03-ENTKN")], ["MVP1-G53", "LDK2-K14", "SR03-TKN"]);
 check("One Piece number displays as printed", displayCardNumber({ number: "OP01-077", game: "onepiece" }), "OP01-077");
 check("Lorcana number displays as a fraction", displayCardNumber({ number: "42", setTotal: 204, game: "lorcana" }), "42/204");

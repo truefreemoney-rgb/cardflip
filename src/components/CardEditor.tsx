@@ -22,6 +22,7 @@ import { addToWishlist } from "@/lib/client/wishlistApi";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote } from "@/lib/listing";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
+import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
@@ -531,6 +532,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
   // Magic names are exact — no suffix stripping there (lib/speciesName.ts).
   const speciesName = (name: string): string => (item.game === "mtg" ? name : speciesOf(name));
+  // Yu-Gi-Oh!: one set code in several foils — the seller's tap picks it (09-29).
+  const foils = item.game === "yugioh" ? foilChoices(card, item.candidates) : [];
   const alternatives: PokemonCard[] =
     allMatches?.forId === card.id ? allMatches.cards : item.candidates;
 
@@ -759,13 +762,59 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                       ` The photo was hard to read (${Math.round(item.vision.confidence * 100)}% sure).`}
                   </p>
                 </div>
-                <button
-                  data-tour="verify"
-                  onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null, matchDoubt: null })}
-                  className="w-full rounded-full bg-emerald-500 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-400"
-                >
-                  Yes, this is my card
-                </button>
+                {/* Yu-Gi-Oh!: one set code, several foils — the photo can't
+                    always tell them apart, the seller can (09-29). */}
+                {foils.length >= 2 ? (
+                  // One tap answers both questions (Chris 09-29): the foil
+                  // picked IS the verification. Wrong card entirely → the
+                  // "Not your card?" link below.
+                  <div data-tour="verify">
+                    <p className="text-sm font-medium text-white">Which foil is yours? Tap it to confirm.</p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {foils.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() =>
+                            onChange(
+                              c.id === card.id
+                                ? { verifiedAt: Date.now(), status: "ready", error: null, matchDoubt: null }
+                                : {
+                                    card: c,
+                                    verifiedAt: Date.now(),
+                                    status: "ready",
+                                    error: null,
+                                    matchDoubt: null,
+                                    priceOverride: null,
+                                    variant: null,
+                                    firstEdition: isFirstEditionCard(c),
+                                    grading: null,
+                                    ebay: null,
+                                    ebayStatus: "idle",
+                                    ebaySold: null,
+                                    ebaySoldStatus: "unavailable",
+                                  },
+                            )
+                          }
+                          className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                            c.id === card.id
+                              ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                              : "border border-edge text-zinc-200 hover:border-edge-strong hover:text-white"
+                          }`}
+                        >
+                          {foilLabel(c)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    data-tour="verify"
+                    onClick={() => onChange({ verifiedAt: Date.now(), status: "ready", error: null, matchDoubt: null })}
+                    className="w-full rounded-full bg-emerald-500 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-400"
+                  >
+                    Yes, this is my card
+                  </button>
+                )}
               </div>
             ))}
 

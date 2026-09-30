@@ -39,6 +39,7 @@ import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/eba
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
+import { foilChoices } from "@/lib/yugioh";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
@@ -601,8 +602,11 @@ export default function AppPage() {
             // missing that printing or the read is off — either way it's the
             // seller's call, not a MATCH.
             const numberMismatch = Boolean(printed?.number) && !numberPinned;
+            // Yu-Gi-Oh!: one set code in several foils is a photo guess, not a
+            // match — the seller picks the foil (CardEditor "Which foil?").
+            const foils = next.game === "yugioh" ? foilChoices(card, matches).length : 0;
             patchItem(next.id, {
-              status: lowConfidence || ambiguous || numberMismatch ? "review" : "ready",
+              status: lowConfidence || ambiguous || numberMismatch || foils > 1 ? "review" : "ready",
               candidates: matches,
               card,
               // 1st Edition is its own catalog card (the "-1st" twin); the
@@ -619,7 +623,9 @@ export default function AppPage() {
                   ? `read #${printed!.number}, closest printing is #${card.number}`
                   : ambiguous
                     ? `${matches.length} printings matched, no number read`
-                    : null,
+                    : foils > 1
+                      ? `comes in ${foils} foils, pick yours`
+                      : null,
             });
 
             // Vision may already have graded the card, so read the condition

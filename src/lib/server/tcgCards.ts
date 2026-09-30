@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { TIEBREAK_GAP } from "@/lib/tiebreak";
+import { yugiohKey } from "@/lib/yugioh";
 
 /**
  * Lorcana + One Piece identification off the shared mirror (tcg_cards, see
@@ -49,16 +50,8 @@ const COLUMNS = "id, game, name, subtitle, set_code, set_name, collector_number,
 export type TcgGame = Extract<GameId, "lorcana" | "onepiece" | "yugioh">;
 export const isTcgGame = (g: GameId): g is TcgGame => g === "lorcana" || g === "onepiece" || g === "yugioh";
 
-/**
- * Yu-Gi-Oh! set code without the language letters: "LOB-EN005" and the
- * first print run's "LOB-005" are one card; "SDY-E005" too. Null when the
- * text is not a set code.
- */
-export function yugiohKey(number: string): string | null {
-  // A letter may sit before the digits ("MVP1-ENG53", "LDK2-ENK14", "SGX1-ENB01"); tokens print "TKN".
-  const m = /^([A-Z0-9]{2,6})\s*-\s*(?:EN|E|NA)?([A-Z]?\d{2,4}[A-Z]?|TKN)$/.exec(number.trim().toUpperCase());
-  return m ? `${m[1]}-${m[2]}` : null;
-}
+// Set code without the language letters; lives in lib/yugioh.ts so the scanner page shares it.
+export { yugiohKey };
 
 /** "Quarter Century Secret Rare" / "quarter-century-secret-rare" → one slug. */
 const raritySlug = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
