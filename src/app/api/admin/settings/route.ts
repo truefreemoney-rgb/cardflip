@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
-import { GATED_GAMES, gamePublic, gamePublicKey, setSetting, type GatedGame } from "@/lib/server/settings";
+import { EBAY_LOCAL_MARKETS_KEY, GATED_GAMES, ebayLocalMarketsOn, gamePublic, gamePublicKey, setSetting, type GatedGame } from "@/lib/server/settings";
 import { EMAIL_CONFIRM_KEY, emailConfirmStats, releaseAllPending } from "@/lib/server/emailVerify";
 import { emailConfirmActive } from "@/lib/server/mail";
 
@@ -16,11 +16,16 @@ import { emailConfirmActive } from "@/lib/server/mail";
  * every account waiting on a code straight in, and answers how many
  * (`released`). GET carries `emailConfirm: { on, deliverable, waiting,
  * sentToday, dayBudget, failedLast24h, refusedLast24h }`.
+ *
+ * `{ ebayLocalMarkets: boolean }` is the per-country eBay switch (settings key
+ * ebay_local_markets, only the exact "1" is on; default off). GET carries
+ * `ebayLocalMarkets: boolean`. Increment 1 of the plan only stores it: nothing
+ * routes a seller to a local marketplace yet.
  */
 async function allSwitches() {
   const games: Record<string, boolean> = {};
   for (const g of GATED_GAMES) games[g] = await gamePublic(g);
-  return { magicPublic: games.mtg, games, emailConfirm: await emailConfirmStats() };
+  return { magicPublic: games.mtg, games, emailConfirm: await emailConfirmStats(), ebayLocalMarkets: await ebayLocalMarketsOn() };
 }
 
 export async function GET() {
@@ -41,11 +46,13 @@ export async function PATCH(req: Request) {
     if (typeof body?.magicPublic === "boolean") flips.push(["mtg", body.magicPublic]);
     for (const g of GATED_GAMES) if (typeof body?.games?.[g] === "boolean") flips.push([g, body.games[g]]);
     const emailFlip = typeof body?.emailConfirm === "boolean" ? (body.emailConfirm as boolean) : null;
-    if (flips.length === 0 && emailFlip === null) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
+    const localFlip = typeof body?.ebayLocalMarkets === "boolean" ? (body.ebayLocalMarkets as boolean) : null;
+    if (flips.length === 0 && emailFlip === null && localFlip === null) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
     if (emailFlip === true && !emailConfirmActive()) {
       return NextResponse.json({ error: "Email isn't set up on this server, so codes can't be sent" }, { status: 400 });
     }
     for (const [g, on] of flips) await setSetting(gamePublicKey(g), on ? "1" : "0");
+    if (localFlip !== null) await setSetting(EBAY_LOCAL_MARKETS_KEY, localFlip ? "1" : "0");
     let released = 0;
     if (emailFlip !== null) {
       await setSetting(EMAIL_CONFIRM_KEY, emailFlip ? "1" : "0");

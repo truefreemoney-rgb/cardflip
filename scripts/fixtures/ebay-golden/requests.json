@@ -1,0 +1,506 @@
+[
+  {
+    "method": "PUT",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/inventory_item/cardflip-CARDID",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/CARDID"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/payment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/return_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/location?limit=1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "sku": "cardflip-CARDID",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/payment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/return_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/location?limit=1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "marketplaceId": "EBAY_US",
+      "categoryTypes": [
+        {
+          "name": "ALL_EXCLUDING_MOTORS_VEHICLES"
+        }
+      ],
+      "name": "CardFlip shipping",
+      "handlingTime": {
+        "value": 1,
+        "unit": "DAY"
+      },
+      "shippingOptions": [
+        {
+          "optionType": "DOMESTIC",
+          "costType": "FLAT_RATE",
+          "shippingServices": [
+            {
+              "sortOrder": 1,
+              "shippingCarrierCode": "USPS",
+              "shippingServiceCode": "USPSGroundAdvantage",
+              "shippingCost": {
+                "value": "4.99",
+                "currency": "USD"
+              },
+              "freeShipping": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/payment_policy",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "marketplaceId": "EBAY_US",
+      "categoryTypes": [
+        {
+          "name": "ALL_EXCLUDING_MOTORS_VEHICLES"
+        }
+      ],
+      "name": "CardFlip payments"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/return_policy",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "marketplaceId": "EBAY_US",
+      "categoryTypes": [
+        {
+          "name": "ALL_EXCLUDING_MOTORS_VEHICLES"
+        }
+      ],
+      "name": "CardFlip returns",
+      "returnsAccepted": true,
+      "returnPeriod": {
+        "value": 30,
+        "unit": "DAY"
+      },
+      "returnShippingCostPayer": "BUYER"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/payment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/return_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/location?limit=1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/location/cardflip-default",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "location": {
+        "address": {
+          "postalCode": "20815",
+          "country": "US"
+        }
+      },
+      "locationTypes": [
+        "WAREHOUSE"
+      ],
+      "merchantLocationStatus": "ENABLED",
+      "name": "CardFlip ship-from location"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "PUT",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "fulfillment-1",
+        "paymentPolicyId": "payment-1",
+        "returnPolicyId": "return-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1/publish",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "PUT",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "700.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "fulfillment-1",
+        "paymentPolicyId": "payment-1",
+        "returnPolicyId": "return-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/inventory/v1/offer/OF-1/withdraw",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-direct",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "POST",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/payment_policy",
+    "headers": {
+      "Authorization": "Bearer tok-direct",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "hello": "world"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://apiz.ebay.com",
+    "path": "/sell/finances/v1/transaction?limit=1",
+    "headers": {
+      "Authorization": "Bearer tok-direct",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  }
+]

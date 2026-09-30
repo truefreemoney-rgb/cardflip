@@ -5,7 +5,7 @@ import NeedsYouList, { type NeedsYouItem } from "@/components/admin/NeedsYouList
 import { etDay } from "@/lib/time";
 import { ago, money, num } from "@/components/admin/format";
 import { getAdminOverview } from "@/lib/server/adminStats";
-import { getOverviewPulse } from "@/lib/server/overview";
+import { getOverviewPulse, localTesterText } from "@/lib/server/overview";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
@@ -46,6 +46,9 @@ export default async function AdminOverviewPage() {
     attention.push({ href: "/admin/analytics", text: `${p.money.nextBill.name} bills ${dueWord(p.money.nextBill.days)} (${money(p.money.nextBill.amountUsd)})`, tone: "info" });
   if (p.money.unconfirmedCosts)
     attention.push({ href: "/admin/analytics", text: `${num(p.money.unconfirmedCosts)} expense amount${p.money.unconfirmedCosts === 1 ? "" : "s"} still to confirm`, tone: "info" });
+
+  // A seller abroad connected eBay: the first real one is the local-market tester.
+  for (const t of p.localTesters) attention.push({ href: "/admin/users", text: localTesterText(t.country, t.sellers), tone: "info" });
 
   const charts = [
     { title: "Visitors", series: o.activity.visitors, color: "#fbbf24" },

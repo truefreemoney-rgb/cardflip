@@ -1,6 +1,7 @@
 import FeatureToggles from "@/components/admin/FeatureToggles";
 import EmailConfirmSwitch from "@/components/admin/EmailConfirmSwitch";
-import { GATED_GAMES, gamePublic } from "@/lib/server/settings";
+import EbayLocalMarketsSwitch from "@/components/admin/EbayLocalMarketsSwitch";
+import { GATED_GAMES, ebayLocalMarketsOn, gamePublic } from "@/lib/server/settings";
 import { emailConfirmStats } from "@/lib/server/emailVerify";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
@@ -11,6 +12,7 @@ export default async function AdminSwitchesPage() {
   const games = { mtg: false, lorcana: false, onepiece: false, yugioh: false };
   for (const g of GATED_GAMES) games[g] = await gamePublic(g);
   const email = await emailConfirmStats();
+  const localMarkets = await ebayLocalMarketsOn();
   return (
     <section>
       <h1 className="mb-3 text-2xl font-semibold text-white">Switches</h1>
@@ -18,6 +20,9 @@ export default async function AdminSwitchesPage() {
         <FeatureToggles games={games} />
         <div className="border-t border-edge pt-4">
           <EmailConfirmSwitch stats={email} />
+        </div>
+        <div className="border-t border-edge pt-4">
+          <EbayLocalMarketsSwitch on={localMarkets} />
         </div>
       </div>
     </section>

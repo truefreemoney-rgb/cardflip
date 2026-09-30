@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/cards";
 import { hasCardPhoto } from "@/lib/server/cardPhotos";
 import { db } from "@/lib/db";
+import { US_MARKETPLACE, type Marketplace } from "@/lib/marketplaces";
 import {
   buildInventoryItem,
   buildItemDraft,
@@ -81,6 +82,8 @@ export async function ebayFetch(
   body?: unknown,
   /** The Finances API lives on apiz.ebay.com; everything else on api.ebay.com. */
   base: string = API,
+  /** Which eBay site the call is for; the US row reproduces the original headers exactly. */
+  marketplace: Marketplace = US_MARKETPLACE,
 ): Promise<unknown> {
   const res = await fetch(`${base}${path}`, {
     method,
@@ -91,9 +94,9 @@ export async function ebayFetch(
       // (errorId 25709 "Invalid value for header Accept-Language" — seen on
       // the first real push 08-16 with only Content-Language set). Harmless
       // on reads.
-      "Content-Language": "en-US",
-      "Accept-Language": "en-US",
-      "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID,
+      "Content-Language": marketplace.contentLanguage,
+      "Accept-Language": marketplace.contentLanguage,
+      "X-EBAY-C-MARKETPLACE-ID": marketplace.marketplaceId,
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -224,9 +227,9 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
           shippingServices: [
             {
               sortOrder: 1,
-              shippingCarrierCode: "USPS",
+              shippingCarrierCode: US_MARKETPLACE.shipping.carrierCode,
               shippingServiceCode: serviceCode,
-              shippingCost: { value: "4.99", currency: "USD" },
+              shippingCost: { value: US_MARKETPLACE.shipping.policyCost, currency: US_MARKETPLACE.currency },
               freeShipping: false,
             },
           ],
@@ -234,8 +237,8 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
       ],
     });
     jobs.push(
-      ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody("USPSGroundAdvantage")).catch(() =>
-        ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody("USPSPriority")),
+      ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody(US_MARKETPLACE.shipping.serviceCode)).catch(() =>
+        ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody(US_MARKETPLACE.shipping.fallbackServiceCode!)),
       ),
     );
   }
@@ -619,7 +622,7 @@ export async function updateOfferPrice(userId: string, cardId: string, price: nu
   const { offerId, sku, marketplaceId, format, status, listing, ...rest } = current;
   await ebayFetch(token, "PUT", offerPath, {
     ...rest,
-    pricingSummary: { price: { currency: "USD", value: price.toFixed(2) } },
+    pricingSummary: { price: { currency: US_MARKETPLACE.currency, value: price.toFixed(2) } },
   });
 }
 

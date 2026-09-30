@@ -1,0 +1,1447 @@
+{
+  "rawNearMint": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "lightlyPlayedFirstEdition": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400015"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Features": [
+            "1st Edition"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400015"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "12.50"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Features": [
+            "1st Edition"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "12.50"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "12.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "12.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "12.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "psaSlab": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "LIKE_NEW",
+      "conditionDescriptors": [
+        {
+          "name": "27501",
+          "values": [
+            "275010"
+          ]
+        },
+        {
+          "name": "27502",
+          "values": [
+            "275022"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "Yes"
+          ],
+          "Professional Grader": [
+            "Professional Sports Authenticator (PSA)"
+          ],
+          "Grade": [
+            "9"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "LIKE_NEW",
+      "conditionDescriptors": [
+        {
+          "name": "27501",
+          "values": [
+            "275010"
+          ]
+        },
+        {
+          "name": "27502",
+          "values": [
+            "275022"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1999.99"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "Yes"
+          ],
+          "Professional Grader": [
+            "Professional Sports Authenticator (PSA)"
+          ],
+          "Grade": [
+            "9"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1999.99"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1999.99"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1999.99"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1999.99"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "cgcSlabPristine": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "LIKE_NEW",
+      "conditionDescriptors": [
+        {
+          "name": "27501",
+          "values": [
+            "275015"
+          ]
+        },
+        {
+          "name": "27502",
+          "values": [
+            "275020"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "Yes"
+          ],
+          "Professional Grader": [
+            "Certified Guaranty Company (CGC)"
+          ],
+          "Grade": [
+            "10"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "LIKE_NEW",
+      "conditionDescriptors": [
+        {
+          "name": "27501",
+          "values": [
+            "275015"
+          ]
+        },
+        {
+          "name": "27502",
+          "values": [
+            "275020"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "Yes"
+          ],
+          "Professional Grader": [
+            "Certified Guaranty Company (CGC)"
+          ],
+          "Grade": [
+            "10"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "sealedBox": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "NEW",
+      "product": {
+        "title": "Base Set Booster Box",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Type": [
+            "Booster Box"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "261044",
+      "condition": "NEW",
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "450.00"
+        }
+      },
+      "product": {
+        "title": "Base Set Booster Box",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Type": [
+            "Booster Box"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "261044",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "450.00"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "261044",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "450.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "261044",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "450.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "261044",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "450.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "mtgFoil": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Magic: The Gathering"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Alpha"
+          ],
+          "Card Name": [
+            "Lightning Bolt"
+          ],
+          "Card Number": [
+            "161"
+          ],
+          "Rarity": [
+            "Common"
+          ],
+          "Finish": [
+            "Foil"
+          ],
+          "Card Type": [
+            "Instant"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "3.49"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Magic: The Gathering"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Alpha"
+          ],
+          "Card Name": [
+            "Lightning Bolt"
+          ],
+          "Card Number": [
+            "161"
+          ],
+          "Rarity": [
+            "Common"
+          ],
+          "Finish": [
+            "Foil"
+          ],
+          "Card Type": [
+            "Instant"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "3.49"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "3.49"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "3.49"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "3.49"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "twoCopies": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 2
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1.50"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [
+          "https://cardflip.io/api/card-image/0f2b7c1e-1234-4abc-9def-0123456789ab"
+        ],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 2,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1.50"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 2,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 2,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 2,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "1.50"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": null
+  },
+  "noPhoto": {
+    "inventoryItem": {
+      "availability": {
+        "shipToLocationAvailability": {
+          "quantity": 1
+        }
+      },
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "Charizard — Base Set, card 4. Condition: Near Mint. Ships fast & safe <3",
+        "imageUrls": [],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "itemDraft": {
+      "categoryId": "183454",
+      "condition": "USED_VERY_GOOD",
+      "conditionDescriptors": [
+        {
+          "name": "40001",
+          "values": [
+            "400010"
+          ]
+        }
+      ],
+      "format": "FIXED_PRICE",
+      "marketplaceId": "EBAY_US",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "product": {
+        "title": "Charizard Base Set 4 Pokemon TCG Near Mint",
+        "description": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+        "imageUrls": [],
+        "aspects": {
+          "Game": [
+            "Pokémon TCG"
+          ],
+          "Language": [
+            "English"
+          ],
+          "Set": [
+            "Base Set"
+          ],
+          "Card Name": [
+            "Charizard"
+          ],
+          "Card Number": [
+            "4"
+          ],
+          "Rarity": [
+            "Holo Rare"
+          ],
+          "Finish": [
+            "Holo"
+          ],
+          "Graded": [
+            "No"
+          ]
+        }
+      }
+    },
+    "offerBare": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      }
+    },
+    "offerWithExtras": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "offerPartialPolicies": {
+      "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+      "marketplaceId": "EBAY_US",
+      "format": "FIXED_PRICE",
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1"
+      }
+    },
+    "offerUpdateBody": {
+      "availableQuantity": 1,
+      "categoryId": "183454",
+      "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
+      "listingDuration": "GTC",
+      "pricingSummary": {
+        "price": {
+          "currency": "USD",
+          "value": "818.00"
+        }
+      },
+      "listingPolicies": {
+        "fulfillmentPolicyId": "f-1",
+        "paymentPolicyId": "p-1",
+        "returnPolicyId": "r-1"
+      },
+      "merchantLocationKey": "cardflip-default"
+    },
+    "listingUrl": "https://www.ebay.com/itm/123456789012",
+    "validation": "Add a photo of the actual item first — eBay requires your own photo, not catalogue art"
+  },
+  "constants": {
+    "marketplaceId": "EBAY_US",
+    "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
+    "listingUrlSpecialChars": "https://www.ebay.com/itm/a%20b%2Fc"
+  }
+}
