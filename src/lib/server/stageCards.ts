@@ -40,32 +40,23 @@ const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise
 // the retarget never reaches the card on screen.
 const STAGE_TARGET_USD = 35;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
-const cacheKey = (magic: boolean) => `stage:v6:${magic ? "magic" : "pokemon"}`;
+const cacheKey = (magic: boolean) => `stage:v7:${magic ? "magic" : "pokemon"}`;
 
-// v3 (09-09): one slot shows a full-art printing instead of the
-// target-nearest one — Chris asked for "a full art card at a similar
-// price". The mirror has no rarity column; isSecretRare (numbered above the
-// set total) is the same full-art signal enCards.ts already uses for
-// identification.
-// v4 (09-09): unbounded "can range a lot" surfaced a full art priced well
-// past $50, so the pick is bounded to a band instead (inside it scores 0),
-// still falling back to the plain target-nearest pick when the mirror has
-// no full art for that icon.
-// v5 (09-09): the band follows the $35 target.
-// v6 (09-09): Chris named the card — "pikachu, similar value" — so the slot
-// is Pikachu at the same money (band unchanged), and the icon that owns it
-// is now the same constant the stage leads with, below.
-const STAGE_LEAD_ICON = "Pikachu";
-const FULL_ART_ICONS = new Set([STAGE_LEAD_ICON]);
-const FULL_ART_BAND_MIN_USD = 30;
-const FULL_ART_BAND_MAX_USD = 40;
-const distanceFromFullArtBand = (card: PokemonCard) => {
-  const price = marketOf(card);
-  if (price == null) return Infinity;
-  if (price < FULL_ART_BAND_MIN_USD) return FULL_ART_BAND_MIN_USD - price;
-  if (price > FULL_ART_BAND_MAX_USD) return price - FULL_ART_BAND_MAX_USD;
-  return 0;
-};
+// v3–v6 (09-09): one slot was a full-art Pikachu near $35 (see git history).
+// v7 (09-30): Chris — "use popular cards, maybe update the pokemon card to
+// something more exciting, don't have to be $50, but nothing worth
+// thousands, keep it reasonable". The lead is Charizard: a modern ex / V /
+// GX printing (never the plain "Charizard" of Base Set money), the printing
+// nearest $50 inside the same $15–$300 band the other games use.
+const STAGE_LEAD_ICON = "Charizard";
+const withinBand = (price: number | null) => price != null && price >= ICON_BAND[0] && price <= ICON_BAND[1];
+const nearIconTarget = (price: number | null) => Math.abs((price ?? Infinity) - GAME_TARGET_USD);
+function leadPick(candidates: PokemonCard[]): PokemonCard | undefined {
+  const inBand = candidates.filter((c) => withinBand(marketOf(c)));
+  const modern = inBand.filter((c) => c.name.trim().toLowerCase() !== STAGE_LEAD_ICON.toLowerCase());
+  const pool = modern.length ? modern : inBand.length ? inBand : candidates;
+  return pool.sort((a, b) => nearIconTarget(marketOf(a)) - nearIconTarget(marketOf(b)))[0];
+}
 
 function marketOf(card: PokemonCard): number | null {
   return plausiblePrices(card.prices).find((p) => p.market)?.market ?? null;
@@ -101,10 +92,7 @@ async function fromMirror(): Promise<{ cards: PokemonCard[]; leadId?: string }> 
       // seller actually has in a binder, not the grail (was: the dearest
       // printing). The full-art icon instead takes its full-art printing
       // nearest the band.
-      const best = FULL_ART_ICONS.has(ICONS[i])
-        ? candidates.filter((c) => c.isSecretRare).sort((a, b) => distanceFromFullArtBand(a) - distanceFromFullArtBand(b))[0] ??
-          candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0]
-        : candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
+      const best = ICONS[i] === STAGE_LEAD_ICON ? leadPick(candidates) : candidates.sort((a, b) => nearTarget(a) - nearTarget(b))[0];
       if (best) {
         out.push(best);
         if (ICONS[i] === STAGE_LEAD_ICON) leadId = best.id;
@@ -169,48 +157,66 @@ async function build(magic: boolean): Promise<StageCard[]> {
 
 // ---- The other games' stages (09-30, Chris: "when you click a different
 // card type, it should change the example card in the middle to a card from
-// that game, average price of like $50"). Real, priced catalog rows from
-// the game's own mirror, nearest $50 inside a band, newest sets first, one
-// per name; the first is the lead. Same six-hour cache, one key per game.
+// that game, average price of like $50" → "use popular cards … don't have
+// to be $50, but nothing worth thousands, keep it reasonable"). Each game
+// has its own icon list like Pokémon's; every icon takes its printing
+// nearest $50 inside $15–$300 from the game's own mirror, the first icon
+// with a row leads. Icons the mirror can't price fall away and the reel is
+// topped up from the band so the stage never runs short. Same six-hour
+// cache, one key per game.
 const GAME_TARGET_USD = 50;
-const GAME_BAND: [number, number][] = [
-  [40, 65],
-  [25, 100],
-];
+const ICON_BAND: [number, number] = [15, 300];
+type OtherGame = Exclude<GameId, "pokemon">;
+const GAME_ICONS: Record<OtherGame, string[]> = {
+  mtg: ["Sol Ring", "Lightning Bolt", "Sheoldred, the Apocalypse", "Ragavan, Nimble Pilferer", "The One Ring", "Teferi, Hero of Dominaria", "Force of Will", "Elesh Norn, Mother of Machines", "Atraxa, Praetors' Voice", "Jace, the Mind Sculptor"],
+  lorcana: ["Elsa", "Mickey Mouse", "Stitch", "Maleficent", "Simba", "Ariel", "Belle", "Moana", "Genie", "Ursula"],
+  yugioh: ["Dark Magician", "Blue-Eyes White Dragon", "Red-Eyes Black Dragon", "Exodia the Forbidden One", "Dark Magician Girl", "Kuriboh", "Slifer the Sky Dragon", "Obelisk the Tormentor", "Ash Blossom & Joyous Spring", "Pot of Greed"],
+  onepiece: ["Monkey.D.Luffy", "Roronoa Zoro", "Shanks", "Nami", "Trafalgar Law", "Portgas.D.Ace", "Boa Hancock", "Sanji", "Kaido", "Nico Robin"],
+};
 
-type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number; set_release_date: string | null };
+type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number };
+const ROW_COLS = "name, set_name, collector_number, image_url, price_usd";
 
-async function gameRows(game: Exclude<GameId, "pokemon">, band: [number, number]): Promise<GameRow[]> {
+/** The icon's printing nearest $50 inside the band. Exact name first; a prefix match ("Ragavan" → "Ragavan, Nimble Pilferer") when the mirror spells it longer. */
+async function iconRow(game: OtherGame, icon: string): Promise<GameRow | undefined> {
+  const [lo, hi] = ICON_BAND;
   const sql =
     game === "mtg"
-      ? `SELECT name, set_name, collector_number, image_url, price_usd, set_release_date FROM mtg_cards
-         WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic')
-         ORDER BY set_release_date DESC LIMIT 60`
-      : `SELECT name, set_name, collector_number, image_url, price_usd, set_release_date FROM tcg_cards
-         WHERE game = ? AND image_url <> '' AND price_usd BETWEEN ? AND ?
-         ORDER BY set_release_date DESC LIMIT 60`;
-  const args = game === "mtg" ? [band[0], band[1]] : [game, band[0], band[1]];
+      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ?
+         ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`
+      : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ?
+         ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`;
+  const like = `${icon}%`;
+  const args = game === "mtg" ? [icon, like, lo, hi, icon, GAME_TARGET_USD] : [game, icon, like, lo, hi, icon, GAME_TARGET_USD];
+  return (await db.prepare(sql).get(...args)) as GameRow | undefined;
+}
+
+/** Filler when the icons come up short: newest priced rows inside the band. */
+async function bandRows(game: OtherGame): Promise<GameRow[]> {
+  const [lo, hi] = ICON_BAND;
+  const sql =
+    game === "mtg"
+      ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic')
+         ORDER BY set_release_date DESC LIMIT 40`
+      : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND image_url <> '' AND price_usd BETWEEN ? AND ?
+         ORDER BY set_release_date DESC LIMIT 40`;
+  const args = game === "mtg" ? [lo, hi] : [game, lo, hi];
   return (await db.prepare(sql).all(...args)) as unknown as GameRow[];
 }
 
-async function buildGame(game: Exclude<GameId, "pokemon">): Promise<StageCard[]> {
+async function buildGame(game: OtherGame): Promise<StageCard[]> {
   try {
-    let rows: GameRow[] = [];
-    for (const band of GAME_BAND) {
-      rows = await gameRows(game, band);
-      if (rows.length >= 3) break;
-    }
+    const icons = (await Promise.all(GAME_ICONS[game].map((icon) => iconRow(game, icon)))).filter((r): r is GameRow => !!r);
+    const rows = icons.length < STAGE_CARDS ? [...icons, ...(await bandRows(game)).sort((a, b) => nearIconTarget(a.price_usd) - nearIconTarget(b.price_usd))] : icons;
     // Magic's mirror stores the Scryfall "normal" image; the stage wants the large one.
     const large = game === "mtg" ? (await import("@/lib/server/mtgCards")).largeImage : (u: string) => u;
     const seen = new Set<string>();
     const out: StageCard[] = [];
-    // Newest sets first is the query's order; inside the band the nearest
-    // to $50 leads, so the card on screen is "about $50", not $64.
-    for (const r of rows.sort((a, b) => Math.abs(a.price_usd - GAME_TARGET_USD) - Math.abs(b.price_usd - GAME_TARGET_USD))) {
-      const key = r.name.toLowerCase().replace(/\s+-\s+[a-z]+\d*-\d+.*$/i, "");
+    for (const r of rows) {
+      const key = r.name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name: r.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, ""), setName: r.set_name, number: r.collector_number, imageUrl: large(r.image_url), price: r.price_usd });
+      out.push({ name: r.name, setName: r.set_name, number: r.collector_number, imageUrl: large(r.image_url), price: r.price_usd });
       if (out.length === STAGE_CARDS) break;
     }
     if (out[0]) out[0].lead = true;
@@ -223,7 +229,7 @@ async function buildGame(game: Exclude<GameId, "pokemon">): Promise<StageCard[]>
 /** The stage for one game: Pokémon keeps its hand-tuned reel; the others come from their mirrors. */
 export async function getGameStageCards(game: GameId, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
   if (game === "pokemon") return getStageCards(false, now);
-  const key = `stage:v7:${game}`;
+  const key = `stage:v8:${game}`;
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {

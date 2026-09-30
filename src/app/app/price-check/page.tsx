@@ -12,7 +12,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
-import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
+import { GAMES, displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import {
   clearPriceChecks,
@@ -370,7 +370,7 @@ export default function PriceCheckPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
+              placeholder={`Name or number — ${GAMES[game].searchPlaceholder}`}
               className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
             />
             <button

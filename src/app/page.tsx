@@ -9,12 +9,14 @@ import DemoInventory from "@/components/DemoInventory";
 import PlanCard from "@/components/PlanCard";
 import { PRICE, SCANS } from "@/lib/pricing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
-import { magicPublic } from "@/lib/server/settings";
+import { GATED_GAMES, gamePublic, magicPublic } from "@/lib/server/settings";
+import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
+import { GAMES } from "@/lib/games";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, POSTAGE_USD, netAfterFees } from "@/lib/fees";
-import type { PokemonCard } from "@/lib/types";
+import type { GameId, PokemonCard } from "@/lib/types";
 
 /**
  * The landing page (makeover 09-04, Chris: "the first thing prospecting
@@ -31,10 +33,19 @@ import type { PokemonCard } from "@/lib/types";
  * (the one showpiece), and the step numerals. Nothing else.
  */
 
-const faqs = [
+/** "Pokémon, Magic: The Gathering and Disney Lorcana" — the games this viewer can scan, in the switch's order. */
+function gameList(games: GameId[]): string {
+  const names = games.map((g) => (g === "pokemon" ? "Pokémon" : GAMES[g].fullName));
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+}
+
+const faqs = (games: GameId[]) => [
   {
     q: "Which cards does it work on?",
-    a: "Any English card in the Pokémon TCG catalog, from Base Set to the current sets. Japanese and Chinese support is built and will be switched on later, and more games are on the way.",
+    a:
+      games.length > 1
+        ? `Any English ${gameList(games)} card, from the first sets to the current ones. Japanese and Chinese support is built and will be switched on later.`
+        : "Any English card in the Pokémon TCG catalog, from Base Set to the current sets. Japanese and Chinese support is built and will be switched on later, and more games are on the way.",
   },
   {
     q: "What if the scan picks the wrong printing?",
@@ -149,11 +160,19 @@ export const revalidate = 86400;
 
 export default async function Home() {
   const magic = await magicPublic();
-  const [featured, showcase, catalogLabel] = await Promise.all([
+  // Every game the public can scan, in the switch's order (09-30, Chris:
+  // "include the new games"). Admin-only games stay off the landing page.
+  const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
+  const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
+  const [featured, showcase, catalogLabel, stages] = await Promise.all([
     getFeaturedCard(),
     getShowcaseCards(magic),
     catalogSizeLabel(),
+    // One real, priced card per game for the games strip; a game whose
+    // mirror has nothing to show is skipped (data honesty, DESIGN.md).
+    Promise.all(games.map(async (g) => ({ game: g, card: (await getGameStageCards(g).catch(() => ({ cards: [] as StageCard[] }))).cards.find((c) => c.lead) ?? null }))),
   ]);
+  const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
 
   const heroCard = featured ?? showcase[0] ?? null;
   const market = heroCard ? quotePrice(heroCard, "Near Mint", "market") : null;
@@ -206,7 +225,7 @@ export default async function Home() {
                 below the copy, so left-aligned copy read as lopsided. */}
             <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
-                {magic ? "Pokémon TCG · Magic: The Gathering" : "Pokémon TCG"}
+                {games.map((g) => (g === "pokemon" ? "Pokémon TCG" : GAMES[g].label)).join(" · ")}
               </div>
 
               <h1
@@ -401,6 +420,42 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* ============================ Games ============================== */}
+        {/* One scanner, every game we read (09-30). Real cards from each
+            game's own catalog with their live market price — the same card
+            the scanner's empty stage shows for that game. Flat cards, no
+            animated foil: the holo is rationed to the hero. A game with no
+            priced card to show is left out rather than faked. */}
+        {gameCards.length > 1 && (
+          <section id="games" className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Every game</p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-5xl">
+                {gameCards.length === 5 ? "Five" : gameCards.length === 4 ? "Four" : gameCards.length === 3 ? "Three" : "Two"} games, one scanner.
+              </h2>
+              <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
+                Flip the switch and the same camera reads {gameList(gameCards.map((s) => s.game))}. Each game keeps its own inventory, prices and listings.
+              </p>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {gameCards.map(({ game, card }) => (
+                <div key={game} className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-3 last:odd:col-span-2 sm:last:odd:col-span-1">
+                  <div className="mx-auto w-full max-w-[11rem]">
+                    <HoloCard src={card.imageUrl} alt={`${card.name} — ${card.setName}`} className="aspect-[5/7] w-full" />
+                  </div>
+                  <div className="mt-3 flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">{GAMES[game].label}</span>
+                    {card.price != null && <span className="font-display text-sm font-semibold text-white">{formatMoney(card.price)}</span>}
+                  </div>
+                  <p className="mt-1 truncate text-sm font-medium text-white">{card.name}</p>
+                  <p className="truncate text-xs text-zinc-500">{card.setName}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ============================ Bento ============================== */}
         <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
           <div className="max-w-2xl">
@@ -519,7 +574,7 @@ export default async function Home() {
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Questions</p>
           </div>
           <div className="reveal mx-auto mt-4 max-w-2xl divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface-1">
-            {faqs.map((faq) => (
+            {faqs(games).map((faq) => (
               <details key={faq.q} className="group px-5 py-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white marker:content-none">
                   {faq.q}

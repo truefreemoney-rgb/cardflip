@@ -13,7 +13,7 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
-import { readSavedGame, saveGame, parseGame } from "@/lib/games";
+import { GAME_IDS, readSavedGame, saveGame, parseGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
@@ -1037,13 +1037,12 @@ export default function CollectionPage() {
     () => cards.filter((c) => (c.game ?? "pokemon") === gameView),
     [cards, gameView],
   );
-  const gameCounts = useMemo(
-    () => ({
-      pokemon: cards.filter((c) => (c.game ?? "pokemon") === "pokemon").length,
-      mtg: cards.filter((c) => c.game === "mtg").length,
-    }),
-    [cards],
-  );
+  const gameCounts = useMemo(() => {
+    const counts: Partial<Record<GameId, number>> = {};
+    for (const g of GAME_IDS) counts[g] = 0;
+    for (const c of cards) counts[c.game ?? "pokemon"] = (counts[c.game ?? "pokemon"] ?? 0) + 1;
+    return counts;
+  }, [cards]);
   // Categories = the ones cards carry + the empty ones the seller created
   // (server table, 09-08 "add category"); both lists merge here.
   const [createdCategories, setCreatedCategories] = useState<string[]>([]);

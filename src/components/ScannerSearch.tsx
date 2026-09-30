@@ -4,13 +4,9 @@ import { useState } from "react";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
 import { searchCards } from "@/lib/cards";
-import {
-  filterByPrintedNumber,
-  formatCardNumber,
-  parseCardQuery,
-} from "@/lib/cardNumber";
+import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { gradeLabel, parseGradeQuery } from "@/lib/grading";
-import { parseMtgQuery } from "@/lib/games";
+import { GAMES, displayCardNumber, parseMtgQuery } from "@/lib/games";
 import type { GameId, GradedInfo, PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -105,11 +101,7 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          placeholder={
-            game === "mtg"
-              ? "Add a card by name — e.g. Lightning Bolt LTR 187 or Sol Ring PSA 10"
-              : "Add a card by name — e.g. Charizard 4/102 or Charizard 4/102 PSA 10"
-          }
+          placeholder={`Add a card by name — ${GAMES[game].searchPlaceholder} or ${GAMES[game].searchPlaceholder.replace(/^e\.g\. /, "")} PSA 10`}
           className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
         />
         <button
@@ -155,9 +147,7 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
                 </span>
                 <span className="w-full truncate text-center text-[11px] text-zinc-500">
                   {card.setName} ·{" "}
-                  {card.game === "mtg"
-                    ? `${card.setCode ?? ""} ${card.number}`.trim()
-                    : formatCardNumber(card.number, card.setTotal)}
+                  {displayCardNumber(card)}
                 </span>
                 <span
                   className={`text-[11px] font-semibold ${

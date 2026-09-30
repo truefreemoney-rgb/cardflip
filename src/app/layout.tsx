@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     template: "%s · CardFlip",
   },
   description:
-    "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+    "Scan your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
   // Every public page overrides this with its own path; the private ones
   // are noindex anyway. Keeps ?ref= and tracking variants from splitting
   // the landing page in search results.
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CardFlip — Scan. Price. List.",
     description:
-      "Scan your Pokémon cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
+      "Scan your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and turn a whole binder into eBay listings in minutes.",
     type: "website",
     siteName: "CardFlip",
     locale: "en_US",

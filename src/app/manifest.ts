@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "CardFlip — Scan. Price. List.",
     short_name: "CardFlip",
     description:
-      "Scan Pokémon and Magic cards, get real market prices, and list them on eBay.",
+      "Scan Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards, get real market prices, and list them on eBay.",
     start_url: "/app",
     scope: "/",
     display: "standalone",

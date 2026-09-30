@@ -171,17 +171,19 @@ export default function AppPage() {
   // The stage's real card (empty state only). One fetch, cached an hour
   // server-side; a miss just leaves the stage as the buttons.
   const [game, setGameState] = useState<GameId>(readSavedGame);
-  const [showcase, setShowcase] = useState<ShowcaseCard[]>([]);
   // Follows the game switch (Chris 09-30): a One Piece card on the One Piece
-  // stage, about $50. Cleared on switch so the old game's card never sits
-  // under the new game's Scan button.
+  // stage, about $50. The payload remembers which game it was fetched for,
+  // so the old game's card never sits under the new game's Scan button
+  // while the new one loads (derived, not cleared in the effect — lint's
+  // set-state-in-effect rule).
+  const [stage, setStage] = useState<{ game: GameId; cards: ShowcaseCard[] }>({ game: "pokemon", cards: [] });
+  const showcase = stage.game === game ? stage.cards : [];
   useEffect(() => {
     let cancelled = false;
-    setShowcase([]);
     fetch(apiPath(`/api/cards/featured${game === "pokemon" ? "" : `?game=${game}`}`))
       .then((r) => (r.ok ? r.json() : { cards: [] }))
       .then((d) => {
-        if (!cancelled) setShowcase(Array.isArray(d.cards) ? d.cards : []);
+        if (!cancelled) setStage({ game, cards: Array.isArray(d.cards) ? d.cards : [] });
       })
       .catch(() => undefined);
     return () => {

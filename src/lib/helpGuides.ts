@@ -85,7 +85,7 @@ export const GUIDES: Guide[] = [
     title: "Find your cards",
     when: "the seller asks where a scanned card went, how to see listed, ended or sold cards, or how to switch Image and Text view",
     steps: [
-      { path: "/app/collection", sel: '[aria-label="Card game"]', round: true, title: "Inventory", body: "Every card you scanned. Pokémon and Magic are kept apart." },
+      { path: "/app/collection", sel: '[aria-label="Card game"]', round: true, title: "Inventory", body: "Every card you scanned. Each game is kept apart." },
       { path: "/app/collection", sel: '[aria-label="Switch view"]', round: true, title: "Image or Text", body: "Pictures or a list. Filters above sort by in play, listed, ended and sold." },
     ],
   },

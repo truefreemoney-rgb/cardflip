@@ -25,7 +25,7 @@ import {
   normalizeNumber,
   parseCardQuery,
 } from "@/lib/cardNumber";
-import { displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
+import { GAMES, displayCardNumber, parseMtgQuery, readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 const LANGUAGE_LABEL: Record<string, string> = {
@@ -490,11 +490,14 @@ export default function WishlistPage() {
 
   const visibleItems = useMemo(() => {
     const q = listFilter.trim().toLowerCase();
+    // Game tabs (09-30): the list shows only the selected game's cards, the
+    // same split as Inventory. Items saved before games existed are Pokémon.
+    const inGame = items.filter((i) => (i.game ?? "pokemon") === game);
     const filtered = q
-      ? items.filter((i) =>
+      ? inGame.filter((i) =>
           `${i.cardName} ${i.englishName ?? ""} ${i.setName}`.toLowerCase().includes(q),
         )
-      : items;
+      : inGame;
     const sorted = [...filtered];
     if (sort === "name") sorted.sort((a, b) => a.cardName.localeCompare(b.cardName));
     else if (sort === "price-high") sorted.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
@@ -502,7 +505,7 @@ export default function WishlistPage() {
       sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     // "newest" keeps the server order (added desc, new saves prepended).
     return sorted;
-  }, [items, sort, listFilter]);
+  }, [items, sort, listFilter, game]);
 
   if (!user) return <PageSkeleton />;
 
@@ -618,7 +621,7 @@ export default function WishlistPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder={game === "mtg" ? "Name or number — e.g. Lightning Bolt LTR 187" : "Name or number — e.g. Charizard 4/102"}
+            placeholder={`Name or number — ${GAMES[game].searchPlaceholder}`}
             className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
           />
           <div className="flex gap-2">
