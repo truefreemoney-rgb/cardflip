@@ -21,9 +21,10 @@ export default function AppHeader() {
   const { user, status } = useSession();
   // The account page has its own eBay section, so the chip is noise there.
   const showEbay = !pathname.startsWith("/app/account");
-  // Once there's something to review, the logo should land on Inventory
-  // instead of re-opening the scanner (Chris, 09-09).
-  const logoHref = user ? (user.hasCards ? "/app/collection" : "/app") : "/";
+  // The logo always goes to the homepage, signed in or not (Chris 09-30:
+  // "it should always bring you to the homepage cardflip.io"; from 09-09 it
+  // landed on Inventory or the scanner).
+  const logoHref = "/";
 
   // "eBay connected · name · Sign out". Rendered twice below: inline at the
   // header's right edge from xl up, its own centered row underneath before
