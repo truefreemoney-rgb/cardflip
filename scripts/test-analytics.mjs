@@ -63,6 +63,24 @@ console.log("/api/visit");
   check("row carries ref/device/country", row, { path: "/pricing", ref: "t.co", device: "phone", country: "US" });
   await visit.POST(mk({ path: "/admin/analytics" }));
   check("admin path not counted", (await db.prepare("SELECT COUNT(*) AS n FROM page_views").get()).n, 1);
+  check("a ping without `first` keeps no source", { ...(await db.prepare("SELECT src, camp FROM page_views").get()) }, { src: "", camp: "" });
+
+  // Source + campaign (lib/attribution.ts): only a page load's first ping carries them. One row per visitor (distinct IP).
+  let ipN = 0;
+  const pingSrc = async (body) => {
+    const ip = `9.9.9.${++ipN}`;
+    await visit.POST(mk(body, { "x-forwarded-for": ip }));
+    // Every case uses its own path, so the path finds the row it just wrote.
+    return { ...(await db.prepare("SELECT src, camp FROM page_views WHERE path = ?").get(body.path)) };
+  };
+  check("first ping, tagged link: classified source + campaign", await pingSrc({ path: "/t1", first: true, utm_source: "Bluesky", utm_campaign: "Pokemon-Set-0930" }), { src: "bluesky", camp: "pokemon-set-0930" });
+  check("first ping, search referrer", await pingSrc({ path: "/t2", first: true, ref: "https://www.google.com/" }), { src: "search", camp: "" });
+  check("first ping, Facebook's link shim", await pingSrc({ path: "/t3", first: true, ref: "https://l.facebook.com/l.php?u=x" }), { src: "facebook", camp: "" });
+  check("first ping, a tag beats the referrer", await pingSrc({ path: "/t4", first: true, utm_source: "x", utm_campaign: "mtg-movers-0930", ref: "https://t.co/abc" }), { src: "x", camp: "mtg-movers-0930" });
+  check("first ping, nothing at all = direct", await pingSrc({ path: "/t5", first: true }), { src: "direct", camp: "" });
+  check("first ping, some other site", await pingSrc({ path: "/t6", first: true, ref: "https://news.example.org/story" }), { src: "other:news.example.org", camp: "" });
+  check("first ping, junk in the tag is sanitized", await pingSrc({ path: "/t7", first: true, utm_source: "<b>X</b>", utm_campaign: "A B!c" }), { src: "other:bxb", camp: "abc" });
+  check("a later ping (no `first`) stays blank even with a tag in the body", await pingSrc({ path: "/t8", utm_source: "x", utm_campaign: "abc" }), { src: "", camp: "" });
 }
 console.log("getAnalytics");
 const now = Date.UTC(2026, 8, 26, 15, 0, 0); // 2026-09-26T15:00Z
@@ -135,6 +153,56 @@ check("etOffsetMs: EDT -4h, EST -5h", [etOffsetMs(now), etOffsetMs(Date.UTC(2026
 check("daily keys are Eastern days", a.metrics.pageViews.series.keys.at(-1), "2026-09-26");
 check("24h page views", h.metrics.pageViews.total, 2);
 check("24h prior page views", h.metrics.pageViews.prior, 1);
+
+console.log("where sign-ups come from (lib/attribution.ts, 09-30)");
+{
+  check("before anything is recorded: every account in the range is 'not recorded', none collected", [a.attribution.signups, a.attribution.visitors, a.attribution.landings, a.attribution.collected], [
+    [{ source: "unknown", signups: 2, paying: 1, campaigns: [] }],
+    [],
+    [],
+    false,
+  ]);
+  const u4 = await createUser("D", "d@x.io", "pw-long-enough");
+  const u5 = await createUser("E", "e@x.io", "pw-long-enough");
+  await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(now - D, u4.id);
+  await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(now - D, u5.id);
+  const sl = (user, at, src, campaign, landing) =>
+    db.prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at, src, medium, campaign, landing, ref_host) VALUES (?, ?, ?, ?, ?, 'social', ?, ?, '')").run(user.id, `ip-${user.id}`, `dev-${user.id}`, at, src, campaign, landing);
+  await sl(u1, now - 2 * D, "bluesky", "pokemon-set-0924", "/"); // paying (sub_status active)
+  await sl(u2, now - 3 * D, "x", "pokemon-movers-0923", "/cards/pokemon");
+  await sl(u4, now - D, "x", "pokemon-set-0925", "/");
+  await sl(u3, now - 40 * D, "instagram", "old", "/pricing"); // outside the window
+  // u5 has no signup_log row at all (an account made before the guard, or an admin-made one).
+  const pvs = (visitor, src, camp, p) =>
+    db.prepare("INSERT INTO page_views (day, visitor, path, at, ref, device, country, src, camp) VALUES (?, ?, ?, ?, '', 'phone', 'US', ?, ?)").run("2026-09-26", visitor, p, now - H, src, camp);
+  await pvs("v1", "bluesky", "pokemon-set-0926", "/");
+  await pvs("v2", "bluesky", "pokemon-set-0926", "/");
+  await pvs("v2", "bluesky", "", "/pricing"); // same visitor again: still one
+  await pvs("v3", "search", "", "/");
+  await pvs("v4", "", "", "/scan"); // a later client-side page: no source, not counted
+  const b = await getAnalytics("7d", now);
+  check("sign-ups by source, biggest first, each with its campaigns and how many pay now", b.attribution.signups, [
+    { source: "x", signups: 2, paying: 0, campaigns: [{ campaign: "pokemon-movers-0923", signups: 1, paying: 0 }, { campaign: "pokemon-set-0925", signups: 1, paying: 0 }] },
+    { source: "bluesky", signups: 1, paying: 1, campaigns: [{ campaign: "pokemon-set-0924", signups: 1, paying: 1 }] },
+    { source: "unknown", signups: 1, paying: 0, campaigns: [] },
+  ]);
+  check("the source table adds up to the sign-ups metric", [b.attribution.signups.reduce((s, r) => s + r.signups, 0), b.metrics.signups.total], [4, 4]);
+  check("a signup outside the range is not counted", b.attribution.signups.some((r) => r.source === "instagram"), false);
+  check("visitors by source (distinct visitors, blank sources ignored)", b.attribution.visitors, [{ source: "bluesky", visitors: 2 }, { source: "search", visitors: 1 }]);
+  check("first page of sign-ups", b.attribution.landings, [{ path: "/", signups: 2 }, { path: "/cards/pokemon", signups: 1 }]);
+  check("collected once any signup carries a source", b.attribution.collected, true);
+  const wide = await getAnalytics("90d", now);
+  check("a wider range picks the older signup up", wide.attribution.signups.find((r) => r.source === "instagram"), { source: "instagram", signups: 1, paying: 1, campaigns: [{ campaign: "old", signups: 1, paying: 1 }] });
+
+  // A database from before the columns existed shows zeros, never an error, and every other number still works.
+  await db.prepare("ALTER TABLE signup_log DROP COLUMN src").run();
+  await db.prepare("ALTER TABLE page_views DROP COLUMN src").run();
+  const bare = await getAnalytics("7d", now);
+  check("no columns: attribution reads as empty", [bare.attribution.signups, bare.attribution.visitors, bare.attribution.collected], [[], [], false]);
+  check("no columns: the rest of analytics is unharmed", [bare.metrics.signups.total, bare.metrics.pageViews.total > 0], [4, true]);
+  await db.prepare("ALTER TABLE signup_log ADD COLUMN src TEXT").run();
+  await db.prepare("ALTER TABLE page_views ADD COLUMN src TEXT").run();
+}
 
 console.log("helpers");
 check("deltaPct", [deltaPct(150, 100), deltaPct(50, 100), deltaPct(5, 0), deltaPct(0, 0)], [50, -50, null, 0]);

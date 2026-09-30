@@ -5,6 +5,7 @@ import RangeDates from "@/components/admin/RangeDates";
 import { money, num } from "@/components/admin/format";
 import { deltaPct, getAnalytics, parseWindow, RANGES, type CustomWindow, type Metric } from "@/lib/server/analytics";
 import { requireOwnerPage } from "@/lib/server/adminPage";
+import { sourceLabel } from "@/lib/attribution";
 import { daysUntil, loadExpenses, monthlyTotal, nextDue } from "@/lib/server/expenses";
 import { PRICE } from "@/lib/pricing";
 import { etDay } from "@/lib/time";
@@ -122,6 +123,60 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Funnel title={custom ? `Signed up ${windowLabel}` : `Signed up in the ${windowLabel.toLowerCase()}`} steps={a.funnel.cohort} />
         <Funnel title="Everyone, all time" steps={a.funnel.allTime} />
+      </div>
+
+      {/* Where people come from (lib/attribution.ts) */}
+      <H2>Where sign-ups come from</H2>
+      {!a.attribution.collected && (
+        <p className="mb-3 rounded-xl border border-edge bg-surface-1 px-4 py-2.5 text-xs text-zinc-400">
+          Sources are recorded from Sep 30 on — earlier accounts show as not recorded.
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <Tile className="md:col-span-2">
+          <p className="mb-2 text-sm font-medium text-zinc-200">Sign-ups by source</p>
+          {a.attribution.signups.length === 0 ? (
+            <Empty>No sign-ups in this range.</Empty>
+          ) : (
+            <ul className="space-y-3 text-xs">
+              {a.attribution.signups.map((s) => (
+                <li key={s.source}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-zinc-200">{sourceLabel(s.source)}</span>
+                    <span className="shrink-0 tabular-nums text-zinc-400">
+                      {num(s.signups)}
+                      <span className="text-zinc-600"> · {num(s.paying)} paying</span>
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
+                    <div className="h-full rounded-full bg-brand-400/80" style={{ width: `${Math.max(2, (s.signups / Math.max(1, m.signups.total)) * 100)}%` }} />
+                  </div>
+                  {s.campaigns.length > 0 && (
+                    <ul className="mt-1.5 space-y-0.5 pl-3 text-[11px]">
+                      {s.campaigns.map((c) => (
+                        <li key={c.campaign} className="flex items-baseline justify-between gap-2">
+                          <span className="truncate font-mono text-zinc-400" title={c.campaign}>{c.campaign}</span>
+                          <span className="shrink-0 tabular-nums text-zinc-500">
+                            {num(c.signups)}
+                            <span className="text-zinc-600"> · {num(c.paying)} paying</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+        <Tile>
+          <p className="mb-2 text-sm font-medium text-zinc-200">Visitors by source</p>
+          <Bars rows={a.attribution.visitors.map((v) => ({ label: sourceLabel(v.source), n: v.visitors }))} total={m.visitors.total} color="#fbbf24" empty="Nothing recorded yet." />
+        </Tile>
+        <Tile>
+          <p className="mb-2 text-sm font-medium text-zinc-200">First page of sign-ups</p>
+          <Bars rows={a.attribution.landings.map((l) => ({ label: l.path, n: l.signups }))} total={m.signups.total} color="var(--color-holo-sky)" empty="Nothing recorded yet." />
+        </Tile>
       </div>
 
       {/* Scanner */}
