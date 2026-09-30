@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
 import { latestUsdPrice } from "@/lib/server/priceHistory";
+import { priceIsFlagged, storedPriceFlags } from "@/lib/server/priceTrustSite";
+import type { PriceFlag } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 
@@ -15,6 +17,12 @@ export interface PriceCheckEntry {
   language: ScanLanguage;
   representativePrice: number | null;
   prices: PokemonCard["prices"];
+  /**
+   * Set when reading: the price guard (priceTrustSite) flags the number this
+   * lookup saved and it is still the card's current price, so the history
+   * shows the note instead of it. prices_json itself is never rewritten.
+   */
+  flag?: PriceFlag;
   checkedAt: number;
   /** Catalog id + game so the history can reopen the card. Null on old rows. */
   cardId: string | null;
@@ -114,8 +122,10 @@ export async function logPriceCheck(
   if (!card.name) throw new Error("price check: card name is required");
   const id = randomUUID();
   const checkedAt = Date.now();
-  const representativePrice =
+  let representativePrice =
     pickPrice(card)?.market ?? (card.id ? await latestUsdPrice(card.id).catch(() => null) : null);
+  // The price guard: a flagged market is not stored as the lookup's price (the history would show junk as its number).
+  if (representativePrice != null && card.id && (await priceIsFlagged(card.id, card.game ?? "pokemon", representativePrice))) representativePrice = null;
 
   const recent = (await db
     .prepare(
@@ -199,5 +209,19 @@ export async function listPriceChecks(userId: string, limit = 100): Promise<Pric
       "SELECT * FROM price_checks WHERE user_id = ? ORDER BY checked_at DESC LIMIT ?",
     )
     .all(userId, limit)) as unknown as PriceCheckRow[];
-  return rows.map(fromRow);
+  const entries = rows.map(fromRow);
+  // One batched trust read for the whole page of history (<= 100 rows), annotated on the way out.
+  try {
+    const flags = await storedPriceFlags(entries.map((e) => ({ cardId: e.cardId, game: e.game, prices: e.prices })));
+    entries.forEach((e, i) => {
+      const f = flags.get(i);
+      if (!f) return;
+      e.prices = e.prices.map((p) => (p.source === "tcgplayer" && p.currency === "USD" && f.has(p.variant) ? { ...p, untrusted: f.get(p.variant) } : p));
+      const rep = e.prices.find((p) => p.untrusted && p.market === e.representativePrice);
+      if (rep?.untrusted) e.flag = rep.untrusted;
+    });
+  } catch (err) {
+    console.warn("price checks: price guard unavailable", err);
+  }
+  return entries;
 }

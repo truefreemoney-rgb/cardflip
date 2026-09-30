@@ -326,3 +326,51 @@ export async function heldTrust(rows: HeldRow[], day = todayUtc()): Promise<Held
     },
   };
 }
+
+/**
+ * The set browser's read: each Pokemon card's latest TCGplayer USD price (the
+ * default printing, as latestUsdPrices picks it) and the rule's verdict on it,
+ * from ONE series read per 400 cards (a whole set is up to ~300 cards; a second
+ * scan of the set was the 09-06 row-read outage's shape).
+ */
+export async function latestUsdWithTrust(cardIds: string[], day = todayUtc()): Promise<Map<string, { price: number; variant: string; flag?: PriceFlag }>> {
+  const out = new Map<string, { price: number; variant: string; flag?: PriceFlag }>();
+  const data = await loadTrustData(cardIds.map((cardId) => ({ cardId, game: "pokemon" as GameId })), day);
+  for (const [id, d] of data) {
+    const def = defaultSeries(d.series);
+    const price = def ? lastIn(def) : null;
+    if (!def || price == null || !(price > 0)) continue;
+    const flag = judgeSeries(d, { day });
+    out.set(id, { price, variant: def.variant, ...(flag ? { flag } : {}) });
+  }
+  return out;
+}
+
+/**
+ * Prices saved earlier (Recent lookups): the flag for each TCGplayer USD row
+ * whose stored number is STILL the series' latest point and that the rule
+ * flags. A row saved when the price was different is history, not today's
+ * junk, so it is left alone. One batched read for all items; index -> variant
+ * -> flag, flagged rows only.
+ */
+export async function storedPriceFlags(items: { cardId: string | null; game: GameId | null; prices: CardPrice[] }[], day = todayUtc()): Promise<Map<number, Map<string, PriceFlag>>> {
+  const out = new Map<number, Map<string, PriceFlag>>();
+  const want = items.flatMap((it) => (it.cardId ? [{ cardId: it.cardId, game: it.game ?? ("pokemon" as GameId) }] : []));
+  if (want.length === 0) return out;
+  const data = await loadTrustData(want, day);
+  items.forEach((it, i) => {
+    const d = it.cardId ? data.get(it.cardId) : undefined;
+    if (!d) return;
+    for (const p of it.prices) {
+      if (!isTrustedRow(p)) continue;
+      const s = d.series.find((x) => x.variant === p.variant);
+      if (!s || Math.abs((lastIn(s) ?? -1) - (p.market as number)) >= 0.005) continue;
+      const flag = judgeSeries(d, { variant: p.variant, exact: true, day });
+      if (!flag) continue;
+      const m = out.get(i) ?? new Map<string, PriceFlag>();
+      m.set(p.variant, flag);
+      out.set(i, m);
+    }
+  });
+  return out;
+}

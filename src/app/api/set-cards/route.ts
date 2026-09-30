@@ -3,7 +3,9 @@ import { parseGame } from "@/lib/games";
 import { englishCardsBySet } from "@/lib/server/enCards";
 import { mtgCardsBySet } from "@/lib/server/mtgCards";
 import { isTcgGame, tcgCardsBySet } from "@/lib/server/tcgCards";
-import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
+import { heldPriceEntry } from "@/lib/server/priceHistory";
+import { latestUsdWithTrust, withPriceFlags } from "@/lib/server/priceTrustSite";
+import type { PokemonCard } from "@/lib/types";
 
 /**
  * Every card in one set, with the latest price we hold — the set browser on
@@ -13,25 +15,39 @@ import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
  * Pokémon prices ride in from price_series (one batch query) as a single
  * TCGplayer USD entry per card, so the grid and the detail modal both
  * have a number without an upstream call per card.
+ *
+ * The price guard (priceTrustSite): a card whose market the rule flags carries
+ * `untrusted` on its price row, so the tile shows the note instead of the
+ * number. Pokémon reads the series once for both the price and the verdict.
  */
+/** Fails open, like search-card: a hiccup in the trust read must not empty the browser. */
+async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  try {
+    return await withPriceFlags(cards);
+  } catch (err) {
+    console.warn("set-cards: price guard unavailable", err);
+    return cards;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const set = (req.nextUrl.searchParams.get("set") ?? "").trim().slice(0, 120);
   if (!set) return NextResponse.json({ error: "Missing set" }, { status: 400 });
   try {
     const game = parseGame(req.nextUrl.searchParams.get("game"));
     if (game === "mtg") {
-      return NextResponse.json({ cards: await mtgCardsBySet(set) });
+      return NextResponse.json({ cards: await flagged(await mtgCardsBySet(set)) });
     }
     // Lorcana / One Piece / Yu-Gi-Oh!: ?set=<code|name> from /api/sets.
     if (isTcgGame(game)) {
-      return NextResponse.json({ cards: await tcgCardsBySet(game, set) });
+      return NextResponse.json({ cards: await flagged(await tcgCardsBySet(game, set)) });
     }
     const cards = await englishCardsBySet(set);
-    const prices = await latestUsdPrices(cards.map((c) => c.id));
+    const prices = await latestUsdWithTrust(cards.map((c) => c.id));
     for (const card of cards) {
       const p = prices.get(card.id);
       if (!p) continue;
-      card.prices = [heldPriceEntry(p)];
+      card.prices = [{ ...heldPriceEntry(p), ...(p.flag ? { untrusted: p.flag } : {}) }];
     }
     return NextResponse.json({ cards });
   } catch (err) {

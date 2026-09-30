@@ -20,6 +20,7 @@ import { hasMtgMirror, mtgCardById, searchMtgCardsLocal } from "@/lib/server/mtg
 import { hasTcgMirror, isTcgGame, searchTcgCardsLocal, tcgCardById } from "@/lib/server/tcgCards";
 import { GAMES, parseGame } from "@/lib/games";
 import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
+import { withPriceFlags } from "@/lib/server/priceTrustSite";
 import {
   LIMITS,
   RateLimitError,
@@ -42,6 +43,23 @@ const DEFAULT_LIMIT = 24;
  * background to warm the cache for the next lookup.
  */
 const PRICING_BUDGET_MS = 2500;
+
+/**
+ * The price guard (lib/server/priceTrustSite.ts) on the way out: every answer
+ * that carries prices marks the TCGplayer rows the rule flags (`untrusted`) so
+ * no screen presents them as the card's value. Annotated here, at response
+ * time, on copies: card_cache stores the payload verbatim and must stay clean
+ * (the flag depends on today's series, not on when the cache row was written).
+ * Fails open: a hiccup in the trust read must not take the scanner down.
+ */
+async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  try {
+    return await withPriceFlags(cards);
+  } catch (err) {
+    console.warn("search-card: price guard unavailable", err);
+    return cards;
+  }
+}
 
 const hasMarketPrice = (cards: { prices: { market: number | null }[] }[]) =>
   cards.some((c) => c.prices.some((p) => p.market));
@@ -174,10 +192,10 @@ export async function GET(req: NextRequest) {
   const exactId = sanitize(req.nextUrl.searchParams.get("id") ?? "");
   if (exactId) {
     if (parseGame(req.nextUrl.searchParams.get("game")) === "mtg") {
-      return NextResponse.json({ cards: await mtgCardById(exactId), matchedOn: "id", source: "local" });
+      return NextResponse.json({ cards: await flagged(await mtgCardById(exactId)), matchedOn: "id", source: "local" });
     }
     if (isTcgGame(parseGame(req.nextUrl.searchParams.get("game")))) {
-      return NextResponse.json({ cards: await tcgCardById(exactId), matchedOn: "id", source: "local" });
+      return NextResponse.json({ cards: await flagged(await tcgCardById(exactId)), matchedOn: "id", source: "local" });
     }
     const local = await englishCardById(exactId);
     if (local.cards.length === 0) return NextResponse.json({ cards: [], matchedOn: "id", source: "local" });
@@ -192,9 +210,9 @@ export async function GET(req: NextRequest) {
       new Promise<null>((resolve) => setTimeout(() => resolve(null), PRICING_BUDGET_MS)),
     ]);
     if (priced && hasMarketPrice(priced)) {
-      return NextResponse.json({ cards: priced, matchedOn: "id", source: "local" });
+      return NextResponse.json({ cards: await flagged(priced), matchedOn: "id", source: "local" });
     }
-    const cards = await heldPrices(priced ?? local.cards);
+    const cards = await flagged(await heldPrices(priced ?? local.cards));
     return NextResponse.json({ cards, matchedOn: "id", source: "local", ...(priced ? {} : { pricing: "pending" }) });
   }
 
@@ -220,7 +238,7 @@ export async function GET(req: NextRequest) {
       if (cards.length === 0) {
         console.warn("search-card no match", JSON.stringify({ game, name: rawName, number, setTotal, setCode, subtitle, variant: variantParam }));
       }
-      return NextResponse.json({ cards, matchedOn, source: "local" });
+      return NextResponse.json({ cards: await flagged(cards), matchedOn, source: "local" });
     }
   }
 
@@ -254,7 +272,7 @@ export async function GET(req: NextRequest) {
       // invisible (09-06, The Soul Stone). Catalog data only, no user id.
       console.warn("search-card no match", JSON.stringify({ game: "mtg", name: rawName, number, setCode, art, artOnly, cues }));
     }
-    return NextResponse.json({ cards, matchedOn, source: "local" });
+    return NextResponse.json({ cards: await flagged(cards), matchedOn, source: "local" });
   }
 
   const printed: PrintedNumber | null = number
@@ -304,7 +322,7 @@ export async function GET(req: NextRequest) {
   // the same card twice never depends on the upstream being up.
   const fresh = await getCachedCards(lang, name, cacheNumber, false);
   if (fresh) {
-    return NextResponse.json({ cards: fresh.cards, matchedOn, cached: true });
+    return NextResponse.json({ cards: await flagged(fresh.cards), matchedOn, cached: true });
   }
   // Stale-while-revalidate for English: a day-old price is a far better answer
   // than a multi-second wait, so the stale row is served now and refreshed in
@@ -313,7 +331,7 @@ export async function GET(req: NextRequest) {
     const stale = await getCachedCards(lang, name, cacheNumber, true);
     if (stale) {
       after(() => refreshEnglishCache(lang, name, cacheNumber, printed, limit, art));
-      return NextResponse.json({ cards: stale.cards, matchedOn, cached: true, stale: true });
+      return NextResponse.json({ cards: await flagged(stale.cards), matchedOn, cached: true, stale: true });
     }
   }
 
@@ -344,7 +362,7 @@ export async function GET(req: NextRequest) {
         // from the local mirror, which is instant either way.
         if (priced) {
           if (hasMarketPrice(priced)) await putCachedCards(lang, name, cacheNumber, priced);
-          return NextResponse.json({ cards: priced, matchedOn, source: "local" });
+          return NextResponse.json({ cards: await flagged(priced), matchedOn, source: "local" });
         }
 
         // Budget blown: answer with the identification now; pricing lands in
@@ -355,7 +373,7 @@ export async function GET(req: NextRequest) {
         });
         // Last held price meanwhile (09-10): a tile logged from a pending
         // answer was showing "—" in Recent lookups for good.
-        const cards = await heldPrices(local.cards);
+        const cards = await flagged(await heldPrices(local.cards));
         return NextResponse.json({ cards, matchedOn, source: "local", pricing: "pending" });
       }
     }
@@ -411,7 +429,7 @@ export async function GET(req: NextRequest) {
     const stale = await getCachedCards(lang, name, cacheNumber, true);
     if (stale) {
       return NextResponse.json({
-        cards: stale.cards,
+        cards: await flagged(stale.cards),
         matchedOn,
         cached: true,
         stale: true,

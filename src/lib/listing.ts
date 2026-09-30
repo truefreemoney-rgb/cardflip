@@ -19,6 +19,7 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
+import type { PriceFlag } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, POSTAGE_USD } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
@@ -395,6 +396,8 @@ export interface CurrentSeriesPoint {
   variant: string;
   source: string;
   currency: Currency;
+  /** The price guard flags this series (/api/price-history): its latest point is not a price to quote from. */
+  untrusted?: PriceFlag;
 }
 
 /** A series point older than this is history, not "the current price". */
@@ -415,9 +418,25 @@ function pointCanRebase(
   explicit: CardPrice | undefined,
 ): point is CurrentSeriesPoint {
   if (!point || point.currency !== "USD" || point.price <= 0) return false;
+  // The price guard: a flagged series must not replace a good asking row with its junk latest point.
+  if (point.untrusted) return false;
   if (Date.now() - Date.parse(`${point.day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return false;
   if (explicit) return explicit.source === point.source && explicit.variant === point.variant;
   return resolved?.variant !== EBAY_SOLD_VARIANT;
+}
+
+/**
+ * The flag the screens show in place of a market price: set when the row
+ * quotePrice would price from (the picked / overridden row, or with no row the
+ * chart's latest point) is a market the price guard does not believe. Null for
+ * a normal card and whenever a trusted eBay row or point carries the price.
+ */
+export function priceFlagOf(card: PokemonCard, variantOverride?: string, currentPoint?: CurrentSeriesPoint | null): PriceFlag | null {
+  const override = variantOverride ? card.prices.find((p) => p.variant === variantOverride) : undefined;
+  const picked = override && canPriceListing(override) ? override : pickPrice(card);
+  if (picked?.untrusted) return picked.untrusted;
+  if (!picked && currentPoint?.untrusted && currentPoint.currency === "USD") return currentPoint.untrusted;
+  return null;
 }
 
 export function quotePrice(
@@ -435,6 +454,10 @@ export function quotePrice(
   // back to the normal pick rather than quietly treating euros as dollars.
   const usable = override && canPriceListing(override) ? override : undefined;
   let price = usable ?? pickPrice(card);
+  // The price guard (lib/server/priceTrustSite.ts): the row we would price from is a market the rule
+  // does not believe, so no listing price is suggested from it; the seller types their own. The
+  // formulas below are untouched, they are only never fed a flagged number.
+  if (price?.untrusted) return null;
 
   if (pointCanRebase(currentPoint, price, usable)) {
     const row = card.prices.find(

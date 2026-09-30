@@ -89,12 +89,13 @@ export async function recordPrices(cards: PokemonCard[], day = todayUtc()): Prom
 /** Every series we hold for a card, oldest point first. */
 export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> {
   const rows = (await db
-    .prepare("SELECT variant, source, currency, start_day, prices FROM price_series WHERE card_id = ?")
-    .all(cardId)) as unknown as { variant: string; source: string; currency: string; start_day: string; prices: string }[];
+    .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ?")
+    .all(cardId)) as unknown as { variant: string; source: string; currency: string; game: string; start_day: string; prices: string }[];
   return rows.map((r) => ({
     variant: r.variant,
     source: r.source,
     currency: r.currency,
+    game: r.game,
     points: toPoints({ startDay: r.start_day, prices: decodePrices(r.prices) }),
   }));
 }
