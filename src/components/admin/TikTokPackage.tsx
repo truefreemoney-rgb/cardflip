@@ -191,15 +191,7 @@ function Row({ day, row }: { day: string; row: PackageRow }) {
     }
   }
 
-  if (!ready) {
-    return (
-      <article className="rounded-xl border border-edge bg-surface-2 p-3">
-        <p className="text-sm font-medium text-white">{row.time}</p>
-        <p className="mt-0.5 text-xs text-zinc-400">{row.note}</p>
-      </article>
-    );
-  }
-
+  // Posted wins over "not made": a video posted by hand from a file the card never registered (09-30's three) is still posted.
   if (posted) {
     return (
       <article className="flex items-center justify-between gap-3 rounded-xl border border-edge bg-surface-2 p-3">
@@ -207,11 +199,20 @@ function Row({ day, row }: { day: string; row: PackageRow }) {
           <p className="text-sm font-medium text-white">
             {row.time} <span className="ml-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">Posted</span>
           </p>
-          <p className="truncate text-xs text-zinc-500">{row.title}</p>
+          {row.title && <p className="truncate text-xs text-zinc-500">{row.title}</p>}
         </div>
         <button type="button" onClick={() => mark(false)} disabled={busy} className="shrink-0 text-xs text-brand-300 hover:underline disabled:opacity-40">
           Undo
         </button>
+      </article>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <article className="rounded-xl border border-edge bg-surface-2 p-3">
+        <p className="text-sm font-medium text-white">{row.time}</p>
+        <p className="mt-0.5 text-xs text-zinc-400">{row.note}</p>
       </article>
     );
   }
@@ -283,7 +284,7 @@ function Section({ title, pkg }: { title: string; pkg: PackageDay }) {
           {title} <span className="font-normal text-zinc-400">· {pkg.label}</span>
         </h3>
         <p className="text-xs text-zinc-500">
-          {ready} of {pkg.rows.length} ready{posted ? ` · ${posted} posted` : ""}
+          {posted === pkg.rows.length ? `All ${posted} posted` : `${ready} of ${pkg.rows.length} ready${posted ? ` · ${posted} posted` : ""}`}
         </p>
       </div>
       <div className="flex flex-col gap-2">
