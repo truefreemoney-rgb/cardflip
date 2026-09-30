@@ -438,7 +438,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             style={{ height: H }}
             role="img"
             aria-label={
-              geo.single
+              flagged
+                ? "Price history"
+                : geo.single
                 ? `One price recorded so far: ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
                 : `Price from ${formatMoney(first.price, currency)} on ${shortDay(first.day)} to ${formatMoney(last.price, currency)} on ${shortDay(last.day)}`
             }
@@ -485,14 +487,18 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
                 {/* min / max direct labels — the two numbers a seller wants */}
                 {[geo.maxI, geo.minI].map((i, k) => {
                   const q = geo.pts[i];
+                  // A flagged series' latest point is not a price to print: its label is dropped, the dot stays.
+                  const printed = !(flagged && i === geo.pts.length - 1);
                   const isMax = k === 0;
                   const anchor = q.x > W - PAD.r - 60 ? "end" : q.x < PAD.l + 60 ? "start" : "middle";
                   return (
                     <g key={isMax ? "max" : "min"}>
                       <circle cx={q.x} cy={q.y} r="3" fill={stroke} stroke="#08090d" strokeWidth="2" />
-                      <text x={q.x} y={isMax ? q.y - 7 : q.y + 13} textAnchor={anchor} fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
-                        {formatMoney(q.p.price, currency)}
-                      </text>
+                      {printed && (
+                        <text x={q.x} y={isMax ? q.y - 7 : q.y + 13} textAnchor={anchor} fontSize="10" fill="rgb(212 212 216)" fontFamily={MONO}>
+                          {formatMoney(q.p.price, currency)}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
@@ -506,7 +512,7 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
                 <line x1={hovered.x} x2={hovered.x} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
                 <circle cx={hovered.x} cy={hovered.y} r="4.5" fill={stroke} stroke="#08090d" strokeWidth="2" />
                 {(() => {
-                  const text = `${shortDay(hovered.p.day)}  ${formatMoney(hovered.p.price, currency)}`;
+                  const text = flagged && hover === geo.pts.length - 1 ? shortDay(hovered.p.day) : `${shortDay(hovered.p.day)}  ${formatMoney(hovered.p.price, currency)}`;
                   const w = text.length * 6 + 12;
                   const x = Math.min(Math.max(hovered.x - w / 2, PAD.l), W - PAD.r - w);
                   const y = Math.max(PAD.t, hovered.y - 30);
@@ -527,7 +533,9 @@ export default function PriceHistoryChart({ cardId, preferVariant, trend, compac
             <span className="tabular-nums">
               {geo.single
                 ? `Tracking since ${shortDay(last.day)} — a new point lands every day`
-                : `${rangeLabel === "All" ? "All time" : rangeLabel} low ${formatMoney(rangeLo, currency)} · high ${formatMoney(rangeHi, currency)} · ${shown.length} days`}
+                : flagged
+                  ? `${rangeLabel === "All" ? "All time" : rangeLabel} · ${shown.length} days`
+                  : `${rangeLabel === "All" ? "All time" : rangeLabel} low ${formatMoney(rangeLo, currency)} · high ${formatMoney(rangeHi, currency)} · ${shown.length} days`}
             </span>
             {series && series.points.length > 1 && (
               <span>{shortDay(series.points[0].day, true)} → {shortDay(series.points[series.points.length - 1].day, true)}</span>

@@ -89,12 +89,15 @@ console.log("the price guard (priceTrustSite)");
   await mk("Junk", "g-junk");
   const typed = await mk("Typed", "g-junk");
   await db.prepare("UPDATE cards SET price_locked = 1 WHERE id = ?").run(typed.id);
+  // A live listing on the junk market: its price is the seller's real ask (typed or suggested), so it counts and is not "left out".
+  const live = await mk("Live", "g-junk");
+  await db.prepare("UPDATE cards SET price = 25, status = 'listed', listed_at = ? WHERE id = ?").run(SUNDAY - DAY, live.id);
   await mk("Fine", "g-fine");
   await mk("Old", "g-old");
   const gd = await buildDigest(g.id, SUNDAY);
-  check("the flagged card is left out of the value and counted in leftOut", [gd.leftOut, gd.gainers.some((c) => c.name === "Junk"), gd.losers.some((c) => c.name === "Junk")], [1, false, false]);
+  check("the flagged card is left out of the value and counted in leftOut (the live listing is not)", [gd.leftOut, gd.gainers.some((c) => c.name === "Junk"), gd.losers.some((c) => c.name === "Junk")], [1, false, false]);
   const { askingPriceFor: ask } = await import(at("lib/listing.ts"));
-  check("the seller-typed price of the same junk market counts at the seller's price ($10), the junk market at nothing", [gd.held, Math.round(gd.valueNow * 100) / 100], [4, Math.round((ask(260, "NM") + ask(150, "NM") + 10) * 100) / 100]);
+  check("the seller-typed price of the same junk market counts at the seller's price ($10), the junk market at nothing", [gd.held, Math.round(gd.valueNow * 100) / 100], [5, Math.round((ask(260, "NM") + ask(150, "NM") + 10 + 25) * 100) / 100]);
   check("the normal +30% mover is still a gainer", gd.gainers.map((c) => c.name).includes("Fine"), true);
   check("a junk week-ago price makes no honest mover: 'Old' counts as unchanged", gd.gainers.concat(gd.losers).some((c) => c.name === "Old"), false);
   check("a seller with nothing flagged has no leftOut key", "leftOut" in (await buildDigest(u.id, SUNDAY)), false);

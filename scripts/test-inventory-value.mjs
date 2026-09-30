@@ -100,6 +100,12 @@ console.log("\nthe price guard");
   check("insights: the flagged copy is left out and counted", [names.includes("Deoxys"), ins.leftOut], [false, 1]);
   check("insights: the seller-typed price of the same market still counts", ins.top.find((c) => c.name === "Typed")?.price, 480);
   check("insights: holding = the LP pair + the typed price + the $1 old scan", ins.holding, r2(lpAt(150) + 480 + 1));
+  // A live listing whose market is flagged: the ask is the seller's own number even though the lock was never set.
+  const listedJunk = await createCard(alice.id, { ...base, cardName: "Listed", condition: "Near Mint", catalogCardId: "junk-deoxys" });
+  await db.prepare("UPDATE cards SET price = 420, status = 'listed' WHERE id = ?").run(listedJunk.id);
+  const ins2 = await collectionInsights(alice.id, "pokemon", now);
+  check("insights: a live listing on a flagged market counts at its ask (holding, live split) and is not left out", [ins2.top.find((c) => c.name === "Listed")?.price, ins2.holding, ins2.leftOut], [420, r2(lpAt(150) + 480 + 1 + 420), 1]);
+  check("... and it is in the live split at that ask", ins2.split.live, { count: 1, value: 420 });
   check("a seller with no flagged card has leftOut 0", (await collectionInsights(bob.id, "pokemon", now)).leftOut, 0);
 }
 

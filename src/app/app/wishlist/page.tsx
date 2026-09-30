@@ -21,7 +21,7 @@ import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
 import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
-import type { PriceFlag } from "@/lib/priceFlag";
+import { priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
@@ -502,6 +502,7 @@ export default function WishlistPage() {
   const total = items.reduce((sum, i) => sum + (nowFlags[i.id] ? 0 : (i.price ?? 0)), 0);
   // Current market where the repricing pass has answered, saved price elsewhere.
   const nowTotal = items.reduce((sum, i) => sum + (nowFlags[i.id] ? 0 : (nowPrices[i.id] ?? i.price ?? 0)), 0);
+  const flaggedCount = items.filter((i) => nowFlags[i.id]).length;
   // Dip alerts already armed — the one thing about the list the summary strip
   // could answer without scrolling it.
   const alertCount = items.filter((i) => i.alertPrice != null).length;
@@ -541,6 +542,7 @@ export default function WishlistPage() {
                   <PriceDelta saved={total} now={nowTotal} />
                 )}
               </dd>
+              {flaggedCount > 0 && <p className="mt-1 text-xs text-amber-300">{priceFlagLeftOut(flaggedCount)}</p>}
             </div>
             <div className="border-r border-white/10 px-4 py-3 sm:px-5">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Watching</dt>

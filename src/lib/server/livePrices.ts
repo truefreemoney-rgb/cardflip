@@ -21,8 +21,11 @@ import type { PriceFlag } from "@/lib/priceFlag";
  *  - listed rows are never rewritten here — their price IS the live eBay
  *    ask; the reprice nudge stays the seller's decision;
  *  - a market the price guard (priceTrustSite) flags is reported with `flag`
- *    and nothing else: no suggestion, no rewrite, no scan-price backfill. A
- *    draft price already stored is left as it is, not blanked.
+ *    and no suggestion, no scan-price backfill. An unlocked draft whose stored
+ *    price was written from a market (the seller never typed it) is blanked to
+ *    0, applied: the screens then show the note and the seller types their own,
+ *    the same as for a card scanned while flagged. A locked or listed price is
+ *    the seller's and is never touched.
  *
  * Rows scanned before catalog_card_id existed (09-01) are skipped.
  */
@@ -94,7 +97,11 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     if (!s || market == null || !(market > 0)) continue;
     const flag = trust.flag(row);
     if (flag) {
-      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: false, scanned: row.scan_price, flag });
+      // An unlocked draft price is by definition the last market suggestion (every typed price sets the lock), so
+      // it cannot stay: it would show as the card's price and pre-fill the editor.
+      const blank = row.status === "ready" && row.price_locked !== 1 && row.price > 0;
+      if (blank) moves.push({ id: row.id, price: 0 });
+      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, flag });
       continue;
     }
     const suggested = askingPriceFor(market, row.condition);

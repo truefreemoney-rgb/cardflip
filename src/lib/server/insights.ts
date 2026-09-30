@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
-import { heldTrust } from "@/lib/server/priceTrustSite";
+import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
@@ -115,7 +115,7 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   const lastWeek = addDays(today, -7);
 
   // Judged on the default series, the one `series` above reads.
-  const trust = await heldTrust(rows.flatMap((r) => (r.status !== "sold" && r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
+  const trust = await heldTrustOrOpen(rows.flatMap((r) => (r.status !== "sold" && r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
   let leftOut = 0;
   const cards: (InsightCard & { status: string; ended: boolean; verified: boolean })[] = [];
   for (const r of rows) {
@@ -123,9 +123,10 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     const qty = r.quantity ?? 1;
     const s = r.catalog_card_id ? series.get(r.catalog_card_id) : undefined;
     const held = r.catalog_card_id ? { catalog_card_id: r.catalog_card_id, variant: null, game: r.game } : null;
-    // A flagged market never prices a copy: the seller's typed price still counts (below, as always), anything else is left out.
+    // A flagged market never prices a copy: the seller's own price still counts (below, as always), anything else is left out.
+    // A live listing's price is the seller's real ask, typed or suggested, so it counts like a typed one.
     const junkMarket = held != null && s != null && trust.flag(held) != null;
-    if (junkMarket && !r.price_locked) {
+    if (junkMarket && !r.price_locked && r.status !== "listed") {
       leftOut += qty;
       continue;
     }

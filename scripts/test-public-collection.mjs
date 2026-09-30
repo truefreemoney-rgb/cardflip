@@ -71,7 +71,7 @@ check("kind and condition ride along", c.cards.map((x) => x.kind)[1], "sealed");
 
 console.log("\nthe price guard (priceTrustSite)");
 {
-  const { flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { flatPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
   await recordSeries(recordPoint, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // a stuck round $500
   await card("Junk Draft", { price: 480, catalogCardId: "g-junk" });
@@ -79,8 +79,13 @@ console.log("\nthe price guard (priceTrustSite)");
   await db.prepare("UPDATE cards SET price_locked = 1 WHERE id = ?").run(typed.id);
   const live = await card("Live Ask", { price: 500, catalogCardId: "g-junk" });
   await db.prepare("UPDATE cards SET status = 'listed', listed_at = 1, ebay_listing_id = '2' WHERE id = ?").run(live.id);
+  // A foil-held row at $0: the fallback price is the DEFAULT series' (junk $500 normal), so it is judged there, not on the healthy holofoil line.
+  await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "normal", flatPrices(500, 87));
+  await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "holofoil", liquidPrices(300));
+  await card("Mixed Holo", { catalogCardId: "g-mix", variant: "holofoil" });
   const g = await publicCollection("chris");
   const by = Object.fromEntries(g.cards.map((x) => [x.name, x.price]));
+  check("an unpriced row whose fallback comes from a flagged default series shows no price, whatever printing it is held as", by["Mixed Holo"], null);
   check("a draft priced off a flagged market shows no price", by["Junk Draft"], null);
   check("the seller's typed price and a live eBay ask still show", [by["Typed Draft"], by["Live Ask"]], [450, 500]);
   check("the junk draft adds nothing to the total", g.value, Math.round((800 + 150 + 100 + askingPriceFor(10, "Lightly Played") + 450 + 500) * 100) / 100);

@@ -216,7 +216,7 @@ export default function MarketMetricsPanel({
       ? `Sold ${money(sold.average)}`
       : null,
     active != null ? `Asking ${money(active.average)}` : null,
-    tcg ? (tcgFlag ? PRICE_FLAG_NOTE : `TCGplayer ${formatMoney(tcg.market, tcg.currency)}`) : null,
+    tcg ? (tcgFlag ? "TCGplayer looks off" : `TCGplayer ${formatMoney(tcg.market, tcg.currency)}`) : null,
   ].filter(Boolean) as string[];
 
   return (

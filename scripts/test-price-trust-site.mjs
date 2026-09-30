@@ -20,7 +20,7 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { judgeSeries, siteTrust, withPriceFlags, loadTrustData, clearTrustMemo, trustKey } = await import(at("lib/server/priceTrustSite.ts"));
+const { judgeSeries, siteTrust, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { addDays, todayUtc, encodePrices } = await import(at("lib/priceSeries.ts"));
 const { PRICE_FLAG_NOTE } = await import(at("lib/priceFlag.ts"));
@@ -176,6 +176,38 @@ console.log("loader: one batch, only flagged cards come back");
   check("the input (and so the card cache behind it) is not mutated", JSON.stringify(input), before);
   check("note text is one sentence", PRICE_FLAG_NOTE, "This price looks off, check sold listings");
   check("no flagged card: same array back", (await withPriceFlags([input[1]]))[0] === input[1], true);
+
+  console.log("marketPriceFlagged: a number about to be saved (a lookup's price, a watchlist baseline)");
+  const umbreon = (market, extra = {}) => card("fine-umbreon", [{ ...usd("holofoil", market), ...extra }]);
+  check("a live price far from the series (a cached or pokemontcg.io number a cent-exact match would miss) is flagged", await marketPriceFlagged(umbreon(900), 900), true);
+  check("a normal live price is not", await marketPriceFlagged(umbreon(198), 198), false);
+  check("a flag the client sent along is not evidence", await marketPriceFlagged(umbreon(198, { untrusted: { hard: true, reason: "forged" } }), 198), false);
+  check("a number no row carries is matched to the series whose latest point it is (Deoxys 500)", await marketPriceFlagged(card("junk-deoxys", []), 500), true);
+  check("... and a number nothing explains is not judged", await marketPriceFlagged(card("junk-deoxys", []), 123), false);
+  check("no catalog id: nothing to judge", await marketPriceFlagged(card("", [usd("holofoil", 900)]), 900), false);
+  check("a prices field that is not a list does not throw (the number is still matched to the series)", await marketPriceFlagged({ ...card("junk-deoxys", []), prices: null }, 500), true);
+
+  console.log("loadTrustData: overlapping callers share one read");
+  clearTrustMemo();
+  let reads = 0;
+  const realPrepare = db.prepare;
+  db.prepare = (sql) => { if (String(sql).includes("FROM price_series")) reads++; return realPrepare(sql); };
+  try {
+    const ids = [{ cardId: "junk-deoxys", game: "pokemon" }, { cardId: "fine-umbreon", game: "pokemon" }];
+    const [a, b, c] = await Promise.all([loadTrustData(ids), loadTrustData(ids), loadTrustData([ids[0]])]);
+    check("three concurrent callers cost one series query", reads, 1);
+    check("... and every caller gets its cards", [a.size, b.size, c.size], [2, 2, 1]);
+    await loadTrustData(ids);
+    check("a later call is served from the memo", reads, 1);
+    clearTrustMemo();
+    db.prepare = (sql) => { throw new Error("db down"); };
+    check("heldTrustOrOpen: a failed read is 'no verdicts', not a throw", (await heldTrustOrOpen([{ catalog_card_id: "junk-deoxys", variant: null, game: "pokemon" }])).flag({ catalog_card_id: "junk-deoxys", variant: null, game: "pokemon" }), null);
+    let threw = false;
+    try { await loadTrustData(ids); } catch { threw = true; }
+    check("... while the strict loader still reports the failure, and clears its in-flight entry", [threw, (db.prepare = realPrepare, (await loadTrustData(ids)).size)], [true, 2]);
+  } finally {
+    db.prepare = realPrepare;
+  }
 }
 
 console.log(failures === 0 ? "\nAll site price-guard checks passed." : `\n${failures} site price-guard check(s) FAILED.`);

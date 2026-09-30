@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendWeeklyDigestEmail } from "@/lib/server/mail";
 import { usdSeries } from "@/lib/server/priceHistory";
-import { heldTrust } from "@/lib/server/priceTrustSite";
+import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 
 /**
@@ -108,7 +108,7 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
   const today = todayUtc(now);
   const weekAgo = addDays(today, -7);
   // One batched trust read for this seller's pile, judged on the default series the value below reads.
-  const trust = await heldTrust(held.flatMap((r) => (r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
+  const trust = await heldTrustOrOpen(held.flatMap((r) => (r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
   let leftOut = 0;
 
   const priced: DigestCard[] = [];
@@ -129,8 +129,8 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
     if (market == null || !(market > 0)) continue;
     const held1 = { catalog_card_id: r.catalog_card_id!, variant: null, game: r.game };
     if (trust.flag(held1)) {
-      // The market is junk: the seller's own price counts flat, anything else is left out.
-      if (r.price_locked && r.price > 0) {
+      // The market is junk: the seller's own price (typed, or a live listing's ask) counts flat, anything else is left out.
+      if ((r.price_locked || r.status === "listed") && r.price > 0) {
         valueNow += r.price * qty;
         valueBefore += r.price * qty;
       } else {

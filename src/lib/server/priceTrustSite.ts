@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
+import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag } from "@/lib/priceFlag";
@@ -150,6 +151,13 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
 // ---------------------------------------------------------------------------
 // Loading
 
+interface MetaRow {
+  id: string;
+  set_release_date: string;
+  price_eur?: number | null;
+  price_eur_foil?: number | null;
+}
+
 interface SeriesRow {
   card_id: string;
   variant: string;
@@ -161,21 +169,70 @@ interface SeriesRow {
 const MEMO_MS = 10 * 60 * 1000;
 const MEMO_CAP = 3000;
 const memo = new Map<string, { at: number; day: string; data: TrustData }>();
+/** Reads in flight, by day + game + card: concurrent callers (a Collection load fires the live refresh, the nudges, the value strip and Insights at once) share one read. */
+const pending = new Map<string, Promise<TrustData | undefined>>();
 
 /** Forget the per-process memo (tests; a price refresh that must show at once). */
 export function clearTrustMemo(): void {
   memo.clear();
+  pending.clear();
+}
+
+/** One chunk (<= 400 cards of one game): the series query and the release-date / EUR query run together. */
+async function readChunk(game: GameId, chunk: string[], day: string): Promise<Map<string, TrustData>> {
+  const marks = chunk.map(() => "?").join(",");
+  const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
+  const seriesQ = db
+    .prepare(
+      `SELECT card_id, variant, source, start_day, prices FROM price_series
+        WHERE game = ? AND card_id IN (${marks})
+          AND ((source = 'tcgplayer' AND currency = 'USD') OR (source = 'cardmarket' AND variant = 'average' AND updated_day >= ?))`,
+    )
+    .all(game, ...chunk, cmSince) as unknown as Promise<SeriesRow[]>;
+  const metaQ =
+    game === "pokemon"
+      ? (db.prepare(`SELECT id, set_release_date FROM en_cards WHERE id IN (${marks})`).all(...chunk) as unknown as Promise<{ id: string; set_release_date: string }[]>)
+      : game === "mtg"
+        ? (db.prepare(`SELECT id, set_release_date, price_eur, price_eur_foil FROM mtg_cards WHERE id IN (${marks})`).all(...chunk) as unknown as Promise<
+            { id: string; set_release_date: string; price_eur: number | null; price_eur_foil: number | null }[]
+          >)
+        : Promise.resolve([]);
+  const [rows, metaRows] = (await Promise.all([seriesQ, metaQ])) as [SeriesRow[], MetaRow[]];
+  const meta = new Map<string, { released: string; eur: TrustData["eur"] }>();
+  for (const m of metaRows) {
+    meta.set(m.id, { released: m.set_release_date ?? "", eur: game === "mtg" ? { nonfoil: m.price_eur ?? null, foil: m.price_eur_foil ?? null } : null });
+  }
+  const built = new Map<string, TrustData>();
+  for (const id of chunk) {
+    const m = meta.get(id);
+    built.set(id, { game, series: [], cmEur: null, eur: m?.eur ?? null, released: m?.released ?? "" });
+  }
+  for (const r of rows) {
+    const d = built.get(r.card_id);
+    if (!d) continue;
+    const prices = decodePrices(r.prices);
+    if (r.source === "cardmarket") d.cmEur = lastPriced(prices);
+    else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
+  }
+  const at = Date.now();
+  for (const [id, d] of built) {
+    if (memo.size >= MEMO_CAP) memo.clear();
+    memo.set(id, { at, day, data: d });
+  }
+  return built;
 }
 
 /**
  * TrustData for a batch of cards: one series query and one release-date / EUR
- * query per 400 cards of a game. Kept 10 minutes per process (keyed by card and
- * UTC day) so a popular search does not re-read the same rows on every request.
+ * query (run together) per 400 cards of a game. Kept 10 minutes per process
+ * (keyed by card and UTC day) so a popular search does not re-read the same
+ * rows on every request, and a read already in flight is shared, not repeated.
  */
 export async function loadTrustData(cards: { cardId: string; game: GameId }[], day = todayUtc()): Promise<Map<string, TrustData>> {
   const out = new Map<string, TrustData>();
   const now = Date.now();
   const byGame = new Map<GameId, Set<string>>();
+  const waits: Promise<void>[] = [];
   for (const c of cards) {
     if (isSealedId(c.cardId)) continue;
     const hit = memo.get(c.cardId);
@@ -183,55 +240,39 @@ export async function loadTrustData(cards: { cardId: string; game: GameId }[], d
       out.set(c.cardId, hit.data);
       continue;
     }
+    const inflight = pending.get(`${day}|${c.game}|${c.cardId}`);
+    if (inflight) {
+      waits.push(inflight.then((d) => void (d && out.set(c.cardId, d))));
+      continue;
+    }
     const set = byGame.get(c.game) ?? new Set<string>();
     set.add(c.cardId);
     byGame.set(c.game, set);
   }
-  const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
+  // Chunks of one call run one after another (a big collection must not open a dozen queries at once).
+  let chain: Promise<unknown> = Promise.resolve();
   for (const [game, idSet] of byGame) {
     const ids = [...idSet];
     for (let i = 0; i < ids.length; i += 400) {
       const chunk = ids.slice(i, i + 400);
-      const marks = chunk.map(() => "?").join(",");
-      const rows = (await db
-        .prepare(
-          `SELECT card_id, variant, source, start_day, prices FROM price_series
-            WHERE game = ? AND card_id IN (${marks})
-              AND ((source = 'tcgplayer' AND currency = 'USD') OR (source = 'cardmarket' AND variant = 'average' AND updated_day >= ?))`,
-        )
-        .all(game, ...chunk, cmSince)) as unknown as SeriesRow[];
-      const meta = new Map<string, { released: string; eur: TrustData["eur"] }>();
-      if (game === "pokemon") {
-        const r = (await db.prepare(`SELECT id, set_release_date FROM en_cards WHERE id IN (${marks})`).all(...chunk)) as unknown as { id: string; set_release_date: string }[];
-        for (const m of r) meta.set(m.id, { released: m.set_release_date ?? "", eur: null });
-      } else if (game === "mtg") {
-        const r = (await db.prepare(`SELECT id, set_release_date, price_eur, price_eur_foil FROM mtg_cards WHERE id IN (${marks})`).all(...chunk)) as unknown as {
-          id: string;
-          set_release_date: string;
-          price_eur: number | null;
-          price_eur_foil: number | null;
-        }[];
-        for (const m of r) meta.set(m.id, { released: m.set_release_date ?? "", eur: { nonfoil: m.price_eur, foil: m.price_eur_foil } });
-      }
-      const built = new Map<string, TrustData>();
-      for (const id of chunk) {
-        const m = meta.get(id);
-        built.set(id, { game, series: [], cmEur: null, eur: m?.eur ?? null, released: m?.released ?? "" });
-      }
-      for (const r of rows) {
-        const d = built.get(r.card_id);
-        if (!d) continue;
-        const prices = decodePrices(r.prices);
-        if (r.source === "cardmarket") d.cmEur = lastPriced(prices);
-        else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
-      }
-      for (const [id, d] of built) {
-        out.set(id, d);
-        if (memo.size >= MEMO_CAP) memo.clear();
-        memo.set(id, { at: now, day, data: d });
-      }
+      const run = chain.then(() => readChunk(game, chunk, day));
+      chain = run.catch(() => undefined);
+      const keys = chunk.map((id) => `${day}|${game}|${id}`);
+      chunk.forEach((id, k) => {
+        const p = run.then((m) => m.get(id));
+        p.catch(() => undefined); // the owner awaits `run`; a failed read must not also surface as unhandled
+        pending.set(keys[k], p);
+      });
+      const clear = () => keys.forEach((k) => pending.delete(k));
+      run.then(clear, clear);
+      waits.push(
+        run.then((m) => {
+          for (const [id, d] of m) out.set(id, d);
+        }),
+      );
     }
   }
+  await Promise.all(waits);
   return out;
 }
 
@@ -288,15 +329,30 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
 }
 
 /**
- * Is `price` (a market number a client sends back: a wishlist baseline) one the
- * rule flags? Matched to the card's own variant series by value: the series
- * whose latest point is that price. A price that matches no series (a live
- * price the table has not recorded yet) is not judged.
+ * Is `price` (a market number that is about to be saved: a lookup's price, a
+ * wishlist baseline) one the rule flags? A TCGplayer row of the card that
+ * carries this number is judged the way the search that showed it judged it
+ * (its own variant, the live number as today's point), so a live price a cent
+ * off the series' last point is still caught. A number no row carries (read
+ * from our own series) is matched to the series whose latest point it is. A
+ * number neither explains is not judged. Advisory: a failed read is "fine".
  */
-export async function priceIsFlagged(cardId: string, game: GameId, price: number, day = todayUtc()): Promise<boolean> {
-  const d = (await loadTrustData([{ cardId, game }], day)).get(cardId);
-  if (!d) return false;
-  return d.series.some((s) => Math.abs((lastIn(s) ?? -1) - price) < 0.005 && judgeSeries(d, { variant: s.variant, exact: true, day }) != null);
+export async function marketPriceFlagged(card: PokemonCard, price: number, day = todayUtc()): Promise<boolean> {
+  if (!card.id) return false;
+  const game = card.game ?? "pokemon";
+  try {
+    // A flag the client sent along is not evidence: judged fresh, on a copy.
+    const bare = { ...card, prices: (Array.isArray(card.prices) ? card.prices : []).map((p) => ({ ...p, untrusted: undefined })) };
+    const [annotated] = await withPriceFlags([bare], day);
+    const carrying = annotated.prices.filter((p) => isTrustedRow(p) && Math.abs((p.market as number) - price) < 0.005);
+    if (carrying.length > 0) return carrying.some((p) => p.untrusted);
+    const d = (await loadTrustData([{ cardId: card.id, game }], day)).get(card.id);
+    if (!d) return false;
+    return d.series.some((s) => Math.abs((lastIn(s) ?? -1) - price) < 0.005 && judgeSeries(d, { variant: s.variant, exact: true, day }) != null);
+  } catch (err) {
+    console.warn("price guard: could not judge a price to store, saving it as before", err);
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -341,6 +397,20 @@ export async function heldTrust(rows: HeldRow[], day = todayUtc()): Promise<Held
 }
 
 /**
+ * heldTrust for the screens and reports that only read: the guard is advisory
+ * there, so a failed series read is "no verdicts" (the numbers show as they did
+ * before the guard), never a page or a mail that does not load.
+ */
+export async function heldTrustOrOpen(rows: HeldRow[], day = todayUtc()): Promise<HeldTrust> {
+  try {
+    return await heldTrust(rows, day);
+  } catch (err) {
+    console.warn("price guard: could not read the price series, showing prices unjudged", err);
+    return { flag: () => null, flagOld: () => null };
+  }
+}
+
+/**
  * The set browser's read: each Pokemon card's latest TCGplayer USD price (the
  * default printing, as latestUsdPrices picks it) and the rule's verdict on it,
  * from ONE series read per 400 cards (a whole set is up to ~300 cards; a second
@@ -366,7 +436,7 @@ export async function latestUsdWithTrust(cardIds: string[], day = todayUtc()): P
  * junk, so it is left alone. One batched read for all items; index -> variant
  * -> flag, flagged rows only.
  */
-export async function storedPriceFlags(items: { cardId: string | null; game: GameId | null; prices: CardPrice[] }[], day = todayUtc()): Promise<Map<number, Map<string, PriceFlag>>> {
+export async function storedPriceFlags(items: { cardId: string | null; game: GameId | null; prices: CardPrice[]; asLive?: boolean }[], day = todayUtc()): Promise<Map<number, Map<string, PriceFlag>>> {
   const out = new Map<number, Map<string, PriceFlag>>();
   const want = items.flatMap((it) => (it.cardId ? [{ cardId: it.cardId, game: it.game ?? ("pokemon" as GameId) }] : []));
   if (want.length === 0) return out;
@@ -374,11 +444,15 @@ export async function storedPriceFlags(items: { cardId: string | null; game: Gam
   items.forEach((it, i) => {
     const d = it.cardId ? data.get(it.cardId) : undefined;
     if (!d) return;
+    // `asLive` (a lookup saved with no price because it was flagged): the row the history would show is judged
+    // with its own number as today's point, since the number a live search showed need not equal the series' last.
+    const shown = it.asLive ? pickPrice({ prices: it.prices } as PokemonCard) : null;
     for (const p of it.prices) {
       if (!isTrustedRow(p)) continue;
+      const live = shown === p;
       const s = d.series.find((x) => x.variant === p.variant);
-      if (!s || Math.abs((lastIn(s) ?? -1) - (p.market as number)) >= 0.005) continue;
-      const flag = judgeSeries(d, { variant: p.variant, exact: true, day });
+      if (!live && (!s || Math.abs((lastIn(s) ?? -1) - (p.market as number)) >= 0.005)) continue;
+      const flag = judgeSeries(d, { variant: p.variant, exact: true, day, liveUsd: live ? p.market : null });
       if (!flag) continue;
       const m = out.get(i) ?? new Map<string, PriceFlag>();
       m.set(p.variant, flag);

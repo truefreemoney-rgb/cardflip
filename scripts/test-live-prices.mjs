@@ -8,7 +8,8 @@
  * applied = false; the PATCH-side lock flag round-trips through updateCard.
  * The site price guard (priceTrustSite): a card whose market the rule flags is
  * reported with a flag and no suggestion, its stored draft price and its scan
- * price are left alone, and a locked or listed flagged row keeps its price too.
+ * price is left alone, an unlocked draft's market-written price is blanked to 0,
+ * and a locked or listed flagged row keeps its price.
  *
  * Same throwaway-db trick as test-quota.mjs.
  */
@@ -122,9 +123,9 @@ check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.su
 check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
 
 console.log("the price guard");
-check("flagged draft: reported with the flag, no suggestion, not applied", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: false, suggested: 0, market: 500 });
+check("flagged draft: reported with the flag and no suggestion; its market-written price is blanked (applied)", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: true, suggested: 0, market: 500 });
 check("... the flag says why", by[junkDraft.id]?.flag, { hard: true, reason: "flat 87d" });
-check("... its stored price is left as it is (not blanked, not rewritten)", (await getCardForUser(junkDraft.id, user.id)).price, 480);
+check("... the stored 480 is blanked to 0 (the seller never typed it), and stays 0 on the next load", [(await getCardForUser(junkDraft.id, user.id)).price, (await refreshLivePrices(user.id)).find((p) => p.cardId === junkDraft.id)?.applied], [0, false]);
 check("flagged locked and listed rows are flagged too and keep their price", [by[junkLocked.id]?.flag?.hard, by[junkListed.id]?.flag?.hard, (await getCardForUser(junkLocked.id, user.id)).price, (await getCardForUser(junkListed.id, user.id)).price], [true, true, 450, 500]);
 check("flagged row: no scan-price backfill", [by[junkOld.id]?.scanned, (await getCardForUser(junkOld.id, user.id)).scanPrice], [null, null]);
 check("a normal $300 card: suggested as before, no flag", pick(by[fine.id], ["applied", "suggested", "flag"]), { applied: true, suggested: 300 });

@@ -38,8 +38,9 @@ import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, 
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
-import { askingNoteFor, formatMoney } from "@/lib/listing";
+import { askingNoteFor, ebaySoldSearchUrl, formatMoney } from "@/lib/listing";
 import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
+import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 import { etDate } from "@/lib/time";
@@ -401,7 +402,8 @@ export default function CollectionPage() {
     const rowLabel = "shrink-0 text-[10px] font-medium uppercase tracking-wide text-zinc-500";
     const rowValue = "flex min-w-0 justify-end text-right text-sm";
     // The price guard (lib/server/livePrices.ts): today's market is one the rule does not believe, so nothing is suggested from it.
-    const flagged = livePrices[card.id]?.flag != null && !sold;
+    // Only while the price on screen is the market's: a price the seller typed (locked) is theirs and is not judged.
+    const flagged = livePrices[card.id]?.flag != null && !sold && !card.priceLocked;
     const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : flagged ? "Price" : "Suggested price";
     const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
     const note = sold
@@ -494,7 +496,7 @@ export default function CollectionPage() {
               </button>
             )}
           </div>
-          {flagged && !live && !ended && <PriceFlagNote className="mt-2" />}
+          {flagged && !live && !ended && <PriceFlagNote className="mt-2" soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
           {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
           {/* Scanned → now (Chris, 09-08): the original scanned price, the
@@ -1346,7 +1348,7 @@ export default function CollectionPage() {
             <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             {stats.leftOut > 0 && (
               <p className="mt-1 text-xs text-amber-300">
-                {stats.leftOut} {stats.leftOut === 1 ? "card" : "cards"} left out, {stats.leftOut === 1 ? "its price looks" : "their prices look"} off
+                {priceFlagLeftOut(stats.leftOut)}
               </p>
             )}
             <Breakdown
@@ -2109,7 +2111,7 @@ export default function CollectionPage() {
               // across loads (Chris, 09-08: it vanished once the price settled).
               const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
               // A flagged market moves nothing: no "was $X, now $Y" chip built on it (the price guard).
-              const rowFlag = !sold && livePrices[card.id]?.flag != null;
+              const rowFlag = !sold && !card.priceLocked && livePrices[card.id]?.flag != null;
               const moved = !sold && !rowFlag && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - card.price) >= 0.01;
               return (
               <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">

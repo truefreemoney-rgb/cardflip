@@ -8,6 +8,7 @@ import InventoryValueChart from "@/components/InventoryValueChart";
 import { useSession } from "@/components/SessionProvider";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
+import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 import { readSavedGame, saveGame } from "@/lib/games";
 import type { GameId } from "@/lib/types";
 
@@ -186,7 +187,7 @@ export default function InsightsPage() {
               </p>
               {(data.leftOut ?? 0) > 0 && (
                 <p className="mt-1 text-xs text-amber-300">
-                  {data.leftOut} {data.leftOut === 1 ? "card" : "cards"} left out, {data.leftOut === 1 ? "its price looks" : "their prices look"} off.
+                  {priceFlagLeftOut(data.leftOut!)}. {PRICE_FLAG_LEFT_OUT_NEXT}
                 </p>
               )}
               <div className="mt-3 grid grid-cols-2 gap-3">

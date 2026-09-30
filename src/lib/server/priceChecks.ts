@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
 import { latestUsdPrice } from "@/lib/server/priceHistory";
-import { priceIsFlagged, storedPriceFlags } from "@/lib/server/priceTrustSite";
+import { marketPriceFlagged, storedPriceFlags } from "@/lib/server/priceTrustSite";
 import type { PriceFlag } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
@@ -125,7 +125,7 @@ export async function logPriceCheck(
   let representativePrice =
     pickPrice(card)?.market ?? (card.id ? await latestUsdPrice(card.id).catch(() => null) : null);
   // The price guard: a flagged market is not stored as the lookup's price (the history would show junk as its number).
-  if (representativePrice != null && card.id && (await priceIsFlagged(card.id, card.game ?? "pokemon", representativePrice))) representativePrice = null;
+  if (representativePrice != null && (await marketPriceFlagged(card, representativePrice))) representativePrice = null;
 
   const recent = (await db
     .prepare(
@@ -212,13 +212,14 @@ export async function listPriceChecks(userId: string, limit = 100): Promise<Pric
   const entries = rows.map(fromRow);
   // One batched trust read for the whole page of history (<= 100 rows), annotated on the way out.
   try {
-    const flags = await storedPriceFlags(entries.map((e) => ({ cardId: e.cardId, game: e.game, prices: e.prices })));
+    const flags = await storedPriceFlags(entries.map((e) => ({ cardId: e.cardId, game: e.game, prices: e.prices, asLive: e.representativePrice == null })));
     entries.forEach((e, i) => {
       const f = flags.get(i);
       if (!f) return;
       e.prices = e.prices.map((p) => (p.source === "tcgplayer" && p.currency === "USD" && f.has(p.variant) ? { ...p, untrusted: f.get(p.variant) } : p));
-      const rep = e.prices.find((p) => p.untrusted && p.market === e.representativePrice);
-      if (rep?.untrusted) e.flag = rep.untrusted;
+      // The row the history shows: a lookup saved with no price (flagged at the time) or one whose saved number is still the flagged row.
+      const shown = pickPrice({ prices: e.prices } as PokemonCard);
+      if (shown?.untrusted && (e.representativePrice == null || shown.market === e.representativePrice)) e.flag = shown.untrusted;
     });
   } catch (err) {
     console.warn("price checks: price guard unavailable", err);

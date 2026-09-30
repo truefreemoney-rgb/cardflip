@@ -115,6 +115,18 @@ console.log("price checks (Recent lookups)");
   // A number saved at an older, different price is history, not today's junk.
   await db.prepare("UPDATE price_checks SET prices_json = ? WHERE card_id = 'pk-junk'").run(JSON.stringify([{ source: "tcgplayer", variant: "holofoil", label: "Holofoil", currency: "USD", market: 240, low: null, high: null }]));
   check("a stored price that is no longer the current one is not flagged", (await listPriceChecks(u.id)).find((e) => e.cardId === "pk-junk").prices[0].untrusted === undefined);
+
+  // A lookup saved AFTER the guard: the live number the search showed (900 on a $300 card) is not the series' last
+  // point, so it is judged as today's point, stored as no price, and the history still says why.
+  const u2 = await createUser("Checker Two", "check2@example.com", "hunter22", "user");
+  const spike = await logPriceCheck(u2.id, card("pk-fine", "Umbreon", 900), "en");
+  check("a live price that is not the series' last point is judged as today's and not stored", spike.representativePrice, null);
+  const spiked = (await listPriceChecks(u2.id)).find((e) => e.cardId === "pk-fine");
+  check("history read: a lookup saved unpriced because it was flagged shows the note (flag set), not a dash", [spiked.representativePrice, spiked.flag?.hard, spiked.prices[0].untrusted?.hard], [null, true, true]);
+  const stored2 = await db.prepare("SELECT prices_json FROM price_checks WHERE user_id = ?").get(u2.id);
+  check("... and still no flag inside prices_json", stored2.prices_json.includes("untrusted"), false);
+  const bare = await logPriceCheck(u2.id, { ...card("pk-none", "Bare", 1), prices: [] }, "en");
+  check("a lookup with no price at all has no flag either", [bare.representativePrice, (await listPriceChecks(u2.id)).find((e) => e.cardId === "pk-none").flag], [null, undefined]);
 }
 
 console.log(failures === 0 ? "\nAll site price-guard route checks passed." : `\n${failures} site price-guard route check(s) FAILED.`);

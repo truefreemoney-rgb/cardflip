@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
-import { heldTrust } from "@/lib/server/priceTrustSite";
+import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -68,7 +68,7 @@ export async function inventoryValueSeries(
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
   const today = todayUtc(now);
-  const trust = await heldTrust(rows.map((r) => ({ ...r, game })), today);
+  const trust = await heldTrustOrOpen(rows.map((r) => ({ ...r, game })), today);
   const firstDay = addDays(today, -(span - 1));
   const held = rows
     .filter((r) => !trust.flag({ ...r, game }))

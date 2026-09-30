@@ -2,6 +2,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { PRICE, SCANS } from "@/lib/pricing";
 import type { Digest } from "@/lib/server/digest";
+import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 
 /**
  * Outbound mail — the password-reset link and the subscription welcome.
@@ -182,7 +183,7 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
   const staleLine = (c: { name: string; set: string; number: string; price: number; days: number }) => `${c.name} (${c.set} · ${c.number}) — ${usd(c.price)}, listed ${c.days} days`;
 
   // The price guard: cards whose market price looks off are left out of the numbers above, said once, plainly.
-  const leftOutNote = d.leftOut ? `${d.leftOut} card${d.leftOut === 1 ? "" : "s"} left out, ${d.leftOut === 1 ? "its price looks" : "their prices look"} off.` : "";
+  const leftOutNote = d.leftOut ? `${priceFlagLeftOut(d.leftOut)}. ${PRICE_FLAG_LEFT_OUT_NEXT}` : "";
   const sections: Array<{ title: string; lines: string[]; empty?: string }> = [
     { title: "Top Gainers", lines: d.gainers.map(cardLine), empty: "No card went up this week." },
     { title: "Top Losers", lines: d.losers.map(cardLine), empty: "No card went down this week." },

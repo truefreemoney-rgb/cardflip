@@ -1047,7 +1047,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           hiding it behind "Change" read as "the listing data is gone"). */}
       {verified && (
       <>
-      {!quote && priceFlag && (
+      {/* Once the seller has typed a price the note would read as a verdict on their number: it is about the market. */}
+      {!quote && priceFlag && item.priceOverride == null && (
         <PriceFlagNote
           hint="Set your own price below."
           soldUrl={facts.firstEdition || item.grading ? ebaySoldSearchUrl(card, facts) : (item.ebaySoldUrl ?? ebaySoldSearchUrl(card))}
