@@ -88,7 +88,8 @@ const HIDE = flag("hide-number");
 if (HIDE) {
   batch = batch.filter((p) => cache[p.id]?.cardNumber);
   const want = Number(opt("sample") ?? 0);
-  if (want) { const k = Math.max(1, Math.floor(batch.length / want)); batch = batch.filter((_, i) => i % k === 0).slice(0, want); }
+  // --offset M shifts the spread, so a second sample shares no photo with the first (10-01).
+  if (want) { const k = Math.max(1, Math.floor(batch.length / want)); const off = Number(opt("offset") ?? 0) % k; batch = batch.filter((_, i) => i % k === off).slice(0, want); }
 }
 
 const VISION_CALL_CAP = 40;

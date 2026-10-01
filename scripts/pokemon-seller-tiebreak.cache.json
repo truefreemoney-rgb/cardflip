@@ -182,5 +182,65 @@
  "seller-407202715725|swsh12.5tg-TG15,swsh6-200,swsh6-201,swsh6-21": {
   "id": "swsh12.5tg-TG15",
   "pick": "A"
+ },
+ "seller-128109458654|base4-16,base1-14,neo3-21,base3-14": {
+  "id": "base4-16",
+  "pick": "A"
+ },
+ "seller-800683529403|neo4-79,base5-65,base3-53,basep-20": {
+  "id": "neo4-79",
+  "pick": "A"
+ },
+ "seller-287587404131|bw7-50,bw4-39,bwp-BW54,bwp-BW77": {
+  "id": null,
+  "pick": null
+ },
+ "seller-287618325327|sm1-153,sm5-172,sm1-66,sm1-141": {
+  "id": "sm1-153",
+  "pick": "A"
+ },
+ "seller-206595410789|swsh1-203,swsh1-50": {
+  "id": "swsh1-203",
+  "pick": "A"
+ },
+ "seller-820186929273|me03-097,me03-052": {
+  "id": "me03-097",
+  "pick": "A"
+ },
+ "seller-398448479818|swsh11.5tg-TG15,swsh4.5sv-SV109,swsh3-191,swsh3-34": {
+  "id": "swsh11.5tg-TG15",
+  "pick": "A"
+ },
+ "seller-198505267669|me05-109,me05-119,me05-078": {
+  "id": "me05-119",
+  "pick": "B"
+ },
+ "seller-237100661570|base4-8,base1-7": {
+  "id": "base1-7",
+  "pick": "B"
+ },
+ "seller-128108079264|neo1-70,base4-87,basep-1,basep-4": {
+  "id": "neo1-70",
+  "pick": "A"
+ },
+ "seller-227082448238|xy10-26,xy10-118": {
+  "id": "xy10-118",
+  "pick": "B"
+ },
+ "seller-227545176753|swsh6-199,swsh6-8": {
+  "id": "swsh6-8",
+  "pick": "B"
+ },
+ "seller-267773159776|me02.5-218,me02.5-007": {
+  "id": "me02.5-218",
+  "pick": "A"
+ },
+ "seller-287451401547|sv04-039,sv04-189": {
+  "id": "sv04-039",
+  "pick": "A"
+ },
+ "seller-298693570937|sv07-166,sv07-172,sv07-139": {
+  "id": "sv07-172",
+  "pick": "B"
  }
 }
