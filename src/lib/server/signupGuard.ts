@@ -7,7 +7,8 @@ import { TRIAL_SCANS } from "@/lib/server/users";
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
  * mailinator: no new accounts just for free scans):
  *  - throwaway inbox domains are refused outright (Gmail etc. are untouched);
- *  - the FIRST signup on an IP or device (cf_dev cookie) gets the free
+ *  - the FIRST signup on an IP, device (cf_dev cookie) or inbox (inboxKey:
+ *    Gmail dot and plus spellings are one inbox, 10-01) gets the free
  *    trial; every later one, ever, is still created but starts with the
  *    trial spent, so it lands on the Scan Pack wall. A real person behind a
  *    shared IP (household, phone carrier) can still sign up and pay.
@@ -66,6 +67,9 @@ export function newDeviceId(): string {
   return randomUUID();
 }
 
+/** The hashed inbox a signup belongs to: Gmail dot and plus spellings are one (lib/inboxKey.ts). */
+export { inboxKey } from "@/lib/inboxKey";
+
 /**
  * Why this signup gets no free scans, or null when the IP and device are new.
  *
@@ -78,8 +82,12 @@ export function newDeviceId(): string {
  * they confirm (emailVerify.markEmailConfirmed). With confirmation off no
  * account is ever pending, so this is the plain one-row-counts rule.
  */
-export async function repeatSignup(ipHash: string | null, deviceId: string | null): Promise<"same-device" | "same-ip" | null> {
-  const counts = (column: "device_id" | "ip_hash") =>
+export async function repeatSignup(
+  ipHash: string | null,
+  deviceId: string | null,
+  inbox: string | null = null,
+): Promise<"same-device" | "same-ip" | "same-inbox" | null> {
+  const counts = (column: "device_id" | "ip_hash" | "inbox_key") =>
     `SELECT 1 FROM signup_log s LEFT JOIN users u ON u.id = s.user_id
       WHERE s.${column} = ? AND (u.id IS NULL OR u.email_pending = 0) LIMIT 1`;
   if (deviceId && (await db.prepare(counts("device_id")).get(deviceId))) {
@@ -87,6 +95,10 @@ export async function repeatSignup(ipHash: string | null, deviceId: string | nul
   }
   if (ipHash && (await db.prepare(counts("ip_hash")).get(ipHash))) {
     return "same-ip";
+  }
+  // The same inbox under another spelling (inboxKey), from any device or network.
+  if (inbox && (await db.prepare(counts("inbox_key")).get(inbox))) {
+    return "same-inbox";
   }
   return null;
 }
@@ -106,10 +118,11 @@ export async function recordSignup(
   country: string | null = null,
   now = Date.now(),
   touch: Touch | null = null,
+  inbox: string | null = null,
 ): Promise<void> {
   await db
-    .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at, country) VALUES (?, ?, ?, ?, ?)")
-    .run(userId, ipHash, deviceId, now, country);
+    .prepare("INSERT INTO signup_log (user_id, ip_hash, device_id, at, country, inbox_key) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(userId, ipHash, deviceId, now, country, inbox);
   // Where the signup came from (lib/attribution.ts): its own statement after the
   // guard row, and best effort, so a bad value or a database without the columns
   // can never cost a signup.

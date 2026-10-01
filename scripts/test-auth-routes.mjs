@@ -97,6 +97,26 @@ check("signup: repeat device starts with the trial spent", await trialUsed("thre
 await signup.POST(post({ name: "L1", email: "l1@example.com", password: "12345678" }, "127.0.0.1"));
 await signup.POST(post({ name: "L2", email: "l2@example.com", password: "12345678" }, "127.0.0.1"));
 check("signup: loopback (e2e in CI) never counts as a repeat", await trialUsed("l2@example.com"), 0);
+// One free trial per inbox (Chris 10-01): Gmail dot and plus spellings are the same person.
+{
+  const { inboxKey } = await import(at("lib/server/signupGuard.ts"));
+  const { deleteUser, findUserByEmail: byEmail } = await import(at("lib/server/users.ts"));
+  check("inbox key: gmail dots, plus tags, case and googlemail are one inbox", new Set(["john.smith@gmail.com", "johnsmith@gmail.com", " J.o.h.n.Smith+cards@GMAIL.com", "johnsmith+2@googlemail.com"].map(inboxKey)).size, 1);
+  check("inbox key: other providers are keyed as typed, lower-cased", [inboxKey("john.smith@outlook.com") === inboxKey("johnsmith@outlook.com"), inboxKey("a+b@outlook.com") === inboxKey("a@outlook.com"), inboxKey("A@Outlook.com") === inboxKey("a@outlook.com")], [false, false, true]);
+  check("inbox key: nothing usable → null; never the address itself", [inboxKey("nope"), inboxKey("+x@gmail.com"), inboxKey("@gmail.com"), /^[0-9a-f]{32}$/.test(inboxKey("john.smith@gmail.com"))], [null, null, null, true]);
+  for (const email of ["john.smith@gmail.com", "johnsmith+2@gmail.com", "JohnSmith@googlemail.com", "jane.smith@gmail.com"]) {
+    await signup.POST(post({ name: "J", email, password: "12345678" }));
+  }
+  check(
+    "inbox: the first spelling keeps the trial, later spellings start with it spent, another person keeps theirs",
+    [await trialUsed("john.smith@gmail.com"), await trialUsed("johnsmith+2@gmail.com"), await trialUsed("johnsmith@googlemail.com"), await trialUsed("jane.smith@gmail.com")],
+    [0, 5, 5, 0],
+  );
+  await signup.POST(post({ name: "D", email: "dana@example.com", password: "12345678" }));
+  await deleteUser((await byEmail("dana@example.com")).id);
+  await signup.POST(post({ name: "D", email: "dana@example.com", password: "12345678" }));
+  check("inbox: delete the account and sign up again with the same address = trial spent", await trialUsed("dana@example.com"), 5);
+}
 const fromCanada = post({ name: "C", email: "canada@example.com", password: "12345678" });
 fromCanada.headers.set("x-vercel-ip-country", "CA");
 await signup.POST(fromCanada);

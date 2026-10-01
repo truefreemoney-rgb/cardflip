@@ -894,7 +894,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // 09-30: the first touch the browser kept (source, medium, campaign, the
   // first page it landed on, the external referrer host) for the analytics
   // "where signups come from" tables; blank on accounts made before then.
-  ["signup_log", ["country TEXT", "src TEXT", "medium TEXT", "campaign TEXT", "landing TEXT", "ref_host TEXT"]],
+  // inbox_key (10-01): signupGuard.inboxKey, the hashed inbox a signup belongs to (Gmail dot/plus spellings are one).
+  ["signup_log", ["country TEXT", "src TEXT", "medium TEXT", "campaign TEXT", "landing TEXT", "ref_host TEXT", "inbox_key TEXT"]],
   // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The payment intent finds the pack from the charge;
   // reversed = scans already taken back, so partial refunds and a later dispute net out.
   ["scan_pack_purchases", ["payment_intent TEXT", "reversed INTEGER NOT NULL DEFAULT 0"]],
@@ -1057,6 +1058,8 @@ async function initSchema(): Promise<void> {
   // Every Stripe webhook finds its account by customer id (10-01 sweep: that
   // was a full scan of users). After the probe: the column is an added one.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
+  // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

@@ -549,6 +549,20 @@ asUser(hF.token);
 await post(verify, { code: codeFor("slot-f@example.com") });
 check("the same IP settles too: first keeps the scans, second starts spent", [(await row("slot-e@example.com")).trial_scans_used, (await row("slot-f@example.com")).trial_scans_used], [0, 5]);
 
+// 10-01: one Gmail inbox under other spellings (dots, +tag), each from its own device and network.
+const hG1 = await signUp("slot.gmail@gmail.com");
+const hG2 = await signUp("slotgmail+2@gmail.com");
+check("a pending spelling does not burn the inbox's slot either", [(await row("slot.gmail@gmail.com")).trial_scans_used, (await row("slotgmail+2@gmail.com")).trial_scans_used], [0, 0]);
+await ev.markEmailConfirmed(hG1.user.id);
+await ev.markEmailConfirmed(hG2.user.id);
+check("the same Gmail inbox settles too: the first spelling keeps the scans, the second starts spent", [(await row("slot.gmail@gmail.com")).trial_scans_used, (await row("slotgmail+2@gmail.com")).trial_scans_used], [0, 5]);
+const hG3 = await signUp("slot-typo@example.com");
+await ev.changePendingEmail({ id: hG3.user.id, email: "slot-typo@example.com" }, "s.l.o.t.gmail@gmail.com");
+await ev.markEmailConfirmed(hG3.user.id);
+check("Change Email on a waiting signup moves it to the new inbox's slot", (await row("s.l.o.t.gmail@gmail.com")).trial_scans_used, 5);
+await signUp("slotgmail+4@gmail.com");
+check("once an inbox has a confirmed account, a new spelling starts spent at signup", (await row("slotgmail+4@gmail.com")).trial_scans_used, 5);
+
 const dev3 = "trialslot-device-3";
 const hG = await signUp("slot-g@example.com", { device: dev3 });
 await deleteUser(hG.user.id);

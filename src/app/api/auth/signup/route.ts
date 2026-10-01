@@ -23,6 +23,7 @@ import {
   countryFrom,
   deviceIdFrom,
   hashIp,
+  inboxKey,
   isDisposableEmail,
   newDeviceId,
   recordSignup,
@@ -110,7 +111,9 @@ export async function POST(req: Request) {
   const ipHash = hashIp(clientIp(req));
   const knownDevice = deviceIdFrom(req);
   const deviceId = knownDevice ?? newDeviceId();
-  const repeat = Boolean(await repeatSignup(ipHash, knownDevice));
+  // …and once per inbox: Gmail dot and plus spellings are the same person (Chris 10-01).
+  const inbox = inboxKey(email);
+  const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox));
 
   // Email confirmation is on only while the admin switch says exactly "1"
   // AND a code can actually be delivered (emailVerify.ts). Off = today.
@@ -129,7 +132,7 @@ export async function POST(req: Request) {
   // already refused signups from outside the open countries.
   const created = await createUser(name, email, password, "user", { emailPending: confirm, homeCountry: countryFrom(req) });
   // The first touch the browser kept (lib/attribution.ts); malformed = dropped, never an error.
-  await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch));
+  await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch), inbox);
   let user: User = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
   // Invite a friend: ?ref=CODE captured on the landing page rides along.
   // Best effort — a bad or stale code never blocks the signup.

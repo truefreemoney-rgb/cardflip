@@ -15,7 +15,7 @@ import {
 import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { getSetting } from "@/lib/server/settings";
-import { isDisposableEmail } from "@/lib/server/signupGuard";
+import { inboxKey, isDisposableEmail } from "@/lib/server/signupGuard";
 import {
   TRIAL_SCANS,
   findUserByEmail,
@@ -441,6 +441,10 @@ export async function markEmailConfirmed(
                        JOIN signup_log o ON o.ip_hash = me.ip_hash AND o.user_id <> me.user_id
                        LEFT JOIN users ou ON ou.id = o.user_id
                       WHERE me.user_id = users.id AND me.ip_hash IS NOT NULL AND (ou.id IS NULL OR ou.email_pending = 0))
+          OR EXISTS (SELECT 1 FROM signup_log me
+                       JOIN signup_log o ON o.inbox_key = me.inbox_key AND o.user_id <> me.user_id
+                       LEFT JOIN users ou ON ou.id = o.user_id
+                      WHERE me.user_id = users.id AND me.inbox_key IS NOT NULL AND (ou.id IS NULL OR ou.email_pending = 0))
            THEN MAX(trial_scans_used, ?) ELSE trial_scans_used END
        WHERE id = ? AND email_pending = 1${bound ? " AND email = ?" : ""}`,
     )
@@ -691,6 +695,8 @@ export async function changePendingEmail(user: Pick<User, "id" | "email">, email
     if (isUniqueViolation(err)) return { status: 409, error: "email_taken", message: "That email is already in use" };
     throw err;
   }
+  // The free-trial rule follows the address the account will confirm (signupGuard.inboxKey).
+  await db.prepare("UPDATE signup_log SET inbox_key = ? WHERE user_id = ?").run(inboxKey(email), user.id);
   // A reset link mailed to the old address must not survive the move: it
   // would let its holder set the password (and, before this, vouch for the
   // new address) on an account that no longer lives there.
