@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { opsAlert } from "@/lib/server/opsAlert";
 
 /**
@@ -10,7 +11,7 @@ import { opsAlert } from "@/lib/server/opsAlert";
 export async function POST(req: NextRequest) {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!k || given !== k) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!secretEqual(given, k)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => null);
   const workflow = typeof body?.workflow === "string" ? body.workflow.slice(0, 80) : "";
   if (!workflow) return NextResponse.json({ error: "workflow is required" }, { status: 400 });

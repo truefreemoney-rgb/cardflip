@@ -45,5 +45,11 @@ testCookies.delete(ADMIN_COOKIE);
 check("the schedule's key still works on a GET with no cookie", allowed(await route.GET(req("GET", { key: "post-key" }))), true);
 check("no cookie and no key is refused", allowed(await route.POST(req("POST", { origin: ORIGIN }))), false);
 
+// The shared constant-time compare every machine-key route uses now (lib/server/secretEqual.ts): fails closed.
+const { secretEqual } = await import(at("lib/server/secretEqual.ts"));
+check("secretEqual: match, mismatch, prefix, and an unset or empty secret never matches", [
+  secretEqual("k3y", "k3y"), secretEqual("k3y", "k3z"), secretEqual("k3", "k3y"), secretEqual(null, "k3y"), secretEqual("k3y", undefined), secretEqual("", ""),
+], [true, false, false, false, false, false]);
+
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);

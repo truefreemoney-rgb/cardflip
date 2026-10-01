@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { isMailConfigured, verifyMailTransport } from "@/lib/server/mail";
 
 /**
@@ -13,7 +14,7 @@ import { isMailConfigured, verifyMailTransport } from "@/lib/server/mail";
 export async function GET(req: NextRequest) {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!k || given !== k) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!secretEqual(given, k)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isMailConfigured()) return NextResponse.json({ ok: false, error: "Mail isn't configured on this server" }, { status: 503 });
   try {
     await verifyMailTransport();

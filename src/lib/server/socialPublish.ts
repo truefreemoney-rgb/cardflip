@@ -296,14 +296,14 @@ export interface PublishOptions {
   /** Where to fetch the pictures from (this deployment's own origin). */
   origin: string;
   sites: SocialSite[];
-  fetchImage?: (url: string) => Promise<Buffer>;
+  fetchImage?: (url: string, headers?: Record<string, string>) => Promise<Buffer>;
   /** Fetches a registered MP4 from Blob (test hook). */
   fetchVideo?: (url: string) => Promise<Buffer>;
   now?: number;
 }
 
-async function defaultFetchImage(url: string): Promise<Buffer> {
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(25_000) });
+async function defaultFetchImage(url: string, headers?: Record<string, string>): Promise<Buffer> {
+  const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(25_000) });
   if (!res.ok) throw new Error(`image ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
@@ -497,7 +497,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   function pngFor(d: SocialPost): Promise<Buffer> {
     let p = images.get(d.id);
     if (!p) {
-      p = fetchImage(`${opts.origin}${d.imagePath}&size=square&key=${encodeURIComponent(key)}`);
+      // The key rides a header, never the URL (10-01 sweep: ?key= put CRON_SECRET in the request logs six times a day).
+      p = fetchImage(`${opts.origin}${d.imagePath}&size=square`, { authorization: `Bearer ${key}` });
       images.set(d.id, p);
     }
     return p;

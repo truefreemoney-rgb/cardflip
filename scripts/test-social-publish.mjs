@@ -57,7 +57,8 @@ await catalog("sv1-6", "Pawmot", "76"); await series("sv1-6", 12, 12); // flat: 
 await catalog("sv1-7", "Pawmi", "74"); await series("sv1-7", 12, 16); // +33%: third gainer
 
 const fetched = [];
-const fetchImage = async (url) => { fetched.push(url); return Buffer.from("png"); };
+const fetchedHeaders = [];
+const fetchImage = async (url, headers) => { fetched.push(url); fetchedHeaders.push(headers ?? null); return Buffer.from("png"); };
 function fakeSite(id, { connected = true, fail = false, maxChars = 5000 } = {}) {
   const posts = [];
   return {
@@ -106,7 +107,8 @@ check("dry run marks nothing", await getSetting(`${SLOT_PREFIX}bsky:morning`), n
 
 r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [bsky], fetchImage });
 check("7am: set spotlight posted (morning=set since 09-27, the video moved to 1pm)", [r.sites[0].status, bsky.posts.length], ["posted", 1]);
-check("image fetched with the cron key, square", fetched[0], `http://x/api/social/image?kind=set&game=pokemon&day=${THU}&size=square&key=cron-test`);
+// 10-01 sweep: the key rides the Authorization header; ?key= put CRON_SECRET in the request logs.
+check("image fetched square, the cron key in a Bearer header and never in the URL", [fetched[0], fetchedHeaders[0]], [`http://x/api/social/image?kind=set&game=pokemon&day=${THU}&size=square`, { authorization: "Bearer cron-test" }]);
 check("alt text set", bsky.posts[0].alt.startsWith("Set spotlight:"));
 check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:morning`), THU);
 check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTargetDay } from "@/lib/server/socialTiktok";
@@ -26,7 +27,7 @@ export const dynamic = "force-dynamic";
 function postKeyOk(req: NextRequest): boolean {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.nextUrl.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return Boolean(k) && given === k;
+  return secretEqual(given, k);
 }
 
 export async function GET(req: NextRequest) {

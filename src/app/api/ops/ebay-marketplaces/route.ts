@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { getAppToken } from "@/lib/server/ebay";
 import { getUserAccessToken } from "@/lib/server/ebayAuth";
@@ -38,7 +39,7 @@ async function get(url: string, token: string, mk: string) {
 export async function GET(req: NextRequest) {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  const denied = k && given === k ? null : cronAuthError(req);
+  const denied = secretEqual(given, k) ? null : cronAuthError(req);
   if (denied) return denied;
   const mk = req.nextUrl.searchParams.get("mk") ?? "";
   if (!(MARKETPLACES as readonly string[]).includes(mk)) {

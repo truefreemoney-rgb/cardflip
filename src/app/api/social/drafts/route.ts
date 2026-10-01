@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { socialDrafts } from "@/lib/server/social";
 import { siteStatus, socialGames } from "@/lib/server/socialPublish";
@@ -14,8 +15,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  const key = req.nextUrl.searchParams.get("key");
-  if (!(secret && key && key === secret)) {
+  if (!secretEqual(presentedKey(req), secret)) {
     try {
       await requireAdminOwner();
     } catch (err) {

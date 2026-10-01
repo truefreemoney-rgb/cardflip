@@ -1,5 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
+import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 
 /**
  * Shared gate for the /api/cron/* routes. Accepts either `?key=CRON_SECRET`
@@ -10,7 +11,6 @@ import { NextRequest, NextResponse } from "next/server";
 export function cronAuthError(req: NextRequest): NextResponse | null {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
-  const key = req.nextUrl.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (key !== secret) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!secretEqual(presentedKey(req), secret)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }

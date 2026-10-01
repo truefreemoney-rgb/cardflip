@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { blueskyCall, blueskyGet, blueskySession } from "@/lib/server/sites/bluesky";
 import { metaReadCreds } from "@/lib/server/sites/meta";
@@ -191,7 +192,7 @@ const adapters: Adapter[] = [
 function authError(req: NextRequest) {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return k && given === k ? null : cronAuthError(req);
+  return secretEqual(given, k) ? null : cronAuthError(req);
 }
 
 type SiteRow = { site: string; handle?: string; bio?: string; canWrite: boolean; note: string; error?: string };

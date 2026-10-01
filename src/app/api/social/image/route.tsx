@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import {
@@ -104,8 +105,7 @@ async function withArt(m: Mover): Promise<Mover> {
 
 async function allowed(req: NextRequest): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
-  const key = req.nextUrl.searchParams.get("key");
-  if (secret && key && key === secret) return true;
+  if (secretEqual(presentedKey(req), secret)) return true;
   try {
     await requireAdminOwner();
     return true;

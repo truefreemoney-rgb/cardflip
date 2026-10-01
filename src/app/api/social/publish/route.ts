@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { publishSocial, SLOT_ORDER, type Slot } from "@/lib/server/socialPublish";
@@ -25,7 +26,7 @@ export const maxDuration = 300;
 function postKeyOk(req: NextRequest): boolean {
   const k = process.env.SOCIAL_POST_KEY;
   const given = req.nextUrl.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return Boolean(k) && given === k;
+  return secretEqual(given, k);
 }
 
 /**
