@@ -49,7 +49,7 @@ check("ticket reply, trimmed", ticketReplyPush({ number: 7 }, "  Hi!   " + "x".r
 console.log("\nstore");
 const u = await createUser("Seller", "seller@example.com", "hunter22", "user");
 const other = await createUser("Other", "other@example.com", "hunter22", "user");
-const sub = (n) => ({ endpoint: `https://push.example/${n}`, keys: { p256dh: "p" + n, auth: "a" + n } });
+const sub = (n) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${n}`, keys: { p256dh: "p" + n, auth: "a" + n } });
 await savePushSubscription(u.id, sub(1), "iPhone");
 await savePushSubscription(u.id, sub(2), null);
 check("two devices", await countPushSubscriptions(u.id), 2);
@@ -58,6 +58,24 @@ check("an endpoint re-owned moves, never duplicates", [await countPushSubscripti
 let threw = false;
 try { await savePushSubscription(u.id, { endpoint: "http://insecure", keys: { p256dh: "p", auth: "a" } }); } catch { threw = true; }
 check("http endpoint refused", threw, true);
+// 10-01 sweep: any https URL was taken, and every banner POSTed to it from the server (blind SSRF).
+const hostUser = await createUser("Hosts", "hosts@example.com", "hunter22", "user");
+const refused = async (endpoint) => {
+  try { await savePushSubscription(hostUser.id, { endpoint, keys: { p256dh: "p", auth: "a" } }); return false; } catch { return true; }
+};
+check("only the browsers' push services are accepted", [
+  await refused("https://attacker.example/x"),
+  await refused("https://169.254.169.254/latest"),
+  await refused("https://fcm.googleapis.com.evil.example/x"),
+  await refused("https://fcm.googleapis.com:8443/x"),
+  await refused("https://user@fcm.googleapis.com/x"),
+  await refused("https://web.push.apple.com/QWER"),
+  await refused("https://updates.push.services.mozilla.com/wpush/v2/x"),
+  await refused("https://wns2-by3p.notify.windows.com/w/?token=x"),
+], [true, true, true, true, true, false, false, false]);
+const capUser = await createUser("Cap", "cap@example.com", "hunter22", "user");
+for (let i = 0; i < 25; i++) await savePushSubscription(capUser.id, sub(`cap${i}`), null, 1_000 + i);
+check("at most 20 devices a seller; the newest are kept", [await countPushSubscriptions(capUser.id), Boolean(await db.prepare("SELECT 1 FROM push_subscriptions WHERE endpoint = ?").get(sub("cap24").endpoint)), Boolean(await db.prepare("SELECT 1 FROM push_subscriptions WHERE endpoint = ?").get(sub("cap0").endpoint))], [20, true, false]);
 check("remove by owner only", [await removePushSubscription(u.id, sub(2).endpoint), await removePushSubscription(other.id, sub(2).endpoint)], [false, true]);
 await savePushSubscription(u.id, sub(2), null);
 await savePushSubscription(u.id, sub(3), null);

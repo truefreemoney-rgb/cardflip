@@ -54,10 +54,34 @@ function ensureVapid(): boolean {
 }
 
 const ENDPOINT_MAX = 2048;
+/** Devices kept per seller; the oldest goes when a new one turns on. */
+const DEVICES_MAX = 20;
+
+/**
+ * The browsers' push services (Apple for the iPhone PWA, FCM for Chrome/Edge-on-Android/Samsung/Opera, Mozilla, Windows).
+ * 10-01 sweep: any https URL was accepted, and every banner made the server POST to it with a VAPID header (blind SSRF).
+ */
+export function isPushServiceUrl(endpoint: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" || u.port || u.username || u.password) return false;
+  const h = u.hostname.toLowerCase();
+  return (
+    h === "web.push.apple.com" ||
+    h === "fcm.googleapis.com" ||
+    h === "updates.push.services.mozilla.com" ||
+    h.endsWith(".push.services.mozilla.com") ||
+    h.endsWith(".notify.windows.com")
+  );
+}
 
 /** Save (or re-own) a browser's subscription. One endpoint belongs to one user. */
 export async function savePushSubscription(userId: string, sub: PushSubscriptionInput, userAgent: string | null, now = Date.now()): Promise<void> {
-  if (!/^https:\/\//.test(sub.endpoint) || sub.endpoint.length > ENDPOINT_MAX) throw new Error("Bad push endpoint");
+  if (sub.endpoint.length > ENDPOINT_MAX || !isPushServiceUrl(sub.endpoint)) throw new Error("Bad push endpoint");
   if (!sub.keys?.p256dh || !sub.keys?.auth) throw new Error("Bad push keys");
   await db
     .prepare(
@@ -66,6 +90,12 @@ export async function savePushSubscription(userId: string, sub: PushSubscription
        ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, user_agent = excluded.user_agent`,
     )
     .run(sub.endpoint, userId, sub.keys.p256dh, sub.keys.auth, userAgent ? userAgent.slice(0, 300) : null, now);
+  await db
+    .prepare(
+      `DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint NOT IN
+         (SELECT endpoint FROM push_subscriptions WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ${DEVICES_MAX})`,
+    )
+    .run(userId, userId);
 }
 
 export async function removePushSubscription(userId: string, endpoint: string): Promise<boolean> {
@@ -89,7 +119,9 @@ export interface PushSendResult {
 export type PushTransport = (sub: PushSubscriptionInput, payload: string) => Promise<void>;
 
 const defaultTransport: PushTransport = async (sub, payload) => {
-  await webpush.sendNotification(sub, payload, { TTL: 60 * 60 * 24, urgency: "normal" });
+  // A send that hangs must not stall the cron loop over every other seller's banners.
+  if (!isPushServiceUrl(sub.endpoint)) throw new Error("not a push service");
+  await webpush.sendNotification(sub, payload, { TTL: 60 * 60 * 24, urgency: "normal", timeout: 10_000 });
 };
 
 /**
