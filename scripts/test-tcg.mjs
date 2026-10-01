@@ -116,6 +116,10 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["ygo-ra01-ur", "yugioh", "Dark Magician", "", "RA01", "25th Anniversary Rarity Collection", "RA01-EN052", null, "2023-11-03", "Ultra Rare", "", 1.5, null],
   ["ygo-ra01-qcsr", "yugioh", "Dark Magician", "", "RA01", "25th Anniversary Rarity Collection", "RA01-EN052", null, "2023-11-03", "Quarter Century Secret Rare", "quarter-century-secret-rare", 30, null],
   ["ygo-bewd", "yugioh", "Blue-Eyes White Dragon", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-001", null, "2002-03-08", "Ultra Rare", "", 90, null],
+  // 10-01 seller photos: a Battle Pack code prints one pattern foil beside its plain row; a name the card prints with brackets.
+  ["ygo-bp02-rare", "yugioh", "Mermail Abyssmegalo", "", "BP02", "Battle Pack 2: War of the Giants", "BP02-EN117", null, "2013-06-28", "Rare", "", 0.3, null],
+  ["ygo-bp02-mosaic", "yugioh", "Mermail Abyssmegalo", "", "BP02", "Battle Pack 2: War of the Giants", "BP02-EN117", null, "2013-06-28", "Mosaic Rare", "", 1.2, null],
+  ["ygo-maliss", "yugioh", "Maliss Q Hearts Crypter", "", "CRBR", "Crossover Breakers", "CRBR-EN020", null, "2024-12-06", "Ultra Rare", "", 2, null],
 ]) {
   await db
     .prepare(
@@ -231,6 +235,10 @@ check("Yu-Gi-Oh!: rarity read separates one code's Ultra from its Quarter Centur
 check("Yu-Gi-Oh!: nothing seen on a two-rarity code → the plain untagged row", await ygo("Dark Magician", "RA01-EN052"), "ygo-ra01-ur");
 check("Yu-Gi-Oh!: a hyphenated name matches folded", await ygo("Blue-Eyes White Dragon", null), "ygo-bewd");
 check("Yu-Gi-Oh!: a misread code with the name exact still lands on the name", await ygo("Blue-Eyes White Dragon", "LOB-O01"), "ygo-bewd");
+check("Yu-Gi-Oh!: a pattern foil read as the wrong pattern foil (shatterfoil on a Mosaic card) takes that code's pattern foil, not its plain Rare; nothing read stays plain",
+  [await ygo("Mermail Abyssmegalo", "BP02-EN117", "shatterfoil-rare"), await ygo("Mermail Abyssmegalo", "BP02-EN117", "starfoil-rare"), await ygo("Mermail Abyssmegalo", "BP02-EN117")], ["ygo-bp02-mosaic", "ygo-bp02-mosaic", "ygo-bp02-rare"]);
+check("Yu-Gi-Oh!: brackets the card prints around a word are not in the catalog name (〈Q〉, <Q>), with the code misread",
+  [await ygo("Maliss 〈Q〉 Hearts Crypter", "CBBR-EN020"), await ygo("Maliss <Q> Hearts Crypter", null)], ["ygo-maliss", "ygo-maliss"]);
 check("rankScore exposed", typeof (await searchTcgCardsLocal("onepiece", "Nami", null, 5))[0]?.rankScore === "number");
 check("Lorcana card name carries the version", (await searchTcgCardsLocal("lorcana", "Ariel", pn("1", 204), 1))[0]?.name, "Ariel - On Human Legs");
 

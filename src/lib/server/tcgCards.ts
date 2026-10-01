@@ -59,7 +59,10 @@ export { yugiohKey };
 /** "Quarter Century Secret Rare" / "quarter-century-secret-rare" → one slug. */
 const raritySlug = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-const fold = (s: string) => s.toLowerCase().replace(/[‘’‛′`´]/g, "'").replace(/[“”]/g, '"').replace(/-/g, " ").replace(/\s+/g, " ").trim();
+// A card prints brackets the catalog leaves out ("Maliss <Q> Hearts Crypter" is filed "Maliss Q Hearts Crypter",
+// 10-01 seller photos: the read with 〈Q〉 found nothing), so a searched name loses them.
+const BRACKETS = /[〈〉《》＜＞<>]/g;
+const fold = (s: string) => s.toLowerCase().replace(BRACKETS, "").replace(/[‘’‛′`´]/g, "'").replace(/[“”]/g, '"').replace(/-/g, " ").replace(/\s+/g, " ").trim();
 const FOLDED = "REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', '''')";
 
 function toCard(row: TcgRow): PokemonCard {
@@ -472,7 +475,7 @@ async function searchYugioh(
   // The SQL fold turns "-" into a space but keeps the spaces around it
   // ("destiny hero   plasma"); fold() collapses them, so range-scan with the
   // SQL's own spelling or every "X - Y" name finds nothing (09-29 panel).
-  const sqlFold = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ").replace(/ - /g, " \u0000 ").replace(/-/g, " ").replace(/\u0000/g, " ").trim();
+  const sqlFold = (s: string) => s.toLowerCase().replace(BRACKETS, "").replace(/[‘’]/g, "'").replace(/\s+/g, " ").replace(/ - /g, " \u0000 ").replace(/-/g, " ").replace(/\u0000/g, " ").trim();
   const byNameRows = async (n: string) => {
     // INDEXED BY: prod's planner (no ANALYZE stats) picked the number index
     // and walked all 60k rows (09-29 EXPLAIN on Turso).
@@ -551,7 +554,9 @@ async function searchYugioh(
     if (wantRarity) {
       const have = raritySlug(row.rarity);
       // Same family (gold / premium gold / gold secret; any two duel terminal foils) beats a foil from another family.
-      const family = (s: string) => (s.includes("gold") ? "gold" : s.startsWith("duel-terminal") ? "duel-terminal" : null);
+      // The Battle Pack pattern foils are one family too (10-01 seller photos): the read names the wrong one of
+      // starfoil / mosaic / shatterfoil, each pack prints only one, and the miss used to fall to that code's Common.
+      const family = (s: string) => (s.includes("gold") ? "gold" : s.startsWith("duel-terminal") ? "duel-terminal" : /starfoil|mosaic|shatterfoil/.test(s) ? "pattern-foil" : null);
       // "secret-rare" inside "prismatic-secret-rare" is a partial match; plain "rare" inside everything is not.
       const shorter = have.length < wantRarity.length ? have : wantRarity;
       const partial = shorter !== "rare" && shorter !== "common" && (have.includes(wantRarity) || wantRarity.includes(have));

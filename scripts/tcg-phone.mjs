@@ -222,14 +222,23 @@ function sameCard(c, p) {
 const misses = [];
 const printMisses = [];
 const byBucket = new Map();
-let cardHit = 0, printHit = 0, n = 0, tiebreaks = 0;
+let cardHit = 0, printHit = 0, n = 0, tiebreaks = 0, spent = 0, tieSpent = 0;
+const TIE_CACHE_PATH = path.join(root, `scripts/${game}-phone-tiebreak.cache.json`);
+const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
+/** $ for one call: rates = [input, output, cache read, cache write] per million tokens. */
+const dollars = (u, [i, o, cr, cw]) => u ? (u.inputTokens * i + u.outputTokens * o + u.cacheReadTokens * cr + u.cacheWriteTokens * cw) / 1e6 : 0;
 for (const p of batch) {
   let read = cache[p.id];
   const file = path.join(PHOTO_DIR, `${p.id}.jpg`);
   let image = null;
   const load = async () => (image ??= await toClaudeImage(fs.readFileSync(file)));
   if (!read) {
-    try { const img = await load(); read = (await analyzeCardImageWithUsage(img.base64, img.mediaType, "en", game)).read; }
+    try {
+      const img = await load();
+      const res = await analyzeCardImageWithUsage(img.base64, img.mediaType, "en", game);
+      read = res.read;
+      spent += dollars(res.usage, [2, 10, 0.2, 2.5]); // Sonnet (scanUsage RATES)
+    }
     catch (err) { console.log(`  !! ${p.name}: vision ${err?.message ?? err}`); continue; }
     cache[p.id] = read;
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
@@ -239,8 +248,16 @@ for (const p of batch) {
   const tieIds = tiebreakIds(found, game);
   if (tieIds.length >= 2 && !flag("no-tiebreak")) {
     try {
-      const img = await load();
-      const t = await tiebreakByPicture(img.base64, img.mediaType, game, tieIds);
+      // Answers are cached per photo + candidate list (10-01), so a re-run costs nothing.
+      const tieKey = `${p.id}|${tieIds.join(",")}`;
+      let t = tieCache[tieKey];
+      if (!t) {
+        const img = await load();
+        const res = await tiebreakByPicture(img.base64, img.mediaType, game, tieIds);
+        tieSpent += dollars(res.usage, game === "onepiece" ? [1, 5, 0.1, 1.25] : [5, 25, 0.5, 6.25]); // Haiku for One Piece, Opus otherwise
+        t = tieCache[tieKey] = { id: res.id ?? null, pick: res.pick ?? null };
+        fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+      }
       tiebreaks++;
       const at = t.id && t.id !== found[0].id ? found.findIndex((c) => c.id === t.id) : -1;
       if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
@@ -275,6 +292,7 @@ console.log("\nbucket     card / n");
 for (const [b, t] of byBucket) console.log(`${b.padEnd(10)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
 console.log(`\n${game} seller photos: right card first: ${cardHit}/${n} = ${pct(cardHit)}%  (target ≥ 90%)   exact printing: ${printHit}/${n} = ${pct(printHit)}% (title labels are loose — not the gate)`);
 if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak)`);
+console.log(`spent this run ≈ $${spent.toFixed(2)} on reads + $${tieSpent.toFixed(2)} on picture checks`);
 for (const m of printMisses) console.log(`~ printing differs: ${m}`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}\n  ${m.listing}`);
