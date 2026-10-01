@@ -21,7 +21,8 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchMtgCardsLocal } = await import(at("lib/server/mtgCards.ts"));
 const { mtgCuesOf } = await import(at("lib/mtgCues.ts"));
-const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
+const { analyzeCardImageWithUsage, tiebreakByPicture } = await import(at("lib/server/vision.ts"));
+const { isNearTie } = await import(at("lib/tiebreak.ts"));
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -114,6 +115,10 @@ const finishMisses = [];
 let finishHit = 0, finishN = 0;
 let hit = 0, n = 0, looseHit = 0;
 const groups = {};
+const TIE_CACHE_PATH = path.join(root, "scripts/mtg-seller-tiebreak.cache.json");
+const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
+const tieLog = [];
+let ties = 0, tieSpent = 0;
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
@@ -128,6 +133,27 @@ for (const p of batch) {
     found = await searchMtgCardsLocal(candidate, read.cardNumber || null, code || null, 5, read.kind === "art" ? "full-art" : (read.artStyle ?? null), read.kind === "art", mtgCuesOf(read));
     if (found.length) break;
   }
+  const wants = Array.isArray(p.want) ? p.want : [p.want];
+  // --ties counts the near-ties the app would send to the picture check; --tiebreak makes the call
+  // (Opus, ~4¢, answers cached in scripts/mtg-seller-tiebreak.cache.json so a re-run is free).
+  if ((flag("ties") || flag("tiebreak")) && isNearTie(found)) {
+    ties++;
+    const key = `${p.id}|${found[0].id}|${found[1].id}`;
+    if (flag("tiebreak")) {
+      if (!tieCache[key]) {
+        process.env.ANTHROPIC_API_KEY ??= devAnthropicKey();
+        const b64 = fs.readFileSync(path.join(PHOTO_DIR, `${p.id}.jpg`)).toString("base64");
+        const t = await tiebreakByPicture(b64, "image/jpeg", "mtg", [found[0].id, found[1].id]);
+        // Opus rates ($ per million): input 5, output 25, cache read 0.5, cache write 6.25.
+        tieSpent += (t.usage.inputTokens * 5 + t.usage.outputTokens * 25 + t.usage.cacheReadTokens * 0.5 + t.usage.cacheWriteTokens * 6.25) / 1e6;
+        tieCache[key] = { id: t.id ?? null, pick: t.pick ?? null };
+        fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+      }
+      const before = found[0].id;
+      if (tieCache[key].id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+      tieLog.push(`${p.setCode ?? ""} ${p.name}: ${wants.includes(before) ? "was right" : "was wrong"} → picture ${tieCache[key].id === null ? "declined" : tieCache[key].id === before ? "kept it" : "swapped"} → ${wants.includes(found[0].id) ? "RIGHT" : "wrong"}`);
+    }
+  }
   const top = found[0];
   n++;
   finishes[read.finish ?? "null"] = (finishes[read.finish ?? "null"] ?? 0) + 1;
@@ -136,7 +162,6 @@ for (const p of batch) {
     if (read.finish === p.finish) finishHit++;
     else finishMisses.push(`${p.name} [${p.set} ${p.number}]: kept ${p.finish}, read ${read.finish ?? "null"}`);
   }
-  const wants = Array.isArray(p.want) ? p.want : [p.want];
   if (p.loose && top && p.loose.includes(top.id)) looseHit++;
   // `tight` = the listing picture is a bare card scan or a stock image (no background), not a photo of a card on a table.
   if (SELLER) { const g = (groups[p.tight ? "scans / stock images" : "real photos"] ??= { hit: 0, n: 0 }); g.n++; if (top && wants.includes(top.id)) g.hit++; }
@@ -156,7 +181,9 @@ for (const p of batch) {
 process.stdout.write("\r");
 console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)${SELLER ? `   right card + set on top: ${looseHit}/${n} = ${n ? ((looseHit / n) * 100).toFixed(1) : 0}%` : ""}   spent this run ≈ $${spent.toFixed(2)}`);
 for (const [k, g] of Object.entries(groups)) console.log(`  ${k}: ${g.hit}/${g.n} = ${((g.hit / g.n) * 100).toFixed(1)}%`);
-console.log(`finish read:${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
+for (const l of tieLog) console.log(`  tie ${l}`);
+console.log(`finish read: ${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
 if (finishN) {
   console.log(`finish vs the variant kept on the ledger: ${finishHit}/${finishN} = ${((finishHit / finishN) * 100).toFixed(1)}%  (${batch.length - finishN} cards keep no variant, not scored)`);
   for (const m of finishMisses) console.log(`  ✗ ${m}`);

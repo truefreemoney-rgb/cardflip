@@ -1,0 +1,66 @@
+{
+ "seller-267792681248|5cbc686e-a8ef-40de-b79a-803ef42f8384|778d10e6-251b-4ef3-b9b8-bc23a0d74aed": {
+  "id": "5cbc686e-a8ef-40de-b79a-803ef42f8384",
+  "pick": "A"
+ },
+ "seller-237088182139|9c9d5f72-e199-4d5b-ae7e-cc5b9bdfae99|0d08f5e4-d2d3-4659-86d4-a983d80e3b2c": {
+  "id": "9c9d5f72-e199-4d5b-ae7e-cc5b9bdfae99",
+  "pick": "A"
+ },
+ "seller-318649550768|803fd65f-4ca6-4fe4-abc2-72aa32ebb3a5|e07f656c-97b5-4147-821a-edbb49f34e19": {
+  "id": "e07f656c-97b5-4147-821a-edbb49f34e19",
+  "pick": "B"
+ },
+ "seller-198671243528|eaa55b3c-acf4-4d2a-9f32-c7fce6672f3d|36b94d0d-fbe5-4f32-af02-bbe3ab2e234a": {
+  "id": null,
+  "pick": "B"
+ },
+ "seller-158310039092|605e9a62-53e4-4771-9730-56c78237004a|df2c5d5c-f1c9-4639-bf72-3f6bde554864": {
+  "id": "df2c5d5c-f1c9-4639-bf72-3f6bde554864",
+  "pick": "B"
+ },
+ "seller-366673736197|45066539-6bc2-467f-acfb-00938ba837ef|fa161987-2dd1-4efe-b934-acbd93653169": {
+  "id": "fa161987-2dd1-4efe-b934-acbd93653169",
+  "pick": "B"
+ },
+ "seller-318943017449|f77f61a8-0b20-4f2e-8a24-844dc95c3a9e|3dbeef5c-f973-480b-a148-28de397b610f": {
+  "id": "3dbeef5c-f973-480b-a148-28de397b610f",
+  "pick": "B"
+ },
+ "seller-147592084833|5ae71290-c133-406c-8b17-9ea22b437806|38937c61-280e-457f-aef9-43139446163a": {
+  "id": "38937c61-280e-457f-aef9-43139446163a",
+  "pick": "B"
+ },
+ "seller-336447674136|e8661e0a-faf8-4c16-b988-55622707de6f|e470c00b-57ac-48d4-b1e6-74b74872e620": {
+  "id": "e470c00b-57ac-48d4-b1e6-74b74872e620",
+  "pick": "B"
+ },
+ "seller-127973096389|69199dd2-dbac-4039-b4da-eb2b0671645f|fd4f6e34-3f66-4e10-8170-56039c5f6fcc": {
+  "id": "fd4f6e34-3f66-4e10-8170-56039c5f6fcc",
+  "pick": "B"
+ },
+ "seller-820045984771|c71123b5-6be5-4c3c-972a-0aad3db1a694|64b52b42-e2af-4040-b7ba-34cc292af7ef": {
+  "id": null,
+  "pick": "B"
+ },
+ "seller-168683493254|af4f8926-9a9e-4b2d-8224-118655f12809|0c58f236-0b2c-4b71-8819-1beaea7ded17": {
+  "id": "0c58f236-0b2c-4b71-8819-1beaea7ded17",
+  "pick": "B"
+ },
+ "seller-158372935957|7954f128-7f3d-4c5e-adea-6ff452186ba4|e8244a80-3d9a-4392-ac62-739b3e330638": {
+  "id": "e8244a80-3d9a-4392-ac62-739b3e330638",
+  "pick": "B"
+ },
+ "seller-407256586231|f5c6d64b-f49c-4b41-bd25-3d29c896a9a8|ee9eb598-d2ef-4b3d-8038-bc33dc5e123e": {
+  "id": "f5c6d64b-f49c-4b41-bd25-3d29c896a9a8",
+  "pick": "A"
+ },
+ "seller-336574342435|a33a1695-db21-4dc5-9dc1-dd05d12e6b40|a877d692-018b-4a08-ab6f-9707b267f6fd": {
+  "id": "a33a1695-db21-4dc5-9dc1-dd05d12e6b40",
+  "pick": "A"
+ },
+ "seller-318935225732|803fd65f-4ca6-4fe4-abc2-72aa32ebb3a5|e07f656c-97b5-4147-821a-edbb49f34e19": {
+  "id": "803fd65f-4ca6-4fe4-abc2-72aa32ebb3a5",
+  "pick": "A"
+ }
+}
