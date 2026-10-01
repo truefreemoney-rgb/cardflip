@@ -25,7 +25,8 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
 const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
-const { analyzeCardImageWithUsage } = await import(at("lib/server/vision.ts"));
+const { analyzeCardImageWithUsage, tiebreakByPicture } = await import(at("lib/server/vision.ts"));
+const { tiebreakIds } = await import(at("lib/tiebreak.ts"));
 const { UNREADABLE_CONFIDENCE } = await import(at("lib/types.ts"));
 
 const args = process.argv.slice(2);
@@ -79,6 +80,16 @@ if (opt("since")) { const t = Date.parse(opt("since")); batch = batch.filter((p)
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of batch) delete cache[p.id];
+// --hide-number (10-01, blurred-number test): score the cached read with its number blanked, as if
+// the number line could not be read. No new reads: only photos already read WITH a number.
+// --sample N takes N of them spread across the batch. --ties counts the near-ties the app would
+// send to the picture check; --tiebreak makes the call (Opus, ~3¢, answers cached).
+const HIDE = flag("hide-number");
+if (HIDE) {
+  batch = batch.filter((p) => cache[p.id]?.cardNumber);
+  const want = Number(opt("sample") ?? 0);
+  if (want) { const k = Math.max(1, Math.floor(batch.length / want)); batch = batch.filter((_, i) => i % k === 0).slice(0, want); }
+}
 
 const VISION_CALL_CAP = 40;
 const uncached = batch.filter((p) => !cache[p.id]).length;
@@ -112,6 +123,9 @@ const wantRow = mirror.prepare("SELECT name, set_name, local_id, set_card_count_
 
 const misses = [];
 let hit = 0, top3 = 0, n = 0, secondLooks = 0, spent = 0;
+const TIE_CACHE_PATH = path.join(root, "scripts/pokemon-seller-tiebreak.cache.json");
+const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
+let ties = 0, tieSpent = 0, tieDeclined = 0, tieCancelled = 0;
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
@@ -123,7 +137,29 @@ for (const p of batch) {
     cache[p.id] = read;
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
   }
-  const found = await lookup(read);
+  if (HIDE) read = { ...read, cardNumber: null, setTotal: null };
+  let found = await lookup(read);
+  const tieIds = tiebreakIds(found, "pokemon");
+  if (tieIds.length >= 2) ties++;
+  if (tieIds.length >= 2 && flag("tiebreak")) {
+    const key = `${p.id}|${tieIds.join(",")}`;
+    let answer = tieCache[key];
+    if (!answer) {
+      process.env.ANTHROPIC_API_KEY ??= devAnthropicKey();
+      const b64 = fs.readFileSync(path.join(PHOTO_DIR, `${p.id}.jpg`)).toString("base64");
+      const t = await tiebreakByPicture(b64, "image/jpeg", "pokemon", tieIds);
+      // Opus rates ($ per million): input 5, output 25, cache read 0.5, cache write 6.25.
+      tieSpent += (t.usage.inputTokens * 5 + t.usage.outputTokens * 25 + t.usage.cacheReadTokens * 0.5 + t.usage.cacheWriteTokens * 6.25) / 1e6;
+      answer = { id: t.id ?? null, pick: t.pick ?? null, cancelled: t.reason === "catalog picture missing" };
+      if (!answer.cancelled) {
+        tieCache[key] = { id: answer.id, pick: answer.pick };
+        fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+      }
+    }
+    if (answer.cancelled) tieCancelled++; else if (answer.id === null) tieDeclined++;
+    const at = answer.id && answer.id !== found[0].id ? found.findIndex((c) => c.id === answer.id) : -1;
+    if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
+  }
   const rank = found.findIndex((c) => c.id === p.want || (p.alt ?? []).includes(c.id));
   n++;
   if (read.secondLook) secondLooks++;
@@ -144,7 +180,8 @@ for (const p of batch) {
 }
 process.stdout.write("\r");
 const pct = (a) => (n ? ((a / n) * 100).toFixed(1) : "0");
-console.log(`\nexact card on real phone photos: ${hit}/${n} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${n} = ${pct(top3)}%   second looks: ${secondLooks}   spent this run ≈ $${spent.toFixed(2)}`);
+console.log(`\nexact card on real phone photos${HIDE ? " (NUMBER HIDDEN)" : ""}: ${hit}/${n} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${n} = ${pct(top3)}%   second looks: ${secondLooks}   spent this run ≈ $${spent.toFixed(2)}`);
+if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   ${ties - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing)   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
 for (const m of misses) {
   console.log(`\n✗ ${m.id}${m.title ? `  "${m.title}"` : ""}\n  want ${m.want}\n  got ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

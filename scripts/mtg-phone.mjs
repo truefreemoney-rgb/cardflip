@@ -74,6 +74,15 @@ if (opt("id")) { const ids = opt("id").split(","); batch = batch.filter((p) => i
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of batch) delete cache[p.id];
+// --hide-number (10-01, blurred-number test): score the cached read with the collector line
+// blanked (number AND set code, they are printed side by side), as if it could not be read.
+// No new reads: only photos already read WITH a number. --sample N takes N spread across the batch.
+const HIDE = flag("hide-number");
+if (HIDE) {
+  batch = batch.filter((p) => cache[p.id]?.cardNumber);
+  const want = Number(opt("sample") ?? 0);
+  if (want) { const k = Math.max(1, Math.floor(batch.length / want)); batch = batch.filter((_, i) => i % k === 0).slice(0, want); }
+}
 // Vision budget guard (09-10: one full uncached panel ≈ 1.1M input tokens on the
 // prod API key — every uncached card is a ~5.5k-token Sonnet call). Above
 // VISION_CALL_CAP uncached reads the run stops unless --yes is passed.
@@ -127,6 +136,7 @@ for (const p of batch) {
     cache[p.id] = read;
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
   }
+  if (HIDE) read = { ...read, cardNumber: null, setTotal: null, setCode: null };
   const code = read.kind === "art" && read.setCode && !read.setCode.toUpperCase().startsWith("A") ? `A${read.setCode}` : read.setCode;
   let found = [];
   for (const candidate of [read.name, read.englishName].filter(Boolean)) {
@@ -186,7 +196,7 @@ for (const p of batch) {
   process.stdout.write(`\r${n}/${batch.length}`);
 }
 process.stdout.write("\r");
-console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)${SELLER ? `   right card + set on top: ${looseHit}/${n} = ${n ? ((looseHit / n) * 100).toFixed(1) : 0}%` : ""}   spent this run ≈ $${spent.toFixed(2)}`);
+console.log(`\nexact printing on real phone photos${HIDE ? " (NUMBER + SET CODE HIDDEN)" : ""}:${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)${SELLER ? `   right card + set on top: ${looseHit}/${n} = ${n ? ((looseHit / n) * 100).toFixed(1) : 0}%` : ""}   spent this run ≈ $${spent.toFixed(2)}`);
 for (const [k, g] of Object.entries(groups)) console.log(`  ${k}: ${g.hit}/${g.n} = ${((g.hit / g.n) * 100).toFixed(1)}%`);
 if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   ${ties - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing)   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
 for (const l of tieLog) console.log(`  tie ${l}`);

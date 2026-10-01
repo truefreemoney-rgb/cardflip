@@ -62,5 +62,13 @@
  "seller-318935225732|803fd65f-4ca6-4fe4-abc2-72aa32ebb3a5|e07f656c-97b5-4147-821a-edbb49f34e19": {
   "id": "803fd65f-4ca6-4fe4-abc2-72aa32ebb3a5",
   "pick": "A"
+ },
+ "seller-398451348944|e325bdc8-0fc9-4331-a2a8-acc6c51a5e5c|fab4cd7e-b56f-4408-a0e9-c07e040cc38f": {
+  "id": "fab4cd7e-b56f-4408-a0e9-c07e040cc38f",
+  "pick": "B"
+ },
+ "seller-168751635058|8b6f7b89-1648-4c2b-8d68-88ad43267c6f|b10caff0-701a-48d8-a943-f947482e795a": {
+  "id": "8b6f7b89-1648-4c2b-8d68-88ad43267c6f",
+  "pick": "A"
  }
 }

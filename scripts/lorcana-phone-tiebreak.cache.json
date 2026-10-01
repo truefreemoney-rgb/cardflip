@@ -1,0 +1,74 @@
+{
+ "base-1-142|crd_63c2ca66eeea417b9079d833e0fd88d4,crd_021c1d57c42d4fb7836097cbe9eacfb7": {
+  "id": "crd_63c2ca66eeea417b9079d833e0fd88d4",
+  "pick": "A"
+ },
+ "base-9-143|crd_2f6ba76c24224b52ad93ee5abc882b80,crd_f5d62175b09243eda1bf9f34ea01d884": {
+  "id": "crd_2f6ba76c24224b52ad93ee5abc882b80",
+  "pick": "A"
+ },
+ "base-1-21|crd_fdaea5bd7f31497a8284771dd57894cf,crd_78e5de38150f48c5b9813c08cc534dfb": {
+  "id": "crd_78e5de38150f48c5b9813c08cc534dfb",
+  "pick": "B"
+ },
+ "base-9-97|crd_1d6a3d2a881b42f0a7160c2617e19fea,crd_dbd4475720c8479481050b2ba6ef3c5a": {
+  "id": "crd_1d6a3d2a881b42f0a7160c2617e19fea",
+  "pick": "A"
+ },
+ "base-13-97|crd_bf600b734e644e82ab7a90529c6f0cb8,crd_7422061cabf943a19d4d197fa055609e": {
+  "id": "crd_bf600b734e644e82ab7a90529c6f0cb8",
+  "pick": "A"
+ },
+ "base-9-111|crd_8c2b197768734180bf5a4ec7bf1b4e37,crd_4d10d4cd91454ff389318fd9a19a879f": {
+  "id": "crd_8c2b197768734180bf5a4ec7bf1b4e37",
+  "pick": "A"
+ },
+ "enchanted-1-216|crd_b42271147bf14a5e89d33571e64abb6d,crd_a77ba07844374c399becfa3d49262642": {
+  "id": "crd_b42271147bf14a5e89d33571e64abb6d",
+  "pick": "A"
+ },
+ "enchanted-13-228|crd_862f035f533244a8a59a469e5c0cae9c,crd_6642a0a4e7984d78bc81e54df6fab1c0": {
+  "id": "crd_862f035f533244a8a59a469e5c0cae9c",
+  "pick": "A"
+ },
+ "enchanted-4-211|crd_93ab5d88940f4610a375a928963a570f,crd_af531020efc14cb38f4ffeb159eb8eff": {
+  "id": "crd_93ab5d88940f4610a375a928963a570f",
+  "pick": "A"
+ },
+ "s1001-366654657414|crd_54102dba80604a609eed679b7f33fad3,crd_96ad341f42564869a246b51582b51031": {
+  "id": "crd_54102dba80604a609eed679b7f33fad3",
+  "pick": "A"
+ },
+ "s1001-366704214667|crd_853c5c99d28f4304ba79004c91379057,crd_4cf391db31ba468f948bad5a20b0bc16": {
+  "id": "crd_853c5c99d28f4304ba79004c91379057",
+  "pick": "A"
+ },
+ "s1001-178510584030|crd_631c3f90c74b4c0cabded03d2b07f85b,crd_f607033b63f544219ebcff94bd3c6e81": {
+  "id": "crd_f607033b63f544219ebcff94bd3c6e81",
+  "pick": "B"
+ },
+ "s1001-326585311545|crd_5a2ba6e63b07496d96a17d2565b2a1db,crd_4ae1ca3505fc492eb6e4310ae36f3ba3": {
+  "id": "crd_5a2ba6e63b07496d96a17d2565b2a1db",
+  "pick": "A"
+ },
+ "s1001-307207932163|crd_57e2c4722d1b4d5c96a196415c1ca434,crd_3694abe0d09349ca9dbef6861ea42f5a": {
+  "id": "crd_57e2c4722d1b4d5c96a196415c1ca434",
+  "pick": "A"
+ },
+ "s1001-227515774853|crd_7c421033c14c40e7a5be957ba42bb1b7,crd_9f8f3cf328fe451e9be15353026085ee": {
+  "id": "crd_7c421033c14c40e7a5be957ba42bb1b7",
+  "pick": "A"
+ },
+ "s1001-366695972348|crd_0fa2b60dcf3d46fbb5e61428e33d7d7d,crd_a3eb0593f33d4ff78e6fd4dccc9257a2": {
+  "id": "crd_0fa2b60dcf3d46fbb5e61428e33d7d7d",
+  "pick": "A"
+ },
+ "s1001-267797242197|crd_02bc7b97b6044592b68b86b9afadd113,crd_24dfd54db49e4a5d8004c51d0882aa46": {
+  "id": "crd_02bc7b97b6044592b68b86b9afadd113",
+  "pick": "A"
+ },
+ "s1001-407259820161|crd_3d891c7945f04b6d9095dda6a9a81a4f,crd_2319774247e242a19dfa6a0fe584fff0": {
+  "id": "crd_3d891c7945f04b6d9095dda6a9a81a4f",
+  "pick": "A"
+ }
+}

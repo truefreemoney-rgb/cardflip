@@ -186,5 +186,65 @@
  "s1001-178112273131|ygo-92054-1st,ygo-91889-1st": {
   "id": "ygo-91889-1st",
   "pick": "B"
+ },
+ "RA04-054|ygo-626947-1st,ygo-626945-1st,ygo-626946-1st,ygo-626948-1st,ygo-626944-1st": {
+  "id": "ygo-626947-1st",
+  "pick": "A"
+ },
+ "MP24-009|ygo-627279-1st,ygo-627280-1st,ygo-592813-1st,ygo-593849-1st,ygo-593850-1st": {
+  "id": null,
+  "pick": null
+ },
+ "EGS1-007|ygo-600125-1st,ygo-512213-1st,ygo-287201,ygo-241901-1st,ygo-227896-1st": {
+  "id": "ygo-241901-1st",
+  "pick": "B"
+ },
+ "GFP2-176|ygo-687203-1st,ygo-600273-1st,ygo-512355-1st,ygo-489393-1st,ygo-285209-1st": {
+  "id": null,
+  "pick": null
+ },
+ "DT01-013|ygo-186885,ygo-27538": {
+  "id": "ygo-186885",
+  "pick": "A"
+ },
+ "EEN-015|ygo-24570-1st,ygo-58709-1st": {
+  "id": "ygo-58709-1st",
+  "pick": "B"
+ },
+ "MRD-128|ygo-564193,ygo-33533,ygo-78116,ygo-26446,ygo-26403": {
+  "id": null,
+  "pick": null
+ },
+ "HAC1-022|ygo-161952-1st,ygo-592525-1st,ygo-593867-1st,ygo-551173-1st,ygo-266296-1st": {
+  "id": "ygo-593867-1st",
+  "pick": "C"
+ },
+ "TSHD-043|ygo-661328-1st,ygo-230356-1st,ygo-93935-1st,ygo-34990-1st,ygo-58449-1st": {
+  "id": "ygo-58449-1st",
+  "pick": "E"
+ },
+ "GFP2-181|ygo-230245-1st,ygo-186744-1st,ygo-123564-1st,ygo-35073-1st,ygo-230772-1st": {
+  "id": null,
+  "pick": null
+ },
+ "s1001-168689867331|ygo-123607-1st,ygo-524922-1st,ygo-217372-1st,ygo-217373-1st,ygo-217374-1st": {
+  "id": null,
+  "pick": null
+ },
+ "s1001-158195864145|ygo-687156-1st,ygo-687155-1st,ygo-592782-1st,ygo-592783-1st,ygo-687157-1st": {
+  "id": null,
+  "pick": "A"
+ },
+ "s1001-156648842015|ygo-486041,ygo-22538,ygo-454969": {
+  "id": "ygo-486041",
+  "pick": "A"
+ },
+ "s1001-127997364170|ygo-600210-1st,ygo-512323-1st,ygo-228078-1st,ygo-222814-1st,ygo-123576-1st": {
+  "id": "ygo-222814-1st",
+  "pick": "D"
+ },
+ "s1001-147603299496|ygo-651431-1st,ygo-217517,ygo-144951-1st": {
+  "id": "ygo-651431-1st",
+  "pick": "A"
  }
 }
