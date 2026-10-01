@@ -23,6 +23,8 @@ export async function POST(req: Request) {
     const images: string[] = Array.isArray(body?.images) ? body.images.filter((u: unknown) => typeof u === "string" && BLOB_URL_RE.test(u)).slice(0, MAX_IMAGES) : [];
     if (!text && images.length === 0) return NextResponse.json({ error: "Write something first" }, { status: 400 });
     if (text.length > 800) return NextResponse.json({ error: "Keep a note under 800 characters" }, { status: 400 });
+    // The Run button reads "▶ RUNNING #n — " as its own marker (and closes issue n on a re-run): a typed one is not a note.
+    if (/^▶\s*RUNNING/i.test(text)) return NextResponse.json({ error: "A note can't start with ▶ RUNNING" }, { status: 400 });
     const name = role === "helper" ? helperName() : "Chris";
     const { sections, updatedAt } = await loadBoard();
     const mine = helperSection(sections);

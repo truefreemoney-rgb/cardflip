@@ -43,7 +43,18 @@ export async function POST(req: Request) {
     // it up again — and the new one carries the whole thread.
     const prev = /^▶ RUNNING #(\d+) — ([\s\S]*)$/.exec(item.text);
     const text = prev ? prev[2] : item.text;
-    if (prev) {
+    // Close it only when it is an issue this board opened (its label, not a PR): the number comes from note text, and a
+    // typed "▶ RUNNING #42" must not close issue or PR 42 with the server's token (10-01 security sweep).
+    const ours = prev
+      ? await fetch(`https://api.github.com/repos/${REPO}/issues/${prev[1]}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "cardflip-board" },
+          signal: AbortSignal.timeout(10_000),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((i: { pull_request?: unknown; labels?: { name?: string }[] } | null) => Boolean(i && !i.pull_request && i.labels?.some((l) => l.name === LABEL)))
+          .catch(() => false)
+      : false;
+    if (prev && ours) {
       await fetch(`https://api.github.com/repos/${REPO}/issues/${prev[1]}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json", "User-Agent": "cardflip-board" },
