@@ -193,6 +193,21 @@ await real("hs2-3", "Small gain", "3", "hs2", "Stormfront", [...liquid(64, 50), 
 const gains = (await topMovers("pokemon", PIN, { direction: "up", limit: 30 })).map((m) => m.cardId);
 check("unconfirmed doubling dropped, confirmed one kept, a 1.5x move to under $100 untouched", [gains.includes("hs2-1"), gains.includes("hs2-2"), gains.includes("hs2-3")], [false, true, true]);
 
+console.log("step-jump rule (10-01): a lone one-day step out of a long flat stretch is no mover, a staircase is");
+// Skuntank ru1-13 shape: $52 for 4 months, one overnight step to $89.98, +71% and held. Gardevoir ex1-7 shape: a climb in stairs, last step +36% but the price had been moving.
+const SKUNTANK = expand([[52.2, 70], [52.37, 6], [52.07, 4], [null, 2], [52.07, 14], [52.53, 4], [52.67, 7], [52.37, 3], [89.98, 3]]);
+const GARDEVOIR = expand([[50, 60], [57.14, 5], [64.79, 2], [69.15, 3], [null, 2], [71.84, 15], [75.19, 14], [78.4, 3], [106.3, 3]]);
+warnings.length = 0;
+await real("ru1-13", "Skuntank", "13", "ru1", "Pokémon Rumble", SKUNTANK);
+await real("ru1-14", "Skuntank confirmed", "14", "ru1", "Pokémon Rumble", SKUNTANK, { eur: 70 });
+await real("ex1-7", "Gardevoir", "7", "ex1", "Ruby & Sapphire", GARDEVOIR);
+const stepGains = (await topMovers("pokemon", PIN, { direction: "up", limit: 30 })).map((m) => m.cardId);
+check("Skuntank (no Cardmarket) is out of the gains, its Cardmarket-confirmed twin and Gardevoir stay", [stepGains.includes("ru1-13"), stepGains.includes("ru1-14"), stepGains.includes("ex1-7")], [false, true, true]);
+check("the next mover takes its place: Gardevoir still ranks by its move", stepGains.indexOf("ex1-7") > stepGains.indexOf("ru1-14"), true);
+check("the log names the step-jump card", warnings.some((w) => w.includes("gains left out") && w.includes("ru1-13 step 1.7x")), true);
+check("only movers read it: the price guard still vouches for the $89.98 (card pages and stage keep it)", (await trustedUsdPrices(["ru1-13"])).prices.get("ru1-13")?.price, 89.98);
+check("a fall is not read by it: the drops post is untouched", (await topMovers("pokemon", PIN, { direction: "down", limit: 30 })).some((m) => m.cardId === "ru1-13"), false);
+
 console.log("the log says what the guard dropped, once per game and day");
 warnings.length = 0;
 const logDay = addDays(PIN, 3);

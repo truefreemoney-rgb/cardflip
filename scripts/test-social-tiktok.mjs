@@ -508,6 +508,11 @@ console.log("schedule, workflow, routes");
   check("the workflow has a tiktok job, the tiktok dispatch inputs and the early-EST wait", [/^  tiktok:$/m.test(wf), wf.includes("tiktok_day:"), wf.includes("--min-hour"), wf.includes("EARLIEST_HOUR")], [true, true, true, true]);
   check("the night pings never run the post job or the 1pm render job", [/!contains\(fromJSON\('\[[^\]]*"0 0 \* \* \*","0 1 \* \* \*"\]'\), github\.event\.schedule\)/.test(wf), /\|\| contains\(fromJSON\('\[[^\]]*"0 0 \* \* \*"/.test(wf.split("  tiktok:")[0])], [true, false]);
   check("the render-only dispatch of the 1pm video does not start the tiktok job, and the tiktok dispatch does not post", [wf.includes("inputs.tiktok != '1' && (inputs.video == '1'"), wf.includes("&& inputs.tiktok != '1'\n      && !contains")], [true, true]);
+  // 10-01: replacing a registered video (a card the rules now leave out) is a hand dispatch of the named slots with tiktok_force=1.
+  const sv = read("scripts/social-video.mjs");
+  check("tiktok_force is a dispatch input, passed as --force ONLY when slots are named (the schedule and the net can never redraw a ready video)", [wf.includes("tiktok_force:"), wf.includes('TIKTOK_FORCE: ${{ inputs.tiktok_force }}'), wf.includes('[ "$TIKTOK_FORCE" = "1" ] && [ -n "$TIKTOK_SLOTS" ]'), wf.includes("$slots $force")], [true, true, true, true]);
+  check("the script refuses --force without --slot, and skips a ready slot only when it is not forced", [sv.includes("if (FORCE && PACKAGE && !ONLY.length)"), sv.includes('if (!FORCE && st.state === "ready")')], [true, true]);
+  check("a remake over an existing row is parked under a new blob path (the CDN keeps an overwritten path's old bytes)", [sv.includes("const remake = prior?.url ?"), sv.includes("${day}${remake}.mp4")], [true, true]);
   const cronRoute = read("src/app/api/cron/social-tiktok/route.ts");
   check("the cron route takes the Vercel bearer, the GitHub key or the owner, and nothing else", [cronRoute.includes("cronAuthError(req)"), cronRoute.includes("SOCIAL_POST_KEY"), cronRoute.includes("requireAdminOwner")], [true, true, true]);
   const video = read("src/app/api/admin/social/tiktok/video/route.ts"), post = read("src/app/api/admin/social/tiktok/route.ts");

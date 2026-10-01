@@ -23,6 +23,10 @@
 //              [--min-hour N] exits when a schedule ping fires earlier than N
 //              o'clock Eastern (the EST-side 7pm ping runs an hour early).
 //   --slot morning|midday|evening   one TikTok slot by itself (or a comma list of them).
+//   --force    with --slot: remake the named slot(s) even when ready (the workflow's tiktok_force), e.g. a registered video that
+//              shows a card the rules now leave out. Refused without --slot, so no run can redraw every ready video. A remake
+//              over an existing row is parked under a NEW blob path (Blob's CDN keeps serving an overwritten path's old bytes
+//              for up to a month) and the old file is deleted; the 1pm slot rewrites both the TikTok row and the row every site posts.
 //
 // --register: parks the MP4 on Vercel Blob and writes the settings rows
 // (lib/server/socialTiktok.ts registerTiktokVideo). The 1pm movers video is
@@ -61,6 +65,7 @@ const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, ti
 const { getSetting } = await import(at("lib/server/settings.ts"));
 
 if (ONLY.some((s) => !TIKTOK_SLOTS.includes(s))) { console.error(`--slot must be one of ${TIKTOK_SLOTS.join(", ")}`); process.exit(2); }
+if (FORCE && PACKAGE && !ONLY.length) { console.error("--force remakes only the slots named with --slot"); process.exit(2); }
 
 // Same day the publisher keys on (Eastern). The night render means the day
 // AFTER the night it runs in (tiktokTargetDay), never a UTC date.
@@ -293,7 +298,10 @@ async function register(slot, made, out, drafts) {
   const { put, del } = await import("@vercel/blob");
   // The 1pm movers file keeps the path every site has always read; the TikTok-only videos live under social/tiktok/.
   const shared = slot === "midday" && made.kind === SLOTS.midday.kind;
-  const blobPath = shared ? `social/video/${game}-${made.kind}-${day}.mp4` : `social/tiktok/${slot}-${made.kind}-${day}.mp4`;
+  // A remake over a row that exists gets its own path: Blob's CDN caches a path for up to a month, so overwriting it can keep serving the old video.
+  const prior = shared ? await sharedMovers(day) : (await readSlot(slot, day)).spec;
+  const remake = prior?.url ? `-r${Date.now().toString(36)}` : "";
+  const blobPath = shared ? `social/video/${game}-${made.kind}-${day}${remake}.mp4` : `social/tiktok/${slot}-${made.kind}-${day}${remake}.mp4`;
   const blob = await put(blobPath, fs.readFileSync(out), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
   const r = await registerTiktokVideo({ slot, day, kind: made.kind, url: blob.url, bytes: made.bytes, seconds: made.seconds, draft, cards: made.frozen.cards, leads: made.frozen.leads, audio: made.audio });
   // A re-render on the same day replaces the row; the old file only differs by path when the naming or kind changes.

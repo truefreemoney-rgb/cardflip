@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
+import { PRICE_TRUST, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
@@ -129,6 +129,8 @@ interface FreshCard {
   fromOk: boolean;
   /** `median` passes it too (only asked when today's point has not held HELD_DAYS days, the one case the median is printed). */
   medianOk: boolean;
+  /** Why the latest price is a lone one-day step out of a long flat stretch nobody confirmed (priceTrust stepJump), "" when it is not. Movers leave such a card out of the gains. */
+  stepJump: string;
 }
 
 /** What freshSeries hands back: the clean cards, and the cards the guard could not vouch for (not proved wrong) with their price. */
@@ -225,7 +227,7 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
   ) as unknown as SeriesRow[];
   if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
   // One entry per card: its series (so the preferred variant speaks for it and the rest are its siblings) and the second-source price.
-  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; released: string }>();
+  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; refPrices: (number | null)[] | null; released: string }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
@@ -234,7 +236,7 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
     let card = cards.get(r.card_id);
     if (!card) {
       const refEur = game === "mtg" ? (r.price_eur ?? null) : r.cm_prices ? lastPriced(decodePrices(r.cm_prices)) : null;
-      cards.set(r.card_id, (card = { series: [], refEur, released: r.released ?? "" }));
+      cards.set(r.card_id, (card = { series: [], refEur, refPrices: game !== "mtg" && r.cm_prices ? decodePrices(r.cm_prices) : null, released: r.released ?? "" }));
     }
     card.series.push({ variant: r.variant, prices, todayIdx, to });
   }
@@ -304,7 +306,10 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
       }
       fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
     }
-    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk });
+    // A gain that is one unconfirmed day-step out of months of nothing is a thin-market print, not a move (the movers pick reads this; the price itself still passes).
+    const upTo = todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1);
+    const step = stepJump({ prices: todayIdx >= upTo.length ? [...upTo, ...Array(todayIdx - upTo.length + 1).fill(null)] : upTo, days, refEur: card.refEur, refPrices: card.refPrices }).reason;
+    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk, stepJump: step });
   }
   // Logged once per game and day, not once per call (drafts read this several times): the next session can see what the guard dropped.
   const logKey = `${game}:${day}`;
@@ -385,6 +390,7 @@ export async function topMovers(
   const { cards: series } = await freshSeries(game, day, days);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];
+  const stepped: string[] = [];
   for (const [cardId, s] of series) {
     if (exclude.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
@@ -404,12 +410,22 @@ export async function topMovers(
       staleFrom.push(cardId);
       continue;
     }
+    // The step-jump rule (priceTrust): a rise that arrived in one day out of a long flat stretch and no second source backs. The next mover takes its place.
+    if (pct > 0 && s.stepJump) {
+      stepped.push(`${cardId} ${s.stepJump}`);
+      continue;
+    }
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
   }
   const logKey = `${game}:${day}:from`;
   if (staleFrom.length && !guardLogged.has(logKey)) {
     guardLogged.add(logKey);
     console.warn(`social: ${staleFrom.length} ${game} moves left out, the old price fails the price guard (${staleFrom.slice(0, 5).join(", ")})`);
+  }
+  const stepKey = `${game}:${day}:step`;
+  if (stepped.length && !guardLogged.has(stepKey)) {
+    guardLogged.add(stepKey);
+    console.warn(`social: ${stepped.length} ${game} gains left out, one unconfirmed day-step after a long flat stretch (${stepped.slice(0, 5).join("; ")})`);
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
   const top = moves.slice(0, limit * 3);

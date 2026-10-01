@@ -7,7 +7,7 @@
  * test and threshold. Every "must survive" card is a real card a collector
  * would call correctly priced.
  */
-const { priceTrust, isRoundPrice, isVintage, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
+const { priceTrust, stepJump, STEP_JUMP, isRoundPrice, isVintage, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -146,6 +146,35 @@ const BLASTOISE_ECARD = expand([[400, 15], [568, 13], [400, 3], [260.1, 4], [260
 check("Blastoise ecard1-4 $400 -> $252: $400 sat for 85 days", oldSide(BLASTOISE_ECARD).reason, "flat 85d");
 check("a moving old price passes as before ($944 Base Charizard a week ago)", oldSide(CHARIZARD_BASE, 0).ok);
 check("under $10 nothing is checked, old or not", priceTrust({ to: 8, prices: Array(60).fill(8), old: true }).ok);
+
+console.log("10-01 review: the step-jump rule for movers (stepJump, not part of priceTrust)");
+// ru1-13 Pokémon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).
+const SKUNTANK = expand([[52.2, 70], [52.37, 6], [52.07, 4], [null, 2], [52.07, 14], [52.53, 4], [52.67, 7], [52.37, 3], [89.98, 3]]);
+// ex1-7 Ruby & Sapphire Gardevoir holofoil: a climb in stairs over four months, $75.19 -> $106.30 in the week. A genuine rise.
+const GARDEVOIR = expand([[50, 60], [57.14, 5], [64.79, 2], [69.15, 3], [null, 2], [71.84, 15], [75.19, 14], [78.4, 3], [106.3, 3]]);
+// Magic Library of Leng, Unlimited: $13.67 / $13.44 for a month and a half (a week with no points), then $23.75. Cardmarket EUR 8.
+const LENG = expand([[14.27, 5], [14.23, 3], [null, 2], [13.67, 3], [null, 1], [13.67, 14], [null, 8], [13.44, 5], [23.75, 2]]);
+const jumped = (prices, extra = {}) => stepJump({ prices, days: 7, ...extra });
+check("Skuntank: ordinary to priceTrust (it is the mover rule that stops it)", judge(SKUNTANK).ok);
+check("Skuntank $52 -> $90: one 1.7x step after 110 days flat, no Cardmarket at all", jumped(SKUNTANK), { jump: true, reason: "step 1.7x in one day after 110d flat" });
+check("Gardevoir $75 -> $106: a staircase, the step comes after movement, not a flat stretch", jumped(GARDEVOIR).jump, false);
+check("Library of Leng $13 -> $24 vs Cardmarket EUR 8: a lone step, nothing near it", jumped(LENG, { refEur: 8 }).jump);
+check("a second source already near the new price confirms it (Cardmarket EUR 70 = $77 for Skuntank)", jumped(SKUNTANK, { refEur: 70 }).jump, false);
+check("a second source far below does not (EUR 20 = $22)", jumped(SKUNTANK, { refEur: 20 }).jump);
+check("a Cardmarket series that rose >= 10% over the window confirms it", jumped(SKUNTANK, { refEur: 20, refPrices: [...Array(30).fill(18), 19, 20, 21, 22, 22, 22, 22, 22] }).jump, false);
+check("a Cardmarket series that sat still does not", jumped(SKUNTANK, { refEur: 20, refPrices: Array(40).fill(20) }).jump);
+check("under 30 days of flat history there is nothing to call flat (a new card)", jumped(expand([[52.2, 20], [89.98, 3]])).jump, false);
+check("the same step 29 days into the flat stretch is still too young, 30 is not", [jumped(expand([[52.2, 29], [89.98, 3]])).jump, jumped(expand([[52.2, 30], [89.98, 3]])).jump], [false, true]);
+check("a +25% step is under the 30% bar", jumped(expand([[52.2, 90], [65.25, 3]])).jump, false);
+check("a +30% step is the bar", jumped(expand([[50, 90], [65, 3]])).jump);
+check("a step already given back is not the price now", jumped(expand([[52.2, 90], [89.98, 2], [55, 2]])).jump, false);
+check("a step that landed before the window (10 days ago) is the old news the 7-day move no longer contains", jumped(expand([[52.2, 90], [89.98, 10]])).jump, false);
+check("a drift of a few percent either way still counts as flat (+-3%)", jumped(expand([[52.2, 20], [53.5, 10], [51.0, 10], [52.2, 20], [89.98, 3]])).jump);
+check("a wobble of 5% does not (the stretch breaks)", jumped(expand([[48, 20], [52.2, 10], [55, 10], [52.2, 20], [89.98, 3]])).jump, false);
+check("a drop is never a step jump (the rule only reads rises)", jumped(expand([[89.98, 90], [52.2, 3]])).jump, false);
+check("an ordinary liquid card is never flagged", jumped(liquid(90)).jump, false);
+check("a card with no points is not flagged", [jumped([]).jump, jumped([null, null, 5]).jump], [false, false]);
+check("thresholds are the calibrated ones", [STEP_JUMP.stepMin, STEP_JUMP.flatBand, STEP_JUMP.flatDays, STEP_JUMP.confirmLevel, STEP_JUMP.confirmMove], [1.3, 0.03, 30, 1.5, 0.1]);
 
 console.log("isRoundPrice");
 check("$1,013.27 is not round", isRoundPrice(1013.27), false);
