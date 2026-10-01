@@ -4,6 +4,8 @@
  * into non-empty sections with owner tags.
  */
 import { readFileSync } from "node:fs";
+// The fixture store (abc123): board photos must live in OUR Blob store, which the token names (lib/server/ownBlob.ts, 10-01).
+process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_ABC123_test";
 const { parseBoard, serializeBoard, validateBoard } = await import(new URL("../src/lib/server/board.ts", import.meta.url).href);
 
 let failures = 0;

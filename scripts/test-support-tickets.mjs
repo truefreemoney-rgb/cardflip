@@ -18,6 +18,8 @@ process.once("exit", () => {
   try { rmSync(work, { recursive: true, force: true }); } catch { /* libsql may still hold the file on Windows */ }
 });
 delete process.env.SMTP_HOST;
+// The fixture store (abc123): images must live in OUR Blob store, which the token names (lib/server/ownBlob.ts, 10-01).
+process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_ABC123_test";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { createUser, deleteUser } = await import(at("lib/server/users.ts"));
@@ -75,6 +77,7 @@ const GOOD2 = "https://abc123.public.blob.vercel-storage.com/tickets/photo-2.jpg
 check("cleanImages keeps our tickets/ URLs, drops the rest, dedupes, caps at 4",
   cleanImages([GOOD, "https://evil.example/x.jpg", "https://abc123.public.blob.vercel-storage.com/board/x.jpg", GOOD, GOOD2, 5, GOOD2 + "3", GOOD2 + "4", GOOD2 + "5"]),
   [GOOD, GOOD2, GOOD2 + "3", GOOD2 + "4"]);
+check("cleanImages drops a tickets/ URL from someone else's Blob store", cleanImages(["https://attacker9.public.blob.vercel-storage.com/tickets/photo-1.jpg", GOOD]), [GOOD]);
 const noteSent = [];
 const noteMail = async (to, t, u, n) => { noteSent.push({ to, number: t.number, replyTo: u.email, body: n.body, images: n.images }); };
 const n1 = await addTicketNote(a, t1.id, { body: "  Also the back photo is blurry.  ", images: [GOOD, "https://evil.example/x.jpg"] }, { noteMail });
@@ -120,8 +123,12 @@ check("closing frees a slot", (await setTicketStatus(t1.id, "closed", { closedMa
 check("then a new one opens", (await openTicket(a, { subject: "", body: "after close" }, [], { mail })).status, "open");
 
 console.log("delete");
-await deleteUser(a.id);
+// 10-01 sweep: the ticket's photos (public Blob URLs) outlived the account. The Blob delete is injected here.
+const blobDeleted = [];
+await deleteUser(a.id, async (urls) => { blobDeleted.push(...urls); });
 check("deleteUser takes tickets", (await db.prepare("SELECT COUNT(*) AS n FROM support_tickets WHERE user_id = ?").get(a.id)).n, 0);
+check("deleteUser takes the notes too", (await db.prepare("SELECT COUNT(*) AS n FROM support_ticket_notes WHERE user_id = ?").get(a.id)).n, 0);
+check("deleteUser deletes the ticket's photo from Blob", blobDeleted.includes(GOOD), true);
 check("brock's stays", (await getTicket(t2.id))?.number, 1001);
 
 if (failures) {

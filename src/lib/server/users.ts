@@ -695,13 +695,16 @@ export async function userDataSummary(userId: string): Promise<{
  * statement is a no-op on a second run. Card photos live on disk/blob, so
  * those go first (best effort).
  */
-export async function deleteUser(userId: string): Promise<void> {
+/** `deleteBlobs` is the test seam for the ticket-photo cleanup (default: @vercel/blob's del, when a token is set). */
+export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) => Promise<unknown>): Promise<void> {
   const photoRows = (await db
     .prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL")
     .all(userId)) as { id: string }[];
   for (const r of photoRows) {
     try { await deleteCardPhoto(r.id); } catch { /* best effort */ }
   }
+  // Ticket photos live on public Blob URLs (10-01 sweep: they outlived the account). Collected before the rows go.
+  const ticketImages = await ticketImageUrls(userId);
   await db.transaction(async (tx) => {
     // Every table in db.ts with a user_id (plus card_photos, keyed by card).
     for (const sql of [
@@ -713,6 +716,7 @@ export async function deleteUser(userId: string): Promise<void> {
       "DELETE FROM wishlist_items WHERE user_id = ?",
       "DELETE FROM price_checks WHERE user_id = ?",
       "DELETE FROM help_messages WHERE user_id = ?",
+      "DELETE FROM support_ticket_notes WHERE user_id = ?",
       "DELETE FROM support_tickets WHERE user_id = ?",
       "DELETE FROM password_resets WHERE user_id = ?",
       "DELETE FROM email_verifications WHERE user_id = ?",
@@ -733,6 +737,29 @@ export async function deleteUser(userId: string): Promise<void> {
       await tx.prepare(sql).run(userId);
     }
   });
+  if (ticketImages.length && (deleteBlobs || process.env.BLOB_READ_WRITE_TOKEN)) {
+    try {
+      await (deleteBlobs ?? (async (urls: string[]) => (await import("@vercel/blob")).del(urls)))(ticketImages);
+    } catch (err) {
+      console.error("deleteUser: ticket photo cleanup failed:", err instanceof Error ? err.message : err);
+    }
+  }
+}
+
+/** Every Blob photo on this seller's tickets and their notes (JSON arrays of URLs). */
+async function ticketImageUrls(userId: string): Promise<string[]> {
+  const urls = new Set<string>();
+  for (const sql of ["SELECT images FROM support_tickets WHERE user_id = ?", "SELECT images FROM support_ticket_notes WHERE user_id = ?"]) {
+    try {
+      for (const r of (await db.prepare(sql).all(userId)) as { images: string }[]) {
+        const list: unknown = JSON.parse(r.images || "[]");
+        if (Array.isArray(list)) for (const u of list) if (typeof u === "string" && u.startsWith("https://")) urls.add(u);
+      }
+    } catch {
+      // A table or column an old database lacks: nothing to clean there.
+    }
+  }
+  return [...urls];
 }
 
 export async function listAllUsers(): Promise<User[]> {

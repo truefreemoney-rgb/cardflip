@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { helperName } from "@/lib/adminAuth";
 import { etDay } from "@/lib/time";
+import { isOwnBlobUrl } from "@/lib/server/ownBlob";
 
 /**
  * The board — Chris's organised task list, edited live in the admin console
@@ -60,6 +61,10 @@ const OWNERS = new Set(["Chris", "Claude", "both"]);
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 /** Only our own Blob store — an arbitrary URL would let a stale client save an off-site image. */
 export const BLOB_URL_RE = /^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/board\/[A-Za-z0-9._-]+$/;
+/** A board photo in OUR store (the pattern alone took any Vercel store's host; 10-01 sweep). */
+export function isBoardImageUrl(u: string): boolean {
+  return BLOB_URL_RE.test(u) && isOwnBlobUrl(u);
+}
 export const MAX_IMAGES = 6;
 
 export function parseBoard(md: string): BoardSection[] {
@@ -138,7 +143,7 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
       let imgs: string[] | undefined;
       if (images != null) {
         if (!Array.isArray(images) || images.length > MAX_IMAGES) return { ok: false, error: `Too many images (max ${MAX_IMAGES})` };
-        if (!images.every((u) => typeof u === "string" && BLOB_URL_RE.test(u))) return { ok: false, error: "Bad image URL" };
+        if (!images.every((u) => typeof u === "string" && isBoardImageUrl(u))) return { ok: false, error: "Bad image URL" };
         imgs = images.length ? (images as string[]) : undefined;
       }
       if (completedAt != null && (typeof completedAt !== "number" || !Number.isFinite(completedAt))) return { ok: false, error: "Bad completedAt" };

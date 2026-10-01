@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { BLOB_URL_RE } from "@/lib/server/board";
+import { isBoardImageUrl } from "@/lib/server/board";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Not allowed" }, { status: 401 });
   }
   const u = new URL(req.url).searchParams.get("u") ?? "";
-  if (!BLOB_URL_RE.test(u)) return NextResponse.json({ error: "Not a board photo" }, { status: 400 });
+  if (!isBoardImageUrl(u)) return NextResponse.json({ error: "Not a board photo" }, { status: 400 });
   const upstream = await fetch(u, { cache: "no-store", signal: AbortSignal.timeout(10_000) }).catch(() => null);
   if (!upstream || !upstream.ok) return NextResponse.json({ error: "Photo not found" }, { status: 404 });
   return new Response(upstream.body, {

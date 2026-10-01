@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { del, put } from "@vercel/blob";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
-import { BLOB_URL_RE } from "@/lib/server/board";
+import { isBoardImageUrl } from "@/lib/server/board";
 
 /**
  * Photos on board notes (Chris, 09-09: "for my thoughts, i need a image
@@ -37,7 +37,7 @@ export async function DELETE(req: Request) {
     await requireAdmin();
     const body = await req.json().catch(() => null);
     const url = typeof body?.url === "string" ? body.url : "";
-    if (!BLOB_URL_RE.test(url)) return NextResponse.json({ error: "Bad image URL" }, { status: 400 });
+    if (!isBoardImageUrl(url)) return NextResponse.json({ error: "Bad image URL" }, { status: 400 });
     await del(url);
     return NextResponse.json({ ok: true });
   } catch (err) {

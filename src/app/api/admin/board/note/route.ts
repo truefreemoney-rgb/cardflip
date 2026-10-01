@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { AuthError } from "@/lib/server/auth";
 import { requireAdminPanel } from "@/lib/server/adminGate";
 import { helperName } from "@/lib/adminAuth";
-import { BLOB_URL_RE, BoardConflictError, helperSection, loadBoard, MAX_IMAGES, saveBoard } from "@/lib/server/board";
+import { BoardConflictError, isBoardImageUrl, helperSection, loadBoard, MAX_IMAGES, saveBoard } from "@/lib/server/board";
 
 /**
  * The helper's only way to write (lib/adminAuth.ts helper role): add a note
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     const replyTo = typeof body?.replyTo === "string" ? body.replyTo : "";
-    const images: string[] = Array.isArray(body?.images) ? body.images.filter((u: unknown) => typeof u === "string" && BLOB_URL_RE.test(u)).slice(0, MAX_IMAGES) : [];
+    const images: string[] = Array.isArray(body?.images) ? body.images.filter((u: unknown) => typeof u === "string" && isBoardImageUrl(u)).slice(0, MAX_IMAGES) : [];
     if (!text && images.length === 0) return NextResponse.json({ error: "Write something first" }, { status: 400 });
     if (text.length > 800) return NextResponse.json({ error: "Keep a note under 800 characters" }, { status: 400 });
     // The Run button reads "▶ RUNNING #n — " as its own marker (and closes issue n on a re-run): a typed one is not a note.

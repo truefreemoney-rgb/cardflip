@@ -11,6 +11,7 @@ import {
 import { findUserById, needsEmailConfirm, type User } from "@/lib/server/users";
 import { sendPushToUser } from "@/lib/server/push";
 import { ticketReplyPush } from "@/lib/pushMessages";
+import { isOwnBlobUrl } from "@/lib/server/ownBlob";
 
 /**
  * Support tickets (Chris 09-26): the robot accepts and manages them, and the
@@ -144,7 +145,7 @@ export function cleanImages(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const out: string[] = [];
   for (const u of input) {
-    if (typeof u === "string" && TICKET_IMAGE_URL_RE.test(u) && !out.includes(u)) out.push(u);
+    if (typeof u === "string" && TICKET_IMAGE_URL_RE.test(u) && isOwnBlobUrl(u) && !out.includes(u)) out.push(u);
     if (out.length >= TICKET_IMAGES_MAX) break;
   }
   return out;
