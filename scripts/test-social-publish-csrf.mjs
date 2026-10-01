@@ -1,0 +1,49 @@
+/**
+ * /api/social/publish takes the owner cookie on a same-origin POST only
+ * (10-01 security sweep): the admin cookie is SameSite=Lax, so a cross-site
+ * top-level GET carried it and any page Chris opened could fire ?force=1 at
+ * every social site. Run: npm run test:publishcsrf
+ */
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+const work = mkdtempSync(path.join(tmpdir(), "cardflip-publish-csrf-"));
+process.chdir(work);
+process.once("exit", () => {
+  try { rmSync(work, { recursive: true, force: true }); } catch { /* libsql may hold the file on Windows */ }
+});
+process.env.ADMIN_PANEL_USER = "ops";
+process.env.ADMIN_PANEL_PASSWORD = "s3cret";
+process.env.EBAY_TOKEN_KEY = "test-key";
+delete process.env.CRON_SECRET;
+process.env.SOCIAL_POST_KEY = "post-key";
+
+let fails = 0;
+const check = (name, got, want) => {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) fails++;
+  console.log(`  ${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `\n        got  ${JSON.stringify(got)}\n        want ${JSON.stringify(want)}`}`);
+};
+
+const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
+const { NextRequest } = await import("next/server");
+const { testCookies } = await import("next/headers");
+const { ADMIN_COOKIE, signAdminToken } = await import(at("lib/adminAuth.ts"));
+const route = await import(at("app/api/social/publish/route.ts"));
+
+const ORIGIN = "https://cardflip.io";
+const req = (method, { origin, key } = {}) =>
+  new NextRequest(`${ORIGIN}/api/social/publish?dry=1&force=1&day=2026-10-01${key ? `&key=${key}` : ""}`, { method, headers: origin ? { origin } : {} });
+const allowed = (r) => r.status !== 401 && r.status !== 403 && r.status !== 503;
+
+testCookies.set(ADMIN_COOKIE, signAdminToken().token);
+check("owner cookie on a GET (a cross-site link or <img>) is refused", allowed(await route.GET(req("GET"))), false);
+check("owner cookie on a cross-site POST is refused", allowed(await route.POST(req("POST", { origin: "https://evil.example" }))), false);
+check("owner cookie on a same-origin POST (the console's Post Now) still works", allowed(await route.POST(req("POST", { origin: ORIGIN }))), true);
+testCookies.delete(ADMIN_COOKIE);
+check("the schedule's key still works on a GET with no cookie", allowed(await route.GET(req("GET", { key: "post-key" }))), true);
+check("no cookie and no key is refused", allowed(await route.POST(req("POST", { origin: ORIGIN }))), false);
+
+console.log(fails ? `\n${fails} failing` : "\nall green");
+process.exit(fails ? 1 : 0);

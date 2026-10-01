@@ -28,9 +28,21 @@ function postKeyOk(req: NextRequest): boolean {
   return Boolean(k) && given === k;
 }
 
+/**
+ * The owner cookie counts on a same-origin POST only (10-01 security sweep): the admin cookie is SameSite=Lax, so it rides
+ * along on a cross-site top-level GET, and any page Chris opened could have fired ?force=1 at every site. The schedule and
+ * pingers use the keys, which work on both methods; the console's Post Now is a POST.
+ */
+function cookieAllowed(req: NextRequest): boolean {
+  if (req.method !== "POST") return false;
+  const origin = req.headers.get("origin");
+  return !origin || origin === req.nextUrl.origin;
+}
+
 async function run(req: NextRequest) {
   const denied = postKeyOk(req) ? null : cronAuthError(req);
   if (denied) {
+    if (!cookieAllowed(req)) return denied;
     try {
       await requireAdminOwner();
     } catch (err) {
