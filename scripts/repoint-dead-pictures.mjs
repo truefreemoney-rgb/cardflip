@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
-import { deadPictureStandIns } from "./lib/deadPictureStandIns.mjs";
+import { deadPictureStandIns, ownPictures } from "./lib/deadPictureStandIns.mjs";
 
 const root = process.cwd();
 const arg = (name, fallback) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback);
@@ -26,7 +26,7 @@ if (process.argv.includes("--prod")) {
 
 const dead = new Set(JSON.parse(fs.readFileSync(path.join(root, "scripts", `dead-pictures-${game}.json`), "utf8")));
 const rows = (await local.execute({ sql: "SELECT id, name, variant, image_url, set_code, collector_number, set_release_date FROM tcg_cards WHERE game = ?", args: [game] })).rows;
-const standIns = deadPictureStandIns(rows, dead);
+const standIns = deadPictureStandIns(rows, dead, ownPictures(game));
 const deadRows = rows.filter((r) => dead.has(r.image_url));
 console.log(`${game}: ${deadRows.length} rows with a dead picture, ${standIns.size} have a stand-in, ${deadRows.length - standIns.size} have none`);
 

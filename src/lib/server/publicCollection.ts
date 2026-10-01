@@ -43,6 +43,7 @@ const IMAGE_HOSTS = new Set([
   "cards.lorcast.io", // Lorcana
   "optcgapi.com", // One Piece
   "en.onepiece-cardgame.com", // One Piece promos only Bandai's card list shows (fill-missing-pictures.mjs)
+  "cardflip.io", // pictures we host ourselves under /catalog (fill-yugioh-own-pictures.mjs)
 ]);
 
 export function publicImageUrl(u: string): string {

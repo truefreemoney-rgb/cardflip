@@ -13,7 +13,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { deadPictureStandIns } from "./lib/deadPictureStandIns.mjs";
+import { deadPictureStandIns, ownPictures } from "./lib/deadPictureStandIns.mjs";
 
 const API = "https://tcgcsv.com/tcgplayer/2";
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
@@ -125,7 +125,7 @@ db.exec("COMMIT");
 // refreshed by scripts/sweep-picture-links.mjs.
 const deadFile = path.join(process.cwd(), "scripts", "dead-pictures-yugioh.json");
 if (fs.existsSync(deadFile)) {
-  const standIns = deadPictureStandIns(db.prepare("SELECT id, name, variant, image_url, set_release_date FROM tcg_cards WHERE game = 'yugioh'").all(), new Set(JSON.parse(fs.readFileSync(deadFile, "utf8"))));
+  const standIns = deadPictureStandIns(db.prepare("SELECT id, name, variant, image_url, set_release_date FROM tcg_cards WHERE game = 'yugioh'").all(), new Set(JSON.parse(fs.readFileSync(deadFile, "utf8"))), ownPictures("yugioh"));
   const repoint = db.prepare("UPDATE tcg_cards SET image_url = ? WHERE id = ?");
   db.exec("BEGIN");
   for (const [id, url] of standIns) repoint.run(url, id);
