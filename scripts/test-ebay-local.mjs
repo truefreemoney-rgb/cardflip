@@ -55,6 +55,8 @@ const world = {
   orders: [],
   finances: new Map(),
   rejectCarrier: false,
+  rejectDelete: false,
+  tokenStatus: 200,
 };
 const log = [];
 const json = (body, status = 200) => new Response(body === undefined ? null : JSON.stringify(body), { status });
@@ -77,6 +79,8 @@ globalThis.fetch = async (input, init) => {
     return rates ? json({ base: "USD", date: day, rates }) : json({ message: "not found" }, 404);
   }
   if (p.includes("/identity/v1/oauth2/token")) {
+    log.push({ kind: "token", host });
+    if (world.tokenStatus !== 200) return json({ error: "invalid_grant" }, world.tokenStatus);
     return json({ access_token: "tok-1", expires_in: 7200, refresh_token: "ref-1", refresh_token_expires_in: 47304000, token_type: "User" });
   }
   if (p.includes("/commerce/identity/")) {
@@ -118,6 +122,11 @@ globalThis.fetch = async (input, init) => {
     const id = decodeURIComponent(of[1]);
     const offer = world.offers.get(id);
     if (!offer) return json({ errors: [{ errorId: 25713 }] }, 404);
+    if (method === "DELETE") {
+      if (world.rejectDelete) return json({ errors: [{ errorId: 25001, message: "cannot delete" }] }, 400);
+      world.offers.delete(id);
+      return json(undefined, 204);
+    }
     if (of[2] === "/publish") { offer.status = "PUBLISHED"; offer.listing = { listingId: `LI-${id}`, listingStatus: "ACTIVE" }; return json({ listingId: `LI-${id}` }); }
     if (of[2] === "/withdraw") { offer.status = "UNPUBLISHED"; delete offer.listing; return json({ listingId: `LI-${id}` }); }
     if (method === "GET") return json(offer);
@@ -140,10 +149,12 @@ const inv = await import(at("lib/ebayInventory.ts"));
 const { MARKETPLACES, US_MARKETPLACE, marketplaceByEbayId, merchantLocationKeyFor, currencySymbol, formatLocalAmount } = await import(at("lib/marketplaces.ts"));
 const fees = await import(at("lib/fees.ts"));
 const lp = await import(at("lib/localPricing.ts"));
-const { ebayHosts, SANDBOX_HOSTS, PRODUCTION_HOSTS } = await import(at("lib/ebayHosts.ts"));
-const { pushDraft, publishDraft, updateOfferPrice, withdrawOffer, createDraft, EbaySellError, ebayFetch } = await import(at("lib/server/ebaySell.ts"));
-const { sellerMarket, ledgerFloorProblem, listedFloorProblem, marketValueUsd } = await import(at("lib/server/ebayMarket.ts"));
-const { completeEbayConnect, getEbayAccountFacts } = await import(at("lib/server/ebayAuth.ts"));
+const { ebayHosts, SANDBOX_HOSTS, PRODUCTION_HOSTS, SandboxRefusedError, sandboxRefusal } = await import(at("lib/ebayHosts.ts"));
+const { quoteLocalListing } = await import(at("lib/localQuote.ts"));
+const { pushDraft, publishDraft, updateOfferPrice, withdrawOffer, createDraft, EbaySellError, EbayPublishNeedsError, ebayFetch } = await import(at("lib/server/ebaySell.ts"));
+const { sellerMarket, ledgerFloorProblem, listedFloorProblem, marketValueUsd, resolveLocalAsk, quoteCardForSite } = await import(at("lib/server/ebayMarket.ts"));
+const { completeEbayConnect, getEbayAccountFacts, getUserAccessToken, refreshEbayIdentityIfMissing, EbayNotConnectedError } = await import(at("lib/server/ebayAuth.ts"));
+const { sweepCardAlerts } = await import(at("lib/server/cardAlerts.ts"));
 const { createCard, getCardForUser, updateCard, setCardEbayListing } = await import(at("lib/server/cards.ts"));
 const { storeCardPhoto } = await import(at("lib/server/cardPhotos.ts"));
 const { createUser } = await import(at("lib/server/users.ts"));
@@ -278,14 +289,15 @@ console.log("FX freshness");
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1), Buffer.from([0xff, 0xd9])]);
 const TODAY = todayUtc();
 let seq = 0;
-async function addSeries(catalogId, price) {
+/** A flat 10-point USD series whose LAST point is `endAgo` days old. */
+async function addSeries(catalogId, price, endAgo = 0) {
   await db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day) VALUES (?, 'pokemon', 'holofoil', 'tcgplayer', 'USD', ?, ?, ?)`)
-    .run(catalogId, addDays(TODAY, -9), encodePrices(Array(10).fill(price)), TODAY);
+    .run(catalogId, addDays(TODAY, -9 - endAgo), encodePrices(Array(10).fill(price)), TODAY);
 }
 /** A verified card with a photo, a USD market series, and a US-fee price (what the live refresh writes). */
-async function newCard(uid, { market = 3.2, condition = "Near Mint", locked = false, price = 5 } = {}) {
+async function newCard(uid, { market = 3.2, condition = "Near Mint", locked = false, price = 5, endAgo = 0 } = {}) {
   const catalogId = `test-card-${++seq}`;
-  if (market != null) await addSeries(catalogId, market);
+  if (market != null) await addSeries(catalogId, market, endAgo);
   const c = await createCard(uid, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition, price, catalogCardId: catalogId });
   await updateCard(c.id, uid, { verifiedAt: Date.now(), ...(locked ? { priceLocked: true } : {}) });
   const stored = await storeCardPhoto(c.id, uid, JPEG);
@@ -621,6 +633,191 @@ console.log("EBAY_ENV=sandbox");
   await ebayFetch("T", "GET", "/sell/account/v1/payment_policy?marketplace_id=EBAY_GB", undefined, undefined, MARKETPLACES.GB);
   const [sb, prod] = since(mark);
   check("ebayFetch follows EBAY_ENV at call time", [sb.host, prod.host], ["https://api.sandbox.ebay.com", "https://api.ebay.com"]);
+}
+
+// --- 7. review fixes -----------------------------------------------------------------------------
+console.log("Client quote = server quote (unlocked / locked x quick / full)");
+{
+  const u = await seller("GB", "BUSINESS");
+  const here = await sellerMarket(u.id);
+  const info = { mp: MARKETPLACES.GB, account: "BUSINESS", rate: rates.GBP, rateDate: today };
+  // $3 and $12 markets; the stored (US-fee) price differs from the market on purpose; a locked row's price is the seller's own.
+  for (const market of [3, 12]) {
+    for (const locked of [false, true]) {
+      for (const strategy of ["market", "quick"]) {
+        const c = await newCard(u.id, { market, price: locked ? 7.5 : 3, locked });
+        const card = await getCardForUser(c.id, u.id);
+        const server = await resolveLocalAsk(card, here.mp, here.account, strategy);
+        const client = quoteLocalListing(info, { locked: card.priceLocked, priceUsd: card.price, marketUsd: market, condition: card.condition, strategy });
+        const site = await quoteCardForSite(u.id, card, strategy);
+        check(`$${market} ${locked ? "locked" : "unlocked"} ${strategy}: client ${client.text} = server ${site.text} (${server.basis})`, [client.price, client.basis, site.price, site.text], [server.price, server.basis, server.price, client.text]);
+      }
+    }
+  }
+  const resumed = await newCard(u.id, { market: 3, price: 3, locked: false });
+  const typedWrong = lp.toLocal(3, rates.GBP);
+  const asked = await quoteCardForSite(u.id, await getCardForUser(resumed.id, u.id), "quick");
+  check("a resumed unlocked $3 row is priced from the market (£4.72-ish), not converted as a typed price (£2.34)", [asked.basis, asked.price > typedWrong + 1], ["market", true]);
+  const noSite = await quoteCardForSite((await seller("US", "BUSINESS", "EBAY_US")).id, resumed, "market");
+  check("a US seller's quote is just local:false", noSite, { local: false });
+}
+
+console.log("Sandbox mode refuses production data");
+{
+  const keep = { v: process.env.VERCEL_ENV, t: process.env.TURSO_DATABASE_URL, e: process.env.EBAY_ENV };
+  check("local file DB, not Vercel production: sandbox hosts are allowed", [sandboxRefusal({}), sandboxRefusal({ VERCEL_ENV: "preview" })], [null, null]);
+  check("VERCEL_ENV=production refuses", sandboxRefusal({ VERCEL_ENV: "production" })?.includes("production"), true);
+  check("a Turso URL refuses", sandboxRefusal({ TURSO_DATABASE_URL: "libsql://x.turso.io" })?.includes("remote database"), true);
+  process.env.TURSO_DATABASE_URL = "libsql://prod.turso.io";
+  check("ebayHosts('sandbox') throws SandboxRefusedError next to a remote DB; production hosts still resolve", [
+    (() => { try { ebayHosts("sandbox"); return "no throw"; } catch (e) { return e instanceof SandboxRefusedError; } })(), ebayHosts(undefined) === PRODUCTION_HOSTS,
+  ], [true, true]);
+  delete process.env.TURSO_DATABASE_URL;
+  process.env.VERCEL_ENV = "production";
+  check("ebayHosts('sandbox') throws on Vercel production", (() => { try { ebayHosts("sandbox"); return "no throw"; } catch (e) { return e instanceof SandboxRefusedError; } })(), true);
+  const mark = log.length;
+  process.env.EBAY_ENV = "sandbox";
+  check("an eBay call is refused before any request is made", [await ebayFetch("T", "GET", "/x").then(() => "sent", (e) => e instanceof SandboxRefusedError), log.length - mark], [true, 0]);
+  delete process.env.EBAY_ENV;
+  if (keep.v === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = keep.v;
+
+  // Sandbox mode (allowed here: local DB) never deletes a seller's link, even on a 400 refresh; production mode still does.
+  const u = await seller("GB", "BUSINESS");
+  const linked = async () => Boolean(await db.prepare("SELECT 1 AS one FROM ebay_tokens WHERE user_id = ?").get(u.id));
+  await db.prepare("UPDATE ebay_tokens SET access_expires_at = 0 WHERE user_id = ?").run(u.id);
+  world.tokenStatus = 400;
+  process.env.EBAY_ENV = "sandbox";
+  const sbErr = await getUserAccessToken(u.id).catch((e) => e);
+  check("sandbox + 400 on refresh: not connected, but the link row is still there", [sbErr instanceof EbayNotConnectedError, await linked()], [true, true]);
+  await db.prepare("UPDATE ebay_tokens SET refresh_expires_at = 1 WHERE user_id = ?").run(u.id);
+  check("sandbox + expired refresh token: null, link kept", [await getUserAccessToken(u.id), await linked()], [null, true]);
+  await db.prepare("UPDATE ebay_tokens SET account_type = NULL, registration_marketplace = NULL WHERE user_id = ?").run(u.id);
+  const idBefore = log.filter((e) => e.kind === "identity").length;
+  await refreshEbayIdentityIfMissing(u.id);
+  check("sandbox: the identity refresh asks nobody and writes nothing", [log.filter((e) => e.kind === "identity").length - idBefore, (await getEbayAccountFacts(u.id)).accountType], [0, null]);
+  delete process.env.EBAY_ENV;
+  await db.prepare("UPDATE ebay_tokens SET refresh_expires_at = ? WHERE user_id = ?").run(Date.now() + DAY, u.id);
+  const prodErr = await getUserAccessToken(u.id).catch((e) => e);
+  check("production mode + 400 on refresh still drops the dead link (unchanged behaviour)", [prodErr instanceof EbayNotConnectedError, await linked()], [true, false]);
+  world.tokenStatus = 200;
+  if (keep.e === undefined) delete process.env.EBAY_ENV; else process.env.EBAY_ENV = keep.e;
+  if (keep.t === undefined) delete process.env.TURSO_DATABASE_URL; else process.env.TURSO_DATABASE_URL = keep.t;
+}
+
+console.log("A stale market price refuses a local listing");
+{
+  const u = await seller("GB", "BUSINESS");
+  const old = await newCard(u.id, { market: 5, endAgo: 8 });
+  const mark = ebayCalls().length;
+  const err = await pushDraft(u.id, draftFor(old)).catch((e) => e);
+  check("last point 8 days old: refused with a plain 409 naming the date, nothing sent", [err instanceof EbaySellError, err.status, /from \d{4}-\d{2}-\d{2}, too old/.test(err.message), since(mark).length], [true, 409, true, 0]);
+  const week = await newCard(u.id, { market: 5, endAgo: 6 });
+  check("6 days old is still current (same 7-day rule as the client)", (await marketValueUsd(await getCardForUser(week.id, u.id))) !== null, true);
+  const typedOld = await newCard(u.id, { market: 5, endAgo: 30, locked: true, price: 9 });
+  check("a price the seller typed does not depend on the market series", (await pushDraft(u.id, draftFor(typedOld)).catch((e) => e)).offerId !== undefined, true);
+  const quote = await quoteCardForSite(u.id, await getCardForUser(old.id, u.id));
+  check("the editor's server quote carries the same message", [quote.local, /too old/.test(quote.error ?? "")], [true, true]);
+}
+
+console.log("Offer id and site are written together");
+{
+  const u = await seller("GB", "BUSINESS");
+  const c = await newCard(u.id, { market: 5 });
+  const bad = await setCardEbayListing(c.id, u.id, { sku: "s", offerId: "OF-X", pushedAt: 1, market: { marketplace: "EBAY_GB", currency: "GBP", priceLocal: {}, priceUsd: null } }).catch((e) => e);
+  const row = await db.prepare("SELECT ebay_offer_id, ebay_marketplace, list_price_local FROM cards WHERE id = ?").get(c.id);
+  check("a failure writing the site rolls the offer id back too (a GB offer can never sit recorded as US)", [bad instanceof Error, row.ebay_offer_id, row.ebay_marketplace], [true, null, null]);
+  const ok = await pushDraft(u.id, draftFor(c));
+  const row2 = await db.prepare("SELECT ebay_offer_id, ebay_marketplace, list_currency FROM cards WHERE id = ?").get(c.id);
+  check("a normal push records offer id and site together", [row2.ebay_offer_id === ok.offerId, row2.ebay_marketplace, row2.list_currency], [true, "EBAY_GB", "GBP"]);
+}
+
+console.log("Alerts come back once a local card is no longer live");
+{
+  const u = await seller("GB", "BUSINESS");
+  const c = await newCard(u.id, { market: 20 });
+  await db.prepare("UPDATE cards SET status = 'listed', ebay_marketplace = 'EBAY_GB', alert_price = 5, listed_at = ? WHERE id = ?").run(Date.now() - DAY, c.id);
+  const sent = [];
+  const deps = { configured: () => true, send: async (email, hits) => { sent.push(...hits.filter((h) => h.kind === "target")); }, push: async () => {} };
+  await sweepCardAlerts(Date.now(), deps);
+  check("live on eBay UK: no price alert", sent.filter((h) => h.name === "Charizard").length, 0);
+  await db.prepare("UPDATE cards SET status = 'ready' WHERE id = ?").run(c.id);
+  await sweepCardAlerts(Date.now(), deps);
+  check("withdrawn back to a draft (site still on record): the alert fires", sent.filter((h) => h.name === "Charizard").length, 1);
+}
+
+console.log("An unpublished offer follows the seller's current site");
+{
+  const u = await seller("GB", "BUSINESS");
+  await setSetting(EBAY_LOCAL_MARKETS_KEY, "0");
+  const c = await newCard(u.id, { market: 20 });
+  const first = await pushDraft(u.id, draftFor(c, 20));
+  check("switch off: the draft is a US offer", [(await getCardForUser(c.id, u.id)).ebayMarketplace, world.offers.get(first.offerId).marketplaceId], [null, "EBAY_US"]);
+  await setSetting(EBAY_LOCAL_MARKETS_KEY, "1");
+  const mark = ebayCalls().length;
+  const err = await publishDraft(u.id, c.id, {}).catch((e) => e);
+  check("go-live: publishing the stale US draft is refused with needs push (client re-pushes), nothing published", [err instanceof EbayPublishNeedsError, err.needs, world.offers.get(first.offerId).status, since(mark).filter((e) => e.path.endsWith("/publish")).length], [true, "push", "UNPUBLISHED", 0]);
+  world.rejectDelete = true;
+  const refused = await pushDraft(u.id, draftFor(c, 20)).catch((e) => e);
+  check("if eBay refuses to delete the stale offer, nothing changes and the seller hears why", [refused instanceof EbaySellError, (await getCardForUser(c.id, u.id)).ebayOfferId === first.offerId, world.offers.has(first.offerId)], [true, true, true]);
+  world.rejectDelete = false;
+  const mark2 = ebayCalls().length;
+  const second = await pushDraft(u.id, draftFor(c, 20));
+  const calls = since(mark2);
+  const del = calls.find((e) => e.method === "DELETE");
+  const after = await getCardForUser(c.id, u.id);
+  check("re-push: the stale US offer is deleted on EBAY_US, a new one made on EBAY_GB", [del.path.endsWith(`/offer/${first.offerId}`), del.headers["X-EBAY-C-MARKETPLACE-ID"], world.offers.has(first.offerId), world.offers.get(second.offerId).marketplaceId, after.ebayOfferId === second.offerId, after.ebayMarketplace], [true, "EBAY_US", false, "EBAY_GB", true, "EBAY_GB"]);
+  const pub = await publishDraft(u.id, c.id, { shipFrom: { postalCode: "SW1A 1AA", country: "GB" } });
+  check("and it publishes on ebay.co.uk", pub.listingUrl.startsWith("https://www.ebay.co.uk/itm/"), true);
+  // A PUBLISHED US listing is never moved.
+  await setSetting(EBAY_LOCAL_MARKETS_KEY, "0");
+  const live = await newCard(u.id, { market: 20 });
+  await pushDraft(u.id, draftFor(live, 20));
+  await publishDraft(u.id, live.id, { shipFrom: { postalCode: "10001", country: "US" } });
+  await setSetting(EBAY_LOCAL_MARKETS_KEY, "1");
+  const mark3 = ebayCalls().length;
+  await pushDraft(u.id, draftFor(live, 20));
+  const c3 = since(mark3);
+  check("a published US listing stays pinned to eBay US on a re-push: no delete, EBAY_US headers", [c3.some((e) => e.method === "DELETE"), c3.every((e) => e.headers["X-EBAY-C-MARKETPLACE-ID"] === "EBAY_US")], [false, true]);
+}
+
+console.log("FX days: cached per currency + day, one call per pass, NaN dates deferred");
+{
+  const u = await seller("GB", "BUSINESS");
+  const day = daysAgo(2); // recent: must be cached too
+  world.fxDays.set(day, { GBP: 0.8, CAD: 1.3, EUR: 0.9, AUD: 1.5, NZD: 1.7 });
+  const calls = () => log.filter((e) => e.kind === "fx" && e.url.includes(day)).length;
+  const n0 = calls();
+  const a = await fxRateOnDay("GBP", day);
+  const b = await fxRateOnDay("GBP", day);
+  const c = await fxRateOnDay("EUR", day);
+  check("a recent day is cached by currency + day: one Frankfurter call fills every currency", [a, b, c, calls() - n0], [0.8, 0.8, 0.9, 1]);
+  world.fxDays.set(day, { GBP: 0.5, CAD: 1, EUR: 1, AUD: 1, NZD: 1 });
+  check("a later change at the source does not change a rate already used (price and fee stay on one rate)", await fxRateOnDay("GBP", day), 0.8);
+  // Two sales on a day with no rate, in one pass: one failed call, not one each.
+  const missing = daysAgo(11);
+  const s1 = await newCard(u.id, { market: 5 }), s2 = await newCard(u.id, { market: 5 });
+  for (const [cc, lid] of [[s1, "L-FX1"], [s2, "L-FX2"]]) {
+    await setCardEbayListing(cc.id, u.id, { sku: `cardflip-${cc.id}`, offerId: `O-${cc.id}`, listingId: lid, publishedAt: Date.now() });
+    await updateCard(cc.id, u.id, { status: "listed", listedAt: Date.now() - 20 * DAY });
+  }
+  const bad = (id, lid, date) => ({ orderId: id, creationDate: date, lineItems: [{ lineItemId: `${id}-1`, legacyItemId: lid, quantity: 1, lineItemCost: { value: "4.00", currency: "GBP" } }] });
+  world.orders = [bad("FX-1", "L-FX1", `${missing}T09:00:00.000Z`), bad("FX-2", "L-FX2", `${missing}T17:00:00.000Z`)];
+  const m0 = log.filter((e) => e.kind === "fx" && e.url.includes(missing)).length;
+  const r = await syncEbaySales(u.id, true);
+  check("two lines on a day with no rate: both deferred, ONE Frankfurter call", [r.deferred, log.filter((e) => e.kind === "fx" && e.url.includes(missing)).length - m0], [2, 1]);
+  // An unreadable order date in a non-USD line: deferred, the pass does not throw.
+  world.orders = [bad("FX-3", "L-FX1", "not a date")];
+  const r2 = await syncEbaySales(u.id, true).catch((e) => e);
+  check("an unparseable order date is deferred, never throws the pass", [r2 instanceof Error, r2.deferred, (await getCardForUser(s1.id, u.id)).status], [false, 1, "listed"]);
+  // Price and fee of one sale use the same rate.
+  world.fxDays.set(missing, { GBP: 0.8, CAD: 1.3, EUR: 0.9, AUD: 1.5, NZD: 1.7 });
+  world.orders = [bad("FX-1", "L-FX1", `${missing}T09:00:00.000Z`)];
+  await syncEbaySales(u.id, true);
+  world.fxDays.set(missing, { GBP: 0.4, CAD: 1, EUR: 1, AUD: 1, NZD: 1 }); // the source "changes" before the fee pass
+  world.finances.set("FX-1", { transactions: [{ transactionType: "SALE", orderId: "FX-1", totalFeeAmount: { value: "0.64", currency: "GBP" }, orderLineItems: [{ lineItemId: "FX-1-1", marketplaceFees: [{ amount: { value: "0.64", currency: "GBP" } }] }] }] });
+  await syncEbayFees(u.id, true);
+  const sold = await getCardForUser(s1.id, u.id);
+  check("sold_price and sold_fees came from the same rate (0.80): $5.00 and $0.80", [sold.soldPrice, sold.soldFees], [5, 0.8]);
 }
 
 console.log("Sandbox harness (scripts/ebay-sandbox-e2e.mjs) — never run for real here");

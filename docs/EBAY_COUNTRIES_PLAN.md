@@ -110,11 +110,35 @@ Fix what it names (typically the service code / carrier string, a missing seller
 4. Repeat for IE, AU, CA, each in its own push.
 Nothing else needs flipping. NZ is deliberately not in the list.
 
+### Review fixes (same night, after the coordinator's review)
+1. **One price rule, server is the source of truth.** `pickLocalAsk` (localPricing.ts) is the single rule: only a LOCKED row
+   (price the seller typed or picked) converts as typed; anything else is priced from the USD market value through the
+   condition and the Quick Sale pick. The editors and the confirm step no longer estimate: they show the server's own answer
+   (`/api/ebay/market?cardId=&strategy=` -> `quoteCardForSite`, the same `marketFor` + `resolveLocalAsk` the push runs), so the
+   number shown is the number listed. `test:ebaylocal` pins client `quoteLocalListing` = server for unlocked/locked x quick/full.
+2. **Sandbox vs real data.** `EBAY_ENV=sandbox` throws `SandboxRefusedError` (no request is made) on `VERCEL_ENV=production`
+   or when `TURSO_DATABASE_URL` is set, and while sandboxed `getUserAccessToken` never deletes a link and the identity refresh
+   writes nothing.
+3. **Stale market price.** A local listing priced from the market is refused when the series' last point is older than the
+   client's 7-day rule (`CURRENT_POINT_MAX_AGE_MS`), with a plain message naming the date; a typed price is unaffected.
+4. **Write order.** The offer id and the site are one transaction (`setCardEbayListing(..., { market })`).
+5. **Alerts** skip a local row only while it is `listed`; a withdrawn card gets its alerts back.
+6. **Never-published offers follow the seller's current site.** CHOSEN: re-site (not refuse). `marketFor` pins a PUBLISHED
+   offer to its stored site, but an offer with no listing id on a different site than the seller's current one is deleted
+   on its own site (an unpublished offer is invisible to buyers, free, and cannot change site) and recreated on the right
+   one at the next push; if eBay refuses the delete nothing changes and the seller sees why. `publishDraft` of such a stale
+   offer answers `needs_push` (the client already re-pushes and retries on that), so a stale US draft can never be published
+   by accident after go-live. A published US listing stays on eBay US.
+7. **Orders/fees FX.** An unreadable order date defers the line (never throws the pass). Rates are cached per currency + day
+   for every day, recent ones included, so `sold_price` and `sold_fees` of one sale use the same rate; a pass makes one
+   Frankfurter call per currency + day (a failure is remembered for the pass). Trade-off: a day fetched before the ECB prints
+   keeps that answer.
+
 ### Known limits (left as is)
 - A seller's typed price is a USD number even on a local site; the editors show the local price underneath. Sealed rows
   (priced from the feed, unlocked) are priced by the server from the market series; with no series they need a typed price.
 - The publish route still sends `shipFromCountry` "US" by default; a local site ignores it and uses the home country.
-- Listings made before a seller moved to a local site (offer on EBAY_US) stay on eBay US; an existing offer cannot change site.
+- A listing PUBLISHED before a seller's site went live stays on eBay US (an offer cannot change site); an unpublished one is re-sited (fix 6).
 - Sales sync reads orders from every site with the default marketplace header (the Fulfillment API returns the account's
   orders regardless); the first real local sale is where that is confirmed outside the sandbox.
 
