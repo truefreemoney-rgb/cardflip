@@ -153,6 +153,7 @@ subscriptions.set("sub_old", { status: "active", items: { data: [{ current_perio
 subscriptions.set("sub_new", { status: "active", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_pro" } }] } });
 await send({ type: "checkout.session.completed", data: { object: { client_reference_id: resub.id, customer: "cus_re", subscription: "sub_old" } } });
 check("checkout pins the subscription id", await subId(resub.id), "sub_old");
+subscriptions.set("sub_old", { ...subscriptions.get("sub_old"), status: "canceled" });
 await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_old", customer: "cus_re", status: "canceled" } } });
 check("old subscription deleted → canceled", (await state(resub.id)).status, "canceled");
 await send({ type: "checkout.session.completed", data: { object: { client_reference_id: resub.id, customer: "cus_re", subscription: "sub_new" } } });
@@ -161,8 +162,23 @@ const staleDelete = await send({ type: "customer.subscription.deleted", data: { 
 check("old subscription deleted AFTER the new one is active → ignored, still active", [staleDelete.status, staleDelete.json.ignored, (await state(resub.id)).status], [200, true, "active"]);
 await send({ type: "customer.subscription.updated", data: { object: { id: "sub_old", customer: "cus_re", status: "past_due", items: { data: [{ current_period_end: 1_700_000_000, price: { id: "price_std" } }] } } } });
 check("stale past_due for the old subscription → ignored (status, plan, end untouched)", await state(resub.id), { status: "active", end: 1_900_000_000_000, plan: "pro", customer: "cus_re" });
+subscriptions.set("sub_new", { ...subscriptions.get("sub_new"), status: "past_due" });
 await send({ type: "customer.subscription.updated", data: { object: { id: "sub_new", customer: "cus_re", status: "past_due", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_pro" } }] } } } });
 check("updated for the pinned subscription still applies", (await state(resub.id)).status, "past_due");
+
+// 10-01 sweep: Stripe does not order events. A retried OLD "active" .updated landing after .deleted must not revive it.
+{
+  const late = await createUser("Late", "late@example.com", "hunter22");
+  subscriptions.set("sub_late", { status: "active", items: { data: [{ current_period_end: 1_850_000_000, price: { id: "price_std" } }] } });
+  await send({ type: "checkout.session.completed", data: { object: { client_reference_id: late.id, customer: "cus_late", subscription: "sub_late" } } });
+  subscriptions.set("sub_late", { ...subscriptions.get("sub_late"), status: "canceled" });
+  await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_late", customer: "cus_late", status: "canceled" } } });
+  await send({ type: "customer.subscription.updated", data: { object: { id: "sub_late", customer: "cus_late", status: "active", items: { data: [{ current_period_end: 1_850_000_000, price: { id: "price_std" } }] } } } });
+  check("a late 'active' .updated after .deleted stays canceled (Stripe's current state wins)", (await state(late.id)).status, "canceled");
+  subscriptions.delete("sub_late");
+  const r = await send({ type: "customer.subscription.updated", data: { object: { id: "sub_late", customer: "cus_late", status: "active" } } });
+  check("…and when Stripe can't be asked, a revive answers 500 (retried) and changes nothing", [r.status, (await state(late.id)).status], [500, "canceled"]);
+}
 await send({ type: "customer.subscription.created", data: { object: { id: "sub_third", customer: "cus_re", status: "trialing", items: { data: [{ current_period_end: 2_000_000_000, price: { id: "price_std" } }] } } } });
 check("a live subscription.created for another subscription adopts it", [await subId(resub.id), (await state(resub.id)).status, (await state(resub.id)).plan], ["sub_third", "trialing", "standard"]);
 await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_third", customer: "cus_re", status: "canceled" } } });

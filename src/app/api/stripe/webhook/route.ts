@@ -128,14 +128,28 @@ export async function POST(req: NextRequest) {
       const user = customerId ? await findUserByStripeCustomer(customerId) : null;
       if (user) {
         const deleted = event.type === "customer.subscription.deleted";
-        const status = deleted ? "canceled" : typeof obj.status === "string" ? obj.status : null;
         const subscriptionId = typeof obj.id === "string" ? obj.id : null;
+        // Stripe does not order events, and a retried old .updated can land after .deleted (10-01 sweep: "active" over
+        // "canceled" gave a canceled seller their banked scans back). A live event is checked against the subscription as
+        // it is NOW; if Stripe can't say, the payload stands, except one that would revive a canceled account: that one
+        // answers 500 and Stripe retries it.
+        let now: Awaited<ReturnType<typeof fetchSubscription>> | null = null;
+        if (!deleted && subscriptionId) {
+          try {
+            now = await fetchSubscription(subscriptionId);
+          } catch (err) {
+            const revives = user.subStatus === "canceled" && typeof obj.status === "string" && ACTIVE_STATUSES.has(obj.status);
+            if (revives) throw err;
+          }
+        }
+        const status = deleted ? "canceled" : now ? now.status : typeof obj.status === "string" ? obj.status : null;
         const stored = user.stripeSubscriptionId;
         if (subscriptionId && stored && subscriptionId !== stored) {
           // A different subscription than the one we mirror. Only a live one
           // may take over (the re-subscribe case); a stale one ending must
-          // not touch a paying account.
-          if (deleted || !status || !ACTIVE_STATUSES.has(status)) {
+          // not touch a paying account. Both the event and Stripe's current state must call it live.
+          const eventLive = typeof obj.status === "string" && ACTIVE_STATUSES.has(obj.status);
+          if (deleted || !status || !ACTIVE_STATUSES.has(status) || !eventLive) {
             console.info(`stripe: ${user.email} ignored ${event.type} for ${subscriptionId} (mirroring ${stored})`);
             return NextResponse.json({ received: true, ignored: true });
           }
@@ -154,18 +168,20 @@ export async function POST(req: NextRequest) {
         // A plan switch in the billing portal arrives as .updated with the new
         // price. No price on the event = leave the plan column alone (mapping
         // "unknown" to standard would demote a Pro seller).
-        const priceId = item?.price?.id;
+        const priceId = now ? now.priceId : item?.price?.id;
         const plan = deleted || !priceId ? undefined : planForPrice(priceId);
         // Cancel-at-period-end: remember when the plan ends so the account page
         // can say banked scans pause then. Only an event that carries the
         // fields changes it (a fixture without them leaves it alone); the end
         // of the subscription clears it.
-        const endMs = end ? end * 1000 : null;
+        const endMs = now ? now.periodEnd : end ? end * 1000 : null;
         const cancelAt = deleted
           ? null
-          : "cancel_at_period_end" in obj || "cancel_at" in obj
-            ? cancelAtFrom(obj as { cancel_at_period_end?: unknown; cancel_at?: unknown }, endMs)
-            : undefined;
+          : now
+            ? now.cancelAt
+            : "cancel_at_period_end" in obj || "cancel_at" in obj
+              ? cancelAtFrom(obj as { cancel_at_period_end?: unknown; cancel_at?: unknown }, endMs)
+              : undefined;
         await setSubscription(user.id, status, endMs, plan, cancelAt);
         console.info(`stripe: ${user.email} subscription ${status}${plan ? ` (${plan})` : ""}${cancelAt ? " ending" : ""}`);
       }
