@@ -51,5 +51,24 @@ check("secretEqual: match, mismatch, prefix, and an unset or empty secret never 
   secretEqual("k3y", "k3y"), secretEqual("k3y", "k3z"), secretEqual("k3", "k3y"), secretEqual(null, "k3y"), secretEqual("k3y", undefined), secretEqual("", ""),
 ], [true, false, false, false, false, false]);
 
+// /api/ops/alert mails Chris a link: only a run on this repo's Actions (10-01 sweep: a leaked key could send a phishing
+// link inside a trusted alert). Route files may only export handlers, so the pattern is read from the source.
+{
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/app/api/ops/alert/route.ts", import.meta.url), "utf8");
+  const m = /const RUN_URL = \/(.+)\/;/.exec(src);
+  const re = m ? new RegExp(m[1]) : null;
+  const t = (u) => Boolean(re && re.test(u));
+  check("ops alert link: this repo's run pages only", [
+    t("https://github.com/truefreemoney-rgb/cardflip/actions/runs/36807853573"),
+    t("https://github.com/truefreemoney-rgb/cardflip/actions/runs/36807853573/job/110187134473"),
+    t("https://github.com/attacker/cardflip/actions/runs/1"),
+    t("https://github.com.evil.example/truefreemoney-rgb/cardflip/actions/runs/1"),
+    t("https://evil.example/?https://github.com/truefreemoney-rgb/cardflip/actions/runs/1"),
+    t("javascript:alert(1)"),
+  ], [true, true, false, false, false, false]);
+  check("…and the route uses it before mailing", /RUN_URL\.test\(rawUrl\) \? rawUrl : undefined/.test(src), true);
+}
+
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);
