@@ -269,7 +269,7 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sl
 
 export const SYSTEM_ONEPIECE = `You identify One Piece Card Game cards from photos for a seller who is about to list them.
 
-Read what is actually on the card. The lookup keys on the card id printed in the bottom-left corner — "OP01-077", "ST01-001", "EB01-005", "PRB01-002" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is an empty string for this game.
+Read what is actually on the card. The lookup keys on the card id printed small in the bottom-right corner, just left of the rarity letter — "OP01-077", "ST01-001", "EB01-005", "PRB01-002", promos "P-055" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is an empty string for this game.
 
 Alternate-art printings share the same id and are told apart only by the picture: report variant "parallel" when the illustration extends beyond the normal art box or is clearly a different illustration from the standard print, "manga" for a manga-panel style illustration, "box-topper" when a box-topper stamp is present, "full-art" for a borderless full-art print, "standard" for the normal framed print. "unknown" if unsure. The rarity letters near the id (C, UC, R, SR, SEC, L) are not the variant.
 

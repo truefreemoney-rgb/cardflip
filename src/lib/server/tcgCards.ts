@@ -248,6 +248,11 @@ export async function searchTcgCardsLocal(
     wantedNumber = normalizeNumber(bare);
     const split = splitOnePieceNumber(bare);
     if (split.setCode) { wantedCode = split.setCode; wantedNumber = normalizeNumber(split.number); onePieceKeyRead = split.number; }
+    // Promos print "P-055": a full key with no set in it. The read's setCode
+    // ("P") is not a catalog set (those rows sit under PRB01 / the promo
+    // group), so it must never filter — a Japanese-name P-055 found nothing
+    // (10-01 seller photo).
+    else if (/^P-\d{3,4}$/i.test(bare)) { wantedCode = "P"; onePieceKeyRead = bare.toUpperCase(); }
   }
 
   let rows: TcgRow[] = [];
@@ -278,9 +283,13 @@ export async function searchTcgCardsLocal(
   // No usable name (glare on the name band) but a full key identifies:
   // One Piece's "OP01-077" alone, or Lorcana's number + set number.
   if (rows.length === 0 && wantedNumber) {
+    // One Piece: the key is the whole identity and a reprint keeps it under
+    // another set (OP06-079 in PRB01), so the set never narrows it.
+    const bySet = game === "onepiece" && onePieceKeyRead ? null : wantedCode;
+    const key = game === "onepiece" && onePieceKeyRead ? onePieceKeyRead : printed!.number.trim();
     rows = (await db
-      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND collector_number = ? ${wantedCode ? "AND UPPER(set_code) = ?" : ""} ORDER BY set_release_date DESC LIMIT 100`)
-      .all(...(wantedCode ? [game, printed!.number.trim(), wantedCode] : [game, printed!.number.trim()]))) as unknown as TcgRow[];
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND collector_number = ? ${bySet ? "AND UPPER(set_code) = ?" : ""} ORDER BY set_release_date DESC LIMIT 100`)
+      .all(...(bySet ? [game, key, bySet] : [game, key]))) as unknown as TcgRow[];
     if (rows.length === 0 && game === "lorcana") {
       rows = (await db
         .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'lorcana' AND collector_number = ? ${printed?.setTotal ? "AND set_total = ?" : ""} ORDER BY set_release_date DESC LIMIT 100`)
@@ -291,18 +300,28 @@ export async function searchTcgCardsLocal(
 
   const wantedSub = subtitle ? fold(subtitle) : "";
   const wantedVariant = variant && variant !== "standard" ? variant : variant === "standard" ? "" : null;
+  // Some One Piece catalog rows carry the number inside the name
+  // ("Roronoa Zoro - OP10-095"); the face just says Roronoa Zoro.
+  const nameOf = (row: TcgRow) => fold(game === "onepiece" ? row.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "") : row.name);
+  // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
+  const numberOf = (row: TcgRow) => normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
+  // A shaky One Piece read whose number does name a card of the read name.
+  const shakyHit =
+    game === "onepiece" && Boolean(printed?.shaky) && needle !== "" && Boolean(wantedNumber) && rows.some((r) => nameOf(r) === needle && numberOf(r) === wantedNumber);
   const score = (row: TcgRow): number => {
-    // Some One Piece catalog rows carry the number inside the name
-    // ("Roronoa Zoro - OP10-095"); the face just says Roronoa Zoro.
-    const rowName = fold(game === "onepiece" ? row.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "") : row.name);
+    const rowName = nameOf(row);
     const exactName = needle !== "" && rowName === needle;
-    // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
-    const rowNumber = normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
+    const rowNumber = numberOf(row);
     const exactNumber = Boolean(wantedNumber) && rowNumber === wantedNumber;
     const twoOff = exactName && !exactNumber && wantedNumber && game === "onepiece" ? twoDigitsOff(wantedNumber, rowNumber) : null;
     let tier: number;
     if (exactName && exactNumber) tier = 0;
     else if (exactNumber && needle === "") tier = 0;
+    // A shaky read (unsure even after the close-up) can land on a number that
+    // exists: "OP13-118" read as "OP10-118", both a Monkey.D.Luffy SEC (10-01
+    // re-read of the 09-10 seller photo). The same name one character off
+    // comes inside the gap, so the picture confirms the number or corrects it.
+    else if (shakyHit && exactName && oneCharOff(rowNumber, wantedNumber!)) tier = 0.1;
     // Glare on a foil turns OP13-118 into OP10-018: with the name exact and
     // no printing of that name carrying the read number, the row one
     // character off is the likeliest — ahead of every other same-name row.
@@ -316,6 +335,13 @@ export async function searchTcgCardsLocal(
     // Guild" read as Buggy, 09-30 seller photo). The number's row sits just
     // behind a same-name one-digit-off row — inside the gap, the picture decides.
     else if (exactNumber && game === "onepiece" && wantedCode) tier = 0.55;
+    // Glare past two digits ("OP06-119" read as "OP06-093", 09-30 seller
+    // photo, a SEC foil): the name and the set prefix both survived. That
+    // name's cards in that set sit inside the gap behind the read key's own
+    // card (Perona OP06-093), so the picture decides — and ahead of the
+    // same name in every other set when the read key names nothing.
+    // (Not promos: "P" is no set — every P-0xx of a name would crowd in.)
+    else if (exactName && game === "onepiece" && wantedCode && wantedCode !== "P" && wantedNumber && rowNumber.split("-")[0] === wantedNumber.split("-")[0]) tier = 0.65;
     else if (exactName) tier = 1;
     else if (exactNumber) tier = 2;
     else tier = 3;

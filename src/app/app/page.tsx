@@ -430,6 +430,7 @@ export default function AppPage() {
                   copyrightYear: read.copyrightYear ?? null,
                   subtitle: read.subtitle ?? null,
                   variant: read.variant ?? null,
+                  shaky: read.secondLook === "low-confidence",
                 }
               : null;
 
@@ -612,8 +613,13 @@ export default function AppPage() {
             // One Piece: one number in several printings, same tap ("Which printing?", 09-30).
             const foils =
               next.game === "yugioh" ? foilChoices(card, matches).length : next.game === "onepiece" ? printingChoices(card, matches).length : 0;
+            // Lorcana / One Piece / Yu-Gi-Oh! catalogs are English-only: a
+            // Japanese One Piece card carries the same number and matches the
+            // English card at the English price (10-01: 8 of 155 eBay seller
+            // photos were Japanese prints, most titled as plain or "English").
+            const foreignPrint = (next.game === "onepiece" || next.game === "lorcana" || next.game === "yugioh") && language !== "en";
             patchItem(next.id, {
-              status: lowConfidence || ambiguous || numberMismatch || foils > 1 ? "review" : "ready",
+              status: lowConfidence || ambiguous || numberMismatch || foreignPrint || foils > 1 ? "review" : "ready",
               candidates: matches,
               card,
               // 1st Edition is its own catalog card (the "-1st" twin); the
@@ -630,9 +636,11 @@ export default function AppPage() {
                   ? `read #${printed!.number}, closest printing is #${card.number}`
                   : ambiguous
                     ? `${matches.length} printings matched, no number read`
-                    : foils > 1
-                      ? `comes in ${foils} foils, pick yours`
-                      : null,
+                    : foreignPrint
+                      ? `${language === "ja" ? "Japanese" : "Chinese"} card, the price shown is for the English print`
+                      : foils > 1
+                        ? `comes in ${foils} foils, pick yours`
+                        : null,
             });
 
             // Vision may already have graded the card, so read the condition

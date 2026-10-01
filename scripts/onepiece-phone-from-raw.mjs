@@ -13,7 +13,9 @@ import { DatabaseSync } from "node:sqlite";
 const root = process.cwd();
 const DIR = path.join(root, "backups/onepiece-phone");
 const LIST = path.join(DIR, "batch.json");
-const raw = JSON.parse(fs.readFileSync(path.join(DIR, "raw2.json"), "utf8"));
+// --raw raw3.json: a later scrape (10-01: 40 never-seen cards — commons, leaders, events, promos, starters).
+const rawArg = process.argv.indexOf("--raw");
+const raw = JSON.parse(fs.readFileSync(path.join(DIR, rawArg > -1 ? process.argv[rawArg + 1] : "raw2.json"), "utf8"));
 const batch = JSON.parse(fs.readFileSync(LIST, "utf8"));
 const have = new Set(batch.map((p) => p.number));
 const mirror = new DatabaseSync(path.join(root, "data/cardflip.db"), { readOnly: true });

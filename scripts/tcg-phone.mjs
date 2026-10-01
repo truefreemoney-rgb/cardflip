@@ -184,7 +184,7 @@ const UNREADABLE_CONFIDENCE = 0.2;
 // The scanner's walk (same as tcg-panel.mjs).
 async function lookup(read) {
   if (!read || (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE)) return [];
-  let printed = read.cardNumber ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: false } : null;
+  let printed = read.cardNumber ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: false, shaky: read.secondLook === "low-confidence" } : null;
   if (game === "onepiece" && printed) {
     const s = splitOnePieceNumber(printed.number);
     if (s.setCode) printed = { ...printed, number: s.number, setCode: s.setCode };

@@ -51,6 +51,12 @@ export interface PrintedNumber {
   subtitle?: string | null;
   /** Lorcana / One Piece: the printing the read saw — "standard", "parallel", "enchanted", "alt-art", … */
   variant?: string | null;
+  /**
+   * One Piece: the read stayed unsure after its close-up (secondLook
+   * "low-confidence") — gold key on a gold SEC foil. The number is a guess
+   * that may still name a real card, so the picture confirms it.
+   */
+  shaky?: boolean;
 }
 
 /**

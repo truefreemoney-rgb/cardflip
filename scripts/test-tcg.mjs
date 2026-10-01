@@ -85,6 +85,11 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-crossguild", "onepiece", "Cross Guild", "", "OP09", "Emperors in the New World", "OP09-057", null, "2024-12-01", "R", "", 1, null],
   ["op-crossguild-p1", "onepiece", "Cross Guild", "", "OP09", "Emperors in the New World", "OP09-057", null, "2024-12-01", "R", "manga", 60, null],
   ["op-buggy-051-p1", "onepiece", "Buggy", "", "OP09", "Emperors in the New World", "OP09-051", null, "2024-12-01", "SR", "alt-art", 20, null],
+  // Three digits lost to glare ("OP06-119" read as "OP06-093", 09-30 seller photo): name + set prefix survive.
+  ["op-sanji-119", "onepiece", "Sanji", "", "OP06", "Wings of the Captain", "OP06-119", null, "2024-03-01", "SEC", "", 5, null],
+  ["op-sanji-119-p1", "onepiece", "Sanji", "", "OP06", "Wings of the Captain", "OP06-119", null, "2024-03-01", "SEC", "alt-art", 32, null],
+  ["op-sanji-op01", "onepiece", "Sanji", "", "OP01", "Romance Dawn", "OP01-013", null, "2022-12-01", "R", "alt-art", 9, null],
+  ["op-perona-093-p1", "onepiece", "Perona", "", "OP06", "Wings of the Captain", "OP06-093", null, "2024-03-01", "SR", "alt-art", 15, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -133,6 +138,21 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
   const cg = await searchTcgCardsLocal("onepiece", "Buggy", pn("OP09-057", null, "OP09"), 8, null, "full-art");
   check("One Piece: the read key's own card joins the candidates and reaches the picture next to the same-name digit-off row",
     tiebreakIds(cg, "onepiece").map((id) => id.replace(/-p1$/, "")).sort(), ["op-buggy-051", "op-crossguild"]);
+  const sj = await searchTcgCardsLocal("onepiece", "Sanji", pn("OP06-093", null, "OP06"), 8, null, "parallel");
+  check("One Piece: three digits lost — that name's card in the read set reaches the picture next to the read key's card",
+    tiebreakIds(sj, "onepiece"), ["op-perona-093-p1", "op-sanji-op01", "op-sanji-119-p1"]);
+  check("One Piece: a key that names nothing — the read set's card of that name leads the other sets",
+    await top("onepiece", "Sanji", pn("OP06-240", null, "OP06"), null, "parallel"), "op-sanji-119-p1");
+  const shaky = await searchTcgCardsLocal("onepiece", "Monkey.D.Luffy", { ...pn("OP10-118", null, "OP10"), shaky: true }, 8, null, "parallel");
+  check("One Piece: a shaky read that names a real card still leads with it", shaky[0]?.id, "op-luffy-10-p1");
+  check("One Piece: a shaky read — the same name one character off reaches the picture",
+    tiebreakIds(shaky, "onepiece"), ["op-luffy-10-p1", "op-luffy-13-p1", "op-luffy-10-111"]);
+  check("One Piece: a firm read of the same key asks the picture only about its own printings",
+    tiebreakIds(await searchTcgCardsLocal("onepiece", "Monkey.D.Luffy", pn("OP10-118", null, "OP10"), 8, null, "parallel"), "onepiece").every((id) => id.startsWith("op-luffy-10") && id !== "op-luffy-10-111"));
+  check("One Piece: a promo key with a name the catalog does not hold (Japanese print) still finds the card",
+    await top("onepiece", "モンキー・D・ルフィ", pn("P-084", null, "P"), null, "parallel"), "op-buggy-p084");
+  check("One Piece: a key alone finds its reprint filed under another set",
+    await top("onepiece", "", pn("ST16-004", null, "ST16"), null, "full-art"), "op-shanks-sp");
   check("One Piece: base vs parallel of one number still sends #1 and #2",
     tiebreakIds(await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("OP01-001"), 5, null, null), "onepiece").length, 2);
   check("One Piece key drops the printing suffix", [onePieceKey("OP13-118_p2"), onePieceKey("p-030_r1"), onePieceKey("OP04-056_p2#2072"), onePieceKey("OP01-001")], ["OP13-118", "P-030", "OP04-056", "OP01-001"]);
