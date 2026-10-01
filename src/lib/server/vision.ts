@@ -1147,8 +1147,14 @@ export async function tiebreakByPicture(
 ): Promise<TiebreakResult> {
   const zero: VisionUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   ids = ids.slice(0, LETTERS.length);
-  const pictures = await Promise.all(ids.map((id) => catalogPicture(id, game)));
-  if (ids.length < 2 || pictures.some((p) => !p)) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
+  // A candidate with no catalog picture drops out; the rest are still compared
+  // (10-01: one pictureless promo among four cancelled the whole check and
+  // the right card, which was in the list, never got looked at).
+  const loaded = await Promise.all(ids.map(async (id) => ({ id, picture: await catalogPicture(id, game) })));
+  const usable = loaded.filter((c) => c.picture);
+  if (usable.length < 2) return { id: null, pick: null, confidence: 0, reason: "catalog picture missing", usage: zero };
+  ids = usable.map((c) => c.id);
+  const pictures = usable.map((c) => c.picture);
   const letters = LETTERS.slice(0, ids.length);
   const catalogBlocks = pictures.flatMap((p, i) => [
     { type: "text" as const, text: `Catalog printing ${letters[i]}:` },
