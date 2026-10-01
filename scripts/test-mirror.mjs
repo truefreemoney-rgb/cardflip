@@ -183,6 +183,12 @@ const seed2 = [
   ["sv06.5-099","Basic Metal Energy","sv06.5","Shrouded Fable", "099", "2024-08-02", 64, "SFA"],
   ["bw11-RC1", "Snivy",             "bw11",  "Legendary Treasures","RC1","2013-11-06", 113, "LTR"],
   ["2021swsh-5","Snivy",            "2021swsh","McDonald's Collection 2021","5","2021-02-09", 25, ""],
+  ["dp1-121",  "Infernape",         "dp1",   "Diamond & Pearl", "121", "2007-05-23", 130, ""],
+  ["dp1-5",    "Infernape",         "dp1",   "Diamond & Pearl", "5",   "2007-05-23", 130, ""],
+  ["dp5-22",   "Infernape",         "dp5",   "Majestic Dawn",   "22",  "2008-05-21", 100, ""],
+  ["pl2-108",  "Infernape E4 LV.X", "pl2",   "Rising Rivals",   "108", "2009-05-16", 111, ""],
+  ["pl1-124",  "Giratina LV.X",     "pl1",   "Platinum",        "124", "2009-02-11", 127, ""],
+  ["pl1-10",   "Giratina",          "pl1",   "Platinum",        "10",  "2009-02-12", 127, ""],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed2) {
   await db.prepare(
@@ -214,6 +220,15 @@ check("'Basic Metal Energy' read finds the mirror's 'Metal Energy' by number",
   await top("Basic Metal Energy", pn("024", null, { setCode: "SVE" })), "sve-024");
 check("'Basic Metal Energy' with the Shrouded Fable number still finds that card",
   await top("Basic Metal Energy", pn("099", 64)), "sv06.5-099");
+// 10-01 seller photos: the Diamond & Pearl era LV.X rows carry the bare name.
+check("'Infernape LV.X' with no number finds the mirror's bare 'Infernape'",
+  await top("Infernape LV.X", pn("", null, { copyrightYear: 2007 })), "dp1-121");
+check("plain 'Infernape' with no number is untouched: newest printing",
+  await top("Infernape", pn("", null)), "dp5-22");
+check("'Infernape LV.X' with its number finds dp1-121",
+  await top("Infernape LV.X", pn("121", 130)), "dp1-121");
+check("a Platinum LV.X row that keeps the suffix still wins on its own name",
+  await top("Giratina LV.X", pn("", null, { copyrightYear: 2009 })), "pl1-124");
 check("lettered sub-series total (RC1/25) is not a contradiction of the set count (113)",
   await top("Snivy", pn("RC1", 25)), "bw11-RC1");
 // 10-01 seller photos: Aquapolis Azumarill prints "H4/H32"; the mirror files it as H04 in a 147-card set.

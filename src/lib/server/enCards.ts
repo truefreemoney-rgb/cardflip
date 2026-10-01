@@ -239,6 +239,10 @@ export async function searchEnglishCardsLocal(
   // to a different set, 09-10 panel) \u2014 both spellings are the same name.
   const needles = [needle];
   if (/^basic .+ energy$/.test(needle)) needles.push(needle.replace(/^basic /, ""));
+  // The Diamond & Pearl era LV.X cards (dp1 to dp7, DP promos) sit in the
+  // mirror under the bare name, Platinum onward keeps the suffix. With the
+  // number unread "Infernape LV.X" found nothing (10-01 seller photos, dp1-121).
+  if (/ lv\.? ?x$/.test(needle)) needles.push(needle.replace(/ lv\.? ?x$/, ""));
   let rows: EnCardRow[] = [];
   for (const n of needles) {
     const found = (await db
@@ -282,8 +286,21 @@ export async function searchEnglishCardsLocal(
       : { cards: [], releaseDates: new Map() };
   }
 
+  // A set that files its LV.X under the full name (Platinum onward) must not
+  // let the bare-name card of that set count as the same name.
+  const lvX = / lv\.? ?x$/.test(needle);
+  const setsWithFullName = new Set(lvX ? rows.filter((r) => normalizeName(r.name) === needle).map((r) => r.set_name) : []);
+
+  // Under the bare name the set's LV.X is the higher-numbered of two same-name
+  // cards (dp1-5 Infernape, dp1-121 Infernape LV.X): only a row with a
+  // lower-numbered twin in its set is known to be the LV.X.
+  const numeric = (r: EnCardRow) => (/^\d+$/.test(r.local_id) ? Number(r.local_id) : NaN);
+  const knownLvX = (row: EnCardRow) =>
+    rows.some((r) => r.set_name === row.set_name && normalizeName(r.name) === normalizeName(row.name) && numeric(r) < numeric(row));
+
   const score = (row: EnCardRow): number => {
-    const exactName = needles.includes(normalizeName(row.name));
+    const rowName = normalizeName(row.name);
+    const exactName = rowName === needle || (needles.includes(rowName) && !setsWithFullName.has(row.set_name));
     // Lettered sub-series (RC1/RC25, TG01/TG30, SH1/SH12, GG16/GG70) print
     // their own denominator, not the set's official count, so a read total
     // that disagrees with the set count is expected there, not a contradiction
@@ -340,6 +357,7 @@ export async function searchEnglishCardsLocal(
       ART_PENALTY[frame] +
       SETNAME_PENALTY[setName] +
       YEAR_PENALTY[year] +
+      (lvX && rowName !== needle && !knownLvX(row) ? 1 : 0) +
       printingPenalty(row.id, firstEdition)
     );
   };
