@@ -37,10 +37,12 @@ export const PUBLIC_CARD_CAP = 500;
 const IMAGE_HOSTS = new Set([
   "assets.tcgdex.net", // Pokémon
   "images.pokemontcg.io", // Pokémon
+  "static.tcgcollector.com", // Pokémon trainer kits (fill-images.mjs)
   "cards.scryfall.io", // Magic
   "tcgplayer-cdn.tcgplayer.com", // Yu-Gi-Oh, One Piece, 1st Edition twins, sealed
   "cards.lorcast.io", // Lorcana
   "optcgapi.com", // One Piece
+  "en.onepiece-cardgame.com", // One Piece promos only Bandai's card list shows (fill-missing-pictures.mjs)
 ]);
 
 export function publicImageUrl(u: string): string {

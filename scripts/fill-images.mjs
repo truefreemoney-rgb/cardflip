@@ -37,7 +37,7 @@ if (prodFlag) {
 }
 
 const missing = (await local.execute(
-  "SELECT id, name, set_name, local_id, set_card_count_official AS total FROM en_cards WHERE image_url = '' ORDER BY set_release_date DESC, local_id",
+  "SELECT id, name, set_id, set_name, local_id, set_card_count_official AS total FROM en_cards WHERE image_url = '' ORDER BY set_release_date DESC, local_id",
 )).rows;
 console.log(`${missing.length} cards without art`);
 
@@ -86,6 +86,7 @@ const TCGCSV_GROUPS = {
   "SWSH Black Star Promos": [2545],
   "HGSS Black Star Promos": [1453],
   "Celebrations Classic Collection": [2931],
+  "30th Classic Collection": [24837],
   "Yellow A Alternate": [1938],
   "XY trainer Kit (Pikachu Libre)": [1796],
   "XY trainer Kit (Suicune)": [1796],
@@ -104,6 +105,18 @@ const TCGCSV_GROUPS = {
   "SM trainer Kit (Lycanroc)": [2069],
   "SM trainer Kit (Alolan Raichu)": [2069],
 };
+// Cards the name + number pairing cannot reach, paired by eye with their
+// TCGplayer product (10-01): a two-part LEGEND, "Palkia" sold as "Palkia
+// LV.X", "Unown V - SWSH300", two prints of one alternate-art number.
+const HAND_PRODUCTS = {
+  "30th-c-019": 716199, // Darkrai & Cresselia Legend (Top)
+  "30th-c-020": 716200, // Darkrai & Cresselia Legend (Bottom)
+  "30th-c-022": 716203, // Palkia LV.X
+  "swshp-SWSH300": 505968,
+  "xya-107a": 133814,
+  "xya-92a": 133815,
+  "miscp-001": 108589, // Ancient Mew
+};
 const groupCache = new Map();
 async function groupProducts(groupId) {
   if (!groupCache.has(groupId)) {
@@ -121,17 +134,37 @@ async function groupProducts(groupId) {
   return groupCache.get(groupId);
 }
 const normNum = (n) => String(n ?? "").split("/")[0].trim().replace(/^([A-Za-z]*)0+(?=\d)/, "$1").toLowerCase();
-const normName = (n) => String(n ?? "").replace(/\s*[-–]\s*\d+\s*$/, "").replace(/\s*\([^)]*\)\s*$/, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+// "Pokémon Collector" = "Pokemon Collector (#22)", "Umbreon ☆" = "Umbreon Star",
+// "Grass Energy" = "Basic Grass Energy", "Hau (#19) (Lycanroc Half-Deck)" = "Hau" (10-01).
+const normName = (n) => String(n ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/☆/g, " star").replace(/\s*[-–]\s*\d+\s*$/, "").replace(/(\s*\([^)]*\))+\s*$/, "").replace(/^basic\s+/i, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 async function tcgcsvCandidates(card) {
   const groups = TCGCSV_GROUPS[card.set_name];
   if (!groups) return [];
   const products = (await Promise.all(groups.map(groupProducts))).flat();
   const num = normNum(card.local_id);
   const name = normName(card.name);
-  let hits = products.filter((p) => p.number && normNum(p.number) === num);
-  if (hits.length > 1) hits = hits.filter((p) => normName(p.name) === name);
-  if (hits.length === 0) hits = products.filter((p) => !p.number && normName(p.name) === name);
+  // Number AND name: the number alone paired Genesect EX 004 with Charizard
+  // 4/102 in the 30th Classic Collection group (10-01).
+  let hits = products.filter((p) => p.number && normNum(p.number) === num && normName(p.name) === name);
+  // No number in common (a reprint set keeps the original card's number at
+  // TCGplayer): the name alone, when it is one product or none of them is
+  // numbered. Several numbered products of one name are different cards.
+  if (hits.length === 0) {
+    const named = products.filter((p) => normName(p.name) === name);
+    if (named.length === 1 || named.every((p) => !p.number)) hits = named;
+  }
   return hits.map((p) => ({ url: `https://tcgplayer-cdn.tcgplayer.com/product/${p.id}_in_1000x1000.jpg`, id: p.id }));
+}
+
+// 5. TCG Collector scans for the XY / SM trainer-kit half-decks (10-01):
+// TCGplayer lists those products with no picture (its CDN answers 403) and
+// neither TCGdex nor pokemontcg.io has them. One hand-read hash per card in
+// scripts/trainer-kit-pictures.json, keyed by set_id and number.
+const KIT_PICTURES = JSON.parse(fs.readFileSync(path.join(root, "scripts/trainer-kit-pictures.json"), "utf8"));
+function kitCandidates(card) {
+  const hashes = new Map(String(KIT_PICTURES[card.set_id] ?? "").split(" ").filter(Boolean).map((e) => e.split(":")));
+  const hash = hashes.get(String(card.local_id)) ?? hashes.get(String(Number(card.local_id)));
+  return hash ? [`https://static.tcgcollector.com/content/images/${hash.slice(0, 2)}/${hash.slice(2, 4)}/${hash.slice(4, 6)}/${hash}.jpg`] : [];
 }
 
 async function imageOk(url) {
@@ -164,7 +197,7 @@ for (const card of missing) {
   }
   // 1. TCGplayer
   let done = false;
-  for (const pid of products.get(card.id) ?? []) {
+  for (const pid of [...(products.get(card.id) ?? []), ...(HAND_PRODUCTS[card.id] ? [HAND_PRODUCTS[card.id]] : [])]) {
     const url = `https://tcgplayer-cdn.tcgplayer.com/product/${pid}_in_1000x1000.jpg`;
     if (await imageOk(url)) {
       await setImage(card.id, url);
@@ -192,6 +225,18 @@ for (const card of missing) {
       if (await imageOk(c.url)) {
         await setImage(card.id, c.url);
         console.log(`  tcgcsv ${card.id} ${card.name} (${card.set_name}) ← ${c.id}`);
+        filled++;
+        done = true;
+        break;
+      }
+    }
+  }
+  // 5. TCG Collector, trainer kits only
+  if (!done) {
+    for (const url of kitCandidates(card)) {
+      if (await imageOk(url)) {
+        await setImage(card.id, url);
+        console.log(`  kit    ${card.id} ${card.name} (${card.set_name})`);
         filled++;
         done = true;
         break;

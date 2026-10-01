@@ -42,7 +42,7 @@ const upsert = db.prepare(`INSERT INTO tcg_cards (id, game, name, subtitle, set_
   VALUES (?, 'onepiece', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET name = excluded.name, subtitle = excluded.subtitle, set_code = excluded.set_code, set_name = excluded.set_name,
     collector_number = excluded.collector_number, set_total = excluded.set_total, rarity = excluded.rarity, variant = excluded.variant,
-    ref_image_url = excluded.ref_image_url, price_usd = excluded.price_usd, price_usd_foil = excluded.price_usd_foil, synced_at = excluded.synced_at`);
+    ref_image_url = CASE WHEN excluded.ref_image_url = '' THEN tcg_cards.ref_image_url ELSE excluded.ref_image_url END, price_usd = excluded.price_usd, price_usd_foil = excluded.price_usd_foil, synced_at = excluded.synced_at`);
 
 // "Perona (Parallel)" → variant "parallel"; "(Box Topper)" → "box-topper";
 // "(Alternate Art)" / "(Alt Art)" → "alt-art"; "(Manga)" → "manga";
@@ -89,7 +89,8 @@ function splitVariant(name) {
 //     PROMO — its TCGplayer pairing gave promos other cards' scans.
 // --with-promos turns the feed on; without it promo rows are left as they are.
 const PROMO_SET_CODE = "PROMO";
-const promoPicture = db.prepare("UPDATE tcg_cards SET image_url = ? WHERE id = ?");
+// A blank feed picture never wipes one fill-missing-pictures.mjs found elsewhere (10-01).
+const promoPicture = db.prepare("UPDATE tcg_cards SET image_url = ?1 WHERE id = ?2 AND ?1 <> ''");
 function promoVariant(cardName, imageId, key) {
   const { variant } = splitVariant(cardName);
   if (variant) return variant.replace(/^-+|-+$/g, "");
