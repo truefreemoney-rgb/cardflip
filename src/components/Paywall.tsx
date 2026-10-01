@@ -3,25 +3,25 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Logo from "@/components/Logo";
-import Spinner from "@/components/Spinner";
+import PlanCard from "@/components/PlanCard";
 import { useSession } from "@/components/SessionProvider";
 import { logout } from "@/lib/client/auth";
-import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
-import { PRICE, PRICE_LINE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { openBillingPortal } from "@/lib/client/accountApi";
+import { ROLLOVER_SENTENCE } from "@/lib/pricing";
 
 /**
  * What a signed-in seller without an active subscription sees on every app
- * page (paid-only from 09-04). One sentence, one button (Chris, 09-04: build
- * for the average user — they already used the product, no feature list).
- * Pro is a quiet line under the button, never a second card. A lapsed
- * subscriber gets the billing portal as a text link so a failed card is one
- * tap to fix. Admins never land here (SubscriptionGate lets them through).
+ * page (paid-only from 09-04). Chris, 10-01: "it should look more like our
+ * pricing page", so the wall is the pricing page's own plan cards (CardFlip,
+ * Pro, the Scan Pack strip) without the free card, each button opening its
+ * checkout directly. A lapsed subscriber also gets the billing portal as a
+ * text link so a failed card is one tap to fix. Admins never land here
+ * (SubscriptionGate lets them through).
  */
 export default function Paywall() {
   const router = useRouter();
   const { user, refresh } = useSession();
-  const [busy, setBusy] = useState<"checkout" | "pro" | "pack" | "portal" | "refresh" | null>(null);
+  const [busy, setBusy] = useState<"portal" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "Ended" only when Stripe says the plan is gone. A trial override on a
   // subscribed account is still a trial, so it gets the trial copy.
@@ -29,11 +29,11 @@ export default function Paywall() {
   // Plan scans banked before the plan ended: paused, not lost (they come back on resubscribe).
   const paused = user?.scans?.frozen ?? 0;
 
-  async function go(kind: "checkout" | "pro" | "pack" | "portal", fn: () => Promise<string>) {
-    setBusy(kind);
+  async function openPortal() {
+    setBusy("portal");
     setError(null);
     try {
-      window.location.assign(await fn());
+      window.location.assign(await openBillingPortal());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setBusy(null);
@@ -44,54 +44,44 @@ export default function Paywall() {
     "text-sm text-zinc-500 underline-offset-4 transition hover:text-zinc-300 hover:underline disabled:opacity-60";
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-      <Logo />
-      <h1 className="mt-8 font-display text-3xl font-bold text-white sm:text-4xl">
-        {lapsed ? "Your subscription ended." : "You're out of scans."}
-      </h1>
-      <p className="mt-3 text-lg text-zinc-300">
-        {lapsed ? `Everything is still here. Pick it back up for ${PRICE_LINE.standard}.` : `Keep going for ${PRICE_LINE.standard}.`}
-      </p>
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">
+          {lapsed ? "Welcome Back" : "Keep Scanning"}
+        </p>
+        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-white sm:text-5xl">
+          {lapsed ? "Your subscription ended." : "You're out of scans."}
+        </h1>
+        <p className="mt-3 text-base text-zinc-400 sm:text-lg">
+          {lapsed
+            ? "Everything is still here. Pick a plan to pick it back up."
+            : "Everything you scanned is still here. Pick a plan to keep going."}
+        </p>
+      </div>
 
-      <button
-        type="button"
-        onClick={() => go("checkout", () => startCheckout("standard"))}
-        disabled={busy !== null}
-        className="sheen mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
-      >
-        {busy === "checkout" ? <Spinner className="h-4 w-4" /> : null}
-        {busy === "checkout" ? "Opening checkout…" : lapsed ? "Resubscribe" : "Subscribe"}
-      </button>
-      <p className="mt-2 text-xs text-zinc-500">
-        {SCANS.standard} scans a month. {ROLLOVER_SENTENCE} Cancel any time.
-      </p>
       {paused > 0 && (
-        <p role="status" className="mt-4 w-full rounded-lg bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+        <p role="status" className="mt-5 w-full max-w-md rounded-lg bg-emerald-400/10 px-3 py-2 text-center text-sm text-emerald-200">
           Your {paused.toLocaleString("en-US")} banked {paused === 1 ? "scan is" : "scans are"} paused. {paused === 1 ? "It comes" : "They come"} back when you resubscribe.
         </p>
       )}
 
+      <PlanCard trial={false} sessionUser={user ?? undefined} className="mt-6 w-full text-left" />
+
+      <p className="mt-4 text-center text-xs text-zinc-500">{ROLLOVER_SENTENCE} Cancel any time.</p>
+
       {error && (
-        <p role="alert" className="mt-4 w-full rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p role="alert" className="mt-4 w-full max-w-md rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm text-red-300">
           {error}
         </p>
       )}
 
-      <div className="mt-8 flex flex-col items-center gap-2">
-        <button type="button" onClick={() => go("pack", () => startCheckout("pack"))} disabled={busy !== null} className={quiet}>
-          {busy === "pack" ? "Opening Checkout…" : `No subscription? A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack}, one time.`}
+      {lapsed && (
+        <button type="button" onClick={() => void openPortal()} disabled={busy !== null} className={`mt-4 ${quiet}`}>
+          {busy === "portal" ? "Opening…" : "Fix a Failed Card"}
         </button>
-        <button type="button" onClick={() => go("pro", () => startCheckout("pro"))} disabled={busy !== null} className={quiet}>
-          {busy === "pro" ? "Opening Checkout…" : `Need more? Pro is ${SCANS.pro} scans for ${PRICE_LINE.pro}.`}
-        </button>
-        {lapsed && (
-          <button type="button" onClick={() => go("portal", openBillingPortal)} disabled={busy !== null} className={quiet}>
-            {busy === "portal" ? "Opening…" : "Fix a Failed Card"}
-          </button>
-        )}
-      </div>
+      )}
 
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-zinc-600">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-zinc-600">
         <button
           type="button"
           onClick={async () => {

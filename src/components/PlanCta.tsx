@@ -19,12 +19,16 @@ export default function PlanCta({
   plan,
   cta,
   primary,
+  sessionUser,
 }: {
   plan: "trial" | "pack" | "standard" | "pro";
   cta: React.ReactNode;
   primary: boolean;
+  /** Inside /app the session is already loaded (the out-of-scans wall): use it, so the button is never the signup link for a moment. */
+  sessionUser?: SessionUser;
 }) {
-  const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
+  const [fetched, setUser] = useState<SessionUser | null | undefined>(undefined);
+  const user = sessionUser ?? fetched;
   const [busy, setBusy] = useState(false);
   // Back from Stripe restores this page from the back-forward cache with
   // `busy` still true — the button stayed a spinner (mobile QA 09-06).
@@ -38,6 +42,7 @@ export default function PlanCta({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (sessionUser) return;
     let cancelled = false;
     fetchCurrentUser()
       .then((u) => {
@@ -49,7 +54,7 @@ export default function PlanCta({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionUser]);
 
   const cls = `mt-7 flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-center text-sm font-semibold transition ${
     primary

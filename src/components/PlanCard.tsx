@@ -1,6 +1,7 @@
 import PlanCta from "@/components/PlanCta";
 import PlanPrice from "@/components/PlanPrice";
 import { PRICING, SCANS } from "@/lib/pricing";
+import type { SessionUser } from "@/lib/client/auth";
 
 /**
  * Free trial · Scan Pack · CardFlip · Pro, as matching cards (Chris, 09-04,
@@ -77,7 +78,9 @@ function Card({
   note,
   primary,
   plan,
+  sessionUser,
 }: {
+  sessionUser?: SessionUser;
   plan: "trial" | "pack" | "standard" | "pro";
   name: string;
   sub: string;
@@ -119,29 +122,45 @@ function Card({
           ))}
         </ul>
 
-        <PlanCta plan={plan} cta={cta} primary={primary} />
+        <PlanCta plan={plan} cta={cta} primary={primary} sessionUser={sessionUser} />
         <p className="mt-3 min-h-8 text-center text-xs text-zinc-500">{note}</p>
       </div>
     </div>
   );
 }
 
-export default function PlanCard({ className = "" }: { className?: string }) {
+/**
+ * `trial={false}` drops the free card: the out-of-scans wall (Paywall.tsx)
+ * shows the same ladder to someone whose free scans are gone, and passes its
+ * loaded session so the buttons open checkout from the first paint.
+ */
+export default function PlanCard({
+  className = "",
+  trial = true,
+  sessionUser,
+}: {
+  className?: string;
+  trial?: boolean;
+  sessionUser?: SessionUser;
+}) {
   return (
     <div className={className}>
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className={`grid gap-3 ${trial ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+      {trial && (
+        <Card
+          plan="trial"
+          name="Free trial"
+          sub={`${TRIAL.scans} scans to start`}
+          price="$0"
+          per=""
+          lines={TRIAL.lines}
+          cta={`Try ${SCANS.trial} Scans Free`}
+          note="No card needed. Takes a minute to set up."
+          primary={false}
+        />
+      )}
       <Card
-        plan="trial"
-        name="Free trial"
-        sub={`${TRIAL.scans} scans to start`}
-        price="$0"
-        per=""
-        lines={TRIAL.lines}
-        cta={`Try ${SCANS.trial} Scans Free`}
-        note="No card needed. Takes a minute to set up."
-        primary={false}
-      />
-      <Card
+        sessionUser={sessionUser}
         plan="standard"
         name="CardFlip"
         sub={`${PLAN.scans} scans a month`}
@@ -153,6 +172,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         primary
       />
       <Card
+        sessionUser={sessionUser}
         plan="pro"
         name="Pro"
         sub={`${PRO.scans.toLocaleString("en-US")} scans a month`}
@@ -164,7 +184,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
         primary={false}
       />
     </div>
-    <PackStrip />
+    <PackStrip sessionUser={sessionUser} />
     </div>
   );
 }
@@ -174,7 +194,7 @@ export default function PlanCard({ className = "" }: { className?: string }) {
  * 09-26: four cards side by side was "smashed together"). Same border and
  * type as the cards; the bullets run in two columns; the button at the right.
  */
-function PackStrip() {
+function PackStrip({ sessionUser }: { sessionUser?: SessionUser }) {
   return (
     <div className="mt-3 flex flex-col gap-6 rounded-3xl border border-edge bg-surface-1 p-7 sm:p-8 md:flex-row md:items-center md:gap-8">
       <div className="md:w-52 md:shrink-0">
@@ -194,7 +214,7 @@ function PackStrip() {
         ))}
       </ul>
       <div className="-mt-7 md:w-60 md:shrink-0">
-        <PlanCta plan="pack" cta={<>Buy {SCANS.pack} Scans · <PlanPrice plan="pack" /></>} primary={false} />
+        <PlanCta plan="pack" cta={<>Buy {SCANS.pack} Scans · <PlanPrice plan="pack" /></>} primary={false} sessionUser={sessionUser} />
         <p className="mt-3 text-center text-xs text-zinc-500">Pay once. Scans never expire.</p>
       </div>
     </div>
