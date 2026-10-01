@@ -73,8 +73,21 @@ async function readJson(res: Response) {
  */
 export function afterLoginPath(fallback = "/app"): string {
   if (typeof window === "undefined") return fallback;
-  const next = new URLSearchParams(window.location.search).get("next");
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
+  return safeNextPath(new URLSearchParams(window.location.search).get("next"), window.location.origin) ?? fallback;
+}
+
+/**
+ * A same-site path, or null. 10-01 sweep: "/\evil.com" passed the old "/ but not //" test, and browsers read a backslash
+ * as a slash, so it left the site. Parsed against our own origin, the result must stay on it; tabs/newlines are refused.
+ */
+export function safeNextPath(next: string | null, origin: string): string | null {
+  if (!next || !next.startsWith("/") || /[\\\s]/.test(next)) return null;
+  try {
+    const u = new URL(next, origin);
+    return u.origin === origin ? `${u.pathname}${u.search}${u.hash}` : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The login URL that brings the seller back to `pathname` afterwards. */

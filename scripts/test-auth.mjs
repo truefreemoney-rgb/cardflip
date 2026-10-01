@@ -148,6 +148,16 @@ check("password floor", [passwordProblem("12345"), passwordProblem("123456"), pa
   ["Password must be at least 6 characters.", null, "That password is too long."]);
 
 Date.now = realNow;
+
+// --- ?next= after login stays on the site (10-01 sweep: "/\evil.com" left it) -------------------------------
+{
+  const { safeNextPath } = await import(new URL("../src/lib/client/auth.ts", import.meta.url).href);
+  const O = "https://cardflip.io";
+  const got = ["/app/collection?tab=sold#x", "/\\evil.com", "//evil.com", "/\\/evil.com", "https://evil.com", "/%5Cevil.com", "/\tevil", "javascript:alert(1)", "", null].map((n) => safeNextPath(n, O));
+  const ok = JSON.stringify(got) === JSON.stringify(["/app/collection?tab=sold#x", null, null, null, null, "/%5Cevil.com", null, null, null, null]);
+  if (!ok) failures++;
+  console.log(`  ${ok ? "PASS" : "FAIL"}  safeNextPath keeps in-app paths, refuses every way off the site${ok ? "" : ` (got ${JSON.stringify(got)})`}`);
+}
 console.log(failures === 0 ? "\nAll auth checks passed" : `\n${failures} auth check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql
 // client, and on Windows that open handle asserts at exit (see lib/db.ts).
