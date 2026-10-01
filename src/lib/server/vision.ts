@@ -1106,9 +1106,18 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
   if (!url) return null;
   // pokemontcg.io's plain PNG is a 245px thumbnail; use the _hires twin.
   url = url.replace(/(images\.pokemontcg\.io\/[^/]+\/[^/._]+)\.png$/, "$1_hires.png");
-  const res = await fetch(url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" }, signal: AbortSignal.timeout(12_000) });
-  if (!res.ok) return null;
-  return toClaudeImage(Buffer.from(await res.arrayBuffer()));
+  // One retry: a picture host that hiccups once would otherwise drop the
+  // candidate (10-01: two fresh checks in a row lost pictures that load fine).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" }, signal: AbortSignal.timeout(12_000) });
+      if (res.ok) return await toClaudeImage(Buffer.from(await res.arrayBuffer()));
+      if (res.status === 404 || res.status === 403) return null;
+    } catch {
+      // timeout or network error: try once more
+    }
+  }
+  return null;
 }
 
 /**

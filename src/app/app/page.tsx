@@ -557,7 +557,7 @@ export default function AppPage() {
           // Two printings within a point of each other: the printed key has
           // run out, so the picture decides (09-10, the 99% push). One call
           // to the stronger model on ties only; on null the order stands.
-          const tieIds = tiebreakIds(matches, next.game);
+          const tieIds = tiebreakIds(matches, next.game, !printed?.number);
           if (tieIds.length >= 2 && vision.status === "done") {
             const winner = await tiebreakCard(next.file, next.game, tieIds);
             const at = winner && winner !== matches[0].id ? matches.findIndex((m) => m.id === winner) : -1;

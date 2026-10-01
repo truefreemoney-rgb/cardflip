@@ -126,7 +126,7 @@ const misses = [];
 let hit = 0, top3 = 0, n = 0, secondLooks = 0, spent = 0;
 const TIE_CACHE_PATH = path.join(root, "scripts/pokemon-seller-tiebreak.cache.json");
 const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
-let ties = 0, tieSpent = 0, tieDeclined = 0, tieCancelled = 0;
+let ties = 0, tieSpent = 0, tieDeclined = 0, tieCancelled = 0, reachable = 0;
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
@@ -140,8 +140,11 @@ for (const p of batch) {
   }
   if (HIDE) read = { ...read, cardNumber: null, setTotal: null };
   let found = await lookup(read);
-  const tieIds = tiebreakIds(found, "pokemon");
+  const tieIds = tiebreakIds(found, "pokemon", !read.cardNumber);
   if (tieIds.length >= 2) ties++;
+  // Free upper bound for the picture check: is the right card on top with no tie, or among the faces it would be shown?
+  const wanted = [p.want, ...(p.alt ?? [])];
+  if (tieIds.length >= 2 ? tieIds.some((id) => wanted.includes(id) || wanted.includes(id.replace(/-1st$/, ""))) : Boolean(found[0] && wanted.includes(found[0].id))) reachable++;
   if (tieIds.length >= 2 && flag("tiebreak")) {
     const key = `${p.id}|${tieIds.join(",")}`;
     let answer = tieCache[key];
@@ -175,6 +178,8 @@ for (const p of batch) {
       got: top ? `${top.name} ${top.number} [${top.setName}] ${top.id}` : "(nothing)",
       read: `name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} set=${read.setName} year=${read.copyrightYear} art=${read.artStyle} 1st=${read.firstEdition} conf=${read.confidence} 2nd=${read.secondLook ?? "-"}`,
       rank,
+      // The order the picture check would see, with the rank scores (is the right card inside the gap?).
+      top: found.slice(0, 5).map((c) => `${c.id}(${c.rankScore ?? "?"})`).join(" "),
     });
   }
   process.stdout.write(`\r${n}/${batch.length}`);
@@ -182,7 +187,7 @@ for (const p of batch) {
 process.stdout.write("\r");
 const pct = (a) => (n ? ((a / n) * 100).toFixed(1) : "0");
 console.log(`\nexact card on real phone photos${HIDE ? " (NUMBER HIDDEN)" : ""}: ${hit}/${n} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${n} = ${pct(top3)}%   second looks: ${secondLooks}   spent this run ≈ $${spent.toFixed(2)}`);
-if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   ${ties - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing)   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
+if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}   right card on top or in front of the picture check: ${reachable}/${n}${flag("tiebreak") ? `   ${ties - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing)   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
 for (const m of misses) {
-  console.log(`\n✗ ${m.id}${m.title ? `  "${m.title}"` : ""}\n  want ${m.want}\n  got ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
+  console.log(`\n✗ ${m.id}${m.title ? `  "${m.title}"` : ""}\n  want ${m.want}\n  got ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}\n  top ${m.top}`);
 }

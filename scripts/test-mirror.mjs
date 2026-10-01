@@ -122,6 +122,31 @@ check("no number, set code read: that set's printing wins",
   await top("Zamazenta", { number: "", setTotal: null, setCode: "DRI", isSecretRare: false }), "sv10-146");
 check("no number, no set clues: still the newest printing",
   await top("Pikachu", { number: "", setTotal: null, setCode: null, isSecretRare: false }), "swsh4-25");
+// The picture check with no number read: up to four faces inside the gap,
+// a "-1st" twin and a mirror duplicate (one set name + number under two set
+// ids) each count once; with a number it stays #1 against #2.
+{
+  const { tiebreakIds } = await import(at("lib/tiebreak.ts"));
+  const tie = [
+    { id: "sv01-231", rankScore: 18, number: "231", setName: "Scarlet & Violet" },
+    { id: "sv01-247", rankScore: 18, number: "247", setName: "Scarlet & Violet" },
+    { id: "sv01-254", rankScore: 18, number: "254", setName: "Scarlet & Violet" },
+    { id: "sv01-125", rankScore: 19, number: "125", setName: "Scarlet & Violet" },
+    { id: "sv04.5-245", rankScore: 21, number: "245", setName: "Paldean Fates" },
+  ];
+  check("picture check, no number read: four faces inside the gap", tiebreakIds(tie, "pokemon", true), ["sv01-231", "sv01-247", "sv01-254", "sv01-125"]);
+  check("picture check, number read: still #1 against #2", tiebreakIds(tie, "pokemon"), ["sv01-231", "sv01-247"]);
+  check("picture check, no number read: a mirror duplicate and a 1st Edition twin are one face each",
+    tiebreakIds([
+      { id: "swsh9-068", rankScore: 21, number: "068", setName: "Brilliant Stars" },
+      { id: "swsh9.5tg-TG16", rankScore: 21, number: "TG16", setName: "Brilliant Stars Trainer Gallery" },
+      { id: "swsh9tg-TG16", rankScore: 21, number: "TG16", setName: "Brilliant Stars Trainer Gallery" },
+      { id: "base3-13-1st", rankScore: 21, number: "13", setName: "Fossil (1st Edition)" },
+      { id: "base3-13", rankScore: 21, number: "13", setName: "Fossil" },
+      { id: "swsh5-62", rankScore: 21, number: "62", setName: "Battle Styles" },
+    ], "pokemon", true), ["swsh9-068", "swsh9.5tg-TG16", "base3-13-1st", "swsh5-62"]);
+  check("picture check, no number read: no near-tie, no call", tiebreakIds([{ id: "a", rankScore: 10 }, { id: "b", rankScore: 12 }], "pokemon", true), []);
+}
 check("misread numerator can't outvote an agreeing set total",
   await top("Zamazenta", { number: "140", setTotal: 182, setCode: null, isSecretRare: false }), "sv10-146");
 check("misread numerator + agreeing set code + total: same answer",
