@@ -49,11 +49,27 @@ console.log("Table");
     check(`${k}: postal label`, r.postalLabel, k === "US" ? "ZIP" : "Postcode");
   }
   check("only the US row is live", Object.values(MARKETPLACES).filter((r) => r.live).map((r) => r.key), ["US"]);
-  check("every non-US row is flagged unverified", Object.values(MARKETPLACES).filter((r) => r.key !== "US").every((r) => r.unverified), true);
-  check("US is not unverified", US_MARKETPLACE.unverified, false);
-  check("the plan's shipping codes", [MARKETPLACES.GB.shipping.serviceCode, MARKETPLACES.IE.shipping.serviceCode, MARKETPLACES.AU.shipping.serviceCode, MARKETPLACES.CA.shipping.serviceCode, MARKETPLACES.NZ.shipping.serviceCode], [
-    "UK_RoyalMail2ndClassLargeLetter", "IE_FirstClassLetterService", "AU_AusPostStandardLetter", "CA_PostLettermail", "AU_IntlEconomyUntracked",
+  // 09-30: fees + postage are sourced from official pages; only AU's business column (inferred Pro tier) and NZ stay unverified.
+  check("unverified flags: AU and NZ only", Object.values(MARKETPLACES).filter((r) => r.unverified).map((r) => r.key), ["AU", "NZ"]);
+  check("every non-US row says what is caveated", Object.values(MARKETPLACES).filter((r) => r.key !== "US").every((r) => Array.isArray(r.unverifiedNotes) && r.unverifiedNotes.length > 0), true);
+  check("US is not unverified", [US_MARKETPLACE.unverified, US_MARKETPLACE.unverifiedNotes], [false, []]);
+  check("shipping codes (GB per eBay's own list for the site, not the plan's guess)", [MARKETPLACES.GB.shipping.serviceCode, MARKETPLACES.IE.shipping.serviceCode, MARKETPLACES.AU.shipping.serviceCode, MARKETPLACES.CA.shipping.serviceCode, MARKETPLACES.NZ.shipping.serviceCode], [
+    "UK_RoyalMail2ndClassLetter", "IE_FirstClassLetterService", "AU_AusPostStandardLetter", "CA_PostLettermail", "AU_IntlEconomyUntracked",
   ]);
+  check("sourced postage", [MARKETPLACES.GB.postage, MARKETPLACES.IE.postage, MARKETPLACES.AU.postage, MARKETPLACES.CA.postage], [1.55, 3.5, 3.7, 2.61]);
+  check("sourced fees (rate incl. regulatory fee, per-order flat/over/step)", [
+    MARKETPLACES.GB.fees.private, MARKETPLACES.GB.fees.business, MARKETPLACES.IE.fees.private, MARKETPLACES.IE.fees.business,
+    MARKETPLACES.AU.fees.private, MARKETPLACES.AU.fees.business, MARKETPLACES.CA.fees.private, MARKETPLACES.CA.fees.business,
+  ], [
+    { rate: 0, flat: 0, flatOver: 0, flatStep: 10 }, { rate: 0.1125, flat: 0.3, flatOver: 0.4, flatStep: 10 },
+    { rate: 0.1143, flat: 0.05, flatOver: 0.35, flatStep: 9.99 }, { rate: 0.1135, flat: 0.35, flatOver: 0.45, flatStep: 10 },
+    { rate: 0, flat: 0, flatOver: 0, flatStep: 10 }, { rate: 0.1144, flat: 0.3, flatOver: 0.3, flatStep: 10 },
+    { rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 }, { rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 },
+  ]);
+  check("hard-coded whole-unit tapers", [MARKETPLACES.GB.taper, MARKETPLACES.IE.taper, MARKETPLACES.AU.taper, MARKETPLACES.CA.taper], [
+    { coveredMax: 4, end: 8 }, { coveredMax: 4, end: 9 }, { coveredMax: 8, end: 15 }, { coveredMax: 7, end: 14 },
+  ]);
+  check("policy cost set on every non-NZ local row", ["GB", "IE", "AU", "CA"].every((k) => /^\d+\.\d{2}$/.test(MARKETPLACES[k].shipping.policyCost)), true);
   check("US row reproduces today's literals", [US_MARKETPLACE.shipping, US_MARKETPLACE.postage, US_MARKETPLACE.fees.business], [
     { carrierCode: "USPS", serviceCode: "USPSGroundAdvantage", fallbackServiceCode: "USPSPriority", policyCost: "4.99" },
     0.75,
