@@ -38,12 +38,15 @@ async function call(path, init = {}) {
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 // --- database-backed API routes (all 500 together when the DB host is down) ----
+// A fresh address per run: both routes also limit per address, and one fixed
+// probe address answered 429 on the third deploy inside 15 minutes (10-01).
+const probeEmail = `smoke-probe-${Date.now()}@example.com`;
 await check("login route answers (bad password → 401, not 500)", async () => {
-  const r = await call("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "smoke-probe@example.com", password: "not-a-real-password" }) });
+  const r = await call("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: probeEmail, password: "not-a-real-password" }) });
   expect(r.status === 401, `status ${r.status}: ${r.text.slice(0, 200)}`);
 });
 await check("password reset route answers (unknown email → 200)", async () => {
-  const r = await call("/api/auth/forgot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "smoke-probe@example.com" }) });
+  const r = await call("/api/auth/forgot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: probeEmail }) });
   expect(r.status === 200, `status ${r.status}: ${r.text.slice(0, 200)}`);
 });
 await check("session route answers for a stranger (200, no user)", async () => {
