@@ -132,7 +132,8 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     taper: { coveredMax: 7, end: 14 },
     shipping: { carrierCode: "CanadaPost", serviceCode: "CA_PostLettermail", fallbackServiceCode: "CA_StandardShipping", policyCost: "2.61" },
     postalLabel: "Postcode",
-    live: false,
+    // Live 09-30 night (Chris: no real-seller gate): eBay sandbox run passed every step (C$8.41 → C$8.51).
+    live: true,
     unverified: false,
     unverifiedNotes: ["shippingCarrierCode string \"CanadaPost\" is a guess; the policy create retries without it (sandbox run confirms)"],
   },
@@ -162,7 +163,8 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     taper: { coveredMax: 4, end: 8 },
     shipping: { carrierCode: "RoyalMail", serviceCode: "UK_RoyalMail2ndClassLetter", fallbackServiceCode: "UK_RoyalMailSecondClassStandard", policyCost: "1.55" },
     postalLabel: "Postcode",
-    live: false,
+    // Live 09-30 night: eBay sandbox run passed every step (£4.91 → £5.01).
+    live: true,
     unverified: false,
     unverifiedNotes: [
       "business fees are quoted ex-VAT: a business seller not VAT-registered pays 20% VAT on top, which the price does not add",
@@ -199,7 +201,9 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     shipping: { carrierCode: null, serviceCode: "IE_FirstClassLetterService", fallbackServiceCode: null, policyCost: "3.50" },
     postalLabel: "Postcode",
     locationNeedsCity: true,
-    live: false,
+    // Live 09-30 night: no IE sandbox site exists; the EBAY_IE payloads passed every step through the GB sandbox
+    // seller (€7.53 → €7.63) once the location carried a town.
+    live: true,
     unverified: false,
     unverifiedNotes: [
       "GPSR: whether eBay.ie wants manufacturer / EU Responsible Person data on a trading-card listing is not stated for this category; if a publish is refused for it, the offer needs a regulatory block",
@@ -226,7 +230,9 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     taper: { coveredMax: 8, end: 15 },
     shipping: { carrierCode: "AustraliaPost", serviceCode: "AU_AusPostStandardLetter", fallbackServiceCode: null, policyCost: "3.70" },
     postalLabel: "Postcode",
-    live: false,
+    // Live 09-30 night: eBay sandbox run passed every step (A$9.94 → A$10.04). The business rate stays flagged
+    // unverified (private sellers, 0%, are sourced).
+    live: true,
     unverified: true,
     unverifiedNotes: [
       "business 11.44% is the Pro Starter column of Tier 2 as read from the page text; the column mapping (Starter vs Basic vs Featured) is inferred, not confirmed",
