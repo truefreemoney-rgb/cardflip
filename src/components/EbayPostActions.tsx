@@ -64,12 +64,19 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   // so ask once for a ZIP and send it with the retry.
   const [askZip, setAskZip] = useState(false);
   const [shipZip, setShipZip] = useState("");
+  // Ireland: eBay refuses a postcode-only location, so the prompt also asks for a town.
+  const [shipCity, setShipCity] = useState("");
   const photoInput = useRef<HTMLInputElement>(null);
   // Publish opened the photo picker: carry on publishing once the photo's up.
   const resumeAfterPhoto = useRef<"publish" | null>(null);
 
   // A seller on another eBay site: the confirm step names the price in their currency ("£3.99 on eBay UK").
   const local = useLocalMarket();
+  const needsCity = !!local?.mp.locationNeedsCity;
+  const shipFromReady = !!shipZip.trim() && (!needsCity || !!shipCity.trim());
+  const shipFromArg = shipZip.trim()
+    ? { postalCode: shipZip.trim(), ...(needsCity && shipCity.trim() ? { city: shipCity.trim() } : {}) }
+    : undefined;
   // The number comes from the SERVER (the code the push runs), fetched when the confirm step opens, so what the
   // seller approves is what gets listed.
   const [confirmAsk, setConfirmAsk] = useState<ServerLocalAsk | null>(null);
@@ -231,10 +238,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     setBusy("publish");
     setFailure(null);
     setNotice(null);
-    let result = await publishEbayDraft(
-      item.serverId,
-      shipZip.trim() ? { postalCode: shipZip.trim() } : undefined,
-    );
+    let result = await publishEbayDraft(item.serverId, shipFromArg);
     // needs_push: the stored offer died on eBay (server already cleared the
     // stale id). Re-push and retry once, invisibly -- the seller clicked
     // Publish, not "debug my offer id" (08-27: a dead offer from a broken
@@ -243,10 +247,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       const repushed = await pushEbayDraft(draftInput(), item.photoAt ? null : item.file);
       if (repushed.ok) {
         afterPush(repushed, true);
-        result = await publishEbayDraft(
-          item.serverId,
-          shipZip.trim() ? { postalCode: shipZip.trim() } : undefined,
-        );
+        result = await publishEbayDraft(item.serverId, shipFromArg);
       }
     }
     setBusy(null);
@@ -414,9 +415,9 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (shipZip.trim()) void runPublish();
+            if (shipFromReady) void runPublish();
           }}
-          className="-mt-2 flex items-end gap-2 rounded-lg border border-edge bg-surface-1 px-3 py-2.5"
+          className="-mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-edge bg-surface-1 px-3 py-2.5"
         >
           <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-zinc-300">
             {local ? "Ship-from postcode" : "Ship-from ZIP / postal code"}
@@ -429,9 +430,22 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-brand-400"
             />
           </label>
+          {needsCity && (
+            <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-zinc-300">
+              Town
+              <input
+                value={shipCity}
+                onChange={(e) => setShipCity(e.target.value)}
+                maxLength={64}
+                autoComplete="address-level2"
+                placeholder="Your town"
+                className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-brand-400"
+              />
+            </label>
+          )}
           <button
             type="submit"
-            disabled={busy !== null || !shipZip.trim()}
+            disabled={busy !== null || !shipFromReady}
             className="rounded-full bg-ebay px-4 py-2 text-xs font-semibold text-white transition hover:bg-ebay-hover disabled:opacity-60"
           >
             Save &amp; Publish

@@ -557,10 +557,14 @@ export function returnPolicyBody(marketplace: Marketplace) {
   };
 }
 
-/** The Inventory API location create body for the seller's ship-from address. */
-export function locationBody(postalCode: string, country: string) {
+/**
+ * The Inventory API location create body for the seller's ship-from address.
+ * `city` is added only when given (IE needs it, see Marketplace.locationNeedsCity),
+ * so every other site's body is unchanged.
+ */
+export function locationBody(postalCode: string, country: string, city?: string) {
   return {
-    location: { address: { postalCode, country } },
+    location: { address: city ? { city, postalCode, country } : { postalCode, country } },
     locationTypes: ["WAREHOUSE"],
     merchantLocationStatus: "ENABLED",
     name: "CardFlip ship-from location",

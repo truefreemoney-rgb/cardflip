@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       cardId?: unknown;
       shipFromPostalCode?: unknown;
       shipFromCountry?: unknown;
+      shipFromCity?: unknown;
     } | null;
     if (!body || typeof body.cardId !== "string") {
       return NextResponse.json({ error: "invalid", message: "Missing card id" }, { status: 400 });
@@ -27,8 +28,9 @@ export async function POST(request: Request) {
       typeof body.shipFromCountry === "string" && /^[A-Za-z]{2}$/.test(body.shipFromCountry.trim())
         ? body.shipFromCountry.trim().toUpperCase()
         : "US";
+    const city = typeof body.shipFromCity === "string" ? body.shipFromCity.trim().slice(0, 64) : "";
     const result = await publishDraft(user.id, body.cardId, {
-      shipFrom: postalCode ? { postalCode, country } : null,
+      shipFrom: postalCode ? (city ? { postalCode, country, city } : { postalCode, country }) : null,
     });
     return NextResponse.json({
       listingId: result.listingId,

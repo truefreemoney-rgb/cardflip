@@ -217,6 +217,11 @@ console.log("Payloads per site");
     check(`${k}: location key + body`, [merchantLocationKeyFor(mp), inv.locationBody("X1 1XX", w.cc).location.address.country], [w.loc, w.cc]);
     check(`${k}: listing URL is on the site's domain`, inv.ebayListingUrl("123", mp), `https://www.${mp.domain}/itm/123`);
   }
+  check("locationBody: city only when given; IE is the only row that needs one", [
+    JSON.stringify(inv.locationBody("D02 AF30", "IE", "Dublin").location.address),
+    ["GB", "AU", "CA", "US"].some((k) => "city" in inv.locationBody("X1 1XX", k).location.address),
+    MARKETPLACES.IE.locationNeedsCity, [MARKETPLACES.GB, MARKETPLACES.AU, MARKETPLACES.CA, US_MARKETPLACE].some((m) => m.locationNeedsCity),
+  ], ['{"city":"Dublin","postalCode":"D02 AF30","country":"IE"}', false, true, false]);
   check("fulfillment attempts: IE has no carrier code, so the first attempt is already carrier-less", inv.fulfillmentAttempts(MARKETPLACES.IE).map((a) => a.carrierCode), [null]);
   check("fulfillment attempts: GB = carrier, no carrier, alternate code", inv.fulfillmentAttempts(MARKETPLACES.GB).map((a) => `${a.serviceCode}/${a.carrierCode}`), [
     "UK_RoyalMail2ndClassLetter/RoyalMail", "UK_RoyalMail2ndClassLetter/null", "UK_RoyalMailSecondClassStandard/null",
@@ -388,7 +393,16 @@ for (const [cc, account] of Object.entries(SITES)) {
 
   const mark2 = ebayCalls().length;
   // The client sends a US ZIP country; a local site's location is always in the seller's home country.
-  const pub = await publishDraft(u.id, c.id, { shipFrom: { postalCode: "AB1 2CD", country: "US" } });
+  // IE also needs a town (eBay refuses a postcode-only location, 25012); the others are sent without one.
+  const shipFrom = { postalCode: "AB1 2CD", country: "US" };
+  if (cc === "IE") {
+    const noCity = await publishDraft(u.id, c.id, { shipFrom }).catch((e) => e);
+    check("IE: no town -> refused as needs-location with the Eircode + town message, no location created", [noCity instanceof EbayPublishNeedsError, noCity.needs, /Eircode and your town/.test(noCity.message), since(mark2).some((e) => e.method === "POST" && e.path.startsWith("/sell/inventory/v1/location/"))], [true, "location", true, false]);
+    const blankCity = await publishDraft(u.id, c.id, { shipFrom: { ...shipFrom, city: "   " } }).catch((e) => e);
+    check("IE: a blank town is refused too", [blankCity instanceof EbayPublishNeedsError, blankCity.needs], [true, "location"]);
+    shipFrom.city = "Dublin";
+  }
+  const pub = await publishDraft(u.id, c.id, { shipFrom });
   const calls2 = since(mark2);
   const polF = calls2.find((e) => e.method === "POST" && e.path === "/sell/account/v1/fulfillment_policy");
   const polR = calls2.find((e) => e.method === "POST" && e.path === "/sell/account/v1/return_policy");
@@ -398,6 +412,7 @@ for (const [cc, account] of Object.entries(SITES)) {
   check(`${cc}: returns 30 days buyer pays, no returnMethods`, [polR.body.returnPeriod.value, polR.body.returnShippingCostPayer, "returnMethods" in polR.body], [30, "BUYER", false]);
   const loc = calls2.find((e) => e.method === "POST" && e.path.startsWith("/sell/inventory/v1/location/"));
   check(`${cc}: location ${merchantLocationKeyFor(mp)} in ${mp.locationCountry}, not the client's US`, [loc.path.split("/").pop(), loc.body.location.address.country, loc.body.location.address.postalCode], [merchantLocationKeyFor(mp), mp.locationCountry, "AB1 2CD"]);
+  check(`${cc}: ${cc === "IE" ? "the location address carries the town" : "no city key in the location address"}`, JSON.stringify(loc.body.location.address), cc === "IE" ? '{"city":"Dublin","postalCode":"AB1 2CD","country":"IE"}' : JSON.stringify({ postalCode: "AB1 2CD", country: mp.locationCountry }));
   const putOffer = calls2.find((e) => e.method === "PUT" && e.path.startsWith("/sell/inventory/v1/offer/"));
   check(`${cc}: the offer is updated with this site's location key and its three policies`, [putOffer.body.merchantLocationKey, Object.keys(putOffer.body.listingPolicies).sort()], [merchantLocationKey(mp), ["fulfillmentPolicyId", "paymentPolicyId", "returnPolicyId"]]);
   check(`${cc}: listing URL on ${mp.domain}`, pub.listingUrl, `https://www.${mp.domain}/itm/${pub.listingId}`);

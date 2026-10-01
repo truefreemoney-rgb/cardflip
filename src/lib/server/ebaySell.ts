@@ -299,9 +299,10 @@ async function createLocation(
   postalCode: string,
   country: string,
   mp: Marketplace = US_MARKETPLACE,
+  city?: string,
 ): Promise<string> {
   const key = merchantLocationKeyFor(mp);
-  await ebayFetch(token, "POST", `/sell/inventory/v1/location/${key}`, locationBody(postalCode, country), undefined, mp);
+  await ebayFetch(token, "POST", `/sell/inventory/v1/location/${key}`, locationBody(postalCode, country, mp.locationNeedsCity ? city : undefined), undefined, mp);
   return key;
 }
 
@@ -654,7 +655,7 @@ export function isListingApiUnavailable(): boolean {
 
 export interface PublishOptions {
   /** Ship-from location, used (once) to create the seller's inventory location. */
-  shipFrom?: { postalCode: string; country: string } | null;
+  shipFrom?: { postalCode: string; country: string; city?: string } | null;
 }
 
 /**
@@ -799,8 +800,16 @@ export async function publishDraft(
           : "eBay needs to know where you ship from. Enter your postcode once and CardFlip saves it on your eBay account.",
       );
     }
+    // A site whose eBay rejects a postcode-only location (IE) also needs a town; never send one eBay will refuse.
+    const city = ship.city?.trim();
+    if (mp.locationNeedsCity && !city) {
+      throw new EbayPublishNeedsError(
+        "location",
+        "eBay needs to know where you ship from. Enter your Eircode and your town once and CardFlip saves it on your eBay account.",
+      );
+    }
     // Another site's location is always in that site's country (the seller's home), whatever the client sent.
-    merchantLocationKey = await createLocation(token, ship.postalCode, mp.key === "US" ? ship.country || "US" : mp.locationCountry, mp);
+    merchantLocationKey = await createLocation(token, ship.postalCode, mp.key === "US" ? ship.country || "US" : mp.locationCountry, mp, city);
   }
 
   const offerPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}`;

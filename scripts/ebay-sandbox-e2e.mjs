@@ -209,7 +209,7 @@ async function runSite(site) {
     for (const a of fulfillmentAttempts(mp)) show(`fulfillment policy attempt (${a.serviceCode} / ${a.carrierCode ?? "no carrier"})`, fulfillmentPolicyBody(mp, a.serviceCode, a.carrierCode));
     show("payment policy", paymentPolicyBody(mp));
     show("return policy", returnPolicyBody(mp));
-    show(`location ${merchantLocationKeyFor(mp)}`, locationBody("<postcode>", mp.locationCountry));
+    show(`location ${merchantLocationKeyFor(mp)}`, locationBody("<postcode>", mp.locationCountry, mp.locationNeedsCity ? "<town>" : undefined));
     show("inventory item", item);
     show("offer", buildOffer(input, { policies: { fulfillmentPolicyId: "<f>", paymentPolicyId: "<p>", returnPolicyId: "<r>" }, merchantLocationKey: merchantLocationKeyFor(mp) }, mp));
     return;
@@ -279,7 +279,7 @@ async function runSite(site) {
     if (locationKey) report(site, "location", "PASS", `(existing ${locationKey})`);
     else {
       const key = merchantLocationKeyFor(mp);
-      const r = await api("POST", `/sell/inventory/v1/location/${key}`, locationBody(env[`EBAY_SANDBOX_POSTCODE_${site}`] ?? { GB: "SW1A 1AA", IE: "D02 AF30", AU: "2000", CA: "K1A 0B1" }[site], mp.locationCountry));
+      const r = await api("POST", `/sell/inventory/v1/location/${key}`, locationBody(env[`EBAY_SANDBOX_POSTCODE_${site}`] ?? { GB: "SW1A 1AA", IE: "D02 AF30", AU: "2000", CA: "K1A 0B1" }[site], mp.locationCountry, mp.locationNeedsCity ? (env[`EBAY_SANDBOX_CITY_${site}`] ?? { IE: "Dublin" }[site]) : undefined));
       if (r.ok || /already exists|25802/i.test(r.text)) { locationKey = key; report(site, "location", "PASS", r.ok ? `(created ${key})` : `(${key} already exists)`); }
       else report(site, "location", "FAIL", verbatim(r));
     }

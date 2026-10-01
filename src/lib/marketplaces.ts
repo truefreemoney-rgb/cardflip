@@ -71,6 +71,13 @@ export interface Marketplace {
   };
   /** Postal code label in prompts. */
   postalLabel: "ZIP" | "Postcode";
+  /**
+   * True when eBay rejects a ship-from location that has only a postal code
+   * (IE, sandbox 09-30: publish fails 25012 "Invalid inventory location" until
+   * the address has a city). The seller then gives a town as well as the
+   * Eircode. Absent / false everywhere else.
+   */
+  locationNeedsCity?: boolean;
   /** Only the US row is live in increment 1; everything else is data for later increments. */
   live: boolean;
   /** True when a number in this row could not be sourced from an official page (see unverifiedNotes). */
@@ -191,6 +198,7 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     taper: { coveredMax: 4, end: 10 },
     shipping: { carrierCode: null, serviceCode: "IE_FirstClassLetterService", fallbackServiceCode: null, policyCost: "3.50" },
     postalLabel: "Postcode",
+    locationNeedsCity: true,
     live: false,
     unverified: false,
     unverifiedNotes: [

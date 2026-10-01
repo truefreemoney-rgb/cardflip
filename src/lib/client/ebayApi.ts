@@ -363,12 +363,13 @@ export async function sendEbayDraft(
  */
 export async function publishEbayDraft(
   cardId: string,
-  shipFrom?: { postalCode: string; country?: string },
+  shipFrom?: { postalCode: string; country?: string; city?: string },
 ): Promise<EbayPublishSuccess | EbayPostFailure> {
   const result = await postJson<Omit<EbayPublishSuccess, "ok">>("/api/ebay/listing/publish", {
     cardId,
     shipFromPostalCode: shipFrom?.postalCode,
     shipFromCountry: shipFrom?.country ?? "US",
+    shipFromCity: shipFrom?.city,
   });
   return result.ok ? { ok: true, ...result.data } : result;
 }
