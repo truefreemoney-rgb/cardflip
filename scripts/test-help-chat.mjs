@@ -140,6 +140,16 @@ await clearHelpHistory(seller.id);
 check("clear wipes the thread", (await helpHistory(seller.id)).length, 0);
 check("clear leaves other users alone", (await helpHistory(other.id)).length > 0);
 
+// --- clear does not reset the cap (10-01 sweep: 40 paid calls, Clear Chat, repeat) ---------------------------
+const looper = await createUser("L", "looper@example.com", "hunter22");
+nextReply = "ok";
+for (let i = 0; i < HELP_DAILY_CAP; i++) {
+  await askHelp(looper, `q${i}`);
+  if (i % 10 === 9) await clearHelpHistory(looper.id);
+}
+await clearHelpHistory(looper.id);
+check("40 asks with Clear Chat in between → the 41st is still capped", await throwsWith(() => askHelp(looper, "one more"), HelpCapError));
+
 server.close();
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
 process.exit(failures ? 1 : 0);

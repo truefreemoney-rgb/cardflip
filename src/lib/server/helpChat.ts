@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { helpArticlesFor } from "@/lib/helpArticles";
 import { GUIDES, HELP_LINKS, TAG_RE, guideById } from "@/lib/helpGuides";
 import { magicVisibleFor } from "@/lib/server/settings";
@@ -195,6 +196,9 @@ export async function askHelp(user: User, text: string): Promise<HelpMessage> {
   if (!process.env.ANTHROPIC_API_KEY) throw new HelpNotConfiguredError();
   const cap = needsEmailConfirm(user) ? HELP_PENDING_CAP : HELP_DAILY_CAP;
   if ((await userMessagesToday(user.id)) >= cap) throw new HelpCapError(cap);
+  // The count above lives in help_messages, which Clear Chat deletes (10-01 sweep: 40 paid calls, clear, repeat). This
+  // counter survives a clear; it counts attempts, so a failed reply still spends one.
+  if (await dayBudgetSpent(`help_${user.id}`, cap)) throw new HelpCapError(cap);
 
   const [magic, tickets] = await Promise.all([magicVisibleFor(user), listUserTickets(user.id, 5)]);
 
