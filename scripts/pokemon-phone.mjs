@@ -32,8 +32,11 @@ const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i > -1 ? args[i + 1] : null; };
 const PHOTO_DIR = path.join(root, "backups/pokemon-phone");
-const LIST_PATH = path.join(PHOTO_DIR, "batch.json");
-const CACHE_PATH = path.join(root, "scripts/pokemon-phone.cache.json");
+// --seller (10-01): eBay seller photos instead of Chris's own (list built by scripts/pokemon-seller-from-raw.mjs;
+// truth = the listing title's name + number). --id <id> runs one photo (re-read a miss with --id X --fresh).
+const SELLER = flag("seller");
+const LIST_PATH = path.join(PHOTO_DIR, SELLER ? "seller.json" : "batch.json");
+const CACHE_PATH = path.join(root, SELLER ? "scripts/pokemon-seller.cache.json" : "scripts/pokemon-phone.cache.json");
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
 
 const env = {};
@@ -70,7 +73,8 @@ async function pull() {
   return batch;
 }
 
-let batch = flag("pull") || !fs.existsSync(LIST_PATH) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
+let batch = !SELLER && (flag("pull") || !fs.existsSync(LIST_PATH)) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
+if (opt("id")) { const ids = opt("id").split(","); batch = batch.filter((p) => ids.includes(p.id)); }
 if (opt("since")) { const t = Date.parse(opt("since")); batch = batch.filter((p) => p.at >= t); }
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
@@ -107,17 +111,20 @@ const mirror = new DatabaseSync(path.join(root, "data/cardflip.db"), { readOnly:
 const wantRow = mirror.prepare("SELECT name, set_name, local_id, set_card_count_official AS official FROM en_cards WHERE id = ?");
 
 const misses = [];
-let hit = 0, top3 = 0, n = 0, secondLooks = 0;
+let hit = 0, top3 = 0, n = 0, secondLooks = 0, spent = 0;
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
     const b64 = fs.readFileSync(path.join(PHOTO_DIR, `${p.id}.jpg`)).toString("base64");
-    read = (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "pokemon")).read;
+    const res = await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "pokemon");
+    read = res.read;
+    // Sonnet rates ($ per million): input 2, output 10, cache read 0.2, cache write 2.5 (scanUsage RATES).
+    spent += (res.usage.inputTokens * 2 + res.usage.outputTokens * 10 + res.usage.cacheReadTokens * 0.2 + res.usage.cacheWriteTokens * 2.5) / 1e6;
     cache[p.id] = read;
     fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 1));
   }
   const found = await lookup(read);
-  const rank = found.findIndex((c) => c.id === p.want);
+  const rank = found.findIndex((c) => c.id === p.want || (p.alt ?? []).includes(c.id));
   n++;
   if (read.secondLook) secondLooks++;
   if (rank === 0) hit++;
@@ -126,6 +133,7 @@ for (const p of batch) {
     const w = wantRow.get(p.want);
     const top = found[0];
     misses.push({
+      id: p.id, title: p.title ?? "",
       want: w ? `${w.name} ${w.local_id}/${w.official ?? "?"} [${w.set_name}] ${p.want}` : `${p.name} [${p.set} ${p.number}] ${p.want} (not in local mirror)`,
       got: top ? `${top.name} ${top.number} [${top.setName}] ${top.id}` : "(nothing)",
       read: `name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} set=${read.setName} year=${read.copyrightYear} art=${read.artStyle} 1st=${read.firstEdition} conf=${read.confidence} 2nd=${read.secondLook ?? "-"}`,
@@ -136,7 +144,7 @@ for (const p of batch) {
 }
 process.stdout.write("\r");
 const pct = (a) => (n ? ((a / n) * 100).toFixed(1) : "0");
-console.log(`\nexact card on real phone photos: ${hit}/${n} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${n} = ${pct(top3)}%   second looks: ${secondLooks}`);
+console.log(`\nexact card on real phone photos: ${hit}/${n} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${n} = ${pct(top3)}%   second looks: ${secondLooks}   spent this run ≈ $${spent.toFixed(2)}`);
 for (const m of misses) {
-  console.log(`\n✗ want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
+  console.log(`\n✗ ${m.id}${m.title ? `  "${m.title}"` : ""}\n  want ${m.want}\n  got ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

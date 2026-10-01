@@ -181,6 +181,18 @@ check("'Basic Metal Energy' with the Shrouded Fable number still finds that card
   await top("Basic Metal Energy", pn("099", 64)), "sv06.5-099");
 check("lettered sub-series total (RC1/25) is not a contradiction of the set count (113)",
   await top("Snivy", pn("RC1", 25)), "bw11-RC1");
+// 10-01 seller photos: Aquapolis Azumarill prints "H4/H32"; the mirror files it as H04 in a 147-card set.
+for (const [id, name, setId, setName, local, date, official] of [
+  ["ecard2-H04", "Azumarill", "ecard2", "Aquapolis", "H04", "2003-01-15", 147],
+  ["ex2-30", "Azumarill", "ex2", "Sandstorm", "30", "2003-09-18", 100],
+]) {
+  await db.prepare(
+    `INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, set_card_count_official, set_card_count_total, set_code, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, '', 0)`,
+  ).run(id, name, setId, setName, local, date, official, official);
+}
+check("e-Card holo 'H4/H32' finds the mirror's H04 (one-letter sub-series, padded in the mirror, wrong set name read)",
+  await top("Azumarill", pn("H4", 32, { setName: "Skyridge", copyrightYear: 2002 })), "ecard2-H04");
 // --- mtg ranking: special sets need evidence -------------------------------
 // 09-02: a plain M11 Pyretic Ritual matched the Mystical Archive showcase —
 // with nothing readable, the tie broke newest-first onto a masterpiece set.

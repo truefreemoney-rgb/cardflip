@@ -70,9 +70,14 @@ const NOT_SET_CODES = new Set([
   "HP", "GX", "EX", "VE", "ILLUS", "NM", "LP",
 ]);
 
-/** Normalizes "004" and "4" to the same thing for comparison. */
+/**
+ * Normalizes "004" and "4" to the same thing for comparison, and the padding after a
+ * letter prefix too: the e-Card holos print "H4/H32" where the catalog says "H04"
+ * (10-01 seller photos: Azumarill H4 lost to a Sandstorm Azumarill).
+ */
 export function normalizeNumber(value: string): string {
-  return value.replace(/^0+/, "").trim().toLowerCase();
+  const v = value.trim().toLowerCase();
+  return v.replace(/^0+/, "").replace(/^([a-z]+)0+(?=\d)/, "$1");
 }
 
 /** TCGdex writes "1999-01-09", pokemontcg.io writes "1999/01/09". */

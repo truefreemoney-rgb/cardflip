@@ -288,7 +288,13 @@ export async function searchEnglishCardsLocal(
     // their own denominator, not the set's official count, so a read total
     // that disagrees with the set count is expected there, not a contradiction
     // (09-10 panel: Snivy RC1/25 lost to a McDonald's Snivy over "25 ≠ 113").
-    const letteredNumber = /^[a-z]{2,}\d/i.test(printed?.number ?? "") && /^[a-z]{2,}\d/i.test(row.local_id);
+    // The e-Card holos carry a single letter (H4/H32 in a 147-card set): the same letter on both
+    // sides is the same sub-series (10-01 seller photos: Azumarill H4/H32 lost over "32 ≠ 147").
+    const letterOf = (s: string) => /^([a-z]+)\d/i.exec(s.trim())?.[1].toLowerCase() ?? "";
+    const readLetter = letterOf(printed?.number ?? "");
+    const letteredNumber =
+      (/^[a-z]{2,}\d/i.test(printed?.number ?? "") && /^[a-z]{2,}\d/i.test(row.local_id)) ||
+      (readLetter !== "" && readLetter === letterOf(row.local_id));
     const rawTotal = agreesWithSetTotal(printed?.setTotal ?? null, row.set_card_count_official);
     const total = letteredNumber && rawTotal === "mismatch" ? "unknown" : rawTotal;
     // A numerator only means something inside its own set: "140" read off a

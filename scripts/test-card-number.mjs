@@ -172,6 +172,7 @@ console.log("\nA typed number filters search results (typed ≠ scanned):");
 
 console.log("\nOdds and ends:");
 check("normalizes padding", normalizeNumber("004"), "4");
+check("normalizes padding after a letter prefix (H04 = H4, TG03 = TG3), leaves the rest alone", ["H04", "h4", "TG03", "SWSH001", "RC10", "100", "0"].map(normalizeNumber), ["h4", "h4", "tg3", "swsh1", "rc10", "100", ""]);
 check("formats the fraction", formatCardNumber("4", 102), "4/102");
 check("formats a number with no total", formatCardNumber("SWSH066", null), "SWSH066");
 
