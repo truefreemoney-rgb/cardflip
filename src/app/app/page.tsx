@@ -18,7 +18,7 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
-import { isSecretRareNumber, normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
+import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, makeSealedProduct, parseGradeQuery, type SetInfo } from "@/lib/grading";
 import SealedAddSheet from "@/components/SealedAddSheet";
@@ -420,12 +420,13 @@ export default function AppPage() {
             );
             // Vision reads the set symbol and the whole fraction, which is what
             // settles an original against a same-numbered reprint.
-            printed = read.cardNumber
+            // A Pokémon read with no number keeps its set clues (readHasPrintedKey).
+            printed = readHasPrintedKey(read, next.game)
               ? {
-                  number: read.cardNumber,
+                  number: read.cardNumber ?? "",
                   setTotal: read.setTotal,
                   setCode: read.setCode,
-                  isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal),
+                  isSecretRare: isSecretRareNumber(read.cardNumber ?? "", read.setTotal),
                   setName: read.setName,
                   copyrightYear: read.copyrightYear ?? null,
                   subtitle: read.subtitle ?? null,
@@ -544,7 +545,7 @@ export default function AppPage() {
           const numbersIdentify =
             next.game === "mtg"
               ? Boolean(printed?.setCode)
-              : Boolean(printed?.setTotal) && language === "en";
+              : Boolean(printed?.number && printed?.setTotal) && language === "en";
           if (matches.length === 0 && printed && numbersIdentify) {
             try {
               matches = await searchCards("", printed, language, undefined, next.game, null, false, vision.read?.firstEdition ?? null, cues);

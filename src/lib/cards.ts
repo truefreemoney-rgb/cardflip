@@ -82,7 +82,7 @@ export async function searchCards(
   if (typeof printed === "string") {
     if (printed) params.set("number", printed);
   } else if (printed) {
-    params.set("number", printed.number);
+    if (printed.number) params.set("number", printed.number);
     if (printed.setTotal) params.set("setTotal", String(printed.setTotal));
     if (printed.setCode) params.set("setCode", printed.setCode);
     if (printed.setName) params.set("setName", printed.setName);

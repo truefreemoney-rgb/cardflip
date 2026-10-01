@@ -26,7 +26,7 @@ import { devAnthropicKey } from "./lib/dev-key.mjs";
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { searchEnglishCardsLocal } = await import(at("lib/server/enCards.ts"));
-const { isSecretRareNumber } = await import(at("lib/cardNumber.ts"));
+const { isSecretRareNumber, readHasPrintedKey } = await import(at("lib/cardNumber.ts"));
 const { analyzeCardImageWithUsage, tiebreakByPicture } = await import(at("lib/server/vision.ts"));
 const { isNearTie } = await import(at("lib/tiebreak.ts"));
 const { UNREADABLE_CONFIDENCE } = await import(at("lib/types.ts"));
@@ -129,8 +129,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // fallback when a full fraction was read.
 async function lookup(read) {
   if (!read || (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE)) return [];
-  const printed = read.cardNumber
-    ? { number: read.cardNumber, setTotal: read.setTotal, setCode: read.setCode, isSecretRare: isSecretRareNumber(read.cardNumber, read.setTotal), setName: read.setName, copyrightYear: read.copyrightYear ?? null }
+  // No number read: the set clues still go into the search (readHasPrintedKey, 10-01).
+  const printed = readHasPrintedKey(read, "pokemon")
+    ? { number: read.cardNumber ?? "", setTotal: read.setTotal, setCode: read.setCode, isSecretRare: isSecretRareNumber(read.cardNumber ?? "", read.setTotal), setName: read.setName, copyrightYear: read.copyrightYear ?? null }
     : null;
   const art = read.artStyle ?? null;
   const first = read.firstEdition ?? null;
@@ -141,7 +142,7 @@ async function lookup(read) {
     if (matches.length === 0) matches = found;
     if (found[0].name.trim().toLowerCase() === candidate.trim().toLowerCase()) { matches = found; break; }
   }
-  if (matches.length === 0 && printed?.setTotal) matches = (await searchEnglishCardsLocal("", printed, 5, null, first)).cards;
+  if (matches.length === 0 && printed?.number && printed?.setTotal) matches = (await searchEnglishCardsLocal("", printed, 5, null, first)).cards;
   return matches;
 }
 

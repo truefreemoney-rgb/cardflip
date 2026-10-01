@@ -107,6 +107,23 @@ export function isSecretRareNumber(
   return value !== null && value > setTotal;
 }
 
+/**
+ * Does a vision read carry anything the search can key on besides the name?
+ *
+ * A number always does. A Pokémon read with the number unread (blur, glare, a
+ * sleeve edge) still names its set: the set name, copyright year and set code
+ * rank the printings of that name, where the name alone falls to the newest
+ * one (10-01, seller photos with the number blanked: right card on top 4 of
+ * 20). The key then goes out with `number: ""`.
+ */
+export function readHasPrintedKey(
+  read: { cardNumber?: string | null; setName?: string | null; copyrightYear?: number | null; setCode?: string | null },
+  game: string,
+): boolean {
+  if (read.cardNumber) return true;
+  return game === "pokemon" && Boolean(read.setName || read.copyrightYear || read.setCode);
+}
+
 function parseSetCode(text: string, fraction: string): string | null {
   // Only look beside the fraction — an all-caps word elsewhere in the line
   // (illustrator credits, "POKEMON") is not an expansion code.

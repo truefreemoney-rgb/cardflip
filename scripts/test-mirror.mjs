@@ -112,6 +112,16 @@ check("full fraction with NO name still identifies",
   await top("", { number: "58", setTotal: 102, setCode: null, isSecretRare: false }), "base1-58");
 check("same name, no number: newest printing wins the tie",
   await top("Pikachu", null), "swsh4-25");
+// 10-01, blurred numbers: the scanner now sends the set clues with an empty
+// number instead of dropping them, so the old printing is found by its set.
+check("no number, set name read: that set's printing beats the newest",
+  await top("Pikachu", { number: "", setTotal: null, setCode: null, isSecretRare: false, setName: "Base Set" }), "base1-58");
+check("no number, copyright year read: the printing of that year beats the newest",
+  await top("Pikachu", { number: "", setTotal: null, setCode: null, isSecretRare: false, copyrightYear: 1999 }), "base1-58");
+check("no number, set code read: that set's printing wins",
+  await top("Zamazenta", { number: "", setTotal: null, setCode: "DRI", isSecretRare: false }), "sv10-146");
+check("no number, no set clues: still the newest printing",
+  await top("Pikachu", { number: "", setTotal: null, setCode: null, isSecretRare: false }), "swsh4-25");
 check("misread numerator can't outvote an agreeing set total",
   await top("Zamazenta", { number: "140", setTotal: 182, setCode: null, isSecretRare: false }), "sv10-146");
 check("misread numerator + agreeing set code + total: same answer",

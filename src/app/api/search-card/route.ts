@@ -277,7 +277,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ cards: await flagged(cards), matchedOn, source: "local" });
   }
 
-  const printed: PrintedNumber | null = number
+  // No number read, but the set clues were (10-01): they still rank the
+  // printings of the name, so the key goes on with an empty number.
+  const setClues = !number && Boolean(setName || copyrightYear || setCode);
+  const printed: PrintedNumber | null = number || setClues
     ? {
         number,
         setTotal,
@@ -292,7 +295,7 @@ export async function GET(req: NextRequest) {
   // its own — the denominator names the expansion and the numerator picks the
   // card out of it. That's the read that survives when glare or foil wipes out
   // the name band, so it's worth serving rather than rejecting.
-  if (!name && !(printed && printed.setTotal)) {
+  if (!name && !(printed && printed.number && printed.setTotal)) {
     return NextResponse.json(
       { error: "Missing name (or a full collector number like 25/102)" },
       { status: 400 },
@@ -308,6 +311,9 @@ export async function GET(req: NextRequest) {
     limit === DEFAULT_LIMIT ? "" : `#${limit}`,
     art ? `@${art}` : "",
     firstEdition === true ? "!1st" : "",
+    // The set clues change the order only when they are all there is, so
+    // only then do they key the cache (a name-only answer must not serve them).
+    setClues ? `~${[setName ?? "", copyrightYear ?? "", setCode ?? "", setTotal ?? ""].join("|").toLowerCase()}` : "",
   ].join("");
 
   // What the answer was actually keyed on, so the client can say how sure the
