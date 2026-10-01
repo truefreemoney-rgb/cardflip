@@ -366,5 +366,68 @@ delete process.env.PINTEREST_APP_SECRET;
   check("ops alert: what went out", sent, ["CI", "Production Smoke", "CI"]);
 }
 
+// ---- 10-01: the engagement question and the 7pm jumps bookkeeping ------------------------------------------------
+console.log("engagement question: the lowest priority after the sign-off cut");
+{
+  const Q = "Which one would you hold?";
+  const SIGN = "Scan a card, see what it's worth. cardflip.io";
+  const q = {
+    caption: `Pokémon price gains this week, from CardFlip's own price history.\n\nMiraidon ex (Scarlet & Violet 81) $10.00 → $15.00, +50%\n\n${Q}\n\n${SIGN}`,
+    shortCaption: `Pokémon price gains this week\nMiraidon ex +50%\nGardevoir ex +20%\n\n${Q}\n\n${SIGN}`,
+    question: Q,
+    hashtags: ["PokemonTCG", "PokemonCards", "TCG"],
+  };
+  const tags = "#PokemonTCG #PokemonCards #TCG";
+  check("a roomy site gets the full caption, the question after the card lines and before the sign-off, every tag", fitText(q, 5000), `${q.caption}\n\n${tags}`);
+  const shortFull = `${q.shortCaption}\n\n${tags}`;
+  // 5 characters under the short caption with everything: the sign-off goes to the bare address first, the question stays.
+  const mid = fitText(q, shortFull.length - 5);
+  check("tight: the sign-off is cut to the address FIRST, the question and every tag stay", [mid.includes(Q), mid.endsWith(`cardflip.io\n\n${tags}`) && !mid.includes("Scan a card"), mid.length <= shortFull.length - 5], [true, true, true]);
+  // Below that the question goes, and still no hashtag and no card line does.
+  const tinyQ = shortFull.length - (SIGN.length - "cardflip.io".length);
+  const tight = fitText(q, tinyQ - 3);
+  check("tighter: the question is the next thing cut, before a hashtag or a card line", [tight.includes(Q), tight.includes("Miraidon ex +50%"), tight.includes("Gardevoir ex +20%"), tight.endsWith(tags), tight.length <= tinyQ - 3], [false, true, true, true, true]);
+  check("without a question nothing changes (older drafts, the card post)", fitText({ ...q, question: undefined, caption: q.caption.replace(`${Q}\n\n`, ""), shortCaption: q.shortCaption.replace(`${Q}\n\n`, "") }, 5000), `${q.caption.replace(`${Q}\n\n`, "")}\n\n${tags}`);
+  // The real thing, on X's 257 and Bluesky's 300: the question only appears when it fits, and no site loses a tag for it.
+  const real = (await (await import(at("lib/server/social.ts"))).socialDrafts("pokemon", THU)).find((d) => d.kind === "movers");
+  check("a real draft carries its question in both captions", [Boolean(real.question), real.caption.includes(real.question), real.shortCaption.includes(real.question)], [true, true, true]);
+  for (const [label, max] of [["X", 257], ["Bluesky", 300], ["Threads", 500], ["Instagram", 2200], ["Facebook", 5000]]) {
+    const out = fitText(real, max, label === "Instagram" ? 5 : undefined);
+    const tagCount = (out.match(/#\w+/g) ?? []).length;
+    check(`${label}: fits ${max}, keeps every tag the draft has (${real.hashtags.length}), the address stays`, [out.length <= max, tagCount, out.includes("cardflip.io")], [true, real.hashtags.length, true]);
+  }
+  const realSet = (await (await import(at("lib/server/social.ts"))).socialDrafts("pokemon", THU)).find((d) => d.kind === "set");
+  check("a set draft's question names its set; X (257) has no room for it: it is the first thing cut, the five card lines and all three tags stay", [realSet.question.includes("Scarlet & Violet") || realSet.question.includes("pull"), fitText(realSet, 257).includes(realSet.question), fitText(realSet, 257).split("\n").filter((l) => /\$\d/.test(l)).length, (fitText(realSet, 257).match(/#[A-Za-z]\w*/g) ?? []).length], [true, false, 5, 3]);
+  check("…while Bluesky (300) still has room for it", fitText(realSet, 300).includes(realSet.question), true);
+  check("Facebook (5000): the question is there", fitText(real, 5000).includes(real.question), true);
+}
+
+console.log("the 7pm jumps are filed for the no-repeat rule once they land (their own list)");
+{
+  const { planTag, slotKind } = await import(at("lib/server/socialPublish.ts"));
+  const J = "2026-11-20";
+  const jd = (back) => addDays(J, -back);
+  await db.prepare("INSERT INTO en_cards (id, name, set_id, set_name, local_id, image_url, synced_at) VALUES ('jj1-1', 'Jump Card', 'jj1', 'Jump Set', '1', 'https://assets.tcgdex.net/en/jj1/1/low.webp', 0)").run();
+  await recordPoint("jj1-1", "pokemon", "normal", "tcgplayer", "USD", 20, jd(7));
+  for (const back of [3, 2, 1, 0]) await recordPoint("jj1-1", "pokemon", "normal", "tcgplayer", "USD", 30, jd(back));
+  for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
+  const stg = (name, setName, number, price) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, lead: true });
+  for (const [key, c] of [["stage:v8:pokemon", stg("Charizard ex", "Obsidian Flames", "125", 48.5)], ["stage:v14:mtg", stg("Sol Ring", "Commander Masters", "410", 32.1)], ["stage:v14:lorcana", stg("Elsa", "The First Chapter", "42", 61)], ["stage:v14:onepiece", stg("Portgas.D.Ace", "Premium Booster", "P-055", 75)], ["stage:v14:yugioh", stg("Dark Magician", "Legend of Blue Eyes", "LOB-005", 55.25)]]) {
+    await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify([c]), Date.now());
+  }
+  const seven = Date.UTC(2026, 10, 21, 0, 30); // 7:30pm EST on Nov 20
+  check("the evening slot is the all-games post", slotKind("evening", J), "games");
+  const failing = fakeSite("failing", { fail: true });
+  await publishSocial({ day: J, now: seven, slot: "evening", origin: "http://x", sites: [failing], fetchImage });
+  check("a failed post files nothing", await getSetting("social_featured:pokemon:jumps"), null);
+  const ok = fakeSite("ok");
+  const r2 = await publishSocial({ day: J, now: seven, slot: "evening", origin: "http://x", sites: [ok], fetchImage });
+  check("the evening post is the jumps post, its caption names the card and its move", [r2.sites[0].status, ok.posts[0].alt.startsWith("Biggest price jumps this week."), ok.posts[0].text.includes("Pokémon: Jump Card (Jump Set #1): $30.00, +50% this week")], ["posted", true, true]);
+  check("the card that led is filed under 'jumps' on the day it posted, and the 1pm gains list is untouched", [JSON.parse(await getSetting("social_featured:pokemon:jumps")), Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).includes("jj1-1")], [{ "jj1-1": J }, false]);
+  const { recentlyFeatured } = await import(at("lib/server/social.ts"));
+  check("tomorrow's 7pm post leaves it out; today's re-render does not", [(await recentlyFeatured("pokemon", "jumps", addDays(J, 1))).has("jj1-1"), (await recentlyFeatured("pokemon", "jumps", J)).has("jj1-1")], [true, false]);
+  check("plan tags: the 7pm post is 'games+jumps' and the 7am set 'set+lead' from 10-01 (older videos are stale, the net remakes them); before that, as it was", [planTag("evening", "2026-09-30"), planTag("evening", "2026-10-01"), planTag("morning", "2026-10-01"), planTag("midday", "2026-10-01"), planTag("morning", "2026-09-30")], ["games", "games+jumps", "set+lead", "movers", "set+also+set=base4"]);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

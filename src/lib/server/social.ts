@@ -5,7 +5,7 @@ import { PRICE_TRUST, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
+import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames, questionFor } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -85,6 +85,8 @@ export interface Mover {
   unsettled?: boolean;
   /** Set on a mixed-game list (mixedMovers); a single-game list leaves it off. */
   game?: GameId;
+  /** A set spotlight card's place by value among the set's five (1 = the most valuable): the list itself may lead with the biggest riser instead. */
+  rank?: number;
 }
 
 export interface SocialPost {
@@ -103,6 +105,12 @@ export interface SocialPost {
   cardIds: string[];
   /** A mixed-game post's cards by game, so each game's no-repeat list gets its own (cardIds is filed under `game` otherwise). */
   featured?: Partial<Record<GameId, string[]>>;
+  /**
+   * The one question the caption carries (lib/socialPlan.ts questionFor), kept
+   * apart so fitText can drop it first when a site's limit is tight (it sits
+   * after the card lines and before the sign-off, in caption and shortCaption).
+   */
+  question?: string;
 }
 
 interface SeriesRow {
@@ -478,6 +486,16 @@ export interface GameLead {
   number: string;
   price: number;
   imageUrl: string;
+  /** Set only on a game's biggest weekly jump (gameJumps): the card's id, its price a week ago, the move in % and its price variant. A lead has none of these. */
+  cardId?: string;
+  from?: number;
+  pct?: number;
+  variant?: string;
+}
+
+/** A lead that is a card's weekly jump (it carries its move), not a plain market-price lead. */
+export function isJump(l: Pick<GameLead, "from" | "pct">): boolean {
+  return l.pct != null && l.from != null;
 }
 
 export async function gameLeads(day = todayUtc()): Promise<GameLead[]> {
@@ -494,7 +512,55 @@ export async function gameLeads(day = todayUtc()): Promise<GameLead[]> {
   return out;
 }
 
-type FeaturedKind = "movers" | "dips";
+/**
+ * The games whose price history the movers read (freshSeries reads Pokémon's
+ * en_cards and Magic's mtg_cards). Lorcana, One Piece and Yu-Gi-Oh price series
+ * only began on 09-30 and live in tcg_cards, which freshSeries does not read
+ * yet: those games keep their lead card on the biggest-jump post.
+ */
+export const MOVER_GAMES: GameId[] = ["pokemon", "mtg"];
+
+/**
+ * A game's biggest weekly gainer for the 7pm "biggest price jump" post: the
+ * top of topMovers' up list under every guard it already applies (priceTrust,
+ * the step-jump rule, the $10 floor on both ends, a price that held, a
+ * believable old price), skipping cards an earlier 7pm post already led with
+ * ("jumps" no-repeat list, FEATURED_DAYS) and needing at least JUMP_MIN_PCT.
+ * Magic's history has a gap 09-16 to 09-23, so an empty 7-day look back is
+ * retried over 6 days (mixedMovers does the same). null = no gainer to claim.
+ */
+export async function gameGainer(game: GameId, day = todayUtc()): Promise<Mover | null> {
+  if (!MOVER_GAMES.includes(game)) return null;
+  const exclude = await recentlyFeatured(game, "jumps", day);
+  let list = await topMovers(game, day, { direction: "up", exclude, limit: 1 });
+  if (list.length < 1) list = await topMovers(game, day, { direction: "up", exclude, limit: 1, days: MOVER_DAYS - 1 });
+  const m = list[0];
+  return m && m.imageUrl && m.pct >= JUMP_MIN_PCT ? m : null;
+}
+
+/**
+ * The 7pm post's cards (10-01, "the biggest price jump in each game this
+ * week"): one per public game (the same games gameLeads picks), each the
+ * game's top weekly gainer (gameGainer) or, where there is none, its lead
+ * card exactly as before, so the post is never empty and never skips. Jumps
+ * come first, biggest move first (the video opens on the best one); the
+ * lead cards follow in the site's game order. With no jump anywhere this IS
+ * gameLeads' list, in its own order.
+ */
+export async function gameJumps(day = todayUtc()): Promise<GameLead[]> {
+  const leads = await gameLeads(day);
+  const picked = await Promise.all(
+    leads.map(async (l): Promise<GameLead> => {
+      const m = await gameGainer(l.game, day);
+      if (!m) return l;
+      return { game: l.game, name: m.name, setName: m.setName, number: m.number, price: m.to, imageUrl: m.imageUrl, cardId: m.cardId, from: m.from, pct: m.pct, variant: m.variant };
+    }),
+  );
+  const jumps = picked.filter(isJump).sort((a, b) => (b.pct as number) - (a.pct as number) || POST_GAME_ORDER.indexOf(a.game) - POST_GAME_ORDER.indexOf(b.game));
+  return jumps.length ? [...jumps, ...picked.filter((l) => !isJump(l))] : picked;
+}
+
+type FeaturedKind = "movers" | "dips" | "jumps";
 
 async function featuredMap(game: GameId, kind: FeaturedKind): Promise<Record<string, string>> {
   try {
@@ -561,7 +627,10 @@ export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = CO
 export interface SetSpotlight {
   setId: string;
   setName: string;
+  /** In the order the post shows them: the set's most valuable cards, dearest first, unless one of them rose this week, which then leads (leadId). */
   cards: Mover[];
+  /** The card that leads because it moved up the most this week among the five (the cover of the video, the first row of the picture); absent when none rose or the day is before JUMPS_FROM. */
+  leadId?: string;
 }
 
 /**
@@ -578,7 +647,7 @@ export interface SetSpotlight {
  * that stays true. A card proved wrong (a $1,013 Rayquaza at Cardmarket
  * EUR 45) does not block its set; its real price is unknown, not high.
  */
-export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = SET_MIN_CARDS, minPrice = SET_MIN_PRICE } = {}): Promise<SetSpotlight | null> {
+export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = SET_MIN_CARDS, minPrice = SET_MIN_PRICE, leadFirst = jumpsOn(day) } = {}): Promise<SetSpotlight | null> {
   if (game !== "pokemon") return null;
   const { cards: series, unverified } = await freshSeries(game, day, MOVER_DAYS);
   // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
@@ -633,7 +702,26 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
     if (cards.length >= minCards) break;
   }
   if (cards.length < minCards) return null;
-  return { setId, setName: cards[0].setName, cards };
+  cards.forEach((c, i) => (c.rank = i + 1));
+  // The eye-catching card leads (10-01: a video whose cover fell 3.8% got 41 views, one that rose 134% got 110): the
+  // biggest up-move among these five, ties to the more valuable (the earlier one). Only a move the movers would print:
+  // a held price, an old price the guard believes, both ends at the floor, no lone step out of a flat stretch. It leads
+  // when it is a real jump (JUMP_MIN_PCT) or when the card that would lead on value FELL this week, so a cover is never
+  // red while the set has a riser; a set that is flat or down, or only up a point or two, keeps today's order, and no gain
+  // is invented for a card that did not make one.
+  let lead = -1;
+  if (leadFirst) {
+    cards.forEach((c, i) => {
+      const s = series.get(c.cardId)!;
+      if (c.unsettled || !s.fromSettled || s.stepJump || c.pct < 1 || Math.min(c.from, c.to) < MOVER_MIN_PRICE) return;
+      if (lead < 0 || Math.round(c.pct * 10) > Math.round(cards[lead].pct * 10)) lead = i;
+    });
+    const firstFell = !cards[0].unsettled && cards[0].pct <= -1;
+    if (lead >= 0 && cards[lead].pct < JUMP_MIN_PCT && !firstFell) lead = -1;
+  }
+  const leadId = lead >= 0 ? cards[lead].cardId : undefined;
+  if (lead > 0) cards.unshift(...cards.splice(lead, 1));
+  return { setId, setName: cards[0].setName, cards, ...(leadId ? { leadId } : {}) };
 }
 
 export function money(n: number): string {
@@ -656,6 +744,9 @@ const GAME_TAGS: Record<GameId, string[]> = {
 
 const SIGN_OFF = "Scan a card, see what it's worth. cardflip.io";
 
+/** The question block of a caption: after the card lines, before the sign-off (fitText drops it first when a site is tight). */
+const qBlock = (question?: string): string[] => (question ? [question, ""] : []);
+
 /**
  * The sign-off lines. `alsoScans` (a day plan, Chris 09-30: "make some
  * reference to the fact we can scan the other game types too") names the
@@ -670,23 +761,25 @@ function shortSignOff(covered: GameId[] | null): string {
 }
 
 /** Caption for the movers post. Plain, no exclamation marks (docs/SOCIAL.md). */
-export function moversCaption(game: GameId, movers: Mover[], alsoScans = false): string {
+export function moversCaption(game: GameId, movers: Mover[], alsoScans = false, question = ""): string {
   const lines = movers.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
     `${GAME_LABEL[game]} price gains this week, from CardFlip's own price history.`,
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(alsoScans ? [game] : null),
   ].join("\n");
 }
 
 /** The movers post in under 300 characters: name and % only. */
-export function moversShortCaption(game: GameId, movers: Mover[], alsoScans = false): string {
+export function moversShortCaption(game: GameId, movers: Mover[], alsoScans = false, question = ""): string {
   return [
     `${GAME_LABEL[game]} price gains this week`,
     ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
     "",
+    ...qBlock(question),
     shortSignOff(alsoScans ? [game] : null),
   ].join("\n");
 }
@@ -696,7 +789,7 @@ function moverGames(movers: Mover[]): GameId[] {
 }
 
 /** Caption for a mixed-game movers post (mixedMovers): each line says its game. */
-export function mixedMoversCaption(movers: Mover[]): string {
+export function mixedMoversCaption(movers: Mover[], question = ""): string {
   const games = moverGames(movers);
   const lines = movers.map((m) => `${POST_GAME_NAMES[m.game ?? "pokemon"]}: ${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
@@ -704,53 +797,91 @@ export function mixedMoversCaption(movers: Mover[]): string {
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(games),
   ].join("\n");
 }
 
-export function mixedMoversShortCaption(movers: Mover[]): string {
+export function mixedMoversShortCaption(movers: Mover[], question = ""): string {
   const games = moverGames(movers);
   return [
     `${listNames(games.map((g) => POST_GAME_NAMES[g]))} price gains this week`,
     ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
     "",
+    ...qBlock(question),
     shortSignOff(games),
   ].join("\n");
 }
 
 /** Caption for the price-drops post (evening slot): the week's biggest falls. */
-export function dipsCaption(game: GameId, dips: Mover[], alsoScans = false): string {
+export function dipsCaption(game: GameId, dips: Mover[], alsoScans = false, question = ""): string {
   const lines = dips.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
     `${GAME_LABEL[game]} price drops this week, from CardFlip's own price history.`,
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(alsoScans ? [game] : null),
   ].join("\n");
 }
 
-export function dipsShortCaption(game: GameId, dips: Mover[], alsoScans = false): string {
-  return [`${GAME_LABEL[game]} price drops this week`, ...dips.map((m) => `${m.name} ${pctLabel(m.pct)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
+export function dipsShortCaption(game: GameId, dips: Mover[], alsoScans = false, question = ""): string {
+  return [`${GAME_LABEL[game]} price drops this week`, ...dips.map((m) => `${m.name} ${pctLabel(m.pct)}`), "", ...qBlock(question), shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
 /** Caption for the all-games post (day plan morning "games"): what the scanner reads, then the card from each game in the picture. */
-export function gamesCaption(leads: GameLead[]): string {
+/** TCGplayer's Yu-Gi-Oh set names carry a print-run tag ("… (Worldwide English)") nobody says out loud. */
+const cleanSet = (s: string) => s.replace(/\s*\(Worldwide English\)$/i, "");
+const numberLabel = (n: string) => (/^[A-Z]/.test(n) ? n : `#${n}`);
+
+/** The all-games post's title: with a jump in it the post is about the jumps. */
+export function gamesTitle(leads: GameLead[]): string {
+  const jumps = leads.filter(isJump).length;
+  if (jumps === 0) return `One scanner, ${countWord(leads.length)} card games`;
+  return jumps === leads.length ? "Biggest price jump in every game this week" : "Biggest price jumps this week";
+}
+
+/** One line of the jumps caption: "Pokémon: Umbreon ex (Prismatic Evolutions #161, Holo): $412, +34% this week"; a game with no jump says its price today. */
+function jumpLine(l: GameLead): string {
+  const v = l.variant ? variantLabel(l.variant) : "";
+  const card = `${l.name} (${cleanSet(l.setName)} ${numberLabel(l.number)}${v ? `, ${v}` : ""})`;
+  return `${POST_GAME_NAMES[l.game]}: ${card}: ${money(l.price)}${isJump(l) ? `, ${pctLabel(l.pct as number)} this week` : " today"}`;
+}
+
+function jumpsCaption(leads: GameLead[], question: string): string {
+  const jumps = leads.filter(isJump);
+  const rest = leads.filter((l) => !isJump(l));
+  const intro =
+    rest.length === 0
+      ? "The biggest price jump in every game this week, from CardFlip's own price history."
+      : `The biggest price jumps this week in ${listNames(jumps.map((l) => POST_GAME_NAMES[l.game]))}, and one card from ${listNames(rest.map((l) => POST_GAME_NAMES[l.game]))} at today's price, from CardFlip's own price history.`;
+  return [intro, "", ...leads.map(jumpLine), "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+function jumpsShortCaption(leads: GameLead[], question: string): string {
+  const lines = leads.map((l) => `${POST_GAME_NAMES[l.game]}: ${l.name} ${isJump(l) ? pctLabel(l.pct as number) : money(l.price)}`);
+  return [gamesTitle(leads), ...lines, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+export function gamesCaption(leads: GameLead[], question = ""): string {
+  if (leads.some(isJump)) return jumpsCaption(leads, question);
   const names = listNames(leads.map((l) => POST_GAME_NAMES[l.game]));
-  // TCGplayer's Yu-Gi-Oh set names carry a print-run tag ("… (Worldwide English)") nobody says out loud.
-  const setName = (s: string) => s.replace(/\s*\(Worldwide English\)$/i, "");
+  const setName = cleanSet;
   return [
     `One scanner, ${countWord(leads.length)} card games. CardFlip reads ${names} cards from a photo and shows what each one is worth today.`,
     "",
     "In the picture, one card from each game at today's market price:",
-    ...leads.map((l) => `${l.name}, ${setName(l.setName)} ${/^[A-Z]/.test(l.number) ? l.number : `#${l.number}`}: ${money(l.price)}`),
+    ...leads.map((l) => `${l.name}, ${setName(l.setName)} ${numberLabel(l.number)}: ${money(l.price)}`),
     "",
+    ...qBlock(question),
     SIGN_OFF,
   ].join("\n");
 }
 
-export function gamesShortCaption(leads: GameLead[]): string {
-  return [`One scanner, ${countWord(leads.length)} card games: ${listNames(leads.map((l) => POST_GAME_NAMES[l.game]))}.`, "", SIGN_OFF].join("\n");
+export function gamesShortCaption(leads: GameLead[], question = ""): string {
+  if (leads.some(isJump)) return jumpsShortCaption(leads, question);
+  return [`One scanner, ${countWord(leads.length)} card games: ${listNames(leads.map((l) => POST_GAME_NAMES[l.game]))}.`, "", ...qBlock(question), SIGN_OFF].join("\n");
 }
 
 export function cardCaption(game: GameId, card: Mover): string {
@@ -767,17 +898,17 @@ export function cardCaption(game: GameId, card: Mover): string {
 }
 
 /** Caption for the set spotlight (morning slot): the set's priciest cards and their week. */
-export function setCaption(game: GameId, spot: SetSpotlight, alsoScans = false): string {
+export function setCaption(game: GameId, spot: SetSpotlight, alsoScans = false, question = ""): string {
   const lines = spot.cards.map((m) => {
     const v = variantLabel(m.variant);
     const week = m.unsettled ? "" : Math.abs(m.pct) >= 1 ? `, ${pctLabel(m.pct)} this week` : ", steady this week";
     return `${m.name} #${m.number}${v ? ` ${v}` : ""}: ${money(m.to)}${week}`;
   });
-  return [`Five of the most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...signOff(alsoScans ? [game] : null)].join("\n");
+  return [`Five of the most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...qBlock(question), ...signOff(alsoScans ? [game] : null)].join("\n");
 }
 
-export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = false): string {
-  return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
+export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = false, question = ""): string {
+  return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", ...qBlock(question), shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
 /** Hashtags for a single-game post: the game's own, or the "also scans" set on a plan day. */
@@ -798,75 +929,88 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
     setSpotlight(game, day),
     recentlyFeatured(game, "dips", day).then((exclude) => topMovers(game, day, { direction: "down", exclude })),
     // The all-games post is the standing 7pm post (and the publisher's first fallback), so it is drafted every day.
-    game === "pokemon" ? gameLeads(day) : Promise.resolve([] as GameLead[]),
+    // From JUMPS_FROM it is each game's biggest weekly jump (a game with none keeps its lead card); before, the lead cards.
+    game === "pokemon" ? (jumpsOn(day) ? gameJumps(day) : gameLeads(day)) : Promise.resolve([] as GameLead[]),
   ]);
   const posts: SocialPost[] = [];
   if (leads.length >= 3) {
+    const jumped = leads.filter((l) => isJump(l) && l.cardId);
+    const q = questionFor("games", day);
     posts.push({
       id: `${game}-games-${day}`,
       kind: "games",
       game,
       day,
-      title: `One scanner, ${countWord(leads.length)} card games`,
-      caption: gamesCaption(leads),
-      shortCaption: gamesShortCaption(leads),
-      hashtags: [...PLAN_TAGS.games],
+      title: gamesTitle(leads),
+      caption: gamesCaption(leads, q),
+      shortCaption: gamesShortCaption(leads, q),
+      question: q,
+      hashtags: gamesTags(leads.map((l) => l.game)),
       imagePath: `/api/social/image?kind=games&game=${game}&day=${day}`,
-      cardIds: [],
+      cardIds: jumped.map((l) => l.cardId as string),
+      ...(jumped.length ? { featured: featuredByGame(jumped.map((l) => ({ cardId: l.cardId as string, game: l.game }))) } : {}),
     });
   }
   if (mixed && movers.length >= 3) {
     const games = moverGames(movers);
+    const q = questionFor("movers", day);
     posts.push({
       id: `${game}-movers-${day}`,
       kind: "movers",
       game,
       day,
       title: `${listNames(games.map((g) => POST_GAME_NAMES[g]))} movers of the week`,
-      caption: mixedMoversCaption(movers),
-      shortCaption: mixedMoversShortCaption(movers),
+      caption: mixedMoversCaption(movers, q),
+      shortCaption: mixedMoversShortCaption(movers, q),
+      question: q,
       hashtags: [...PLAN_TAGS.mixedMovers],
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
       cardIds: movers.map((m) => m.cardId),
       featured: featuredByGame(movers),
     });
   } else if (movers.length >= 3) {
+    const q = questionFor("movers", day);
     posts.push({
       id: `${game}-movers-${day}`,
       kind: "movers",
       game,
       day,
       title: `${GAME_LABEL[game]} movers of the week`,
-      caption: moversCaption(game, movers, also),
-      shortCaption: moversShortCaption(game, movers, also),
+      caption: moversCaption(game, movers, also, q),
+      shortCaption: moversShortCaption(game, movers, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
       cardIds: movers.map((m) => m.cardId),
     });
   }
   if (spot) {
+    const q = questionFor("set", day, spot.setName);
     posts.push({
       id: `${game}-set-${day}`,
       kind: "set",
       game,
       day,
       title: `Set spotlight: ${spot.setName}`,
-      caption: setCaption(game, spot, also),
-      shortCaption: setShortCaption(game, spot, also),
+      caption: setCaption(game, spot, also, q),
+      shortCaption: setShortCaption(game, spot, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=set&game=${game}&day=${day}`,
       cardIds: spot.cards.map((m) => m.cardId),
     });
   }
   if (dips.length >= 3) {
+    const q = questionFor("dips", day);
     posts.push({
       id: `${game}-dips-${day}`,
       kind: "dips",
       game,
       day,
       title: `${GAME_LABEL[game]} price drops this week`,
-      caption: dipsCaption(game, dips, also),
-      shortCaption: dipsShortCaption(game, dips, also),
+      caption: dipsCaption(game, dips, also, q),
+      shortCaption: dipsShortCaption(game, dips, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=dips&game=${game}&day=${day}`,
       cardIds: dips.map((m) => m.cardId),

@@ -63,6 +63,8 @@ export interface VideoCard {
   game?: GameId;
   /** A set-spotlight card whose price had not held: no % is claimed for it (09-30, the 7am TikTok video). */
   unsettled?: boolean;
+  /** A set-spotlight card's place by value among the five (1 = dearest): the video may open on the biggest riser instead (10-01), so the label keeps the value rank. */
+  rank?: number;
 }
 
 function isVideoCard(v: unknown): v is VideoCard {
@@ -78,7 +80,8 @@ function isVideoCard(v: unknown): v is VideoCard {
     typeof c.to === "number" &&
     typeof c.pct === "number" &&
     (c.game === undefined || typeof c.game === "string") &&
-    (c.unsettled === undefined || typeof c.unsettled === "boolean")
+    (c.unsettled === undefined || typeof c.unsettled === "boolean") &&
+    (c.rank === undefined || typeof c.rank === "number")
   );
 }
 
@@ -93,12 +96,27 @@ export interface LeadCard {
   setName: string;
   number: string;
   price: number;
+  /** Set on a game's biggest weekly jump (10-01, social.ts gameJumps): the card id, the price a week ago, the move in % and the price variant. A plain lead card has none. */
+  cardId?: string;
+  from?: number;
+  pct?: number;
+  variant?: string;
 }
 
 function isLeadCard(v: unknown): v is LeadCard {
   if (!v || typeof v !== "object") return false;
   const c = v as Record<string, unknown>;
-  return typeof c.game === "string" && typeof c.name === "string" && typeof c.setName === "string" && typeof c.number === "string" && typeof c.price === "number";
+  return (
+    typeof c.game === "string" &&
+    typeof c.name === "string" &&
+    typeof c.setName === "string" &&
+    typeof c.number === "string" &&
+    typeof c.price === "number" &&
+    (c.cardId === undefined || typeof c.cardId === "string") &&
+    (c.from === undefined || typeof c.from === "number") &&
+    (c.pct === undefined || typeof c.pct === "number") &&
+    (c.variant === undefined || typeof c.variant === "string")
+  );
 }
 
 /** What the render job registers; what the publisher hands the site adapters (bytes added). */

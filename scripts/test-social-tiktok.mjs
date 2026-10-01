@@ -36,12 +36,12 @@ const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const social = await import(at("lib/server/social.ts"));
-const { publishSocial, videoFor, applyVideoCards, fitText, slotKind, SLOTS, SLOT_PREFIX, LAST_POST_PREFIX } = await import(at("lib/server/socialPublish.ts"));
+const { publishSocial, videoFor, applyVideoCards, applyGameLeads, fitText, slotKind, SLOTS, SLOT_PREFIX, LAST_POST_PREFIX } = await import(at("lib/server/socialPublish.ts"));
 const { SOCIAL_SITES } = await import(at("lib/server/socialSites.ts"));
 const T = await import(at("lib/server/socialTiktok.ts"));
 const P = await import(at("lib/socialTiktok.ts"));
 const { DAY_PLANS } = await import(at("lib/socialPlan.ts"));
-const { videoKey } = await import(at("lib/socialVideo.ts"));
+const { videoKey, parseVideoSpec } = await import(at("lib/socialVideo.ts"));
 const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 const { addDays } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
@@ -164,7 +164,7 @@ check("the movers caption carries the frozen numbers and tags", [rows.midday.cap
 check("the all-games caption says video, not picture, on TikTok only (the other sites keep the picture wording)", [rows.evening.caption.includes("In the video, one card from each game"), rows.evening.caption.includes("In the picture"), drafts.find((d) => d.kind === "games").caption.includes("In the picture, one card")], [true, false, true]);
 check("the all-games caption names each game's lead card and carries all five game tags", [rows.evening.caption.includes("Charizard ex"), rows.evening.caption.includes("Dark Magician, Legend of Blue Eyes LOB-005: $55.25"), rows.evening.caption.includes("#PokemonTCG #MTG #DisneyLorcana #OPTCG #Yugioh")], [true, true, true]);
 const setDraft = drafts.find((d) => d.kind === "set");
-check("the stored caption IS the publisher's own text builder at TikTok's limit (fitText of the draft with the frozen cards)", rows.morning.caption, fitText(applyVideoCards(setDraft, morning.spec.cards), 2200));
+check("the stored caption IS the publisher's own text builder at TikTok's limit and five tags (fitText of the draft with the frozen cards)", rows.morning.caption, (() => { const a = applyVideoCards(setDraft, morning.spec.cards); return fitText({ ...a, hashtags: T.tiktokTags(a.hashtags) }, 2200, 5); })());
 check("a row keeps the frozen cards and leads it drew (text can never drift from the video)", [rows.morning.cards.length, rows.evening.leads.map((l) => l.game)], [5, ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]]);
 check("the parser refuses a row with no caption or no plan", [P.parseTiktokSpec(JSON.stringify({ ...rows.morning, caption: "" })), P.parseTiktokSpec(JSON.stringify({ ...rows.morning, plan: undefined })), P.parseTiktokSpec("nope")], [null, null, null]);
 
@@ -524,6 +524,71 @@ console.log("schedule, workflow, routes");
     card.includes("muted") && card.includes("playsInline") && !card.includes("autoPlay"),
     card.includes("/api/admin/social/tiktok/video"),
   ], [true, true, true, true]);
+}
+
+// ---- 10-01: the evening video is each game's biggest jump; the 7am video leads with its riser; TikTok carries five tags -------------
+console.log("10-01: jumps video, lead-first set video, five hashtags, the question");
+{
+  const J = "2026-11-20";
+  const PLm = await import(at("lib/socialPlan.ts"));
+  const hashtagsOf = (s) => (s.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).map((t) => t.trim());
+  check("every stored caption of the package carries at most five hashtags", ["morning", "midday", "evening"].map((s) => hashtagsOf(rows[s].caption).length <= 5), [true, true, true]);
+  check("TikTok fills the room with the general tags: Pokémon's own two, then #TCG #TradingCards #CardCollector", hashtagsOf(rows.morning.caption), ["#PokemonTCG", "#PokemonCards", "#TCG", "#TradingCards", "#CardCollector"]);
+  check("every stored caption carries its question after the card lines and before the sign-off", ["morning", "midday", "evening"].map((s) => { const lines = rows[s].caption.split("\n"); const i = lines.findIndex((l) => l.endsWith("?")); return i > 0 && lines[i + 2]?.endsWith("cardflip.io") && /\$/.test(lines[i - 2]); }), [true, true, true]);
+  check("tiktokTags: the post's own first, the general ones fill, never more than five", [T.tiktokTags(["A", "B", "C", "D", "E", "F", "G"]), T.tiktokTags(["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"]), T.tiktokTags(["TCG"])], [["A", "B", "C", "D", "E"], ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"], ["TCG", "TradingCards", "CardCollector"]]);
+
+  const jl = [
+    { game: "mtg", name: "Jump Mage", setName: "Jump Masters", number: "7", price: 64, cardId: "m1", from: 40, pct: 60 },
+    { game: "pokemon", name: "Riser A", setName: "Jump Set", number: "1", price: 70, cardId: "p1", from: 50, pct: 40, variant: "holofoil" },
+    { game: "lorcana", name: "Elsa", setName: "The First Chapter", number: "42", price: 61 },
+    { game: "onepiece", name: "Portgas.D.Ace", setName: "Premium Booster", number: "P-055", price: 75 },
+    { game: "yugioh", name: "Dark Magician", setName: "Legend of Blue Eyes (Worldwide English)", number: "LOB-005", price: 55.25 },
+  ];
+  const gd = { id: `pokemon-games-${J}`, kind: "games", game: "pokemon", day: J, title: "x", caption: "x", shortCaption: "x", hashtags: ["x"], imagePath: "", cardIds: [] };
+  const post = T.tiktokPost(gd, { leads: jl });
+  check("the evening TikTok text: the jumps title, a line per game with its move, the question, the address, five game tags", [post.title, post.caption.includes("Magic: Jump Mage (Jump Masters #7): $64.00, +60% this week"), post.caption.includes("Lorcana: Elsa (The First Chapter #42): $61.00 today"), post.caption.includes(PLm.questionFor("games", J)), hashtagsOf(post.caption)], ["Biggest price jumps this week", true, true, true, ["#PokemonTCG", "#MTG", "#DisneyLorcana", "#OPTCG", "#Yugioh"]]);
+  check("the jumps text says nothing about a picture (the 'In the video' swap is only for the old text)", [post.caption.includes("In the picture"), post.caption.includes("In the video")], [false, false]);
+  const rebuilt = applyGameLeads(gd, jl);
+  check("the draft rebuilt from the video's frozen leads files the same jump cards for the no-repeat rule", [rebuilt.cardIds, rebuilt.featured], [["m1", "p1"], { mtg: ["m1"], pokemon: ["p1"] }]);
+  const old = applyGameLeads({ ...gd, day: FRI }, jl.slice(2).map((l) => ({ ...l })));
+  check("a frozen row with no jump (every row made before 10-01) keeps the old title and caption shape", [old.title, old.cardIds, old.caption.startsWith("One scanner, three card games.")], ["One scanner, three card games", [], true]);
+  check("the parser keeps a jump lead's fields and still accepts a plain lead (rows from before)", (() => { const spec = parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, leads: jl })); return [spec.leads.length, spec.leads[0].pct, spec.leads[2].pct ?? null]; })(), [5, 60, null]);
+  check("…and a malformed jump lead voids the list (never half a post)", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, leads: [{ ...jl[0], pct: "60" }] })).leads ?? null, null);
+
+  // The plan tag: a video made before the rule is stale from 10-01 on, so the safety net remakes it (no forced render needed).
+  const regd = await T.registerTiktokVideo({ slot: "evening", day: J, kind: "games", url: "https://blob/tiktok/evening-games.mp4", bytes: 9_000_000, seconds: 26.2, draft: gd, leads: jl, audio: "track.mp3", now: 1_800_000_000_000 });
+  check("a video made now carries the 'jumps' plan and is ready", [regd.spec.plan, (await T.readSlot("evening", J)).state], ["games+jumps", "ready"]);
+  const oldRow = { ...regd.spec, plan: "games" };
+  await setSetting(P.tiktokKey("evening", J), JSON.stringify(oldRow));
+  check("the evening video registered under the old plan ('games') is stale: the render safety net remakes it", [(await T.readSlot("evening", J)).state, await T.slotsToRender(J)], ["stale", ["morning", "midday", "evening"]]);
+  await setSetting(P.tiktokKey("morning", J), JSON.stringify({ ...regd.spec, slot: "morning", kind: "set", plan: "set", leads: undefined, cards: [{ cardId: "a", name: "A", number: "1", setName: "S", variant: "holofoil", from: 1, to: 2, pct: 5 }] }));
+  check("the 7am set video made before the lead rule ('set') is stale from 10-01 too", [(await T.readSlot("morning", J)).state, T.planTag("morning", J)], ["stale", "set+lead"]);
+  const sd = { id: `pokemon-set-${J}`, kind: "set", game: "pokemon", day: J, title: "x", caption: "x", shortCaption: "x", hashtags: ["PokemonTCG", "PokemonCards", "TCG"], imagePath: "", cardIds: [] };
+  const setCards = [
+    { cardId: "p1", name: "Riser A", number: "1", setName: "Jump Set", variant: "holofoil", from: 50, to: 70, pct: 40, rank: 2 },
+    { cardId: "p3", name: "Step Jumper", number: "3", setName: "Jump Set", variant: "holofoil", from: 52, to: 90, pct: 71, rank: 1 },
+    { cardId: "p4", name: "Faller", number: "4", setName: "Jump Set", variant: "holofoil", from: 80, to: 60, pct: -25, rank: 3 },
+  ];
+  const setPost = T.tiktokPost(sd, { cards: setCards });
+  check("the set video's text lists the riser first and is the same text the publisher builds", [setPost.caption.split("\n")[2], hashtagsOf(setPost.caption).length], ["Riser A #1 Holo: $70.00, +40% this week", 5]);
+  check("a frozen set card keeps its value rank through the parser (the video's No. label)", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, cards: setCards })).cards.map((c) => c.rank), [2, 1, 3]);
+}
+
+console.log("10-01: the render script and the scene");
+{
+  const html = scene.sceneHtml({
+    W: 1080, H: 1920, logo: "", intro: { kicker: "k", title: "t", sub: "s" },
+    cards: [
+      { rank: "Magic", art: "", name: "Jump Mage", meta: "m", to: 64, pct: { text: "▲ 60.0% this week", cls: "up big", early: true } },
+      { rank: "Lorcana", art: "", name: "Elsa", meta: "m", to: 61, pct: { text: "market price today", cls: "muted" } },
+    ],
+    outro: {}, INTRO: 2, BEAT: 4, OUTRO: 2, PERIOD: 1, MUSIC: true, TOTAL: 12, safeBottom: true,
+  });
+  check("a riser's move is drawn big and marked to show from the card's first second; a lead card's line is not", [html.includes('<div class="pct up big" data-early="1">▲ 60.0% this week</div>'), html.includes('<div class="pct muted">market price today</div>'), (html.match(/data-early/g) ?? []).length], [true, true, 1]);
+  check("the scene fades the early move in at the card's second beat, the others on beat 3 as before", [html.includes("pctEl.dataset.early ? P*1.1 : 3*P"), /\.beat \.pct\.big \{ font-size:80px/.test(html)], [true, true]);
+  const src = read("scripts/social-video.mjs");
+  check("the render script: the 7pm video draws the jumps from 10-01 (the lead cards before), biggest first, and freezes each jump's id, old price, move and variant", [src.includes("jumpsOn(day) ? await gameJumps(day) : await gameLeads(day)"), src.includes("cls: \"up big\", early: true"), src.includes("...(isJump(c) && c.cardId ? { cardId: c.cardId, from: c.from, pct: c.pct")], [true, true, true]);
+  check("the render script: the 7am video opens on the set's riser, counts the rest down, keeps each value rank, and freezes the caption's order", [src.includes("const order = spot.leadId ? [spot.cards[0], ...[...rest].reverse()] : [...spot.cards].reverse();"), src.includes("`No. ${c.rank ?? n - i}`"), src.includes("frozen: { cards: spot.cards.map(")], [true, true, true]);
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

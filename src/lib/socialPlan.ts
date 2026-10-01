@@ -73,17 +73,122 @@ export function otherGameNames(covered: GameId[]): string[] {
  * Hashtags. Threads turns only the FIRST into its topic, so the biggest
  * community goes first; Bluesky makes a facet only of [A-Za-z][A-Za-z0-9]*,
  * so no hyphens. Lists are cut from the END to fit a site (fitText: X and
- * Bluesky by length, Instagram at five tags), so order = priority.
+ * Bluesky by length, Instagram and TikTok at five tags), so order = priority.
  * games (Chris 09-30: "include hashtags for all the games, i want the
- * biggest reach possible"): one tag per game first, so every site names all
- * five, then a second tag per game, then the general card tags.
+ * biggest reach possible"): one tag per game first, so every site names every
+ * game. Capped at FIVE (10-01: more reads as spam and TikTok shows five):
+ * gamesTags picks the five best for the games a post covers.
  */
+export const GAME_HASHTAGS: Record<GameId, string[]> = {
+  pokemon: ["PokemonTCG", "PokemonCards"],
+  mtg: ["MTG", "MagicTheGathering"],
+  lorcana: ["DisneyLorcana", "Lorcana"],
+  onepiece: ["OPTCG", "OnePieceCardGame"],
+  yugioh: ["Yugioh", "YuGiOhTCG"],
+};
+/** The general tags that fill the room a post's game tags leave. */
+export const GENERAL_TAGS = ["TCG", "TradingCards", "CardCollector"];
+/** The most hashtags any post carries (TikTok and Instagram both stop at five). */
+export const MAX_TAGS = 5;
+
+/**
+ * The tags for a post that covers `games`: each game's own first tag (in the
+ * order given), then the general ones, then each game's second tag, cut at
+ * MAX_TAGS. Five games = the five game tags; four = four plus #TCG.
+ */
+export function gamesTags(games: GameId[]): string[] {
+  const out: string[] = [];
+  const add = (t: string | undefined) => {
+    if (t && !out.includes(t)) out.push(t);
+  };
+  // The site's game order, not the post's (Threads makes the first tag its topic: the biggest community goes first).
+  const ordered = POST_GAME_ORDER.filter((g) => games.includes(g));
+  for (const g of ordered) add(GAME_HASHTAGS[g][0]);
+  for (const t of GENERAL_TAGS) add(t);
+  for (const g of ordered) add(GAME_HASHTAGS[g][1]);
+  return out.slice(0, MAX_TAGS);
+}
+
 export const PLAN_TAGS = {
-  games: [
-    "PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh",
-    "PokemonCards", "MagicTheGathering", "Lorcana", "OnePieceCardGame", "YuGiOhTCG",
-    "TCG", "TradingCards", "CardCollector",
-  ],
+  games: gamesTags(POST_GAME_ORDER),
   mixedMovers: ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"],
   pokemonAlsoScans: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"],
 } as const;
+
+/**
+ * 10-01 (the owner: "most views and clicks on every site"). From this Eastern
+ * day on, the standing 7pm post is "the biggest price jump in each game this
+ * week" (a per-game top gainer, the old lead card where a game has none), and
+ * the 7am set spotlight leads with the card that moved UP the most. Earlier
+ * days keep what already went out, so a re-render of an old day is unchanged.
+ */
+export const JUMPS_FROM = "2026-10-01";
+export function jumpsOn(day: string | undefined): boolean {
+  return Boolean(day) && (day as string) >= JUMPS_FROM;
+}
+/**
+ * A game's top gainer must have moved at least this much to be "the biggest jump" (a +2% week is no headline: that game
+ * keeps its lead card). The set spotlight uses it too: a riser takes the lead over the set's most valuable card when it
+ * rose this much, or when that card fell (a +3% riser under a steady leader changes nothing).
+ */
+export const JUMP_MIN_PCT = 5;
+
+/**
+ * One short question per post (the owner 10-01: likes, comments and shares
+ * up). Plain, no emoji, no link, no "comment below"; a small pool per kind,
+ * shuffled per cycle like the backing tracks (scripts/lib/audio-plan.mjs
+ * dayShuffle: a mulberry32 stream seeded by the day), so the same question
+ * never runs two days in a row and every one gets its turn. An entry may
+ * name the set ("Which card from Base Set 2 is your favourite?").
+ */
+type QuestionPool = Array<string | ((setName: string) => string)>;
+export const QUESTIONS: Record<PostKind, QuestionPool> = {
+  movers: ["Which one would you hold?", "Did you see any of these coming?", "Which of these are you watching?"],
+  dips: ["Buying the dip on any of these?", "Which of these would you pick up at this price?", "Is this a dip to buy or a card to skip?"],
+  set: [(s) => `Which card from ${s} is your favourite?`, "Did you pull any of these back in the day?", (s) => `Do you still have any ${s} cards?`],
+  games: ["Which game are you collecting?", "Which of these games do you collect?", "Which game has your best card?"],
+  card: ["Is this one in your collection?", "Would you keep it or sell it?"],
+};
+
+/** The pool's order for one cycle; the first of a cycle never repeats the last of the one before it. */
+function cycleOrder(cycle: number, n: number): number[] {
+  const shuffle = (c: number) => {
+    let a = (Math.imul(c ^ 0x9e3779b9, 0x85ebca6b) ^ 0xc2b2ae35) >>> 0;
+    const rand = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const order = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  };
+  const order = shuffle(cycle);
+  if (n > 1 && order[0] === shuffle(cycle - 1)[n - 1]) [order[0], order[1]] = [order[1], order[0]];
+  return order;
+}
+
+/** The question a post of this kind carries on an Eastern day. */
+export function questionFor(kind: PostKind, day: string, setName = ""): string {
+  const pool = QUESTIONS[kind];
+  const n = Math.round(Date.parse(`${day}T00:00:00Z`) / 86_400_000);
+  const pick = pool[cycleOrder(Math.floor(n / pool.length), pool.length)[((n % pool.length) + pool.length) % pool.length]];
+  return typeof pick === "function" ? pick(setName || "this set") : pick;
+}
+
+/** Items laid out as a fan, the middle one on top: the first of `sorted` goes in the centre, the rest alternate right and left of it. */
+export function fanOrder<T>(sorted: T[]): T[] {
+  const n = sorted.length;
+  const out: (T | undefined)[] = new Array(n).fill(undefined);
+  const mid = Math.floor((n - 1) / 2);
+  let k = 0;
+  for (let d = 0; k < n; d++) {
+    for (const i of d === 0 ? [mid] : [mid + d, mid - d]) if (i >= 0 && i < n && k < n && out[i] === undefined) out[i] = sorted[k++];
+  }
+  return out as T[];
+}

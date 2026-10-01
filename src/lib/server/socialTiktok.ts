@@ -1,5 +1,6 @@
 import "server-only";
 import { addDays } from "@/lib/priceSeries";
+import { GENERAL_TAGS, MAX_TAGS } from "@/lib/socialPlan";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { TIKTOK_MAX_CHARS } from "@/lib/server/sites/tiktok";
@@ -105,7 +106,18 @@ export function candidateKinds(slot: Slot, day: string, drafts: Pick<SocialPost,
 export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[] }): { title: string; caption: string } {
   const applied = data.cards?.length ? applyVideoCards(d, data.cards) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
-  return { title: applied.title, caption: fitText(applied, TIKTOK_MAX_CHARS).replace(/^In the picture,/m, "In the video,") };
+  return { title: applied.title, caption: fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, MAX_TAGS).replace(/^In the picture,/m, "In the video,") };
+}
+
+/**
+ * TikTok shows five hashtags and more reads as spam (10-01): the post's own,
+ * game tags first, then the general ones (#TCG #TradingCards #CardCollector)
+ * for whatever room is left, never past MAX_TAGS.
+ */
+export function tiktokTags(tags: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const t of [...tags, ...GENERAL_TAGS]) if (!out.includes(t)) out.push(t);
+  return out.slice(0, MAX_TAGS);
 }
 
 /** The movers row the other sites post at 1:05pm (settings social_video:pokemon:movers:<day>), if the render has made it. Raw: made under any plan. */

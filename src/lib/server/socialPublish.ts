@@ -15,6 +15,8 @@ import {
   dipsShortCaption,
   gamesCaption,
   gamesShortCaption,
+  gamesTitle,
+  isJump,
   setCaption,
   setShortCaption,
   type GameLead,
@@ -22,7 +24,7 @@ import {
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { countWord, dayPlan } from "@/lib/socialPlan";
+import { dayPlan, gamesTags, jumpsOn, questionFor } from "@/lib/socialPlan";
 import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
@@ -232,6 +234,9 @@ export interface PublishReport {
  * all the posts"): full caption with every tag, then the short caption with
  * every tag, then either with the tag list trimmed from the end (never
  * under two), and only then untagged text.
+ * The engagement question (10-01, post.question) is the lowest priority
+ * there is after the sign-off cut: every version above is tried WITH it first,
+ * and only when none fits does it go, still before a single hashtag does.
  */
 export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
   if (post.hashtags.length > maxTags) post = { ...post, hashtags: post.hashtags.slice(0, maxTags) };
@@ -241,7 +246,10 @@ export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity):
   // → "cardflip.io"; the picture still carries the pills).
   const cut = short.lastIndexOf("\n");
   const tiny = cut > 0 && short.endsWith("cardflip.io") ? `${short.slice(0, cut)}\ncardflip.io` : short;
-  const texts = tiny === short ? [post.caption, short] : [post.caption, short, tiny];
+  const withQ = tiny === short ? [post.caption, short] : [post.caption, short, tiny];
+  const q = post.question;
+  const noQ = (t: string) => (q ? t.replace(`${q}\n\n`, "") : t);
+  const texts = q ? [...withQ, ...withQ.map(noQ)] : withQ;
   for (let n = post.hashtags.length; n >= Math.min(2, post.hashtags.length); n--) {
     const tags = post.hashtags.slice(0, n).map((h) => `#${h}`).join(" ");
     for (const text of texts) {
@@ -313,7 +321,9 @@ async function defaultFetchVideo(url: string): Promise<Buffer> {
 export function planTag(slot: Slot, day: string): string {
   const p = dayPlan(day);
   const kind = slotKind(slot, day);
-  return [kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : ""].filter(Boolean).join("+");
+  // "jumps" / "lead" (10-01): the 7pm post is each game's biggest jump and the set spotlight leads with its biggest riser, so a video
+  // made before that rule is stale (the render safety net remakes it) and one made after it is not.
+  return [kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : "", kind === "games" && jumpsOn(day) ? "jumps" : "", kind === "set" && jumpsOn(day) ? "lead" : ""].filter(Boolean).join("+");
 }
 
 /** The MP4 registered for a draft by the render job, or null (picture post). */
@@ -365,19 +375,22 @@ export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
   // the draft's title and hashtags already say so, the text is rebuilt per game.
   const mixed = movers.some((m) => m.game);
   const also = Boolean(dayPlan(d.day).alsoScans) && d.game === "pokemon";
+  const q = questionFor(d.kind, d.day);
   if (d.kind === "movers" && mixed) {
-    return { ...d, caption: mixedMoversCaption(movers), shortCaption: mixedMoversShortCaption(movers), cardIds: movers.map((m) => m.cardId), featured: featuredByGame(movers) };
+    return { ...d, caption: mixedMoversCaption(movers, q), shortCaption: mixedMoversShortCaption(movers, q), question: q, cardIds: movers.map((m) => m.cardId), featured: featuredByGame(movers) };
   }
   if (d.kind === "movers") {
-    return { ...d, caption: moversCaption(d.game, movers, also), shortCaption: moversShortCaption(d.game, movers, also), cardIds: movers.map((m) => m.cardId) };
+    return { ...d, caption: moversCaption(d.game, movers, also, q), shortCaption: moversShortCaption(d.game, movers, also, q), question: q, cardIds: movers.map((m) => m.cardId) };
   }
   if (d.kind === "dips") {
-    return { ...d, caption: dipsCaption(d.game, movers, also), shortCaption: dipsShortCaption(d.game, movers, also), cardIds: movers.map((m) => m.cardId) };
+    return { ...d, caption: dipsCaption(d.game, movers, also, q), shortCaption: dipsShortCaption(d.game, movers, also, q), question: q, cardIds: movers.map((m) => m.cardId) };
   }
   if (d.kind === "set") {
     const setName = movers[0].setName;
     const spot = { setId: "", setName, cards: movers };
-    return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot, also), shortCaption: setShortCaption(d.game, spot, also), cardIds: movers.map((m) => m.cardId) };
+    // The question names the set, so it follows the set the video drew (the draft's own may be another one).
+    const sq = questionFor("set", d.day, setName);
+    return { ...d, title: `Set spotlight: ${setName}`, caption: setCaption(d.game, spot, also, sq), shortCaption: setShortCaption(d.game, spot, also, sq), question: sq, cardIds: movers.map((m) => m.cardId) };
   }
   return d;
 }
@@ -390,7 +403,20 @@ export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
 export function applyGameLeads(d: SocialPost, leads: LeadCard[]): SocialPost {
   if (d.kind !== "games" || leads.length < 3) return d;
   const full: GameLead[] = leads.map((l) => ({ ...l, imageUrl: "" }));
-  return { ...d, title: `One scanner, ${countWord(full.length)} card games`, caption: gamesCaption(full), shortCaption: gamesShortCaption(full) };
+  const q = questionFor("games", d.day);
+  // A jump video's cards are filed for the no-repeat rule like the draft's own (a lead card carries no id and files nothing).
+  const jumped = full.filter((l) => isJump(l) && l.cardId);
+  const featured = jumped.length ? featuredByGame(jumped.map((l) => ({ cardId: l.cardId as string, game: l.game }))) : undefined;
+  return {
+    ...d,
+    title: gamesTitle(full),
+    caption: gamesCaption(full, q),
+    shortCaption: gamesShortCaption(full, q),
+    question: q,
+    hashtags: gamesTags(full.map((l) => l.game)),
+    cardIds: jumped.map((l) => l.cardId as string),
+    ...(featured ? { featured } : { featured: undefined }),
+  };
 }
 
 /** Sites that can post right now: env vars present and, for OAuth sites, the account connected. */
@@ -612,12 +638,15 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   report.sites.push(...(await Promise.all(connected.map(postSite))));
   if (!opts.dry) {
     // No-repeat rule: every gains/drops draft that landed anywhere keeps its cards out of that kind for FEATURED_DAYS.
+    // The 7pm all-games post files its per-game jumps under their own "jumps" list (a lead card has no id and files nothing).
     const landedIds = new Set(report.sites.flatMap((s) => s.posts.filter((p) => p.uri).map((p) => p.id)));
     for (const d of all) {
-      if ((d.kind !== "movers" && d.kind !== "dips") || !landedIds.has(d.id)) continue;
+      if ((d.kind !== "movers" && d.kind !== "dips" && d.kind !== "games") || !landedIds.has(d.id)) continue;
+      if (d.kind === "games" && !d.featured) continue;
       // A mixed post files each card under its own game's list (a Magic card under Pokémon's would repeat on Magic's next post).
       const byGame = d.featured ?? { [d.game]: d.cardIds };
-      for (const [g, ids] of Object.entries(byGame) as [GameId, string[]][]) await markFeatured(g, d.kind, day, ids);
+      const list = d.kind === "games" ? "jumps" : d.kind;
+      for (const [g, ids] of Object.entries(byGame) as [GameId, string[]][]) await markFeatured(g, list, day, ids);
     }
     await noteOnBoard(report, now);
     await alertFailures(report).catch((err) => console.warn("social: failure alert skipped", err instanceof Error ? err.message : err));

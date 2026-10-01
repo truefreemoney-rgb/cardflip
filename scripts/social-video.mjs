@@ -54,8 +54,8 @@ const ONLY = arg("--slot", "").split(",").filter(Boolean);
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { topMovers, mixedMovers, recentlyFeatured, setSpotlight, gameLeads, socialDrafts, variantLabel } = await import(at("lib/server/social.ts"));
-const { dayPlan, POST_GAME_NAMES, POST_GAME_ORDER, countWord } = await import(at("lib/socialPlan.ts"));
+const { topMovers, mixedMovers, recentlyFeatured, setSpotlight, gameLeads, gameJumps, isJump, socialDrafts, variantLabel } = await import(at("lib/server/social.ts"));
+const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord } = await import(at("lib/socialPlan.ts"));
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
 const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
@@ -121,11 +121,12 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // TCGplayer's Yu-Gi-Oh set names carry a print-run tag ("… (Worldwide English)") nobody says out loud.
 const cleanSet = (s) => s.replace(/\s*\(Worldwide English\)$/i, "");
 
-/** "▲ 12.3% this week" and its colour; a price that had not held claims no move. */
-function moveLine(c) {
+/** "▲ 12.3% this week" and its colour; a price that had not held claims no move. `hero` = big and up from the card's first second (the cover of a video that leads with its riser). */
+function moveLine(c, hero = false) {
   if (c.unsettled) return { text: "", cls: "muted" };
   if (Math.abs(c.pct) < 1) return { text: "steady this week", cls: "muted" };
-  return { text: `${c.pct > 0 ? "▲" : "▼"} ${Math.abs(c.pct).toFixed(1)}% this week`, cls: c.pct > 0 ? "up" : "down" };
+  const big = hero && c.pct > 0;
+  return { text: `${c.pct > 0 ? "▲" : "▼"} ${Math.abs(c.pct).toFixed(1)}% this week`, cls: c.pct > 0 ? (big ? "up big" : "up") : "down", ...(big ? { early: true } : {}) };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -201,8 +202,12 @@ async function build(kind, strict) {
   if (kind === "set") {
     const spot = await setSpotlight(game, day);
     if (!spot) throw new Error(`no set spotlight for ${day}`);
-    console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards`);
-    const shown = await withArt([...spot.cards].reverse(), strict);
+    console.log(`set: ${spot.setName} (${spot.setId}) · ${spot.cards.length} cards${spot.leadId ? ` · leads with ${spot.cards[0].name} ${spot.cards[0].pct.toFixed(1)}%` : ""}`);
+    // spot.cards is the caption's order: the biggest riser first when one rose (10-01), then the rest dearest first. The video
+    // opens on the riser (its cover), then counts the others down; every card keeps its value rank in its label.
+    const rest = spot.cards.filter((c) => c.cardId !== spot.leadId);
+    const order = spot.leadId ? [spot.cards[0], ...[...rest].reverse()] : [...spot.cards].reverse();
+    const shown = await withArt(order, strict);
     // The caption says "five of the most valuable": a set short of one card's art is not that post.
     if (shown.length !== spot.cards.length) throw new Error(`card art missing for the ${spot.setName} spotlight`);
     const n = shown.length;
@@ -211,39 +216,44 @@ async function build(kind, strict) {
       mixed: false,
       intro: { kicker: "Pokémon · set spotlight", title: spot.setName, sub: `${countWord(n).replace(/^./, (c) => c.toUpperCase())} of the most valuable cards right now` },
       cards: shown.map((c, i) => ({
-        rank: `No. ${n - i}`,
+        rank: `No. ${c.rank ?? n - i}`,
         art: c.art,
         name: c.name,
         meta: `#${numberText(c.number)}${variantLabel(c.variant) ? ` · ${variantLabel(c.variant)}` : ""}`,
         to: c.to,
-        pct: moveLine(c),
+        pct: moveLine(c, c.cardId === spot.leadId),
       })),
       outro: {},
-      frozen: { cards: [...shown].reverse().map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct, ...(c.unsettled ? { unsettled: true } : {}) })) },
+      frozen: { cards: spot.cards.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct, ...(c.unsettled ? { unsettled: true } : {}), ...(c.rank ? { rank: c.rank } : {}) })) },
     };
   }
   if (kind === "games") {
-    const leads = await gameLeads(day);
-    console.log(`games: ${leads.map((l) => `${l.game} ${l.name} $${l.price}`).join(" | ")}`);
+    // From JUMPS_FROM each game's biggest weekly jump (a game with none keeps its lead card), biggest first: the video opens on the best one.
+    const leads = jumpsOn(day) ? await gameJumps(day) : await gameLeads(day);
+    console.log(`games: ${leads.map((l) => `${l.game} ${l.name} $${l.price}${isJump(l) ? ` +${l.pct.toFixed(1)}%` : ""}`).join(" | ")}`);
     const shown = await withArt(leads, true);
     // Every public game is in the 7pm post (Chris 09-30): a video short of one is not that post, and its caption says so. Fail, so the run is retried.
     if (shown.length !== leads.length) throw new Error(`card art missing for the all-games video: ${leads.filter((l) => !shown.some((s) => s.game === l.game)).map((l) => `${l.game} (${l.name})`).join(", ")}`);
     if (shown.length < 3) throw new Error(`fewer than three games have card art for ${day}`);
     const n = shown.length;
+    const jumped = shown.some(isJump);
+    const allJumped = shown.every(isJump);
     return {
       kind,
       mixed: false,
-      intro: { kicker: "One scanner", title: `${cap(countWord(n))} card games`, sub: "A card from each, at today's market price" },
+      intro: jumped
+        ? { kicker: "Biggest price jump", title: allJumped ? "In every game" : "In each game", sub: allJumped ? "This week's top gainer in every game" : "This week's top gainers, and a card from the rest" }
+        : { kicker: "One scanner", title: `${cap(countWord(n))} card games`, sub: "A card from each, at today's market price" },
       cards: shown.map((c) => ({
         rank: POST_GAME_NAMES[c.game],
         art: c.art,
         name: c.name,
-        meta: `${cleanSet(c.setName)} · ${/^[A-Z]/.test(c.number) ? numberText(c.number) : `#${numberText(c.number)}`}`,
+        meta: `${cleanSet(c.setName)} · ${/^[A-Z]/.test(c.number) ? numberText(c.number) : `#${numberText(c.number)}`}${isJump(c) && variantLabel(c.variant ?? "") ? ` · ${variantLabel(c.variant)}` : ""}`,
         to: c.price,
-        pct: { text: "market price today", cls: "muted" },
+        pct: isJump(c) ? { text: `▲ ${c.pct.toFixed(1)}% this week`, cls: "up big", early: true } : { text: "market price today", cls: "muted" },
       })),
       outro: {},
-      frozen: { leads: shown.map((c) => ({ game: c.game, name: c.name, setName: c.setName, number: c.number, price: c.price })) },
+      frozen: { leads: shown.map((c) => ({ game: c.game, name: c.name, setName: c.setName, number: c.number, price: c.price, ...(isJump(c) && c.cardId ? { cardId: c.cardId, from: c.from, pct: c.pct, ...(c.variant ? { variant: c.variant } : {}) } : {}) })) },
     };
   }
   throw new Error(`the video renderer has no scene for kind "${kind}"`);

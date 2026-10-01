@@ -4,7 +4,9 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import {
   POST_SIZES,
   cardOfTheDay,
+  gameJumps,
   gameLeads,
+  isJump,
   mixedMovers,
   money,
   pctLabel,
@@ -21,7 +23,8 @@ import type { GameId } from "@/lib/types";
 import { fallbackArtUrl } from "@/lib/cardArt";
 import { frozenMovers } from "@/lib/server/socialPublish";
 import { parseGame } from "@/lib/games";
-import { POST_GAME_NAMES, dayPlan, listNames, otherGameNames } from "@/lib/socialPlan";
+import { todayUtc } from "@/lib/priceSeries";
+import { POST_GAME_NAMES, dayPlan, fanOrder, jumpsOn, listNames, otherGameNames } from "@/lib/socialPlan";
 
 /**
  * The social post as a picture (docs/SOCIAL-AUTOPILOT.md): one PNG per
@@ -129,7 +132,8 @@ export async function GET(req: NextRequest) {
   const alsoScans = plan.alsoScans && game === "pokemon" ? otherGameNames([game]) : undefined;
 
   if (kind === "games") {
-    const leads = await gameLeads(day);
+    // From JUMPS_FROM each game's biggest weekly jump (a game with none keeps its lead card), the same list the caption names.
+    const leads = jumpsOn(day ?? todayUtc()) ? await gameJumps(day) : await gameLeads(day);
     const drawn = await Promise.all(leads.map(async (l) => ({ ...l, imageUrl: await artDataUri(l.imageUrl, 540) })));
     // A blank card in a five-card picture reads as broken: fail, and the publisher's next ping retries.
     if (drawn.length < 3 || drawn.some((l) => !l.imageUrl)) return NextResponse.json({ error: "Game art missing" }, { status: 502 });
@@ -144,7 +148,7 @@ export async function GET(req: NextRequest) {
     const spot = await setSpotlight(game, day);
     if (!spot) return NextResponse.json({ error: "No set today" }, { status: 404 });
     return new ImageResponse(
-      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" alsoScans={alsoScans} />,
+      <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" alsoScans={alsoScans} leadId={spot.leadId} />,
       size,
     );
   }
@@ -233,7 +237,7 @@ function Pct({ pct, size }: { pct: number; size: number }) {
 }
 
 /** mode "move" = from → to with the % (movers, dips); "price" = today's price with the week's % as a footnote (set spotlight). */
-function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price"; alsoScans?: string[] }) {
+function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, leadId }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price"; alsoScans?: string[]; leadId?: string }) {
   const rows = wide ? movers.slice(0, 3) : movers;
   // Six rows (a mixed list) or the "Also scans" pills: smaller art so the footer stays on the picture.
   const tight = rows.length > 5 || Boolean(alsoScans?.length);
@@ -262,8 +266,9 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans }
               paddingLeft: wide ? 6 : 14,
               paddingRight: wide ? 16 : 24,
               borderRadius: 18,
-              background: "rgba(170,180,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.11)",
+              // The set's biggest riser leads and is marked: a green edge, so the first row reads as the hero.
+              background: m.cardId === leadId ? "rgba(74,222,128,0.10)" : "rgba(170,180,255,0.07)",
+              border: m.cardId === leadId ? "2px solid rgba(74,222,128,0.6)" : "1px solid rgba(255,255,255,0.11)",
             }}
           >
             {m.imageUrl ? (
@@ -348,11 +353,14 @@ function CardOfTheDay({ card, label, tall, wide }: { card: Mover; label: string;
  * per game (gameLeads = the homepage strip's picks), fanned edge to edge,
  * the middle card on top, each game's name and today's price underneath.
  */
-function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wide: boolean }) {
+function AllGames({ leads: given, tall, wide }: { leads: GameLead[]; tall: boolean; wide: boolean }) {
+  // The biggest-jump post (10-01): the biggest mover sits in the middle of the fan, on top; each tile carries its green %.
+  const jump = given.some(isJump);
+  const leads = jump ? fanOrder(given) : given;
   const n = leads.length;
   // The fan spans the content width (canvas minus the frame's padding).
   const inner = wide ? 1200 - 88 : tall ? 1080 - 160 : 1080 - 128;
-  const cardW = wide ? 168 : tall ? 300 : 290;
+  const cardW = jump ? (wide ? 150 : tall ? 300 : 268) : wide ? 168 : tall ? 300 : 290;
   const cardH = Math.round(cardW / 0.716);
   const step = (inner - cardW) / Math.max(1, n - 1);
   const mid = (n - 1) / 2;
@@ -365,17 +373,18 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
   const priceFs = wide ? 24 : 32;
   // Long names step down so they stay on two lines ("Exodia the Forbidden One" ran to three at 21px).
   const fitName = (name: string) => (name.length <= 14 ? nameFs : name.length <= 19 ? nameFs - 2 : nameFs - 4);
-  const tileH = Math.round((wide ? 16 : 24) + gameFs * 1.2 + (wide ? 3 : 6) + nameFs * 1.15 * 2 + (wide ? 2 : 4) + priceFs * 1.2);
+  const pctFs = priceFs * 0.95;
+  const tileH = Math.round((wide ? 16 : 24) + gameFs * 1.2 + (wide ? 3 : 6) + nameFs * 1.15 * 2 + (wide ? 2 : 4) + priceFs * 1.2 + (jump ? pctFs * 1.15 : 0));
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 44 : tall ? 84 : 72, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.04, flexDirection: wide ? "row" : "column" }}>
-        <div style={{ display: "flex" }}>One scanner.</div>
+        <div style={{ display: "flex" }}>{jump ? (given.every(isJump) ? "Biggest price jump" : "Biggest price jumps") : "One scanner."}</div>
         <div style={{ display: "flex", marginLeft: wide ? 14 : 0, backgroundImage: HOLO, backgroundClip: "text", color: "transparent" }}>
-          {n === 5 ? "Five" : String(n)} card games.
+          {jump ? (given.every(isJump) ? "in every game." : "this week.") : `${n === 5 ? "Five" : String(n)} card games.`}
         </div>
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 28, color: MUTED, marginTop: wide ? 6 : 14 }}>
-        One card from each game, market price today.
+        {jump ? (given.every(isJump) ? "The top gainer in every game, market price today." : "Top gainers this week. A game with no big mover shows one card.") : "One card from each game, market price today."}
       </div>
       {/* Fan + names centred in the space left above the footer (no dead band under the names). */}
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", paddingBottom: wide ? 0 : 24 }}>
@@ -430,6 +439,13 @@ function AllGames({ leads, tall, wide }: { leads: GameLead[]; tall: boolean; wid
               {/* "Monkey.D.Luffy" has no space to wrap on: let it break after the dots. */}
               {displayName(l.name).replace(/\./g, ".​")}
             </div>
+            {jump ? (
+              isJump(l) ? (
+                <div style={{ display: "flex", fontSize: pctFs, fontWeight: 800, marginTop: wide ? 2 : 4, color: UP, whiteSpace: "nowrap" }}>{pctLabel(l.pct as number)}</div>
+              ) : (
+                <div style={{ display: "flex", fontSize: pctFs * 0.55, fontWeight: 600, marginTop: wide ? 2 : 4, height: pctFs * 1.15 - (wide ? 2 : 4) - 4, alignItems: "center", color: MUTED, whiteSpace: "nowrap" }}>market price</div>
+              )
+            ) : null}
             <div style={{ display: "flex", fontSize: priceFs, fontWeight: 700, marginTop: wide ? 2 : 4, backgroundImage: HOLO, backgroundClip: "text", color: "transparent", whiteSpace: "nowrap" }}>{money(l.price)}</div>
           </div>
         ))}
