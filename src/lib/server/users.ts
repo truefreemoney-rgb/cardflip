@@ -381,12 +381,16 @@ export async function setAccessOverride(userId: string, override: AccessOverride
  * already applied.
  */
 export async function creditScanPack(userId: string, sessionId: string, scans: number): Promise<boolean> {
-  const ins = await db
-    .prepare("INSERT OR IGNORE INTO scan_pack_purchases (session_id, user_id, scans, created_at) VALUES (?, ?, ?, ?)")
-    .run(sessionId, userId, scans, Date.now());
-  if (!ins.changes) return false;
-  await db.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(scans, userId);
-  return true;
+  // One transaction (10-01 sweep): the key row and the balance land together. Apart, a failed UPDATE after the INSERT
+  // made Stripe's retry see the key, answer "already applied", and the buyer never got the scans.
+  return db.transaction(async (tx) => {
+    const ins = await tx
+      .prepare("INSERT OR IGNORE INTO scan_pack_purchases (session_id, user_id, scans, created_at) VALUES (?, ?, ?, ?)")
+      .run(sessionId, userId, scans, Date.now());
+    if (!ins.changes) return false;
+    await tx.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(scans, userId);
+    return true;
+  });
 }
 
 export async function setStripeCustomer(userId: string, customerId: string): Promise<void> {
