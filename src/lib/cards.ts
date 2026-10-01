@@ -125,6 +125,7 @@ export async function searchCards(
 }
 
 const CODE_TOKEN = /^[A-Z0-9]{2,6}-[A-Z]{0,3}\d{1,4}[A-Z]?$/i;
+const OP_PROMO_TOKEN = /^P-\d{1,3}$/i;
 const bareNumber = (n: string) => n.replace(/^0+(?=\d)/, "").toLowerCase();
 
 /**
@@ -152,9 +153,12 @@ export async function searchTyped(
     return hit.length > 0 ? hit : found;
   }
   if (game === "onepiece" || game === "yugioh") {
+    // One Piece promos print a one-letter code ("P-117"), too short for CODE_TOKEN
+    // (10-01: "nami p-117" was searched as a name and found nothing).
+    const isCode = (t: string) => CODE_TOKEN.test(t) || (game === "onepiece" && OP_PROMO_TOKEN.test(t));
     const tokens = query.trim().split(/\s+/).filter(Boolean);
-    const code = tokens.find((t) => CODE_TOKEN.test(t))?.toUpperCase() ?? null;
-    const name = tokens.filter((t) => !CODE_TOKEN.test(t)).join(" ");
+    const code = tokens.find(isCode)?.toUpperCase() ?? null;
+    const name = tokens.filter((t) => !isCode(t)).join(" ");
     if (!name && !code) return null;
     const found = await searchCards(name, code, lang, limit, game, null, false, null, null, true);
     if (!exact || !code) return found;

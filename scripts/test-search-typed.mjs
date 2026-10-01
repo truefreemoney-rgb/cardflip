@@ -26,6 +26,9 @@ const cases = [
   ["lorcana", "Elsa 42/204", { game: "lorcana", name: "Elsa", number: "42" }],
   ["onepiece", "Luffy", { game: "onepiece", name: "Luffy", number: null }],
   ["onepiece", "Roronoa Zoro OP01-001", { game: "onepiece", name: "Roronoa Zoro", number: "OP01-001" }],
+  // 10-01: a promo's one-letter code was searched as part of the name (Chris's phone, 0 hits).
+  ["onepiece", "nami p-117", { game: "onepiece", name: "nami", number: "P-117" }],
+  ["onepiece", "P-117", { game: "onepiece", name: "", number: "P-117" }],
   ["yugioh", "Dark Magician", { game: "yugioh", name: "Dark Magician", number: null }],
   ["yugioh", "dark magician lob-en005", { game: "yugioh", name: "dark magician", number: "LOB-EN005" }],
 ];
