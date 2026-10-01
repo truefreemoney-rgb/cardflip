@@ -59,48 +59,48 @@ export async function listingFxRate(currency: string, siteLabel: string, now = D
   return { rate, date: fx.date };
 }
 
-const DAY_KEY = (day: string) => `fx_day:${day}`;
-const SETTLED_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
+const DAY_KEY = (currency: string, day: string) => `fx_day:${currency}:${day}`;
+const goodRate = (r: unknown): r is number => typeof r === "number" && r > 0 && r < 1000;
 
 /**
  * USD → `currency` at the rate on `day` (yyyy-mm-dd, UTC) from Frankfurter's
- * historical endpoint, fetched on demand and cached in settings once the day
- * is settled (more than 3 days old; a recent day may still get its ECB print,
- * so it is refetched). Frankfurter answers a weekend with the previous
- * business day's rate. Returns null when no rate can be had: the caller
- * defers the sale, it never guesses.
+ * historical endpoint, fetched on demand. Frankfurter answers a weekend with
+ * the previous business day's rate. EVERY answer is cached in settings under
+ * currency + day (one fetch fills all the currencies for that day), recent
+ * days included, so the sales sync (sold_price) and the fee sync (sold_fees)
+ * of one sale always use the SAME rate, and a day costs one Frankfurter call
+ * in total. `memo` (one Map per sync pass) also remembers a FAILURE for the
+ * pass, so many order lines on a day with no rate cost one failed call, not
+ * one each. Returns null when no rate can be had: the caller defers the sale,
+ * it never guesses.
  */
-export async function fxRateOnDay(currency: string, day: string, now = Date.now()): Promise<number | null> {
+export async function fxRateOnDay(currency: string, day: string, memo?: Map<string, number | null>): Promise<number | null> {
   if (currency === "USD") return 1;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
-  const pick = (raw: string | null): number | null => {
-    if (!raw) return null;
-    try {
-      const v = JSON.parse(raw) as { rates?: Record<string, number> };
-      const r = v.rates?.[currency];
-      return typeof r === "number" && r > 0 && r < 1000 ? r : null;
-    } catch {
-      return null;
-    }
+  const memoKey = `${currency}:${day}`;
+  if (memo?.has(memoKey)) return memo.get(memoKey) ?? null;
+  const done = (r: number | null) => {
+    memo?.set(memoKey, r);
+    return r;
   };
-  const cached = pick(await getSetting(DAY_KEY(day)));
-  if (cached != null) return cached;
+  const cached = Number(await getSetting(DAY_KEY(currency, day)));
+  if (goodRate(cached)) return done(cached);
   try {
     const res = await fetch(`https://api.frankfurter.dev/v1/${day}?base=USD&symbols=${WANTED.join(",")}`, {
       signal: AbortSignal.timeout(4000),
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`frankfurter ${res.status}`);
-    const body = (await res.json()) as { date?: string; rates?: Record<string, number> };
-    const rate = pick(JSON.stringify({ rates: body.rates }));
-    if (rate == null) throw new Error("frankfurter: no rate for " + currency);
-    if (now - Date.parse(`${day}T00:00:00Z`) > SETTLED_AFTER_MS) {
-      await setSetting(DAY_KEY(day), JSON.stringify({ date: body.date ?? day, rates: body.rates }));
+    const body = (await res.json()) as { rates?: Record<string, number> };
+    if (!goodRate(body.rates?.[currency])) throw new Error("frankfurter: no rate for " + currency);
+    for (const c of WANTED) {
+      const r = body.rates?.[c];
+      if (goodRate(r)) await setSetting(DAY_KEY(c, day), String(r));
     }
-    return rate;
+    return done(body.rates![currency]);
   } catch (err) {
     console.error(`fx: no ${currency} rate for ${day}:`, err instanceof Error ? err.message : err);
-    return null;
+    return done(null);
   }
 }
 

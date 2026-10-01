@@ -70,20 +70,22 @@ async function recordSyncAt(userId: string, at: number): Promise<void> {
  */
 async function feeSumUsd(
   fees: { amount?: FinAmount }[] | undefined,
-  day: string,
+  day: string | null,
+  memo: Map<string, number | null>,
 ): Promise<number | null> {
   if (!fees?.length) return null;
   let sum = 0;
-  for (const fee of fees) sum += (await amountUsd(fee.amount, day)) ?? NaN;
+  for (const fee of fees) sum += (await amountUsd(fee.amount, day, memo)) ?? NaN;
   return Number.isFinite(sum) ? sum : null;
 }
 
-async function amountUsd(amount: FinAmount | undefined, day: string): Promise<number | null> {
+/** `day` null = the sale date is unreadable: a non-USD amount has no rate (null), a USD one needs none. */
+async function amountUsd(amount: FinAmount | undefined, day: string | null, memo: Map<string, number | null>): Promise<number | null> {
   const value = Number(amount?.value ?? 0);
   if (!Number.isFinite(value)) return null;
   const currency = (amount?.currency ?? "USD").trim().toUpperCase() || "USD";
   if (currency === "USD") return value;
-  const rate = await fxRateOnDay(currency, day);
+  const rate = day ? await fxRateOnDay(currency, day, memo) : null;
   return rate == null ? null : toUsd(value, rate);
 }
 
@@ -121,6 +123,8 @@ export async function syncEbayFees(userId: string, force = false): Promise<FeeSy
   }
 
   const updated: string[] = [];
+  // One Frankfurter call per currency + day for this whole pass (a failure is remembered too).
+  const fxMemo = new Map<string, number | null>();
   try {
     let looked = 0;
     for (const [orderId, rows] of byOrder) {
@@ -144,10 +148,11 @@ export async function syncEbayFees(userId: string, force = false): Promise<FeeSy
         const line = row.ebay_line_item_id
           ? sale.orderLineItems?.find((l) => l.lineItemId === row.ebay_line_item_id)
           : undefined;
-        const day = new Date(row.sold_at).toISOString().slice(0, 10);
-        let fee = await feeSumUsd(line?.marketplaceFees, day);
+        const soldAtMs = Number(row.sold_at);
+        const day = Number.isFinite(soldAtMs) ? new Date(soldAtMs).toISOString().slice(0, 10) : null;
+        let fee = await feeSumUsd(line?.marketplaceFees, day, fxMemo);
         if (fee == null && (sale.orderLineItems?.length ?? 0) <= 1 && sale.totalFeeAmount?.value != null) {
-          const total = await amountUsd(sale.totalFeeAmount, day);
+          const total = await amountUsd(sale.totalFeeAmount, day, fxMemo);
           if (total != null && Number.isFinite(total)) fee = total;
         }
         if (fee == null || fee < 0) continue;

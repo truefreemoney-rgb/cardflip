@@ -92,6 +92,8 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
   const since = new Date(now - WINDOW_MS).toISOString();
   const sold: CardRecord[] = [];
   let deferred = 0;
+  // One Frankfurter call per currency + day for this whole pass (a failure is remembered too).
+  const fxMemo = new Map<string, number | null>();
   try {
     let path: string | null =
       `/sell/fulfillment/v1/order?filter=${encodeURIComponent(`creationdate:[${since}..]`)}&limit=200`;
@@ -125,7 +127,8 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
           const currency = (paid?.currency ?? "USD").trim().toUpperCase() || "USD";
           let soldLocal: { price: number; currency: string } | null = null;
           if (soldPrice != null && currency !== "USD") {
-            const rate = await fxRateOnDay(currency, new Date(soldAt).toISOString().slice(0, 10));
+            // An unreadable order date has no sale-date rate: defer the line, never throw the pass.
+            const rate = Number.isFinite(soldAt) ? await fxRateOnDay(currency, new Date(soldAt).toISOString().slice(0, 10), fxMemo) : null;
             if (rate == null) {
               deferred++;
               continue;
