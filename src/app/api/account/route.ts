@@ -15,6 +15,7 @@ import {
 import { handleProblem, normalizeHandle } from "@/lib/handle";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
+import { cancelAllSubscriptions } from "@/lib/server/stripe";
 import { scanQuota } from "@/lib/server/scanQuota";
 import { isValidEmail } from "@/lib/emailAddress";
 import { isDisposableEmail } from "@/lib/server/signupGuard";
@@ -217,6 +218,16 @@ export async function DELETE(req: NextRequest) {
     const password = typeof body?.password === "string" ? body.password : "";
     if (!verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Password is incorrect" }, { status: 400 });
+    }
+    // Stop the billing first: a deleted account has no login left to cancel with, so it would be charged until it disputes.
+    try {
+      await cancelAllSubscriptions(user.stripeCustomerId, user.stripeSubscriptionId);
+    } catch (err) {
+      console.error("account delete: subscription cancel failed:", err);
+      return NextResponse.json(
+        { error: "We couldn't cancel your subscription just now, so your account was not deleted. Try again in a minute, or cancel in Billing first." },
+        { status: 502 },
+      );
     }
     const store = await cookies();
     const token = store.get(SESSION_COOKIE)?.value ?? null;

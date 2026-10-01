@@ -55,13 +55,14 @@ export function stripeConfigured(): boolean {
 async function stripeRequest<T = Record<string, unknown>>(
   path: string,
   form?: Record<string, string>,
+  method?: "DELETE",
 ): Promise<T> {
   const { secretKey } = env();
   if (!secretKey) throw new Error("stripe: STRIPE_SECRET_KEY not set");
   let res: Response;
   try {
     res = await fetch(`https://api.stripe.com/v1/${path}`, {
-      method: form ? "POST" : "GET",
+      method: method ?? (form ? "POST" : "GET"),
       headers: {
         authorization: `Bearer ${secretKey}`,
         ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}),
@@ -212,6 +213,34 @@ export async function fetchSubscription(subscriptionId: string): Promise<Subscri
     priceId: item?.price?.id ?? null,
     cancelAt: cancelAtFrom(sub, periodEnd),
   };
+}
+
+/** Statuses Stripe can still charge (or retry charging) on. */
+const CHARGEABLE = new Set(["active", "trialing", "past_due", "unpaid", "incomplete"]);
+
+/**
+ * Cancel, now, every subscription that can still charge this customer (and the pinned one), before the account is deleted
+ * (10-01 sweep: a deleted account kept being billed, with no login left to cancel it). Throws when Stripe cannot be reached,
+ * so the caller refuses the delete rather than leave a charging subscription behind. Returns how many were canceled.
+ */
+export async function cancelAllSubscriptions(customerId: string | null, pinnedId: string | null): Promise<number> {
+  if (!customerId && !pinnedId) return 0;
+  // Local dev and the test chain run without a key; production always has one (and fails loudly without it).
+  if (!env().secretKey && process.env.VERCEL_ENV !== "production") return 0;
+  const ids = new Set<string>();
+  if (customerId) {
+    const list = await stripeRequest<{ data?: { id: string; status: string }[] }>(`subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`);
+    for (const s of list.data ?? []) if (CHARGEABLE.has(s.status)) ids.add(s.id);
+  }
+  if (pinnedId && !ids.has(pinnedId)) {
+    const s = await stripeRequest<{ status: string }>(`subscriptions/${encodeURIComponent(pinnedId)}`).catch((err: Error) => {
+      if (/No such subscription/i.test(err.message)) return { status: "canceled" };
+      throw err;
+    });
+    if (CHARGEABLE.has(s.status)) ids.add(pinnedId);
+  }
+  for (const id of ids) await stripeRequest(`subscriptions/${encodeURIComponent(id)}`, undefined, "DELETE");
+  return ids.size;
 }
 
 /** A Stripe invoice as far as scan crediting reads it (both API shapes; billingCredits.ts normalises). */
