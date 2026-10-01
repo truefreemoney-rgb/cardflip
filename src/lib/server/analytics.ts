@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { PRICING } from "@/lib/pricing";
+import { TIKTOK_POSTED_PREFIX, tiktokHandPosted } from "@/lib/socialTiktok";
 
 /** Same key the publisher writes (lib/server/socialPublish.ts) — not imported so this stays a light module. */
 const LAST_POST_PREFIX = "social_last_post:";
@@ -307,7 +308,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     pages, referrers, devices, countries, detailRows,
     scansByGame, priceChecksByGame,
     subRows, ebayConnected, totalUsers,
-    socialRows,
+    socialRows, tiktokMarks,
     lifeSoldUsd, lifeSold, lifeListed,
     attrib,
   ] = await Promise.all([
@@ -357,6 +358,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     scalar("SELECT COUNT(*) AS n FROM users WHERE ebay_connected = 1"),
     scalar("SELECT COUNT(*) AS n FROM users"),
     rows<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key LIKE ?", `${LAST_POST_PREFIX}%`),
+    rows<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key LIKE ?", `${TIKTOK_POSTED_PREFIX}%`),
     scalar("SELECT COALESCE(SUM(sold_price), 0) AS n FROM cards WHERE status = 'sold'"),
     scalar("SELECT COUNT(*) AS n FROM cards WHERE status = 'sold'"),
     scalar("SELECT COUNT(*) AS n FROM cards WHERE listed_at IS NOT NULL OR status IN ('listed','sold')"),
@@ -385,6 +387,9 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     } else if (!kind) entry.lastDay = r.value;
     social.set(site, entry);
   }
+  // TikTok is posted by hand: his Mark Posted clicks count when they are newer than the robot's last post.
+  const hand = tiktokHandPosted(tiktokMarks);
+  if (hand && hand.lastDay >= (social.get("tiktok")?.lastDay ?? "")) social.set("tiktok", hand);
 
   return {
     now,

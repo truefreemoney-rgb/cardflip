@@ -351,6 +351,17 @@ check("marking one day's slots does not un-post another's (09-30: marking tomorr
 await T.markTiktokPosted("morning", FRI, false);
 check("Undo clears only that day's mark", [(await T.loadPackage(FRI)).rows[0].posted, (await T.loadPackage(THU)).rows[0].posted], [false, true]);
 check("marking posted is not a failure and is not a post: no failed/alerted rows, no last-post line", [await getSetting(`${SLOT_PREFIX}failed:tiktok:morning`), await getSetting(`${LAST_POST_PREFIX}tiktok`)], [null, null]);
+check("the analytics Social panel counts his marks: newest marked day and how many that day; old per-slot rows and cleared marks are skipped (10-01: TikTok sat on 09-29)", [
+  P.tiktokHandPosted([
+    { key: "social_slot:tiktok:midday", value: "2026-09-29" },
+    { key: "social_slot:tiktok:morning:2026-09-30", value: "1" },
+    { key: "social_slot:tiktok:morning:2026-10-01", value: "1" },
+    { key: "social_slot:tiktok:midday:2026-10-01", value: "1" },
+    { key: "social_slot:tiktok:evening:2026-10-01", value: "" },
+    { key: "social_slot:tiktok:evening:2026-10-02", value: "" },
+  ]),
+  P.tiktokHandPosted([{ key: "social_slot:tiktok:midday", value: "2026-09-29" }]),
+], [{ lastDay: "2026-10-01", postsThatDay: 2 }, null]);
 
 // ---- 7. Audio, crons, workflow, routes ---------------------------------------------------------------------------------
 console.log("audio rotation");

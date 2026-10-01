@@ -49,6 +49,24 @@ export function tiktokPostedKey(slot: Slot, day: string): string {
   return `${TIKTOK_POSTED_PREFIX}${slot}:${day}`;
 }
 
+/**
+ * The newest day Chris marked a TikTok slot posted and how many slots he marked that day,
+ * from the Mark Posted rows (10-01: the analytics Social panel only read the robot's own
+ * last-post line, so TikTok stayed on its last API post). Rows that are not a "1" mark of
+ * a known slot and day (the old one-key-per-slot rows, cleared marks) are skipped.
+ */
+export function tiktokHandPosted(rows: { key: string; value: string }[]): { lastDay: string; postsThatDay: number } | null {
+  const perDay = new Map<string, number>();
+  for (const r of rows) {
+    if (r.value !== "1" || !r.key.startsWith(TIKTOK_POSTED_PREFIX)) continue;
+    const [slot, day, extra] = r.key.slice(TIKTOK_POSTED_PREFIX.length).split(":");
+    if (extra !== undefined || !TIKTOK_SLOTS.includes(slot as Slot) || !/^\d{4}-\d{2}-\d{2}$/.test(day ?? "")) continue;
+    perDay.set(day, (perDay.get(day) ?? 0) + 1);
+  }
+  const lastDay = [...perDay.keys()].sort().pop();
+  return lastDay ? { lastDay, postsThatDay: perDay.get(lastDay)! } : null;
+}
+
 /** One registered TikTok video with its caption. Extends the site video row so the movers file can be shared as is. */
 export interface TiktokSpec extends VideoSpec {
   slot: Slot;
