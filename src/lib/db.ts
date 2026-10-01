@@ -444,6 +444,14 @@ const SCHEMA = `
     expires_at INTEGER NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0
   );
+  -- The same for the /admin console's owner login, which has no users row (who = 'owner').
+  CREATE TABLE IF NOT EXISTS admin_login_codes (
+    who TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+  );
 
   -- eBay OAuth tokens, AES-256-GCM sealed (ebayAuth.ts).
   CREATE TABLE IF NOT EXISTS ebay_tokens (

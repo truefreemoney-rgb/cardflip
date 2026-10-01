@@ -93,6 +93,41 @@ check("login: signed httpOnly cookie issued", [Boolean(cookie?.value), cookie?.h
 testCookies.set(ADMIN_COOKIE, cookie.value);
 check("with cookie: settings GET → 200", await status(settings.GET()), 200);
 
+// --- login + emailed code (owner, live site only; Chris 09-30) ----------------
+{
+  const { devLastLoginCode } = await import(at("lib/server/loginCode.ts"));
+  const { OWNER_EMAIL } = await import(at("lib/server/users.ts"));
+  const { db } = await import(at("lib/db.ts"));
+  const ownerLogin = (extra = {}) => login.POST(req("POST", { username: "ops", password: "s3cret-pw", ...extra }));
+  process.env.VERCEL_ENV = "production";
+  const noMail = await ownerLogin();
+  check("console code: no way to mail it → 503 and no cookie", [noMail.status, noMail.cookies.get(ADMIN_COOKIE)?.value ?? null], [503, null]);
+  check("console code: …and no half-made code is left behind", (await db.prepare("SELECT COUNT(*) AS n FROM admin_login_codes").get()).n, 0);
+  process.env.EMAIL_CONFIRM_DEV_ECHO = "1";
+  const asked = await ownerLogin();
+  const askedBody = await asked.json();
+  check("console code: the password alone gets a code mailed, not a cookie", [asked.status, askedBody.codeRequired, asked.cookies.get(ADMIN_COOKIE)?.value ?? null], [401, true, null]);
+  check("console code: the answer shows the owner's inbox masked", [askedBody.error.includes("t***@gmail.com"), askedBody.error.includes(OWNER_EMAIL)], [true, false]);
+  const code = devLastLoginCode(OWNER_EMAIL);
+  check("console code: six digits, mailed to the owner", /^\d{6}$/.test(code ?? ""), true);
+  const wrongPw = await (await login.POST(req("POST", { username: "ops", password: "nope", code }))).json();
+  check("console code: a wrong password never reaches the code step", [wrongPw.error, wrongPw.codeRequired ?? null], ["Incorrect username or password.", null]);
+  const wrong = await ownerLogin({ code: code === "000000" ? "000001" : "000000" });
+  check("console code: wrong code refused, no cookie", [wrong.status, (await wrong.json()).codeRequired, wrong.cookies.get(ADMIN_COOKIE)?.value ?? null], [401, true, null]);
+  const good = await ownerLogin({ code });
+  check("console code: the right code signs in as owner", [good.status, (await good.json()).role, Boolean(good.cookies.get(ADMIN_COOKIE)?.value)], [200, "owner", true]);
+  check("console code: a code works once", (await ownerLogin({ code })).status, 401);
+  process.env.ADMIN_HELPER_USER = "sam";
+  process.env.ADMIN_HELPER_PASSWORD = "helper-pw-1";
+  const helper = await login.POST(req("POST", { username: "sam", password: "helper-pw-1" }));
+  check("console code: the helper (Tasks only) is not asked", [helper.status, (await helper.json()).role], [200, "helper"]);
+  delete process.env.ADMIN_HELPER_USER;
+  delete process.env.ADMIN_HELPER_PASSWORD;
+  delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+  delete process.env.VERCEL_ENV;
+  check("console code: off the live site the password is enough", (await ownerLogin()).status, 200);
+}
+
 // --- create account ----------------------------------------------------------
 check("create: name required", await status(users.POST(req("POST", { email: "a@b.co", password: "123456" }))), 400);
 check("create: real email required", await status(users.POST(req("POST", { name: "A", email: "nope", password: "123456" }))), 400);

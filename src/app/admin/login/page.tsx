@@ -17,12 +17,19 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The owner's login gets a 6-digit code by email (lib/server/loginCode.ts); the server says where it went.
+  const [code, setCode] = useState("");
+  const [mailedTo, setMailedTo] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  /** `withCode` false = the password alone: the first step, and Send a New Code. */
+  async function signIn(withCode: boolean) {
     setError(null);
     if (!username.trim() || !password) {
       setError("Enter the admin username and password.");
+      return;
+    }
+    if (withCode && !/^\d{6}$/.test(code.trim())) {
+      setError("Enter the 6-digit code from the email.");
       return;
     }
     setSubmitting(true);
@@ -30,16 +37,31 @@ export default function AdminLoginPage() {
       const res = await fetch(apiPath("/api/admin/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), password, ...(withCode ? { code: code.trim() } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Sign-in failed.");
-      router.replace("/admin");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed.");
-      setSubmitting(false);
+      if (res.ok) {
+        router.replace("/admin");
+        router.refresh();
+        return;
+      }
+      if (data.codeRequired) {
+        // Password was right. A code just mailed is a prompt, not an error; only a wrong code reads as one.
+        if (withCode) setError(data.error ?? "That code didn't match.");
+        else setMailedTo(data.error ?? "We emailed you a 6-digit code.");
+        setCode("");
+      } else {
+        setError(data.error ?? "Sign-in failed.");
+      }
+    } catch {
+      setError("Sign-in failed.");
     }
+    setSubmitting(false);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void signIn(mailedTo !== null);
   }
 
   return (
@@ -85,6 +107,38 @@ export default function AdminLoginPage() {
               placeholder="••••••••"
             />
           </div>
+          {mailedTo && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="admin-code" className="text-sm font-medium text-zinc-300">Sign-In Code</label>
+              <input
+                id="admin-code"
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                enterKeyHint="go"
+                autoFocus
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className={`${FIELD} text-center text-lg tracking-[0.4em]`}
+                placeholder="123456"
+              />
+              <p className="text-xs text-zinc-500">
+                {mailedTo}{" "}
+                <button
+                  type="button"
+                  onClick={() => void signIn(false)}
+                  disabled={submitting}
+                  className="font-medium text-brand-300 transition hover:text-brand-200 disabled:opacity-60"
+                >
+                  Send a New Code
+                </button>
+              </p>
+            </div>
+          )}
           <p role="alert" aria-live="polite" className="min-h-0">
             {error && (
               <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">{error}</span>
