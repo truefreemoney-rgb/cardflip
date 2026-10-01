@@ -216,6 +216,13 @@ check("reset: earlier sessions are gone", await getSessionUserId(loginToken), nu
 check("reset: link works once", (await reset.POST(post({ token: issued.token, password: "fresh-pass2" }))).status, 400);
 check("reset: new password logs in", (await login.POST(post({ email: "sam@example.com", password: "fresh-pass" }))).status, 200);
 check("reset: old password refused", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).status, 401);
+// 10-01 sweep: the link signed a two-step account straight in, so an inbox alone was the whole account.
+{
+  const t = await issueResetToken({ id: totpUser.id, email: "totp@example.com" });
+  const r = await reset.POST(post({ token: t.token, password: "after-reset" }));
+  check("reset: a two-step account gets its new password but no session (log in with the code)", [r.status, Boolean(sessionCookie(r)), (await r.json()).signIn], [200, false, true]);
+  check("reset: …and the login then asks for the code", (await (await login.POST(post({ email: "totp@example.com", password: "after-reset" }))).json()).totpRequired, true);
+}
 
 console.log(failures === 0 ? "\nAll auth-route checks passed" : `\n${failures} auth-route check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql

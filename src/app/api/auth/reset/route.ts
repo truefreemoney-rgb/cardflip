@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { toPublicUser } from "@/lib/server/users";
+import { toPublicUser, totpEnabled } from "@/lib/server/users";
 import {
   consumeResetToken,
   passwordProblem,
@@ -45,6 +45,9 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+
+  // Two-step accounts sign in with their code after a reset (10-01 sweep): an inbox alone must not be the whole account.
+  if (totpEnabled(user)) return NextResponse.json({ user: null, signIn: true });
 
   const session = await createSession(user.id);
   const res = NextResponse.json({ user: toPublicUser(user) });

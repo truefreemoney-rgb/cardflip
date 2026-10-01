@@ -71,7 +71,8 @@ function ResetPasswordForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message ?? "Couldn't reset the password.");
-      router.replace("/app");
+      // Two-step accounts are not signed in by the link: log in with the new password and the code.
+      router.replace(data.signIn ? "/login" : "/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't reset the password.");
       setSubmitting(false);
