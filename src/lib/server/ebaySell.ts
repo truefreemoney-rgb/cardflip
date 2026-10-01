@@ -18,7 +18,6 @@ import {
   marketplaceByEbayId,
   marketplaceLabel,
   merchantLocationKeyFor,
-  type EbayAccountType,
   type Marketplace,
 } from "@/lib/marketplaces";
 import {
