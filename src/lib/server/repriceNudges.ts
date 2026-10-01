@@ -17,6 +17,10 @@ import { heldTrust } from "@/lib/server/priceTrustSite";
  * Under $10 that can fire without a market move: a card listed at raw market
  * before the 09-30 value + fees + postage rule nudges up to it.
  *
+ * A listing on another eBay site (ebay_marketplace set) is skipped: its ask is
+ * in a local currency under that site's fee model, and the target here is the
+ * US-fee USD figure, so a nudge would tell the seller to reprice it wrongly.
+ *
  * A market the price guard flags (priceTrustSite) never nudges: a junk-high
  * price would otherwise tell the seller to reprice a LIVE eBay listing to it.
  */
@@ -48,6 +52,7 @@ export async function getRepriceNudges(userId: string, now = Date.now()): Promis
       `SELECT id, price, catalog_card_id, game, condition FROM cards
        WHERE user_id = ? AND status = 'listed' AND catalog_card_id IS NOT NULL
          AND price > 0 AND listed_at IS NOT NULL AND listed_at < ?
+         AND ebay_marketplace IS NULL
        LIMIT ${CHECK_CAP}`,
     )
     .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; game: string | null; condition: string }[];

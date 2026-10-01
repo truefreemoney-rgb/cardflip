@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
-import { belowFloor, floorRefusal } from "@/lib/fees";
+import { ledgerFloorProblem, listedFloorProblem } from "@/lib/server/ebayMarket";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -32,8 +32,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       if (typeof body.price !== "number" || !Number.isFinite(body.price) || body.price < 0) {
         return NextResponse.json({ error: "price must be a non-negative number" }, { status: 400 });
       }
-      if (belowFloor(body.price)) {
-        return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+      // Offer already on another eBay site: THAT site's floor (the card carries it); else the seller's current site.
+      const existingForFloor = await getCardForUser(id, user.id);
+      const problem =
+        existingForFloor?.ebayOfferId
+          ? await listedFloorProblem(user.id, existingForFloor, body.price)
+          : await ledgerFloorProblem(user.id, body.price);
+      if (problem) {
+        return NextResponse.json({ error: problem }, { status: 400 });
       }
     }
     const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);

@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { ebayListingUrl } from "@/lib/ebayInventory";
+import { marketplaceByEbayId } from "@/lib/marketplaces";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10 } from "@/lib/fees";
 import type { GameId } from "@/lib/types";
 import { parseGame } from "@/lib/games";
@@ -65,6 +66,18 @@ export interface CardRecord {
   rarity: string | null;
   /** Seller-chosen folder; null = uncategorized. */
   category: string | null;
+  /**
+   * The eBay site the offer/listing lives on (EBAY_GB, ...); null = EBAY_US, every listing that predates
+   * per-country selling. Reprice, withdraw, the listing link and auto-offers use THIS, never the seller's
+   * current home. listCurrency / listPriceLocal: what the asking price was sent in; listPriceLocal is the
+   * authority for a local listing (price stays the USD equivalent for totals and charts).
+   */
+  ebayMarketplace: string | null;
+  listCurrency: string | null;
+  listPriceLocal: number | null;
+  /** A sale in another currency: what the buyer paid, in soldCurrency (soldPrice is the USD equivalent at the sale date). */
+  soldPriceLocal: number | null;
+  soldCurrency: string | null;
   /** Set once the draft has been pushed to the seller's eBay account. */
   ebayOfferId: string | null;
   /** Set once that offer was published — a live eBay item id. */
@@ -119,6 +132,11 @@ interface CardRow {
   rarity: string | null;
   category: string | null;
   ebay_sku: string | null;
+  ebay_marketplace: string | null;
+  list_currency: string | null;
+  list_price_local: number | null;
+  sold_price_local: number | null;
+  sold_currency: string | null;
   ebay_offer_id: string | null;
   ebay_listing_id: string | null;
   ebay_pushed_at: number | null;
@@ -166,9 +184,14 @@ function fromRow(row: CardRow): CardRecord {
     variant: row.variant ?? null,
     rarity: row.rarity ?? null,
     category: row.category ?? null,
+    ebayMarketplace: row.ebay_marketplace ?? null,
+    listCurrency: row.list_currency ?? null,
+    listPriceLocal: row.list_price_local ?? null,
+    soldPriceLocal: row.sold_price_local ?? null,
+    soldCurrency: row.sold_currency ?? null,
     ebayOfferId: row.ebay_offer_id ?? null,
     ebayListingId: row.ebay_listing_id ?? null,
-    ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id) : null,
+    ebayListingUrl: row.ebay_listing_id ? ebayListingUrl(row.ebay_listing_id, marketplaceByEbayId(row.ebay_marketplace)) : null,
     ebayPushedAt: row.ebay_pushed_at ?? null,
     ebayPublishedAt: row.ebay_published_at ?? null,
     ebayEndedAt: row.ebay_ended_at ?? null,
@@ -280,6 +303,11 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     ebayLineItemId: null,
     watcherOfferAt: null,
     priceLocked: false,
+    ebayMarketplace: null,
+    listCurrency: null,
+    listPriceLocal: null,
+    soldPriceLocal: null,
+    soldCurrency: null,
     ebayOfferId: null,
     ebayListingId: null,
     ebayListingUrl: null,
@@ -395,12 +423,21 @@ export async function recordCopiesSold(
   /** The eBay order/line behind this sale, so the fee sync can look up the
    * actual charge later. Absent for manual "Mark sold". */
   ebayRef?: { orderId: string | null; lineItemId: string | null },
+  /** A sale in another currency: what the buyer paid (soldPrice is then the USD equivalent at the sale date). */
+  soldLocal?: { price: number; currency: string } | null,
 ): Promise<{ sold: CardRecord; remaining: CardRecord | null } | null> {
   const card = await getCardForUser(id, userId);
   if (!card) return null;
   const bought = Math.max(1, Math.floor(purchased));
   if (bought >= card.quantity) {
     const sold = await updateCard(id, userId, { status: "sold", soldPrice, soldAt });
+    if (sold && soldLocal) {
+      await db
+        .prepare("UPDATE cards SET sold_price_local = ?, sold_currency = ? WHERE id = ? AND user_id = ?")
+        .run(soldLocal.price, soldLocal.currency, id, userId);
+      sold.soldPriceLocal = soldLocal.price;
+      sold.soldCurrency = soldLocal.currency;
+    }
     if (sold && ebayRef?.orderId) {
       await db
         .prepare("UPDATE cards SET ebay_order_id = ?, ebay_line_item_id = ? WHERE id = ? AND user_id = ?")
@@ -420,8 +457,9 @@ export async function recordCopiesSold(
       .prepare(
         `INSERT INTO cards
            (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type,
-            status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, ebay_order_id, ebay_line_item_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            status, price, quantity, catalog_card_id, listed_at, sold_price, sold_at, ebay_order_id, ebay_line_item_id,
+            sold_price_local, sold_currency, ebay_marketplace, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sold', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         soldId,
@@ -442,6 +480,9 @@ export async function recordCopiesSold(
         soldAt,
         ebayRef?.orderId ?? null,
         ebayRef?.lineItemId ?? null,
+        soldLocal?.price ?? null,
+        soldLocal?.currency ?? null,
+        card.ebayMarketplace,
         now,
         now,
       );
@@ -459,6 +500,24 @@ export async function setWatcherOfferSent(id: string, userId: string, at: number
   await db
     .prepare("UPDATE cards SET watcher_offer_at = ?, updated_at = ? WHERE id = ? AND user_id = ?")
     .run(at, Date.now(), id, userId);
+}
+
+/**
+ * Server-written when a push/reprice sends a LOCAL-site price: the site, the
+ * currency and the asking price in it (the authority for that listing), plus
+ * the USD equivalent the ledger totals use. Never called for a US listing.
+ */
+export async function setCardListingMarket(
+  id: string,
+  userId: string,
+  state: { marketplace: string; currency: string; priceLocal: number; priceUsd?: number | null },
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE cards SET ebay_marketplace = ?, list_currency = ?, list_price_local = ?,
+              price = COALESCE(?, price), updated_at = ? WHERE id = ? AND user_id = ?`,
+    )
+    .run(state.marketplace, state.currency, state.priceLocal, state.priceUsd ?? null, Date.now(), id, userId);
 }
 
 /** Server-written by the fee sync (ebayFinances.ts) only. */
@@ -547,7 +606,11 @@ export async function updateCard(
     // "Not sold after all": leaving sold drops the sale's fee record and its
     // eBay order link, or a later re-sale would wear the old sale's fees.
     ...(patch.status !== undefined && patch.status !== "sold" && existingRow.status === "sold"
-      ? { sold_fees: null, ebay_order_id: null, ebay_line_item_id: null }
+      ? { sold_fees: null, ebay_order_id: null, ebay_line_item_id: null, sold_price_local: null, sold_currency: null }
+      : {}),
+    // A hand-corrected sale price is a USD figure: the foreign-currency record no longer describes it.
+    ...(patch.soldPrice !== undefined && patch.soldPrice !== existingRow.sold_price
+      ? { sold_price_local: null, sold_currency: null }
       : {}),
     updated_at: Date.now(),
   };
@@ -555,7 +618,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -584,6 +647,8 @@ export async function updateCard(
       merged.sold_fees,
       merged.ebay_order_id,
       merged.ebay_line_item_id,
+      merged.sold_price_local ?? null,
+      merged.sold_currency ?? null,
       merged.ebay_ended_at,
       merged.updated_at,
       id,

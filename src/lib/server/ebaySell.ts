@@ -4,25 +4,45 @@ import {
   getCardForUser,
   setCardEbayDraft,
   setCardEbayListing,
+  setCardListingMarket,
   updateCard,
   type CardRecord,
 } from "@/lib/server/cards";
 import { hasCardPhoto } from "@/lib/server/cardPhotos";
 import { db } from "@/lib/db";
-import { US_MARKETPLACE, type Marketplace } from "@/lib/marketplaces";
+import { ebayHosts } from "@/lib/ebayHosts";
+import { toUsd } from "@/lib/localPricing";
+import {
+  US_MARKETPLACE,
+  isLocalMarketplace,
+  marketplaceByEbayId,
+  marketplaceLabel,
+  merchantLocationKeyFor,
+  type EbayAccountType,
+  type Marketplace,
+} from "@/lib/marketplaces";
 import {
   buildInventoryItem,
   buildItemDraft,
   buildOffer,
   ebayListingUrl,
-  EBAY_MARKETPLACE_ID,
+  ebayRequestHeaders,
+  fulfillmentAttempts,
+  fulfillmentPolicyBody,
+  locationBody,
   offerUpdateBody,
+  paymentPolicyBody,
+  pickMerchantLocation,
+  returnPolicyBody,
   skuForCard,
   validateDraftInput,
   type DraftInput,
   type InventoryItemPayload,
+  type InventoryLocationRow,
   type ListingPolicies,
 } from "@/lib/ebayInventory";
+import { FxUnavailableError, getFxRates } from "@/lib/server/fx";
+import { LocalPriceError, resolveLocalAsk, sellerAccountType, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
 
 /**
  * Pushing a CardFlip draft into the seller's own eBay account, on the user
@@ -44,8 +64,6 @@ import {
  * the UI can show the seller exactly why (missing policy, bad descriptor…)
  * instead of a generic "failed".
  */
-
-const API = "https://api.ebay.com";
 
 interface EbayApiError {
   errorId?: number;
@@ -80,25 +98,17 @@ export async function ebayFetch(
   method: "GET" | "PUT" | "POST",
   path: string,
   body?: unknown,
-  /** The Finances API lives on apiz.ebay.com; everything else on api.ebay.com. */
-  base: string = API,
+  /** The Finances API lives on apiz.ebay.com; everything else on api.ebay.com (the sandbox hosts under EBAY_ENV=sandbox). */
+  base: string = ebayHosts().api,
   /** Which eBay site the call is for; the US row reproduces the original headers exactly. */
   marketplace: Marketplace = US_MARKETPLACE,
 ): Promise<unknown> {
   const res = await fetch(`${base}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-      // The Inventory API rejects writes without BOTH of these as "en-US"
-      // (errorId 25709 "Invalid value for header Accept-Language" — seen on
-      // the first real push 08-16 with only Content-Language set). Harmless
-      // on reads.
-      "Content-Language": marketplace.contentLanguage,
-      "Accept-Language": marketplace.contentLanguage,
-      "X-EBAY-C-MARKETPLACE-ID": marketplace.marketplaceId,
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
+    // Content-Language AND Accept-Language per site (the Inventory API rejects
+    // writes without both, errorId 25709), X-EBAY-C-MARKETPLACE-ID: see
+    // ebayRequestHeaders in lib/ebayInventory.ts.
+    headers: ebayRequestHeaders(token, marketplace, body !== undefined),
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(20000),
   });
@@ -156,9 +166,10 @@ async function firstId<T>(
   path: string,
   listKey: string,
   idKey: string,
+  mp: Marketplace = US_MARKETPLACE,
 ): Promise<string | undefined | typeof NOT_OPTED_IN> {
   try {
-    const json = (await ebayFetch(token, "GET", path)) as Record<string, T[]> | null;
+    const json = (await ebayFetch(token, "GET", path, undefined, undefined, mp)) as Record<string, T[]> | null;
     const list = json?.[listKey] ?? [];
     const row = list[0] as Record<string, unknown> | undefined;
     const id = row?.[idKey];
@@ -182,11 +193,11 @@ async function firstId<T>(
  * Account API can opt them in directly; eBay then seeds default policies
  * from the account's existing preferences, which the next lookup picks up.
  */
-async function optIntoBusinessPolicies(token: string): Promise<boolean> {
+async function optIntoBusinessPolicies(token: string, mp: Marketplace = US_MARKETPLACE): Promise<boolean> {
   try {
     await ebayFetch(token, "POST", "/sell/account/v1/program/opt_in", {
       programType: "SELLING_POLICY_MANAGEMENT",
-    });
+    }, undefined, mp);
     console.warn("eBay: opted seller into Business Policies");
     return true;
   } catch (err) {
@@ -206,58 +217,35 @@ async function optIntoBusinessPolicies(token: string): Promise<boolean> {
  * ones. The seller can edit or replace them in Seller Hub afterwards;
  * CardFlip just refuses to make an empty account a dead end.
  */
-async function createDefaultPolicies(token: string, missing: { f: boolean; p: boolean; r: boolean }): Promise<void> {
-  const base = { marketplaceId: EBAY_MARKETPLACE_ID, categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES" }] };
+async function createDefaultPolicies(token: string, missing: { f: boolean; p: boolean; r: boolean }, mp: Marketplace = US_MARKETPLACE): Promise<void> {
+  const post = (path: string, body: unknown) => ebayFetch(token, "POST", path, body, undefined, mp);
   const jobs: Promise<unknown>[] = [];
   if (missing.f) {
     // eBay's LSAS validator rejected the first shape of this (08-27:
     // LOGISTICS_INFO_IS_MISSING -- buyerResponsibleForShipping is a
     // freight/pickup flag, not "buyer pays", and its presence sank the
     // whole option). Buyer-pays is simply a non-zero flat cost. Some
-    // accounts also refuse specific service codes, so try Ground
-    // Advantage first and fall back to Priority.
-    const fulfillmentBody = (serviceCode: string) => ({
-      ...base,
-      name: "CardFlip shipping",
-      handlingTime: { value: 1, unit: "DAY" },
-      shippingOptions: [
-        {
-          optionType: "DOMESTIC",
-          costType: "FLAT_RATE",
-          shippingServices: [
-            {
-              sortOrder: 1,
-              shippingCarrierCode: US_MARKETPLACE.shipping.carrierCode,
-              shippingServiceCode: serviceCode,
-              shippingCost: { value: US_MARKETPLACE.shipping.policyCost, currency: US_MARKETPLACE.currency },
-              freeShipping: false,
-            },
-          ],
-        },
-      ],
-    });
+    // accounts also refuse specific service codes, so walk the site's
+    // attempts in order (US: Ground Advantage then Priority; other sites: the
+    // letter code with the carrier, without it, then the alternate code).
+    // The last failure is the one that surfaces.
     jobs.push(
-      ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody(US_MARKETPLACE.shipping.serviceCode)).catch(() =>
-        ebayFetch(token, "POST", "/sell/account/v1/fulfillment_policy", fulfillmentBody(US_MARKETPLACE.shipping.fallbackServiceCode!)),
-      ),
+      (async () => {
+        const attempts = fulfillmentAttempts(mp);
+        let last: unknown;
+        for (const a of attempts) {
+          try {
+            return await post("/sell/account/v1/fulfillment_policy", fulfillmentPolicyBody(mp, a.serviceCode, a.carrierCode));
+          } catch (err) {
+            last = err;
+          }
+        }
+        throw last;
+      })(),
     );
   }
-  if (missing.p) {
-    // Managed payments: eBay ignores payment methods here, the policy is a shell.
-    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/payment_policy", {
-      ...base,
-      name: "CardFlip payments",
-    }));
-  }
-  if (missing.r) {
-    jobs.push(ebayFetch(token, "POST", "/sell/account/v1/return_policy", {
-      ...base,
-      name: "CardFlip returns",
-      returnsAccepted: true,
-      returnPeriod: { value: 30, unit: "DAY" },
-      returnShippingCostPayer: "BUYER",
-    }));
-  }
+  if (missing.p) jobs.push(post("/sell/account/v1/payment_policy", paymentPolicyBody(mp)));
+  if (missing.r) jobs.push(post("/sell/account/v1/return_policy", returnPolicyBody(mp)));
   const results = await Promise.allSettled(jobs);
   for (const r of results) {
     if (r.status === "rejected") {
@@ -265,49 +253,57 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
     }
   }
 }
-async function policyIds(token: string): Promise<ListingPolicies | typeof NOT_OPTED_IN> {
-  const mp = `marketplace_id=${EBAY_MARKETPLACE_ID}`;
+async function policyIds(token: string, mp: Marketplace = US_MARKETPLACE): Promise<ListingPolicies | typeof NOT_OPTED_IN> {
+  const q = `marketplace_id=${mp.marketplaceId}`;
   const [f, p, r] = await Promise.all([
-    firstId(token, `/sell/account/v1/fulfillment_policy?${mp}`, "fulfillmentPolicies", "fulfillmentPolicyId"),
-    firstId(token, `/sell/account/v1/payment_policy?${mp}`, "paymentPolicies", "paymentPolicyId"),
-    firstId(token, `/sell/account/v1/return_policy?${mp}`, "returnPolicies", "returnPolicyId"),
+    firstId(token, `/sell/account/v1/fulfillment_policy?${q}`, "fulfillmentPolicies", "fulfillmentPolicyId", mp),
+    firstId(token, `/sell/account/v1/payment_policy?${q}`, "paymentPolicies", "paymentPolicyId", mp),
+    firstId(token, `/sell/account/v1/return_policy?${q}`, "returnPolicies", "returnPolicyId", mp),
   ]);
   if (f === NOT_OPTED_IN || p === NOT_OPTED_IN || r === NOT_OPTED_IN) return NOT_OPTED_IN;
   return { fulfillmentPolicyId: f, paymentPolicyId: p, returnPolicyId: r };
 }
 
-async function sellerDefaults(token: string): Promise<SellerDefaults> {
-  let policies = await policyIds(token);
+async function sellerDefaults(token: string, mp: Marketplace = US_MARKETPLACE): Promise<SellerDefaults> {
+  let policies = await policyIds(token, mp);
   if (policies === NOT_OPTED_IN) {
-    policies = (await optIntoBusinessPolicies(token)) ? await policyIds(token) : NOT_OPTED_IN;
+    policies = (await optIntoBusinessPolicies(token, mp)) ? await policyIds(token, mp) : NOT_OPTED_IN;
   }
-  const loc = await firstId(token, `/sell/inventory/v1/location?limit=1`, "locations", "merchantLocationKey");
+  let loc: string | undefined | typeof NOT_OPTED_IN | null;
+  if (mp.key === "US") {
+    // Unchanged for US sellers: their first location, whatever it is.
+    loc = await firstId(token, `/sell/inventory/v1/location?limit=1`, "locations", "merchantLocationKey");
+  } else {
+    // Another site: our cardflip-<cc> location, or one of theirs in that country, never a location in another country.
+    try {
+      const json = (await ebayFetch(token, "GET", `/sell/inventory/v1/location?limit=100`, undefined, undefined, mp)) as { locations?: InventoryLocationRow[] } | null;
+      loc = pickMerchantLocation(json?.locations ?? [], mp);
+    } catch (err) {
+      console.warn(`eBay location lookup failed for ${mp.key}:`, err instanceof Error ? err.message : err);
+      loc = null;
+    }
+  }
   return {
     policies: policies === NOT_OPTED_IN ? {} : policies,
     merchantLocationKey: typeof loc === "string" ? loc : null,
   };
 }
 
-/** Our one inventory location per seller — publishOffer requires one. */
-const LOCATION_KEY = "cardflip-default";
-
 /**
  * Inventory locations are API-only objects (Seller Hub has no screen for
  * them), so CardFlip has to make one. A ship-from postal code + country is
- * all eBay needs for a WAREHOUSE-type location.
+ * all eBay needs for a WAREHOUSE-type location. The key is per site
+ * (cardflip-default for the US, cardflip-gb ... elsewhere).
  */
 async function createLocation(
   token: string,
   postalCode: string,
   country: string,
+  mp: Marketplace = US_MARKETPLACE,
 ): Promise<string> {
-  await ebayFetch(token, "POST", `/sell/inventory/v1/location/${LOCATION_KEY}`, {
-    location: { address: { postalCode, country } },
-    locationTypes: ["WAREHOUSE"],
-    merchantLocationStatus: "ENABLED",
-    name: "CardFlip ship-from location",
-  });
-  return LOCATION_KEY;
+  const key = merchantLocationKeyFor(mp);
+  await ebayFetch(token, "POST", `/sell/inventory/v1/location/${key}`, locationBody(postalCode, country), undefined, mp);
+  return key;
 }
 
 // ---------------------------------------------------------------------------
@@ -328,6 +324,7 @@ async function putInventoryItem(
   token: string,
   path: string,
   full: InventoryItemPayload,
+  mp: Marketplace = US_MARKETPLACE,
 ): Promise<string[]> {
   const ladder: { note: string; strip: (p: InventoryItemPayload) => InventoryItemPayload }[] = [
     {
@@ -362,7 +359,7 @@ async function putInventoryItem(
   const dropped: string[] = [];
   console.info(`eBay inventory PUT ${path} images: ${full.product.imageUrls.join(" ") || "(none)"}`);
   try {
-    await ebayFetch(token, "PUT", path, payload);
+    await ebayFetch(token, "PUT", path, payload, undefined, mp);
     return dropped;
   } catch (err) {
     if (!isOpaque500(err)) throw err;
@@ -372,7 +369,7 @@ async function putInventoryItem(
     dropped.push(step.note);
     console.warn(`eBay inventory PUT 500 for ${path}; retrying without ${step.note}`);
     try {
-      await ebayFetch(token, "PUT", path, payload);
+      await ebayFetch(token, "PUT", path, payload, undefined, mp);
       console.warn(`eBay inventory PUT succeeded for ${path} after dropping: ${dropped.join(" | ")}`);
       return dropped;
     } catch (err) {
@@ -439,6 +436,14 @@ export async function createDraft(
   const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
   requireVerified(card);
+  // My eBay Drafts (the Listing API) is a US-site road for now: a seller on another site gets a clean refusal.
+  const here = await sellerMarket(userId);
+  if (isLocalMarketplace(here.mp)) {
+    throw new EbaySellError(
+      `Sending a draft to My eBay isn't available for ${marketplaceLabel(here.mp)} yet — save the draft here and publish it from CardFlip.`,
+      400,
+    );
+  }
   const input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
   if (!input.hasPhoto) {
     throw new EbayPublishNeedsError(
@@ -483,6 +488,29 @@ export async function createDraft(
   return { card: saved ?? card, draftId: json.itemDraftId, draftUrl };
 }
 
+/**
+ * The site an offer belongs on. An existing offer keeps the site it was
+ * created on (an offer cannot move, and its price, currency and policies are
+ * that site's); a card with no offer follows the seller's current site.
+ */
+async function marketFor(userId: string, card: CardRecord): Promise<SellerMarket> {
+  if (card.ebayOfferId) {
+    const mp = marketplaceByEbayId(card.ebayMarketplace);
+    return { mp, account: isLocalMarketplace(mp) ? await sellerAccountType(userId) : null };
+  }
+  return sellerMarket(userId);
+}
+
+/** The asking price on a local site, or a seller-readable EbaySellError (no usable FX rate, no trusted market). */
+async function priceOnSite(card: CardRecord, here: SellerMarket, strategy: DraftInput["strategy"]): Promise<LocalAsk> {
+  try {
+    return await resolveLocalAsk(card, here.mp, here.account, strategy);
+  } catch (err) {
+    if (err instanceof FxUnavailableError || err instanceof LocalPriceError) throw new EbaySellError(err.message, 409);
+    throw err;
+  }
+}
+
 export async function pushDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
@@ -493,14 +521,24 @@ export async function pushDraft(
 
   // The listing photo is the seller's own, stored server-side; the client
   // never gets to claim one exists. Missing → the client shows the picker.
-  const input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
+  let input: DraftInput = { ...draft, hasPhoto: await hasCardPhoto(card.id) };
   if (!input.hasPhoto) {
     throw new EbayPublishNeedsError(
       "photo",
       "Add a photo of the actual card first — eBay requires your own photo of the item, not catalogue art",
     );
   }
-  const problem = validateDraftInput(input);
+  const here = await marketFor(userId, card);
+  const mp = here.mp;
+  // A local site is priced HERE, in its own currency, from the USD market
+  // value at today's rate and that site's fee model: whatever price the
+  // client sent is a USD figure and is ignored.
+  let priced: LocalAsk | null = null;
+  if (isLocalMarketplace(mp)) {
+    priced = await priceOnSite(card, here, input.strategy);
+    input = { ...input, listing: { ...input.listing, price: priced.price } };
+  }
+  const problem = validateDraftInput(input, mp, here.account);
   if (problem) throw new EbaySellError(problem, 400);
 
   const token = await tokenFor(userId);
@@ -508,16 +546,16 @@ export async function pushDraft(
   const itemPath = `/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`;
 
   const item = buildInventoryItem(input);
-  const degraded = await putInventoryItem(token, itemPath, item);
+  const degraded = await putInventoryItem(token, itemPath, item, mp);
 
-  const defaults = await sellerDefaults(token);
-  const offer = buildOffer(input, defaults);
+  const defaults = await sellerDefaults(token, mp);
+  const offer = buildOffer(input, defaults, mp);
 
   let offerId = card.ebayOfferId;
   let updated = false;
   if (offerId) {
     try {
-      await ebayFetch(token, "PUT", `/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, offerUpdateBody(offer));
+      await ebayFetch(token, "PUT", `/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, offerUpdateBody(offer), undefined, mp);
       updated = true;
     } catch (err) {
       // The offer we remember may be gone (seller deleted it on eBay, or the
@@ -527,19 +565,36 @@ export async function pushDraft(
     }
   }
   if (!offerId) {
-    const created = (await ebayFetch(token, "POST", "/sell/inventory/v1/offer", offer)) as {
+    const created = (await ebayFetch(token, "POST", "/sell/inventory/v1/offer", offer, undefined, mp)) as {
       offerId?: string;
     } | null;
     if (!created?.offerId) throw new EbaySellError("eBay created no offer id", 502);
     offerId = created.offerId;
   }
 
-  const saved = await setCardEbayListing(card.id, userId, {
+  await setCardEbayListing(card.id, userId, {
     sku,
     offerId,
     pushedAt: Date.now(),
     // A re-push after publishing is an update to a live listing; keep the id.
   });
+  // The site, currency and local asking price are recorded where the offer is
+  // created/priced: list_price_local is the authority for this listing, and
+  // cards.price becomes its USD equivalent. A card that had a local site on
+  // record but got a fresh US offer drops the stale site.
+  if (priced) {
+    await setCardListingMarket(card.id, userId, {
+      marketplace: mp.marketplaceId,
+      currency: mp.currency,
+      priceLocal: priced.price,
+      priceUsd: toUsd(priced.price, priced.rate),
+    });
+  } else if (card.ebayMarketplace) {
+    await db
+      .prepare("UPDATE cards SET ebay_marketplace = NULL, list_currency = NULL, list_price_local = NULL WHERE id = ? AND user_id = ?")
+      .run(card.id, userId);
+  }
+  const saved = await getCardForUser(card.id, userId);
 
   return {
     card: saved ?? card,
@@ -610,20 +665,36 @@ export interface PublishOptions {
  * a 404/25713 (offer gone) surfaces as-is — the reprice caller treats any
  * failure as "ledger updated, eBay didn't" and says so.
  */
-export async function updateOfferPrice(userId: string, cardId: string, price: number): Promise<void> {
+export async function updateOfferPrice(
+  userId: string,
+  cardId: string,
+  price: number,
+  /** For a local site: the USD equivalent the ledger totals should carry (the caller's rate). */
+  opts: { priceUsd?: number | null } = {},
+): Promise<void> {
   const card = await getCardForUser(cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
   if (!card.ebayOfferId) throw new EbaySellError("This card has no eBay offer to reprice", 409);
+  // `price` is in the currency of the site the offer lives on (stored on the card), never the seller's current home.
+  const mp = marketplaceByEbayId(card.ebayMarketplace);
   const token = await tokenFor(userId);
   const offerPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}`;
-  const current = (await ebayFetch(token, "GET", offerPath)) as Record<string, unknown> | null;
+  const current = (await ebayFetch(token, "GET", offerPath, undefined, undefined, mp)) as Record<string, unknown> | null;
   if (!current) throw new EbaySellError("eBay returned no offer to update", 502);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { offerId, sku, marketplaceId, format, status, listing, ...rest } = current;
   await ebayFetch(token, "PUT", offerPath, {
     ...rest,
-    pricingSummary: { price: { currency: US_MARKETPLACE.currency, value: price.toFixed(2) } },
-  });
+    pricingSummary: { price: { currency: mp.currency, value: price.toFixed(2) } },
+  }, undefined, mp);
+  if (isLocalMarketplace(mp)) {
+    await setCardListingMarket(card.id, userId, {
+      marketplace: mp.marketplaceId,
+      currency: mp.currency,
+      priceLocal: price,
+      priceUsd: opts.priceUsd ?? null,
+    });
+  }
 }
 
 /**
@@ -638,7 +709,7 @@ export async function withdrawOffer(userId: string, cardId: string): Promise<voi
   if (!card.ebayOfferId) throw new EbaySellError("This card has no eBay listing to end", 409);
   const token = await tokenFor(userId);
   try {
-    await ebayFetch(token, "POST", `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/withdraw`);
+    await ebayFetch(token, "POST", `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/withdraw`, undefined, undefined, marketplaceByEbayId(card.ebayMarketplace));
   } catch (err) {
     const gone =
       err instanceof EbaySellError &&
@@ -685,13 +756,15 @@ export async function publishDraft(
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
   requireVerified(card);
   if (!card.ebayOfferId) throw new EbaySellError("Send the draft to eBay first", 409);
+  // The site the OFFER was created on (stored at push), never the seller's current home.
+  const mp = marketplaceByEbayId(card.ebayMarketplace);
 
   const token = await tokenFor(userId);
 
   // The offer was created with whatever defaults existed at push time —
   // usually nothing for a first-time seller. Resolve them now (opting in and
   // creating the location as needed), write them onto the offer, then publish.
-  let defaults = await sellerDefaults(token);
+  let defaults = await sellerDefaults(token, mp);
   let { fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies;
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
     // An account with no policies is the normal first-publish state, not an
@@ -701,8 +774,8 @@ export async function publishDraft(
       f: !fulfillmentPolicyId,
       p: !paymentPolicyId,
       r: !returnPolicyId,
-    });
-    defaults = await sellerDefaults(token);
+    }, mp);
+    defaults = await sellerDefaults(token, mp);
     ({ fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies);
   }
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
@@ -717,16 +790,19 @@ export async function publishDraft(
     if (!ship?.postalCode) {
       throw new EbayPublishNeedsError(
         "location",
-        "eBay needs to know where you ship from. Enter your ZIP / postal code once and CardFlip saves it on your eBay account.",
+        mp.key === "US"
+          ? "eBay needs to know where you ship from. Enter your ZIP / postal code once and CardFlip saves it on your eBay account."
+          : "eBay needs to know where you ship from. Enter your postcode once and CardFlip saves it on your eBay account.",
       );
     }
-    merchantLocationKey = await createLocation(token, ship.postalCode, ship.country || "US");
+    // Another site's location is always in that site's country (the seller's home), whatever the client sent.
+    merchantLocationKey = await createLocation(token, ship.postalCode, mp.key === "US" ? ship.country || "US" : mp.locationCountry, mp);
   }
 
   const offerPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}`;
   let current: Record<string, unknown> | null;
   try {
-    current = (await ebayFetch(token, "GET", offerPath)) as Record<string, unknown> | null;
+    current = (await ebayFetch(token, "GET", offerPath, undefined, undefined, mp)) as Record<string, unknown> | null;
   } catch (err) {
     // 25713 "This Offer is not available": the stored offer id points at
     // nothing -- created under a broken link or expired since (08-27: offer
@@ -759,12 +835,12 @@ export async function publishDraft(
           returnPolicyId,
         },
         merchantLocationKey,
-      }),
+      }, undefined, mp),
     );
   }
 
   const publishPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`;
-  const json = (await retryingAvailabilityLag("publish", () => ebayFetch(token, "POST", publishPath))) as { listingId?: string; warnings?: EbayApiError[] } | null;
+  const json = (await retryingAvailabilityLag("publish", () => ebayFetch(token, "POST", publishPath, undefined, undefined, mp))) as { listingId?: string; warnings?: EbayApiError[] } | null;
   if (!json?.listingId) throw new EbaySellError("eBay published no listing id", 502);
 
   const now = Date.now();
@@ -774,12 +850,29 @@ export async function publishDraft(
     listingId: json.listingId,
     publishedAt: now,
   });
+  // The ledger figure for a local listing follows list_price_local at today's rate (a push-time figure can have
+  // been rewritten by the live refresh while the draft sat there); list_price_local itself is never touched here.
+  if (isLocalMarketplace(mp) && card.listPriceLocal != null) {
+    try {
+      const rate = (await getFxRates())?.rates[mp.currency];
+      if (typeof rate === "number" && rate > 0) {
+        await setCardListingMarket(card.id, userId, {
+          marketplace: mp.marketplaceId,
+          currency: card.listCurrency ?? mp.currency,
+          priceLocal: card.listPriceLocal,
+          priceUsd: toUsd(card.listPriceLocal, rate),
+        });
+      }
+    } catch (err) {
+      console.warn("eBay publish: could not refresh the USD ledger price:", err instanceof Error ? err.message : err);
+    }
+  }
   const saved = await updateCard(card.id, userId, { status: "listed", listedAt: now });
 
   return {
     card: saved ?? card,
     listingId: json.listingId,
-    listingUrl: ebayListingUrl(json.listingId),
+    listingUrl: ebayListingUrl(json.listingId, mp),
     warnings: (json.warnings ?? [])
       .map((w) => w.longMessage || w.message || "")
       .filter(Boolean),

@@ -835,10 +835,16 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // which eBay site the listing lives on, the currency it was priced in
       // and the asking price actually sent, in that currency. All NULL =
       // EBAY_US / USD, i.e. every row that exists today; cards.price stays
-      // the USD figure. Nothing writes them until increment 2.
+      // the USD figure. Written at push/reprice for a local-site listing
+      // (lib/server/ebaySell.ts); list_price_local is the authority for it.
       "ebay_marketplace TEXT",
       "list_currency TEXT",
       "list_price_local REAL",
+      // Increment 3: a sale in another currency keeps what the buyer paid
+      // (sold_price_local, in sold_currency) beside the USD equivalent at the
+      // SALE DATE's rate in sold_price / sold_fees. NULL = a USD sale.
+      "sold_price_local REAL",
+      "sold_currency TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

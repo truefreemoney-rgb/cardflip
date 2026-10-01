@@ -83,7 +83,7 @@ export default async function PublicCollectionPage({ params }: Params) {
                     {card.kind === "card" ? ` · ${card.condition}` : ""}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                    <span className="font-display text-sm font-semibold tabular-nums text-white">{card.price != null ? formatMoney(card.price) : "—"}</span>
+                    <span className="font-display text-sm font-semibold tabular-nums text-white">{card.localPrice ?? (card.price != null ? formatMoney(card.price) : "—")}</span>
                     {card.ebayUrl && (
                       <a
                         href={card.ebayUrl}
