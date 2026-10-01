@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
         const scans = Number(meta.packScans) > 0 ? Number(meta.packScans) : PRICING.pack.scans;
         const sessionId = typeof obj.id === "string" ? obj.id : null;
         if (paid && sessionId) {
-          const credited = await creditScanPack(user.id, sessionId, scans);
+          // The payment intent lets a later refund or dispute find this pack (reverseScanPack).
+          const credited = await creditScanPack(user.id, sessionId, scans, typeof obj.payment_intent === "string" ? obj.payment_intent : null);
           console.info(`stripe: ${user.email} scan pack ${credited ? `+${scans}` : "already credited"} (${sessionId})`);
         } else {
           console.info(`stripe: ${user.email} scan pack session ${sessionId} not paid (${String(obj.payment_status)}), ignored`);

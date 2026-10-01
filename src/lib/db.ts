@@ -877,6 +877,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // first page it landed on, the external referrer host) for the analytics
   // "where signups come from" tables; blank on accounts made before then.
   ["signup_log", ["country TEXT", "src TEXT", "medium TEXT", "campaign TEXT", "landing TEXT", "ref_host TEXT"]],
+  // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The payment intent finds the pack from the charge;
+  // reversed = scans already taken back, so partial refunds and a later dispute net out.
+  ["scan_pack_purchases", ["payment_intent TEXT", "reversed INTEGER NOT NULL DEFAULT 0"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

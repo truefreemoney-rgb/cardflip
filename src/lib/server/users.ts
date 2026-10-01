@@ -380,16 +380,39 @@ export async function setAccessOverride(userId: string, override: AccessOverride
  * retried webhook credits once; answers false when that session was
  * already applied.
  */
-export async function creditScanPack(userId: string, sessionId: string, scans: number): Promise<boolean> {
+export async function creditScanPack(userId: string, sessionId: string, scans: number, paymentIntent: string | null = null): Promise<boolean> {
   // One transaction (10-01 sweep): the key row and the balance land together. Apart, a failed UPDATE after the INSERT
   // made Stripe's retry see the key, answer "already applied", and the buyer never got the scans.
   return db.transaction(async (tx) => {
     const ins = await tx
-      .prepare("INSERT OR IGNORE INTO scan_pack_purchases (session_id, user_id, scans, created_at) VALUES (?, ?, ?, ?)")
-      .run(sessionId, userId, scans, Date.now());
+      .prepare("INSERT OR IGNORE INTO scan_pack_purchases (session_id, user_id, scans, created_at, payment_intent) VALUES (?, ?, ?, ?, ?)")
+      .run(sessionId, userId, scans, Date.now(), paymentIntent);
     if (!ins.changes) return false;
     await tx.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(scans, userId);
     return true;
+  });
+}
+
+/**
+ * Take a refunded or disputed Scan Pack's scans back (10-01 sweep: they were kept). `fraction` of the pack is the target
+ * (a partial refund a share, a dispute all of it); what earlier reversals took is netted, so a refund then a dispute
+ * never takes more than the pack. Only scans still unspent can go (extra_scans floors at 0); `short` says how many
+ * were already used. null = no pack was bought with that payment intent.
+ */
+export async function reverseScanPack(paymentIntent: string, fraction: number): Promise<{ userId: string; took: number; short: number } | null> {
+  return db.transaction(async (tx) => {
+    const row = (await tx.prepare("SELECT session_id, user_id, scans, reversed FROM scan_pack_purchases WHERE payment_intent = ?").get(paymentIntent)) as
+      | { session_id: string; user_id: string; scans: number; reversed: number }
+      | undefined;
+    if (!row) return null;
+    const target = Math.round(row.scans * Math.min(1, Math.max(0, fraction)));
+    const delta = target - Number(row.reversed ?? 0);
+    if (delta <= 0) return { userId: row.user_id, took: 0, short: 0 };
+    const bal = (await tx.prepare("SELECT extra_scans FROM users WHERE id = ?").get(row.user_id)) as { extra_scans: number } | undefined;
+    const took = Math.min(delta, Math.max(0, Number(bal?.extra_scans ?? 0)));
+    if (took > 0) await tx.prepare("UPDATE users SET extra_scans = extra_scans - ? WHERE id = ?").run(took, row.user_id);
+    await tx.prepare("UPDATE scan_pack_purchases SET reversed = ? WHERE session_id = ?").run(target, row.session_id);
+    return { userId: row.user_id, took, short: delta - took };
   });
 }
 

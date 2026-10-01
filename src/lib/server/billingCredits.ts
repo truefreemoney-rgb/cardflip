@@ -24,7 +24,7 @@ import {
   type StripePlan,
   type SubscriptionState,
 } from "@/lib/server/stripe";
-import { OWNER_EMAIL, findUserById, findUserByStripeCustomer, isSubscribed, planSeedFor, spendsPlanScans, type User } from "@/lib/server/users";
+import { OWNER_EMAIL, findUserById, findUserByStripeCustomer, isSubscribed, planSeedFor, reverseScanPack, spendsPlanScans, type User } from "@/lib/server/users";
 
 /**
  * Turning Stripe money events into scan credits (Chris, 09-30). Scans are
@@ -274,7 +274,21 @@ async function creditBehind(chargeId: string | null, paymentIntent: string | nul
     if (inv) row = await creditForInvoice(inv);
   }
   if (row) await rememberCharge(row.credit_key, chargeId, pi);
-  return { row, invoiceId: row?.credit_key ?? inv, customerId: cus };
+  return { row, invoiceId: row?.credit_key ?? inv, customerId: cus, paymentIntent: pi };
+}
+
+/** Not a subscription payment: maybe a Scan Pack (10-01 sweep: its scans were kept on a refund or chargeback). */
+async function reversePack(kind: "refund" | "dispute", paymentIntent: string | null, fraction: number): Promise<ReversalOutcome> {
+  const out = paymentIntent ? await reverseScanPack(paymentIntent, fraction) : null;
+  if (!out) return { result: "ignored", note: "not a subscription payment or a known Scan Pack" };
+  if (out.short > 0) {
+    await reportServerError(
+      `stripe: ${kind} on Scan Pack scans already used`,
+      new Error(`${kind} on pack ${paymentIntent} for ${out.userId.slice(0, 8)}: ${out.took + out.short} scans to take back, only ${out.took} were unspent`),
+    );
+  }
+  console.info(`stripe: ${kind} on Scan Pack ${paymentIntent}: -${out.took} pack scans`);
+  return out.took + out.short > 0 ? { result: "reversed", scans: out.took } : { result: "nothing_more" };
 }
 
 async function reverseCredit(kind: "refund" | "dispute", key: string, row: { credit_key: string; user_id: string; applied: number }, fraction: number, chargeId: string | null): Promise<ReversalOutcome> {
@@ -304,7 +318,7 @@ export async function handleChargeRefunded(charge: StripeObject): Promise<Revers
   if (amount <= 0 || refunded <= 0) return { result: "ignored", note: "nothing refunded" };
   const found = await creditBehind(chargeId, idOf(charge.payment_intent), idOf(charge.invoice), idOf(charge.customer));
   if (!found.row) {
-    if (!found.invoiceId) return { result: "ignored", note: "not a subscription payment" };
+    if (!found.invoiceId) return reversePack("refund", found.paymentIntent, refunded / amount);
     // Refunded in full before its credit was written (a late webhook or reconcile): mark it so the credit lands as 0.
     if (refunded >= amount && found.customerId) {
       const user = await findUserByStripeCustomer(found.customerId);
@@ -321,7 +335,7 @@ export async function handleDisputeCreated(dispute: StripeObject): Promise<Rever
   const chargeId = idOf(dispute.charge);
   if (!disputeId || !chargeId) return { result: "ignored", note: "dispute without a charge" };
   const found = await creditBehind(chargeId, idOf(dispute.payment_intent), null, null);
-  if (!found.row) return { result: found.invoiceId ? "no_credit" : "ignored", note: found.invoiceId ?? "not a subscription payment" };
+  if (!found.row) return found.invoiceId ? { result: "no_credit", note: found.invoiceId } : reversePack("dispute", found.paymentIntent, 1);
   return reverseCredit("dispute", `dispute:${disputeId}`, found.row, 1, chargeId);
 }
 

@@ -535,6 +535,24 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   const packRefund = await send({ type: "charge.refunded", data: { object: { id: "ch_pack", customer: packBuyer.cus, amount: 499, amount_refunded: 499, payment_intent: "pi_pack" } } });
   check("a refund that is not a subscription payment (a Scan Pack) is ignored", [packRefund.status, await planScans(packBuyer.id)], [200, 7]);
 
+  // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The pack is found by its payment intent.
+  {
+    const pk = await createUser("PackBack", "packback@example.com", "hunter22");
+    const extra = async () => (await findUserById(pk.id)).extraScans;
+    await send({ type: "checkout.session.completed", data: { object: { id: "cs_pk", mode: "payment", payment_status: "paid", client_reference_id: pk.id, customer: "cus_pk", payment_intent: "pi_pk", metadata: { pack: "1", packScans: "100" } } } });
+    check("pack bought: +100 extra scans", await extra(), 100);
+    charges.set("ch_pk", { id: "ch_pk", customer: "cus_pk", payment_intent: "pi_pk" });
+    await send({ type: "charge.refunded", data: { object: { id: "ch_pk", customer: "cus_pk", amount: 499, amount_refunded: 250, payment_intent: "pi_pk" } } });
+    check("half refunded: half the pack goes back", await extra(), 50);
+    await send({ type: "charge.refunded", data: { object: { id: "ch_pk", customer: "cus_pk", amount: 499, amount_refunded: 250, payment_intent: "pi_pk" } } });
+    check("the same refund delivered again takes nothing more", await extra(), 50);
+    await db.prepare("UPDATE users SET extra_scans = 20 WHERE id = ?").run(pk.id);
+    await send({ type: "charge.dispute.created", data: { object: { id: "dp_pk", charge: "ch_pk", payment_intent: "pi_pk" } } });
+    check("then a chargeback: the rest of the pack, as far as it is unspent (floors at 0)", await extra(), 0);
+    await send({ type: "charge.dispute.created", data: { object: { id: "dp_pk2", charge: "ch_pk", payment_intent: "pi_pk" } } });
+    check("…and never more than the pack", await extra(), 0);
+  }
+
   const late = await mkPayer();
   charges.set("ch_late", { id: "ch_late", customer: late.cus, payment_intent: "pi_late" });
   invoicePayments.set("pi_late", "in_late");
