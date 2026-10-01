@@ -118,7 +118,7 @@ const groups = {};
 const TIE_CACHE_PATH = path.join(root, "scripts/mtg-seller-tiebreak.cache.json");
 const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
 const tieLog = [];
-let ties = 0, tieSpent = 0;
+let ties = 0, tieSpent = 0, tieDeclined = 0, tieCancelled = 0;
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
@@ -140,18 +140,25 @@ for (const p of batch) {
     ties++;
     const key = `${p.id}|${found[0].id}|${found[1].id}`;
     if (flag("tiebreak")) {
-      if (!tieCache[key]) {
+      let answer = tieCache[key];
+      if (!answer) {
         process.env.ANTHROPIC_API_KEY ??= devAnthropicKey();
         const b64 = fs.readFileSync(path.join(PHOTO_DIR, `${p.id}.jpg`)).toString("base64");
         const t = await tiebreakByPicture(b64, "image/jpeg", "mtg", [found[0].id, found[1].id]);
         // Opus rates ($ per million): input 5, output 25, cache read 0.5, cache write 6.25.
         tieSpent += (t.usage.inputTokens * 5 + t.usage.outputTokens * 25 + t.usage.cacheReadTokens * 0.5 + t.usage.cacheWriteTokens * 6.25) / 1e6;
-        tieCache[key] = { id: t.id ?? null, pick: t.pick ?? null };
-        fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+        answer = { id: t.id ?? null, pick: t.pick ?? null, cancelled: t.reason === "catalog picture missing" };
+        // A cancelled check (a candidate has no catalog picture) made no call and is not cached:
+        // the picture may be there on the next run.
+        if (!answer.cancelled) {
+          tieCache[key] = { id: answer.id, pick: answer.pick };
+          fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+        }
       }
+      if (answer.cancelled) tieCancelled++; else if (answer.id === null) tieDeclined++;
       const before = found[0].id;
-      if (tieCache[key].id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
-      tieLog.push(`${p.setCode ?? ""} ${p.name}: ${wants.includes(before) ? "was right" : "was wrong"} → picture ${tieCache[key].id === null ? "declined" : tieCache[key].id === before ? "kept it" : "swapped"} → ${wants.includes(found[0].id) ? "RIGHT" : "wrong"}`);
+      if (answer.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
+      tieLog.push(`${p.setCode ?? ""} ${p.name}: ${wants.includes(before) ? "was right" : "was wrong"} → picture ${answer.cancelled ? "cancelled (picture missing)" : answer.id === null ? "declined" : answer.id === before ? "kept it" : "swapped"} → ${wants.includes(found[0].id) ? "RIGHT" : "wrong"}`);
     }
   }
   const top = found[0];
@@ -181,7 +188,7 @@ for (const p of batch) {
 process.stdout.write("\r");
 console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)${SELLER ? `   right card + set on top: ${looseHit}/${n} = ${n ? ((looseHit / n) * 100).toFixed(1) : 0}%` : ""}   spent this run ≈ $${spent.toFixed(2)}`);
 for (const [k, g] of Object.entries(groups)) console.log(`  ${k}: ${g.hit}/${g.n} = ${((g.hit / g.n) * 100).toFixed(1)}%`);
-if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
+if (flag("ties") || flag("tiebreak")) console.log(`near-ties (picture check would fire): ${ties}/${n}${flag("tiebreak") ? `   ${ties - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing)   picture checks spent this run ≈ $${tieSpent.toFixed(2)}` : ""}`);
 for (const l of tieLog) console.log(`  tie ${l}`);
 console.log(`finish read: ${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
 if (finishN) {

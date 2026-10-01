@@ -132,7 +132,7 @@ async function lookup(read) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const byBucket = new Map();
 const misses = [];
-let n = 0, tiebreaks = 0;
+let n = 0, tiebreaks = 0, tieDeclined = 0, tieCancelled = 0;
 for (const p of panel) {
   let read = cache[p.id];
   let image = null;
@@ -160,6 +160,7 @@ for (const p of panel) {
       image ??= await fetchImage();
       const t = await tiebreakByPicture(image.base64, image.mediaType, game, tieIds);
       tiebreaks++;
+      if (t.reason === "catalog picture missing") tieCancelled++; else if (!t.id) tieDeclined++;
       const at = t.id && t.id !== found[0].id ? found.findIndex((c) => c.id === t.id) : -1;
       if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
     } catch (err) {
@@ -202,7 +203,7 @@ for (const [bucket, t] of byBucket) {
 }
 const pct = (a) => (total ? ((a / total) * 100).toFixed(1) : "0");
 console.log(`\n${game}: exact printing first: ${hit}/${total} = ${pct(hit)}%  (target ≥ 98%)   within one tap (top 3): ${top3}/${total} = ${pct(top3)}%`);
-if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak: ${tiebreaks - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing) — Opus, ~3¢ each; --no-tiebreak skips them)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

@@ -143,7 +143,7 @@ const byBucket = new Map();
 const misses = [];
 let n = 0;
 let catalogLimited = 0;
-let tiebreaks = 0;
+let tiebreaks = 0, tieDeclined = 0, tieCancelled = 0;
 // Catalog bytes kept per card so a near-tie can go to the picture tiebreak
 // even on a cached read (the read is cached, the picture is re-fetched).
 let imageB64 = null;
@@ -175,6 +175,7 @@ for (const p of panel) {
       imageB64 ??= await fetchImage();
       const t = await tiebreakByPicture(imageB64, "image/jpeg", "mtg", [found[0].id, found[1].id]);
       tiebreaks++;
+      if (t.reason === "catalog picture missing") tieCancelled++; else if (!t.id) tieDeclined++;
       if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
     } catch (err) {
       console.log(`  !! ${p.name}: tiebreak ${err.message}`);
@@ -226,7 +227,7 @@ for (const [bucket, t] of byBucket) {
 }
 console.log(`\nexact printing: ${hit}/${total} = ${total ? ((hit / total) * 100).toFixed(1) : 0}%  (target ≥ 98%)`);
 if (catalogLimited) console.log(`(${catalogLimited} stamped / serialized / List twins whose Scryfall scan shows no stamp or icon — counted as hits on the base printing)`);
-if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak: ${tiebreaks - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing) — Opus, ~3¢ each; --no-tiebreak skips them)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }

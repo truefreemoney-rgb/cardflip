@@ -222,7 +222,7 @@ function sameCard(c, p) {
 const misses = [];
 const printMisses = [];
 const byBucket = new Map();
-let cardHit = 0, printHit = 0, n = 0, tiebreaks = 0, spent = 0, tieSpent = 0;
+let cardHit = 0, printHit = 0, n = 0, tiebreaks = 0, tieDeclined = 0, tieCancelled = 0, spent = 0, tieSpent = 0;
 const TIE_CACHE_PATH = path.join(root, `scripts/${game}-phone-tiebreak.cache.json`);
 const tieCache = fs.existsSync(TIE_CACHE_PATH) ? JSON.parse(fs.readFileSync(TIE_CACHE_PATH, "utf8")) : {};
 /** $ for one call: rates = [input, output, cache read, cache write] per million tokens. */
@@ -255,10 +255,16 @@ for (const p of batch) {
         const img = await load();
         const res = await tiebreakByPicture(img.base64, img.mediaType, game, tieIds);
         tieSpent += dollars(res.usage, game === "onepiece" ? [1, 5, 0.1, 1.25] : [5, 25, 0.5, 6.25]); // Haiku for One Piece, Opus otherwise
-        t = tieCache[tieKey] = { id: res.id ?? null, pick: res.pick ?? null };
-        fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+        t = { id: res.id ?? null, pick: res.pick ?? null, cancelled: res.reason === "catalog picture missing" };
+        // A cancelled check (fewer than 2 candidates have a catalog picture) made no call and is
+        // not cached: the picture may be there on the next run.
+        if (!t.cancelled) {
+          tieCache[tieKey] = { id: t.id, pick: t.pick };
+          fs.writeFileSync(TIE_CACHE_PATH, JSON.stringify(tieCache, null, 1));
+        }
       }
       tiebreaks++;
+      if (t.cancelled) tieCancelled++; else if (!t.id) tieDeclined++;
       const at = t.id && t.id !== found[0].id ? found.findIndex((c) => c.id === t.id) : -1;
       if (at > 0) found = [found[at], ...found.filter((_, i) => i !== at)];
     } catch (err) { console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`); }
@@ -291,7 +297,7 @@ const pct = (a) => (n ? ((a / n) * 100).toFixed(1) : "0");
 console.log("\nbucket     card / n");
 for (const [b, t] of byBucket) console.log(`${b.padEnd(10)} ${String(t.hit).padStart(3)} / ${t.n}${t.hit < t.n ? "   ◄" : ""}`);
 console.log(`\n${game} seller photos: right card first: ${cardHit}/${n} = ${pct(cardHit)}%  (target ≥ 90%)   exact printing: ${printHit}/${n} = ${pct(printHit)}% (title labels are loose — not the gate)`);
-if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak: ${tiebreaks - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing))`);
 console.log(`spent this run ≈ $${spent.toFixed(2)} on reads + $${tieSpent.toFixed(2)} on picture checks`);
 for (const m of printMisses) console.log(`~ printing differs: ${m}`);
 for (const m of misses) {

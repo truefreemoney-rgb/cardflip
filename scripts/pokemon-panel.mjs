@@ -156,7 +156,7 @@ const CATALOG_IMAGE_IS = { "g1-28": "g1-28a" };
 // Sniff, don't trust the URL: TCGplayer serves PNG bytes from ".jpg" paths.
 const sniff = (bytes) => bytes.subarray(0, 4).toString("hex") === "89504e47" ? "image/png"
   : bytes.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
-let tiebreaks = 0;
+let tiebreaks = 0, tieDeclined = 0, tieCancelled = 0;
 for (const p of panel) {
   let read = cache[p.id];
   let image = null; // { b64, mediaType } once fetched — the tiebreak needs it even on a cached read
@@ -186,6 +186,7 @@ for (const p of panel) {
       image ??= await fetchImage();
       const t = await tiebreakByPicture(image.b64, image.mediaType, "pokemon", [found[0].id, found[1].id]);
       tiebreaks++;
+      if (t.reason === "catalog picture missing") tieCancelled++; else if (!t.id) tieDeclined++;
       if (t.id === found[1].id) found = [found[1], found[0], ...found.slice(2)];
     } catch (err) {
       console.log(`  !! ${p.name}: tiebreak ${err?.message ?? err}`);
@@ -237,7 +238,7 @@ console.log(`\nexact printing first: ${hit}/${total} = ${pct(hit)}%  (target ≥
 if (blurry) console.log(`clear images only (${blurry} misses on blurry TCGplayer product photos set aside): ${hit}/${total - blurry} = ${pct(hit, total - blurry)}%`);
 if (stampedScans) console.log(`(${stampedScans} unlimited rows whose catalog scan is a stamped 1st Edition copy — counted as hits on the twin)`);
 if (mirrorDupes) console.log(`(${mirrorDupes} hits on a duplicate mirror row of the same printing — catalog dedupe needed)`);
-if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak — Opus, ~3¢ each; --no-tiebreak skips them)`);
+if (tiebreaks) console.log(`(${tiebreaks} near-ties sent to the picture tiebreak: ${tiebreaks - tieDeclined - tieCancelled} answered, ${tieDeclined} kept the order, ${tieCancelled} cancelled (picture missing) — Opus, ~3¢ each; --no-tiebreak skips them)`);
 if (wrongImages) console.log(`(${wrongImages} hits where the catalog image is another printing — catalog art needed)`);
 for (const m of misses) {
   console.log(`\n✗ [${m.bucket}] want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
