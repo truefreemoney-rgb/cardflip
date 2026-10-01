@@ -890,7 +890,8 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
   // The price guard: a market the rule does not believe is never the reveal number (no count-up, no tier flourish).
   const flagged = settled && market == null && priceFlagOf(card, effectiveVariant(item), item.currentPoint) != null;
   const tier = revealTier(market);
-  const style = TIER_STYLE[tier];
+  // A doubtful match is not a "match found" (Chris's phone 10-01: green MATCH FOUND at 40% sure on the wrong card).
+  const style = item.matchDoubt ? { ...TIER_STYLE.plain, border: "border-amber-400/40", label: "text-amber-300", labelText: "CHECK MATCH" } : TIER_STYLE[tier];
   const counted = useCountUp(market);
   const confidence = item.vision?.confidence;
 
