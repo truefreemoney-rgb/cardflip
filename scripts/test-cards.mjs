@@ -218,7 +218,14 @@ check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).leng
   await updateCard(soldOne.id, alice.id, { status: "sold", soldPrice: 5, soldAt: Date.now() });
   const theirs = await createCard(mallory.id, { ...CHARIZARD, cardName: "Not Alice's" });
   const ids = [d1.id, d2.id, d2.id, ended.id, soldOne.id, theirs.id, "nope"];
+  const photo = (id) => db.prepare("INSERT INTO card_photos (card_id, bytes, updated_at) VALUES (?, ?, ?)").run(id, Buffer.from([1, 2, 3]), Date.now());
+  const hasPhoto = async (id) => Boolean(await db.prepare("SELECT 1 FROM card_photos WHERE card_id = ?").get(id));
+  await photo(d1.id);
+  await photo(soldOne.id);
+  await photo(theirs.id);
   check("bulk delete removes drafts + ended, skips sold + other user + unknown", await deleteCards(ids, alice.id), 3);
+  // 10-01 sweep: the photo delete took every id sent, another seller's included.
+  check("photos: the deleted draft's goes; the sold record's and the other seller's stay", [await hasPhoto(d1.id), await hasPhoto(soldOne.id), await hasPhoto(theirs.id)], [false, true, true]);
   check("sold row survives the bulk delete", (await getCardForUser(soldOne.id, alice.id))?.status, "sold");
   check("other user's card untouched", !!(await getCardForUser(theirs.id, mallory.id)));
   check("ledger back to where it was + the sold record", (await listCardsForUser(alice.id)).length, before + 1);

@@ -700,7 +700,11 @@ export async function deleteCards(ids: string[], userId: string): Promise<number
     const chunk = unique.slice(i, i + 100);
     const marks = chunk.map(() => "?").join(", ");
     try {
-      await db.prepare(`DELETE FROM card_photos WHERE card_id IN (${marks})`).run(...chunk);
+      // Only the photos of rows this delete removes: the seller's own, unsold (10-01 sweep: it took any id it was sent,
+      // another seller's photo included, and the photos of sold rows that stay as the record).
+      await db
+        .prepare(`DELETE FROM card_photos WHERE card_id IN (SELECT id FROM cards WHERE user_id = ? AND status != 'sold' AND id IN (${marks}))`)
+        .run(userId, ...chunk);
     } catch {
       // Nothing stored.
     }
