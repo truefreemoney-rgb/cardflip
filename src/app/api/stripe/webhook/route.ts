@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           // Invite a friend: the person who sent them gets their bonus on the
           // same edge (once; the referred row is stamped). Never 500s the hook.
           try {
-            const rewarded = await rewardReferrerIfDue(user);
+            const rewarded = await rewardReferrerIfDue(user, Date.now(), typeof obj.amount_total === "number" ? obj.amount_total : null);
             if (rewarded) console.info(`stripe: referral bonus credited for ${user.email}`);
           } catch (err) {
             console.error(`stripe: referral reward for ${user.email} failed:`, err);

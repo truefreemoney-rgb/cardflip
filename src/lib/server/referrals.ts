@@ -73,22 +73,40 @@ export async function attachReferral(newUserId: string, code: string): Promise<b
  * referred account. Credits the referrer once, and only if the referrer is a
  * subscriber right now. Returns true when a bonus was banked.
  */
-export async function rewardReferrerIfDue(referred: Pick<User, "id" | "referredBy" | "referralRewardedAt">, now = Date.now()): Promise<boolean> {
+export async function rewardReferrerIfDue(
+  referred: Pick<User, "id" | "referredBy" | "referralRewardedAt">,
+  now = Date.now(),
+  paidCents: number | null = null,
+): Promise<boolean> {
   if (!referred.referredBy || referred.referralRewardedAt) return false;
+  // 10-01 sweep: a first payment of nothing (a 100%-off code) is not a paying friend.
+  if (paidCents !== null && paidCents <= 0) return false;
   const referrer = await findUserById(referred.referredBy);
   if (!referrer || scanTier(referrer) !== "subscribed") return false;
-  // Stamp first, guarded, so a retried webhook can't pay twice.
-  const stamped = await db
-    .prepare("UPDATE users SET referral_rewarded_at = ? WHERE id = ? AND referral_rewarded_at IS NULL")
-    .run(now, referred.id);
-  if (!(stamped as { changes?: number }).changes) {
-    const fresh = await findUserById(referred.id);
-    if (fresh?.referralRewardedAt !== now) return false;
+  // The same person on a second account (10-01 sweep): signed up in the referrer's browser. Same network alone is
+  // allowed: a partner or roommate on one Wi-Fi is a real referral.
+  if (await sameSignupDevice(referrer.id, referred.id)) return false;
+  // Stamp and bonus in one transaction (10-01 sweep): apart, a failed bonus after the stamp lost the reward for good.
+  return db.transaction(async (tx) => {
+    const stamped = await tx
+      .prepare("UPDATE users SET referral_rewarded_at = ? WHERE id = ? AND referral_rewarded_at IS NULL")
+      .run(now, referred.id);
+    if (!(stamped as { changes?: number }).changes) return false;
+    await tx.prepare("UPDATE users SET bonus_scans = COALESCE(bonus_scans, 0) + ? WHERE id = ?").run(REFERRAL_BONUS_SCANS, referrer.id);
+    return true;
+  });
+}
+
+/** Did the two accounts sign up in the same browser? (signup_log's device cookie; a missing row says no.) */
+async function sameSignupDevice(a: string, b: string): Promise<boolean> {
+  try {
+    const row = await db
+      .prepare("SELECT 1 AS x FROM signup_log x JOIN signup_log y ON y.user_id = ? WHERE x.user_id = ? AND x.device_id = y.device_id")
+      .get(b, a);
+    return Boolean(row);
+  } catch {
+    return false;
   }
-  await db
-    .prepare("UPDATE users SET bonus_scans = COALESCE(bonus_scans, 0) + ? WHERE id = ?")
-    .run(REFERRAL_BONUS_SCANS, referrer.id);
-  return true;
 }
 
 export interface ReferralStats {

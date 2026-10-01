@@ -76,6 +76,22 @@ check("stats: joined vs subscribed", await referralStats(alice.id), { friendsJoi
 await rewardReferrerIfDue(await u(dee.id));
 check("stats: second friend subscribes → 2× bonus banked", [(await u(alice.id)).bonusScans, (await referralStats(alice.id)).friendsSubscribed], [REFERRAL_BONUS_SCANS * 2, 2]);
 
+// 10-01 sweep: a free first payment, or the referrer's own second account, earns nothing.
+{
+  const before = (await u(alice.id)).bonusScans;
+  const ida = (await (await signup.POST(post({ name: "Ida", email: "ida@example.com", password: "hunter22", ref: code }))).json()).user;
+  check("reward: a $0 first payment (100%-off code) → nothing, and nothing stamped", [await rewardReferrerIfDue(await u(ida.id), Date.now(), 0), (await u(ida.id)).referralRewardedAt, (await u(alice.id)).bonusScans], [false, null, before]);
+  check("reward: a real first payment still pays", await rewardReferrerIfDue(await u(ida.id), Date.now(), 999), true);
+  // Gus signs up through the route (a signup_log row), then "refers" Hal from the same browser and network.
+  const gus = (await (await signup.POST(post({ name: "Gus", email: "gus@example.com", password: "hunter22" }))).json()).user;
+  await subscribe(gus.id);
+  const hal = (await (await signup.POST(post({ name: "Hal", email: "hal@example.com", password: "hunter22", ref: await ensureReferralCode(await u(gus.id)) }))).json()).user;
+  const gusRow = await db.prepare("SELECT device_id FROM signup_log WHERE user_id = ?").get(gus.id);
+  check("setup: both signups wrote a signup_log row", Boolean(gusRow && (await db.prepare("SELECT 1 FROM signup_log WHERE user_id = ?").get(hal.id))), true);
+  await db.prepare("UPDATE signup_log SET device_id = ? WHERE user_id = ?").run(gusRow.device_id, hal.id);
+  check("reward: the referrer's own second account (same browser at signup) → nothing", [(await u(hal.id)).referredBy === gus.id, await rewardReferrerIfDue(await u(hal.id)), (await u(gus.id)).bonusScans ?? 0], [true, false, 0]);
+}
+
 // --- quota: bonus spent after the plan balance ------------------------------------
 const cap = PLAN_SCANS.standard;
 await db.prepare("UPDATE users SET plan_scans = 1, bonus_scans = 2 WHERE id = ?").run(alice.id);
