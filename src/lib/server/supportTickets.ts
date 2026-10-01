@@ -297,7 +297,7 @@ export async function replyToTicket(
 
 export async function listTicketNotes(ticketId: string): Promise<TicketNote[]> {
   const rows = (await db
-    .prepare("SELECT * FROM support_ticket_notes WHERE ticket_id = ? ORDER BY created_at ASC")
+    .prepare("SELECT * FROM support_ticket_notes WHERE ticket_id = ? ORDER BY created_at ASC, rowid ASC")
     .all(ticketId)) as unknown as NoteRow[];
   return rows.map(noteFromRow);
 }
@@ -307,7 +307,7 @@ async function notesByTicket(ticketIds: string[]): Promise<Map<string, TicketNot
   const map = new Map<string, TicketNote[]>();
   if (ticketIds.length === 0) return map;
   const rows = (await db
-    .prepare(`SELECT * FROM support_ticket_notes WHERE ticket_id IN (${ticketIds.map(() => "?").join(",")}) ORDER BY created_at ASC`)
+    .prepare(`SELECT * FROM support_ticket_notes WHERE ticket_id IN (${ticketIds.map(() => "?").join(",")}) ORDER BY created_at ASC, rowid ASC`)
     .all(...ticketIds)) as unknown as NoteRow[];
   for (const r of rows) {
     const n = noteFromRow(r);
@@ -319,7 +319,7 @@ async function notesByTicket(ticketIds: string[]): Promise<Map<string, TicketNot
 /** The seller's own tickets, newest first. */
 export async function listUserTickets(userId: string, limit = 50): Promise<Ticket[]> {
   const rows = (await db
-    .prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT ?")
+    .prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC, number DESC LIMIT ?")
     .all(userId, limit)) as unknown as Row[];
   return rows.map(fromRow);
 }
@@ -344,7 +344,7 @@ export async function listAllTickets(limit = 200): Promise<(TicketWithUser & { n
     .prepare(
       `SELECT t.*, u.name AS user_name, u.email AS user_email FROM support_tickets t
        JOIN users u ON u.id = t.user_id
-       ORDER BY CASE t.status WHEN 'open' THEN 0 ELSE 1 END, t.created_at DESC LIMIT ?`,
+       ORDER BY CASE t.status WHEN 'open' THEN 0 ELSE 1 END, t.created_at DESC, t.number DESC LIMIT ?`,
     )
     .all(limit)) as unknown as Row[];
   const notes = await notesByTicket(rows.map((r) => r.id));
