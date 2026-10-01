@@ -76,5 +76,19 @@ check(
   [true, undefined],
 );
 
+// 10-01 sweep: a made-up card name per request was a cache miss every time, so one account could drain the app-wide
+// Browse quota. The route spends a per-seller and an app-wide day budget inside the miss path, before eBay is called.
+{
+  const { readFileSync } = await import("node:fs");
+  const route = readFileSync(new URL("../src/app/api/ebay/comps/route.ts", import.meta.url), "utf8");
+  const miss = route.slice(route.indexOf("cachedEbayComps(card, grading, firstEdition, async () => {"));
+  const budget = miss.indexOf("dayBudgetSpent(`comps_${user.id}`, COMPS_USER_DAILY)");
+  const app = miss.indexOf('dayBudgetSpent("comps_all", COMPS_APP_DAILY)');
+  const call = miss.indexOf("return fetchEbayComps(");
+  const ok = budget > 0 && app > 0 && budget < call && app < call && route.includes("err instanceof CompsBudgetError");
+  if (!ok) failures++;
+  console.log(`  ${ok ? "PASS" : "FAIL"}  comps route: per-seller + app-wide budgets spent on a cache miss only, before eBay, answered as a 429`);
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

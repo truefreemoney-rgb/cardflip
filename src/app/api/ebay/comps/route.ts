@@ -15,12 +15,19 @@ import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
 import { cachedEbayComps } from "@/lib/server/ebayCompsCache";
 import { parseGame } from "@/lib/games";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
   LIMITS,
   RateLimitError,
   enforceRateLimit,
   rateLimitResponse,
 } from "@/lib/server/rateLimit";
+
+/** Live eBay lookups a day (cache misses only): a seller pricing a big binder stays far under the first. */
+const COMPS_USER_DAILY = 200;
+/** Under eBay's ~5,000 Browse calls a day for the whole keyset, leaving room for listing work. */
+const COMPS_APP_DAILY = 4000;
+class CompsBudgetError extends Error {}
 
 export async function POST(req: Request) {
   try {
@@ -80,7 +87,14 @@ export async function POST(req: Request) {
     // sinks the active comps.
     const [activeResult, soldResult] = await Promise.allSettled([
       // One Browse call per card per day (lib/server/ebayCompsCache.ts).
-      cachedEbayComps(card, grading, firstEdition, () => fetchEbayComps(card, grading, firstEdition)),
+      // Only a cache miss reaches eBay, so only a miss spends budget (10-01 sweep: a fresh made-up card name per request
+      // was a miss every time, and one account could drain the app-wide Browse quota every seller prices from).
+      cachedEbayComps(card, grading, firstEdition, async () => {
+        if ((await dayBudgetSpent(`comps_${user.id}`, COMPS_USER_DAILY)) || (await dayBudgetSpent("comps_all", COMPS_APP_DAILY))) {
+          throw new CompsBudgetError();
+        }
+        return fetchEbayComps(card, grading, firstEdition);
+      }),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
         ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),
@@ -150,6 +164,12 @@ export async function POST(req: Request) {
     if (err instanceof RateLimitError) return rateLimitResponse(err);
     if (err instanceof EbayNotConfiguredError) {
       return NextResponse.json({ status: "unconfigured", comps: null, sold: null });
+    }
+    if (err instanceof CompsBudgetError) {
+      return NextResponse.json(
+        { status: "error", error: "Today's eBay lookups are used up — try again tomorrow", comps: null, sold: null, retryAfterSeconds: 3600 },
+        { status: 429, headers: { "Retry-After": "3600" } },
+      );
     }
     // An eBay outage shouldn't fail the scan — the card still prices off its
     // other sources, and the UI degrades to just the "view on eBay" links.
