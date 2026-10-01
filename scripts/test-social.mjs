@@ -353,7 +353,7 @@ check("a day with no fresh series at all: five lead cards, nothing skipped", (aw
 
 console.log("caption, title, tags, no-repeat");
 check("title: some games jumped, some kept a lead card", SOC.gamesTitle(g1), "Biggest price jumps this week");
-const cap = SOC.gamesCaption(g1);
+const cap = SOC.gamesCaption(g1, "Which game are you collecting?");
 const capLines = cap.split("\n");
 check("each game's line: Card (Set #n): $X, +Y% this week; a lead card says its price today", capLines.slice(2, 7), [
   "Magic: Jump Mage (Jump Masters #7): $64.00, +60% this week",
@@ -363,15 +363,15 @@ check("each game's line: Card (Set #n): $X, +Y% this week; a lead card says its 
   "Yu-Gi-Oh: Dark Magician (Legend of Blue Eyes LOB-005): $55.25 today",
 ]);
 check("the intro names the games that jumped and the ones that did not", capLines[0], "The biggest price jumps this week in Magic and Pokémon, and one card from Lorcana, One Piece and Yu-Gi-Oh at today's price, from CardFlip's own price history.");
-check("the sign-off follows the card lines; no exclamation marks", [capLines[8], cap.includes("!")], ["Scan a card, see what it's worth. cardflip.io", false]);
-check("short caption: name and move per game, then the address", SOC.gamesShortCaption(g1).split("\n"), [
-  "Biggest price jumps this week", "Magic: Jump Mage +60%", "Pokémon: Riser A +40%", "Lorcana: Elsa $61.00", "One Piece: Portgas.D.Ace $75.00", "Yu-Gi-Oh: Dark Magician $55.25", "", "Scan a card, see what it's worth. cardflip.io",
+check("the question sits after the card lines, before the sign-off; no exclamation marks", [capLines[8], capLines[10], cap.includes("!")], ["Which game are you collecting?", "Scan a card, see what it's worth. cardflip.io", false]);
+check("short caption: name and move per game, then the question, then the address", SOC.gamesShortCaption(g1, "Which game are you collecting?").split("\n"), [
+  "Biggest price jumps this week", "Magic: Jump Mage +60%", "Pokémon: Riser A +40%", "Lorcana: Elsa $61.00", "One Piece: Portgas.D.Ace $75.00", "Yu-Gi-Oh: Dark Magician $55.25", "", "Which game are you collecting?", "", "Scan a card, see what it's worth. cardflip.io",
 ]);
 const allJ = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"].map((game, i) => ({ game, name: `Card ${i}`, setName: "Set", number: String(i + 1), price: 10 * (i + 1), imageUrl: "", cardId: `c${i}`, from: 5 * (i + 1), pct: 100 }));
 check("every game jumped: 'Biggest price jump in every game this week'", [SOC.gamesTitle(allJ), SOC.gamesCaption(allJ).startsWith("The biggest price jump in every game this week, from CardFlip's own price history.")], ["Biggest price jump in every game this week", true]);
 check("no jump anywhere: the old all-games caption and title, as before", [SOC.gamesTitle(lead5), SOC.gamesCaption(lead5).startsWith("One scanner, five card games."), SOC.gamesCaption(lead5).includes("In the picture, one card from each game")], ["One scanner, five card games", true, true]);
 const dj = (await SOC.socialDrafts("pokemon", J)).find((d) => d.kind === "games");
-check("the games draft carries the jumps: title, the jump cards for the no-repeat list, at most five tags", [dj.title, dj.cardIds, dj.featured, dj.hashtags], ["Biggest price jumps this week", ["mtg-j1", "jp1-1"], { mtg: ["mtg-j1"], pokemon: ["jp1-1"] }, ["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"]]);
+check("the games draft carries the jumps: title, the jump cards for the no-repeat list, at most five tags, the question", [dj.title, dj.cardIds, dj.featured, dj.hashtags, dj.question === PL.questionFor("games", J), dj.caption.includes(dj.question)], ["Biggest price jumps this week", ["mtg-j1", "jp1-1"], { mtg: ["mtg-j1"], pokemon: ["jp1-1"] }, ["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"], true, true]);
 const dOld = (await SOC.socialDrafts("pokemon", PIN)).find((d) => d.kind === "games");
 check("before 10-01 the games draft is the old one (lead cards, no ids)", [dOld.title, dOld.cardIds, dOld.featured ?? null, dOld.caption.startsWith("One scanner, five card games.")], ["One scanner, five card games", [], null, true]);
 await markFeatured("pokemon", "jumps", addDays(J, -1), ["jp1-1"]);
@@ -389,7 +389,7 @@ const spotOld = await setSpotlight("pokemon", J, { leadFirst: false });
 check("leadFirst off (a day before 10-01) = today's order, no lead", [spotOld.leadId ?? null, spotOld.cards.map((c) => c.cardId)], [null, ["jp1-3", "jp1-1", "jp1-4", "jp1-5", "jp1-2"]]);
 check("the post still lists the set's five most valuable cards, only the order moved", [...spotJ.cards.map((c) => c.cardId)].sort(), [...spotOld.cards.map((c) => c.cardId)].sort());
 const setPost = (await SOC.socialDrafts("pokemon", J)).find((d) => d.kind === "set");
-check("the set caption lists the riser first", setPost.caption.split("\n")[2].startsWith("Riser A #1 Holo: $70.00, +40% this week"), true);
+check("the set caption lists the riser first and carries the set question", [setPost.caption.split("\n")[2].startsWith("Riser A #1 Holo: $70.00, +40% this week"), setPost.question === PL.questionFor("set", J, "Jump Set"), setPost.caption.includes(setPost.question)], [true, true, true]);
 // Nothing rose: today's order. Falls and flats only.
 const J2 = addDays(J, 7);
 for (const [n, v] of [[1, wk(100, 90)], [2, flat(80)], [3, wk(75, 70)], [4, flat(60)], [5, flat(50)]]) await real(`jq1-${n}`, `Down Or Flat ${n}`, String(n), "jq1", "Quiet Set", v, { end: J2 });
@@ -415,7 +415,15 @@ for (const [n, v] of [[1, wk(124.5, 119.5)], [2, wk(92, 90)], [3, flat(70)], [4,
 const spotD = await setSpotlight("pokemon", J9);
 check("nothing in the set rose: today's order, even though the leader fell (no gain is invented)", [spotD.setId, spotD.leadId ?? null, spotD.cards.map((c) => c.cardId)], ["js3", null, ["js3-1", "js3-2", "js3-3", "js3-4", "js3-5"]]);
 
-console.log("hashtags and the fan");
+console.log("one question per post, rotating by day");
+const kinds = ["movers", "dips", "set", "games"];
+for (const kind of kinds) {
+  const days = Array.from({ length: 30 }, (_, i) => addDays("2026-10-01", i));
+  const qs = days.map((d) => PL.questionFor(kind, d, "Base Set 2"));
+  check(`${kind}: never the same question two days running, every question gets its turn in a cycle, same day = same question`, [qs.every((q, i) => i === 0 || q !== qs[i - 1]), new Set(qs.slice(0, 3)).size >= 2, new Set(qs).size === PL.QUESTIONS[kind].length, PL.questionFor(kind, days[4], "Base Set 2") === qs[4]], [true, true, true, true]);
+  check(`${kind}: plain text, no emoji, no link, no comment bait`, qs.every((q) => /^[A-Za-z0-9 ',?-]+\?$/.test(q) && !/comment|link|follow|share|tag a|http|cardflip/i.test(q) && q.length <= 60), true);
+}
+check("a set question can name the set", [0, 1, 2, 3, 4, 5].some((i) => PL.questionFor("set", addDays("2026-10-01", i), "Base Set 2").includes("Base Set 2")), true);
 check("hashtags: five games = the five game tags, four = four plus #TCG, one = its own two and the general ones, never more than five", [PL.gamesTags(["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]), PL.gamesTags(["pokemon", "mtg", "lorcana", "yugioh"]), PL.gamesTags(["pokemon"]), PL.PLAN_TAGS.games.length], [["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"], ["PokemonTCG", "MTG", "DisneyLorcana", "Yugioh", "TCG"], ["PokemonTCG", "TCG", "TradingCards", "CardCollector", "PokemonCards"], 5]);
 check("a fan puts the biggest in the middle, on top", [PL.fanOrder(["a", "b", "c", "d", "e"]), PL.fanOrder(["a", "b", "c", "d"]), PL.fanOrder(["a"])], [["e", "c", "a", "b", "d"], ["c", "a", "b", "d"], ["a"]]);
 

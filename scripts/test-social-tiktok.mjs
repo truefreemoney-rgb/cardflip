@@ -527,12 +527,14 @@ console.log("schedule, workflow, routes");
 }
 
 // ---- 10-01: the evening video is each game's biggest jump; the 7am video leads with its riser; TikTok carries five tags -------------
-console.log("10-01: jumps video, lead-first set video, five hashtags");
+console.log("10-01: jumps video, lead-first set video, five hashtags, the question");
 {
   const J = "2026-11-20";
+  const PLm = await import(at("lib/socialPlan.ts"));
   const hashtagsOf = (s) => (s.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).map((t) => t.trim());
   check("every stored caption of the package carries at most five hashtags", ["morning", "midday", "evening"].map((s) => hashtagsOf(rows[s].caption).length <= 5), [true, true, true]);
   check("TikTok fills the room with the general tags: Pokémon's own two, then #TCG #TradingCards #CardCollector", hashtagsOf(rows.morning.caption), ["#PokemonTCG", "#PokemonCards", "#TCG", "#TradingCards", "#CardCollector"]);
+  check("every stored caption carries its question after the card lines and before the sign-off", ["morning", "midday", "evening"].map((s) => { const lines = rows[s].caption.split("\n"); const i = lines.findIndex((l) => l.endsWith("?")); return i > 0 && lines[i + 2]?.endsWith("cardflip.io") && /\$/.test(lines[i - 2]); }), [true, true, true]);
   check("tiktokTags: the post's own first, the general ones fill, never more than five", [T.tiktokTags(["A", "B", "C", "D", "E", "F", "G"]), T.tiktokTags(["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"]), T.tiktokTags(["TCG"])], [["A", "B", "C", "D", "E"], ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"], ["TCG", "TradingCards", "CardCollector"]]);
 
   const jl = [
@@ -544,7 +546,7 @@ console.log("10-01: jumps video, lead-first set video, five hashtags");
   ];
   const gd = { id: `pokemon-games-${J}`, kind: "games", game: "pokemon", day: J, title: "x", caption: "x", shortCaption: "x", hashtags: ["x"], imagePath: "", cardIds: [] };
   const post = T.tiktokPost(gd, { leads: jl });
-  check("the evening TikTok text: the jumps title, a line per game with its move, the address, five game tags", [post.title, post.caption.includes("Magic: Jump Mage (Jump Masters #7): $64.00, +60% this week"), post.caption.includes("Lorcana: Elsa (The First Chapter #42): $61.00 today"), hashtagsOf(post.caption)], ["Biggest price jumps this week", true, true, ["#PokemonTCG", "#MTG", "#DisneyLorcana", "#OPTCG", "#Yugioh"]]);
+  check("the evening TikTok text: the jumps title, a line per game with its move, the question, the address, five game tags", [post.title, post.caption.includes("Magic: Jump Mage (Jump Masters #7): $64.00, +60% this week"), post.caption.includes("Lorcana: Elsa (The First Chapter #42): $61.00 today"), post.caption.includes(PLm.questionFor("games", J)), hashtagsOf(post.caption)], ["Biggest price jumps this week", true, true, true, ["#PokemonTCG", "#MTG", "#DisneyLorcana", "#OPTCG", "#Yugioh"]]);
   check("the jumps text says nothing about a picture (the 'In the video' swap is only for the old text)", [post.caption.includes("In the picture"), post.caption.includes("In the video")], [false, false]);
   const rebuilt = applyGameLeads(gd, jl);
   check("the draft rebuilt from the video's frozen leads files the same jump cards for the no-repeat rule", [rebuilt.cardIds, rebuilt.featured], [["m1", "p1"], { mtg: ["m1"], pokemon: ["p1"] }]);

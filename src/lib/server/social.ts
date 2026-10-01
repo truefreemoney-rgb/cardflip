@@ -5,7 +5,7 @@ import { PRICE_TRUST, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames } from "@/lib/socialPlan";
+import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames, questionFor } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -105,6 +105,12 @@ export interface SocialPost {
   cardIds: string[];
   /** A mixed-game post's cards by game, so each game's no-repeat list gets its own (cardIds is filed under `game` otherwise). */
   featured?: Partial<Record<GameId, string[]>>;
+  /**
+   * The one question the caption carries (lib/socialPlan.ts questionFor), kept
+   * apart so fitText can drop it first when a site's limit is tight (it sits
+   * after the card lines and before the sign-off, in caption and shortCaption).
+   */
+  question?: string;
 }
 
 interface SeriesRow {
@@ -738,6 +744,8 @@ const GAME_TAGS: Record<GameId, string[]> = {
 
 const SIGN_OFF = "Scan a card, see what it's worth. cardflip.io";
 
+/** The question block of a caption: after the card lines, before the sign-off (fitText drops it first when a site is tight). */
+const qBlock = (question?: string): string[] => (question ? [question, ""] : []);
 
 /**
  * The sign-off lines. `alsoScans` (a day plan, Chris 09-30: "make some
@@ -753,23 +761,25 @@ function shortSignOff(covered: GameId[] | null): string {
 }
 
 /** Caption for the movers post. Plain, no exclamation marks (docs/SOCIAL.md). */
-export function moversCaption(game: GameId, movers: Mover[], alsoScans = false): string {
+export function moversCaption(game: GameId, movers: Mover[], alsoScans = false, question = ""): string {
   const lines = movers.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
     `${GAME_LABEL[game]} price gains this week, from CardFlip's own price history.`,
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(alsoScans ? [game] : null),
   ].join("\n");
 }
 
 /** The movers post in under 300 characters: name and % only. */
-export function moversShortCaption(game: GameId, movers: Mover[], alsoScans = false): string {
+export function moversShortCaption(game: GameId, movers: Mover[], alsoScans = false, question = ""): string {
   return [
     `${GAME_LABEL[game]} price gains this week`,
     ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
     "",
+    ...qBlock(question),
     shortSignOff(alsoScans ? [game] : null),
   ].join("\n");
 }
@@ -779,7 +789,7 @@ function moverGames(movers: Mover[]): GameId[] {
 }
 
 /** Caption for a mixed-game movers post (mixedMovers): each line says its game. */
-export function mixedMoversCaption(movers: Mover[]): string {
+export function mixedMoversCaption(movers: Mover[], question = ""): string {
   const games = moverGames(movers);
   const lines = movers.map((m) => `${POST_GAME_NAMES[m.game ?? "pokemon"]}: ${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
@@ -787,34 +797,37 @@ export function mixedMoversCaption(movers: Mover[]): string {
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(games),
   ].join("\n");
 }
 
-export function mixedMoversShortCaption(movers: Mover[]): string {
+export function mixedMoversShortCaption(movers: Mover[], question = ""): string {
   const games = moverGames(movers);
   return [
     `${listNames(games.map((g) => POST_GAME_NAMES[g]))} price gains this week`,
     ...movers.map((m) => `${m.name} ${pctLabel(m.pct)}`),
     "",
+    ...qBlock(question),
     shortSignOff(games),
   ].join("\n");
 }
 
 /** Caption for the price-drops post (evening slot): the week's biggest falls. */
-export function dipsCaption(game: GameId, dips: Mover[], alsoScans = false): string {
+export function dipsCaption(game: GameId, dips: Mover[], alsoScans = false, question = ""): string {
   const lines = dips.map((m) => `${m.name} (${m.setName} ${m.number}) ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`);
   return [
     `${GAME_LABEL[game]} price drops this week, from CardFlip's own price history.`,
     "",
     ...lines,
     "",
+    ...qBlock(question),
     ...signOff(alsoScans ? [game] : null),
   ].join("\n");
 }
 
-export function dipsShortCaption(game: GameId, dips: Mover[], alsoScans = false): string {
-  return [`${GAME_LABEL[game]} price drops this week`, ...dips.map((m) => `${m.name} ${pctLabel(m.pct)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
+export function dipsShortCaption(game: GameId, dips: Mover[], alsoScans = false, question = ""): string {
+  return [`${GAME_LABEL[game]} price drops this week`, ...dips.map((m) => `${m.name} ${pctLabel(m.pct)}`), "", ...qBlock(question), shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
 /** Caption for the all-games post (day plan morning "games"): what the scanner reads, then the card from each game in the picture. */
@@ -836,23 +849,23 @@ function jumpLine(l: GameLead): string {
   return `${POST_GAME_NAMES[l.game]}: ${card}: ${money(l.price)}${isJump(l) ? `, ${pctLabel(l.pct as number)} this week` : " today"}`;
 }
 
-function jumpsCaption(leads: GameLead[]): string {
+function jumpsCaption(leads: GameLead[], question: string): string {
   const jumps = leads.filter(isJump);
   const rest = leads.filter((l) => !isJump(l));
   const intro =
     rest.length === 0
       ? "The biggest price jump in every game this week, from CardFlip's own price history."
       : `The biggest price jumps this week in ${listNames(jumps.map((l) => POST_GAME_NAMES[l.game]))}, and one card from ${listNames(rest.map((l) => POST_GAME_NAMES[l.game]))} at today's price, from CardFlip's own price history.`;
-  return [intro, "", ...leads.map(jumpLine), "", SIGN_OFF].join("\n");
+  return [intro, "", ...leads.map(jumpLine), "", ...qBlock(question), SIGN_OFF].join("\n");
 }
 
-function jumpsShortCaption(leads: GameLead[]): string {
+function jumpsShortCaption(leads: GameLead[], question: string): string {
   const lines = leads.map((l) => `${POST_GAME_NAMES[l.game]}: ${l.name} ${isJump(l) ? pctLabel(l.pct as number) : money(l.price)}`);
-  return [gamesTitle(leads), ...lines, "", SIGN_OFF].join("\n");
+  return [gamesTitle(leads), ...lines, "", ...qBlock(question), SIGN_OFF].join("\n");
 }
 
-export function gamesCaption(leads: GameLead[]): string {
-  if (leads.some(isJump)) return jumpsCaption(leads);
+export function gamesCaption(leads: GameLead[], question = ""): string {
+  if (leads.some(isJump)) return jumpsCaption(leads, question);
   const names = listNames(leads.map((l) => POST_GAME_NAMES[l.game]));
   const setName = cleanSet;
   return [
@@ -861,13 +874,14 @@ export function gamesCaption(leads: GameLead[]): string {
     "In the picture, one card from each game at today's market price:",
     ...leads.map((l) => `${l.name}, ${setName(l.setName)} ${numberLabel(l.number)}: ${money(l.price)}`),
     "",
+    ...qBlock(question),
     SIGN_OFF,
   ].join("\n");
 }
 
-export function gamesShortCaption(leads: GameLead[]): string {
-  if (leads.some(isJump)) return jumpsShortCaption(leads);
-  return [`One scanner, ${countWord(leads.length)} card games: ${listNames(leads.map((l) => POST_GAME_NAMES[l.game]))}.`, "", SIGN_OFF].join("\n");
+export function gamesShortCaption(leads: GameLead[], question = ""): string {
+  if (leads.some(isJump)) return jumpsShortCaption(leads, question);
+  return [`One scanner, ${countWord(leads.length)} card games: ${listNames(leads.map((l) => POST_GAME_NAMES[l.game]))}.`, "", ...qBlock(question), SIGN_OFF].join("\n");
 }
 
 export function cardCaption(game: GameId, card: Mover): string {
@@ -884,17 +898,17 @@ export function cardCaption(game: GameId, card: Mover): string {
 }
 
 /** Caption for the set spotlight (morning slot): the set's priciest cards and their week. */
-export function setCaption(game: GameId, spot: SetSpotlight, alsoScans = false): string {
+export function setCaption(game: GameId, spot: SetSpotlight, alsoScans = false, question = ""): string {
   const lines = spot.cards.map((m) => {
     const v = variantLabel(m.variant);
     const week = m.unsettled ? "" : Math.abs(m.pct) >= 1 ? `, ${pctLabel(m.pct)} this week` : ", steady this week";
     return `${m.name} #${m.number}${v ? ` ${v}` : ""}: ${money(m.to)}${week}`;
   });
-  return [`Five of the most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...signOff(alsoScans ? [game] : null)].join("\n");
+  return [`Five of the most valuable ${GAME_LABEL[game]} cards in ${spot.setName} right now, market price from CardFlip's own price history.`, "", ...lines, "", ...qBlock(question), ...signOff(alsoScans ? [game] : null)].join("\n");
 }
 
-export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = false): string {
-  return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", shortSignOff(alsoScans ? [game] : null)].join("\n");
+export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = false, question = ""): string {
+  return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", ...qBlock(question), shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
 /** Hashtags for a single-game post: the game's own, or the "also scans" set on a plan day. */
@@ -921,14 +935,16 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
   const posts: SocialPost[] = [];
   if (leads.length >= 3) {
     const jumped = leads.filter((l) => isJump(l) && l.cardId);
+    const q = questionFor("games", day);
     posts.push({
       id: `${game}-games-${day}`,
       kind: "games",
       game,
       day,
       title: gamesTitle(leads),
-      caption: gamesCaption(leads),
-      shortCaption: gamesShortCaption(leads),
+      caption: gamesCaption(leads, q),
+      shortCaption: gamesShortCaption(leads, q),
+      question: q,
       hashtags: gamesTags(leads.map((l) => l.game)),
       imagePath: `/api/social/image?kind=games&game=${game}&day=${day}`,
       cardIds: jumped.map((l) => l.cardId as string),
@@ -937,56 +953,64 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
   }
   if (mixed && movers.length >= 3) {
     const games = moverGames(movers);
+    const q = questionFor("movers", day);
     posts.push({
       id: `${game}-movers-${day}`,
       kind: "movers",
       game,
       day,
       title: `${listNames(games.map((g) => POST_GAME_NAMES[g]))} movers of the week`,
-      caption: mixedMoversCaption(movers),
-      shortCaption: mixedMoversShortCaption(movers),
+      caption: mixedMoversCaption(movers, q),
+      shortCaption: mixedMoversShortCaption(movers, q),
+      question: q,
       hashtags: [...PLAN_TAGS.mixedMovers],
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
       cardIds: movers.map((m) => m.cardId),
       featured: featuredByGame(movers),
     });
   } else if (movers.length >= 3) {
+    const q = questionFor("movers", day);
     posts.push({
       id: `${game}-movers-${day}`,
       kind: "movers",
       game,
       day,
       title: `${GAME_LABEL[game]} movers of the week`,
-      caption: moversCaption(game, movers, also),
-      shortCaption: moversShortCaption(game, movers, also),
+      caption: moversCaption(game, movers, also, q),
+      shortCaption: moversShortCaption(game, movers, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=movers&game=${game}&day=${day}`,
       cardIds: movers.map((m) => m.cardId),
     });
   }
   if (spot) {
+    const q = questionFor("set", day, spot.setName);
     posts.push({
       id: `${game}-set-${day}`,
       kind: "set",
       game,
       day,
       title: `Set spotlight: ${spot.setName}`,
-      caption: setCaption(game, spot, also),
-      shortCaption: setShortCaption(game, spot, also),
+      caption: setCaption(game, spot, also, q),
+      shortCaption: setShortCaption(game, spot, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=set&game=${game}&day=${day}`,
       cardIds: spot.cards.map((m) => m.cardId),
     });
   }
   if (dips.length >= 3) {
+    const q = questionFor("dips", day);
     posts.push({
       id: `${game}-dips-${day}`,
       kind: "dips",
       game,
       day,
       title: `${GAME_LABEL[game]} price drops this week`,
-      caption: dipsCaption(game, dips, also),
-      shortCaption: dipsShortCaption(game, dips, also),
+      caption: dipsCaption(game, dips, also, q),
+      shortCaption: dipsShortCaption(game, dips, also, q),
+      question: q,
       hashtags: tagsFor(game, also),
       imagePath: `/api/social/image?kind=dips&game=${game}&day=${day}`,
       cardIds: dips.map((m) => m.cardId),

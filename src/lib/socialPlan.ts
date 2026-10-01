@@ -133,6 +133,54 @@ export function jumpsOn(day: string | undefined): boolean {
  */
 export const JUMP_MIN_PCT = 5;
 
+/**
+ * One short question per post (the owner 10-01: likes, comments and shares
+ * up). Plain, no emoji, no link, no "comment below"; a small pool per kind,
+ * shuffled per cycle like the backing tracks (scripts/lib/audio-plan.mjs
+ * dayShuffle: a mulberry32 stream seeded by the day), so the same question
+ * never runs two days in a row and every one gets its turn. An entry may
+ * name the set ("Which card from Base Set 2 is your favourite?").
+ */
+type QuestionPool = Array<string | ((setName: string) => string)>;
+export const QUESTIONS: Record<PostKind, QuestionPool> = {
+  movers: ["Which one would you hold?", "Did you see any of these coming?", "Which of these are you watching?"],
+  dips: ["Buying the dip on any of these?", "Which of these would you pick up at this price?", "Is this a dip to buy or a card to skip?"],
+  set: [(s) => `Which card from ${s} is your favourite?`, "Did you pull any of these back in the day?", (s) => `Do you still have any ${s} cards?`],
+  games: ["Which game are you collecting?", "Which of these games do you collect?", "Which game has your best card?"],
+  card: ["Is this one in your collection?", "Would you keep it or sell it?"],
+};
+
+/** The pool's order for one cycle; the first of a cycle never repeats the last of the one before it. */
+function cycleOrder(cycle: number, n: number): number[] {
+  const shuffle = (c: number) => {
+    let a = (Math.imul(c ^ 0x9e3779b9, 0x85ebca6b) ^ 0xc2b2ae35) >>> 0;
+    const rand = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const order = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  };
+  const order = shuffle(cycle);
+  if (n > 1 && order[0] === shuffle(cycle - 1)[n - 1]) [order[0], order[1]] = [order[1], order[0]];
+  return order;
+}
+
+/** The question a post of this kind carries on an Eastern day. */
+export function questionFor(kind: PostKind, day: string, setName = ""): string {
+  const pool = QUESTIONS[kind];
+  const n = Math.round(Date.parse(`${day}T00:00:00Z`) / 86_400_000);
+  const pick = pool[cycleOrder(Math.floor(n / pool.length), pool.length)[((n % pool.length) + pool.length) % pool.length]];
+  return typeof pick === "function" ? pick(setName || "this set") : pick;
+}
+
 /** Items laid out as a fan, the middle one on top: the first of `sorted` goes in the centre, the rest alternate right and left of it. */
 export function fanOrder<T>(sorted: T[]): T[] {
   const n = sorted.length;
