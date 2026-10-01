@@ -120,6 +120,7 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["ygo-bp02-rare", "yugioh", "Mermail Abyssmegalo", "", "BP02", "Battle Pack 2: War of the Giants", "BP02-EN117", null, "2013-06-28", "Rare", "", 0.3, null],
   ["ygo-bp02-mosaic", "yugioh", "Mermail Abyssmegalo", "", "BP02", "Battle Pack 2: War of the Giants", "BP02-EN117", null, "2013-06-28", "Mosaic Rare", "", 1.2, null],
   ["ygo-maliss", "yugioh", "Maliss Q Hearts Crypter", "", "CRBR", "Crossover Breakers", "CRBR-EN020", null, "2024-12-06", "Ultra Rare", "", 2, null],
+  ["ygo-yummy", "yugioh", "YummyusmentAcroquey", "", "JUSH", "Justice Hunters", "JUSH-EN024", null, "2025-08-08", "Super Rare", "", 1, null],
 ]) {
   await db
     .prepare(
@@ -239,6 +240,8 @@ check("Yu-Gi-Oh!: a pattern foil read as the wrong pattern foil (shatterfoil on 
   [await ygo("Mermail Abyssmegalo", "BP02-EN117", "shatterfoil-rare"), await ygo("Mermail Abyssmegalo", "BP02-EN117", "starfoil-rare"), await ygo("Mermail Abyssmegalo", "BP02-EN117")], ["ygo-bp02-mosaic", "ygo-bp02-mosaic", "ygo-bp02-rare"]);
 check("Yu-Gi-Oh!: brackets the card prints around a word are not in the catalog name (〈Q〉, <Q>), with the code misread",
   [await ygo("Maliss 〈Q〉 Hearts Crypter", "CBBR-EN020"), await ygo("Maliss <Q> Hearts Crypter", null)], ["ygo-maliss", "ygo-maliss"]);
+check("Yu-Gi-Oh!: a printed star is not in the catalog name, no number read",
+  [await ygo("Yummyusment★Acroquey", null), await ygo("Yummyusment☆Acroquey", null)], ["ygo-yummy", "ygo-yummy"]);
 check("rankScore exposed", typeof (await searchTcgCardsLocal("onepiece", "Nami", null, 5))[0]?.rankScore === "number");
 check("Lorcana card name carries the version", (await searchTcgCardsLocal("lorcana", "Ariel", pn("1", 204), 1))[0]?.name, "Ariel - On Human Legs");
 

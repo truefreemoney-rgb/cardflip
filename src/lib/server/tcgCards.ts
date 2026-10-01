@@ -61,7 +61,8 @@ const raritySlug = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace
 
 // A card prints brackets the catalog leaves out ("Maliss <Q> Hearts Crypter" is filed "Maliss Q Hearts Crypter",
 // 10-01 seller photos: the read with 〈Q〉 found nothing), so a searched name loses them.
-const BRACKETS = /[〈〉《》＜＞<>]/g;
+// Same for a printed star ("Yummyusment☆Acroquey" is filed "YummyusmentAcroquey", 10-01 blurred-number sample).
+const BRACKETS = /[〈〉《》＜＞<>★☆]/g;
 const fold = (s: string) => s.toLowerCase().replace(BRACKETS, "").replace(/[‘’‛′`´]/g, "'").replace(/[“”]/g, '"').replace(/-/g, " ").replace(/\s+/g, " ").trim();
 const FOLDED = "REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', '''')";
 
