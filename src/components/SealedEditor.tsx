@@ -1,7 +1,8 @@
 "use client";
 
 import CardImage from "@/components/CardImage";
-import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
+import LocalListingLine from "@/components/LocalListingLine";
+import { usePriceFloor } from "@/lib/client/localMarket";
 import { toast } from "@/components/Toaster";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
@@ -73,6 +74,8 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
   const market = quote.status === "ok" ? quote.quote.market : null;
   const serverId = item.serverId;
   const unpriced = item.priceOverride == null;
+  // US sellers: the original floor. A seller on another eBay site: that site's break-even in their currency.
+  const priceFloor = usePriceFloor();
   useEffect(() => {
     if (market == null || !unpriced) return;
     const asking = askingPriceFor(market, "Factory Sealed");
@@ -200,10 +203,10 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
             // syncs unlocked).
             onCommit={(n) => {
               // Never under the fee floor (Chris, 09-08): lift it and say so.
-              const floor = listingFloor();
-              if (belowFloor(n)) {
+              const { floor, below, refusal } = priceFloor;
+              if (below(n)) {
                 onChange({ priceOverride: floor });
-                toast(floorRefusal(), "err");
+                toast(refusal(), "err");
                 n = floor;
               }
               if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
@@ -212,6 +215,8 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
           />
         </div>
       </label>
+      {/* A seller on another eBay site sees what the listing will cost in their currency. */}
+      <LocalListingLine cardId={item.serverId} refreshKey={String(price)} usd={price} />
 
       <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 

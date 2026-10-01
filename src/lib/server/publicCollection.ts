@@ -5,6 +5,7 @@ import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { askingPriceFor } from "@/lib/listing";
 import { ebayListingUrl } from "@/lib/ebayInventory";
+import { formatLocalAmount, marketplaceByEbayId } from "@/lib/marketplaces";
 import type { GameId } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 
@@ -38,6 +39,8 @@ export interface PublicCard {
   kind: "card" | "sealed";
   /** Today's asking price for the condition; null = unpriced. */
   price: number | null;
+  /** The asking price as listed on another eBay site ("£3.99"); null for a US listing or an unlisted card. */
+  localPrice: string | null;
   /** Live eBay listing, when there is one. */
   ebayUrl: string | null;
   firstEdition: boolean;
@@ -70,6 +73,8 @@ interface Row {
   variant: string | null;
   price_locked: number | null;
   ebay_listing_id: string | null;
+  ebay_marketplace: string | null;
+  list_price_local: number | null;
   first_edition: number | null;
   quantity: number | null;
 }
@@ -83,7 +88,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
 
   const rows = (await db
     .prepare(
-      `SELECT id, card_name, set_name, card_number, image_url, condition, game, kind, status, price, catalog_card_id, variant, price_locked, ebay_listing_id, first_edition, quantity
+      `SELECT id, card_name, set_name, card_number, image_url, condition, game, kind, status, price, catalog_card_id, variant, price_locked, ebay_listing_id, ebay_marketplace, list_price_local, first_edition, quantity
          FROM cards
         WHERE user_id = ? AND status != 'sold'
         ORDER BY price DESC, created_at DESC
@@ -114,8 +119,11 @@ export async function publicCollection(handle: string): Promise<PublicCollection
     // A price that came from a flagged market is not shown (nor counted); the seller's own price and a live ask are.
     if (price != null && r.catalog_card_id && r.kind !== "sealed" && !r.price_locked && r.status !== "listed" && trust.flag({ catalog_card_id: r.catalog_card_id, variant: judgedVariant, game: r.game })) price = null;
     if (price != null) value += price;
-    const ebayUrl = r.status === "listed" && r.ebay_listing_id ? ebayListingUrl(r.ebay_listing_id) : null;
+    const site = marketplaceByEbayId(r.ebay_marketplace);
+    const ebayUrl = r.status === "listed" && r.ebay_listing_id ? ebayListingUrl(r.ebay_listing_id, site) : null;
     if (ebayUrl) forSale++;
+    // A live listing on another eBay site shows its real ask in that currency (the USD figure still counts in the total).
+    const localPrice = ebayUrl && site.key !== "US" && r.list_price_local != null && r.list_price_local > 0 ? formatLocalAmount(site, r.list_price_local) : null;
     return {
       id: r.id,
       name: r.card_name,
@@ -126,6 +134,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
       game: parseGame(r.game),
       kind: r.kind === "sealed" ? "sealed" : "card",
       price,
+      localPrice,
       ebayUrl,
       firstEdition: r.first_edition === 1,
     };

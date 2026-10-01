@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { setCardListingEnded, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
+import { marketplaceByEbayId } from "@/lib/marketplaces";
 
 /**
  * The other half of closing the loop after "publish": a listing that ends on
@@ -63,12 +64,12 @@ function listingEnded(offer: EbayOffer): boolean {
 export async function syncEndedEbayListings(userId: string, force = false): Promise<EndedSyncResult> {
   const listed = (await db
     .prepare(
-      `SELECT id, ebay_offer_id FROM cards
+      `SELECT id, ebay_offer_id, ebay_marketplace FROM cards
        WHERE user_id = ? AND status = 'listed'
          AND ebay_offer_id IS NOT NULL AND ebay_listing_id IS NOT NULL
          AND ebay_ended_at IS NULL`,
     )
-    .all(userId)) as { id: string; ebay_offer_id: string }[];
+    .all(userId)) as { id: string; ebay_offer_id: string; ebay_marketplace: string | null }[];
   if (listed.length === 0) return { ended: [], skipped: "no_listings" };
 
   const now = Date.now();
@@ -88,6 +89,9 @@ export async function syncEndedEbayListings(userId: string, force = false): Prom
           token,
           "GET",
           `/sell/inventory/v1/offer/${encodeURIComponent(card.ebay_offer_id)}`,
+          undefined,
+          undefined,
+          marketplaceByEbayId(card.ebay_marketplace),
         )) as EbayOffer | null;
       } catch (err) {
         // The offer being gone entirely is eBay's strongest "ended" signal.

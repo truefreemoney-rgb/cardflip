@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { recordCopiesSold, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
+import { fxRateOnDay } from "@/lib/server/fx";
+import { toUsd } from "@/lib/localPricing";
 
 /**
  * Closing the loop after "publish": a card that sells on eBay used to sit in
@@ -27,6 +29,12 @@ export interface SalesSyncResult {
   sold: CardRecord[];
   /** Why the pass didn't run, when it didn't. */
   skipped?: "not_connected" | "no_scope" | "no_listings" | "throttled" | "error";
+  /**
+   * Order lines in another currency left alone this pass because no exchange
+   * rate for the SALE DATE could be had; they are not recorded as applied, so
+   * the next pass retries them. A sale is never converted with a guessed rate.
+   */
+  deferred?: number;
 }
 
 interface OrderLineItem {
@@ -34,8 +42,8 @@ interface OrderLineItem {
   legacyItemId?: string;
   sku?: string;
   quantity?: number;
-  lineItemCost?: { value?: string };
-  total?: { value?: string };
+  lineItemCost?: { value?: string; currency?: string };
+  total?: { value?: string; currency?: string };
 }
 
 interface EbayOrder {
@@ -83,6 +91,9 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
 
   const since = new Date(now - WINDOW_MS).toISOString();
   const sold: CardRecord[] = [];
+  let deferred = 0;
+  // One Frankfurter call per currency + day for this whole pass (a failure is remembered too).
+  const fxMemo = new Map<string, number | null>();
   try {
     let path: string | null =
       `/sell/fulfillment/v1/order?filter=${encodeURIComponent(`creationdate:[${since}..]`)}&limit=200`;
@@ -109,14 +120,29 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
             .prepare("SELECT 1 AS one FROM ebay_sold_lines WHERE order_id = ? AND line_key = ?")
             .get(order.orderId ?? "", lineKey);
           if (applied) continue;
-          const soldPrice = Number(line.lineItemCost?.value ?? line.total?.value ?? 0) || null;
+          const paid = line.lineItemCost?.value != null ? line.lineItemCost : line.total;
+          let soldPrice = Number(paid?.value ?? 0) || null;
+          // A sale on another eBay site is in that site's currency: keep what the buyer paid, and book the USD
+          // equivalent at the SALE DATE's rate (Frankfurter historical, cached). No rate = defer the line.
+          const currency = (paid?.currency ?? "USD").trim().toUpperCase() || "USD";
+          let soldLocal: { price: number; currency: string } | null = null;
+          if (soldPrice != null && currency !== "USD") {
+            // An unreadable order date has no sale-date rate: defer the line, never throw the pass.
+            const rate = Number.isFinite(soldAt) ? await fxRateOnDay(currency, new Date(soldAt).toISOString().slice(0, 10), fxMemo) : null;
+            if (rate == null) {
+              deferred++;
+              continue;
+            }
+            soldLocal = { price: soldPrice, currency };
+            soldPrice = toUsd(soldPrice, rate);
+          }
           // Quantity-aware: a partial sale splits off a sold row and leaves
           // the listing live with the rest, so the card stays matchable for
           // later orders in this same window.
           const result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt, {
             orderId: order.orderId ?? null,
             lineItemId: line.lineItemId ?? null,
-          });
+          }, soldLocal);
           if (result) {
             await db
               .prepare("INSERT OR IGNORE INTO ebay_sold_lines (order_id, line_key, applied_at) VALUES (?, ?, ?)")
@@ -142,5 +168,5 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
   }
 
   await recordSyncAt(userId, now);
-  return { sold };
+  return deferred ? { sold, deferred } : { sold };
 }

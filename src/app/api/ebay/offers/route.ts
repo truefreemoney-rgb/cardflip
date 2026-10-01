@@ -4,6 +4,7 @@ import { setAutoOffer } from "@/lib/server/users";
 import { db } from "@/lib/db";
 import { getCardForUser } from "@/lib/server/cards";
 import { findEligibleListingIds, sendWatcherOffer } from "@/lib/server/ebayNegotiation";
+import { marketplaceByEbayId } from "@/lib/marketplaces";
 
 /**
  * Offers to watchers. GET answers which of the seller's listed cards eBay
@@ -33,18 +34,24 @@ export async function GET() {
 
     const listed = (await db
       .prepare(
-        `SELECT id, ebay_listing_id FROM cards
+        `SELECT id, ebay_listing_id, ebay_marketplace FROM cards
          WHERE user_id = ? AND status = 'listed' AND ebay_listing_id IS NOT NULL`,
       )
-      .all(user.id)) as { id: string; ebay_listing_id: string }[];
+      .all(user.id)) as { id: string; ebay_listing_id: string; ebay_marketplace: string | null }[];
     if (listed.length === 0) return NextResponse.json({ eligibleCardIds: [], ...auto });
 
-    const result = await findEligibleListingIds(user.id);
-    if (result.skipped) {
-      return NextResponse.json({ eligibleCardIds: [], skipped: result.skipped, ...auto });
+    // Eligibility is per eBay site: ask once per site the seller has live listings on (a US-only seller: one call, as before).
+    const eligibleCardIds: string[] = [];
+    for (const mp of new Map(listed.map((c) => [marketplaceByEbayId(c.ebay_marketplace).marketplaceId, marketplaceByEbayId(c.ebay_marketplace)])).values()) {
+      const result = await findEligibleListingIds(user.id, mp);
+      if (result.skipped) {
+        return NextResponse.json({ eligibleCardIds: [], skipped: result.skipped, ...auto });
+      }
+      const eligible = new Set(result.listingIds);
+      for (const c of listed) {
+        if (marketplaceByEbayId(c.ebay_marketplace).marketplaceId === mp.marketplaceId && eligible.has(c.ebay_listing_id)) eligibleCardIds.push(c.id);
+      }
     }
-    const eligible = new Set(result.listingIds);
-    const eligibleCardIds = listed.filter((c) => eligible.has(c.ebay_listing_id)).map((c) => c.id);
     return NextResponse.json({ eligibleCardIds, ...auto });
   } catch (err) {
     if (err instanceof AuthError) {

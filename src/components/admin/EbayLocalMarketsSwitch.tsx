@@ -6,10 +6,11 @@ import { apiPath } from "@/lib/client/basePath";
 
 /**
  * eBay local markets switch (admin console, docs/EBAY_COUNTRIES_PLAN.md).
- * Off is how the site ships: every seller lists on eBay US in dollars. Once
- * the per-country work lands, On lets a seller whose home country AND eBay
- * account both say CA, GB, IE or AU list on their own eBay site. Until then
- * the switch is stored but nothing reads it for routing.
+ * Off is how the site ships: every seller lists on eBay US in dollars. On lets
+ * a seller whose home country AND eBay account both say CA, GB, IE or AU list
+ * on their own eBay site, but only for a site whose row is live:true in
+ * src/lib/marketplaces.ts (every row ships live:false; the owner flips them
+ * one at a time after the sandbox run, see the plan's go-live steps).
  */
 export default function EbayLocalMarketsSwitch({ on: initial }: { on: boolean }) {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function EbayLocalMarketsSwitch({ on: initial }: { on: boolean })
           <p className="text-sm font-medium text-zinc-200">eBay local markets</p>
           <p className="mt-0.5 text-xs text-zinc-500">
             {on
-              ? "On. Sellers from CA, GB, IE and AU whose eBay account is registered there can list on their own eBay site. (Not wired up yet: everyone still lists on eBay US.)"
+              ? "On. Sellers from CA, GB, IE and AU whose eBay account is registered there list on their own eBay site, for each site whose row is live in the code. A site that is not live still lists on eBay US."
               : "Off. Every seller lists on eBay US in dollars, as always."}
           </p>
         </div>

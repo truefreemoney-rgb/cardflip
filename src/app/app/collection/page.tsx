@@ -38,7 +38,11 @@ import {
 import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
-import { belowFloor, floorRefusal, listingFloor, netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { netAfterFees, netAfterFeesFor, POSTAGE_USD } from "@/lib/fees";
+import LocalListingLine from "@/components/LocalListingLine";
+import { priceFloorFor, useLocalMarket } from "@/lib/client/localMarket";
+import { toLocal } from "@/lib/localPricing";
+import { formatLocalAmount, marketplaceByEbayId, marketplaceLabel } from "@/lib/marketplaces";
 import { askingNoteFor, ebaySoldSearchUrl, formatMoney } from "@/lib/listing";
 import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut } from "@/lib/priceFlag";
@@ -203,12 +207,19 @@ function RepriceSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // A card listed on another eBay site is held to THAT site's floor and net (the card carries the site).
+  const siteInfo = useLocalMarket();
+  const local = card.ebayMarketplace ? siteInfo : null;
   const changed = Math.abs(price - card.price) >= 0.005;
   const net = price > 0 ? Math.max(0, netAfterFees(price) - POSTAGE_USD) : 0;
+  const localNet =
+    local?.rate && price > 0
+      ? Math.max(0, netAfterFeesFor(local.mp, toLocal(price, local.rate), null, local.account) - local.mp.postage)
+      : null;
   // Never under the fee floor (Chris, 09-08): the quick steps clamp to it and
   // a typed price under it can't be sent — the server refuses it anyway.
-  const floor = listingFloor();
-  const underFloor = belowFloor(price);
+  const { floor, below, refusal } = priceFloorFor(local);
+  const underFloor = below(price);
   const nudgeBy = (pct: number) => setPrice(Math.max(floor, Math.round(card.price * (1 + pct / 100) * 100) / 100));
   const quick: { label: string; pct: number }[] = [
     { label: "−10%", pct: -10 },
@@ -240,7 +251,13 @@ function RepriceSheet({
               {card.cardNumber ? ` · ${card.cardNumber}` : ""}
             </p>
             <p className="mt-1 text-xs text-zinc-400">
-              Listed on eBay at <span className="font-semibold text-zinc-200">{formatMoney(card.price)}</span>
+              Listed on eBay at{" "}
+              <span className="font-semibold text-zinc-200">
+                {card.ebayMarketplace && card.listPriceLocal != null
+                  ? formatLocalAmount(marketplaceByEbayId(card.ebayMarketplace), card.listPriceLocal)
+                  : formatMoney(card.price)}
+              </span>
+              {card.ebayMarketplace && card.listPriceLocal != null ? ` on ${marketplaceLabel(marketplaceByEbayId(card.ebayMarketplace))} (${formatMoney(card.price)} USD)` : ""}
             </p>
           </div>
           <button
@@ -289,11 +306,19 @@ function RepriceSheet({
           )}
         </div>
 
+        {local && (
+          <LocalListingLine typedUsd={price} condition={card.condition} className="mt-3" />
+        )}
+
         {underFloor ? (
-          <p className="mt-4 text-xs font-medium text-red-300">{floorRefusal()}</p>
+          <p className="mt-4 text-xs font-medium text-red-300">{refusal()}</p>
         ) : (
           <p className="mt-4 text-xs text-zinc-500">
-            You&apos;d net about <span className="font-semibold text-emerald-400">{formatMoney(net)}</span> after eBay fees and postage.
+            You&apos;d net about{" "}
+            <span className="font-semibold text-emerald-400">
+              {local && localNet != null ? formatLocalAmount(local.mp, localNet) : formatMoney(net)}
+            </span>{" "}
+            after eBay fees and postage.
           </p>
         )}
 

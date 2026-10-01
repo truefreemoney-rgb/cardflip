@@ -2,7 +2,7 @@ import { parseGame } from "@/lib/games";
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
-import { belowFloor, floorRefusal } from "@/lib/fees";
+import { ledgerFloorProblem } from "@/lib/server/ebayMarket";
 
 export async function GET() {
   try {
@@ -53,8 +53,10 @@ export async function POST(req: Request) {
     if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: "price must be a non-negative number" }, { status: 400 });
     }
-    if (belowFloor(price)) {
-      return NextResponse.json({ error: floorRefusal() }, { status: 400 });
+    // US sellers: the original floor sentence; a seller on another eBay site is checked in their currency.
+    const floorProblem = await ledgerFloorProblem(user.id, price);
+    if (floorProblem) {
+      return NextResponse.json({ error: floorProblem }, { status: 400 });
     }
     // Anything unrecognized stays a plain card — the safe reading of a stale
     // or hand-rolled client.

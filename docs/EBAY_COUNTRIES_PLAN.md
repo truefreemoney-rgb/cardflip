@@ -1,5 +1,147 @@
 # eBay per-country listing — plan (09-30)
 
+## BUILT 09-30 night (increments 2 + 3, UI, sandbox harness) — read this first
+**Rule change (owner, 09-30): there is NO real-seller gate any more.** Verification = eBay's official fee pages per
+country + the eBay SANDBOX end-to-end run + the golden US tests. Targets: EBAY_GB, EBAY_IE, EBAY_AU, EBAY_CA. NZ stays
+on ebay.com in USD (out of scope). **Every local row is still `live:false`**: nothing routes off eBay US until the owner
+flips a row (steps below). The US path is byte-identical (`npm run test:ebaygolden`, fixtures untouched).
+
+### What exists now
+- **Fees, sourced** (`src/lib/marketplaces.ts`, URL + fetched date beside each row; table below).
+- **Price** (`src/lib/localPricing.ts`, `src/lib/server/ebayMarket.ts`): the local ask = the card's USD MARKET value (own
+  price_series through the condition and the Quick Sale pick, price guard honoured) x today's rate (`fx.ts`), through
+  that site's fee model and whole-unit taper, computed at push time on the server. It never reads `cards.price` (the live
+  refresh writes that with US fees) and ignores the price the client sends. A price the seller TYPED (`price_locked`, a USD
+  figure in the editors) converts at the rate and is only checked against the local floor. Refused with a plain 409 when the
+  rate we hold was fetched >3 days ago or its ECB date is >6 days old, or when there is no trusted market and nothing typed;
+  nothing is sent to eBay in those cases.
+- **Stored per card** (`cards.ebay_marketplace / list_currency / list_price_local`, written at push and on every reprice):
+  `list_price_local` is the authority; `cards.price` becomes its USD equivalent. Reprice, withdraw, offer GETs, the listing
+  link, auto-offers and the ended sweep use the card's STORED site, never the seller's current home (proved with the switch
+  turned off after publishing).
+- **Per-site eBay calls**: `ebayRequestHeaders` (Content-Language + Accept-Language + X-EBAY-C-MARKETPLACE-ID),
+  currency in the inventory/offer bodies, policies per marketplace (fulfillment = the site's domestic letter code, flat buyer
+  cost, handling 1 day; returns 30 days buyer-pays and NO returnMethods; payment shell; names get a site suffix such as
+  "CardFlip shipping GB"), location key `cardflip-<cc>` in the HOME country (never the client's ZIP-prompt country; an
+  existing location is reused only when the key or the country matches), "Postcode" prompt outside the US.
+- **Fulfillment-policy ladder**: eBay's Account API may or may not want a carrier string on a given site, so the create tries
+  letter code + carrier, then letter code alone, then the alternate code (US: Ground Advantage then Priority, as before). The
+  sandbox run reports which one eBay accepted.
+- **Floors per site** on `api/cards` POST, `api/cards/[id]` PATCH (a card with an offer is held to ITS offer's site),
+  `api/ebay/reprice` and `validateDraftInput`. The ledger routes check USD x rate against the local floor; with no rate at
+  all they fall back to the US check (saving a price never depends on FX).
+- **Off for non-US sellers**: Listing-API drafts refuse cleanly ("Sending a draft to My eBay isn't available for eBay UK
+  yet"); `toEbayDraftsCsv` has no UI caller (comment says US only); `repriceNudges` and card price alerts skip rows with a
+  stored site; collection totals stay USD.
+- **Public collection** shows the local ask ("£4.91") for a live local listing, still counted in USD in the total.
+- **Account type**: `refreshEbayIdentityIfMissing` (throttled to one try an hour, never throws, never blocks) fills
+  `account_type` / `registration_marketplace` for sellers who connected before increment 1; only sellers whose home is
+  CA/GB/IE/AU ever trigger it.
+- **Sales + fees** (`ebayOrders.ts`, `ebayFinances.ts`): read `lineItemCost.currency` and the fee currency; a non-USD line
+  stores `sold_price_local` + `sold_currency` (new nullable columns) and `sold_price` / `sold_fees` as the USD equivalent at
+  the SALE DATE's rate (Frankfurter historical, cached in settings once settled). No rate for that day = the order line is
+  DEFERRED (stays listed, not marked applied, `deferred` in the sync result) and the fee stays NULL; both retry next pass.
+  A US sale is untouched. Hand-correcting a sold price clears the foreign-currency record.
+- **Auto-offers** (Negotiation API) send the card's stored marketplace header and ask eligibility once per site.
+- **UI** (`LocalListingLine`, `useLocalMarket`, `usePriceFloor`): editors, the confirm modal and the reprice sheet show
+  "£4.91 on eBay UK" with the USD market price underneath (existing `<Price>`), the site's floor and net. A US seller never
+  calls `/api/ebay/market`.
+- **Sandbox switch**: `EBAY_ENV=sandbox` points the Sell/OAuth/Finances/Identity hosts at `*.sandbox.ebay.com`
+  (`src/lib/ebayHosts.ts`); unset = the same production literals (golden). `scripts/ebay-sandbox-e2e.mjs` is the harness.
+
+### Fee table (official pages, fetched 2026-09-30; domestic single card in a bubble mailer, untracked letter)
+| Site | Account | Final value fee (Collectable Card Games) | Per order | Postage |
+|---|---|---|---|---|
+| GB | private | 0%, no regulatory fee — https://www.ebay.co.uk/help/selling/fees-credits-invoices/selling-fees?id=4822 | none | £1.55 Royal Mail 2nd Class Large Letter ≤100g — https://www.royalmail.com/sending/stamp-costs-and-faqs |
+| GB | business | 10.9% (Collectables #1) + 0.35% regulatory = 11.25%, ex-VAT — https://www.ebay.co.uk/help/selling/fees-credits-invoices/fees-business-sellers-activated-managed-payments?id=4809 | £0.30 ≤ £10, £0.40 over (since 12 Feb 2026) | same |
+| IE | private | 11% + 0.43% regulatory = 11.43%, VAT incl. — https://www.ebay.ie/help/selling/fees-credits-invoices/selling-fees?id=4822 | €0.05 below €10.00, else €0.35 | €3.50 An Post Large Envelope ≤100g (a €1.85 letter is max 5mm) — An Post Guide to Postal Rates Feb 2026 PDF |
+| IE | business | 11% + 0.35% = 11.35%, ex-VAT — https://www.ebay.ie/help/selling/fees-credits-invoices/fees-business-sellers-activated-managed-payments?id=4809 | €0.35 ≤ €10, €0.45 over | same |
+| AU | INDIVIDUAL (≤ A$25k a year) | 0% — https://www.ebay.com.au/help/selling/fees-credits-invoices/selling-fees?id=4822 | none | A$3.70 Australia Post large letter ≤125g incl. GST (from 1 Sep 2026) — https://auspost.com.au/personal/sending/letters/sending-in-australia/regular |
+| AU | BUSINESS (Pro) | 11.44% incl. GST, Tier 2 Pro Starter — https://www.ebay.com.au/help/selling/fees-credits-invoices/ebay-pro-selling-fees?id=4809 | A$0.30, no step | same |
+| CA | any | 13.25% (2.35% only above C$7,500) — https://www.ebay.ca/help/selling/fees-credits-invoices/selling-fees?id=4822 | C$0.30 ≤ C$10, C$0.40 over | C$2.61 Lettermail oversize ≤100g, max 20mm, excl. tax — https://www.canadapost-postescanada.ca/cpc/en/personal/sending/letters-mail/postage-rates.page |
+
+Taper (hard-coded whole units, never FX-derived; costs on top below `end`, none from `end` up; the US is $5 / $10):
+GB £4 / £8, IE €4 / €10, AU A$8 / A$15, CA C$7 / C$14. All are the US $5 / $10 at ~0.78 / 0.88 / 1.5 / 1.37 rounded to
+whole units, except IE's end (10, not 8.8 → 9): €3.50 postage + fees (~€5.5 on top) would exceed a €5 taper and the curve
+would dip a cent where it meets the value. Every site's curve is swept by `test:ebaylocal` (never falls as value rises,
+never under the value, never over the full-cover price). Non-US rounding also takes a 1e-6 tolerance (float noise on the
+no-fee models put exact cents a cent high); the US keeps `Math.ceil` exactly. Floors (break-even, break-even with the fee
+model): GB business £2.09, GB private £1.55, AU private A$3.70.
+
+**Still unverified / caveated (listed in each row's `unverifiedNotes`):**
+- AU business 11.44% is the Pro Starter column of Tier 2 as read from the page text; the column mapping is inferred (row is
+  flagged `unverified: true`). A BUSINESS account under A$25k pays no fee, so its price can be a little high (safe side).
+- GB and IE business figures are quoted ex-VAT; a business seller who is not VAT-registered pays 20% / 23% VAT on fees on
+  top, which the price does not add. The UK 10p per-order scheme for UK-registered business sellers is not modelled (it
+  would only lower the price).
+- Cross-border (international) fees are not modelled: domestic letters only.
+- `shippingCarrierCode` strings ("RoyalMail", "AustraliaPost", "CanadaPost") are guesses; the policy create retries without
+  them. IE has none. The sandbox run settles it.
+- GB shipping code: the plan said `UK_RoyalMail2ndClassLargeLetter`, but eBay's own list for the site
+  (`docs/ebay-marketplaces-0930.json`) shows `UK_RoyalMail2ndClassLetter` and never the "LargeLetter" name, so the listed code
+  is primary and `UK_RoyalMail1stClassLetter` the fallback. Postage stays £1.55 (the Large Letter price).
+- **GPSR (IE, EU):** eBay's GPSR page (https://www.ebay.com/sellercenter/resources/general-product-safety-regulation)
+  requires business sellers listing in the EU to give the manufacturer or an EU Responsible Person, but excludes antiques
+  "including collectors' items". Whether a modern trading card is one is a legal question this code cannot settle, and eBay
+  states no rule for CCG singles. The offer has NO regulatory block today; if the IE sandbox publish (or the first real one)
+  is refused for it, the Inventory API offer takes a `regulatory` object (manufacturer / responsiblePersons) to add. IE
+  returns: 14-day consumer returns are valid on EBAY_IE (the metadata lists 14/30/60); we send 30, buyer pays.
+- Sellers' consumer-law returns obligations in UK/IE/AU are the seller's to know; the policy only sets eBay's field.
+
+### Owner steps
+**A. Sandbox run (needs your developer-portal clicks; I did not run it).** Full instructions are the comment at the top of
+`scripts/ebay-sandbox-e2e.mjs`. In short: (1) create a SANDBOX keyset (App ID + Cert ID) and a sandbox RuName; (2) register
+four sandbox SELLER users, one each on United Kingdom, Ireland, Australia, Canada, and complete seller registration if the
+sandbox asks; (3) mint a user token per user (User Tokens → Get a Token from eBay via Your Application; scopes sell.inventory,
+sell.account, commerce.identity.readonly); (4) in PowerShell set `EBAY_SANDBOX_CLIENT_ID`, `EBAY_SANDBOX_CLIENT_SECRET`,
+`EBAY_SANDBOX_USER_TOKEN_GB/_IE/_AU/_CA` (tokens last ~2h; or set `EBAY_SANDBOX_REFRESH_TOKEN_<CC>`) and run
+`node --experimental-strip-types --no-warnings scripts/ebay-sandbox-e2e.mjs` (add `--sites GB` for one site, `--print` to see the
+payloads with no credentials). It prints PASS/FAIL/SKIP per step with eBay's error verbatim and refuses to touch production.
+Fix what it names (typically the service code / carrier string, a missing seller registration, or a GPSR block) in
+`src/lib/marketplaces.ts` / `ebayInventory.ts`, re-run until a site is all PASS.
+**B. Go-live flip, one site at a time (after that site's sandbox run is all PASS):**
+1. In `src/lib/marketplaces.ts` set `live: true` on that one row (GB first) and push to `main` (prod deploys from main).
+2. In the admin console → Switches turn **eBay local markets** ON (setting `ebay_local_markets` = "1"). It is global and
+   only affects sellers whose home country is a live site's AND whose eBay registration marketplace matches; everyone else
+   (and every site still `live:false`) keeps listing on eBay US.
+3. List one cheap card as that site's seller, check it on the site's eBay (ebay.co.uk / ebay.ie / ebay.com.au / ebay.ca), reprice
+   it, end it. To roll back: set the switch OFF (existing local offers keep working off their stored site), or set the row
+   back to `live:false`.
+4. Repeat for IE, AU, CA, each in its own push.
+Nothing else needs flipping. NZ is deliberately not in the list.
+
+### Review fixes (same night, after the coordinator's review)
+1. **One price rule, server is the source of truth.** `pickLocalAsk` (localPricing.ts) is the single rule: only a LOCKED row
+   (price the seller typed or picked) converts as typed; anything else is priced from the USD market value through the
+   condition and the Quick Sale pick. The editors and the confirm step no longer estimate: they show the server's own answer
+   (`/api/ebay/market?cardId=&strategy=` -> `quoteCardForSite`, the same `marketFor` + `resolveLocalAsk` the push runs), so the
+   number shown is the number listed. `test:ebaylocal` pins client `quoteLocalListing` = server for unlocked/locked x quick/full.
+2. **Sandbox vs real data.** `EBAY_ENV=sandbox` throws `SandboxRefusedError` (no request is made) on `VERCEL_ENV=production`
+   or when `TURSO_DATABASE_URL` is set, and while sandboxed `getUserAccessToken` never deletes a link and the identity refresh
+   writes nothing.
+3. **Stale market price.** A local listing priced from the market is refused when the series' last point is older than the
+   client's 7-day rule (`CURRENT_POINT_MAX_AGE_MS`), with a plain message naming the date; a typed price is unaffected.
+4. **Write order.** The offer id and the site are one transaction (`setCardEbayListing(..., { market })`).
+5. **Alerts** skip a local row only while it is `listed`; a withdrawn card gets its alerts back.
+6. **Never-published offers follow the seller's current site.** CHOSEN: re-site (not refuse). `marketFor` pins a PUBLISHED
+   offer to its stored site, but an offer with no listing id on a different site than the seller's current one is deleted
+   on its own site (an unpublished offer is invisible to buyers, free, and cannot change site) and recreated on the right
+   one at the next push; if eBay refuses the delete nothing changes and the seller sees why. `publishDraft` of such a stale
+   offer answers `needs_push` (the client already re-pushes and retries on that), so a stale US draft can never be published
+   by accident after go-live. A published US listing stays on eBay US.
+7. **Orders/fees FX.** An unreadable order date defers the line (never throws the pass). Rates are cached per currency + day
+   for every day, recent ones included, so `sold_price` and `sold_fees` of one sale use the same rate; a pass makes one
+   Frankfurter call per currency + day (a failure is remembered for the pass). Trade-off: a day fetched before the ECB prints
+   keeps that answer.
+
+### Known limits (left as is)
+- A seller's typed price is a USD number even on a local site; the editors show the local price underneath. Sealed rows
+  (priced from the feed, unlocked) are priced by the server from the market series; with no series they need a typed price.
+- The publish route still sends `shipFromCountry` "US" by default; a local site ignores it and uses the home country.
+- A listing PUBLISHED before a seller's site went live stays on eBay US (an offer cannot change site); an unpublished one is re-sited (fix 6).
+- Sales sync reads orders from every site with the default marketplace header (the Fulfillment API returns the account's
+  orders regardless); the first real local sale is where that is confirmed outside the sandbox.
+
 ## REVISED after skeptic review (09-30 ~7:45pm ET) — this section wins over the rest
 Increments:
 1. PLUMBING, switch off, ZERO US change (build next): marketplaces.ts (US row only live), `…For(mp)` fee

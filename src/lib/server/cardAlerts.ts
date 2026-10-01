@@ -79,6 +79,7 @@ export async function sweepCardAlerts(
               c.catalog_card_id, c.variant, c.game, c.alert_price, c.alerted_at, c.spike_alerted_at
        FROM cards c JOIN users u ON u.id = c.user_id
        WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL AND u.email_pending = 0
+         AND (c.ebay_marketplace IS NULL OR c.status != 'listed')
          AND ((c.alert_price IS NOT NULL AND c.alerted_at IS NULL)
               OR c.spike_alerted_at IS NULL OR c.spike_alerted_at < ?)
        LIMIT ${CHECK_CAP}`,

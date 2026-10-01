@@ -29,11 +29,12 @@ import type {
   GradedInfo,
   ItemKind,
   ListingDraft,
+  PriceStrategy,
   ScanLanguage,
 } from "@/lib/types";
 import { SITE_URL } from "./siteUrl.ts";
-import { belowFloor, floorRefusal } from "./fees.ts";
-import { US_MARKETPLACE, type Marketplace } from "./marketplaces.ts";
+import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor } from "./fees.ts";
+import { US_MARKETPLACE, currencySymbol, merchantLocationKeyFor, policyNameFor, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
 import { GAMES, printedCardNumber } from "./games.ts";
 import { ebayFeatures, ebayFinish, ebayRarityWord } from "./ebayVocab.ts";
 
@@ -73,6 +74,12 @@ export interface DraftInput {
    * client — it decides whether the item has a listing image at all.
    */
   hasPhoto: boolean;
+  /**
+   * The seller's Quick Sale pick, which only matters when the price is worked
+   * out on the server (a local eBay site): it undercuts the market value the
+   * way the US quote does. Absent = full value.
+   */
+  strategy?: PriceStrategy;
   /** Identical copies sold on this one listing (1–99); defaults to 1. */
   quantity?: number;
   kind: ItemKind;
@@ -389,23 +396,29 @@ export interface OfferPayload {
   merchantLocationKey?: string;
 }
 
+/**
+ * The offer for one eBay site. `marketplace` defaults to the US row (every
+ * call that predates per-country listing); for another site `input.listing.price`
+ * is in THAT site's currency (the server prices it, see ebayMarket.ts).
+ */
 export function buildOffer(
   input: DraftInput,
   extras: { policies?: ListingPolicies; merchantLocationKey?: string | null } = {},
+  marketplace: Marketplace = US_MARKETPLACE,
 ): OfferPayload {
   const policies = extras.policies
     ? Object.fromEntries(Object.entries(extras.policies).filter(([, v]) => Boolean(v)))
     : {};
   return {
     sku: skuForCard(input.cardId),
-    marketplaceId: EBAY_MARKETPLACE_ID,
+    marketplaceId: marketplace.marketplaceId,
     format: "FIXED_PRICE",
     availableQuantity: listingQuantity(input),
     categoryId: input.listing.categoryId,
     listingDescription: descriptionHtml(input.listing.description),
     listingDuration: "GTC",
     pricingSummary: {
-      price: { currency: US_MARKETPLACE.currency, value: input.listing.price.toFixed(2) },
+      price: { currency: marketplace.currency, value: input.listing.price.toFixed(2) },
     },
     ...(Object.keys(policies).length ? { listingPolicies: policies } : {}),
     ...(extras.merchantLocationKey ? { merchantLocationKey: extras.merchantLocationKey } : {}),
@@ -424,23 +437,160 @@ export function offerUpdateBody(
   return rest;
 }
 
-/** Everything that must hold before we spend an API call on it. */
-export function validateDraftInput(input: DraftInput): string | null {
+/**
+ * Everything that must hold before we spend an API call on it. For a non-US
+ * `marketplace` the price is in that site's currency and the floor is that
+ * site's break-even (fees.ts …For variants); the US call is unchanged.
+ */
+export function validateDraftInput(
+  input: DraftInput,
+  marketplace: Marketplace = US_MARKETPLACE,
+  account?: EbayAccountType | null,
+): string | null {
+  const local = marketplace.key !== "US";
   if (!input.cardId) return "Missing card id";
   if (!input.listing?.title?.trim()) return "Listing has no title";
   if (input.listing.title.length > 80) return "Title is over eBay's 80-character limit";
   if (!input.listing.description?.trim()) return "Listing has no description";
   if (!Number.isFinite(input.listing.price) || input.listing.price <= 0) {
-    return "Set a price above $0 first";
+    return local ? `Set a price above ${currencySymbol(marketplace)}0 first` : "Set a price above $0 first";
   }
   // Never under the fee floor (Chris, 09-08) — drafts and publishes included.
-  if (belowFloor(input.listing.price)) return floorRefusal();
+  if (local) {
+    if (belowFloorFor(marketplace, input.listing.price, account)) return floorRefusalFor(marketplace, account);
+  } else if (belowFloor(input.listing.price)) {
+    return floorRefusal();
+  }
   if (!ALLOWED_CATEGORY_IDS.has(input.listing.categoryId)) return "Unknown eBay category";
   if (imageUrls(input).length === 0) {
     return "Add a photo of the actual item first — eBay requires your own photo, not catalogue art";
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Per-site request pieces. Pure, so the sandbox harness (scripts/ebay-sandbox-
+// e2e.mjs) sends exactly the bytes the app sends.
+
+/**
+ * Headers for every Sell API call. The Inventory API rejects writes without
+ * BOTH Content-Language and Accept-Language as the site's language (errorId
+ * 25709, seen on the first real push 08-16). The US row reproduces the
+ * original headers byte for byte (key order included).
+ */
+export function ebayRequestHeaders(token: string, marketplace: Marketplace, hasBody: boolean): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Content-Language": marketplace.contentLanguage,
+    "Accept-Language": marketplace.contentLanguage,
+    "X-EBAY-C-MARKETPLACE-ID": marketplace.marketplaceId,
+    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+  };
+}
+
+function policyBase(marketplace: Marketplace) {
+  return { marketplaceId: marketplace.marketplaceId, categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES" }] };
+}
+
+/**
+ * The shipping-service attempts for the default fulfillment policy, in order.
+ * US: Ground Advantage then Priority (some accounts refuse a code). Other
+ * sites: the letter code with the carrier, then without it (eBay's Account
+ * API takes a carrier name only on some sites), then the site's alternate
+ * code. The throwaway-policy check per site is what the sandbox run is for.
+ */
+export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
+  const s = marketplace.shipping;
+  const out: { serviceCode: string; carrierCode: string | null }[] = [{ serviceCode: s.serviceCode, carrierCode: s.carrierCode }];
+  if (marketplace.key === "US") {
+    if (s.fallbackServiceCode) out.push({ serviceCode: s.fallbackServiceCode, carrierCode: s.carrierCode });
+    return out;
+  }
+  if (s.carrierCode) out.push({ serviceCode: s.serviceCode, carrierCode: null });
+  if (s.fallbackServiceCode) out.push({ serviceCode: s.fallbackServiceCode, carrierCode: null });
+  return out;
+}
+
+/**
+ * Account API createFulfillmentPolicy body: a flat domestic rate the buyer
+ * pays, handling 1 day. eBay's LSAS validator rejected the first US shape
+ * (08-27, LOGISTICS_INFO_IS_MISSING: buyerResponsibleForShipping is a
+ * freight flag, not "buyer pays"); buyer-pays is simply a non-zero flat cost.
+ */
+export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: string, carrierCode: string | null) {
+  return {
+    ...policyBase(marketplace),
+    name: policyNameFor(marketplace, "CardFlip shipping"),
+    handlingTime: { value: 1, unit: "DAY" },
+    shippingOptions: [
+      {
+        optionType: "DOMESTIC",
+        costType: "FLAT_RATE",
+        shippingServices: [
+          {
+            sortOrder: 1,
+            ...(carrierCode ? { shippingCarrierCode: carrierCode } : {}),
+            shippingServiceCode: serviceCode,
+            shippingCost: { value: marketplace.shipping.policyCost, currency: marketplace.currency },
+            freeShipping: false,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** Managed payments: eBay ignores payment methods, the policy is a shell. */
+export function paymentPolicyBody(marketplace: Marketplace) {
+  return { ...policyBase(marketplace), name: policyNameFor(marketplace, "CardFlip payments") };
+}
+
+/** 30 days, buyer pays return postage, and NO returnMethods (14 is invalid on GB/AU/CA; the field is unsupported there). */
+export function returnPolicyBody(marketplace: Marketplace) {
+  return {
+    ...policyBase(marketplace),
+    name: policyNameFor(marketplace, "CardFlip returns"),
+    returnsAccepted: true,
+    returnPeriod: { value: 30, unit: "DAY" },
+    returnShippingCostPayer: "BUYER",
+  };
+}
+
+/** The Inventory API location create body for the seller's ship-from address. */
+export function locationBody(postalCode: string, country: string) {
+  return {
+    location: { address: { postalCode, country } },
+    locationTypes: ["WAREHOUSE"],
+    merchantLocationStatus: "ENABLED",
+    name: "CardFlip ship-from location",
+  };
+}
+
+export interface InventoryLocationRow {
+  merchantLocationKey?: string;
+  merchantLocationStatus?: string;
+  location?: { address?: { country?: string } };
+}
+
+/**
+ * The seller's ship-from location on a non-US site: our own `cardflip-<cc>`
+ * key when it is there AND in the site's country, else any enabled location
+ * of theirs in that country, else null (the caller creates `cardflip-<cc>`).
+ * Filtering by country matters: a seller with a US warehouse and a UK one
+ * must not have a GB listing attached to the US address.
+ */
+export function pickMerchantLocation(locations: InventoryLocationRow[], marketplace: Marketplace): string | null {
+  const country = marketplace.locationCountry.toUpperCase();
+  const enabled = locations.filter((l) => l.merchantLocationKey && (l.merchantLocationStatus ?? "ENABLED").toUpperCase() === "ENABLED");
+  const inCountry = (l: InventoryLocationRow) => (l.location?.address?.country ?? "").toUpperCase() === country;
+  const own = merchantLocationKeyFor(marketplace);
+  const byKey = enabled.find((l) => l.merchantLocationKey === own && (!l.location?.address?.country || inCountry(l)));
+  if (byKey) return own;
+  return enabled.find(inCountry)?.merchantLocationKey ?? null;
+}
+
+export { merchantLocationKeyFor };
 
 /** eBay's public URL for a live listing. */
 export function ebayListingUrl(listingId: string, marketplace: Marketplace = US_MARKETPLACE): string {
