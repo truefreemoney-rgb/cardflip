@@ -108,6 +108,40 @@ export const PRICE_TRUST = {
   vintageBefore: "2010-01-01",
 } as const;
 
+/**
+ * The step-jump rule for MOVERS (10-01 review, Skuntank Pokémon Rumble #13):
+ * a "+71% this week" whose whole gain is ONE day's step after months of
+ * standing still ($52.07-$52.69 for 4+ months, then $89.98 overnight, held
+ * flat since) is a thin-market print, not a move a collector believes; it
+ * sails through priceTrust because the price is under $100 (tests 1-3 only),
+ * the step is under 3x and there is no second source. Used by the movers
+ * pick only (social.ts), never by priceTrust(), so the card pages and the rest
+ * of the site read the price exactly as before.
+ *
+ * A step jump is: a one-day rise >= stepMin (1.30x) inside the move's window,
+ * still standing, after a flat stretch of >= flatDays (30) calendar days that
+ * stayed within +-flatBand (3%) of the price the step started from, with no
+ * confirmation. A second source confirms when Cardmarket's price already
+ * stands within confirmLevel (1.5x) of the new TCGplayer price (the step is
+ * catching up to a market that was already there), or its own series rose by
+ * confirmMove (10%) over the window. A gradual climb (Gardevoir Ruby &
+ * Sapphire 7: $57 -> 65 -> 69 -> 72 -> 75 -> 78 -> 106 over 4 months) has no
+ * flat stretch before its last step, and a card with under 30 days of history
+ * has nothing to call flat, so neither is flagged.
+ */
+export const STEP_JUMP = {
+  /** A one-day rise of at least this x. */
+  stepMin: 1.3,
+  /** The price before the step stood within +- this of itself ... */
+  flatBand: 0.03,
+  /** ... for at least this many calendar days. */
+  flatDays: 30,
+  /** Confirmed when the TCGplayer price is <= this x Cardmarket (USD). */
+  confirmLevel: 1.5,
+  /** Confirmed when the Cardmarket series rose by at least this over the window. */
+  confirmMove: 0.1,
+} as const;
+
 /** Magic's referee in SQL (mtg_cards has Scryfall's Cardmarket price on the row): the same numbers as test 1. */
 export const MTG_REFEREE_SQL = `(price_eur IS NULL OR price_eur < ${PRICE_TRUST.refMinEur} OR price_usd < CASE WHEN price_usd < ${PRICE_TRUST.gradedMinUsd} THEN ${PRICE_TRUST.refFailLow} ELSE ${PRICE_TRUST.refFail} END * ${PRICE_TRUST.eurToUsd} * price_eur)`;
 
@@ -220,6 +254,55 @@ export function lastPriced(prices: readonly (number | null)[]): number | null {
 }
 
 const x = (n: number) => `${n.toFixed(1)}x`;
+
+export interface StepJumpInput {
+  /** The series, oldest first, null = no point; its last slot is the day the price was read (pad a series that stops early). */
+  prices: readonly (number | null)[];
+  /** The move's window: a step counts when it landed inside the last `days` days. */
+  days: number;
+  /** Latest Cardmarket price in EUR (Pokémon average / Magic price_eur), if there is a fresh one. */
+  refEur?: number | null;
+  /** The Cardmarket EUR series, oldest first, ending about the same day (Pokémon only). */
+  refPrices?: readonly (number | null)[] | null;
+}
+
+/** See STEP_JUMP: is the latest price a lone, unconfirmed one-day step out of a long flat stretch? `reason` says what it saw. */
+export function stepJump({ prices, days, refEur = null, refPrices = null }: StepJumpInput, T: { [K in keyof typeof STEP_JUMP]: number } = STEP_JUMP): { jump: boolean; reason: string } {
+  const none = { jump: false, reason: "" };
+  const idx: number[] = [];
+  const vals: number[] = [];
+  for (let i = 0; i < prices.length; i++) {
+    const v = prices[i];
+    if (v != null) {
+      idx.push(i);
+      vals.push(v);
+    }
+  }
+  const n = vals.length;
+  if (n < 2) return none;
+  const to = vals[n - 1];
+  const windowStart = prices.length - 1 - days;
+  for (let k = n - 1; k >= 1 && idx[k] > windowStart; k--) {
+    const pre = vals[k - 1];
+    const rise = vals[k] / pre;
+    if (rise < T.stepMin) continue;
+    if (to / pre < T.stepMin) continue; // the step has been given back
+    let j = k - 1;
+    while (j > 0 && Math.abs(vals[j - 1] / pre - 1) <= T.flatBand) j--;
+    const flat = idx[k - 1] - idx[j] + 1;
+    if (flat < T.flatDays) continue;
+    // A second source that already stands near the new price, or moved the same way, confirms it.
+    if (refEur != null && refEur >= PRICE_TRUST.refMinEur && to <= T.confirmLevel * PRICE_TRUST.eurToUsd * refEur) continue;
+    if (refPrices) {
+      const cmNow = lastPriced(refPrices);
+      let cmThen: number | null = null;
+      for (let i = refPrices.length - 1 - days; i >= 0 && cmThen == null; i--) cmThen = refPrices[i];
+      if (cmNow != null && cmThen != null && cmNow / cmThen - 1 >= T.confirmMove) continue;
+    }
+    return { jump: true, reason: `step ${x(rise)} in one day after ${flat}d flat` };
+  }
+  return none;
+}
 
 
 

@@ -76,6 +76,10 @@ on:
         description: "morning,midday,evening: only these TikTok slots (blank = every one that is not ready)"
         required: false
         default: ""
+      tiktok_force:
+        description: "1 = remake the slots named in tiktok_slots even when they are ready (a bad card in a registered video); ignored with no tiktok_slots"
+        required: false
+        default: ""
 
 jobs:
   video:
@@ -144,15 +148,18 @@ jobs:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           TIKTOK_DAY: ${{ inputs.tiktok_day }}
           TIKTOK_SLOTS: ${{ inputs.tiktok_slots }}
+          TIKTOK_FORCE: ${{ inputs.tiktok_force }}
           # Only the schedule waits for 8pm Eastern; a dispatch (the safety net, a hand run) goes now.
           EARLIEST_HOUR: ${{ github.event_name == 'schedule' && '20' || '' }}
         run: |
           day=""; if [ -n "$TIKTOK_DAY" ]; then day="--day $TIKTOK_DAY"; fi
           min=""; if [ -n "$EARLIEST_HOUR" ]; then min="--min-hour $EARLIEST_HOUR"; fi
           slots=""; if [ -n "$TIKTOK_SLOTS" ]; then slots="--slot $TIKTOK_SLOTS"; fi
+          # A hand remake of named slots only: with no slots named the flag is dropped, so the schedule and the safety net can never redraw a ready video.
+          force=""; if [ "$TIKTOK_FORCE" = "1" ] && [ -n "$TIKTOK_SLOTS" ]; then force="--force"; fi
           node --experimental-strip-types --no-warnings --conditions=react-server \
             --import ./scripts/lib/register-next-stubs.mjs scripts/social-video.mjs \
-            --package --register --out-dir tiktok-videos $day $min $slots
+            --package --register --out-dir tiktok-videos $day $min $slots $force
       - name: Keep the MP4s for a look
         if: hashFiles('tiktok-videos/*.mp4') != ''
         uses: actions/upload-artifact@v4
