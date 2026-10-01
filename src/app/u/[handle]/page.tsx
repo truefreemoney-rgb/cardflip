@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const handle = normalizeHandle(raw);
   const c = handle ? await publicCollection(handle) : null;
   if (!c) return { title: "Collection", robots: { index: false } };
-  const title = `${c.name}'s collection`;
+  const title = `@${c.handle}'s collection`;
   const description = `${c.count} card${c.count === 1 ? "" : "s"} worth ${formatMoney(c.value)} at today's prices${c.forSale ? `, ${c.forSale} for sale on eBay` : ""}. Tracked with CardFlip.`;
   // The shared helper, so this page keeps the site name and the twitter card; the first card's picture is its share image.
   return pageMetadata({ title, description, path: `/u/${handle}`, image: c.cards[0]?.imageUrl });
@@ -44,7 +44,7 @@ export default async function PublicCollectionPage({ params }: Params) {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">Collection</p>
-            <h1 className="mt-1 truncate font-display text-2xl font-semibold text-white sm:text-3xl">{c.name}</h1>
+            <h1 className="mt-1 truncate font-display text-2xl font-semibold text-white sm:text-3xl">@{c.handle}</h1>
             <p className="mt-1 text-sm text-zinc-500">
               {c.count} card{c.count === 1 ? "" : "s"}
               {c.forSale ? ` · ${c.forSale} for sale on eBay` : ""}

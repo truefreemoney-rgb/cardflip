@@ -8,11 +8,13 @@ import { ebayListingUrl } from "@/lib/ebayInventory";
 import { formatLocalAmount, marketplaceByEbayId } from "@/lib/marketplaces";
 import type { GameId } from "@/lib/types";
 import { parseGame } from "@/lib/games";
+import { isOwnBlobUrl } from "@/lib/server/ownBlob";
 
 /**
  * Public collection page (Tier 2 #10, 09-27): cardflip.io/u/<handle>.
  *
- * What a visitor sees: the seller's display name, every card they own that
+ * What a visitor sees: the seller's @handle (never the account name, 10-01
+ * sweep: the handle is what they chose to publish), every card they own that
  * is not sold, at today's price, with a "Buy on eBay" link on the rows
  * that are live there. Private by default — a handle with the switch off
  * answers null, same as no handle at all, so the page 404s either way and
@@ -27,6 +29,30 @@ import { parseGame } from "@/lib/games";
  */
 
 export const PUBLIC_CARD_CAP = 500;
+
+/**
+ * Picture hosts a stranger's browser may load here (10-01 sweep): the catalog's own sources, plus our Blob store.
+ * A row's image_url is the owner's to set through the API, so anything else, and anything not https, shows the empty tile.
+ */
+const IMAGE_HOSTS = new Set([
+  "assets.tcgdex.net", // Pokémon
+  "images.pokemontcg.io", // Pokémon
+  "cards.scryfall.io", // Magic
+  "tcgplayer-cdn.tcgplayer.com", // Yu-Gi-Oh, One Piece, 1st Edition twins, sealed
+  "cards.lorcast.io", // Lorcana
+  "optcgapi.com", // One Piece
+]);
+
+export function publicImageUrl(u: string): string {
+  let url: URL;
+  try {
+    url = new URL(u);
+  } catch {
+    return "";
+  }
+  if (url.protocol !== "https:") return "";
+  return IMAGE_HOSTS.has(url.hostname.toLowerCase()) || isOwnBlobUrl(u) ? u : "";
+}
 
 export interface PublicCard {
   id: string;
@@ -48,7 +74,6 @@ export interface PublicCard {
 
 export interface PublicCollection {
   handle: string;
-  name: string;
   cards: PublicCard[];
   count: number;
   /** Sum of the priced cards. */
@@ -129,7 +154,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
       name: r.card_name,
       setName: r.set_name,
       number: r.card_number,
-      imageUrl: r.image_url,
+      imageUrl: publicImageUrl(r.image_url),
       condition: r.condition,
       game: parseGame(r.game),
       kind: r.kind === "sealed" ? "sealed" : "card",
@@ -144,7 +169,6 @@ export async function publicCollection(handle: string): Promise<PublicCollection
 
   return {
     handle,
-    name: user.name,
     cards,
     count: rows.length > PUBLIC_CARD_CAP ? PUBLIC_CARD_CAP : rows.length,
     value: round(value),

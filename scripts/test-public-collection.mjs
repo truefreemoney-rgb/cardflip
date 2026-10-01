@@ -6,6 +6,7 @@
  * hidden; hand/refresh price shown, $0 rows priced from today's market by
  * condition, unpriced = null; Buy on eBay only on listed rows with a URL;
  * dearest first; value = priced sum; count/forSale; the 500 cap;
+ * the @handle shows, never the account name; pictures from known hosts only;
  * updateUserProfile writes handle + switch; findUserByHandle.
  */
 import { mkdtempSync, rmSync } from "node:fs";
@@ -20,7 +21,7 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { normalizeHandle, handleProblem } = await import(at("lib/handle.ts"));
-const { publicCollection, PUBLIC_CARD_CAP } = await import(at("lib/server/publicCollection.ts"));
+const { publicCollection, publicImageUrl, PUBLIC_CARD_CAP } = await import(at("lib/server/publicCollection.ts"));
 const { createCard } = await import(at("lib/server/cards.ts"));
 const { createUser, updateUserProfile, findUserByHandle, findUserById } = await import(at("lib/server/users.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
@@ -50,7 +51,7 @@ check("findUserByHandle", (await findUserByHandle("chris"))?.id, u.id);
 await updateUserProfile(u.id, { handlePublic: true });
 check("switch on → page, empty", (await publicCollection("chris"))?.cards, []);
 
-const card = (name, extra = {}) => createCard(u.id, { cardName: name, setName: "Base Set", cardNumber: "4", imageUrl: "https://img/x.webp", condition: "Near Mint", price: 0, ...extra });
+const card = (name, extra = {}) => createCard(u.id, { cardName: name, setName: "Base Set", cardNumber: "4", imageUrl: "https://assets.tcgdex.net/en/base/base1/4/high.webp", condition: "Near Mint", price: 0, ...extra });
 const charizard = await card("Charizard", { price: 800, catalogCardId: "base1-4" });
 await db.prepare("UPDATE cards SET status = 'listed', listed_at = 1, ebay_listing_id = '1' WHERE id = ?").run(charizard.id);
 const listedNoUrl = await card("Blastoise", { price: 100 });
@@ -66,8 +67,16 @@ const c = await publicCollection("chris");
 check("sold hidden, dearest first, unpriced last", c.cards.map((x) => [x.name, x.price]), [["Charizard", 800], ["Booster Box", 150], ["Blastoise", 100], ["Pikachu", askingPriceFor(10, "Lightly Played")], ["Mystery", null]]);
 check("Buy on eBay only with a live listing", c.cards.map((x) => (x.ebayUrl ? x.ebayUrl.includes("/itm/1") : null)), [true, null, null, null, null]);
 check("value, count, for sale", [c.value, c.count, c.forSale, c.truncated], [Math.round((800 + 150 + 100 + askingPriceFor(10, "Lightly Played")) * 100) / 100, 5, 1, false]);
-check("name shows, nothing else about the account", [c.name, c.handle, Object.keys(c).includes("email")], ["Chris", "chris", false]);
+check("the handle shows, never the account name or email", [c.handle, Object.keys(c).includes("name"), Object.keys(c).includes("email"), JSON.stringify(c).includes("Chris")], ["chris", false, false, false]);
 check("kind and condition ride along", c.cards.map((x) => x.kind)[1], "sealed");
+
+console.log("\npictures: known hosts only");
+check("a catalog host passes as is", c.cards[0].imageUrl, "https://assets.tcgdex.net/en/base/base1/4/high.webp");
+check("every catalog source", ["https://images.pokemontcg.io/base1/4_hires.png", "https://cards.scryfall.io/large/front/a/b/x.jpg", "https://tcgplayer-cdn.tcgplayer.com/product/1_in_1000x1000.jpg", "https://cards.lorcast.io/card/digital/large/x.avif", "https://optcgapi.com/media/static/Card_Images/OP01-001.jpg"].map(publicImageUrl).every(Boolean), true);
+check("our own Blob store passes, another store does not", [publicImageUrl("https://mlwovvakovcpakbr.public.blob.vercel-storage.com/a.jpg") !== "", publicImageUrl("https://someoneelse.public.blob.vercel-storage.com/a.jpg")], [true, ""]);
+check("off-list host, look-alike host, http, data:, junk → empty", ["https://evil.example/x.png", "https://assets.tcgdex.net.evil.example/x.png", "http://assets.tcgdex.net/x.png", "data:image/png;base64,AAAA", "javascript:alert(1)", "not a url", ""].map(publicImageUrl), ["", "", "", "", "", "", ""]);
+await card("Tracker", { imageUrl: "https://evil.example/pixel.png" });
+check("a row with an off-list picture shows the empty tile", (await publicCollection("chris")).cards.find((x) => x.name === "Tracker")?.imageUrl, "");
 
 console.log("\nthe price guard (priceTrustSite)");
 {
