@@ -2,7 +2,7 @@
 
 **CI WAS SILENTLY RED 08-lateâ†’09-02 (fixed b927454):** the seedMtgMirror completeness test wrote setup via libsql (WAL) but the seed reads via node:sqlite â€” cross-library WAL visibility is platform-dependent, so it passed on Windows and failed only on Linux CI. All "CI green" claims between the test landing and b927454 were stale (nobody was reading the badge). Lesson: check the actual GitHub run, not local npm test, when trusting the gate. Now genuinely green on both branches.
 
-Last updated: 2026-09-30 4:50pm ET (session 69 close: resume = the FIRST ACTION block at line ~26, use limit: 40; timed TikTok 7pm + growth build in flight).
+Last updated: 2026-09-30 10:25pm ET (session 72 close: resume = the FIRST ACTION block at line ~26, use limit: 40; TikTok re-render check, then the full security/bug sweep).
 
 **DEPLOY TRAP: production deploys from `main` ONLY** â€” pushing
 `vercel-migration` builds previews. After pushing the branch, fast-forward
@@ -22,6 +22,11 @@ For any visual/design work, read `docs/DESIGN.md` first (the design-system
 source of truth â€” tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
+
+**FIRST ACTION (09-30 ~10:25pm ET, session 72 close, Chris: "save and clear asap but not interrupt anything"). LIVE: main = 7f0a1bc (CI green): eBay GB/IE/AU/CA live + switch on; social round 1 (7pm = biggest price jump per game with fallback, set-spotlight riser lead, ≤5 hashtags, rotating engagement question, JUMPS_FROM 2026-10-01).**
+**(1) CHECK FIRST, 1 min:** a background job was to dispatch at ~10:30pm ET `gh workflow run social-post.yml --ref main -f tiktok=1 -f tiktok_day=2026-10-01 -f tiktok_slots=morning,midday,evening -f tiktok_force=1` after the deploy. Verify: `gh run list --workflow social-post.yml --limit 2` (a workflow_dispatch after 02:25Z, success) and settings social_tiktok:{morning,midday,evening}:2026-10-01 have NEW urls (…-r<stamp>.mp4), captions with a question line and ≤5 tags, evening title "Biggest price jump(s)…" (Cresselia +60% Pokémon, Void Winnower +29% Magic, Elsa/Luffy/Pot of Greed today). If it never dispatched: run that command yourself. Then watch the 7pm MP4 as a collector (frames mid-card show count-up animation; check settled frames). 1pm must still lead Gardevoir +41% (no Skuntank).
+**(2) THEN, Chris's ask: FULL SWEEP of the site for SECURITY flaws, exploits and bugs in general** (only if (1) is clean and nothing waits on Chris). Plan-first, fan out (Explore/Sonnet subagents by area: auth/sessions/admin+helper roles, API routes authz + IDOR, Stripe webhooks/billing, eBay OAuth/tokens/new per-country paths, uploads/Blob/image routes (SSRF), proxy/country gate/cookies (cf_home HMAC), rate limits, cron/ops routes keys (SOCIAL_POST_KEY, CRON_SECRET), secrets in repo/history, XSS in user content (public collection /u/, tickets), dependency audit, then general bug hunt); adversarially verify each finding; fix confirmed ones in small tested commits; report to Chris. Never touch prod data destructively.
+**Also open:** TikTok bio retry (board row, Chris, phone app); social round 2 from docs/SOCIAL-OPTIMIZATION.md (uncommitted audit file: cold-open videos on #1 card + Reels cover, per-site hashtag caps, Instagram 4:5, caption line 1 = biggest number, in-app-browser click attribution, drop X self-like, Bluesky/FB/IG view counts); worktrees cardflip-ebaycc / -stepguard / -socialopt removable; sandbox tokens in .env.sandbox.local expire ~midnight.
 
 **EBAY COUNTRIES LIVE 09-30 ~10pm ET: main = 78684fe (CI green) — GB/IE/AU/CA rows live:true, IE needs a Town (cd85310), prod settings ebay_local_markets=1. All 14 users are US/NULL home, so nobody routes abroad yet; the first CA/GB/IE/AU seller who connects eBay lists on their own site (Needs You row fires). Watch their first listing.**
 
