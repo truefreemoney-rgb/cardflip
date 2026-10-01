@@ -187,6 +187,8 @@ export const bluesky: SocialSite = {
         record: {
           $type: "app.bsky.feed.post",
           text: p.text,
+          // Language feeds and custom feeds filter on it; a post without it is in none of them.
+          langs: ["en"],
           facets: blueskyFacets(p.text, p.campaign ? trackedUrl("bluesky", p.campaign) : undefined),
           createdAt: new Date().toISOString(),
           embed,

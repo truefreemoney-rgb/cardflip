@@ -27,7 +27,7 @@ export default function AttributionCapture() {
     try {
       // The console is ours, not a landing page.
       if (window.location.pathname.startsWith("/admin")) return;
-      const fresh = touchFromPage({ search: window.location.search, referrer: document.referrer, pathname: window.location.pathname });
+      const fresh = touchFromPage({ search: window.location.search, referrer: document.referrer, pathname: window.location.pathname, userAgent: navigator.userAgent });
       const next = chooseTouch(readTouch(), fresh);
       localStorage.setItem(KEY, JSON.stringify(next));
     } catch {

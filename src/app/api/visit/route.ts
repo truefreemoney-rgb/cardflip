@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const country = (req.headers.get("x-vercel-ip-country") ?? "").toUpperCase().slice(0, 2);
     const ref = referrerHost(body?.ref);
     // Source + campaign (lib/attribution.ts) ride a page load's first ping only; later client-side pages leave them blank.
-    const src = body?.first === true ? classifySource(body.utm_source, ref) : "";
+    const src = body?.first === true ? classifySource(body.utm_source, ref, ua) : "";
     const camp = body?.first === true ? clean(body.utm_campaign) : "";
     try {
       await db

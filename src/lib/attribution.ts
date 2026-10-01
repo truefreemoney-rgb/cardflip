@@ -95,15 +95,38 @@ const HOST_SOURCES: [RegExp, string][] = [
 ];
 
 /**
+ * The apps' own in-app browsers name themselves in the user agent and usually send no
+ * referrer (10-01: every social visit was landing as "direct"). Instagram is tested
+ * before Facebook because its browser carries FB tokens too. Only the matched source
+ * is kept, never the user agent.
+ */
+const IN_APP_SOURCES: [RegExp, string][] = [
+  [/\bBarcelona\b/, "threads"],
+  [/\bInstagram\b/, "instagram"],
+  [/\b(FBAN|FBAV|FB_IAB|FBIOS)\b/, "facebook"],
+  [/musical_ly|BytedanceWebview|\bTikTok\b|\btrill_/, "tiktok"],
+  [/\bPinterest\b/, "pinterest"],
+  [/\bTwitter(Android|\b)/, "x"],
+];
+
+/** The social app whose in-app browser this user agent is, or "". */
+export function inAppSource(userAgent: unknown): string {
+  if (typeof userAgent !== "string" || !userAgent) return "";
+  for (const [re, source] of IN_APP_SOURCES) if (re.test(userAgent)) return source;
+  return "";
+}
+
+/**
  * The source of a visit: bluesky | x | facebook | instagram | threads | tiktok
  * | pinterest | search | other:<host> | direct. A tagged link (utm_source)
- * wins over the referrer; no tag and no external referrer is direct.
+ * wins over the referrer; with neither, a social app's in-app browser (by its
+ * user agent) names the source; no tag, no external referrer and no app is direct.
  */
-export function classifySource(utmSource: unknown, refHost: unknown): string {
+export function classifySource(utmSource: unknown, refHost: unknown, userAgent?: unknown): string {
   const utm = clean(utmSource, 40);
   if (utm) return UTM_ALIASES[utm] ?? `other:${utm}`;
   const host = clean(refHost, 80);
-  if (!host) return "direct";
+  if (!host) return inAppSource(userAgent) || "direct";
   for (const [re, source] of HOST_SOURCES) if (re.test(host)) return source;
   return `other:${host}`;
 }
@@ -165,11 +188,11 @@ export function parseTouch(raw: unknown): Touch | null {
 }
 
 /** The touch this page load is: its tag and referrer, now. */
-export function touchFromPage(page: { search: string; referrer: string; pathname: string }, now = Date.now()): Touch {
+export function touchFromPage(page: { search: string; referrer: string; pathname: string; userAgent?: string }, now = Date.now()): Touch {
   const q = new URLSearchParams(page.search);
   const refHost = referrerHost(page.referrer);
   return {
-    s: classifySource(q.get("utm_source"), refHost),
+    s: classifySource(q.get("utm_source"), refHost, page.userAgent),
     m: clean(q.get("utm_medium"), 20),
     c: clean(q.get("utm_campaign")),
     refHost: clean(refHost, 80),

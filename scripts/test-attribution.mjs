@@ -58,6 +58,23 @@ const table = [
   ["", "", "direct"], [undefined, null, "direct"], [42, {}, "direct"],
 ];
 for (const [utm, ref, want] of table) check(`utm ${JSON.stringify(utm)}, referrer ${JSON.stringify(ref)} -> ${want}`, A.classifySource(utm, ref), want);
+// 10-01: in-app browsers send no referrer; the app names itself in the user agent.
+const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+const uaTable = [
+  [`${IPHONE} Instagram 401.0.0.24.77 (iPhone16,2; iOS 19_0; en_US; en; scale=3.00; 1290x2796; 700000000)`, "instagram"],
+  [`${IPHONE} [FBAN/FBIOS;FBAV/530.0.0.40.108;FBBV/700000000;FBDV/iPhone16,2;FBMD/iPhone]`, "facebook"],
+  ["Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/530.0.0.40.108;]", "facebook"],
+  [`${IPHONE} Barcelona 401.0.0.24.77 (iPhone16,2; iOS 19_0; en_US; en; scale=3.00)`, "threads"],
+  [`${IPHONE} musical_ly_41.2.0 JsSdk/2.0 NetType/WIFI Channel/App Store ByteLocale/en Region/US BytedanceWebview/d8a21c6`, "tiktok"],
+  ["Mozilla/5.0 (Linux; Android 15; Pixel 9; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36 trill_410200 BytedanceWebview/d8a21c6", "tiktok"],
+  [`${IPHONE} [Pinterest/iOS]`, "pinterest"],
+  [`${IPHONE} Twitter for iPhone/11.20`, "x"],
+  [`${IPHONE} Version/19.0 Mobile/15E148 Safari/604.1`, "direct"],
+  ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "direct"],
+];
+for (const [ua, want] of uaTable) check(`no tag, no referrer, user agent …${ua.slice(-40)} -> ${want}`, A.classifySource("", "", ua), want);
+check("a tag or a referrer still wins over the app's user agent", [A.classifySource("bluesky", "", uaTable[0][0]), A.classifySource("", "google.com", uaTable[0][0]), A.classifySource("", "", 42)], ["bluesky", "search", "direct"]);
+check("the touch a browser keeps uses it too", A.touchFromPage({ search: "", referrer: "", pathname: "/", userAgent: uaTable[4][0] }, 1_800_000_000_000).s, "tiktok");
 check("source labels: plain words for the admin table", ["bluesky", "x", "search", "direct", "unknown", "other:reddit.com"].map(A.sourceLabel), ["Bluesky", "X", "Search engines", "Direct", "Not recorded", "reddit.com"]);
 
 console.log("parseTouch: sanitized, and malformed is dropped");
