@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
 import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "@/lib/server/totp";
 
@@ -16,10 +17,14 @@ import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from 
  *     stolen session must not be able to quietly switch it off)
  */
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`account:totp:${clientIp(req)}`, LIMITS.authAttempt);
+  // Durable, per IP and per account (10-01 sweep): the in-memory limiter never binds across serverless instances, and a
+  // stolen session guessing the password here switches two-step off.
+  const limited = await limitOrRespondAsync(`account:totp:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
+    const mine = await limitOrRespondAsync(`account:totp:acct:${user.id}`, LIMITS.authAccount);
+    if (mine) return mine;
     const body = await req.json().catch(() => ({}));
     const action = typeof body?.action === "string" ? body.action : "";
 

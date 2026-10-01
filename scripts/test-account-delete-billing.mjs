@@ -82,5 +82,11 @@ for (const f of ["src/app/api/account/route.ts", "src/app/api/admin/users/[id]/r
   check(`${f}: cancelAllSubscriptions runs before deleteUser, and a failure returns 502`, [c > 0 && d > c, /status: 502/.test(del.slice(c, d))], [true, true]);
 }
 
+console.log("password re-checks are rate limited durably (10-01 sweep)");
+for (const f of ["src/app/api/account/route.ts", "src/app/api/account/totp/route.ts"]) {
+  const src = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  check(`${f}: db-backed limiter only, and an account-keyed one`, [/\blimitOrRespond\(/.test(src), src.includes("limitOrRespondAsync("), /acct:\$\{user\.id\}/.test(src)], [false, true, true]);
+}
+
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);

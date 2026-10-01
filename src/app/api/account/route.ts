@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
-import { LIMITS, clientIp, limitOrRespond, type RateLimitRule } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import {
   deleteUser,
   findUserByEmail,
@@ -76,7 +77,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const limited = limitOrRespond(`account:patch:${clientIp(req)}`, LIMITS.authAttempt);
+  // Durable (10-01 sweep): an email change re-checks the password, and the memory limiter never binds on serverless.
+  const limited = await limitOrRespondAsync(`account:patch:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
@@ -210,10 +212,13 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const limited = limitOrRespond(`account:delete:${clientIp(req)}`, LIMITS.authAttempt);
+  // Durable, per IP and per account (10-01 sweep): a stolen session guessing the password here deletes the account.
+  const limited = await limitOrRespondAsync(`account:delete:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
+    const mine = await limitOrRespondAsync(`account:delete:acct:${user.id}`, LIMITS.authAccount);
+    if (mine) return mine;
     const body = await req.json().catch(() => ({}));
     const password = typeof body?.password === "string" ? body.password : "";
     if (!verifyPassword(password, user.passwordHash)) {
