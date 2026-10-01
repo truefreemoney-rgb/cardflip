@@ -25,6 +25,10 @@ concurrency:
   group: prod-smoke
   cancel-in-progress: false
 
+# The job token only reads the repo (10-01 sweep): nothing here writes to GitHub.
+permissions:
+  contents: read
+
 jobs:
   smoke:
     # deployment_status fires for every state; only a finished production

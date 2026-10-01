@@ -10,6 +10,9 @@ on:
         description: "CardFlip user id whose eBay token reads GeteBayDetails shipping services (optional)"
         required: false
         default: ""
+# The job token only reads the repo (10-01 sweep): nothing here writes to GitHub.
+permissions:
+  contents: read
 jobs:
   fetch:
     runs-on: ubuntu-latest

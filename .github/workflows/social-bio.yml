@@ -20,6 +20,9 @@ on:
         description: 'write only: {"bluesky":"...","x":"...","facebook":"..."}; add "_dryRun":true to preview without writing'
         required: false
         default: "{}"
+# The job token only reads the repo (10-01 sweep): nothing here writes to GitHub.
+permissions:
+  contents: read
 jobs:
   bio:
     runs-on: ubuntu-latest

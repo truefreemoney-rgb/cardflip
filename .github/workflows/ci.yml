@@ -14,6 +14,10 @@ on:
     branches: [main, vercel-migration]
   pull_request:
 
+# The job token only reads the repo (10-01 sweep): nothing here writes to GitHub.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest

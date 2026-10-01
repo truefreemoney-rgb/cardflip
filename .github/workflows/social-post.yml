@@ -81,6 +81,10 @@ on:
         required: false
         default: ""
 
+# The job token only reads the repo (10-01 sweep): nothing here writes to GitHub.
+permissions:
+  contents: read
+
 jobs:
   video:
     # The render pings and any dispatch that asks for it. The 1pm pings render
