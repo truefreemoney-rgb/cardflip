@@ -177,6 +177,29 @@ check("its top five: the Cardmarket-agreed Pikachu, Umbreon $198, then the liqui
 check("the printed prices are the tested ones", guardSpot?.cards.map((c) => c.to), [300, 198.26, 60, 40, 30]);
 check("the pinned set is used again once its fifth card is clean (Cardmarket agrees)", await (async () => { await db.prepare("UPDATE price_series SET prices = '[120]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run(); const id = (await setSpotlight("pokemon", PIN))?.setId; await db.prepare("UPDATE price_series SET prices = '[20]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run(); return id; })(), "base4");
 
+// The night-rendered 7am video names the day's set (10-01: the pool changed size overnight and the sites posted another set).
+{
+  const { setSetting: put2 } = await import(at("lib/server/settings.ts"));
+  const D = addDays(PIN, 1); // no day plan
+  const row = (v) => put2(`social_tiktok:morning:${D}`, v == null ? "" : JSON.stringify(v));
+  await db.prepare("UPDATE price_series SET prices = '[120]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run();
+  const hashed = (await setSpotlight("pokemon", D))?.setId;
+  const other = hashed === "col1" ? "base4" : "col1";
+  await row({ kind: "set", cards: [{ cardId: `${other}-1` }] });
+  check("two sets qualify, and the set on the day's rendered video beats the hash", [["col1", "base4"].includes(hashed), (await setSpotlight("pokemon", D))?.setId], [true, other]);
+  await row({ kind: "set", cards: [{ cardId: "gone9-1" }] });
+  check("a rendered set that no longer qualifies falls back to the hash", (await setSpotlight("pokemon", D))?.setId, hashed);
+  await row({ kind: "movers", cards: [{ cardId: `${other}-1` }] });
+  check("a row that is not a set video is ignored", (await setSpotlight("pokemon", D))?.setId, hashed);
+  await put2(`social_tiktok:morning:${D}`, "{not json");
+  check("a broken row is ignored", (await setSpotlight("pokemon", D))?.setId, hashed);
+  await put2(`social_tiktok:morning:${PIN}`, JSON.stringify({ kind: "set", cards: [{ cardId: "col1-1" }] }));
+  check("the day plan's set still wins over the rendered one", (await setSpotlight("pokemon", PIN))?.setId, "base4");
+  await put2(`social_tiktok:morning:${PIN}`, "");
+  await row(null);
+  await db.prepare("UPDATE price_series SET prices = '[20]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run();
+}
+
 // The pool the card of the day draws from: at $250 it is the two 300s, the Rayquaza, the Deoxys and the eBay-only card.
 check("card of the day, priciest pool: only the Cardmarket-agreed $300", (await cardOfTheDay("pokemon", PIN, 250))?.cardId, "col1-31");
 let cotdJunk = 0;
