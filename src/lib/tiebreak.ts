@@ -55,8 +55,9 @@ function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; numb
   // Two promo printings of one number (a number that is promo-only): the
   // same art with a different stamp or pack. The picture cannot price that
   // and the seller's tap can ("Which printing is yours?") — no call.
+  // (Checked after the walk below: another NUMBER inside the gap is still a
+  // question for the picture.)
   const promo = (c: { setCode?: string | null }) => (c.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET;
-  if (promo(cards[0]) && promo(cards[1]) && onePieceKey(cards[0].number ?? cards[0].id) === onePieceKey(cards[1].number ?? cards[1].id)) return [];
   const top = cards[0].rankScore as number;
   const out: string[] = [];
   const numbers = new Set<string>();
@@ -68,5 +69,7 @@ function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; numb
     out.push(c.id);
     if (out.length === 4) break;
   }
-  return out.length >= 2 ? out : [cards[0].id, cards[1].id];
+  if (out.length >= 2) return out;
+  if (promo(cards[0]) && promo(cards[1])) return [];
+  return [cards[0].id, cards[1].id];
 }

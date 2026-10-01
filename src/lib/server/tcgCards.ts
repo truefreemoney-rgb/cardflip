@@ -308,6 +308,8 @@ export async function searchTcgCardsLocal(
   const nameOf = (row: TcgRow) => fold(game === "onepiece" ? row.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "") : row.name);
   // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
   const numberOf = (row: TcgRow) => normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
+  // One Piece numbers that have a regular (non-promo) printing among the candidates.
+  const regularNumbers = new Set(game === "onepiece" ? rows.filter((r) => r.set_code !== ONE_PIECE_PROMO_SET).map(numberOf) : []);
   // A shaky One Piece read whose number does name a card of the read name.
   const shakyHit =
     game === "onepiece" && Boolean(printed?.shaky) && needle !== "" && Boolean(wantedNumber) && rows.some((r) => nameOf(r) === needle && numberOf(r) === wantedNumber);
@@ -329,6 +331,10 @@ export async function searchTcgCardsLocal(
     // no printing of that name carrying the read number, the row one
     // character off is the likeliest — ahead of every other same-name row.
     else if (exactName && wantedNumber && game === "onepiece" && oneCharOff(rowNumber, wantedNumber)) tier = 0.5;
+    // The small promo key loses its last digits to glare ("P-005" read as
+    // "P-00", 10-01 seller photo): that name's promo starting with what was
+    // read is the likeliest, ahead of the same name's regular cards.
+    else if (exactName && wantedNumber && game === "onepiece" && /^p-\d{1,2}$/.test(wantedNumber) && /^p-\d{3,4}$/.test(rowNumber) && rowNumber.startsWith(wantedNumber)) tier = 0.5;
     // Two digits off lands 0.8 behind the one-off row: inside the near-tie
     // gap (lib/tiebreak.ts), so the picture — not the misread — decides
     // (tiebreakIds sends the distinct numbers within the gap).
@@ -369,7 +375,11 @@ export async function searchTcgCardsLocal(
     }
     // Variant read off the face: the plain printing is the likelier one
     // when nothing special was seen; a seen variant lifts its row.
-    if (wantedVariant !== null && game === "onepiece") {
+    const promoOnly = game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET && !regularNumbers.has(rowNumber);
+    if (promoOnly) {
+      // A promo-only number's variant is its pack tag ("sealed-battle-kit-vol-1"),
+      // not an art family: a "parallel" read says nothing for or against it.
+    } else if (wantedVariant !== null && game === "onepiece") {
       // Compare by family: the read says "parallel" for alt-art / special /
       // SPR rows alike; a starter-deck reprint has the same face as the base.
       const want = onePieceVariantFamily(wantedVariant);
@@ -396,8 +406,13 @@ export async function searchTcgCardsLocal(
     // regular card to a photo. They sit past the near-tie gap behind that
     // number's regular rows — offered in "Which printing is yours?", never a
     // reason for a picture call — and the cheapest (the mass promo) leads
-    // when a number is promo-only.
-    if (game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET) p += 1.25 + Math.min(row.price_usd ?? 9999, 9999) / 1e6;
+    // when a number is promo-only. A promo-only number ("P-056") has no
+    // regular row to stand behind: one flat point and no variant penalty
+    // keeps it inside the picture's gap when a digit is misread (Zoro P-056
+    // read as P-058, 10-01 seller photo: at 1.25 + a variant mismatch it
+    // never reached the picture), and still behind a regular-set row of the
+    // same name, which is the card more people own.
+    if (game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET) p += (promoOnly ? 1 : 1.25) + Math.min(row.price_usd ?? 9999, 9999) / 1e6;
     return p;
   };
   const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);

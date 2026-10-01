@@ -95,6 +95,12 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["OP09-077#promo", "onepiece", "Gum-Gum Lightning", "", "PROMO", "One Piece Promotion Cards", "OP09-077", null, "", "UC", "premium-card-collection-best-selection-vol-4", 32.4, null],
   ["P-115#promo", "onepiece", "Boa Hancock", "", "PROMO", "One Piece Promotion Cards", "P-115", null, "", "PR", "op15-release-event-winner", 107.42, null],
   ["P-115_pr1#promo", "onepiece", "Boa Hancock", "", "PROMO", "One Piece Promotion Cards", "P-115", null, "", "PR", "op15-release-event", 1.79, null],
+  // 10-01 fresh promo seller photos: Zoro P-056 read as P-058 (another card's key), Kaido P-005 read as "P-00".
+  ["P-056#promo", "onepiece", "Roronoa Zoro", "", "PROMO", "One Piece Promotion Cards", "P-056", null, "", "PR", "sealed-battle-kit-vol-1", 2.1, null],
+  ["P-058_p1", "onepiece", "Where the Wind Blows", "", "ST16", "Starter 16", "P-058_p1", null, "2024-01-01", "PR", "parallel", 1.2, null],
+  ["P-058#promo", "onepiece", "Where the Wind Blows", "", "PROMO", "One Piece Promotion Cards", "P-058", null, "", "PR", "promo", 0.9, null],
+  ["P-005#promo", "onepiece", "Kaido", "", "PROMO", "One Piece Promotion Cards", "P-005", null, "", "PR", "promotion-pack-2022", 3.5, null],
+  ["op-kaido-094", "onepiece", "Kaido", "", "OP01", "Romance Dawn", "OP01-094", null, "2022-12-01", "SR", "", 4, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -168,6 +174,11 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
     check("One Piece promos: both printings are in 'Which printing is yours?'", printingChoices(boa[0], boa).map((c) => printingLabel(c)), ["OP15 Release Event · PR", "OP15 Release Event Winner · PR"]);
     check("One Piece promos: labels", [printingLabel({ rarity: "UC", variant: "premium-card-collection-best-selection-vol-4", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "cs-2023-celebration-pack", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "promo-pr2", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "alt-art", setCode: "PROMO" })],
       ["Premium Card Collection Best Selection Vol 4 · UC", "CS 2023 Celebration Pack · PR", "Promo · PR", "Promo Alt Art · PR"]);
+    const zoro = await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("P-058", null, "P"), 8, null, "parallel");
+    check("One Piece promos: a promo-only number one digit off the read key reaches the picture next to the key's own card", tiebreakIds(zoro, "onepiece").map((id) => id.slice(0, 5)).sort(), ["P-056", "P-058"]);
+    const law = [{ id: "a#promo", number: "P-056", setCode: "PROMO", rankScore: 1 }, { id: "b#promo", number: "P-056", setCode: "PROMO", rankScore: 1.1 }, { id: "c", number: "P-058", setCode: "ST16", rankScore: 1.4 }];
+    check("One Piece promos: two promo printings on top still ask the picture when another number is inside the gap", tiebreakIds(law, "onepiece"), ["a#promo", "c"]);
+    check("One Piece promos: a promo key cut short by glare ('P-00') finds that name's promo, not its regular card", await top("onepiece", "Kaido", pn("P-00", null, "P"), null, "standard"), "P-005#promo");
     const { listTcgSets } = await import(at("lib/server/tcgCards.ts"));
     check("One Piece promos: not a set in the By set browser", (await listTcgSets("onepiece")).some((s) => s.code.startsWith("PROMO|")), false);
   }
