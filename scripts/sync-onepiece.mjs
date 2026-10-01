@@ -71,23 +71,82 @@ function splitVariant(name) {
   return { name: rest, variant };
 }
 
+// Promos (10-01): the feed "allPromos" (allPromoCards 404s since 09-30) —
+// event packs, judge packs, winner stamps, P-0xx. One group there, "One
+// Piece Promotion Cards", ~1,080 entries; two thirds are a promo printing of
+// a regular number (OP09-077 Premium Card Collection, $32 against cents).
+//   - set_code PROMO for all of them (the feed's set_id is the card's own
+//     prefix: 39 codes would be 39 "Promotion Cards" sets in By set);
+//   - id "<card_image_id>#promo": the image id is unique inside the promo
+//     feed, half of them equal a regular card's id, and this id must not
+//     depend on what the other two feeds hold (the positional "#n" above
+//     does). The daily price refresh matches on id-before-# + set name
+//     (tcgPriceRefresh planTcgRefresh) and finds these rows as they are;
+//   - the picture is the feed's own (SAMPLE-stamped, like most regular
+//     rows): several untagged promos of one number are told apart only by
+//     it in "Which printing is yours?". The images pass skips set_code
+//     PROMO — its TCGplayer pairing gave promos other cards' scans.
+// --with-promos turns the feed on; without it promo rows are left as they are.
+const PROMO_SET_CODE = "PROMO";
+const promoPicture = db.prepare("UPDATE tcg_cards SET image_url = ? WHERE id = ?");
+function promoVariant(cardName, imageId, key) {
+  const { variant } = splitVariant(cardName);
+  if (variant) return variant.replace(/^-+|-+$/g, "");
+  // No tag in the name: the image-id suffix tells two apart ("P-006_pr2").
+  const suffix = imageId !== key ? imageId.slice(key.length).replace(/^[_-]+/, "").toLowerCase() : "";
+  return suffix ? `promo-${suffix}` : "promo";
+}
+
+// A feed that answers 200 with a fraction of its cards must not pass for a sync.
+const FEEDS = [
+  ["sets", `${API}/allSetCards/`, 3000],
+  ["starter decks", `${API}/allSTCards/`, 500],
+  ...(process.argv.includes("--with-promos") ? [["promos", `${API}/allPromos/`, 800]] : []),
+];
 const now = Date.now();
 let total = 0;
+let failedFeeds = 0;
 const seenIds = new Set();
-for (const [label, url] of [["sets", `${API}/allSetCards/`], ["starter decks", `${API}/allSTCards/`], ["promos", `${API}/allPromoCards/`]]) {
+for (const [label, url, floor] of FEEDS) {
   let rows;
   try {
     rows = await getJson(url);
+    rows = Array.isArray(rows) ? rows : rows.results ?? rows.data ?? [];
+    if (rows.length < floor) throw new Error(`${rows.length} entries, expected at least ${floor}`);
   } catch (err) {
     console.log(`  !! ${label}: ${err.message}`);
+    failedFeeds++;
     continue;
   }
-  rows = Array.isArray(rows) ? rows : rows.results ?? rows.data ?? [];
+  const promo = label === "promos";
   db.exec("BEGIN");
   for (const c of rows) {
     const key = String(c.card_set_id ?? "").trim(); // OP01-077
     if (!key) continue;
     const imageId = String(c.card_image_id ?? key);
+    if (promo) {
+      upsert.run(
+        `${imageId}#promo`,
+        splitVariant(c.card_name).name,
+        "",
+        PROMO_SET_CODE,
+        String(c.set_name ?? "One Piece Promotion Cards"),
+        key.replace(/_[rp]\d+$/i, ""),
+        null,
+        "",
+        String(c.rarity ?? ""),
+        promoVariant(c.card_name, imageId, key),
+        String(c.card_image ?? ""),
+        String(c.card_image ?? ""),
+        c.market_price != null ? Number(c.market_price) : null,
+        null,
+        now,
+      );
+      // The upsert leaves image_url alone on a conflict (the images pass owns it for regular rows).
+      promoPicture.run(String(c.card_image ?? ""), `${imageId}#promo`);
+      total++;
+      continue;
+    }
     const { name, variant: nameVariant } = splitVariant(c.card_name);
     // Two rows can share card_set_id (base + parallel); the image id is unique.
     let id = `${imageId}`;
@@ -129,3 +188,4 @@ for (const [label, url] of [["sets", `${API}/allSetCards/`], ["starter decks", `
 const n = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece'").get().n;
 const variants = db.prepare("SELECT variant, COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece' GROUP BY variant ORDER BY n DESC LIMIT 8").all();
 console.log(`onepiece: ${total} entries written, ${n} rows in the mirror; variants: ${variants.map((v) => `${v.variant || "base"}=${v.n}`).join(", ")}`);
+if (failedFeeds) { console.log(`onepiece: ${failedFeeds} feed(s) failed — rows from those feeds were left as they were`); process.exitCode = 1; }

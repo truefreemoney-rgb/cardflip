@@ -170,7 +170,9 @@ await Promise.all(Array.from({ length: 4 }, () => worker(queue)));
 for (const list of byNumber.values()) list.sort((a, b) => a.id - b.id);
 console.log(`tcgcsv: ${fetched} groups, ${byNumber.size} numbers`);
 
-const rows = db.prepare("SELECT id, collector_number, variant, image_url, ref_image_url FROM tcg_cards WHERE game = 'onepiece' ORDER BY id").all();
+// Promo rows (set_code PROMO, sync-onepiece.mjs --with-promos) stay out: paired by number they
+// took other cards' scans; they keep the picture their own feed entry carries.
+const rows = db.prepare("SELECT id, collector_number, variant, image_url, ref_image_url FROM tcg_cards WHERE game = 'onepiece' AND set_code <> 'PROMO' ORDER BY id").all();
 // synced_at moves too: push-catalog.mjs only uploads a table whose newest stamp is newer than prod's.
 const update = db.prepare("UPDATE tcg_cards SET image_url = ?, synced_at = ? WHERE id = ?");
 const now = Date.now();

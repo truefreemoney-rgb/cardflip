@@ -4,7 +4,7 @@
  * on /api/vision/tiebreak.
  */
 
-import { onePieceKey } from "@/lib/onepiece";
+import { ONE_PIECE_PROMO_SET, onePieceKey } from "@/lib/onepiece";
 
 /** Score gap at or under which #1 and #2 count as a tie (both rankers use 1-point tiebreaks). */
 export const TIEBREAK_GAP = 1;
@@ -25,7 +25,7 @@ export function isNearTie(cards: Array<{ id: string; rankScore?: number }>): boo
  * its face with the plain row and is never sent as a separate face.
  * Empty when there is no near-tie.
  */
-export function tiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string }>, game: string): string[] {
+export function tiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null }>, game: string): string[] {
   if (!isNearTie(cards)) return [];
   if (game === "onepiece") return onePieceTiebreakIds(cards);
   if (game !== "yugioh") return [cards[0].id, cards[1].id];
@@ -51,7 +51,12 @@ export function tiebreakIds(cards: Array<{ id: string; rankScore?: number; numbe
  * (base / parallel) collapse to the first, and fall back to #1 vs #2 when
  * the tie is only between those.
  */
-function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string }>): string[] {
+function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null }>): string[] {
+  // Two promo printings of one number (a number that is promo-only): the
+  // same art with a different stamp or pack. The picture cannot price that
+  // and the seller's tap can ("Which printing is yours?") — no call.
+  const promo = (c: { setCode?: string | null }) => (c.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET;
+  if (promo(cards[0]) && promo(cards[1]) && onePieceKey(cards[0].number ?? cards[0].id) === onePieceKey(cards[1].number ?? cards[1].id)) return [];
   const top = cards[0].rankScore as number;
   const out: string[] = [];
   const numbers = new Set<string>();

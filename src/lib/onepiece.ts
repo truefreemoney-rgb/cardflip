@@ -12,6 +12,13 @@ export function onePieceKey(number: string): string {
   return number.trim().toUpperCase().replace(/_[RP]\d+.*$/, "").replace(/#.*$/, "");
 }
 
+/**
+ * set_code of every promo printing (scripts/sync-onepiece.mjs --with-promos,
+ * 10-01): event packs, judge packs, winner stamps, P-0xx. Ranked behind a
+ * number's regular printings and kept out of the picture tiebreak.
+ */
+export const ONE_PIECE_PROMO_SET = "PROMO";
+
 const PRINTING_WORDS: Record<string, string> = {
   "": "Standard",
   "alt-art": "Alt Art",
@@ -40,10 +47,20 @@ const PRINTING_WORDS: Record<string, string> = {
 export function printingLabel(card: { rarity?: string | null; variant?: string | null; setCode?: string | null }): string {
   const v = (card.variant ?? "").toLowerCase();
   let words = PRINTING_WORDS[v];
-  if (words === undefined) {
-    words = /^[a-z]+\d*-\d+/.test(v) || /^\d/.test(v) ? "Alt Art" : v.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const titled = () => v.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if ((card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET) {
+    // Promo rows carry the pack as the tag ("cs-2023-celebration-pack",
+    // "judge-pack-vol-5"); an untagged promo is "promo" / "promo-pr2".
+    words =
+      words !== undefined
+        ? `Promo ${words}`
+        : /^promo(-pr\d+)?$/.test(v)
+          ? "Promo"
+          : titled().replace(/\b(Cs|Tcg|Us|Uk|Jp|Sp|Tr|(?:Op|St|Eb|Prb)\d*)\b/g, (w) => w.toUpperCase());
+  } else if (words === undefined) {
+    words = /^[a-z]+\d*-\d+/.test(v) || /^\d/.test(v) ? "Alt Art" : titled();
   }
-  const set = v === "reprint" && card.setCode ? ` (${card.setCode.toUpperCase()})` : "";
+  const set = v === "reprint" && card.setCode && card.setCode.toUpperCase() !== ONE_PIECE_PROMO_SET ?` (${card.setCode.toUpperCase()})` : "";
   const rarity = card.rarity ? ` · ${card.rarity}` : "";
   return `${words}${set}${rarity}`;
 }

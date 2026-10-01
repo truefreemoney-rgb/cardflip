@@ -40,7 +40,7 @@ import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { foilChoices } from "@/lib/yugioh";
-import { printingChoices } from "@/lib/onepiece";
+import { ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
@@ -611,8 +611,15 @@ export default function AppPage() {
             // Yu-Gi-Oh!: one set code in several foils is a photo guess, not a
             // match — the seller picks the foil (CardEditor "Which foil?").
             // One Piece: one number in several printings, same tap ("Which printing?", 09-30).
+            // Promo printings of a regular number (judge pack, winner stamp) stay
+            // in that picker but are no doubt of their own: nearly every copy
+            // scanned is the regular card, and it should say Ready.
             const foils =
-              next.game === "yugioh" ? foilChoices(card, matches).length : next.game === "onepiece" ? printingChoices(card, matches).length : 0;
+              next.game === "yugioh"
+                ? foilChoices(card, matches).length
+                : next.game === "onepiece"
+                  ? printingChoices(card, matches).filter((c) => c.id === card.id || card.setCode === ONE_PIECE_PROMO_SET || c.setCode !== ONE_PIECE_PROMO_SET).length
+                  : 0;
             // Lorcana / One Piece / Yu-Gi-Oh! catalogs are English-only: a
             // Japanese One Piece card carries the same number and matches the
             // English card at the English price (10-01: 8 of 155 eBay seller

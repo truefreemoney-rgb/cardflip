@@ -4,6 +4,7 @@ import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { TIEBREAK_GAP } from "@/lib/tiebreak";
 import { yugiohKey } from "@/lib/yugioh";
+import { ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 
@@ -114,10 +115,12 @@ export async function tcgCardById(id: string): Promise<PokemonCard[]> {
  */
 export async function listTcgSets(game: TcgGame): Promise<SetInfo[]> {
   return cachedList(`sets:v1:${game}`, SET_LIST_TTL_MS, async () => {
+    // One Piece promos (set_code PROMO): 1,082 loose printings with no
+    // pictures are not a set to browse; scan and name search reach them.
     const rows = (await db
       .prepare(
         `SELECT set_code, set_name, MIN(set_release_date) AS release_date
-           FROM tcg_cards WHERE game = ?
+           FROM tcg_cards WHERE game = ? AND set_code <> '${ONE_PIECE_PROMO_SET}'
           GROUP BY set_code, set_name
           ORDER BY release_date DESC, set_name`,
       )
@@ -388,6 +391,13 @@ export async function searchTcgCardsLocal(
       else p += rowV === wantedVariant ? 0 : rowV === "" ? 1 : 2;
     } else if (row.variant) p += 0.25;
     if (row.price_usd == null && row.price_usd_foil == null) p += 0.5;
+    // One Piece promo printings (set_code PROMO, 10-01): a judge-pack or
+    // winner-stamp copy of a regular number is rare and looks like the
+    // regular card to a photo. They sit past the near-tie gap behind that
+    // number's regular rows — offered in "Which printing is yours?", never a
+    // reason for a picture call — and the cheapest (the mass promo) leads
+    // when a number is promo-only.
+    if (game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET) p += 1.25 + Math.min(row.price_usd ?? 9999, 9999) / 1e6;
     return p;
   };
   const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);

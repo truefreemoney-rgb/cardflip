@@ -90,6 +90,11 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["op-sanji-119-p1", "onepiece", "Sanji", "", "OP06", "Wings of the Captain", "OP06-119", null, "2024-03-01", "SEC", "alt-art", 32, null],
   ["op-sanji-op01", "onepiece", "Sanji", "", "OP01", "Romance Dawn", "OP01-013", null, "2022-12-01", "R", "alt-art", 9, null],
   ["op-perona-093-p1", "onepiece", "Perona", "", "OP06", "Wings of the Captain", "OP06-093", null, "2024-03-01", "SR", "alt-art", 15, null],
+  // Promo printings (10-01, sync-onepiece.mjs --with-promos): set_code PROMO, id "<image id>#promo".
+  ["op-gum", "onepiece", "Gum-Gum Lightning", "", "OP09", "Emperors in the New World", "OP09-077", null, "2024-12-01", "UC", "", 0.2, null],
+  ["OP09-077#promo", "onepiece", "Gum-Gum Lightning", "", "PROMO", "One Piece Promotion Cards", "OP09-077", null, "", "UC", "premium-card-collection-best-selection-vol-4", 32.4, null],
+  ["P-115#promo", "onepiece", "Boa Hancock", "", "PROMO", "One Piece Promotion Cards", "P-115", null, "", "PR", "op15-release-event-winner", 107.42, null],
+  ["P-115_pr1#promo", "onepiece", "Boa Hancock", "", "PROMO", "One Piece Promotion Cards", "P-115", null, "", "PR", "op15-release-event", 1.79, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -153,6 +158,19 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
     await top("onepiece", "モンキー・D・ルフィ", pn("P-084", null, "P"), null, "parallel"), "op-buggy-p084");
   check("One Piece: a key alone finds its reprint filed under another set",
     await top("onepiece", "", pn("ST16-004", null, "ST16"), null, "full-art"), "op-shanks-sp");
+  {
+    const gum = await searchTcgCardsLocal("onepiece", "Gum-Gum Lightning", pn("OP09-077", null, "OP09"), 8, null, "standard");
+    check("One Piece promos: the regular card leads its promo printing, and the promo is offered", gum.map((c) => c.id), ["op-gum", "OP09-077#promo"]);
+    check("One Piece promos: a promo printing behind a regular card costs no picture call", tiebreakIds(gum, "onepiece"), []);
+    const boa = await searchTcgCardsLocal("onepiece", "Boa Hancock", pn("P-115", null, "P"), 8, null, "standard");
+    check("One Piece promos: a promo-only number leads with its cheapest printing", boa.map((c) => c.id), ["P-115_pr1#promo", "P-115#promo"]);
+    check("One Piece promos: two promo printings of one number cost no picture call (the seller's tap decides)", tiebreakIds(boa, "onepiece"), []);
+    check("One Piece promos: both printings are in 'Which printing is yours?'", printingChoices(boa[0], boa).map((c) => printingLabel(c)), ["OP15 Release Event · PR", "OP15 Release Event Winner · PR"]);
+    check("One Piece promos: labels", [printingLabel({ rarity: "UC", variant: "premium-card-collection-best-selection-vol-4", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "cs-2023-celebration-pack", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "promo-pr2", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "alt-art", setCode: "PROMO" })],
+      ["Premium Card Collection Best Selection Vol 4 · UC", "CS 2023 Celebration Pack · PR", "Promo · PR", "Promo Alt Art · PR"]);
+    const { listTcgSets } = await import(at("lib/server/tcgCards.ts"));
+    check("One Piece promos: not a set in the By set browser", (await listTcgSets("onepiece")).some((s) => s.code.startsWith("PROMO|")), false);
+  }
   check("One Piece: base vs parallel of one number still sends #1 and #2",
     tiebreakIds(await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("OP01-001"), 5, null, null), "onepiece").length, 2);
   check("One Piece key drops the printing suffix", [onePieceKey("OP13-118_p2"), onePieceKey("p-030_r1"), onePieceKey("OP04-056_p2#2072"), onePieceKey("OP01-001")], ["OP13-118", "P-030", "OP04-056", "OP01-001"]);
