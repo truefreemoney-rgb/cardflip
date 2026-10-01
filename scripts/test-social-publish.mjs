@@ -205,11 +205,22 @@ check("keeps the tags: short caption + tags beats the long caption alone", fitTe
   const games = { caption: "One scanner, five card games.\n\nScan a card, see what it's worth. cardflip.io", hashtags: [...PLAN_TAGS.games] };
   const firstFive = "#PokemonTCG #MTG #DisneyLorcana #OPTCG #Yugioh";
   check("all-games tags: Instagram keeps exactly five, one per game", fitText(games, 2200, 5).endsWith(`\n\n${firstFive}`), true);
-  check("all-games tags: roomy sites (Facebook, TikTok) get every tag", fitText(games, 5000).split("#").length - 1, PLAN_TAGS.games.length);
+  check("all-games tags: an uncapped fit keeps every tag", fitText(games, 5000).split("#").length - 1, PLAN_TAGS.games.length);
   for (const [label, max] of [["X", 257], ["Bluesky", 300]]) {
     const out = fitText(games, max);
-    check(`all-games tags: ${label} fits and still names all five games`, [out.length <= max, out.includes(firstFive)], [true, true]);
+    check(`all-games tags: ${label} length fits and still names all five games uncapped`, [out.length <= max, out.includes(firstFive)], [true, true]);
   }
+  // Per-site caps (10-01): each site takes the first N tags, never the 13-tag list.
+  const sites = { ...(await import(at("lib/server/sites/meta.ts"))), ...(await import(at("lib/server/sites/bluesky.ts"))), ...(await import(at("lib/server/sites/x.ts"))), ...(await import(at("lib/server/sites/pinterest.ts"))) };
+  const capped = (id) => fitText(games, sites[id].maxChars, sites[id].maxTags).split("\n\n").pop();
+  check("site tag caps: Threads 1 (its topic), X 2, Facebook 2, Bluesky 3, Instagram 5, Pinterest 5", ["threads", "x", "facebook", "bluesky", "instagram", "pinterest"].map(capped), [
+    "#PokemonTCG",
+    "#PokemonTCG #MTG",
+    "#PokemonTCG #MTG",
+    "#PokemonTCG #MTG #DisneyLorcana",
+    firstFive,
+    firstFive,
+  ]);
 }
 check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
 

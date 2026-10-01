@@ -165,6 +165,7 @@ export const bluesky: SocialSite = {
   id: "bluesky",
   label: "Bluesky",
   maxChars: BLUESKY_MAX_CHARS,
+  maxTags: 3,
   maxImageBytes: BLUESKY_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => Boolean(process.env.BLUESKY_HANDLE && process.env.BLUESKY_APP_PASSWORD),

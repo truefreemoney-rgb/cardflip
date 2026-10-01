@@ -230,6 +230,7 @@ export const pinterest: SocialSite = {
   id: "pinterest",
   label: "Pinterest",
   maxChars: PINTEREST_MAX_CHARS,
+  maxTags: 5,
   maxImageBytes: 7_900_000,
   connectPath: "/api/social/pinterest/connect",
   connected: () => creds() !== null,

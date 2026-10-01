@@ -232,6 +232,8 @@ export const facebook: SocialSite = {
   id: "facebook",
   label: "Facebook",
   maxChars: FACEBOOK_MAX_CHARS,
+  // Hashtags do little on Facebook; a long list reads as spam.
+  maxTags: 2,
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => fbCreds() !== null,
@@ -355,6 +357,8 @@ export const threads: SocialSite = {
   id: "threads",
   label: "Threads",
   maxChars: THREADS_MAX_CHARS,
+  // Threads turns only the first tag into the post's topic; the rest show as plain text.
+  maxTags: 1,
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => threadsCreds() !== null,

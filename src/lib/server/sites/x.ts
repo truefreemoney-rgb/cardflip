@@ -261,6 +261,7 @@ export const x: SocialSite = {
   id: "x",
   label: "X",
   maxChars: X_MAX_CHARS,
+  maxTags: 2,
   maxImageBytes: X_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => creds() !== null,
