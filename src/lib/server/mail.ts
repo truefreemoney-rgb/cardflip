@@ -134,6 +134,33 @@ export async function sendConfirmEmail(to: string, code: string, url: string): P
   });
 }
 
+/** The sign-in code for an admin account (loginCode.ts). Carries nothing but the code. */
+export async function sendLoginCodeEmail(to: string, code: string): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const text = [
+    `Your CardFlip sign-in code is ${code}`,
+    "",
+    "Type it on the login page. It works once, for 10 minutes.",
+    "",
+    "If you weren't logging in, someone has your password: change it in your account.",
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>Your CardFlip sign-in code is:</p>
+    <p style="font-size:32px;font-weight:700;letter-spacing:4px;margin:4px 0 16px">${code}</p>
+    <p>Type it on the login page. It works once, for 10 minutes.</p>
+    <p style="color:#666;font-size:13px">If you weren't logging in, someone has your password: change it in your account.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: `${code} Is Your CardFlip Sign-In Code`,
+    text,
+    html,
+  });
+}
+
 export interface WishlistAlertHit {
   name: string;
   set: string;

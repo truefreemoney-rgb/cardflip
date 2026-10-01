@@ -53,11 +53,13 @@ export interface SessionUser {
   homeCountry?: string | null;
 }
 
-/** Login needs a 6-digit authenticator code (two-step verification). */
+/** Login needs a 6-digit code: from the authenticator app (two-step), or, with `byEmail`, one we just mailed. */
 export class TotpRequiredError extends Error {
-  constructor(message: string) {
+  readonly byEmail: boolean;
+  constructor(message: string, byEmail = false) {
     super(message);
     this.name = "TotpRequiredError";
+    this.byEmail = byEmail;
   }
 }
 
@@ -157,7 +159,7 @@ export async function login(email: string, password: string, code?: string): Pro
   });
   const data = await readJson(res);
   if (!res.ok) {
-    if (data.totpRequired) throw new TotpRequiredError(data.error ?? "Enter your authenticator code.");
+    if (data.totpRequired) throw new TotpRequiredError(data.error ?? "Enter your authenticator code.", Boolean(data.emailCode));
     throw new Error(data.error ?? "Login failed.");
   }
   return data.user;

@@ -36,6 +36,7 @@ const { getSessionUserId } = await import(at("lib/server/sessions.ts"));
 const { createUser, setTotpSecret, enableTotp } = await import(at("lib/server/users.ts"));
 const { generateTotpSecret, totpCode } = await import(at("lib/server/totp.ts"));
 const { issueResetToken } = await import(at("lib/server/passwordReset.ts"));
+const { sendLoginCode, spendLoginCode, devLastLoginCode, LOGIN_CODE_TTL_MS, LOGIN_CODE_SOURCE } = await import(at("lib/server/loginCode.ts"));
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -165,6 +166,59 @@ check("login: good code signs in", (await login.POST(post({ email: "totp@example
 await setTotpSecret(admin.id, secret);
 await enableTotp(admin.id);
 check("login: admins skip totp", (await login.POST(post({ email: "admin", password: "adminpass" }))).status, 200);
+
+// --- login + emailed code (admin accounts, live site only; Chris 09-30) -------
+const boss = await createUser("Boss", "boss@example.com", "bosspass", "admin");
+const bossLogin = (extra = {}) => login.POST(post({ email: "boss@example.com", password: "bosspass", ...extra }));
+check("login code: off the live site an admin's password is enough", (await bossLogin()).status, 200);
+process.env.VERCEL_ENV = "production";
+const noMail = await bossLogin();
+check("login code: no way to mail it → 503 and no session", [noMail.status, sessionCookie(noMail)], [503, null]);
+check("login code: …reported to the Errors page", (await db.prepare("SELECT COUNT(*) AS n FROM error_events WHERE source = ?").get(LOGIN_CODE_SOURCE)).n, 1);
+check("login code: …and no half-made code is left behind", (await db.prepare("SELECT COUNT(*) AS n FROM login_codes WHERE user_id = ?").get(boss.id)).n, 0);
+process.env.EMAIL_CONFIRM_DEV_ECHO = "1";
+const asked = await bossLogin();
+const askedBody = await asked.json();
+check("login code: the password alone gets a code mailed, not a session", [asked.status, askedBody.totpRequired, askedBody.emailCode, sessionCookie(asked)], [401, true, true, null]);
+check("login code: the answer shows the inbox masked", [askedBody.error.includes("b***@example.com"), askedBody.error.includes("boss@")], [true, false]);
+const code1 = devLastLoginCode("boss@example.com");
+check("login code: six digits", /^\d{6}$/.test(code1 ?? ""), true);
+const wrongPw2 = await (await login.POST(post({ email: "boss@example.com", password: "nope", code: code1 }))).json();
+check("login code: a wrong password never reaches the code step", [wrongPw2.error, wrongPw2.totpRequired], ["Incorrect email or password.", undefined]);
+const wrongCode = await bossLogin({ code: code1 === "000000" ? "000001" : "000000" });
+check("login code: wrong code refused, still asking by email", [wrongCode.status, (await wrongCode.json()).emailCode, sessionCookie(wrongCode)], [401, true, null]);
+await bossLogin();
+check("login code: asking again inside a minute mails nothing new", devLastLoginCode("boss@example.com"), code1);
+const codeOk = await bossLogin({ code: code1 });
+check("login code: the right code signs in", [codeOk.status, Boolean(sessionCookie(codeOk))], [200, true]);
+check("login code: a code works once", (await bossLogin({ code: code1 })).status, 401);
+delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+check("login code: a normal account is never asked", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).status, 200);
+delete process.env.VERCEL_ENV;
+
+// The code itself (lib): expiry, the try cap, a resend replaces it, a failed mail leaves nothing.
+{
+  const u = await createUser("Lib", "lib@example.com", "libpass1", "admin");
+  let mailed = [];
+  const mail = async (to, code) => { mailed.push([to, code]); };
+  const t0 = Date.now();
+  check("login code lib: sent", [await sendLoginCode(u, t0, mail), mailed.length, mailed[0]?.[0]], ["sent", 1, "lib@example.com"]);
+  check("login code lib: inside a minute → waiting, no second mail", [await sendLoginCode(u, t0 + 59_000, mail), mailed.length], ["waiting", 1]);
+  check("login code lib: expired after 10 minutes", await spendLoginCode(u.id, mailed[0][1], t0 + LOGIN_CODE_TTL_MS + 1), false);
+  check("login code lib: '482 913' style input is read as digits", await spendLoginCode(u.id, `${mailed[0][1].slice(0, 3)} ${mailed[0][1].slice(3)}`, t0 + 1000), true);
+  check("login code lib: used once", await spendLoginCode(u.id, mailed[0][1], t0 + 2000), false);
+  await sendLoginCode(u, t0 + 5000, mail);
+  await sendLoginCode(u, t0 + 70_000, mail);
+  check("login code lib: after a minute a resend mails a new code", mailed.length, 3);
+  if (mailed[1][1] !== mailed[2][1]) check("login code lib: the replaced code is dead", await spendLoginCode(u.id, mailed[1][1], t0 + 71_000), false);
+  check("login code lib: the newest code works", await spendLoginCode(u.id, mailed[2][1], t0 + 72_000), true);
+  await sendLoginCode(u, t0 + 200_000, mail);
+  const last = mailed[3][1];
+  const bad = last === "111111" ? "222222" : "111111";
+  for (let i = 0; i < 5; i++) await spendLoginCode(u.id, bad, t0 + 201_000);
+  check("login code lib: five wrong tries burn the code", await spendLoginCode(u.id, last, t0 + 202_000), false);
+  check("login code lib: a mail that throws → failed, row gone", [await sendLoginCode(u, t0 + 900_000, async () => { throw new Error("smtp down"); }), (await db.prepare("SELECT COUNT(*) AS n FROM login_codes WHERE user_id = ?").get(u.id)).n], ["failed", 0]);
+}
 
 // --- brute-force limiter ----------------------------------------------------
 const attackerIp = "203.0.113.9";

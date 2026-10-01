@@ -435,6 +435,16 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
 
+  -- Sign-in codes mailed to admin accounts (loginCode.ts): one live code per
+  -- user, replaced on a resend. Only the sha256 hash is stored.
+  CREATE TABLE IF NOT EXISTS login_codes (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+  );
+
   -- eBay OAuth tokens, AES-256-GCM sealed (ebayAuth.ts).
   CREATE TABLE IF NOT EXISTS ebay_tokens (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [needsCode, setNeedsCode] = useState(false);
+  // Admin accounts get the code by email instead of an authenticator app; the server says where it went.
+  const [mailedTo, setMailedTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Errors take focus (QA leftover): announced, and scrolled into view on a phone.
@@ -51,7 +53,7 @@ export default function LoginPage() {
       return;
     }
     if (needsCode && !/^\d{6}$/.test(code.trim())) {
-      setError("Enter the 6-digit code from your authenticator app.");
+      setError(mailedTo ? "Enter the 6-digit code from the email." : "Enter the 6-digit code from your authenticator app.");
       return;
     }
     setSubmitting(true);
@@ -65,6 +67,7 @@ export default function LoginPage() {
         // Password was right; the account has two-step on. First time through
         // is a prompt, not an error — only a wrong code reads as one.
         if (needsCode) setError(err.message);
+        else if (err.byEmail) setMailedTo(err.message);
         setNeedsCode(true);
         setCode("");
       } else {
@@ -72,6 +75,25 @@ export default function LoginPage() {
       }
       setSubmitting(false);
     }
+  }
+
+  /** Email codes only: the password again without a code mails a fresh one. */
+  async function sendNewCode() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      window.location.replace(afterLoginPath());
+      return;
+    } catch (err) {
+      if (err instanceof TotpRequiredError && err.byEmail) {
+        setMailedTo(err.message);
+        setCode("");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed.");
+      }
+    }
+    setSubmitting(false);
   }
 
   return (
@@ -133,7 +155,7 @@ export default function LoginPage() {
           {needsCode && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="totp-code" className="text-sm font-medium text-zinc-300">
-                Two-step code
+                {mailedTo ? "Sign-In Code" : "Two-step code"}
               </label>
               <input
                 id="totp-code"
@@ -151,9 +173,23 @@ export default function LoginPage() {
                 className={`${FIELD} text-center text-lg tracking-[0.4em]`}
                 placeholder="123456"
               />
-              <p className="text-xs text-zinc-500">
-                Open your authenticator app and enter the current 6-digit code for CardFlip.
-              </p>
+              {mailedTo ? (
+                <p className="text-xs text-zinc-500">
+                  {mailedTo}{" "}
+                  <button
+                    type="button"
+                    onClick={sendNewCode}
+                    disabled={submitting}
+                    className="font-medium text-brand-300 transition hover:text-brand-200 disabled:opacity-60"
+                  >
+                    Send a New Code
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Open your authenticator app and enter the current 6-digit code for CardFlip.
+                </p>
+              )}
             </div>
           )}
 

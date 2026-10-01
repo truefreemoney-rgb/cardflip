@@ -16,6 +16,8 @@ import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
 import { setHomeCookie } from "@/lib/homeCookie";
+import { loginCodeRequired, sendLoginCode, spendLoginCode } from "@/lib/server/loginCode";
+import { maskEmail } from "@/lib/server/emailVerify";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
@@ -54,9 +56,23 @@ export async function POST(req: Request) {
   // same credentials with the 6-digit authenticator code once prompted.
   // Stateless on purpose (no pending-login token to store or expire); the
   // per-IP limiter above is the brute-force backstop for codes too.
-  // Admins skip it (Chris, 08-26: dev-test accounts shouldn't need a phone).
-  if (user.role !== "admin" && totpEnabled(user)) {
-    const code = typeof body?.code === "string" ? body.code : "";
+  // Admins skip the authenticator (Chris, 08-26: dev-test accounts shouldn't need a phone)…
+  const code = typeof body?.code === "string" ? body.code : "";
+  if (loginCodeRequired(user)) {
+    // …but on the live site their password only gets a code mailed to the
+    // account (Chris, 09-30, after the sweep: the strongest account had no second step).
+    const where = maskEmail(user.email);
+    if (!code) {
+      const sent = await sendLoginCode(user);
+      if (sent === "failed") {
+        return NextResponse.json({ error: "We couldn't email your sign-in code. Try again in a minute." }, { status: 503 });
+      }
+      return NextResponse.json({ totpRequired: true, emailCode: true, error: `We emailed a 6-digit code to ${where}. It works for 10 minutes.` }, { status: 401 });
+    }
+    if (!(await spendLoginCode(user.id, code))) {
+      return NextResponse.json({ totpRequired: true, emailCode: true, error: "That code didn't match or has expired. Check the newest email, or send a new code." }, { status: 401 });
+    }
+  } else if (user.role !== "admin" && totpEnabled(user)) {
     if (!code) {
       return NextResponse.json({ totpRequired: true, error: "Enter your authenticator code." }, { status: 401 });
     }
