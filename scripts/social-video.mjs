@@ -310,9 +310,9 @@ async function makeSlot(slot, kind, out, strict) {
     withAudio = false;
   }
   const TOTAL = withAudio || mixed ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
-  // The 7am and 7pm videos only go to TikTok, whose feed covers the bottom ~20% with the caption and nav: the card stack is lifted clear of it.
-  // The 1pm file is the one every site posts and keeps the layout it was approved with.
-  const html = sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: slot !== "midday" });
+  // Every video is laid out inside TikTok's safe box (Chris 10-01, from his phone: the old layouts sat off centre under the search
+  // bar with an empty bottom third). The 1pm file every site posts gets it too: Reels and Shorts cover the same edges.
+  const html = sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true });
   const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out, audio: withAudio ? { file: track.file, start: AUDIO_START } : null });
   console.log(`wrote ${out} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
   return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name };

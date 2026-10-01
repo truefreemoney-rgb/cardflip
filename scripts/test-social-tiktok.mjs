@@ -440,9 +440,18 @@ console.log("the beat, measured against the committed track");
 console.log("the phone card, the layout, the frozen picture");
 {
   const html = (safeBottom) => scene.sceneHtml({ W: 1080, H: 1920, logo: "data:,", intro: { kicker: "k", title: "t", sub: "s" }, cards: [{ rank: "No. 1", art: "", name: "Name", meta: "#1", to: 1, pct: { text: "x", cls: "up" } }], outro: {}, INTRO: 2, BEAT: 4, OUTRO: 2, PERIOD: 0.5, MUSIC: true, TOTAL: 8, safeBottom });
-  check("safeBottom lifts the card stack clear of TikTok's caption and nav (a class on the page); the default layout is untouched", [html(true).includes('<body class="safe">'), html(false).includes("<body>"), html(false).includes('class="safe"'), /\.safe \.beat \.art \{ width:616px; height:860px/.test(html(true))], [true, true, false, true]);
+  check("safeBottom puts every screen in TikTok's safe box (a class on the page); the default layout is untouched", [html(true).includes('<body class="safe">'), html(false).includes("<body>"), html(false).includes('class="safe"')], [true, true, false]);
+  // Chris 10-01, from his phone: the stack sat under the search bar with an empty bottom third, the cold-open number lay across the card, the progress bar struck through the caption.
+  const css = html(true);
+  check("the safe box: cards, intro and outro centred between the top bar and the caption; the footer and progress bar are not drawn", [
+    css.includes(".safe .beat { justify-content:center; padding:230px 80px 360px; }"),
+    css.includes(".safe #intro, .safe #outro { padding:230px 90px 360px; }"),
+    css.includes(".safe #intro.hooked { justify-content:center; padding:230px 90px 360px; }"),
+    css.includes(".safe #footer, .safe #bar { display:none; }"),
+  ], [true, true, true, true]);
+  check("the cold-open number sits under the card, never across it (no negative margin)", [/#intro \.hook \.hbig \{[^}]*margin-top:\d+px/.test(css), /#intro \.hook \.hbig \{[^}]*margin-top:-/.test(css)], [true, false]);
   const script = read("scripts/social-video.mjs");
-  check("the render passes it for the 7am and 7pm videos only (the 1pm file is the one every site posts and keeps its approved layout)", script.includes('safeBottom: slot !== "midday"'), true);
+  check("the render uses the safe box for every video, the 1pm file included", [script.includes("safeBottom: true"), script.includes('slot !== "midday"')], [true, false]);
   check("the all-games video is not made short of a game (it throws, so the run retries), and the art is retried with a pause", [script.includes("shown.length !== leads.length"), /for \(let i = 1; strict && !art && i <= 4; i\+\+\) \{\s+await sleep\(/.test(script)], [true, true]);
   check("--skip-if-done compares the row's plan tag (a plan pushed at 9am is not answered by 'it exists'), and --slot takes a list", [script.includes('row.plan === planTag("midday", day)'), script.includes('arg("--slot", "").split(",")'), script.includes("candidateKinds(slot, day, drafts, used)")], [true, true, true]);
   const wf = read(".github/workflows/social-post.yml");

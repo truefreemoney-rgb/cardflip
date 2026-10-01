@@ -49,9 +49,9 @@ function titleClass(t) {
  *   cards: [{ rank, art, name, meta, to, pct: { text, cls } }],   in the order shown
  *   outro: { games?: [names] },     games = the "Now scanning" list (the mixed movers day plan); none = the standard outro
  *   INTRO, BEAT, OUTRO, PERIOD, MUSIC, TOTAL,
- *   safeBottom?                     lift the card stack above TikTok's caption, account and nav overlay (the bottom ~20% of the
- *                                   frame): the 7am and 7pm videos, which only TikTok gets. The 1pm file every site posts keeps
- *                                   the layout it was approved with.
+ *   safeBottom?                     centre every screen in TikTok's safe box (clear of the search bar / tabs on top, the caption
+ *                                   and nav below, the action rail on the right) and drop the footer and progress bar that sat
+ *                                   under the caption. Every video since 10-01 (Chris: "fix these issues for videos going forward").
  * }
  */
 export function sceneHtml(o) {
@@ -70,11 +70,17 @@ export function sceneHtml(o) {
   .abs { position:absolute; left:0; top:0; width:100%; height:100%; }
   .holo { background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f0abfc,#fcd34d); }
   .holo-text { background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f0abfc,#fcd34d); -webkit-background-clip:text; color:transparent; }
-  /* TikTok's For You feed covers the bottom ~20% (caption, account, sound, nav): nothing that carries meaning sits under y=1550. */
-  .safe .beat { padding-top:130px; }
-  .safe .beat .art { width:616px; height:860px; margin-top:26px; }
-  .safe .beat .name { margin-top:44px; }
+  /* TikTok's safe box (10-01, Chris's phone screenshots: the rank label sat under the search bar, the stack hugged the top and
+     the bottom third was empty, the progress bar struck through the caption). TikTok covers the top ~200px (search bar / feed
+     tabs), the bottom ~360px (caption, account, sound, nav) and, from mid-height down, the right ~170px (the action rail).
+     Every screen is centred in y 230..1560 and its text stays inside x 170..910. */
+  .safe #intro, .safe #outro { padding:230px 90px 360px; }
+  .safe .beat { justify-content:center; padding:230px 80px 360px; }
+  .safe .beat .art { width:560px; height:780px; margin-top:26px; }
+  .safe .beat .name { margin-top:44px; max-width:740px; }
   .safe .beat .name.long { font-size:52px; }
+  .safe .beat .meta { max-width:740px; }
+  .safe #footer, .safe #bar { display:none; }
   #intro { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 90px; text-align:center; }
   #intro .kicker { font-size:38px; font-weight:600; color:#a5b4fc; text-transform:uppercase; letter-spacing:.18em; }
   #intro .title { font-size:132px; line-height:1; margin-top:28px; }
@@ -82,17 +88,19 @@ export function sceneHtml(o) {
   #intro .title.sm { font-size:84px; line-height:1.04; }
   #intro .sub { font-size:42px; margin-top:36px; }
   /* Cold open (10-01): the first frame is the best card and its number, not a title fading in from black; TikTok decides in under a second. */
+  /* The number sits UNDER the card, never across it (Chris 10-01: "this first image has overlapping text"). */
   #intro.hooked { justify-content:flex-start; padding-top:210px; }
+  .safe #intro.hooked { justify-content:center; padding:230px 90px 360px; }
   #intro .hook { display:flex; flex-direction:column; align-items:center; }
-  #intro .hook .hart { width:560px; height:780px; border-radius:32px; object-fit:cover;
+  #intro .hook .hart { width:546px; height:760px; border-radius:32px; object-fit:cover;
     box-shadow:0 40px 120px rgba(0,0,0,.6), 0 0 0 2px rgba(255,255,255,.12); background:#1c1d27; }
-  #intro .hook .hbig { font-size:176px; line-height:1; margin-top:-64px; padding:0 24px; font-variant-numeric:tabular-nums;
+  #intro .hook .hbig { font-size:168px; line-height:1; margin-top:22px; padding:0 24px; font-variant-numeric:tabular-nums;
     background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
     -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 6px 24px rgba(0,0,0,.85)) drop-shadow(0 0 22px rgba(74,222,128,.5)); }
-  #intro.hooked .kicker { margin-top:34px; }
-  #intro.hooked .title { font-size:112px; margin-top:16px; }
-  #intro.hooked .title.md { font-size:92px; }
-  #intro.hooked .title.sm { font-size:76px; }
+  #intro.hooked .kicker { margin-top:30px; }
+  #intro.hooked .title { font-size:100px; margin-top:16px; max-width:740px; }
+  #intro.hooked .title.md { font-size:84px; }
+  #intro.hooked .title.sm { font-size:68px; }
   #intro.hooked .sub { display:none; }
   .beat { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:150px 80px 0; }
   .beat .rank { font-size:40px; font-weight:600; color:#a5b4fc; letter-spacing:.14em; text-transform:uppercase; }
