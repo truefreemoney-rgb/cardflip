@@ -145,7 +145,9 @@ test.describe("trial account", () => {
     const { card } = await created.json();
     await page.goto(`/app?resume=${card.id}&rn=Charizard&rnum=4&rg=pokemon&ri=`);
     await dismissTour(page);
-    await expect(page.getByText(/Is this your card\?/)).toBeVisible();
+    // The reopen fetches the match and today's prices first; on 10-01 that sat on
+    // "Reopening Charizard…" past the default 10 s on CI (android only, green on the re-run).
+    await expect(page.getByText(/Is this your card\?/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("button", { name: /Yes, this is my card/ })).toBeVisible();
     await expectMobileClean(page, "editor");
   });
