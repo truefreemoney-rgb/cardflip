@@ -73,17 +73,74 @@ export function otherGameNames(covered: GameId[]): string[] {
  * Hashtags. Threads turns only the FIRST into its topic, so the biggest
  * community goes first; Bluesky makes a facet only of [A-Za-z][A-Za-z0-9]*,
  * so no hyphens. Lists are cut from the END to fit a site (fitText: X and
- * Bluesky by length, Instagram at five tags), so order = priority.
+ * Bluesky by length, Instagram and TikTok at five tags), so order = priority.
  * games (Chris 09-30: "include hashtags for all the games, i want the
- * biggest reach possible"): one tag per game first, so every site names all
- * five, then a second tag per game, then the general card tags.
+ * biggest reach possible"): one tag per game first, so every site names every
+ * game. Capped at FIVE (10-01: more reads as spam and TikTok shows five):
+ * gamesTags picks the five best for the games a post covers.
  */
+export const GAME_HASHTAGS: Record<GameId, string[]> = {
+  pokemon: ["PokemonTCG", "PokemonCards"],
+  mtg: ["MTG", "MagicTheGathering"],
+  lorcana: ["DisneyLorcana", "Lorcana"],
+  onepiece: ["OPTCG", "OnePieceCardGame"],
+  yugioh: ["Yugioh", "YuGiOhTCG"],
+};
+/** The general tags that fill the room a post's game tags leave. */
+export const GENERAL_TAGS = ["TCG", "TradingCards", "CardCollector"];
+/** The most hashtags any post carries (TikTok and Instagram both stop at five). */
+export const MAX_TAGS = 5;
+
+/**
+ * The tags for a post that covers `games`: each game's own first tag (in the
+ * order given), then the general ones, then each game's second tag, cut at
+ * MAX_TAGS. Five games = the five game tags; four = four plus #TCG.
+ */
+export function gamesTags(games: GameId[]): string[] {
+  const out: string[] = [];
+  const add = (t: string | undefined) => {
+    if (t && !out.includes(t)) out.push(t);
+  };
+  // The site's game order, not the post's (Threads makes the first tag its topic: the biggest community goes first).
+  const ordered = POST_GAME_ORDER.filter((g) => games.includes(g));
+  for (const g of ordered) add(GAME_HASHTAGS[g][0]);
+  for (const t of GENERAL_TAGS) add(t);
+  for (const g of ordered) add(GAME_HASHTAGS[g][1]);
+  return out.slice(0, MAX_TAGS);
+}
+
 export const PLAN_TAGS = {
-  games: [
-    "PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh",
-    "PokemonCards", "MagicTheGathering", "Lorcana", "OnePieceCardGame", "YuGiOhTCG",
-    "TCG", "TradingCards", "CardCollector",
-  ],
+  games: gamesTags(POST_GAME_ORDER),
   mixedMovers: ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"],
   pokemonAlsoScans: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"],
 } as const;
+
+/**
+ * 10-01 (the owner: "most views and clicks on every site"). From this Eastern
+ * day on, the standing 7pm post is "the biggest price jump in each game this
+ * week" (a per-game top gainer, the old lead card where a game has none), and
+ * the 7am set spotlight leads with the card that moved UP the most. Earlier
+ * days keep what already went out, so a re-render of an old day is unchanged.
+ */
+export const JUMPS_FROM = "2026-10-01";
+export function jumpsOn(day: string | undefined): boolean {
+  return Boolean(day) && (day as string) >= JUMPS_FROM;
+}
+/**
+ * A game's top gainer must have moved at least this much to be "the biggest jump" (a +2% week is no headline: that game
+ * keeps its lead card). The set spotlight uses it too: a riser takes the lead over the set's most valuable card when it
+ * rose this much, or when that card fell (a +3% riser under a steady leader changes nothing).
+ */
+export const JUMP_MIN_PCT = 5;
+
+/** Items laid out as a fan, the middle one on top: the first of `sorted` goes in the centre, the rest alternate right and left of it. */
+export function fanOrder<T>(sorted: T[]): T[] {
+  const n = sorted.length;
+  const out: (T | undefined)[] = new Array(n).fill(undefined);
+  const mid = Math.floor((n - 1) / 2);
+  let k = 0;
+  for (let d = 0; k < n; d++) {
+    for (const i of d === 0 ? [mid] : [mid + d, mid - d]) if (i >= 0 && i < n && k < n && out[i] === undefined) out[i] = sorted[k++];
+  }
+  return out as T[];
+}

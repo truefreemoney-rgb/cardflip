@@ -92,6 +92,9 @@ export function sceneHtml(o) {
     -webkit-background-clip:text; background-clip:text; color:transparent;
     filter:drop-shadow(0 0 18px rgba(74,222,128,.45)); }
   .beat .pct { font-size:40px; font-weight:600; margin-top:18px; }
+  /* A riser's move is the point of its card (10-01): big, in green, up from the card's first second. */
+  .beat .pct.big { font-size:80px; font-weight:800; margin-top:8px; line-height:1.05; }
+  .safe .beat .pct.big { font-size:72px; }
   .up { color:#4ade80; } .down { color:#f87171; }
   #outro { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 90px; text-align:center; }
   #outro img { width:560px; }
@@ -118,7 +121,7 @@ ${cards.map((c, i) => `
   <div class="name display${c.name.length > 22 ? " long" : ""}">${esc(c.name)}</div>
   <div class="meta muted">${esc(c.meta)}</div>
   <div class="price display" data-to="${c.to}">$0</div>
-  <div class="pct ${c.pct.cls}">${esc(c.pct.text)}</div>
+  <div class="pct ${c.pct.cls}"${c.pct.early ? ' data-early="1"' : ""}>${esc(c.pct.text)}</div>
 </div>`).join("")}
 ${outro.games ? `<div id="outro" class="abs">
   <img src="${logo}">
@@ -187,7 +190,8 @@ ${outro.games ? `<div id="outro" class="abs">
       price.style.transform="scale("+(1+.12*pop)+")";
       price.style.backgroundPosition=((1-sweep)*100)+"% 0";
       price.style.filter="drop-shadow(0 0 "+(18+40*pop)+"px rgba(74,222,128,"+(.45+.5*pop)+")) brightness("+(1+.35*pop)+")";
-      fadeIn(el.querySelector(".pct"), lt-3*P, .3, 20);
+      const pctEl=el.querySelector(".pct");
+      fadeIn(pctEl, lt-(pctEl.dataset.early ? P*1.1 : 3*P), .3, 20);
     }
     const ot=t-(INTRO+N*BEAT);
     show(outro, ot>=0);

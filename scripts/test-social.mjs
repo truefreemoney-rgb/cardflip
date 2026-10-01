@@ -246,7 +246,7 @@ for (const [n, p] of [[1, 25], [2, 30], [3, 40], [4, 60], [5, 20]]) await setD2(
 await setD2("zz9-6", "Corrected today", [...Array(30).fill(1013.27), 100], { eur: 90 });
 // Corrected a week ago and settled: the $100 is fine, the "week" it would claim starts at $1,013.27.
 await setD2("zz9-7", "Corrected a week ago", [...Array(30).fill(1013.27), ...Array(7).fill(100)], { eur: 90 });
-const nine = await setSpotlight("pokemon", D2);
+const nine = await setSpotlight("pokemon", D2, { leadFirst: false }); // these days fall after JUMPS_FROM: the guard tests read the value order, the lead rule has its own section below
 check("the unsettled card whose median is the junk price is left out of the set", nine?.cards.some((c) => c.cardId === "zz9-6"), false);
 check("its five: the settled corrected card on top, then the clean ones", nine?.cards.map((c) => c.cardId), ["zz9-7", "zz9-4", "zz9-3", "zz9-2", "zz9-1"]);
 check("the corrected card shows today's $100 and claims no week (its old price is junk)", [nine?.cards[0].to, nine?.cards[0].from, nine?.cards[0].unsettled, nine?.cards[0].pct], [100, 100, true, 0]);
@@ -261,7 +261,7 @@ check("a set with an unverified card that would rank in its five is not spotligh
 const D4 = addDays(PIN, 18);
 for (const [n, p] of [[1, 25], [2, 30], [3, 40], [4, 60], [5, 20]]) await real(`zz7-${n}`, `Clean ${n}`, String(n), "zz7", "Review Set Seven", liquid(p), { end: D4 });
 await real("zz7-6", "Junk marquee", "6", "zz7", "Review Set Seven", liquid(300), { eur: 18, end: D4 });
-check("a card proved wrong does not block its set", (await setSpotlight("pokemon", D4))?.cards.map((c) => c.cardId), ["zz7-4", "zz7-3", "zz7-2", "zz7-1", "zz7-5"]);
+check("a card proved wrong does not block its set", (await setSpotlight("pokemon", D4, { leadFirst: false }))?.cards.map((c) => c.cardId), ["zz7-4", "zz7-3", "zz7-2", "zz7-1", "zz7-5"]);
 
 console.log("Magic: Scryfall's EUR price is the referee");
 const mtg = async (id, name, usd, eur, rarity = "") => {
@@ -296,6 +296,128 @@ await db.prepare("DELETE FROM card_cache WHERE key LIKE 'stage:%'").run(); // th
 const stagePk = await getStageCards(false);
 check("the Eevee at 6.4x Cardmarket is gone, the one Cardmarket agrees with stays", [stagePk.cards.some((c) => c.price === 25.92), stagePk.cards.some((c) => c.name === "Eevee" && c.price === 20)], [false, true]);
 console.warn = realWarn;
+
+// ---- 10-01: the standing 7pm "biggest price jump in each game" and the 7am set spotlight's lead -------------------
+console.log("10-01: each game's biggest weekly jump (7pm) and the set spotlight's lead (7am)");
+const SOC = await import(at("lib/server/social.ts"));
+const { isJump } = SOC;
+const PL = await import(at("lib/socialPlan.ts"));
+const { setSetting } = await import(at("lib/server/settings.ts"));
+const J = "2026-11-20";
+const wk = (from, to) => [...liquid(from, 40), from, (from + to) / 2, to, to, to, to, to, to]; // a settled price, a gradual week, a new price that holds six days
+const flat = (v) => Array(48).fill(v);
+// The ru1-13 shape: $52 for months, one overnight step to $89.98: +71%, the biggest raw gain of the week, and no mover.
+const STEP = expand([[52.2, 70], [52.37, 6], [52.07, 4], [null, 2], [52.07, 14], [52.53, 4], [52.67, 7], [52.37, 3], [89.98, 3]]);
+await real("jp1-1", "Riser A", "1", "jp1", "Jump Set", wk(50, 70), { end: J });
+await real("jp1-2", "Riser B", "2", "jp1", "Jump Set", wk(36, 45), { end: J });
+await real("jp1-3", "Step Jumper", "3", "jp1", "Jump Set", STEP, { end: J });
+await real("jp1-4", "Faller", "4", "jp1", "Jump Set", wk(80, 60), { end: J });
+await real("jp1-5", "Flat Five", "5", "jp1", "Jump Set", flat(55.5), { end: J });
+await real("jp1-6", "Cheap Six", "6", "jp1", "Jump Set", flat(12), { end: J });
+const jmtg = async (id, name, usd, series) => {
+  await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, rarity, price_usd, price_eur, synced_at) VALUES (?, ?, 'jms', 'Jump Masters', '7', 'https://cards.scryfall.io/normal/j.jpg', 'rare', ?, NULL, 0)").run(id, name, usd);
+  await put(id, "mtg", "nonfoil", "tcgplayer", "USD", series, J);
+};
+await jmtg("mtg-j1", "Jump Mage", 64, wk(40, 64));                 // +60%
+await jmtg("mtg-j2", "Slow Mage", 21.6, wk(20, 21.6));              // +8%
+await jmtg("mtg-j3", "Step Mage", 90, [...Array.from({ length: 70 }, (_, i) => (i % 2 ? 50.6 : 50.1)), 90, 90, 90]); // +80% in one step out of 70 quiet days: no mover
+for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
+const stg = (name, setName, number, price, extra = {}) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, ...extra });
+const STAGES = {
+  "stage:v8:pokemon": [stg("Charizard ex", "Obsidian Flames", "125", 48.5, { lead: true })],
+  "stage:v14:mtg": [stg("Sol Ring", "Commander Masters", "410", 32.1, { lead: true })],
+  "stage:v14:lorcana": [stg("Elsa", "The First Chapter", "42", 61, { lead: true })],
+  "stage:v14:onepiece": [stg("Portgas.D.Ace", "Premium Booster", "P-055", 75, { lead: true })],
+  "stage:v14:yugioh": [stg("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
+};
+for (const [key, cards] of Object.entries(STAGES)) await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify(cards), Date.now());
+
+check("the rule is on from 10-01 and not before (a re-render of an old day is unchanged)", [PL.jumpsOn("2026-09-30"), PL.jumpsOn("2026-10-01"), PL.jumpsOn("2026-11-02")], [false, true, true]);
+const rawUp = await topMovers("pokemon", J, { direction: "up", limit: 10 });
+check("the step jump (+71%, the biggest raw gain) is not a mover, so it can never be a game's jump", [rawUp.some((m) => m.cardId === "jp1-3"), rawUp[0]?.cardId], [false, "jp1-1"]);
+const g1 = await SOC.gameJumps(J);
+check("one card per public game; jumps first, biggest move first (Magic +60%, Pokémon +40%), then the lead cards in the site's order", g1.map((l) => l.game), ["mtg", "pokemon", "lorcana", "onepiece", "yugioh"]);
+check("Pokémon's is its top gainer, not its most valuable card and not the step jump", [g1[1].cardId, g1[1].name, g1[1].from, g1[1].price, Math.round(g1[1].pct)], ["jp1-1", "Riser A", 50, 70, 40]);
+check("Magic's: the +60% nonfoil, never the +80% step", [g1[0].cardId, Math.round(g1[0].pct)], ["mtg-j1", 60]);
+check("a game with no price history yet (Lorcana, One Piece, Yu-Gi-Oh began 09-30) keeps its lead card, with no move claimed", g1.slice(2).map((l) => [l.name, l.price, isJump(l), l.pct ?? null]), [["Elsa", 61, false, null], ["Portgas.D.Ace", 75, false, null], ["Dark Magician", 55.25, false, null]]);
+check("the picture draws the jump's art (Pokémon high.webp, Magic large)", [g1[1].imageUrl.endsWith("/high.webp"), g1[0].imageUrl.includes("/large/")], [true, true]);
+check("gameGainer: only the games the movers read (Pokémon, Magic)", [(await SOC.gameGainer("lorcana", J)) === null, (await SOC.gameGainer("pokemon", J))?.cardId], [true, "jp1-1"]);
+
+console.log("fallback: never empty");
+const J5 = addDays(J, 21);
+await real("jq5-1", "Small Gain", "1", "jq5", "Small Set", wk(40, 41.2), { end: J5 }); // +3%
+const lead5 = await SOC.gameLeads(J5);
+check("a +3% week is no jump: every game keeps its lead card, the list IS today's leads", [(await SOC.gameJumps(J5)).map((l) => [l.game, l.name, l.price]), (await SOC.gameJumps(J5)).some(isJump)], [lead5.map((l) => [l.game, l.name, l.price]), false]);
+const J6 = addDays(J, 40);
+check("a day with no fresh series at all: five lead cards, nothing skipped", (await SOC.gameJumps(J6)).map((l) => l.game), ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]);
+
+console.log("caption, title, tags, no-repeat");
+check("title: some games jumped, some kept a lead card", SOC.gamesTitle(g1), "Biggest price jumps this week");
+const cap = SOC.gamesCaption(g1);
+const capLines = cap.split("\n");
+check("each game's line: Card (Set #n): $X, +Y% this week; a lead card says its price today", capLines.slice(2, 7), [
+  "Magic: Jump Mage (Jump Masters #7): $64.00, +60% this week",
+  "Pokémon: Riser A (Jump Set #1, Holo): $70.00, +40% this week",
+  "Lorcana: Elsa (The First Chapter #42): $61.00 today",
+  "One Piece: Portgas.D.Ace (Premium Booster P-055): $75.00 today",
+  "Yu-Gi-Oh: Dark Magician (Legend of Blue Eyes LOB-005): $55.25 today",
+]);
+check("the intro names the games that jumped and the ones that did not", capLines[0], "The biggest price jumps this week in Magic and Pokémon, and one card from Lorcana, One Piece and Yu-Gi-Oh at today's price, from CardFlip's own price history.");
+check("the sign-off follows the card lines; no exclamation marks", [capLines[8], cap.includes("!")], ["Scan a card, see what it's worth. cardflip.io", false]);
+check("short caption: name and move per game, then the address", SOC.gamesShortCaption(g1).split("\n"), [
+  "Biggest price jumps this week", "Magic: Jump Mage +60%", "Pokémon: Riser A +40%", "Lorcana: Elsa $61.00", "One Piece: Portgas.D.Ace $75.00", "Yu-Gi-Oh: Dark Magician $55.25", "", "Scan a card, see what it's worth. cardflip.io",
+]);
+const allJ = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"].map((game, i) => ({ game, name: `Card ${i}`, setName: "Set", number: String(i + 1), price: 10 * (i + 1), imageUrl: "", cardId: `c${i}`, from: 5 * (i + 1), pct: 100 }));
+check("every game jumped: 'Biggest price jump in every game this week'", [SOC.gamesTitle(allJ), SOC.gamesCaption(allJ).startsWith("The biggest price jump in every game this week, from CardFlip's own price history.")], ["Biggest price jump in every game this week", true]);
+check("no jump anywhere: the old all-games caption and title, as before", [SOC.gamesTitle(lead5), SOC.gamesCaption(lead5).startsWith("One scanner, five card games."), SOC.gamesCaption(lead5).includes("In the picture, one card from each game")], ["One scanner, five card games", true, true]);
+const dj = (await SOC.socialDrafts("pokemon", J)).find((d) => d.kind === "games");
+check("the games draft carries the jumps: title, the jump cards for the no-repeat list, at most five tags", [dj.title, dj.cardIds, dj.featured, dj.hashtags], ["Biggest price jumps this week", ["mtg-j1", "jp1-1"], { mtg: ["mtg-j1"], pokemon: ["jp1-1"] }, ["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"]]);
+const dOld = (await SOC.socialDrafts("pokemon", PIN)).find((d) => d.kind === "games");
+check("before 10-01 the games draft is the old one (lead cards, no ids)", [dOld.title, dOld.cardIds, dOld.featured ?? null, dOld.caption.startsWith("One scanner, five card games.")], ["One scanner, five card games", [], null, true]);
+await markFeatured("pokemon", "jumps", addDays(J, -1), ["jp1-1"]);
+const g2 = await SOC.gameJumps(J);
+check("no-repeat: a card that led yesterday's 7pm post sits out (Pokémon moves to the next gainer, Magic is untouched)", [g2.find((l) => l.game === "pokemon").cardId, g2.find((l) => l.game === "mtg").cardId, g2[0].game], ["jp1-2", "mtg-j1", "mtg"]);
+check("…its own list: the 1pm gains list is not touched", [(await recentlyFeatured("pokemon", "movers", J)).has("jp1-1"), (await recentlyFeatured("pokemon", "jumps", J)).has("jp1-1")], [false, true]);
+
+console.log("set spotlight: lead with the card that rose");
+const spotJ = await setSpotlight("pokemon", J);
+check("the biggest riser among the five leads, the rest keep their value order", [spotJ.setId, spotJ.leadId, spotJ.cards.map((c) => c.cardId)], ["jp1", "jp1-1", ["jp1-1", "jp1-3", "jp1-4", "jp1-5", "jp1-2"]]);
+check("a ru1-13-shaped step jump (+71%, the biggest raw move in the set) never leads", [spotJ.cards.find((c) => c.cardId === "jp1-3").pct > 70, spotJ.leadId === "jp1-3"], [true, false]);
+check("each card keeps its place by value (the video's label), the lead's real % is printed", [spotJ.cards.map((c) => c.rank), Math.round(spotJ.cards[0].pct)], [[2, 1, 3, 4, 5], 40]);
+check("the faller is never the lead while the set has risers", spotJ.cards[0].pct > 0 && spotJ.cards.find((c) => c.cardId === "jp1-4").pct < 0, true);
+const spotOld = await setSpotlight("pokemon", J, { leadFirst: false });
+check("leadFirst off (a day before 10-01) = today's order, no lead", [spotOld.leadId ?? null, spotOld.cards.map((c) => c.cardId)], [null, ["jp1-3", "jp1-1", "jp1-4", "jp1-5", "jp1-2"]]);
+check("the post still lists the set's five most valuable cards, only the order moved", [...spotJ.cards.map((c) => c.cardId)].sort(), [...spotOld.cards.map((c) => c.cardId)].sort());
+const setPost = (await SOC.socialDrafts("pokemon", J)).find((d) => d.kind === "set");
+check("the set caption lists the riser first", setPost.caption.split("\n")[2].startsWith("Riser A #1 Holo: $70.00, +40% this week"), true);
+// Nothing rose: today's order. Falls and flats only.
+const J2 = addDays(J, 7);
+for (const [n, v] of [[1, wk(100, 90)], [2, flat(80)], [3, wk(75, 70)], [4, flat(60)], [5, flat(50)]]) await real(`jq1-${n}`, `Down Or Flat ${n}`, String(n), "jq1", "Quiet Set", v, { end: J2 });
+const spotQ = await setSpotlight("pokemon", J2);
+check("a set that is flat or down keeps today's order and invents no lead", [spotQ.setId, spotQ.leadId ?? null, spotQ.cards.map((c) => c.cardId)], ["jq1", null, ["jq1-1", "jq1-2", "jq1-3", "jq1-4", "jq1-5"]]);
+// Ties go to the more valuable card.
+const J3 = addDays(J, 14);
+for (const [n, v] of [[1, wk(80, 96)], [2, wk(40, 48)], [3, flat(60)], [4, flat(55)], [5, flat(50)], [6, flat(20)]]) await real(`jr1-${n}`, `Tie ${n}`, String(n), "jr1", "Tie Set", v, { end: J3 });
+const spotT = await setSpotlight("pokemon", J3);
+check("two cards up the same 20%: the more valuable one leads", [spotT.leadId, spotT.cards.map((c) => c.cardId)], ["jr1-1", ["jr1-1", "jr1-3", "jr1-4", "jr1-5", "jr1-2"]]);
+
+// A small rise (+3%) is no cover: with a steady card leading on value the order stays. A faller never leads while the set has a riser, even a small one.
+const J7 = addDays(J, 28);
+for (const [n, v] of [[1, [...liquid(100.5, 40), ...Array(8).fill(100.5)]], [2, wk(80, 82.4)], [3, flat(60)], [4, flat(55)], [5, flat(50)]]) await real(`js1-${n}`, `Small ${n}`, String(n), "js1", "Small Set", v, { end: J7 });
+const spotS = await setSpotlight("pokemon", J7);
+check("a +3% riser under a steady leader is no jump: today's order, no lead", [spotS.setId, spotS.leadId ?? null, spotS.cards.map((c) => c.cardId)], ["js1", null, ["js1-1", "js1-2", "js1-3", "js1-4", "js1-5"]]);
+const J8 = addDays(J, 35);
+for (const [n, v] of [[1, wk(124.5, 119.5)], [2, wk(88, 90)], [3, flat(70)], [4, flat(60)], [5, flat(50)]]) await real(`js2-${n}`, `Fell ${n}`, String(n), "js2", "Fell Set", v, { end: J8 });
+const spotF = await setSpotlight("pokemon", J8);
+check("the most valuable card FELL 4% and another rose 2.3%: the riser leads, so the cover is not red", [spotF.setId, spotF.leadId, spotF.cards.map((c) => c.cardId), Math.round(spotF.cards[1].pct)], ["js2", "js2-2", ["js2-2", "js2-1", "js2-3", "js2-4", "js2-5"], -4]);
+const J9 = addDays(J, 42);
+for (const [n, v] of [[1, wk(124.5, 119.5)], [2, wk(92, 90)], [3, flat(70)], [4, flat(60)], [5, flat(50)]]) await real(`js3-${n}`, `Down ${n}`, String(n), "js3", "Down Set", v, { end: J9 });
+const spotD = await setSpotlight("pokemon", J9);
+check("nothing in the set rose: today's order, even though the leader fell (no gain is invented)", [spotD.setId, spotD.leadId ?? null, spotD.cards.map((c) => c.cardId)], ["js3", null, ["js3-1", "js3-2", "js3-3", "js3-4", "js3-5"]]);
+
+console.log("hashtags and the fan");
+check("hashtags: five games = the five game tags, four = four plus #TCG, one = its own two and the general ones, never more than five", [PL.gamesTags(["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]), PL.gamesTags(["pokemon", "mtg", "lorcana", "yugioh"]), PL.gamesTags(["pokemon"]), PL.PLAN_TAGS.games.length], [["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"], ["PokemonTCG", "MTG", "DisneyLorcana", "Yugioh", "TCG"], ["PokemonTCG", "TCG", "TradingCards", "CardCollector", "PokemonCards"], 5]);
+check("a fan puts the biggest in the middle, on top", [PL.fanOrder(["a", "b", "c", "d", "e"]), PL.fanOrder(["a", "b", "c", "d"]), PL.fanOrder(["a"])], [["e", "c", "a", "b", "d"], ["c", "a", "b", "d"], ["a"]]);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
