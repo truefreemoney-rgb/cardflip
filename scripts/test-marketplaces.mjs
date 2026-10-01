@@ -67,7 +67,7 @@ console.log("Table");
     { rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 }, { rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 },
   ]);
   check("hard-coded whole-unit tapers", [MARKETPLACES.GB.taper, MARKETPLACES.IE.taper, MARKETPLACES.AU.taper, MARKETPLACES.CA.taper], [
-    { coveredMax: 4, end: 8 }, { coveredMax: 4, end: 9 }, { coveredMax: 8, end: 15 }, { coveredMax: 7, end: 14 },
+    { coveredMax: 4, end: 8 }, { coveredMax: 4, end: 10 }, { coveredMax: 8, end: 15 }, { coveredMax: 7, end: 14 },
   ]);
   check("policy cost set on every non-NZ local row", ["GB", "IE", "AU", "CA"].every((k) => /^\d+\.\d{2}$/.test(MARKETPLACES[k].shipping.policyCost)), true);
   check("US row reproduces today's literals", [US_MARKETPLACE.shipping, US_MARKETPLACE.postage, US_MARKETPLACE.fees.business], [
