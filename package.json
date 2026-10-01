@@ -65,6 +65,7 @@
     "test:mirror": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-mirror.mjs",
     "test:arthash": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-art-hash.mjs",
     "test:tcg": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-tcg.mjs",
+    "search:typed": "node --experimental-strip-types --no-warnings --import ./scripts/lib/register-alias.mjs scripts/typed-search-check.mjs",
     "replay:scans": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/replay-scans.mjs",
     "fill:images": "node scripts/fill-images.mjs",
     "test:sharpness": "node --experimental-strip-types --no-warnings scripts/test-sharpness.mjs",
