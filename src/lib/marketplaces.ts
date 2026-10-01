@@ -168,7 +168,9 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
   // operating fee 0.35% = 11.35%; per-order €0.35 up to €10.00, €0.45 over. Postage: An Post Large Envelope up to
   // 100g €3.50 (a letter is €1.85 but max 5mm deep): An Post Guide to Postal Rates, effective 3 Feb 2026,
   // https://www.anpost.com/getmedia/dd03f3ab-3027-442a-900a-86cd2f802612/10010982-Guide-Postal-Rates-A4-Feb-2026-P-CVE-02.pdf
-  // (fetched 2026-09-30). Taper €4 / €9 = $5 / $10 at ~0.88.
+  // (fetched 2026-09-30). Taper €4 / €10 = $5 / $10 at ~0.88 (4.4 -> 4); the end is 10, not the 8.8 -> 9 the conversion
+  // gives, because €3.50 postage plus fees (~€5.5 on top) would otherwise exceed the €5 taper width and the curve would
+  // dip a cent where it meets the value; €4 / €10 keeps it rising everywhere (test:ebaylocal sweeps it).
   // GPSR (EU product safety): https://www.ebay.com/sellercenter/resources/general-product-safety-regulation says business
   // sellers listing in the EU must give the manufacturer or an EU Responsible Person, but antiques "including
   // collectors' items" are excluded; whether a modern trading card is one is a legal call this table cannot make.
@@ -184,7 +186,7 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
       private: { rate: 0.1143, flat: 0.05, flatOver: 0.35, flatStep: 9.99 },
       business: { rate: 0.1135, flat: 0.35, flatOver: 0.45, flatStep: 10 },
     },
-    taper: { coveredMax: 4, end: 9 },
+    taper: { coveredMax: 4, end: 10 },
     shipping: { carrierCode: null, serviceCode: "IE_FirstClassLetterService", fallbackServiceCode: null, policyCost: "3.50" },
     postalLabel: "Postcode",
     live: false,

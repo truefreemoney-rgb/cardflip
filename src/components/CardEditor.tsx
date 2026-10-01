@@ -263,6 +263,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     return () => window.clearTimeout(t);
   }, [conditionNote]);
 
+  // US sellers: the original floor. A seller on another eBay site: that site's break-even in their currency.
+  const priceFloor = usePriceFloor();
+
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -608,8 +611,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     });
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
-  // US sellers: the original floor. A seller on another eBay site: that site's break-even in their currency.
-  const priceFloor = usePriceFloor();
   const verified = Boolean(item.verifiedAt) || Boolean(item.ebayOfferId);
   // History chart altitude: the raw NM curve's shape is real demand signal,
   // but a slab or played copy lives at a different level — rescale the chart

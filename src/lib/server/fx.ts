@@ -53,7 +53,7 @@ export async function listingFxRate(currency: string, siteLabel: string, now = D
   const rate = fx?.rates[currency];
   if (reason || !fx || !(typeof rate === "number" && rate > 0)) {
     throw new FxUnavailableError(
-      `CardFlip can't price a ${siteLabel} listing right now: ${reason ?? `no ${currency} rate is available`}. Nothing was sent to eBay; try again in a little while.`,
+      `CardFlip can't price an ${siteLabel} listing right now: ${reason ?? `no ${currency} rate is available`}. Nothing was sent to eBay; try again in a little while.`,
     );
   }
   return { rate, date: fx.date };

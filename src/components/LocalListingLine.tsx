@@ -35,7 +35,7 @@ export default function LocalListingLine({
   if (!info.rate) {
     return (
       <p className={`rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-300 ${className}`}>
-        CardFlip&apos;s exchange rate is out of date right now, so it can&apos;t price a {site} listing. Try again in a little while.
+        CardFlip&apos;s exchange rate is out of date right now, so it can&apos;t price an {site} listing. Try again in a little while.
       </p>
     );
   }

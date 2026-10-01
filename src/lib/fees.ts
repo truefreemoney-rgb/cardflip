@@ -9,7 +9,7 @@
  * discounts make the flat formula wrong in both directions.
  */
 
-import { feeModelFor, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
+import { feeModelFor, formatLocalAmount, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
 
 export const EBAY_FEE_RATE = 0.1325;
 /** Per-order fee: $0.30 on an order of $10 or less, $0.40 over $10 (eBay US since 03-2024; Chris 09-30). */
@@ -134,9 +134,20 @@ export function estimatedEbayFeesFor(mp: Marketplace, gross: number, account?: E
   return gross * feeModelFor(mp, account).rate + ebayFlatFeeFor(mp, gross, account);
 }
 
+/**
+ * Round UP to a whole cent. The US row keeps Math.ceil exactly (its output is
+ * pinned byte for byte). Other sites take a 1e-6-cent tolerance first: with a
+ * no-fee model (UK / AU private) the quotient is an exact cent amount that
+ * float noise ("1259.0000000000002") would otherwise round up a whole cent,
+ * which also made the taper dip a cent as the value rose.
+ */
+function ceilCentsFor(mp: Marketplace, x: number): number {
+  return mp.key === "US" ? Math.ceil(x) : Math.ceil(x - 1e-6);
+}
+
 export function costCoveredPriceFor(mp: Marketplace, net: number, account?: EbayAccountType | null): number {
   const m = feeModelFor(mp, account);
-  const at = (flat: number) => Math.ceil(((net + flat + mp.postage) / (1 - m.rate)) * 100) / 100;
+  const at = (flat: number) => ceilCentsFor(mp, ((net + flat + mp.postage) / (1 - m.rate)) * 100) / 100;
   const low = at(m.flat);
   return low > m.flatStep ? at(m.flatOver) : low;
 }
@@ -149,15 +160,27 @@ export function coversAllCostsFor(mp: Marketplace, value: number): boolean {
   return value > 0 && value < mp.taper.coveredMax;
 }
 
-export function costTaperedPriceFor(mp: Marketplace, value: number, account?: EbayAccountType | null): number {
-  const cents = Math.round(value * 100);
-  if (!coversCostsFor(mp, cents / 100)) return cents / 100;
+/** The taper formula for one value in cents (inside the taper zone or below it). */
+function taperCents(mp: Marketplace, cents: number, account?: EbayAccountType | null): number {
   const full = costCoveredPriceFor(mp, cents / 100, account);
   if (coversAllCostsFor(mp, cents / 100)) return full;
   const extra = Math.round(full * 100) - cents;
   const end = mp.taper.end * 100;
   const span = (mp.taper.end - mp.taper.coveredMax) * 100;
-  return (cents + Math.ceil((extra * (end - cents)) / span)) / 100;
+  return (cents + ceilCentsFor(mp, (extra * (end - cents)) / span)) / 100;
+}
+
+export function costTaperedPriceFor(mp: Marketplace, value: number, account?: EbayAccountType | null): number {
+  const cents = Math.round(value * 100);
+  if (!coversCostsFor(mp, cents / 100)) return cents / 100;
+  if (mp.key === "US" || coversAllCostsFor(mp, cents / 100)) return taperCents(mp, cents, account);
+  // Another site, inside the taper: a cheaper card must never list higher (the
+  // US curve's documented property). Where postage is close to the taper's
+  // width (IE: a €3.50 envelope over a €5 taper) the curve is nearly flat and
+  // cent rounding can dip it, so take the running maximum from the taper's start.
+  let best = 0;
+  for (let c = Math.ceil(mp.taper.coveredMax * 100); c <= cents; c++) best = Math.max(best, taperCents(mp, c, account));
+  return best;
 }
 
 export function listingFloorFor(mp: Marketplace, account?: EbayAccountType | null): number {
@@ -169,14 +192,8 @@ export function belowFloorFor(mp: Marketplace, price: number, account?: EbayAcco
 }
 
 export function floorRefusalFor(mp: Marketplace, account?: EbayAccountType | null): string {
-  const floor = listingFloorFor(mp, account);
-  const amount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: mp.currency,
-    currencyDisplay: "narrowSymbol",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(floor);
+  // £ / € / A$ / C$ (the narrow symbol alone would print AUD and CAD as a bare "$", next to US$).
+  const amount = formatLocalAmount(mp, listingFloorFor(mp, account));
   return `The lowest price is ${amount} — anything under it loses money after eBay fees and postage.`;
 }
 

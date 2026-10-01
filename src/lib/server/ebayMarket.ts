@@ -45,12 +45,13 @@ export class LocalPriceError extends Error {
   }
 }
 
-export async function sellerMarket(userId: string): Promise<SellerMarket> {
+export async function sellerMarket(userId: string, opts: { refreshIdentity?: boolean } = {}): Promise<SellerMarket> {
   const row = (await db.prepare("SELECT home_country FROM users WHERE id = ?").get(userId)) as { home_country: string | null } | undefined;
   const home = (row?.home_country ?? "").trim().toUpperCase();
   if (!(LOCAL_MARKET_COUNTRIES as readonly string[]).includes(home)) return { mp: US_MARKETPLACE, account: null };
-  // Sellers who connected before the account facts were captured: ask eBay once, never block on it.
-  const facts = await refreshEbayIdentityIfMissing(userId);
+  // Sellers who connected before the account facts were captured: ask eBay (at most once an hour, never throwing).
+  // A plain ledger save (refreshIdentity: false) never waits on eBay; it uses what is stored.
+  const facts = opts.refreshIdentity === false ? await getEbayAccountFacts(userId) : await refreshEbayIdentityIfMissing(userId);
   const mp = marketplaceFor({
     homeCountry: home,
     ebayRegistrationMarketplace: facts.registrationMarketplace,
@@ -139,7 +140,7 @@ export async function resolveLocalAsk(
  * not depend on the rate; the listing itself refuses later).
  */
 export async function ledgerFloorProblem(userId: string, usdPrice: number): Promise<string | null> {
-  const { mp, account } = await sellerMarket(userId);
+  const { mp, account } = await sellerMarket(userId, { refreshIdentity: false });
   return floorProblemOn(mp, account, usdPrice);
 }
 

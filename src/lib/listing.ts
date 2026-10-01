@@ -907,6 +907,10 @@ export interface EbayDraftsCsvRow {
  * rows mirror eBay's own template and are ignored by the importer. Card
  * condition (NM/LP…) doesn't fit their two-value column, so it stays in the
  * title + description, as on the API road.
+ *
+ * eBay US ONLY (SiteID=US, USD, the US template): there is no UI caller today,
+ * and it must not be offered to a seller on another eBay site (per-country
+ * listing, docs/EBAY_COUNTRIES_PLAN.md) - that road is the API publish.
  */
 export function toEbayDraftsCsv(rows: EbayDraftsCsvRow[]): string {
   const info = [
