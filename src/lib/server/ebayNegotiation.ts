@@ -3,6 +3,7 @@ import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { db } from "@/lib/db";
 import { getCardForUser, setWatcherOfferSent, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
+import { US_MARKETPLACE, marketplaceByEbayId, type Marketplace } from "@/lib/marketplaces";
 
 /**
  * Offers to watchers (Negotiation API). eBay decides which live listings are
@@ -32,7 +33,7 @@ interface EligibleItem {
 }
 
 /** eBay's listing-id universe for this seller's offer-eligible items. */
-export async function findEligibleListingIds(userId: string): Promise<EligibleResult> {
+export async function findEligibleListingIds(userId: string, mp: Marketplace = US_MARKETPLACE): Promise<EligibleResult> {
   const token = await tokenOrSkip(userId);
   if (token === "not_connected" || token === "error") return { listingIds: [], skipped: token };
 
@@ -45,6 +46,9 @@ export async function findEligibleListingIds(userId: string): Promise<EligibleRe
         token,
         "GET",
         `/sell/negotiation/v1/find_eligible_items?limit=200&offset=${offset}`,
+        undefined,
+        undefined,
+        mp,
       )) as { eligibleItems?: EligibleItem[]; next?: string } | null;
       const items = data?.eligibleItems ?? [];
       for (const item of items) {
@@ -100,7 +104,7 @@ export async function sendWatcherOffer(
           discountPercentage: String(percent),
         },
       ],
-    });
+    }, undefined, marketplaceByEbayId(card.ebayMarketplace));
   } catch (err) {
     if (err instanceof EbaySellError) {
       if (err.status === 403) {
@@ -151,20 +155,29 @@ export async function sweepAutoOffers(now = Date.now()): Promise<AutoOfferSweepR
   for (const seller of sellers) {
     const slow = (await db
       .prepare(
-        `SELECT id, ebay_listing_id FROM cards
+        `SELECT id, ebay_listing_id, ebay_marketplace FROM cards
          WHERE user_id = ? AND status = 'listed' AND ebay_listing_id IS NOT NULL
            AND watcher_offer_at IS NULL AND listed_at IS NOT NULL AND listed_at <= ?`,
       )
-      .all(seller.id, cutoff)) as { id: string; ebay_listing_id: string }[];
+      .all(seller.id, cutoff)) as { id: string; ebay_listing_id: string; ebay_marketplace: string | null }[];
     if (slow.length === 0) continue;
 
-    const eligible = await findEligibleListingIds(seller.id);
-    if (eligible.skipped) continue; // not connected / no scope / eBay down — next run
-    const eligibleSet = new Set(eligible.listingIds);
+    // Eligibility is per eBay site (the Negotiation API is keyed by the marketplace header): a seller with
+    // listings on two sites is asked once per site, each card against the site it was listed on.
+    const eligibleBySite = new Map<string, Set<string> | null>();
+    const eligibleOn = async (mp: Marketplace): Promise<Set<string> | null> => {
+      if (!eligibleBySite.has(mp.marketplaceId)) {
+        const found = await findEligibleListingIds(seller.id, mp);
+        eligibleBySite.set(mp.marketplaceId, found.skipped ? null : new Set(found.listingIds));
+      }
+      return eligibleBySite.get(mp.marketplaceId) ?? null;
+    };
 
     let sentForSeller = 0;
     for (const row of slow) {
       if (sentForSeller >= AUTO_OFFER_MAX_PER_RUN) break;
+      const eligibleSet = await eligibleOn(marketplaceByEbayId(row.ebay_marketplace));
+      if (!eligibleSet) continue; // not connected / no scope / eBay down — next run
       if (!eligibleSet.has(row.ebay_listing_id)) continue;
       const card = await getCardForUser(row.id, seller.id);
       if (!card) continue;
