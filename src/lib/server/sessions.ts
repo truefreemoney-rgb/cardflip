@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 
 /**
@@ -20,6 +20,45 @@ export interface SessionInfo {
   expiresAt: number;
 }
 
+/**
+ * What sits in sessions.token: "h:" + the SHA-256 of the cookie value, never
+ * the cookie value itself, so a read of the table hands out nothing that
+ * works as a cookie (same idea as password_resets.token_hash).
+ */
+export function sessionKey(token: string): string {
+  return "h:" + createHash("sha256").update(token).digest("hex");
+}
+
+/** The shape of every cookie value createSession has ever issued. */
+const ISSUED_TOKEN = /^[0-9a-f]{64}$/;
+
+interface SessionRow {
+  user_id: string;
+  expires_at: number;
+}
+
+/**
+ * The row behind a cookie value. Rows written before hashing hold the cookie
+ * value itself; the first time such a cookie shows up its row is rewritten to
+ * the hash. Only a value shaped like a cookie we issued gets that fallback,
+ * so a hash read out of the table ("h:…") can never be replayed as a cookie.
+ */
+async function findSession(token: string): Promise<(SessionRow & { key: string }) | null> {
+  const key = sessionKey(token);
+  const find = async () =>
+    (await db.prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?").get(key)) as
+      | SessionRow
+      | undefined;
+  let row = await find();
+  if (!row && ISSUED_TOKEN.test(token)) {
+    await db.prepare("UPDATE sessions SET token = ? WHERE token = ?").run(key, token);
+    // Read again whatever the update reports: a parallel request may have
+    // been the one that rewrote the row.
+    row = await find();
+  }
+  return row ? { ...row, key } : null;
+}
+
 export async function createSession(userId: string): Promise<SessionInfo> {
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
@@ -27,19 +66,16 @@ export async function createSession(userId: string): Promise<SessionInfo> {
 
   await db
     .prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)")
-    .run(token, userId, now, expiresAt);
+    .run(sessionKey(token), userId, now, expiresAt);
 
   return { token, expiresAt };
 }
 
 export async function getSessionUserId(token: string): Promise<string | null> {
-  const row = (await db
-    .prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?")
-    .get(token)) as { user_id: string; expires_at: number } | undefined;
-
+  const row = await findSession(token);
   if (!row) return null;
   if (row.expires_at < Date.now()) {
-    await db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    await db.prepare("DELETE FROM sessions WHERE token = ?").run(row.key);
     return null;
   }
   return row.user_id;
@@ -51,20 +87,19 @@ export async function getSessionUserId(token: string): Promise<string | null> {
  * null when the session is young enough that nothing changed.
  */
 export async function touchSession(token: string): Promise<SessionInfo | null> {
-  const row = (await db
-    .prepare("SELECT expires_at FROM sessions WHERE token = ?")
-    .get(token)) as { expires_at: number } | undefined;
+  const row = await findSession(token);
   if (!row) return null;
   const now = Date.now();
   if (row.expires_at < now) return null;
   if (row.expires_at > now + SESSION_TTL_MS - RENEW_AFTER_MS) return null;
   const expiresAt = now + SESSION_TTL_MS;
-  await db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(expiresAt, token);
+  await db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(expiresAt, row.key);
   return { token, expiresAt };
 }
 
 export async function destroySession(token: string): Promise<void> {
-  await db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  const row = await findSession(token);
+  if (row) await db.prepare("DELETE FROM sessions WHERE token = ?").run(row.key);
 }
 
 /**
@@ -72,8 +107,10 @@ export async function destroySession(token: string): Promise<void> {
  * for the user except the one making the request. Returns how many went.
  */
 export async function destroyOtherSessions(userId: string, keepToken: string | null): Promise<number> {
-  const res = keepToken
-    ? await db.prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?").run(userId, keepToken)
+  // findSession first, so a caller still on a pre-hashing row keeps its seat.
+  const keep = keepToken ? await findSession(keepToken) : null;
+  const res = keep
+    ? await db.prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?").run(userId, keep.key)
     : await db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
   return Number(res.changes);
 }

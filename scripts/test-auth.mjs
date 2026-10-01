@@ -32,6 +32,7 @@ const {
   destroySession,
   getSessionUserId,
   sessionCookieOptions,
+  sessionKey,
   touchSession,
 } = await import(lib("server/sessions.ts"));
 const {
@@ -115,6 +116,38 @@ await destroySession(keep.token);
 check("destroyed session is gone", await getSessionUserId(keep.token), null);
 await destroySession(keep.token); // idempotent — a second destroy must not throw
 
+// Hashed at rest (10-01 sweep): the table never holds a value that works as a cookie.
+{
+  const { db } = await import(lib("db.ts"));
+  const rowsOf = async () => (await db.prepare("SELECT token FROM sessions WHERE user_id = ?").all(user.id)).map((r) => r.token);
+  const h = await createSession(user.id);
+  const atRest = await rowsOf();
+  check("at rest: the row holds h:+sha256, not the cookie", [atRest, sessionKey(h.token) === atRest[0], /^h:[0-9a-f]{64}$/.test(atRest[0])], [[sessionKey(h.token)], true, true]);
+  check("at rest: the stored hash is refused as a cookie", [await getSessionUserId(atRest[0]), await getSessionUserId(atRest[0].slice(2))], [null, null]);
+  await destroySession(atRest[0]);
+  await destroySession(atRest[0].slice(2));
+  check("at rest: the stored hash cannot sign the session out either", await getSessionUserId(h.token), user.id);
+  await destroySession(h.token);
+
+  // A row from before hashing: the cookie value itself is in the table.
+  const raw = "ab".repeat(32);
+  const insertRaw = (t) => db.prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)").run(t, user.id, fakeNow, fakeNow + SESSION_TTL_MS);
+  await insertRaw(raw);
+  check("old row: its cookie still signs in", await getSessionUserId(raw), user.id);
+  check("old row: rewritten to the hash on first use", await rowsOf(), [sessionKey(raw)]);
+  check("old row: still signed in after the rewrite", await getSessionUserId(raw), user.id);
+  const raw2 = "cd".repeat(32);
+  await insertRaw(raw2);
+  check("old row: sign out everywhere else keeps a caller not yet rewritten", [await destroyOtherSessions(user.id, raw2), await getSessionUserId(raw2), await getSessionUserId(raw)], [1, user.id, null]);
+  const raw3 = "ef".repeat(32);
+  await insertRaw(raw3);
+  await destroySession(raw3);
+  check("old row: log out removes it", [await getSessionUserId(raw3), await rowsOf()], [null, [sessionKey(raw2)]]);
+  // Only a value shaped like an issued cookie gets the old-row lookup.
+  await insertRaw("h:" + "0".repeat(64));
+  check("old row: a stored key is never matched as a raw cookie", await getSessionUserId("h:" + "0".repeat(64)), null);
+  await destroyOtherSessions(user.id, null);
+}
 
 const opts = sessionCookieOptions(fakeNow + 1000);
 check("cookie: httpOnly lax /", [opts.httpOnly, opts.sameSite, opts.path], [true, "lax", "/"]);
