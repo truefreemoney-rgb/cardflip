@@ -48,6 +48,26 @@ export function toUsd(local: number, rate: number): number {
 }
 
 /**
+ * THE one rule for what a local listing is priced at, used by the server
+ * (ebayMarket.ts resolveLocalAsk, which sends it to eBay) and by the client
+ * (client/localMarket.ts quoteLocalListing): a price the seller typed
+ * (`locked`, a USD figure) converts at the rate; anything else is priced from
+ * `valueUsd`, the USD market value already through the condition and the Quick
+ * Sale pick, with the site's fee model. A row that merely HOLDS a price (the
+ * live refresh writes one, a resumed editor shows one) is not typed.
+ */
+export function pickLocalAsk(
+  mp: Marketplace,
+  account: EbayAccountType | null | undefined,
+  rate: number,
+  input: { locked: boolean; priceUsd: number; valueUsd: number | null },
+): { price: number; basis: "typed" | "market" } | null {
+  if (input.locked && input.priceUsd > 0) return { price: toLocal(input.priceUsd, rate), basis: "typed" };
+  if (input.valueUsd != null && input.valueUsd > 0) return { price: localAsk(mp, account, input.valueUsd, rate), basis: "market" };
+  return null;
+}
+
+/**
  * The asking price on `mp` for a copy worth `usdValue` (USD, condition
  * already applied): the value in local currency, then the site's cheap-card
  * taper (value + that site's fees + postage on top under the taper end, the

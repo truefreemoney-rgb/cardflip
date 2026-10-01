@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import Price from "@/components/Price";
-import { quoteLocalListing, useLocalMarket } from "@/lib/client/localMarket";
+import { fetchLocalAsk, useLocalMarket, type ServerLocalAsk } from "@/lib/client/localMarket";
 import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/listing";
 import { marketplaceLabel } from "@/lib/marketplaces";
 import type { ListingDraft, ScanItem } from "@/lib/types";
@@ -70,14 +70,18 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
   // A seller on another eBay site: the confirm step names the price in their currency ("£3.99 on eBay UK").
   const local = useLocalMarket();
-  const localQuote = local
-    ? quoteLocalListing(local, {
-        typedUsd: item.priceOverride,
-        marketUsd: item.priceOverride == null ? (quoteForItem(item)?.base ?? null) : null,
-        condition: item.condition,
-        strategy: item.strategy,
-      })
-    : null;
+  // The number comes from the SERVER (the code the push runs), fetched when the confirm step opens, so what the
+  // seller approves is what gets listed.
+  const [confirmAsk, setConfirmAsk] = useState<ServerLocalAsk | null>(null);
+  useEffect(() => {
+    if (modal !== "confirm" || !local || !item.serverId) return;
+    let alive = true;
+    void fetchLocalAsk(item.serverId, item.strategy).then((a) => alive && setConfirmAsk(a));
+    return () => {
+      alive = false;
+      setConfirmAsk(null);
+    };
+  }, [modal, local, item.serverId, item.strategy]);
   const canPost = ebayConnected && Boolean(item.serverId) && Boolean(item.card);
   const pushed = Boolean(item.ebayOfferId);
   // Locked until the seller has verified the match (the server refuses too).
@@ -460,12 +464,22 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                 <h2 className="text-lg font-semibold text-white">Put this card live on eBay?</h2>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                   <span className="font-medium text-zinc-200">{listing.title.slice(0, 60)}</span>
-                  {" — "}{localQuote && local ? `${localQuote.text} on ${marketplaceLabel(local.mp)}` : formatMoney(price)}
+                  {" — "}
+                  {local
+                    ? confirmAsk && "text" in confirmAsk
+                      ? `${confirmAsk.text} on ${marketplaceLabel(local.mp)}`
+                      : confirmAsk
+                        ? "price not available"
+                        : "checking the price…"
+                    : formatMoney(price)}
                   {(item.quantity ?? 1) > 1 ? ` × ${item.quantity} copies` : ""}.
                 </p>
-                {localQuote && (
+                {local && confirmAsk && "error" in confirmAsk && (
+                  <p className="mt-1 text-xs text-amber-300">{confirmAsk.error}</p>
+                )}
+                {local && confirmAsk && "text" in confirmAsk && (
                   <p className="mt-1 text-xs text-zinc-500">
-                    Market price <Price usd={item.priceOverride == null ? (quoteForItem(item)?.base ?? price) : price} className="text-xs font-medium text-zinc-300" />
+                    Market price <Price usd={quoteForItem(item)?.base ?? price} className="text-xs font-medium text-zinc-300" />
                   </p>
                 )}
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">

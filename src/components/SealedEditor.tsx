@@ -216,7 +216,7 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
         </div>
       </label>
       {/* A seller on another eBay site sees what the listing will cost in their currency. */}
-      <LocalListingLine typedUsd={price} condition={item.condition} />
+      <LocalListingLine cardId={item.serverId} refreshKey={String(price)} usd={price} />
 
       <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 

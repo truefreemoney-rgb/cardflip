@@ -1406,10 +1406,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </label>
         {/* A seller on another eBay site sees what the listing will cost in their currency. */}
         <LocalListingLine
-          typedUsd={item.priceOverride}
-          marketUsd={item.priceOverride == null ? (quote?.base ?? null) : null}
-          condition={item.condition}
+          cardId={item.serverId}
           strategy={item.strategy}
+          refreshKey={`${item.priceOverride}|${item.condition}|${item.strategy}|${item.variant}|${item.firstEdition}`}
+          usd={item.priceOverride ?? quote?.base ?? null}
         />
         {/* What they paid (09-27): optional, drives profit per card and the year-end report. */}
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">

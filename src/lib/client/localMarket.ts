@@ -4,31 +4,17 @@ import { useEffect, useState } from "react";
 import { useOptionalSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/client/basePath";
 import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor, listingFloor, listingFloorFor } from "@/lib/fees";
-import { localAsk, toLocal } from "@/lib/localPricing";
+import { toLocal } from "@/lib/localPricing";
+import { quoteLocalListing, type LocalListingQuote, type LocalMarketInfo } from "@/lib/localQuote";
 import {
   LOCAL_MARKET_COUNTRIES,
   MARKETPLACES,
-  formatLocalAmount,
-  type EbayAccountType,
-  type Marketplace,
   type MarketplaceKey,
 } from "@/lib/marketplaces";
-import { strategyValueUsd } from "@/lib/listing";
-import type { Condition, PriceStrategy } from "@/lib/types";
+import type { PriceStrategy } from "@/lib/types";
 
-/**
- * A seller on a local eBay site (CA/GB/IE/AU with the switch on, the row live
- * and their eBay account registered there) sees what their listing will cost
- * in their own currency. US sellers (the default) never reach /api/ebay/market:
- * the session's home country is checked first, so nothing changes for them.
- */
-export interface LocalMarketInfo {
-  mp: Marketplace;
-  account: EbayAccountType | null;
-  /** Local units per 1 USD; null = the rate is too old for the server to price a listing. */
-  rate: number | null;
-  rateDate: string | null;
-}
+export { quoteLocalListing };
+export type { LocalListingQuote, LocalMarketInfo };
 
 let cached: Promise<LocalMarketInfo | null> | null = null;
 
@@ -90,33 +76,26 @@ export function usePriceFloor(): PriceFloor {
   return priceFloorFor(useLocalMarket());
 }
 
-export interface LocalListingQuote {
-  /** The asking price in the site's currency. */
-  price: number;
-  /** "£3.99" */
-  text: string;
-  /** The site's break-even in local currency. */
-  floor: number;
-}
+/** The server's own answer for one card (ebayMarket.ts quoteCardForSite): the number that will be listed, or why it will be refused. */
+export type ServerLocalAsk =
+  | { price: number; text: string; basis: "typed" | "market"; floor: number; label: string; error?: undefined }
+  | { error: string; label: string };
 
 /**
- * What the server will list this card at (mirrors lib/server/ebayMarket.ts
- * resolveLocalAsk): a price the seller typed converts at the rate; otherwise
- * the USD market value (condition + Quick Sale pick applied) goes through the
- * site's fee model and cheap-card taper. Null when there is no rate or
- * nothing to price from.
+ * Ask the server what pushing this card would list at, by the code the push
+ * itself runs. null = not a local seller / the lookup failed (callers show
+ * nothing rather than a guess).
  */
-export function quoteLocalListing(
-  info: LocalMarketInfo,
-  input: { typedUsd?: number | null; marketUsd?: number | null; condition: Condition | string; strategy?: PriceStrategy },
-): LocalListingQuote | null {
-  if (!info.rate) return null;
-  let price: number | null = null;
-  if (input.typedUsd != null && input.typedUsd > 0) price = toLocal(input.typedUsd, info.rate);
-  else if (input.marketUsd != null && input.marketUsd > 0) {
-    const value = strategyValueUsd(input.marketUsd, input.condition, input.strategy ?? "market");
-    if (value > 0) price = localAsk(info.mp, info.account, value, info.rate);
+export async function fetchLocalAsk(cardId: string, strategy: PriceStrategy = "market"): Promise<ServerLocalAsk | null> {
+  try {
+    const res = await apiFetch(`/api/ebay/market?cardId=${encodeURIComponent(cardId)}&strategy=${strategy}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const b = await res.json();
+    const a = b?.ask;
+    if (!b?.local || !a) return null;
+    if (typeof a.error === "string") return { error: a.error, label: a.label };
+    return { price: a.price, text: a.text, basis: a.basis, floor: a.floor, label: a.label };
+  } catch {
+    return null;
   }
-  if (price == null) return null;
-  return { price, text: formatLocalAmount(info.mp, price), floor: listingFloorFor(info.mp, info.account) };
 }
