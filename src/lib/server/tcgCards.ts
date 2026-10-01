@@ -7,6 +7,7 @@ import { yugiohKey } from "@/lib/yugioh";
 import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
 
 /**
  * Lorcana + One Piece identification off the shared mirror (tcg_cards, see
@@ -275,6 +276,7 @@ export async function searchTcgCardsLocal(
     if (don.length) return don.slice(0, limit).map((row, i) => ({ ...toCard(row), rankScore: i }));
   }
 
+  const loose = squash(name);
   let rows: TcgRow[] = [];
   if (needle) {
     rows = (await db
@@ -282,11 +284,16 @@ export async function searchTcgCardsLocal(
       .all(game, needle, `${needle}￿`)) as unknown as TcgRow[];
     const numberSatisfied = !wantedNumber || rows.some((r) => normalizeNumber(r.collector_number) === wantedNumber);
     if (rows.length === 0 || !numberSatisfied || typed) {
+      // A typed name also matches with its punctuation left out ("mr5" for
+      // Mr.5), version line included; the same one walk either way.
+      const squashed = typed && loose.length >= 3 ? ` OR ${squashSql("name || ' ' || subtitle")} LIKE ?` : "";
       const wide = (await db
-        .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 400`)
-        .all(game, `%${needle}%`)) as unknown as TcgRow[];
+        .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND (${FOLDED} LIKE ?${squashed}) ORDER BY set_release_date DESC LIMIT 400`)
+        .all(...(squashed ? [game, `%${needle}%`, `%${looseLike(loose)}%`] : [game, `%${needle}%`]))) as unknown as TcgRow[];
       const have = new Set(rows.map((r) => r.id));
-      rows = rows.concat(wide.filter((r) => !have.has(r.id)));
+      // (looseLike's pattern is wider than the name: keep what really holds it.)
+      const holds = (r: TcgRow) => !squashed || fold(r.name).includes(needle) || squash(`${r.name} ${r.subtitle}`).includes(loose);
+      rows = rows.concat(wide.filter((r) => !have.has(r.id) && holds(r)));
     }
     // One Piece: no printing of the read name carries the read key, but the
     // key names exactly one card — an event card whose art the read named
@@ -316,6 +323,21 @@ export async function searchTcgCardsLocal(
         .all(...(printed?.setTotal ? [wantedNumber, printed.setTotal] : [wantedNumber]))) as unknown as TcgRow[];
     }
   }
+  // Still nothing: the same letters with the punctuation left out ("monkey d
+  // luffy" for Monkey.D.Luffy), and Lorcana's version line typed after the
+  // name ("rapunzel - creative captor"). A full walk, so it runs last (a
+  // typed search already made it, above).
+  const looseExact = new Set<string>();
+  let walked = false;
+  if (!typed && rows.length === 0 && loose.length >= LOOSE_MIN) {
+    walked = true;
+    rows = ((await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND ${squashSql("name || ' ' || subtitle")} LIKE ? ORDER BY set_release_date DESC LIMIT 400`)
+      .all(game, `%${looseLike(loose)}%`)) as unknown as TcgRow[]).filter((r) => squash(`${r.name} ${r.subtitle}`).includes(loose));
+  }
+  if ((typed || walked) && loose) {
+    for (const r of rows) if (squash(r.name) === loose || squash(`${r.name} ${r.subtitle}`) === loose) looseExact.add(r.id);
+  }
   if (rows.length === 0) return [];
 
   const wantedSub = subtitle ? fold(subtitle) : "";
@@ -332,7 +354,7 @@ export async function searchTcgCardsLocal(
     game === "onepiece" && Boolean(printed?.shaky) && needle !== "" && Boolean(wantedNumber) && rows.some((r) => nameOf(r) === needle && numberOf(r) === wantedNumber);
   const score = (row: TcgRow): number => {
     const rowName = nameOf(row);
-    const exactName = needle !== "" && rowName === needle;
+    const exactName = needle !== "" && (rowName === needle || looseExact.has(row.id));
     const rowNumber = numberOf(row);
     const exactNumber = Boolean(wantedNumber) && rowNumber === wantedNumber;
     const twoOff = exactName && !exactNumber && wantedNumber && game === "onepiece" ? twoDigitsOff(wantedNumber, rowNumber) : null;
@@ -498,12 +520,36 @@ async function searchYugioh(
     const have = new Set(rows.map((r) => r.id));
     rows = rows.concat(byName.filter((r) => !have.has(r.id)));
   }
+  const loose = squash(rawName);
   if ((rows.length === 0 || (typed && rows.length < limit)) && needle) {
+    // A typed name also matches with its punctuation left out ("flying
+    // kamakiri 1" for Flying Kamakiri #1); the same one walk either way.
+    const squashed = typed && loose.length >= 3 ? ` OR ${squashSql("name")} LIKE ?` : "";
     const wide = (await db
-      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${FOLDED} LIKE ? ORDER BY set_release_date DESC LIMIT 200`)
-      .all(`%${sqlFold(rawName)}%`)) as unknown as TcgRow[];
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND (${FOLDED} LIKE ?${squashed}) ORDER BY set_release_date DESC LIMIT 200`)
+      .all(...(squashed ? [`%${sqlFold(rawName)}%`, `%${looseLike(loose)}%`] : [`%${sqlFold(rawName)}%`]))) as unknown as TcgRow[];
     const have = new Set(rows.map((r) => r.id));
-    rows = rows.concat(wide.filter((r) => !have.has(r.id)));
+    // (looseLike's pattern is wider than the name: keep what really holds it.)
+    const holds = (r: TcgRow) => !squashed || fold(r.name).includes(needle) || squash(r.name).includes(loose);
+    rows = rows.concat(wide.filter((r) => !have.has(r.id) && holds(r)));
+  }
+  // Still nothing: the punctuation was left out ("miracles wake", "raidraptor
+  // call", "d d defense soldier"). A full walk, so it runs last (a typed
+  // search already made it, above).
+  const looseExact = new Set<string>();
+  let walked = false;
+  if (!typed && rows.length === 0 && loose.length >= LOOSE_MIN) {
+    walked = true;
+    rows = ((await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND ${squashSql("name")} LIKE ? ORDER BY set_release_date DESC LIMIT 400`)
+      .all(`%${looseLike(loose)}%`)) as unknown as TcgRow[]).filter((r) => squash(r.name).includes(loose));
+  }
+  if ((typed || walked) && loose) for (const r of rows) if (squash(r.name) === loose) looseExact.add(r.id);
+  // A code the key pattern does not know (a German "AC14-DE003"): the row filed under exactly what was typed.
+  if (rows.length === 0 && printed?.number) {
+    rows = (await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND collector_number = ? LIMIT 60`)
+      .all(printed.number.trim().toUpperCase())) as unknown as TcgRow[];
   }
   // Name AND code both misread by a letter or two ("Materia Beast" PGL2-EN066
   // for Naturia Beast PGL2-EN086, 09-29 panel): the set's rows whose code is
@@ -529,7 +575,7 @@ async function searchYugioh(
   const wantColor = colorMatch && COLORS.includes(colorMatch[1]) ? colorMatch[1] : null;
   if (wantColor) wantRarity = "ultra-rare";
   const score = (row: TcgRow): number => {
-    const exactName = needle !== "" && (fold(row.name) === needle || fuzzyIds.has(row.id));
+    const exactName = needle !== "" && (fold(row.name) === needle || fuzzyIds.has(row.id) || looseExact.has(row.id));
     const rowKey = yugiohKey(row.collector_number) ?? "";
     const exactNumber = Boolean(wantedKey) && rowKey === wantedKey;
     // Up to two characters off on the code with the name exact ("SGX3-EN127"

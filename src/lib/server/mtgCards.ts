@@ -16,6 +16,7 @@
  */
 
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { db } from "@/lib/db";
 import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
@@ -329,6 +330,9 @@ export async function searchMtgCardsLocal(
   const wantedCode = setCode ? setCode.trim().toLowerCase() : null;
 
   let rows: MtgCardRow[];
+  // Rows found only with the punctuation ignored: the whole name / part of it.
+  const looseExact = new Set<string>();
+  const looseInside = new Set<string>();
   if (needle) {
     // Double-faced cards are stored as "Front // Back"; match either face.
     // Exact + prefix as one range on idx_mtg_cards_folded (expression index on
@@ -396,6 +400,42 @@ export async function searchMtgCardsLocal(
       const seen = new Set(rows.map((r) => r.id));
       for (const r of wide) if (!seen.has(r.id)) rows.push(r);
     }
+    // A basic land has more printings than the 600 above: the printing the
+    // code and number name ("Forest 2ED 302") joins the list on its own.
+    if (rows.length >= 600 && wantedNumber && wantedCode && !rows.some((r) => r.set_code.toLowerCase() === wantedCode && normalizeCollectorNumber(r.collector_number) === wantedNumber)) {
+      const keyed = (await db
+        .prepare(
+          `SELECT ${CARD_COLUMNS_JOINED}
+             FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+            WHERE LOWER(c.set_code) = ? AND LOWER(c.collector_number) = ?
+            LIMIT 50`,
+        )
+        .all(wantedCode, wantedNumber)) as unknown as MtgCardRow[];
+      rows.push(...keyed.filter((r) => r.name.toLowerCase().replace(/,/g, "").split(" // ").some((face) => face === needle)));
+    }
+    // Still nothing: the punctuation was left out ("thespians stage" for
+    // Thespian's Stage). A full walk, so it runs last. A scan read only takes
+    // the whole name (a token's "Bird" must not land on Birds of Paradise,
+    // see the word-boundary note below); a typed one may sit inside a name.
+    const loose = squash(needle);
+    if (rows.length === 0 && loose.length >= LOOSE_MIN) {
+      const walked = (await db
+        .prepare(
+          `SELECT ${CARD_COLUMNS_JOINED}
+             FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
+            WHERE ${squashSql("c.name")} LIKE ?
+            ORDER BY LENGTH(c.name), c.set_release_date DESC
+            LIMIT 600`,
+        )
+        .all(typed ? `%${looseLike(loose)}%` : `${looseLike(loose)}%`)) as unknown as MtgCardRow[];
+      for (const r of walked) {
+        const whole = squash(r.name) === loose || squash(r.name.split(" // ")[0]) === loose;
+        if (whole) looseExact.add(r.id);
+        else if (typed && squash(r.name).includes(loose)) looseInside.add(r.id);
+        else continue;
+        rows.push(r);
+      }
+    }
   } else if (wantedNumber && wantedCode) {
     // No name but number + set code is itself an identification.
     rows = (await db
@@ -433,7 +473,8 @@ export async function searchMtgCardsLocal(
   // mirror) rode those substrings onto priced Marvel cards. Substring
   // matches also need a real word (5+ chars) — three letters of OCR debris
   // match half the catalogue.
-  const boundary = (text: string, at: number) => at >= text.length || /[\s,'’\-:]/.test(text[at]);
+  // (A quote counts too: Unstable's "Rumors of My Death . . ." is filed with them.)
+  const boundary = (text: string, at: number) => at >= text.length || /[\s,'’\-:"!?]/.test(text[at]);
   const wordPrefix = (text: string) => text.startsWith(needle) && boundary(text, needle.length);
   const wordInside = (text: string) => {
     // A typed word is deliberate, not OCR debris: "bolt", "ring" count.
@@ -442,7 +483,7 @@ export async function searchMtgCardsLocal(
     for (;;) {
       const i = text.indexOf(needle, from);
       if (i < 0) return false;
-      if ((i === 0 || /[\s,'’\-:]/.test(text[i - 1])) && boundary(text, i + needle.length)) return true;
+      if ((i === 0 || /[\s,'’\-:"]/.test(text[i - 1])) && boundary(text, i + needle.length)) return true;
       from = i + 1;
     }
   };
@@ -497,9 +538,9 @@ export async function searchMtgCardsLocal(
           : row.collector_number;
     const frontFace = rowName.split(" // ")[0];
     const flavor = (row.flavor_name ?? "").toLowerCase().replace(/,/g, "");
-    const exactName = needle !== "" && (rowName === needle || frontFace === needle || (flavor !== "" && flavor === needle));
+    const exactName = needle !== "" && (rowName === needle || frontFace === needle || (flavor !== "" && flavor === needle) || looseExact.has(row.id));
     const prefixName = !exactName && needle !== "" && (wordPrefix(rowName) || wordPrefix(frontFace) || (flavor !== "" && wordPrefix(flavor)));
-    const insideName = !exactName && !prefixName && needle !== "" && wordInside(rowName);
+    const insideName = !exactName && !prefixName && needle !== "" && (wordInside(rowName) || looseInside.has(row.id));
     const exactNumber = Boolean(wantedNumber) && normalizeCollectorNumber(rowNumber) === wantedNumber;
     const codeAgrees = wantedCode ? rowCode === wantedCode : null;
 
@@ -541,7 +582,8 @@ export async function searchMtgCardsLocal(
   // Tales of Middle-earth art cards live in a set called "Scene Box" (09-10).
   const isArtSeries = (row: MtgCardRow) =>
     row.set_type === "memorabilia" && (/art series/i.test(row.set_name) || /^card\b/i.test(row.type_line ?? ""));
-  rows = rows.filter((row) => isArtSeries(row) === artOnly);
+  // A seller who types the art set's own code ("ASOS 48") is asking for the art card.
+  rows = rows.filter((row) => isArtSeries(row) === artOnly || (typed && wantedCode !== null && row.set_code.toLowerCase() === wantedCode));
   const ranked = rows
     .map((row) => ({ row, s: score(row) }))
     .filter((x) => Number.isFinite(x.s))

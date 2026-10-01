@@ -63,6 +63,8 @@ const GAMES = {
       ["name only, lowercase", c.name.toLowerCase(), "name"],
       plain(c.name) !== c.name && plain(c.name) && ["no punctuation + SET number", `${plain(c.name)} ${c.set_code.toUpperCase()} ${c.number}`, "id"],
       ["SET number only", `${c.set_code.toUpperCase()} ${c.number}`, "id"],
+      ["set number only, lowercase", `${c.set_code} ${c.number}`.toLowerCase(), "id"],
+      plain(c.name) !== c.name && plain(c.name) && ["no punctuation, name only", plain(c.name), "name"],
     ],
   },
   lorcana: {
@@ -88,6 +90,7 @@ const GAMES = {
       ["name only, lowercase", c.name.toLowerCase(), "name"],
       plain(c.name) !== c.name && plain(c.name) && ["no punctuation + number", `${plain(c.name)} ${c.number}`, "number"],
       ["number without the dash", c.number.replace(/-/g, ""), "number"],
+      plain(c.name) !== c.name && plain(c.name) && ["no punctuation, name only", plain(c.name), "name"],
     ],
   },
   yugioh: {
@@ -99,6 +102,7 @@ const GAMES = {
       ["name only, lowercase", c.name.toLowerCase(), "name"],
       plain(c.name) !== c.name && plain(c.name) && ["no punctuation + number", `${plain(c.name)} ${c.number}`, "number"],
       plain(c.name) !== c.name && plain(c.name) && ["no punctuation, name only", plain(c.name), "name"],
+      ["number without the dash", c.number.replace(/-/g, ""), "number"],
     ],
   },
 };

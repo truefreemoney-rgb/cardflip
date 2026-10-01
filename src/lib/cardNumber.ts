@@ -258,12 +258,22 @@ export function parseCardQuery(query: string): {
     // A bare trailing number is a collector number ("Charizard 4"), but only
     // when something else is there to be the name — otherwise a seller
     // searching for "151" means the set, not card #151.
-    const trailing = input.match(/^(.*?[A-Za-z].*?)\s+(\d{1,3})$/);
+    // Promos and sub-series print a lettered number with no denominator
+    // ("Nidoking H18", "Falinks V SV115", "Ash's Pikachu SM110", 10-01).
+    const lettered = input.match(/^(.*?[A-Za-z].*?)\s+([A-Za-z]{1,5}\d{1,3})$/);
+    if (lettered) {
+      return {
+        name: lettered[1].trim(),
+        printed: { number: lettered[2].toUpperCase(), setTotal: null, setCode: null, isSecretRare: false },
+      };
+    }
+    // (One trailing letter rides along: Generations prints "28a".)
+    const trailing = input.match(/^(.*?[A-Za-z].*?)\s+(\d{1,3})([a-z]?)$/);
     if (trailing) {
       return {
         name: trailing[1].trim(),
         printed: {
-          number: String(Number(trailing[2])),
+          number: String(Number(trailing[2])) + trailing[3],
           setTotal: null,
           setCode: null,
           isSecretRare: false,

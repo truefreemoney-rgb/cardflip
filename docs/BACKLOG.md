@@ -81,7 +81,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] YEA 09-06. IQ-85 pass (09-04 evening): paywall one sentence/one button; editor Verify → price → Publish with details behind Change; "Check and publish" on the scan result chip.
 - [x] 09-28 Landing hero centered on phones; hero glow no longer cut off above How it works.
 - [x] (yea 09-04) Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
-- [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
+- [x] Search cards results in the Watchlist tile; Watchlist gets By set. (10-01: both were already built; now Search Cards and the Watchlist share ONE search, components/CardSearch: game switch, By Name / By Set, filter box, one sort list, Clear. Typed-search fixes for all five games landed with it: punctuation and accents left out, lowercase Magic set codes, "SET number" alone, lettered Pokémon numbers, numbers typed without the dash. Chris: yea/nay on the live site.)
 - [x] Trial accounts see "Subscribe now" (→ /pricing) everywhere eBay would be offered: publish row, connect card, queue summary, header pill (09-06). Plan cards live when signed in. (10-01: the four spots were already live; finished the leftovers = connect card title/body, Account eBay row, the helper lines under the publish row and the queue; checked as a local trial account at phone size. Chris: yea/nay on the live site.)
 - [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
 

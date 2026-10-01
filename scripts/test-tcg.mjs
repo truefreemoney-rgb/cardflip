@@ -244,6 +244,20 @@ check("Yu-Gi-Oh!: a printed star is not in the catalog name, no number read",
   [await ygo("Yummyusment★Acroquey", null), await ygo("Yummyusment☆Acroquey", null)], ["ygo-yummy", "ygo-yummy"]);
 check("rankScore exposed", typeof (await searchTcgCardsLocal("onepiece", "Nami", null, 5))[0]?.rankScore === "number");
 check("Lorcana card name carries the version", (await searchTcgCardsLocal("lorcana", "Ariel", pn("1", 204), 1))[0]?.name, "Ariel - On Human Legs");
+// 10-01 typed-search check: the version line typed after the name, punctuation left out.
+check("Lorcana: 'name - version' typed finds the card",
+  (await searchTcgCardsLocal("lorcana", "Ariel - On Human Legs", null, 5, null, null, null, true))[0]?.name, "Ariel - On Human Legs");
+check("Lorcana: 'name version' in lowercase finds the card",
+  (await searchTcgCardsLocal("lorcana", "ariel on human legs", null, 5, null, null, null, true))[0]?.name, "Ariel - On Human Legs");
+check("Lorcana: a read of 'name - version' (not typed) finds the card",
+  (await searchTcgCardsLocal("lorcana", "Ariel - On Human Legs", null, 5))[0]?.name, "Ariel - On Human Legs");
+// SQLite's parser overflows past 27 nested REPLACEs: every search that reached the walk was a 500 (10-01).
+{
+  const { squashSql, looseLike } = await import("../src/lib/server/looseName.ts");
+  check("squashSql stays under the parser's nesting limit", squashSql("name").split("REPLACE(").length - 1 <= 26);
+  check("looseLike: a and n match any character", looseLike("mamacoco"), "m_m_coco");
+  check("looseLike: a needle that would be all wildcards stays literal", looseLike("nana"), "nana");
+}
 
 console.log(failures === 0 ? "\nAll TCG checks passed" : `\n${failures} TCG check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;

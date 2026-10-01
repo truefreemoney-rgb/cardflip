@@ -227,40 +227,58 @@ export const MTG_FINISH_LABEL: Record<string, string> = {
 
 /**
  * "Lightning Bolt LTR 187", "Sol Ring 0243/0341", "Ragavan 138 MH2" —
- * MTG search text into name + collector number + set code. Set codes are
- * 3–5 letters/digits printed beside the number; a bare all-caps token that
- * short is treated as one only when a number is also present (or it's the
- * last token), so "Fury Sliver" isn't split.
+ * MTG search text into name + collector number + set code.
+ *
+ * The number is the LAST number-like token (digits with at most one letter or
+ * a star, a fraction, "#187", or a List number "2XM-77"); the set code is the
+ * token beside it: 3–5 capitals / digits with a letter in it, so "40K", "2XM"
+ * and "10E" count and "Fury Sliver" isn't split. "BLB 280" with no name is a
+ * whole search. `loose` also takes a lowercase neighbour as the code ("forest
+ * blb 280"): the second try when the strict parse found nothing (10-01).
  */
-export function parseMtgQuery(query: string): {
+const MTG_NUMBER = /^#?0*(\d{1,4}[a-z★]?)$/i;
+const MTG_FRACTION = /^0*(\d{1,4}[a-z★]?)\/\d{1,4}$/i;
+const MTG_LIST_NUMBER = /^[A-Z0-9]{2,5}-\d{1,4}[a-z]?$/i;
+const MTG_CODE = /^(?=.*[A-Z])[A-Z0-9]{3,5}$/;
+const MTG_CODE_LOOSE = /^(?=.*[a-z])[a-z0-9]{3,5}$/i;
+
+const MTG_LETTERED_NUMBER = /^[A-Z]{1,2}\d{1,4}$/i;
+
+export function parseMtgQuery(query: string, loose = false, lettered = !loose): {
   name: string;
   number: string | null;
   setCode: string | null;
 } {
-  const tokens = query.trim().split(/\s+/).filter(Boolean);
-  let number: string | null = null;
-  let setCode: string | null = null;
-  const nameTokens: string[] = [];
-  for (const raw of tokens) {
-    const token = raw.replace(/[,]/g, "");
-    const fraction = token.match(/^0*(\d{1,4}[a-z★]?)\s*\/\s*\d{1,4}$/i);
-    if (fraction && !number) {
-      number = fraction[1].toLowerCase();
-      continue;
-    }
-    if (/^0*\d{1,4}[a-z★]?$/i.test(token) && !number && nameTokens.length > 0) {
-      number = token.replace(/^0+(?=\d)/, "").toLowerCase();
-      continue;
-    }
-    if (/^#\d{1,4}[a-z]?$/i.test(token) && !number) {
-      number = token.slice(1).replace(/^0+(?=\d)/, "").toLowerCase();
-      continue;
-    }
-    if (/^[A-Z][A-Z0-9]{2,4}$/.test(token) && !setCode && nameTokens.length > 0) {
-      setCode = token.toLowerCase();
-      continue;
-    }
-    nameTokens.push(token);
+  const tokens = query.trim().split(/\s+/).map((t) => t.replace(/,/g, "")).filter(Boolean);
+  const isCode = (t: string | undefined) => t !== undefined && (MTG_CODE.test(t) || (loose && MTG_CODE_LOOSE.test(t)));
+  // A few promo sets number with a letter in front ("PUMA U32"). It reads
+  // like a set code ("M21"), so it is the number only as the last token,
+  // right after a set code; `lettered` is its own try in a loose parse.
+  const last = tokens.length - 1;
+  if (lettered && last > 0 && MTG_LETTERED_NUMBER.test(tokens[last]) && isCode(tokens[last - 1]) && (loose || tokens[last] === tokens[last].toUpperCase())) {
+    return { name: tokens.slice(0, last - 1).join(" "), number: tokens[last].toLowerCase(), setCode: tokens[last - 1].toLowerCase() };
   }
-  return { name: nameTokens.join(" "), number, setCode };
+  const numberOf = (i: number): string | null => {
+    const t = tokens[i];
+    const fraction = MTG_FRACTION.exec(t);
+    if (fraction) return fraction[1].toLowerCase();
+    if (MTG_LIST_NUMBER.test(t)) return t.toLowerCase();
+    // A bare number needs something before it (the name or the set): "151" alone is a name.
+    const plain = MTG_NUMBER.exec(t);
+    return plain && (i > 0 || t.startsWith("#")) ? plain[1].toLowerCase() : null;
+  };
+  let at = -1;
+  for (let i = tokens.length - 1; i >= 0; i--) if (numberOf(i) !== null) { at = i; break; }
+  // "Forest 380 10E": the last token reads as a number and as a set code; the number is the one before it.
+  if (at > 1 && MTG_CODE.test(tokens[at]) && MTG_NUMBER.test(tokens[at - 1])) at -= 1;
+  let codeAt = -1;
+  if (at >= 0) {
+    if (isCode(tokens[at + 1])) codeAt = at + 1;
+    else if (at > 0 && isCode(tokens[at - 1])) codeAt = at - 1;
+  } else if (tokens.length > 1 && isCode(tokens[tokens.length - 1])) codeAt = tokens.length - 1;
+  return {
+    name: tokens.filter((_, i) => i !== at && i !== codeAt).join(" "),
+    number: at >= 0 ? numberOf(at) : null,
+    setCode: codeAt >= 0 ? tokens[codeAt].toLowerCase() : null,
+  };
 }

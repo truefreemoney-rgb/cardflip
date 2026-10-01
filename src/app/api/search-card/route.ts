@@ -83,20 +83,38 @@ async function heldPrices(cards: PokemonCard[]): Promise<PokemonCard[]> {
   });
 }
 
+/**
+ * The mirror gets the name as typed or read: sanitize() drops brackets for
+ * the upstream grammar, which turned "Unown [O]" into "Unown O", a different
+ * card (10-01). The sanitized name is the second try.
+ */
+async function searchMirror(
+  mirrorName: string,
+  name: string,
+  printed: PrintedNumber | null,
+  limit: number,
+  art: ArtStyle,
+  firstEdition: boolean | null,
+) {
+  const local = await searchEnglishCardsLocal(mirrorName, printed, limit, art, firstEdition);
+  return local.cards.length > 0 || mirrorName === name ? local : searchEnglishCardsLocal(name, printed, limit, art, firstEdition);
+}
+
 /** Background refresh of a stale English cache row — never blocks a response. */
 async function refreshEnglishCache(
   lang: ScanLanguage,
-  name: string,
+  cacheName: string,
   cacheNumber: string,
   printed: PrintedNumber | null,
   limit: number,
   art: ArtStyle,
+  name: string,
 ): Promise<void> {
   try {
-    const local = await searchEnglishCardsLocal(name, printed, limit, art);
+    const local = await searchMirror(cacheName, name, printed, limit, art, null);
     if (local.cards.length === 0) return;
     const cards = await enrichWithPricing(local.cards, local.releaseDates);
-    if (hasMarketPrice(cards)) await putCachedCards(lang, name, cacheNumber, cards);
+    if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
   } catch {
     // Background work — the next lookup simply tries again.
   }
@@ -302,6 +320,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // The English mirror and its cache rows key on the name with its brackets
+  // kept ("Unown [O]" and "Unown O" are two cards and must not share a row).
+  const mirrorName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim().slice(0, 120);
+  const cacheName = lang === "en" ? mirrorName : name;
+
   // Two cards can share a name and number and differ only in set total, so the
   // whole printed fraction goes into the cache key. The limit goes in too when
   // it isn't the default — otherwise a scan's 24-card answer would be served
@@ -328,7 +351,7 @@ export async function GET(req: NextRequest) {
 
   // A fresh local hit skips the network entirely — which also means rescanning
   // the same card twice never depends on the upstream being up.
-  const fresh = await getCachedCards(lang, name, cacheNumber, false);
+  const fresh = await getCachedCards(lang, cacheName, cacheNumber, false);
   if (fresh) {
     return NextResponse.json({ cards: await flagged(fresh.cards), matchedOn, cached: true });
   }
@@ -336,9 +359,9 @@ export async function GET(req: NextRequest) {
   // than a multi-second wait, so the stale row is served now and refreshed in
   // the background. (CJK lookups keep the old path — their source differs.)
   if (lang === "en") {
-    const stale = await getCachedCards(lang, name, cacheNumber, true);
+    const stale = await getCachedCards(lang, cacheName, cacheNumber, true);
     if (stale) {
-      after(() => refreshEnglishCache(lang, name, cacheNumber, printed, limit, art));
+      after(() => refreshEnglishCache(lang, cacheName, cacheNumber, printed, limit, art, name));
       return NextResponse.json({ cards: await flagged(stale.cards), matchedOn, cached: true, stale: true });
     }
   }
@@ -346,7 +369,7 @@ export async function GET(req: NextRequest) {
   try {
     if (lang === "ja" || lang === "zh") {
       const cards = await searchCjk(lang, name, number);
-      await putCachedCards(lang, name, cacheNumber, cards);
+      await putCachedCards(lang, cacheName, cacheNumber, cards);
       return NextResponse.json({ cards, matchedOn });
     }
 
@@ -354,7 +377,7 @@ export async function GET(req: NextRequest) {
     // outage can no longer fail a scan. Prices are layered on afterwards and
     // are allowed to fail on their own.
     if (await hasEnglishMirror()) {
-      const local = await searchEnglishCardsLocal(name, printed, limit, art, firstEdition);
+      const local = await searchMirror(mirrorName, name, printed, limit, art, firstEdition);
       if (local.cards.length > 0) {
         // enrichWithPricing never rejects (it returns the cards unpriced on
         // upstream failure), so racing it against the budget is safe.
@@ -369,7 +392,7 @@ export async function GET(req: NextRequest) {
         // and there's nothing to gain by it — identification already comes
         // from the local mirror, which is instant either way.
         if (priced) {
-          if (hasMarketPrice(priced)) await putCachedCards(lang, name, cacheNumber, priced);
+          if (hasMarketPrice(priced)) await putCachedCards(lang, cacheName, cacheNumber, priced);
           return NextResponse.json({ cards: await flagged(priced), matchedOn, source: "local" });
         }
 
@@ -377,7 +400,7 @@ export async function GET(req: NextRequest) {
         // the cache when it finishes, so the next lookup of this card is warm.
         after(async () => {
           const cards = await pricing;
-          if (hasMarketPrice(cards)) await putCachedCards(lang, name, cacheNumber, cards);
+          if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
         });
         // Last held price meanwhile (09-10): a tile logged from a pending
         // answer was showing "—" in Recent lookups for good.
@@ -404,7 +427,7 @@ export async function GET(req: NextRequest) {
       );
       if (narrowed.length > 0) {
         const cards = rank(narrowed, name, number).map(mapCard);
-        await putCachedCards(lang, name, cacheNumber, cards);
+        await putCachedCards(lang, cacheName, cacheNumber, cards);
         return NextResponse.json({ cards, matchedOn });
       }
     }
@@ -415,7 +438,7 @@ export async function GET(req: NextRequest) {
     // back as "Mega Charizard Y ex". Fetch the field, then rank it ourselves.
     const results = await queryCards(`name:*${name}*`, 250);
     const cards = rank(results, name, number).map(mapCard).slice(0, limit);
-    await putCachedCards(lang, name, cacheNumber, cards);
+    await putCachedCards(lang, cacheName, cacheNumber, cards);
     return NextResponse.json({ cards, matchedOn: "name" });
   } catch (err) {
     // The mirror is the source of truth for English identification; the
@@ -434,7 +457,7 @@ export async function GET(req: NextRequest) {
     }
     // Upstream is down. A stale copy is a far better answer than losing the
     // scan — names, sets and numbers don't change, only prices drift.
-    const stale = await getCachedCards(lang, name, cacheNumber, true);
+    const stale = await getCachedCards(lang, cacheName, cacheNumber, true);
     if (stale) {
       return NextResponse.json({
         cards: await flagged(stale.cards),

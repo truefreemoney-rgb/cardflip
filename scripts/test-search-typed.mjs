@@ -31,6 +31,19 @@ const cases = [
   ["onepiece", "P-117", { game: "onepiece", name: "", number: "P-117" }],
   ["yugioh", "Dark Magician", { game: "yugioh", name: "Dark Magician", number: null }],
   ["yugioh", "dark magician lob-en005", { game: "yugioh", name: "dark magician", number: "LOB-EN005" }],
+  // 10-01 typed-search check (scripts/typed-search-check.mjs): numbers typed without the dash,
+  // lettered Pokémon numbers, a Magic set code with no name.
+  ["onepiece", "OP01041", { game: "onepiece", name: "", number: "OP01-041" }],
+  ["onepiece", "nami p117", { game: "onepiece", name: "nami", number: "P-117" }],
+  ["yugioh", "LOBEN005", { game: "yugioh", name: "", number: "LOB-EN005" }],
+  ["yugioh", "lob005", { game: "yugioh", name: "", number: "LOB-005" }],
+  ["yugioh", "FLODEN055", { game: "yugioh", name: "", number: "FLOD-EN055" }],
+  ["yugioh", "Red-Eyes Wyvern ANPR-ENSE2", { game: "yugioh", name: "Red-Eyes Wyvern", number: "ANPR-ENSE2" }],
+  ["pokemon", "Nidoking H18", { game: null, name: "Nidoking", number: "H18" }],
+  ["pokemon", "Falinks V SV115", { game: null, name: "Falinks V", number: "SV115" }],
+  ["pokemon", "Jolteon-EX 28a", { game: null, name: "Jolteon-EX", number: "28a" }],
+  ["mtg", "BLB 280", { game: "mtg", name: "", number: "280", setCode: "blb" }],
+  ["mtg", "Cavern of Souls PUMA U32", { game: "mtg", name: "Cavern of Souls", number: "u32", setCode: "puma" }],
 ];
 for (const [game, query, want] of cases) {
   seen.length = 0;
@@ -40,6 +53,7 @@ for (const [game, query, want] of cases) {
   assert.equal(p.get("game"), want.game, `${game} "${query}" game param`);
   assert.equal(p.get("name"), want.name, `${game} "${query}" name`);
   assert.equal(p.get("number"), want.number, `${game} "${query}" number`);
+  if (want.setCode) assert.equal(p.get("setCode"), want.setCode, `${game} "${query}" set code`);
   // "luffy" must reach Monkey.D.Luffy: the server's anywhere-in-the-name match.
   if (game !== "pokemon") assert.equal(p.get("typed"), "1", `${game} "${query}" typed flag`);
 }

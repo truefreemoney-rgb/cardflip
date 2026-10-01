@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { queryCards, mapCard, type RawTcgCard } from "@/lib/tcg";
 import {
   agreesWithSetCode,
@@ -278,6 +279,23 @@ export async function searchEnglishCardsLocal(
       .slice(0, 400);
   }
 
+  // Still nothing: the punctuation or the accent was left out ("ashs
+  // pikachu", "poke ball", "mr mime"). A full walk, so it runs last.
+  const looseExact = new Set<string>();
+  const loose = squash(needle);
+  if (rows.length === 0 && loose.length >= LOOSE_MIN) {
+    rows = ((await db
+      .prepare(
+        `SELECT ${CARD_COLUMNS}
+           FROM en_cards
+          WHERE ${squashSql("name")} LIKE ?
+          ORDER BY set_release_date DESC
+          LIMIT 400`,
+      )
+      .all(`%${looseLike(loose)}%`)) as unknown as EnCardRow[]).filter((r) => squash(r.name).includes(loose));
+    for (const r of rows) if (squash(r.name) === loose) looseExact.add(r.id);
+  }
+
   // The name was misread badly enough to match nothing. The fraction doesn't
   // depend on having read the name, so it can still identify the card.
   if (rows.length === 0) {
@@ -300,7 +318,7 @@ export async function searchEnglishCardsLocal(
 
   const score = (row: EnCardRow): number => {
     const rowName = normalizeName(row.name);
-    const exactName = rowName === needle || (needles.includes(rowName) && !setsWithFullName.has(row.set_name));
+    const exactName = rowName === needle || (needles.includes(rowName) && !setsWithFullName.has(row.set_name)) || looseExact.has(row.id);
     // Lettered sub-series (RC1/RC25, TG01/TG30, SH1/SH12, GG16/GG70) print
     // their own denominator, not the set's official count, so a read total
     // that disagrees with the set count is expected there, not a contradiction

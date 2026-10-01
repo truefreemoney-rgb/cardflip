@@ -1,4 +1,4 @@
-# Typed search: bugs found 10-01 and the fix plan (session 84, NOT shipped yet)
+# Typed search: bugs found 10-01 and the fix plan (SHIPPED 10-01, session 85: all four steps; `npm run search:typed -- --per 150` = 0 misses)
 
 Chris 10-01 ~6:15pm ET: "check the search and watchlist features for similar bugs to nami or any bugs at all, for all games; any change to the search in Search Cards should also affect the Watchlist search and vice versa."
 

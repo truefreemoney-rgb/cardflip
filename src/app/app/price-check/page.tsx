@@ -1,17 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Spinner from "@/components/Spinner";
 import { confirmAction } from "@/components/ConfirmDialog";
 import CardImage from "@/components/CardImage";
 import CardTile from "@/components/CardTile";
-import SetBrowser from "@/components/SetBrowser";
+import { CardSearchBox, CardSearchResults, useCardSearch } from "@/components/CardSearch";
 import CardDetailModal from "@/components/CardDetailModal";
-import GameToggle from "@/components/GameToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
-import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
+import { fetchCardById, searchCards } from "@/lib/cards";
+import { displayCardNumber } from "@/lib/games";
 import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import {
@@ -22,7 +21,7 @@ import {
   type PriceCheckEntry,
 } from "@/lib/client/priceChecksApi";
 import { toast } from "@/components/Toaster";
-import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import type { PokemonCard, ScanLanguage } from "@/lib/types";
 import { etDateTime } from "@/lib/time";
 
 /** "Sep 30, 6:22 AM ET" — Eastern for every viewer (Chris 09-30). */
@@ -30,51 +29,14 @@ function formatDate(ts: number): string {
   return etDateTime(ts);
 }
 
-type Mode = "search" | "browse";
 type SearchView = "grid" | "list";
 const VIEW_KEY = "cardflip.searchView";
-
-type SortKey = "set" | "price-desc" | "price-asc" | "name" | "rarity";
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: "set", label: "Set order" },
-  { value: "price-desc", label: "Price: high to low" },
-  { value: "price-asc", label: "Price: low to high" },
-  { value: "rarity", label: "Rarity" },
-  { value: "name", label: "Name A–Z" },
-];
-
-/** Rarity rank, higher = rarer. MTG names are Scryfall's; the Pokémon
- *  mirror carries no rarity, so a numerator past the set total (secret /
- *  ultra tier) is the only signal there. */
-function rarityRank(card: PokemonCard): number {
-  const r = (card.rarity ?? "").toLowerCase();
-  if (r) {
-    if (r.includes("mythic")) return 5;
-    if (r.includes("special") || r.includes("bonus")) return 4;
-    if (r.includes("rare")) return 3;
-    if (r.includes("uncommon")) return 2;
-    if (r.includes("common")) return 1;
-  }
-  return card.isSecretRare ? 4 : 0;
-}
-// A card whose market the price guard flags sorts as unpriced (lib/priceFlag.ts).
-const marketOf = (card: PokemonCard): number => (priceFlagOf(card) ? -1 : (pickPrice(card)?.market ?? -1));
-function sortCards(cards: PokemonCard[], sort: SortKey): PokemonCard[] {
-  if (sort === "set") return cards;
-  const out = [...cards];
-  switch (sort) {
-    case "price-desc": out.sort((a, b) => marketOf(b) - marketOf(a)); break;
-    case "price-asc": out.sort((a, b) => (marketOf(a) < 0 ? 1 : marketOf(b) < 0 ? -1 : marketOf(a) - marketOf(b))); break;
-    case "name": out.sort((a, b) => a.name.localeCompare(b.name)); break;
-    case "rarity": out.sort((a, b) => rarityRank(b) - rarityRank(a) || marketOf(b) - marketOf(a)); break;
-  }
-  return out;
-}
 
 /**
  * Search cards (09-03 makeover, Chris): two ways in — type a name or
  * number, or pick a set from a dropdown and see every card in it. Both
- * land in the same grid, and a tile opens the same price modal.
+ * land in the same grid, and a tile opens the same price modal. The search
+ * itself is shared with the Watchlist (components/CardSearch).
  */
 export default function PriceCheckPage() {
   const { user } = useSession();
@@ -82,32 +44,14 @@ export default function PriceCheckPage() {
   // English-only for now — the ja/zh pipeline underneath still works;
   // restoring <LanguageToggle> here re-enables it.
   const language: ScanLanguage = "en";
-  // Same per-browser game choice as the scanner.
-  const [game, setGameState] = useState<GameId>(readSavedGame);
-  function setGame(next: GameId) {
-    setGameState(next);
-    setResults([]);
-    setResultsTitle(null);
-    setSelected(null);
-    saveGame(next);
-  }
-  const [mode, setMode] = useState<Mode>("search");
-  const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [results, setResults] = useState<PokemonCard[]>([]);
-  // What the grid is showing: "184 results for Charizard" / "All 182 cards in Destined Rivals".
-  const [resultsTitle, setResultsTitle] = useState<string | null>(null);
   const [selected, setSelected] = useState<PokemonCard | null>(null);
+  const search = useCardSearch(language, () => setSelected(null));
+  const { game, mode } = search;
+  const setSearchError = search.setError;
   // The modal is open on what the history row knows while the catalog row
   // (current prices) is still on its way.
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [logging, setLogging] = useState(false);
-  // Sort + in-grid filter (Chris, 09-03: "some sort options here, like
-  // rarity, price high to low"). Client-side — the set is already loaded.
-  const [sort, setSort] = useState<SortKey>("set");
-  const [gridQuery, setGridQuery] = useState("");
-
 
   const [history, setHistory] = useState<PriceCheckEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -133,9 +77,6 @@ export default function PriceCheckPage() {
   }
   // History row whose card is being re-fetched after a click.
   const [openingId, setOpeningId] = useState<string | null>(null);
-  // Search sequence: a slow older response must not overwrite a newer one
-  // (fire two searches fast and the first can land last).
-  const searchSeq = useRef(0);
 
   const loadHistory = useCallback(() => {
     fetchPriceCheckHistory()
@@ -153,44 +94,6 @@ export default function PriceCheckPage() {
     if (!userId) return;
     loadHistory();
   }, [userId, loadHistory]);
-
-  async function handleSearch() {
-    if (!query.trim()) return;
-    const seq = ++searchSeq.current;
-    setSearching(true);
-    setSearchError(null);
-    setSelected(null);
-    try {
-      // Sellers type what's printed on the card they're holding — "Charizard
-      // 4/102". Splitting the fraction out makes that the most precise query
-      // the lookup can take, instead of a name that matches nothing.
-      // Every printing, not the scanner's top-24; a typed number shows only
-      // the card it names.
-      const found = (await searchTyped(query, game, language)) ?? [];
-      if (seq !== searchSeq.current) return;
-      setResults(found);
-      setResultsTitle(
-        found.length > 0
-          ? `${found.length} result${found.length === 1 ? "" : "s"} for “${query.trim()}”`
-          : null,
-      );
-      if (found.length === 0) setSearchError("No cards matched that search.");
-    } catch {
-      if (seq !== searchSeq.current) return;
-      setSearchError("Search failed — check your connection.");
-    } finally {
-      if (seq === searchSeq.current) setSearching(false);
-    }
-  }
-
-  function clearResults() {
-    setGridQuery("");
-    setResults([]);
-    setResultsTitle(null);
-    setSelected(null);
-    setSearchError(null);
-    setQuery("");
-  }
 
   async function selectCard(card: PokemonCard) {
     setSelected(card);
@@ -292,16 +195,6 @@ export default function PriceCheckPage() {
     toast("Lookup history cleared");
   }
 
-  const gridNeedle = gridQuery.trim().toLowerCase();
-  const shown = sortCards(
-    gridNeedle
-      ? results.filter((c) =>
-          `${c.name} ${c.englishName ?? ""} ${c.number} ${c.rarity ?? ""} ${c.setName}`.toLowerCase().includes(gridNeedle),
-        )
-      : results,
-    sort,
-  );
-
   const visibleHistory = historyQuery.trim()
     ? history.filter((entry) =>
         `${entry.cardName} ${entry.setName} ${entry.cardNumber}`
@@ -311,21 +204,6 @@ export default function PriceCheckPage() {
     : history;
 
   if (!user) return <PageSkeleton />;
-
-  const modePill = (value: Mode, label: string) => (
-    <button
-      type="button"
-      onClick={() => {
-        setMode(value);
-        setSearchError(null);
-      }}
-      className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-        mode === value ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
-      }`}
-    >
-      {label}
-    </button>
-  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
@@ -338,102 +216,16 @@ export default function PriceCheckPage() {
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <GameToggle game={game} onChange={setGame} compact />
-          <div className="flex items-center gap-1 rounded-full border border-edge bg-black/30 p-1">
-            {modePill("search", "By name")}
-            {modePill("browse", "By set")}
-          </div>
-        </div>
-
-        {mode === "search" ? (
-          <div className="flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder={`Name or number — ${GAMES[game].searchPlaceholder}`}
-              className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={searching}
-              className="flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
-            >
-              {searching && <Spinner className="h-4 w-4" />}
-              Search
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {/* Shared with Watchlist (components/SetBrowser). */}
-            <SetBrowser
-              key={game}
-              game={game}
-              onBusy={setSearching}
-              onError={setSearchError}
-              onResults={(cards, title) => {
-                ++searchSeq.current;
-                setSelected(null);
-                setResults(cards);
-                setResultsTitle(title);
-              }}
-            />
-            <p className="text-[11px] text-zinc-600">
-              Newest sets first. Every card in the set, in printed order, with the latest price we hold.
-            </p>
-          </div>
-        )}
-        {searchError && <p className="text-xs text-red-400">{searchError}</p>}
+        <CardSearchBox
+          search={search}
+          hint={mode === "browse" ? "Newest sets first. Every card in the set, in printed order, with the latest price we hold." : undefined}
+        />
       </div>
 
-      {results.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-zinc-400">
-              <span className="font-medium text-zinc-200">{resultsTitle}</span>
-              {gridNeedle ? (
-                <span className="text-zinc-600"> · showing {shown.length}</span>
-              ) : (
-                <span className="text-zinc-600"> · tap a card for its prices</span>
-              )}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                value={gridQuery}
-                onChange={(e) => setGridQuery(e.target.value)}
-                placeholder="Filter these cards…"
-                aria-label="Filter the cards shown"
-                className="w-40 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-              />
-              <div className="relative">
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortKey)}
-                  aria-label="Sort cards"
-                  className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
-                >
-                  {SORTS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">▾</span>
-              </div>
-              <button
-                onClick={clearResults}
-                className="shrink-0 rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
-              >
-                ✕ Clear
-              </button>
-            </div>
-          </div>
-          {shown.length === 0 && (
-            <p className="rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center text-sm text-zinc-500">
-              Nothing matches that filter.
-            </p>
-          )}
-          {/* The Watchlist's card tile (components/CardTile) — Chris, 09-04:
-              "I love the card view, push that into Search cards". */}
+      <CardSearchResults search={search} hint="tap a card for its prices">
+        {(shown) => (
+          /* The Watchlist's card tile (components/CardTile) — Chris, 09-04:
+             "I love the card view, push that into Search cards". */
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {shown.map((card) => {
               const price = pickPrice(card);
@@ -455,8 +247,8 @@ export default function PriceCheckPage() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </CardSearchResults>
 
       {selected && (
         <CardDetailModal

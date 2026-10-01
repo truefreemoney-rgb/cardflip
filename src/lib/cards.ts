@@ -4,6 +4,7 @@ import type { ArtStyle, GameId, MtgCues, PokemonCard, ScanLanguage } from "@/lib
 import { mtgCuesToParams } from "@/lib/mtgCues";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { parseMtgQuery } from "@/lib/games";
+import { yugiohKey } from "@/lib/yugioh";
 
 /**
  * `printed` carries the whole fraction, not just the collector number. The set
@@ -124,9 +125,29 @@ export async function searchCards(
   return data.cards ?? [];
 }
 
-const CODE_TOKEN = /^[A-Z0-9]{2,6}-[A-Z]{0,3}\d{1,4}[A-Z]?$/i;
+// (Four letters before the digits: Yu-Gi-Oh's special editions print "TDGS-ENSE2".)
+const CODE_TOKEN = /^[A-Z0-9]{2,6}-[A-Z]{0,4}\d{1,4}[A-Z]?$/i;
 const OP_PROMO_TOKEN = /^P-\d{1,3}$/i;
 const bareNumber = (n: string) => n.replace(/^0+(?=\d)/, "").toLowerCase();
+
+/**
+ * A card number typed without its dash (10-01): One Piece "OP01041" →
+ * "OP01-041" and "P117" → "P-117"; Yu-Gi-Oh "LOBEN005" → "LOB-EN005" and
+ * "LOB005" → "LOB-005". The part before the dash must hold a letter, and no
+ * card name ends in three digits, so a name word is never touched.
+ */
+function withDash(token: string, game: GameId): string {
+  if (token.includes("-")) return token;
+  if (game === "onepiece") {
+    const m = /^([A-Z]{1,4}\d{2})(\d{3})$/i.exec(token) ?? /^(P)(\d{3})$/i.exec(token);
+    return m ? `${m[1]}-${m[2]}` : token;
+  }
+  const m =
+    /^([A-Z0-9]{2,5}?)(EN[A-Z]{0,2}\d{1,3})$/i.exec(token) ??
+    /^([A-Z0-9]{2,5}?)((?:DE|FR|IT|SP|PT)\d{3})$/i.exec(token) ??
+    /^([A-Z0-9]{2,5})(\d{3})$/i.exec(token);
+  return m && /[A-Z]/i.test(m[1]) ? `${m[1]}-${m[2]}` : token;
+}
 
 /**
  * What a seller types in a search box ("Charizard 4/102", "Lightning Bolt
@@ -144,25 +165,52 @@ export async function searchTyped(
   { limit = 200, exact = true }: { limit?: number; exact?: boolean } = {},
 ): Promise<PokemonCard[] | null> {
   if (game === "mtg") {
-    const { name, number, setCode } = parseMtgQuery(query);
-    if (!name && !(number && setCode)) return null;
-    const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
-    const found = await searchCards(name, printed, lang, limit, "mtg", null, false, null, null, true);
-    if (!exact || !number) return found;
-    const hit = found.filter((c) => bareNumber(c.number) === bareNumber(number));
-    return hit.length > 0 ? hit : found;
+    const run = async (parsed: ReturnType<typeof parseMtgQuery>) => {
+      const { name, number, setCode } = parsed;
+      if (!name && !(number && setCode)) return null;
+      const printed = number || setCode ? { number: number ?? "", setTotal: null, setCode, isSecretRare: false } : null;
+      const found = await searchCards(name, printed, lang, limit, "mtg", null, false, null, null, true);
+      const hit = number ? found.filter((c) => bareNumber(c.number) === bareNumber(number)) : found;
+      // `sure`: something came back and, when a number was typed, a card carries it.
+      return { cards: exact && hit.length > 0 ? hit : found, sure: hit.length > 0 };
+    };
+    // Set codes are printed in capitals; typed in lowercase ("forest blb 280",
+    // "vow 24") they read as part of the name, so that reading is the second
+    // try, taken when the first found nothing or no card with the typed number.
+    const strict = parseMtgQuery(query);
+    const first = await run(strict);
+    let fallback = first?.cards ?? null;
+    const tried = new Set([JSON.stringify(strict)]);
+    for (const parsed of [parseMtgQuery(query, true, true), parseMtgQuery(query, true)]) {
+      const key = JSON.stringify(parsed);
+      if (tried.has(key)) continue;
+      tried.add(key);
+      // "bot 24" is a card named Bot with the number 24, or set BOT number
+      // 24: a reading with no name left is one exact printing, and it leads.
+      const onePrinting = !parsed.name && Boolean(parsed.number && parsed.setCode);
+      if (first?.sure && !onePrinting) break;
+      const next = await run(parsed);
+      if (next && (!fallback || fallback.length === 0)) fallback = next.cards;
+      if (!next?.sure) continue;
+      if (!first?.sure) return next.cards;
+      const have = new Set(next.cards.map((c) => c.id));
+      return [...next.cards, ...first.cards.filter((c) => !have.has(c.id))];
+    }
+    return fallback;
   }
   if (game === "onepiece" || game === "yugioh") {
     // One Piece promos print a one-letter code ("P-117"), too short for CODE_TOKEN
     // (10-01: "nami p-117" was searched as a name and found nothing).
     const isCode = (t: string) => CODE_TOKEN.test(t) || (game === "onepiece" && OP_PROMO_TOKEN.test(t));
-    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    const tokens = query.trim().split(/\s+/).filter(Boolean).map((t) => withDash(t, game));
     const code = tokens.find(isCode)?.toUpperCase() ?? null;
     const name = tokens.filter((t) => !isCode(t)).join(" ");
     if (!name && !code) return null;
     const found = await searchCards(name, code, lang, limit, game, null, false, null, null, true);
     if (!exact || !code) return found;
-    const hit = found.filter((c) => c.number.toUpperCase() === code);
+    // Yu-Gi-Oh: "LOB-005" names the card printed "LOB-EN005".
+    const same = (n: string) => n.toUpperCase() === code || (game === "yugioh" && yugiohKey(n) !== null && yugiohKey(n) === yugiohKey(code));
+    const hit = found.filter((c) => same(c.number));
     return hit.length > 0 ? hit : found;
   }
   const { name, printed } = parseCardQuery(query);
@@ -170,6 +218,11 @@ export async function searchTyped(
   const found = await searchCards(name, printed, lang, limit, game, null, false, null, null, true);
   if (!exact) return found;
   const hit = filterByPrintedNumber(found, printed);
+  // A lettered last word read as a number that names nothing: it was part of the name.
+  if (hit.length === 0 && printed && !printed.setTotal && /[A-Za-z]/.test(printed.number)) {
+    const whole = await searchCards(query.trim(), null, lang, limit, game, null, false, null, null, true);
+    if (whole.length > 0) return whole;
+  }
   // Lorcana's catalogue totals differ from the printed one on promos — never
   // turn a real name hit into "no cards" over the denominator.
   return game === "lorcana" && hit.length === 0 ? found : hit;

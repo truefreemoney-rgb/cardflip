@@ -66,6 +66,18 @@ check("number then code", parseMtgQuery("Ragavan 138 MH2"), { name: "Ragavan", n
 check("plain name keeps short capitalized words", parseMtgQuery("Fury Sliver"), { name: "Fury Sliver", number: null, setCode: null });
 check("comma name", parseMtgQuery("Ragavan, Nimble Pilferer"), { name: "Ragavan Nimble Pilferer", number: null, setCode: null });
 check("suffix letter number", parseMtgQuery("Brothers' War 12a BRO"), { name: "Brothers' War", number: "12a", setCode: "bro" });
+// 10-01 typed-search check: set codes that start with a digit, a set + number with no name,
+// List numbers, and the lowercase second reading.
+check("set code starting with a digit", parseMtgQuery("Forest 2ED 302"), { name: "Forest", number: "302", setCode: "2ed" });
+check("number-like set code after the number", parseMtgQuery("Forest 380 10E"), { name: "Forest", number: "380", setCode: "10e" });
+check("set + number, no name", parseMtgQuery("BLB 280"), { name: "", number: "280", setCode: "blb" });
+check("List number", parseMtgQuery("Ponder PLST 2XM-77"), { name: "Ponder", number: "2xm-77", setCode: "plst" });
+check("lowercase code stays in the name (strict)", parseMtgQuery("forest blb 280"), { name: "forest blb", number: "280", setCode: null });
+check("lowercase code (loose)", parseMtgQuery("forest blb 280", true), { name: "forest", number: "280", setCode: "blb" });
+check("lowercase set + number (loose)", parseMtgQuery("vow 24", true), { name: "", number: "24", setCode: "vow" });
+check("lettered promo number", parseMtgQuery("Cavern of Souls PUMA U32"), { name: "Cavern of Souls", number: "u32", setCode: "puma" });
+check("a set code is not a lettered number", parseMtgQuery("Sol Ring C21"), { name: "Sol Ring", number: null, setCode: "c21" });
+check("a number alone is a name", parseMtgQuery("151"), { name: "151", number: null, setCode: null });
 
 console.log("display + registry");
 check("displayCardNumber mtg", displayCardNumber(bolt), "LTR 187");

@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CardImage from "@/components/CardImage";
 import CardDetailModal from "@/components/CardDetailModal";
 import Spinner from "@/components/Spinner";
-import GameToggle from "@/components/GameToggle";
+import { CardSearchBox, CardSearchResults, useCardSearch } from "@/components/CardSearch";
 import PriceSparkline from "@/components/PriceSparkline";
-import SetBrowser from "@/components/SetBrowser";
 import { toast } from "@/components/Toaster";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
@@ -18,13 +17,13 @@ import {
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
-import { fetchCardById, searchCards, searchTyped } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
-import { GAMES, displayCardNumber, readSavedGame, saveGame } from "@/lib/games";
-import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+import { displayCardNumber } from "@/lib/games";
+import type { PokemonCard, ScanLanguage } from "@/lib/types";
 import { etDate } from "@/lib/time";
 
 const LANGUAGE_LABEL: Record<string, string> = {
@@ -283,34 +282,15 @@ export default function WishlistPage() {
   // English-only for now — the ja/zh pipeline underneath still works;
   // restoring <LanguageToggle> here re-enables it.
   const addLanguage: ScanLanguage = "en";
-  // Same per-browser game choice as the scanner.
-  const [game, setGameState] = useState<GameId>(readSavedGame);
-  function setGame(next: GameId) {
-    setGameState(next);
-    setResults([]);
-    saveGame(next);
-  }
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState<"search" | "identify" | null>(null);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [results, setResults] = useState<PokemonCard[]>([]);
-  // Sorting the search results (Chris 09-26: 172 Pikachus need an order).
-  const [resultSort, setResultSort] = useState<"match" | "price-high" | "price-low" | "set">("match");
-  const sortedResults = useMemo(() => {
-    if (resultSort === "match") return results;
-    const priceOf = (c: PokemonCard) => (priceFlagOf(c) ? null : (pickPrice(c)?.market ?? null));
-    const sorted = [...results];
-    if (resultSort === "price-high") sorted.sort((a, b) => (priceOf(b) ?? -1) - (priceOf(a) ?? -1));
-    else if (resultSort === "price-low") sorted.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
-    else sorted.sort((a, b) => a.setName.localeCompare(b.setName) || a.number.localeCompare(b.number, undefined, { numeric: true }));
-    return sorted;
-  }, [results, resultSort]);
-  // Add by name/photo, or open a whole set (Search cards' set browser,
-  // shared — Chris, 09-04: "push that set view into watchlist").
-  const [addMode, setAddMode] = useState<"search" | "browse">("search");
+  // The same search as Search Cards (components/CardSearch): game, By Name /
+  // By Set, filter and sort. A photo is this page's own extra way in.
   // Vision may identify a dropped image as a different language than the
   // toggle, so the save has to use what the results actually are.
   const [resultsLanguage, setResultsLanguage] = useState<ScanLanguage>("en");
+  const search = useCardSearch(addLanguage, () => setResultsLanguage(addLanguage));
+  const { game } = search;
+  const [identifying, setIdentifying] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -399,35 +379,17 @@ export default function WishlistPage() {
     });
   }
 
-  async function handleSearch() {
-    if (!query.trim() || busy) return;
-    setBusy("search");
-    setAddError(null);
-    setResults([]);
-    try {
-      // Every printing — someone hunting a card wants to see all of them.
-      // Unless they typed a number: then only the card it names.
-      const found = (await searchTyped(query, game, addLanguage)) ?? [];
-      setResults(found);
-      setResultsLanguage(addLanguage);
-      if (found.length === 0) setAddError("No cards matched that search.");
-    } catch {
-      setAddError("Search failed — check your connection.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function handleImage(file: File | undefined) {
-    if (!file || !file.type.startsWith("image/") || busy) return;
-    setBusy("identify");
+    if (!file || !file.type.startsWith("image/") || identifying || search.searching) return;
+    setIdentifying(true);
     setAddError(null);
-    setResults([]);
+    search.setError(null);
+    search.show([], null);
     const outcome = await identifyCardImage(file, addLanguage, game);
-    setResults(outcome.cards);
+    search.show(outcome.cards, `${outcome.cards.length} result${outcome.cards.length === 1 ? "" : "s"} from your photo`);
     setResultsLanguage(outcome.language);
     setAddError(outcome.error);
-    setBusy(null);
+    setIdentifying(false);
   }
 
   async function handleAdd(card: PokemonCard) {
@@ -568,84 +530,43 @@ export default function WishlistPage() {
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <GameToggle game={game} onChange={setGame} compact />
-          <div className="flex items-center gap-1 rounded-full border border-edge bg-black/30 p-1">
-            {(["search", "browse"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setAddMode(m);
-                  setAddError(null);
-                }}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  addMode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {m === "search" ? "By Name" : "By Set"}
-              </button>
-            ))}
-          </div>
-        </div>
-        {addMode === "browse" ? (
-          <SetBrowser
-            key={game}
-            game={game}
-            onError={setAddError}
-            onResults={(cards) => setResults(cards)}
-          />
-        ) : (
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragActive(true);
+        <CardSearchBox
+          search={search}
+          disabled={identifying}
+          hint={search.mode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name, or from a photo — no need to have it in hand."}
+          rowProps={{
+            onDragOver: (e) => {
+              e.preventDefault();
+              setDragActive(true);
+            },
+            onDragLeave: () => setDragActive(false),
+            onDrop: (e) => {
+              e.preventDefault();
+              setDragActive(false);
+              void handleImage(e.dataTransfer.files?.[0]);
+            },
           }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragActive(false);
-            void handleImage(e.dataTransfer.files?.[0]);
-          }}
-          className="flex flex-col gap-2 sm:flex-row"
-        >
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder={`Name or number — ${GAMES[game].searchPlaceholder}`}
-            className="flex-1 rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSearch}
-              disabled={busy !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60 sm:flex-none"
-            >
-              {busy === "search" && <Spinner className="h-4 w-4" />}
-              Search
-            </button>
-            {/* Doubles as the drop target on desktop (Chris, 09-01: no dashed zone). */}
+          extra={
+            /* Doubles as the drop target on desktop (Chris, 09-01: no dashed zone). */
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={busy === "identify"}
+              disabled={identifying || search.searching}
               className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:opacity-70 sm:flex-none ${
                 dragActive
                   ? "border-brand-300 bg-brand-500/20 text-white"
                   : "border-edge text-zinc-200 hover:border-edge-strong"
               }`}
             >
-              {busy === "identify" ? (
+              {identifying ? (
                 <>
                   <Spinner className="h-4 w-4" /> Identifying…
                 </>
               ) : (
-                "From a photo"
+                "From a Photo"
               )}
             </button>
-          </div>
-        </div>
-        )}
+          }
+        />
         <input
           ref={fileInputRef}
           type="file"
@@ -657,49 +578,12 @@ export default function WishlistPage() {
           }}
         />
 
-        <p className="text-xs text-zinc-600">
-          {addMode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name, or from a photo — no need to have it in hand."}
-        </p>
         {addError && <p className="text-xs text-red-400">{addError}</p>}
 
-        {results.length > 0 && (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-zinc-400">
-                <span className="font-medium text-zinc-200">
-                  {results.length} result{results.length === 1 ? "" : "s"}
-                </span>
-                <span className="text-zinc-600"> · tap one to add it</span>
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <select
-                    value={resultSort}
-                    onChange={(e) => setResultSort(e.target.value as typeof resultSort)}
-                    aria-label="Sort results"
-                    className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
-                  >
-                    <option value="match">Best match</option>
-                    <option value="price-high">Price: high to low</option>
-                    <option value="price-low">Price: low to high</option>
-                    <option value="set">Set A–Z</option>
-                  </select>
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">▾</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setResults([]);
-                    setAddError(null);
-                    setQuery("");
-                  }}
-                  className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
-                >
-                  ✕ Close results
-                </button>
-              </div>
-            </div>
+        <CardSearchResults search={search} hint="tap one to add it">
+          {(shown) => (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-              {sortedResults.map((card) => {
+              {shown.map((card) => {
                 const added = addedIds.has(card.id);
                 const flagged = priceFlagOf(card) != null;
                 const price = flagged ? null : (pickPrice(card)?.market ?? null);
@@ -740,8 +624,8 @@ export default function WishlistPage() {
                 );
               })}
             </div>
-          </>
-        )}
+          )}
+        </CardSearchResults>
       </div>
 
       {loading ? (
