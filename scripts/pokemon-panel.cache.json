@@ -3156,5 +3156,28 @@
   "confidence": 0.85,
   "kind": "card",
   "firstEdition": null
+ },
+ "sv10.5w-150": {
+  "cardGame": "pokemon",
+  "name": "Durant",
+  "englishName": null,
+  "setName": "White Flare",
+  "cardNumber": "150",
+  "setTotal": 86,
+  "setCode": "WHT",
+  "artStyle": "full-art",
+  "language": "en",
+  "condition": null,
+  "conditionNotes": null,
+  "corners": null,
+  "edges": null,
+  "surface": null,
+  "confidence": 0.75,
+  "kind": "card",
+  "slab": false,
+  "firstEdition": null,
+  "copyrightYear": 2025,
+  "game": "pokemon",
+  "detectedGame": "pokemon"
  }
 }
