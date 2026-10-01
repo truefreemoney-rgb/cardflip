@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { findUserByEmail, setTotpBackupCodes, toPublicUser, totpEnabled } from "@/lib/server/users";
 import { hashBackupCode, verifyTotp } from "@/lib/server/totp";
-import { verifyPassword } from "@/lib/server/password";
+import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
+
+let dummy: string | null = null;
+/** A real scrypt hash of nothing anyone types, made once per instance. */
+function dummyHash(): string {
+  dummy ??= hashPassword(`no-account-${Math.random()}`);
+  return dummy;
+}
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
@@ -20,7 +27,8 @@ export async function POST(req: Request) {
 
   // Dev/test convenience (Chris, 08-26): typing just "admin" signs into the
   // admin account without the email dance. Any other input is an email.
-  if (email.toLowerCase() === "admin") email = "admin@cardflip.dev";
+  // Never on the live site (10-01 sweep): that account skips two-step and is unlimited.
+  if (email.toLowerCase() === "admin" && process.env.VERCEL_ENV !== "production") email = "admin@cardflip.dev";
 
   // Per-account lockout on top of the IP one: rotating IPs against a single
   // email still stops at 10 tries per 15 minutes.
@@ -33,6 +41,8 @@ export async function POST(req: Request) {
 
   // Same message whether the email is unknown or the password is wrong, so
   // a login attempt can't be used to enumerate registered accounts.
+  // An unknown email still pays for one hash (10-01 sweep): skipping scrypt made it answer measurably faster.
+  if (!user) verifyPassword(password, dummyHash());
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json(
       { error: "Incorrect email or password." },

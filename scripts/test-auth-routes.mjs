@@ -148,6 +148,9 @@ check("login: cookie is httpOnly", good.cookies.get(SESSION_COOKIE)?.httpOnly, t
 
 const admin = await createUser("Ops", "admin@cardflip.dev", "adminpass", "admin");
 check("login: bare 'admin' hits the admin account", (await (await login.POST(post({ email: "admin", password: "adminpass" }))).json()).user.email, "admin@cardflip.dev");
+process.env.VERCEL_ENV = "production";
+check("login: …but never on the live site (10-01 sweep)", (await login.POST(post({ email: "admin", password: "adminpass" }))).status, 401);
+delete process.env.VERCEL_ENV;
 
 // --- login + TOTP -----------------------------------------------------------
 const totpUser = await createUser("Two Step", "totp@example.com", "hunter22");
