@@ -140,7 +140,9 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
   // modelled (it would only lower the price). Postage: Royal Mail 2nd Class Large Letter up to 100g £1.55 (stamp):
   // https://www.royalmail.com/sending/stamp-costs-and-faqs (fetched 2026-09-30). Taper £4 / £8 = $5 / $10 at ~0.78.
   // Shipping code: eBay's own list for the site shows UK_RoyalMail2ndClassLetter (docs/ebay-marketplaces-0930.json); the
-  // plan's "…LargeLetter" name appears nowhere in it, so the listed code is primary and 1st Class the fallback.
+  // plan's "…LargeLetter" name appears nowhere in it, so the listed code is primary. The eBay SANDBOX (09-30 run)
+  // refused both letter codes ("Please select a valid shipping service"), so the fallback is 2nd Class Standard, the
+  // parcel service every UK site accepts; production keeps the letter code whenever eBay takes it.
   GB: {
     key: "GB",
     marketplaceId: "EBAY_GB",
@@ -151,7 +153,7 @@ export const MARKETPLACES: Record<MarketplaceKey, Marketplace> = {
     postage: 1.55,
     fees: { private: NO_FEE, business: { rate: 0.1125, flat: 0.3, flatOver: 0.4, flatStep: 10 } },
     taper: { coveredMax: 4, end: 8 },
-    shipping: { carrierCode: "RoyalMail", serviceCode: "UK_RoyalMail2ndClassLetter", fallbackServiceCode: "UK_RoyalMail1stClassLetter", policyCost: "1.55" },
+    shipping: { carrierCode: "RoyalMail", serviceCode: "UK_RoyalMail2ndClassLetter", fallbackServiceCode: "UK_RoyalMailSecondClassStandard", policyCost: "1.55" },
     postalLabel: "Postcode",
     live: false,
     unverified: false,

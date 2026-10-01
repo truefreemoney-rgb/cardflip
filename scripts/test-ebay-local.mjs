@@ -219,7 +219,7 @@ console.log("Payloads per site");
   }
   check("fulfillment attempts: IE has no carrier code, so the first attempt is already carrier-less", inv.fulfillmentAttempts(MARKETPLACES.IE).map((a) => a.carrierCode), [null]);
   check("fulfillment attempts: GB = carrier, no carrier, alternate code", inv.fulfillmentAttempts(MARKETPLACES.GB).map((a) => `${a.serviceCode}/${a.carrierCode}`), [
-    "UK_RoyalMail2ndClassLetter/RoyalMail", "UK_RoyalMail2ndClassLetter/null", "UK_RoyalMail1stClassLetter/null",
+    "UK_RoyalMail2ndClassLetter/RoyalMail", "UK_RoyalMail2ndClassLetter/null", "UK_RoyalMailSecondClassStandard/null",
   ]);
   check("fulfillment attempts: US unchanged (Ground Advantage then Priority, both USPS)", inv.fulfillmentAttempts(US_MARKETPLACE).map((a) => `${a.serviceCode}/${a.carrierCode}`), ["USPSGroundAdvantage/USPS", "USPSPriority/USPS"]);
   check("US fulfillment body keeps shippingCarrierCode in its original slot", Object.keys(inv.fulfillmentPolicyBody(US_MARKETPLACE, "USPSGroundAdvantage", "USPS").shippingOptions[0].shippingServices[0]), ["sortOrder", "shippingCarrierCode", "shippingServiceCode", "shippingCost", "freeShipping"]);

@@ -235,7 +235,8 @@ async function runSite(site) {
   // opt-in
   {
     const r = await api("POST", "/sell/account/v1/program/opt_in", { programType: "SELLING_POLICY_MANAGEMENT" });
-    const already = !r.ok && /already|20400|20403/i.test(r.text);
+    // 409 / 25804 is how the sandbox says "already opted in" on a second run (09-30).
+    const already = !r.ok && (/already|20400|20403|25804/i.test(r.text) || r.status === 409);
     if (r.ok || already) report(site, "opt-in", "PASS", r.ok ? "" : "(already opted in)");
     else report(site, "opt-in", "FAIL", verbatim(r));
   }
