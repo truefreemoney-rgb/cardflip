@@ -8,6 +8,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { db } from "@/lib/db";
+import { ebayHosts } from "@/lib/ebayHosts";
 import { setEbayConnected } from "@/lib/server/users";
 
 /**
@@ -29,9 +30,10 @@ import { setEbayConnected } from "@/lib/server/users";
  *  - Scopes are full URLs, space-separated.
  */
 
-export const EBAY_AUTH_URL = "https://auth.ebay.com/oauth2/authorize";
-const EBAY_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
-const EBAY_IDENTITY_URL = "https://apiz.ebay.com/commerce/identity/v1/user/";
+// EBAY_ENV=sandbox swaps the hosts (src/lib/ebayHosts.ts); unset = production, the same literals as before.
+export const EBAY_AUTH_URL = `${ebayHosts().auth}/oauth2/authorize`;
+const tokenUrl = () => `${ebayHosts().api}/identity/v1/oauth2/token`;
+const identityUrl = () => `${ebayHosts().apiz}/commerce/identity/v1/user/`;
 
 /**
  * Exactly what the consent screen will show, and nothing more. Mirrored in
@@ -291,7 +293,7 @@ async function tokenRequest(body: URLSearchParams): Promise<TokenResponse> {
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   let res: Response;
   try {
-    res = await fetch(EBAY_TOKEN_URL, {
+    res = await fetch(tokenUrl(), {
       method: "POST",
       headers: {
         Authorization: `Basic ${basic}`,
@@ -389,7 +391,7 @@ async function fetchIdentity(accessToken: string): Promise<{
   accountType: "INDIVIDUAL" | "BUSINESS" | null;
   registrationMarketplace: string | null;
 }> {
-  const res = await fetch(EBAY_IDENTITY_URL, {
+  const res = await fetch(identityUrl(), {
     headers: { Authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(8000),
   });
@@ -408,6 +410,56 @@ async function fetchIdentity(accessToken: string): Promise<{
     accountType: accountType === "INDIVIDUAL" || accountType === "BUSINESS" ? accountType : null,
     registrationMarketplace: /^EBAY_[A-Z]{2,4}$/.test(registration) ? registration : null,
   };
+}
+
+export interface EbayAccountFacts {
+  accountType: "INDIVIDUAL" | "BUSINESS" | null;
+  registrationMarketplace: string | null;
+}
+
+/** The stored account type + registration marketplace (both NULL for a seller who connected before they were captured, or has no link). */
+export async function getEbayAccountFacts(userId: string): Promise<EbayAccountFacts> {
+  const row = (await db
+    .prepare("SELECT account_type, registration_marketplace FROM ebay_tokens WHERE user_id = ?")
+    .get(userId)) as { account_type: string | null; registration_marketplace: string | null } | undefined;
+  return {
+    accountType: row?.account_type === "INDIVIDUAL" || row?.account_type === "BUSINESS" ? row.account_type : null,
+    registrationMarketplace: row?.registration_marketplace ?? null,
+  };
+}
+
+const IDENTITY_RETRY_MS = 60 * 60 * 1000;
+
+/**
+ * Sellers who connected before increment 1 have NULL account_type /
+ * registration_marketplace. This asks Commerce Identity once (at most an
+ * hour apart) and fills in what eBay answers; it NEVER throws and never
+ * overwrites a value with NULL, so a failed lookup costs the caller nothing.
+ * Returns the facts as they stand afterwards.
+ */
+export async function refreshEbayIdentityIfMissing(userId: string): Promise<EbayAccountFacts> {
+  const have = await getEbayAccountFacts(userId);
+  if (have.accountType && have.registrationMarketplace) return have;
+  try {
+    const key = `ebay_identity_try:${userId}`;
+    const last = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as { value: string } | undefined;
+    const now = Date.now();
+    if (last && now - Number(last.value) < IDENTITY_RETRY_MS) return have;
+    await db.prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)").run(key, String(now));
+    const token = await getUserAccessToken(userId);
+    if (!token) return have;
+    const identity = await fetchIdentity(token);
+    await db
+      .prepare(
+        `UPDATE ebay_tokens SET account_type = COALESCE(?, account_type),
+                registration_marketplace = COALESCE(?, registration_marketplace) WHERE user_id = ?`,
+      )
+      .run(identity.accountType, identity.registrationMarketplace, userId);
+    return getEbayAccountFacts(userId);
+  } catch (err) {
+    console.warn("eBay identity refresh failed:", err instanceof Error ? err.message : err);
+    return have;
+  }
 }
 
 /**

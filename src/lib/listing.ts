@@ -373,6 +373,20 @@ export function askingPriceFor(market: number, condition: string): number {
 }
 
 /**
+ * The value quotePrice starts its cover rules from, for a strategy: the
+ * market figure through the condition and (quick sale, from $5 of condition-
+ * adjusted value up) the 12% undercut with its charm ending — the same steps
+ * as quotePrice, before any fees go on top. The per-country pricing uses it so
+ * a "Quick sale" pick prices a local listing the way it prices a US one.
+ */
+export function strategyValueUsd(market: number, condition: string, strategy: PriceStrategy = "market"): number {
+  if (!(market > 0)) return 0;
+  const conditioned = market * (CONDITION_MULTIPLIER[condition as Condition] ?? 1);
+  const effective: PriceStrategy = strategy === "quick" && !quickSaleEligible(conditioned) ? "market" : strategy;
+  return roundPrice(conditioned * STRATEGY_MULTIPLIER[effective], effective);
+}
+
+/**
  * floorNote for the price askingPriceFor gives — for screens that hold a
  * market figure rather than a quote (the Inventory detail sheet, Chris 09-30:
  * "where does it say Card value $0.25 plus…" beside a $1.50 price and a
