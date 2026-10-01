@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   // per-IP limiter above is the brute-force backstop for codes too.
   // Admins skip the authenticator (Chris, 08-26: dev-test accounts shouldn't need a phone)…
   const code = typeof body?.code === "string" ? body.code : "";
-  if (loginCodeRequired(user)) {
+  if (await loginCodeRequired(user)) {
     // …but on the live site their password only gets a code mailed to the
     // account (Chris, 09-30, after the sweep: the strongest account had no second step).
     const where = maskEmail(user.email);

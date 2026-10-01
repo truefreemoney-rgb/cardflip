@@ -193,6 +193,25 @@ const codeOk = await bossLogin({ code: code1 });
 check("login code: the right code signs in", [codeOk.status, Boolean(sessionCookie(codeOk))], [200, true]);
 check("login code: a code works once", (await bossLogin({ code: code1 })).status, 401);
 delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+// Break-glass: with mail down, the settings row admin_login_code = "0" lets the password in.
+{
+  const setSwitch = (value) => db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('admin_login_code', ?, 0) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(value);
+  const reports = async () => (await db.prepare("SELECT COUNT(*) AS n FROM error_events WHERE source = ? AND message LIKE '%switched off%'").get(LOGIN_CODE_SOURCE)).n;
+  // boss has used most of its 10 tries above: clear both limiters (memory, then the shared table).
+  (await import(at("lib/server/rateLimit.ts")))._resetRateLimits();
+  await db.prepare("DELETE FROM rate_limits").run();
+  await setSwitch("off");
+  check("login code switch: only exactly \"0\" counts", (await bossLogin()).status, 503);
+  await setSwitch("0");
+  const open = await bossLogin();
+  check("login code switch: \"0\" → the password signs in with mail down", [open.status, Boolean(sessionCookie(open))], [200, true]);
+  check("login code switch: …and the Errors page hears about it", (await reports()) >= 1, true);
+  const before = await reports();
+  check("login code switch: a wrong password is still refused", (await login.POST(post({ email: "boss@example.com", password: "nope" }))).status, 401);
+  check("login code switch: …without touching the switch", await reports(), before);
+  await db.prepare("DELETE FROM settings WHERE key = 'admin_login_code'").run();
+  check("login code switch: row gone → the code is back", (await bossLogin()).status, 503);
+}
 check("login code: a normal account is never asked", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).status, 200);
 delete process.env.VERCEL_ENV;
 

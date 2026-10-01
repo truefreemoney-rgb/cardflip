@@ -124,6 +124,17 @@ check("with cookie: settings GET → 200", await status(settings.GET()), 200);
   delete process.env.ADMIN_HELPER_USER;
   delete process.env.ADMIN_HELPER_PASSWORD;
   delete process.env.EMAIL_CONFIRM_DEV_ECHO;
+  // Break-glass: with mail down, the settings row admin_login_code = "0" lets the owner's password in.
+  // "ops" has used most of its 10 tries above: clear both limiters (memory, then the shared table).
+  (await import(at("lib/server/rateLimit.ts")))._resetRateLimits();
+  await db.prepare("DELETE FROM rate_limits").run();
+  check("console code switch: mail down and no row → still locked", (await ownerLogin()).status, 503);
+  await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('admin_login_code', '0', 0)").run();
+  const open = await ownerLogin();
+  check("console code switch: \"0\" → the password signs in as owner", [open.status, (await open.json()).role, Boolean(open.cookies.get(ADMIN_COOKIE)?.value)], [200, "owner", true]);
+  check("console code switch: a wrong password is still refused", await status(login.POST(req("POST", { username: "ops", password: "nope" }))), 401);
+  await db.prepare("DELETE FROM settings WHERE key = 'admin_login_code'").run();
+  check("console code switch: row gone → the code is back", (await ownerLogin()).status, 503);
   delete process.env.VERCEL_ENV;
   check("console code: off the live site the password is enough", (await ownerLogin()).status, 200);
 }

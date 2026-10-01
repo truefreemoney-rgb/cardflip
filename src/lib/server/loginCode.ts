@@ -6,6 +6,7 @@ import type { AdminRole } from "@/lib/adminAuth";
 import { emailConfirmDevEcho, sendLoginCodeEmail } from "@/lib/server/mail";
 import { cleanCode, sendBounded } from "@/lib/server/emailVerify";
 import { reportServerError } from "@/lib/server/errorLog";
+import { getSetting } from "@/lib/server/settings";
 
 /**
  * Sign-in codes by email for admins only (Chris, 09-30: "just make it email
@@ -40,14 +41,37 @@ const CONSOLE_OWNER = "owner";
 const hashCode = (key: string, code: string) => createHash("sha256").update(`${key}:${code}`).digest("hex");
 const onLiveSite = () => process.env.VERCEL_ENV === "production";
 
-/** Does this account's password alone stop short of a session? Live site, admin role. */
-export function loginCodeRequired(user: Pick<User, "role">): boolean {
-  return user.role === "admin" && onLiveSite();
+/**
+ * Break-glass (10-01, Chris: "we cant be getting locked out"): the settings row
+ * admin_login_code = "0" switches the emailed code off for both admin logins,
+ * so a mail outage can never keep the owner out of the console. No screen or
+ * route writes this row: it takes a direct database write, which is already
+ * full control of the site. Only exactly "0" counts; no row, any other value
+ * or a failed read keeps the code on. Every login that skips the code is
+ * reported to the Errors page, so the row is not left behind once mail works.
+ */
+export const LOGIN_CODE_SWITCH_KEY = "admin_login_code";
+async function codeSwitchedOff(): Promise<boolean> {
+  let off = false;
+  try {
+    off = (await getSetting(LOGIN_CODE_SWITCH_KEY)) === "0";
+  } catch {
+    return false;
+  }
+  if (off) {
+    await reportServerError(LOGIN_CODE_SOURCE, new Error(`admin sign-in code is switched off (settings ${LOGIN_CODE_SWITCH_KEY} = "0"): delete the row once mail works`));
+  }
+  return off;
 }
 
-/** Does this console login stop at the password? Live site, the owner (the helper sees Tasks only). */
-export function consoleCodeRequired(role: AdminRole): boolean {
-  return role === "owner" && onLiveSite();
+/** Does this account's password alone stop short of a session? Live site, admin role. Ask only after the password checked out. */
+export async function loginCodeRequired(user: Pick<User, "role">): Promise<boolean> {
+  return user.role === "admin" && onLiveSite() && !(await codeSwitchedOff());
+}
+
+/** Does this console login stop at the password? Live site, the owner (the helper sees Tasks only). Ask only after the password checked out. */
+export async function consoleCodeRequired(role: AdminRole): Promise<boolean> {
+  return role === "owner" && onLiveSite() && !(await codeSwitchedOff());
 }
 
 /** Local and CI only (EMAIL_CONFIRM_DEV_ECHO=1): the last sign-in code logged for an address. */

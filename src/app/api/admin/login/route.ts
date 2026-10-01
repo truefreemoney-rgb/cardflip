@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   }
   // The owner's password alone is not a console session on the live site (Chris,
   // 09-30): a 6-digit code goes to the owner's inbox and the same form comes back with it.
-  if (consoleCodeRequired(role)) {
+  if (await consoleCodeRequired(role)) {
     const code = typeof body?.code === "string" ? body.code : "";
     if (!code) {
       if ((await sendConsoleCode()) === "failed") {
