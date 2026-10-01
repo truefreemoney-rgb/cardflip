@@ -1,19 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { secretEqual } from "@/lib/server/secretEqual";
+import { opsKeyOk } from "@/lib/server/opsKey";
 import { opsAlert } from "@/lib/server/opsAlert";
 
 /**
  * POST /api/ops/alert — GitHub Actions' failure() step (ci.yml,
- * prod-smoke.yml) with Bearer SOCIAL_POST_KEY, the one key GitHub already
- * holds. Body: { workflow, sha?, url?, message? }. Mails Chris, once an hour
+ * prod-smoke.yml) with Bearer OPS_KEY (lib/server/opsKey.ts). Body:
+ * { workflow, sha?, url?, message? }. Mails Chris, once an hour
  * per workflow (lib/server/opsAlert.ts).
  */
 const RUN_URL = /^https:\/\/github\.com\/truefreemoney-rgb\/cardflip\/actions\/runs\/\d+(\/[\w/-]*)?$/;
 
 export async function POST(req: NextRequest) {
-  const k = process.env.SOCIAL_POST_KEY;
-  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!secretEqual(given, k)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!opsKeyOk(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => null);
   const workflow = typeof body?.workflow === "string" ? body.workflow.slice(0, 80) : "";
   if (!workflow) return NextResponse.json({ error: "workflow is required" }, { status: 400 });

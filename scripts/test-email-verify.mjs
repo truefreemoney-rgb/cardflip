@@ -964,7 +964,8 @@ check("classify: only the recipient's own permanent refusal is the user's to fix
 
 // The mailbox heartbeat (a GitHub workflow can call it; no mail is sent)
 const mailCheck = await import(at("app/api/ops/mail-check/route.ts"));
-process.env.SOCIAL_POST_KEY = "ops-key";
+process.env.OPS_KEY = "ops-key";
+process.env.SOCIAL_POST_KEY = "post-key";
 const mcReq = (key) => new Request("http://test/api/ops/mail-check", { headers: key ? { authorization: `Bearer ${key}` } : {} });
 check("mail-check: no key or the wrong key → 401", [(await mailCheck.GET(mcReq(null))).status, (await mailCheck.GET(mcReq("nope"))).status], [401, 401]);
 clearSmtp();
@@ -976,7 +977,23 @@ check("mail-check: the mailbox answers → 200 ok, and nothing was sent", [mcOk.
 setSmtp(1);
 const mcBad = await mailCheck.GET(mcReq("ops-key"));
 check("mail-check: the mailbox will not answer → 502 with the reason", [mcBad.status, (await mcBad.json()).ok], [502, false]);
+// The ops key and the posting key are two keys (10-01 sweep): neither opens the other's routes.
+const opsAlertRoute = await import(at("app/api/ops/alert/route.ts"));
+const alertReq = (key) => new Request("http://test/api/ops/alert", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ workflow: "CI" }) });
+check("ops routes refuse the posting key", [(await mailCheck.GET(mcReq("post-key"))).status, (await opsAlertRoute.POST(alertReq("post-key"))).status], [401, 401]);
+delete process.env.OPS_KEY;
+check("ops key unset → nobody gets in, not even an empty or the posting key", [(await mailCheck.GET(mcReq("post-key"))).status, (await mailCheck.GET(mcReq("undefined"))).status, (await opsAlertRoute.POST(alertReq("post-key"))).status], [401, 401, 401]);
 delete process.env.SOCIAL_POST_KEY;
+const wf = (name) => readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), "utf8");
+const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
+check("workflows: ci, prod-smoke and ebay-research hold only the ops key; social-post and social-bio only the posting key", [
+  ...["ci", "prod-smoke", "ebay-research"].map((n) => wf(n).includes("secrets.OPS_KEY") && !wf(n).includes("SOCIAL_POST_KEY")),
+  ...["social-post", "social-bio"].map((n) => wf(n).includes("secrets.SOCIAL_POST_KEY") && !wf(n).includes("OPS_KEY")),
+], [true, true, true, true, true]);
+check("routes: the three ops routes read the ops key only; the publisher, TikTok cron and bios never read it", [
+  ...["app/api/ops/alert/route.ts", "app/api/ops/mail-check/route.ts", "app/api/ops/ebay-marketplaces/route.ts"].map((p) => src(p).includes("opsKeyOk(req)") && !src(p).includes("SOCIAL_POST_KEY")),
+  ...["app/api/social/publish/route.ts", "app/api/cron/social-tiktok/route.ts", "app/api/ops/social-bio/route.ts"].map((p) => src(p).includes("process.env.SOCIAL_POST_KEY") && !src(p).includes("OPS_KEY") && !src(p).includes("opsKeyOk")),
+], [true, true, true, true, true, true]);
 const smokeYml = readFileSync(new URL("../.github/workflows/prod-smoke.yml", import.meta.url), "utf8");
 const mailStep = smokeYml.indexOf("api/ops/mail-check");
 check("mail-check: the production smoke workflow calls it (GitHub's own failure mail is the alarm), after the smoke run and before the site-mail alert", [

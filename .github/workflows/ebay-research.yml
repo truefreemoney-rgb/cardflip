@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Fetch each marketplace
         env:
-          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          KEY: ${{ secrets.OPS_KEY }}
           USER_ID: ${{ inputs.user }}
         run: |
           mkdir out

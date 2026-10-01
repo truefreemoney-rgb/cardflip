@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { secretEqual } from "@/lib/server/secretEqual";
+import { opsKeyOk } from "@/lib/server/opsKey";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { getAppToken } from "@/lib/server/ebay";
 import { getUserAccessToken } from "@/lib/server/ebayAuth";
@@ -10,7 +10,7 @@ import { getUserAccessToken } from "@/lib/server/ebayAuth";
  * services look like on EBAY_GB / AU / CA / IE next to EBAY_US. GETs eBay's
  * public Taxonomy + Metadata APIs with the app token (the keyset only lives
  * on Vercel). ?user=<id> adds Trading GeteBayDetails shipping services with
- * that account's own token. Bearer CRON_SECRET or the GitHub SOCIAL_POST_KEY
+ * that account's own token. Bearer CRON_SECRET or the GitHub OPS_KEY
  * (workflow ebay-research.yml; /api/ops sits outside the US-only admin fence,
  * so a GitHub runner anywhere can call it). Writes nothing.
  *
@@ -37,9 +37,7 @@ async function get(url: string, token: string, mk: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const k = process.env.SOCIAL_POST_KEY;
-  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  const denied = secretEqual(given, k) ? null : cronAuthError(req);
+  const denied = opsKeyOk(req) ? null : cronAuthError(req);
   if (denied) return denied;
   const mk = req.nextUrl.searchParams.get("mk") ?? "";
   if (!(MARKETPLACES as readonly string[]).includes(mk)) {

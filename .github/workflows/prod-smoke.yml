@@ -40,7 +40,7 @@ jobs:
       - name: Test alert
         if: inputs.test_alert == '1'
         env:
-          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          KEY: ${{ secrets.OPS_KEY }}
         run: |
           curl -sS --fail --max-time 30 -X POST -H "Authorization: Bearer ${KEY}" -H "content-type: application/json" \
             -d '{"workflow":"Alert Test","message":"Test from Claude: CI and live-site failures now email you like this. Nothing is broken."}' \
@@ -61,7 +61,7 @@ jobs:
       # once an hour on the schedule (each call is a real SMTP login).
       - name: Mailbox check
         env:
-          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          KEY: ${{ secrets.OPS_KEY }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(date -u +%M)" -ge 20 ]; then
             echo "Hourly check only; skipping this run."
@@ -71,7 +71,7 @@ jobs:
       - name: Email Chris
         if: failure()
         env:
-          KEY: ${{ secrets.SOCIAL_POST_KEY }}
+          KEY: ${{ secrets.OPS_KEY }}
           URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           body=$(jq -n --arg u "$URL" --arg s "$GITHUB_SHA" '{workflow:"Production Smoke",sha:$s,url:$u,message:"A live-site check failed. If this mail is late or missing, the site itself may be down."}')
