@@ -33,7 +33,42 @@ export const SANDBOX_HOSTS: EbayHosts = {
   sandbox: true,
 };
 
-/** The hosts for the current process (EBAY_ENV, trimmed and case-insensitive; "sandbox" is the only non-production value). */
+/** Whether EBAY_ENV asks for the sandbox (trimmed, case-insensitive; "sandbox" is the only non-production value). Never throws. */
+export function isSandboxMode(env: string | undefined = process.env.EBAY_ENV): boolean {
+  return (env ?? "").trim().toLowerCase() === "sandbox";
+}
+
+/** Thrown instead of ever using sandbox hosts next to production data. */
+export class SandboxRefusedError extends Error {
+  constructor(reason: string) {
+    super(`EBAY_ENV=sandbox refused: ${reason}`);
+    this.name = "SandboxRefusedError";
+  }
+}
+
+/**
+ * Why sandbox mode must not run here, or null when it may. A sandbox host
+ * answers a production refresh token with 400/401, which the token code reads
+ * as "revoked" and would delete real sellers' links; sandbox tokens would also
+ * land in the production tokens table. So sandbox mode only runs against a
+ * local file database, never on Vercel production and never with a remote
+ * (Turso/libsql) database configured.
+ */
+export function sandboxRefusal(env: Record<string, string | undefined> = process.env): string | null {
+  if ((env.VERCEL_ENV ?? "").trim().toLowerCase() === "production") return "this is a Vercel production deployment (VERCEL_ENV=production)";
+  if ((env.TURSO_DATABASE_URL ?? "").trim()) return "a remote database is configured (TURSO_DATABASE_URL), which holds real sellers' eBay links";
+  return null;
+}
+
+/**
+ * The hosts for the current process. Production unless EBAY_ENV=sandbox;
+ * asking for the sandbox where sandboxRefusal() applies throws
+ * SandboxRefusedError (no call is ever made) rather than falling back to
+ * production, so a mis-set variable is loud, never silently live.
+ */
 export function ebayHosts(env: string | undefined = process.env.EBAY_ENV): EbayHosts {
-  return (env ?? "").trim().toLowerCase() === "sandbox" ? SANDBOX_HOSTS : PRODUCTION_HOSTS;
+  if (!isSandboxMode(env)) return PRODUCTION_HOSTS;
+  const why = sandboxRefusal();
+  if (why) throw new SandboxRefusedError(why);
+  return SANDBOX_HOSTS;
 }

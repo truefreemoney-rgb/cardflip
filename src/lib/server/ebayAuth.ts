@@ -8,7 +8,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { db } from "@/lib/db";
-import { ebayHosts } from "@/lib/ebayHosts";
+import { ebayHosts, isSandboxMode } from "@/lib/ebayHosts";
 import { setEbayConnected } from "@/lib/server/users";
 
 /**
@@ -31,7 +31,8 @@ import { setEbayConnected } from "@/lib/server/users";
  */
 
 // EBAY_ENV=sandbox swaps the hosts (src/lib/ebayHosts.ts); unset = production, the same literals as before.
-export const EBAY_AUTH_URL = `${ebayHosts().auth}/oauth2/authorize`;
+// Resolved per call (not at import) so a refused sandbox setting fails the call, not the whole server boot.
+const authorizeUrl = () => `${ebayHosts().auth}/oauth2/authorize`;
 const tokenUrl = () => `${ebayHosts().api}/identity/v1/oauth2/token`;
 const identityUrl = () => `${ebayHosts().apiz}/commerce/identity/v1/user/`;
 
@@ -268,7 +269,7 @@ export function verifyOAuthState(state: string, userId: string): boolean {
 
 export function buildAuthorizeUrl(state: string): string {
   const { clientId, ruName } = config();
-  const url = new URL(EBAY_AUTH_URL);
+  const url = new URL(authorizeUrl());
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", ruName);
   url.searchParams.set("response_type", "code");
@@ -440,6 +441,8 @@ const IDENTITY_RETRY_MS = 60 * 60 * 1000;
 export async function refreshEbayIdentityIfMissing(userId: string): Promise<EbayAccountFacts> {
   const have = await getEbayAccountFacts(userId);
   if (have.accountType && have.registrationMarketplace) return have;
+  // A sandbox identity must never be written into a seller's stored facts.
+  if (isSandboxMode()) return have;
   try {
     const key = `ebay_identity_try:${userId}`;
     const last = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as { value: string } | undefined;
@@ -488,7 +491,7 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
     accessToken = open(row.access_token);
     refreshToken = open(row.refresh_token);
   } catch {
-    await disconnectEbay(userId);
+    await dropDeadLink(userId);
     return null;
   }
 
@@ -496,7 +499,7 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
   if (row.access_expires_at - 60_000 > now) return accessToken;
 
   if (row.refresh_expires_at <= now) {
-    await disconnectEbay(userId);
+    await dropDeadLink(userId);
     return null;
   }
 
@@ -515,7 +518,7 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
     // missing token does. Outages propagate as EbayUnreachableError.
     if (err instanceof EbayTokenRequestError && (err.status === 400 || err.status === 401)) {
       console.error(`eBay refresh rejected for ${userId}:`, err.message);
-      await disconnectEbay(userId);
+      await dropDeadLink(userId);
       throw new EbayNotConnectedError();
     }
     throw err;
@@ -538,6 +541,20 @@ export async function tokenOrSkip(userId: string): Promise<string | "not_connect
     console.error("eBay token refresh failed:", err instanceof Error ? err.message : err);
     return "error";
   }
+}
+
+/**
+ * getUserAccessToken's own cleanup of a link it found dead. In sandbox mode it
+ * deletes NOTHING: a sandbox host answers a real refresh token with 400/401,
+ * which would otherwise read as "revoked" and wipe a real seller's link (see
+ * ebayHosts.sandboxRefusal, which also keeps sandbox mode off any remote DB).
+ */
+async function dropDeadLink(userId: string): Promise<void> {
+  if (isSandboxMode()) {
+    console.warn(`eBay sandbox mode: not deleting the eBay link of ${userId}`);
+    return;
+  }
+  await disconnectEbay(userId);
 }
 
 /** Forget the link. eBay has no revoke endpoint for user tokens; deleting ours is the whole story. */
