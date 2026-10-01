@@ -242,7 +242,8 @@ async function build(kind, strict) {
       kind,
       mixed: false,
       intro: jumped
-        ? { kicker: "Biggest price jump", title: allJumped ? "In every game" : "In each game", sub: allJumped ? "This week's top gainer in every game" : "This week's top gainers, and a card from the rest" }
+        // "In each game" over 2 jumps + 3 price-today cards overclaimed (10-01); match the picture's "Biggest price jumps this week."
+        ? { kicker: allJumped ? "Biggest price jump" : "Biggest price jumps", title: allJumped ? "In every game" : "This week", sub: allJumped ? "This week's top gainer in every game" : "This week's top gainers, and a card from the rest" }
         : { kicker: "One scanner", title: `${cap(countWord(n))} card games`, sub: "A card from each, at today's market price" },
       cards: shown.map((c) => ({
         rank: POST_GAME_NAMES[c.game],
@@ -257,6 +258,23 @@ async function build(kind, strict) {
     };
   }
   throw new Error(`the video renderer has no scene for kind "${kind}"`);
+}
+
+/**
+ * The cold open (10-01): the card that stops a thumb, on frame 0. The biggest rise when one is 10% or more ("▲ 60%"), else the
+ * dearest card at its price. Drops open on their title as before (a red number is a weak hook, 09-30 data).
+ */
+function hookFor(kind, cards) {
+  if (kind === "dips" || !cards.length) return null;
+  const rise = (c) => {
+    const m = /▲ ([\d.]+)%/.exec(c.pct?.text ?? "");
+    return m ? Number(m[1]) : 0;
+  };
+  const best = cards.reduce((a, c) => (rise(c) > rise(a) ? c : a), cards[0]);
+  if (rise(best) >= 10) return { art: best.art, big: `▲ ${Math.round(rise(best))}%` };
+  const dear = cards.reduce((a, c) => (Number(c.to) > Number(a.to) ? c : a), cards[0]);
+  const n = Number(dear.to);
+  return { art: dear.art, big: n >= 100 ? `$${Math.round(n).toLocaleString("en-US")}` : `$${n.toFixed(2)}` };
 }
 
 /** Render one video for a slot; returns what the registry needs. */
@@ -294,7 +312,7 @@ async function makeSlot(slot, kind, out, strict) {
   const TOTAL = withAudio || mixed ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
   // The 7am and 7pm videos only go to TikTok, whose feed covers the bottom ~20% with the caption and nav: the card stack is lifted clear of it.
   // The 1pm file is the one every site posts and keeps the layout it was approved with.
-  const html = sceneHtml({ W, H, logo, intro: built.intro, cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: slot !== "midday" });
+  const html = sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: slot !== "midday" });
   const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out, audio: withAudio ? { file: track.file, start: AUDIO_START } : null });
   console.log(`wrote ${out} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
   return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name };

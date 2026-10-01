@@ -45,6 +45,7 @@ function titleClass(t) {
  * o = {
  *   W, H, logo,                     frame and the logo as a data URI
  *   intro: { kicker, title, sub },
+ *   hook?: { art, big }             the cold open: the best card's art and its number on the first frame, the title under it
  *   cards: [{ rank, art, name, meta, to, pct: { text, cls } }],   in the order shown
  *   outro: { games?: [names] },     games = the "Now scanning" list (the mixed movers day plan); none = the standard outro
  *   INTRO, BEAT, OUTRO, PERIOD, MUSIC, TOTAL,
@@ -80,6 +81,19 @@ export function sceneHtml(o) {
   #intro .title.md { font-size:104px; line-height:1.02; }
   #intro .title.sm { font-size:84px; line-height:1.04; }
   #intro .sub { font-size:42px; margin-top:36px; }
+  /* Cold open (10-01): the first frame is the best card and its number, not a title fading in from black; TikTok decides in under a second. */
+  #intro.hooked { justify-content:flex-start; padding-top:210px; }
+  #intro .hook { display:flex; flex-direction:column; align-items:center; }
+  #intro .hook .hart { width:560px; height:780px; border-radius:32px; object-fit:cover;
+    box-shadow:0 40px 120px rgba(0,0,0,.6), 0 0 0 2px rgba(255,255,255,.12); background:#1c1d27; }
+  #intro .hook .hbig { font-size:176px; line-height:1; margin-top:-64px; padding:0 24px; font-variant-numeric:tabular-nums;
+    background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 6px 24px rgba(0,0,0,.85)) drop-shadow(0 0 22px rgba(74,222,128,.5)); }
+  #intro.hooked .kicker { margin-top:34px; }
+  #intro.hooked .title { font-size:112px; margin-top:16px; }
+  #intro.hooked .title.md { font-size:92px; }
+  #intro.hooked .title.sm { font-size:76px; }
+  #intro.hooked .sub { display:none; }
   .beat { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:150px 80px 0; }
   .beat .rank { font-size:40px; font-weight:600; color:#a5b4fc; letter-spacing:.14em; text-transform:uppercase; }
   .beat .art { width:720px; height:1000px; border-radius:36px; object-fit:cover; margin-top:34px;
@@ -109,7 +123,8 @@ export function sceneHtml(o) {
   #bar { position:absolute; left:80px; right:80px; bottom:70px; height:8px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
   #bar i { display:block; height:100%; width:0; }
 </style></head><body${o.safeBottom ? ' class="safe"' : ""}>
-<div id="intro" class="abs">
+<div id="intro" class="abs${o.hook ? " hooked" : ""}">
+  ${o.hook ? `<div class="hook">${o.hook.art ? `<img class="hart" src="${o.hook.art}">` : `<div class="hart"></div>`}<div class="hbig display">${esc(o.hook.big)}</div></div>` : ""}
   <div class="kicker">${esc(intro.kicker)}</div>
   <div class="title display holo-text${titleClass(intro.title)}">${esc(intro.title)}</div>
   <div class="sub muted">${esc(intro.sub)}</div>
@@ -161,10 +176,19 @@ ${outro.games ? `<div id="outro" class="abs">
     if(t<INTRO){
       const out = clamp((t-(INTRO-.3))/.3);
       intro.style.opacity = 1-out;
-      fadeIn(intro.querySelector(".kicker"), t, .4);
-      fadeIn(intro.querySelector(".title"), t-P*.5, .6, 60);
+      // A cold open shows its words on frame 0 too; the plain intro builds in as before.
+      const hooked = intro.classList.contains("hooked");
+      fadeIn(intro.querySelector(".kicker"), hooked ? 1 : t, .4);
+      fadeIn(intro.querySelector(".title"), hooked ? 1 : t-P*.5, .6, 60);
       fadeIn(intro.querySelector(".sub"), t-P*1.5, .5);
       intro.querySelector(".title").style.transform += " scale("+(1+.04*easeOut(clamp(t/INTRO))+.02*pulse)+")";
+      const hook=intro.querySelector(".hook");
+      if(hook){
+        // Fully drawn on frame 0 (it is the thumbnail and the first look); it only breathes with the beat and sweeps its shine once.
+        hook.style.transform="scale("+(1+.03*easeOut(clamp(t/INTRO))+.015*pulse)+")";
+        const sw=clamp((t-P)/(P*1.2));
+        intro.querySelector(".hbig").style.backgroundPosition=((1-sw)*100)+"% 0";
+      }
     }
     for(let i=0;i<N;i++){
       const el=document.getElementById("beat"+i);
