@@ -569,6 +569,25 @@ db.prepare = (sql) => {
 check("DB throw → 500", (await send({ type: "customer.subscription.updated", data: { object: { customer: "cus_1", status: "active" } } })).status, 500);
 db.prepare = realPrepare;
 
+// --- checkout's customer: two racing requests settle on one id (10-01 sweep) ----------------------------------
+{
+  const { ensureStripeCustomer } = await import(at("lib/server/users.ts"));
+  const racer = await createUser("R", "racer@example.com", "hunter22");
+  let n = 0;
+  const slowCreate = async () => {
+    const id = `cus_race_${++n}`;
+    await new Promise((r) => setTimeout(r, 20));
+    return id;
+  };
+  const [a, b] = await Promise.all([ensureStripeCustomer(racer, slowCreate), ensureStripeCustomer(racer, slowCreate)]);
+  const stored = (await findUserById(racer.id)).stripeCustomerId;
+  check("double-tap Subscribe: both requests use the one stored customer", [a === stored, b === stored], [true, true]);
+  check("a stored customer is reused without a Stripe call", await ensureStripeCustomer({ ...racer, stripeCustomerId: stored }, async () => { throw new Error("called"); }), stored);
+  const loser = await createUser("L", "loser@example.com", "hunter22");
+  await setStripeCustomer(loser.id, "cus_winner");
+  check("a create Stripe refused (key in use) falls back to the winner's id", await ensureStripeCustomer({ ...loser, stripeCustomerId: null }, async () => { throw new Error("idempotency key in use"); }), "cus_winner");
+}
+
 globalThis.fetch = realFetch;
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
 process.exit(failures ? 1 : 0);

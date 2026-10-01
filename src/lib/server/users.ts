@@ -397,6 +397,26 @@ export async function setStripeCustomer(userId: string, customerId: string): Pro
   await db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customerId, userId);
 }
 
+/**
+ * Checkout's customer: the stored one, else a new one claimed only into an EMPTY slot, so two racing requests settle on
+ * one id (10-01 sweep). `create` is stripe.createCustomer (idempotent per account); a loser of the race, or a create
+ * that Stripe answered "key in use" for, reads the winner's id back.
+ */
+export async function ensureStripeCustomer(user: Pick<User, "id" | "email" | "stripeCustomerId">, create: (email: string, userId: string) => Promise<string>): Promise<string> {
+  if (user.stripeCustomerId) return user.stripeCustomerId;
+  let made: string | null = null;
+  try {
+    made = await create(user.email, user.id);
+  } catch (err) {
+    const stored = (await findUserById(user.id))?.stripeCustomerId;
+    if (stored) return stored;
+    throw err;
+  }
+  const r = await db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND stripe_customer_id IS NULL").run(made, user.id);
+  if (r.changes) return made;
+  return (await findUserById(user.id))?.stripeCustomerId ?? made;
+}
+
 /** Pin which Stripe subscription owns this account's status (see the webhook). */
 export async function setStripeSubscription(userId: string, subscriptionId: string | null): Promise<void> {
   await db.prepare("UPDATE users SET stripe_subscription_id = ? WHERE id = ?").run(subscriptionId, userId);

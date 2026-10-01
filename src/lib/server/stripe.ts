@@ -56,6 +56,7 @@ async function stripeRequest<T = Record<string, unknown>>(
   path: string,
   form?: Record<string, string>,
   method?: "DELETE",
+  idempotencyKey?: string,
 ): Promise<T> {
   const { secretKey } = env();
   if (!secretKey) throw new Error("stripe: STRIPE_SECRET_KEY not set");
@@ -66,6 +67,7 @@ async function stripeRequest<T = Record<string, unknown>>(
       headers: {
         authorization: `Bearer ${secretKey}`,
         ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}),
+        ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
       },
       body: form ? new URLSearchParams(form) : undefined,
       signal: AbortSignal.timeout(10000),
@@ -82,10 +84,14 @@ async function stripeRequest<T = Record<string, unknown>>(
 }
 
 export async function createCustomer(email: string, userId: string): Promise<string> {
-  const c = await stripeRequest<{ id: string }>("customers", {
-    email,
-    "metadata[userId]": userId,
-  });
+  // Keyed per account (10-01 sweep): a double-tap on Subscribe made two customers, the row kept the last one, and a
+  // payment on the other left every renewal and cancel landing on a customer no account owned.
+  const c = await stripeRequest<{ id: string }>(
+    "customers",
+    { email, "metadata[userId]": userId },
+    undefined,
+    `customer-${userId}-${email}`,
+  );
   return c.id;
 }
 
