@@ -291,17 +291,20 @@ export async function invoiceIdForPaymentIntent(paymentIntent: string): Promise<
 export function verifyWebhook(body: string, signature: string | null): boolean {
   const { webhookSecret } = env();
   if (!webhookSecret || !signature) return false;
-  const parts = new Map(
-    signature.split(",").map((p) => {
-      const i = p.indexOf("=");
-      return [p.slice(0, i), p.slice(i + 1)] as const;
-    }),
-  );
-  const t = parts.get("t");
-  const v1 = parts.get("v1");
-  if (!t || !v1 || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
-  const expected = crypto.createHmac("sha256", webhookSecret).update(`${t}.${body}`).digest("hex");
-  const a = Buffer.from(expected);
-  const b = Buffer.from(v1);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const parts = signature.split(",").map((p) => {
+    const i = p.indexOf("=");
+    return [p.slice(0, i), p.slice(i + 1)] as const;
+  });
+  const t = parts.find(([k]) => k === "t")?.[1];
+  // While a signing secret is being rolled Stripe sends one v1 per secret:
+  // any of them matching ours is a good signature (10-01 sweep: only the last was read).
+  const v1s = parts.filter(([k]) => k === "v1").map(([, v]) => v);
+  if (!t || v1s.length === 0 || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
+  const expected = Buffer.from(crypto.createHmac("sha256", webhookSecret).update(`${t}.${body}`).digest("hex"));
+  let ok = false;
+  for (const v1 of v1s) {
+    const b = Buffer.from(v1);
+    if (expected.length === b.length && crypto.timingSafeEqual(expected, b)) ok = true;
+  }
+  return ok;
 }

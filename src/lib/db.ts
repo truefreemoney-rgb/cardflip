@@ -1054,6 +1054,9 @@ async function initSchema(): Promise<void> {
   await client.execute(
     "CREATE INDEX IF NOT EXISTS idx_mtg_cards_flavor ON mtg_cards(REPLACE(LOWER(flavor_name), ',', '')) WHERE flavor_name <> ''",
   );
+  // Every Stripe webhook finds its account by customer id (10-01 sweep: that
+  // was a full scan of users). After the probe: the column is an added one.
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

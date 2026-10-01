@@ -36,9 +36,10 @@ export const PRICING = {
 
 /**
  * Local price points for the other open countries (Chris 09-30: every price
- * ends in .99; ≈ PRICING at the 09-30 ECB rate). NOT charged yet: Checkout
- * still bills the USD price above until matching Stripe prices exist per
- * currency. Keyed by ISO currency (lib/countries.ts COUNTRY_CURRENCY).
+ * ends in .99; ≈ PRICING at the 09-30 ECB rate). Charged by HOME country:
+ * the live Stripe prices carry these as currency_options (checkoutCurrency
+ * below; Checkout falls back to USD if Stripe refuses the currency). Keyed
+ * by ISO currency (lib/countries.ts COUNTRY_CURRENCY).
  */
 export const LOCAL_PRICING = {
   CAD: { pack: 6.99, standard: 13.99, pro: 34.99 },

@@ -109,6 +109,16 @@ check("stale timestamp → 400", (await send(checkout, { signature: sign(JSON.st
 const tampered = await POST(new Request("http://test/x", { method: "POST", headers: { "stripe-signature": sign("{}") }, body: JSON.stringify(checkout) }));
 check("tampered body → 400", tampered.status, 400);
 check("nothing written on a bad signature", await state(user.id), { status: null, end: null, plan: null, customer: null });
+// A rolled signing secret (10-01 sweep): Stripe sends one v1 per secret, ours may be any of them.
+{
+  const ping = { type: "test.ignored", data: { object: {} } };
+  const body = JSON.stringify(ping);
+  const [t, ours] = sign(body).split(",");
+  const theirs = sign(body, "whsec_other").split(",")[1];
+  check("two v1 signatures, ours first → 200", (await send(ping, { signature: `${t},${ours},${theirs}` })).status, 200);
+  check("two v1 signatures, ours last → 200", (await send(ping, { signature: `${t},${theirs},${ours}` })).status, 200);
+  check("two v1 signatures, neither ours → 400", (await send(ping, { signature: `${t},${theirs},${theirs}` })).status, 400);
+}
 check("Stripe never called on a bad signature", stripeCalls.length, 0);
 const badJson = await POST(new Request("http://test/x", { method: "POST", headers: { "stripe-signature": sign("not json") }, body: "not json" }));
 check("signed but unparseable → 400", badJson.status, 400);

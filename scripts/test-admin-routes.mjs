@@ -80,8 +80,20 @@ check("delete without cookie → 403", await status(userById.DELETE(req("DELETE"
 
 // A seller session (even an admin-role user) is not the panel cookie.
 const seller = await createUser("Seller", "seller@example.com", "hunter22", "admin");
-testCookies.set(SESSION_COOKIE, await createSession(seller.id));
+testCookies.set(SESSION_COOKIE, (await createSession(seller.id)).token);
 check("seller session alone → still 403", await status(settings.GET()), 403);
+// POST /api/cards cuts what it stores to the PATCH's lengths (10-01 sweep: it stored any length).
+{
+  const cards = await import(at("app/api/cards/route.ts"));
+  const long = "x".repeat(5000);
+  const res = await cards.POST(req("POST", { kind: "sealed", cardName: long, setName: long, cardNumber: long, imageUrl: long, condition: long, productType: long, catalogCardId: long }));
+  const card = (await res.json()).card ?? {};
+  check(
+    "cards POST: oversized fields are cut",
+    [res.status, ...["cardName", "setName", "cardNumber", "imageUrl", "condition", "productType", "catalogCardId"].map((k) => card[k]?.length)],
+    [201, 200, 200, 40, 500, 40, 60, 80],
+  );
+}
 testCookies.clear();
 
 // --- login -------------------------------------------------------------------

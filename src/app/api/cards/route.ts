@@ -42,11 +42,13 @@ export async function POST(req: Request) {
     if (wall) return wall;
     const body = await req.json().catch(() => null);
 
-    const cardName = typeof body?.cardName === "string" ? body.cardName : "";
-    const setName = typeof body?.setName === "string" ? body.setName : "";
-    const cardNumber = typeof body?.cardNumber === "string" ? body.cardNumber : "";
-    const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : "";
-    const condition = typeof body?.condition === "string" ? body.condition : "Near Mint";
+    // Same caps as the PATCH in [id]/route.ts (10-01 sweep: this route stored any length).
+    const str = (v: unknown, max: number, fallback = "") => (typeof v === "string" ? v.slice(0, max) : fallback);
+    const cardName = str(body?.cardName, 200);
+    const setName = str(body?.setName, 200);
+    const cardNumber = str(body?.cardNumber, 40);
+    const imageUrl = str(body?.imageUrl, 500);
+    const condition = str(body?.condition, 40, "Near Mint");
     // A missing price means "unpriced" ($0); a present one must be a real
     // non-negative number, and never under the fee floor (lib/fees.ts).
     const price = body?.price === undefined || body?.price === null ? 0 : body.price;
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
     // or hand-rolled client.
     const kind = body?.kind === "sealed" ? ("sealed" as const) : ("card" as const);
     const productType =
-      typeof body?.productType === "string" ? body.productType : null;
+      typeof body?.productType === "string" ? body.productType.slice(0, 60) : null;
 
     if (!cardName) {
       return NextResponse.json({ error: "cardName is required" }, { status: 400 });
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
       condition,
       productType,
       price,
-      catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId : null,
+      catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId.slice(0, 80) : null,
       rarity: typeof body?.rarity === "string" ? body.rarity.slice(0, 60) : null,
       category: typeof body?.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null,
       variant: typeof body?.variant === "string" && body.variant.trim() ? body.variant.trim().slice(0, 40) : null,
