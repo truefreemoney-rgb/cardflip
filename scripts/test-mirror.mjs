@@ -346,8 +346,8 @@ check("second look saw no year line: 4th and Summer Magic (© 1994) lose, Revise
   await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true }), "3ed-242");
 check("no year line + no bevel seen: still Revised — an unseen bevel is no evidence",
   await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: false }), "3ed-242");
-check("no year line + the Unlimited bevel: Unlimited",
-  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: true }), "2ed-241");
+check("no year line + a bevel read: STILL Revised (10-01: the bevel read fired on 3 of 14 Revised seller pictures and 0 of 15 Unlimited)",
+  await mtgTopC("Cyclopean Tomb", null, null, { border: "white", noYearLine: true, bevel: true }), "3ed-242");
 check("bevel cue never touches a black-border row",
   await mtgTopC("Cyclopean Tomb", null, null, { border: "black", bevel: false }), "leb-241");
 // 09-10 picture tiebreak: both rankers expose rankScore; a 1-point gap is a tie.

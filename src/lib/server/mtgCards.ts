@@ -279,12 +279,12 @@ export function cuePenalty(row: MtgCardRow, cues: MtgCues | null | undefined): n
   // (Summer Magic prints © 1994, so "no year line" rules it out as well — it
   // must never win a white-border tie by being the newest no-year set.)
   if (cues.noYearLine && (row.set_release_date >= "1995-04-01" || row.set_code.toLowerCase() === "sum") && !AS_IS_REPRINT_SETS.has(row.set_code.toLowerCase())) p += 2;
-  // Only a SEEN bevel counts: on the 09-10 panel the close-up answered
-  // "false" on every Unlimited scan, so an absent bevel is no evidence.
-  if (cues.bevel === true && row.border_color === "white" && releaseYear && releaseYear < 1998) {
-    const code = row.set_code.toLowerCase();
-    if (code === "3ed" || code === "sum" || code === "4ed" || code === "5ed") p += 2;
-  }
+  // The bevel read is NOT used (10-01, 29 seller pictures): the close-up said
+  // "bevel" on 0 of 15 Unlimited cards and on 3 of 14 Revised ones, so the
+  // cue only ever moved a Revised card onto the pricier Unlimited printing
+  // (Mana Vault, Winter Orb, Fork). Unlimited and Revised stay a tie here:
+  // Revised, the common one, leads and the picture check / the seller's
+  // "Which printing is yours?" tap settles it.
   return p;
 }
 
