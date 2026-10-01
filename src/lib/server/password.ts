@@ -9,9 +9,13 @@ export function hashPassword(password: string): string {
   return `${salt}:${hash}`;
 }
 
+/** No password we ever stored is longer than 200 characters; past this nothing is hashed (scrypt time grows with the input). */
+const MAX_VERIFY_LENGTH = 1024;
+
 export function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
+  if (password.length > MAX_VERIFY_LENGTH) return false;
 
   const candidate = scryptSync(password, salt, KEY_LENGTH);
   const expected = Buffer.from(hash, "hex");

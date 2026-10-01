@@ -83,13 +83,15 @@ export async function consumeResetToken(token: string, newPassword: string): Pro
   if (!link) return null;
   const { user } = link;
   const now = Date.now();
+  // Burn the link first, in one statement: of two requests racing on the same
+  // link only one gets to set a password.
+  const burned = await db
+    .prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?")
+    .run(now, hashToken(token), now);
+  if (Number(burned.changes) !== 1) return null;
   await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
     hashPassword(newPassword),
     user.id,
-  );
-  await db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ?").run(
-    now,
-    hashToken(token),
   );
   // Every other device is signed out; the caller issues a fresh session.
   await db.prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);

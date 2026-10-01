@@ -62,17 +62,27 @@ export function totpCode(secret: string, atMs = Date.now(), stepOffset = 0): str
   return code.padStart(DIGITS, "0");
 }
 
-/** Constant-time check of a user-typed code against the current ±1 steps. */
-export function verifyTotp(secret: string, input: string, atMs = Date.now()): boolean {
+/**
+ * Constant-time check of a user-typed code against the current ±1 steps.
+ * Returns the time step the code belongs to (the latest one when two steps
+ * share a code), or null when it matches none. The step is what the sign-in
+ * remembers so the same code cannot be used twice (users.totp_last_step).
+ */
+export function totpMatchStep(secret: string, input: string, atMs = Date.now()): number | null {
   const typed = input.replace(/\s+/g, "");
-  if (!/^\d{6}$/.test(typed)) return false;
-  let ok = false;
-  for (const offset of [0, -1, 1]) {
+  if (!/^\d{6}$/.test(typed)) return null;
+  const current = Math.floor(atMs / 1000 / STEP_SECONDS);
+  let step: number | null = null;
+  for (const offset of [-1, 0, 1]) {
     const expect = totpCode(secret, atMs, offset);
     // No early exit — every candidate is compared so timing reveals nothing.
-    if (crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(typed))) ok = true;
+    if (crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(typed))) step = current + offset;
   }
-  return ok;
+  return step;
+}
+
+export function verifyTotp(secret: string, input: string, atMs = Date.now()): boolean {
+  return totpMatchStep(secret, input, atMs) !== null;
 }
 
 /** The otpauth:// URL an authenticator app enrolls from (shown as a QR). */

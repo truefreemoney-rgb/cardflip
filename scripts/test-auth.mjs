@@ -173,6 +173,15 @@ check("old password gone", verifyPassword("hunter22", (await findUserByEmail(use
 check("consume signs out every session", await getSessionUserId(live.token), null);
 check("link works once", await consumeResetToken(r2.token, "again0"), null);
 
+// Two requests racing on one link (10-01 sweep): the link is burned in one statement, so one wins.
+{
+  const race = await issueResetToken(user);
+  const got = await Promise.all([consumeResetToken(race.token, "racer-one"), consumeResetToken(race.token, "racer-two")]);
+  const winner = got[0] ? "racer-one" : "racer-two";
+  check("raced link: exactly one request sets a password", got.filter(Boolean).length, 1);
+  check("raced link: the password is the winner's", verifyPassword(winner, (await findUserByEmail(user.email)).passwordHash));
+}
+
 const r3 = await issueResetToken(user);
 advance(HOUR + 1);
 check("expired link → null", await peekResetToken(r3.token), null);

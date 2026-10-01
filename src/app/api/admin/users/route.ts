@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     if (!name || name.length > 80) return NextResponse.json({ error: "Name is required (1–80 characters)." }, { status: 400 });
     if (!isValidEmail(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
     if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+    if (password.length > 200) return NextResponse.json({ error: "That password is too long." }, { status: 400 });
     if (await findUserByEmail(email)) return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
 
     const user = await createUser(name, email, password, role);

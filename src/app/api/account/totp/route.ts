@@ -4,8 +4,8 @@ import { AuthError, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
-import { disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
-import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "@/lib/server/totp";
+import { acceptTotpStep, disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
+import { generateBackupCodes, generateTotpSecret, otpauthUrl, totpMatchStep } from "@/lib/server/totp";
 
 /**
  * Two-step verification management, while signed in:
@@ -44,10 +44,13 @@ export async function POST(req: NextRequest) {
       if (!user.totpSecret || totpEnabled(user)) {
         return NextResponse.json({ error: "Start setup first" }, { status: 400 });
       }
-      if (!verifyTotp(user.totpSecret, code)) {
+      const step = totpMatchStep(user.totpSecret, code);
+      if (step === null) {
         return NextResponse.json({ error: "That code didn't match — scan the QR again or wait for a fresh code" }, { status: 400 });
       }
       await enableTotp(user.id);
+      // The code that turned it on is spent too: the first sign-in needs the next one.
+      await acceptTotpStep(user.id, step);
       // Backup codes (09-04): shown once, stored hashed; a lost phone is no
       // longer a hand-edited column.
       const backup = generateBackupCodes();

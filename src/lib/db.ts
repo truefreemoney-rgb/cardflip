@@ -937,6 +937,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "access_override TEXT",
     // Two-step backup codes (09-04): JSON array of sha256 hex of unused codes.
     "totp_backup_codes TEXT",
+    // Authenticator codes work once (10-01 sweep): the 30 s time step of the
+    // last code that signed in; only a code from a later step is accepted.
+    "totp_last_step INTEGER",
     // Invite a friend (09-06, subscribers only): referral_code is the account's
     // share code (lazily minted); referred_by = the referrer's user id, set at
     // signup from ?ref=; referral_rewarded_at stamps the referred account once

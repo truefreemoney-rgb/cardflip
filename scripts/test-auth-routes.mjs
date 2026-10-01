@@ -163,6 +163,31 @@ const challenged = await login.POST(post({ email: "totp@example.com", password: 
 check("login: totp challenge issued", [challenged.status, (await challenged.json()).totpRequired], [401, true]);
 check("login: wrong code refused", (await login.POST(post({ email: "totp@example.com", password: "hunter22", code: "000000" }))).status, 401);
 check("login: good code signs in", (await login.POST(post({ email: "totp@example.com", password: "hunter22", code: totpCode(secret, Date.now()) }))).status, 200);
+// 10-01 sweep: an authenticator code works once, and a backup code is spent by exactly one request.
+{
+  const { setTotpBackupCodes, findUserByEmail } = await import(at("lib/server/users.ts"));
+  const { generateBackupCodes } = await import(at("lib/server/totp.ts"));
+  const replayUser = await createUser("Replay", "replay@example.com", "hunter22");
+  const s2 = generateTotpSecret();
+  await setTotpSecret(replayUser.id, s2);
+  await enableTotp(replayUser.id);
+  const backup = generateBackupCodes();
+  await setTotpBackupCodes(replayUser.id, backup.hashes);
+  const go = (code) => login.POST(post({ email: "replay@example.com", password: "hunter22", code }));
+  const now = Date.now();
+  const first = await go(totpCode(s2, now));
+  const again = await go(totpCode(s2, now));
+  check("totp replay: the same code a second time is refused", [first.status, again.status, (await again.json()).error], [200, 401, "That code was already used. Wait for your app to show the next one."]);
+  check("totp replay: an older step is refused too", (await go(totpCode(s2, now, -1))).status, 401);
+  check("totp replay: the next step's code signs in", (await go(totpCode(s2, now, 1))).status, 200);
+  const raced = await Promise.all([go(backup.codes[0]), go(backup.codes[0])]);
+  check("backup code: two requests at once, one sign-in", raced.map((r) => r.status).sort(), [200, 401]);
+  check("backup code: spent, seven left", [(await go(backup.codes[0])).status, (await findUserByEmail("replay@example.com")).totpBackupCodes.length], [401, 7]);
+  check("backup code: another one still works", (await go(backup.codes[1])).status, 200);
+}
+check("signup: password ceiling", (await signup.POST(post({ name: "A", email: "long@example.com", password: "x".repeat(201) }))).status, 400);
+check("login: an absurdly long password is refused without hashing", (await login.POST(post({ email: "sam@example.com", password: "x".repeat(5000) }))).status, 401);
+
 await setTotpSecret(admin.id, secret);
 await enableTotp(admin.id);
 check("login: admins skip totp", (await login.POST(post({ email: "admin", password: "adminpass" }))).status, 200);

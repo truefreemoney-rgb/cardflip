@@ -525,9 +525,38 @@ export async function disableTotp(userId: string): Promise<void> {
   await db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_backup_codes = NULL WHERE id = ?").run(userId);
 }
 
-/** Replace the unused backup-code hashes (fresh set, or one fewer after a use). */
+/** Replace the unused backup-code hashes with a fresh set. */
 export async function setTotpBackupCodes(userId: string, hashes: string[]): Promise<void> {
   await db.prepare("UPDATE users SET totp_backup_codes = ? WHERE id = ?").run(JSON.stringify(hashes), userId);
+}
+
+/**
+ * Spend one backup code. The list is swapped only if it is still the list
+ * that was read, so the same code sent in two requests at once signs in once.
+ */
+export async function spendTotpBackupCode(userId: string, hash: string): Promise<boolean> {
+  const row = (await db.prepare("SELECT totp_backup_codes FROM users WHERE id = ?").get(userId)) as
+    | { totp_backup_codes: string | null }
+    | undefined;
+  const before = row?.totp_backup_codes ?? null;
+  const codes = parseBackupCodes(before);
+  if (before === null || !codes.includes(hash)) return false;
+  const res = await db
+    .prepare("UPDATE users SET totp_backup_codes = ? WHERE id = ? AND totp_backup_codes = ?")
+    .run(JSON.stringify(codes.filter((c) => c !== hash)), userId, before);
+  return Number(res.changes) === 1;
+}
+
+/**
+ * Remember the time step of an authenticator code that just passed. False
+ * when that step (or a later one) was already used: a code works once, so one
+ * read over a shoulder or off the wire is no good a few seconds later.
+ */
+export async function acceptTotpStep(userId: string, step: number): Promise<boolean> {
+  const res = await db
+    .prepare("UPDATE users SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)")
+    .run(step, userId, step);
+  return Number(res.changes) === 1;
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {

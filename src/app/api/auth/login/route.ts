@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail, setTotpBackupCodes, toPublicUser, totpEnabled } from "@/lib/server/users";
-import { hashBackupCode, verifyTotp } from "@/lib/server/totp";
+import { acceptTotpStep, findUserByEmail, spendTotpBackupCode, toPublicUser, totpEnabled } from "@/lib/server/users";
+import { hashBackupCode, totpMatchStep } from "@/lib/server/totp";
 import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 
@@ -76,13 +76,15 @@ export async function POST(req: Request) {
     if (!code) {
       return NextResponse.json({ totpRequired: true, error: "Enter your authenticator code." }, { status: 401 });
     }
-    if (!verifyTotp(user.totpSecret!, code)) {
-      // A backup code (09-04) works once, then it's gone.
-      const idx = code.length >= 8 ? user.totpBackupCodes.indexOf(hashBackupCode(code)) : -1;
-      if (idx < 0) {
-        return NextResponse.json({ totpRequired: true, error: "That code didn't match. Codes change every 30 seconds — try the current one, or a backup code." }, { status: 401 });
+    const step = totpMatchStep(user.totpSecret!, code);
+    if (step !== null) {
+      // An authenticator code works once (10-01 sweep).
+      if (!(await acceptTotpStep(user.id, step))) {
+        return NextResponse.json({ totpRequired: true, error: "That code was already used. Wait for your app to show the next one." }, { status: 401 });
       }
-      await setTotpBackupCodes(user.id, user.totpBackupCodes.filter((_, i) => i !== idx));
+    } else if (!(code.length >= 8 && (await spendTotpBackupCode(user.id, hashBackupCode(code))))) {
+      // A backup code (09-04) works once, then it's gone.
+      return NextResponse.json({ totpRequired: true, error: "That code didn't match. Codes change every 30 seconds — try the current one, or a backup code." }, { status: 401 });
     }
   }
 

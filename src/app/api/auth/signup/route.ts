@@ -88,6 +88,10 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  // Same ceiling as a reset (passwordProblem): hashing cost grows with the input.
+  if (password.length > 200) {
+    return NextResponse.json({ error: "That password is too long." }, { status: 400 });
+  }
 
   if (isDisposableEmail(email)) {
     return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });

@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
     if (newPassword.length < 6) {
       return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
     }
+    if (newPassword.length > 200) {
+      return NextResponse.json({ error: "That password is too long" }, { status: 400 });
+    }
     if (newPassword === currentPassword) {
       return NextResponse.json({ error: "New password matches the current one" }, { status: 400 });
     }
