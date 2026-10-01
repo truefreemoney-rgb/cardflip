@@ -200,6 +200,14 @@ check("forgot: identical body either way", await forUnknown.json(), await forKno
 const resetCount = async (email) =>
   (await db.prepare("SELECT COUNT(*) AS n FROM password_resets pr JOIN users u ON u.id = pr.user_id WHERE u.email = ?").get(email)).n;
 check("forgot: reset row minted for the real account only", [await resetCount("sam@example.com"), await resetCount("ghost@example.com")], [1, 0]);
+// 10-01 sweep: one address took 10 resets per 15 minutes (~960 a day). Now 3 an hour, from any IP, real account or not.
+{
+  const codes = [];
+  for (let i = 0; i < 4; i++) {
+    codes.push((await forgot.POST(new Request("http://test/api", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": `5.5.5.${i}` }, body: JSON.stringify({ email: "victim@example.com" }) }))).status);
+  }
+  check("forgot: a 4th reset to one address within the hour is refused, whatever the IP", codes, [200, 200, 200, 429]);
+}
 for (const k of ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"]) delete process.env[k];
 
 // --- reset ------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { afterResponse } from "@/lib/server/emailVerify";
 
 /**
  * "Forgot password?" — emails a one-time reset link.
@@ -36,19 +37,16 @@ export async function POST(req: Request) {
   }
   // Per-email lockout too, or one address can be flooded with reset mail
   // from many IPs.
-  const locked = await limitOrRespondAsync(`auth:forgot:acct:${email.toLowerCase()}`, LIMITS.authAccount);
+  const locked = await limitOrRespondAsync(`auth:forgot:acct:${email.toLowerCase()}`, LIMITS.resetMail);
   if (locked) return locked;
 
-  const user = await findUserByEmail(email);
-  if (user) {
-    try {
-      const { url } = await issueResetToken(user);
-      await sendPasswordResetEmail(user.email, url);
-    } catch (err) {
-      // Logged, not surfaced: surfacing "send failed" only for real accounts
-      // would leak which emails exist.
-      console.error("Password reset email failed:", err);
-    }
-  }
+  // After the response (10-01 sweep): awaiting the token + mail only for real accounts made a known address answer
+  // measurably slower than an unknown one. Failures are logged, never surfaced, for the same reason.
+  await afterResponse(async () => {
+    const user = await findUserByEmail(email);
+    if (!user) return;
+    const { url } = await issueResetToken(user);
+    await sendPasswordResetEmail(user.email, url);
+  });
   return NextResponse.json({ ok: true });
 }
