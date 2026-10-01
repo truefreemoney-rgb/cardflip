@@ -140,8 +140,14 @@ function printingPenalty(id: string, firstEdition: boolean | null): number {
   return twin ? FIRST_EDITION_PENALTY : 0;
 }
 
-function agreesWithArt(art: ArtStyle, secretNumbered: boolean): keyof typeof ART_PENALTY {
+function agreesWithArt(art: ArtStyle, secretNumbered: boolean, releaseDate: string): keyof typeof ART_PENALTY {
   if (!art) return "unknown";
+  // Before XY (2014) a number past the set total was a shiny reprint in the
+  // ordinary frame (Black & White Pikachu 115/114, the Next Destinies shinies),
+  // not a full art: it says nothing about the frame. A "standard" read cost
+  // that Pikachu a point and it sat #5 of five tied printings (10-01 seller
+  // photo, number hidden), one past the four faces the picture check sees.
+  if (secretNumbered && releaseDate !== "" && releaseDate < "2014-01-01") return "unknown";
   return (art === "full-art") === secretNumbered ? "match" : "mismatch";
 }
 
@@ -364,7 +370,7 @@ export async function searchEnglishCardsLocal(
     else tier = 4;
 
     const code = agreesWithSetCode(printed?.setCode ?? null, row.set_code || null);
-    const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official));
+    const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official), row.set_release_date ?? "");
     const setName = agreesWithSetName(printed?.setName, row.set_name);
     const year = agreesWithYear(printed?.copyrightYear, row.set_release_date);
 

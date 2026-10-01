@@ -189,6 +189,10 @@ const seed2 = [
   ["pl2-108",  "Infernape E4 LV.X", "pl2",   "Rising Rivals",   "108", "2009-05-16", 111, ""],
   ["pl1-124",  "Giratina LV.X",     "pl1",   "Platinum",        "124", "2009-02-11", 127, ""],
   ["pl1-10",   "Giratina",          "pl1",   "Platinum",        "10",  "2009-02-12", 127, ""],
+  ["bw1-115",  "Raichu",            "bw1",   "Black & White",   "115", "2011-04-25", 114, ""],
+  ["bw7-50",   "Raichu",            "bw7",   "Boundaries Crossed","50","2012-11-07", 149, ""],
+  ["xy2-107",  "Dedenne",           "xy2",   "Flashfire",       "107", "2014-05-07", 106, ""],
+  ["xy2-34",   "Dedenne",           "xy2",   "Flashfire",       "34",  "2014-05-07", 106, ""],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed2) {
   await db.prepare(
@@ -229,6 +233,12 @@ check("'Infernape LV.X' with its number finds dp1-121",
   await top("Infernape LV.X", pn("121", 130)), "dp1-121");
 check("a Platinum LV.X row that keeps the suffix still wins on its own name",
   await top("Giratina LV.X", pn("", null, { copyrightYear: 2009 })), "pl1-124");
+// 10-01 seller photo, number hidden: Black & White Pikachu 115/114 is a shiny in the ordinary frame.
+// A "standard" read must not count against a pre-2014 number past the set total.
+check("pre-XY secret number + 'standard' frame read: the set name still picks it",
+  (await searchEnglishCardsLocal("Raichu", pn("", null, { setName: "Black & White", copyrightYear: 2011 }), 5, "standard")).cards[0]?.id, "bw1-115");
+check("XY onward a number past the total is still the full-art tier ('standard' read = the regular card)",
+  (await searchEnglishCardsLocal("Dedenne", pn("", null, { setName: "Flashfire" }), 5, "standard")).cards[0]?.id, "xy2-34");
 check("lettered sub-series total (RC1/25) is not a contradiction of the set count (113)",
   await top("Snivy", pn("RC1", 25)), "bw11-RC1");
 // 10-01 seller photos: Aquapolis Azumarill prints "H4/H32"; the mirror files it as H04 in a 147-card set.
