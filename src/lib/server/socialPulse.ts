@@ -85,6 +85,43 @@ const notConnected = (site: string, label: string) => finish(site, label, [], "N
 const failed = (site: string, label: string, err: unknown) =>
   finish(site, label, [], err instanceof Error ? err.message : String(err));
 
+type Insights = { data?: Array<{ name: string; values?: Array<{ value?: number }>; total_value?: { value?: number } }> };
+
+/**
+ * Per-post insights for the sites whose list call carries no views
+ * (Instagram, Facebook). Meta renames these metrics every year, so the
+ * first post tries each metric set in turn and the rest reuse the one that
+ * answered. Returns the refusal when none did (posts keep their counts).
+ */
+async function addInsights(
+  posts: PulsePost[],
+  metricSets: string[],
+  url: (id: string, metrics: string) => string,
+  apply: (post: PulsePost, val: (name: string) => number | null) => void,
+  step: string,
+): Promise<string | null> {
+  if (posts.length === 0) return null;
+  const read = async (post: PulsePost, metrics: string) => {
+    const ins = await getJson<Insights>(url(post.id, metrics), {}, step);
+    apply(post, (name) => {
+      const d = ins.data?.find((x) => x.name === name);
+      return num(d?.values?.[0]?.value) ?? num(d?.total_value?.value);
+    });
+  };
+  let refused: string | null = null;
+  for (const metrics of metricSets) {
+    try {
+      await read(posts[0], metrics);
+    } catch (err) {
+      refused ??= err instanceof Error ? err.message : String(err);
+      continue;
+    }
+    await Promise.all(posts.slice(1).map((p) => read(p, metrics).catch(() => {})));
+    return null;
+  }
+  return refused;
+}
+
 /* ---------- Bluesky: public feed, no token needed ---------- */
 
 async function bluesky(): Promise<SitePulse> {
@@ -218,7 +255,20 @@ async function facebook(c: { base: string; pageId: string; token: string } | nul
         reactions,
       };
     });
-    return finish("facebook", "Facebook", posts);
+    const out = finish("facebook", "Facebook", posts);
+    // Needs read_insights on the Page token; post_impressions is the pre-2026 name.
+    const refused = await addInsights(
+      out.posts,
+      ["post_media_view", "post_impressions"],
+      (id, metrics) => `${c.base}/${id}/insights?metric=${metrics}&access_token=${encodeURIComponent(c.token)}`,
+      (post, val) => {
+        post.views = val("post_media_view") ?? val("post_impressions");
+      },
+      "facebook insights",
+    );
+    if (refused) out.error = `Posts read, views refused: ${refused}`;
+    else out.totals.views = sum(out.posts, "views");
+    return out;
   } catch (err) {
     return failed("facebook", "Facebook", err);
   }
@@ -246,7 +296,23 @@ async function instagram(c: { base: string; userId: string; token: string } | nu
       shares: null,
       views: null,
     }));
-    return finish("instagram", "Instagram", posts);
+    const out = finish("instagram", "Instagram", posts);
+    const refused = await addInsights(
+      out.posts,
+      ["views,shares", "views", "reach"],
+      (id, metrics) => `${c.base}/${id}/insights?metric=${metrics}&access_token=${encodeURIComponent(c.token)}`,
+      (post, val) => {
+        post.views = val("views") ?? val("reach");
+        post.shares = val("shares");
+      },
+      "instagram insights",
+    );
+    if (refused) out.error = `Posts read, views refused: ${refused}`;
+    else {
+      out.totals.views = sum(out.posts, "views");
+      out.totals.shares = sum(out.posts, "shares");
+    }
+    return out;
   } catch (err) {
     return failed("instagram", "Instagram", err);
   }
