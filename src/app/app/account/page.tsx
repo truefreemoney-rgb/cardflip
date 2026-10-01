@@ -11,6 +11,7 @@ import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
 import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
 import { FROZEN_SENTENCE, PRICE, PRICE_SHORT, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { PASSWORD_MIN } from "@/lib/passwordRules";
 import type { ScanQuota } from "@/lib/quotaTypes";
 import { frozenSentence, hasPlanBalance, paymentCredited, planEndsSentence, shortDate } from "@/lib/scanCopy";
 import { requestTourReplay } from "@/lib/client/tour";
@@ -388,7 +389,7 @@ function AccountSettings({
   async function savePassword(e: FormEvent) {
     e.preventDefault();
     setPwMsg(null);
-    if (newPw.length < 6) return setPwMsg({ kind: "err", text: "New password must be at least 6 characters" });
+    if (newPw.length < PASSWORD_MIN) return setPwMsg({ kind: "err", text: `New password must be at least ${PASSWORD_MIN} characters` });
     if (newPw !== newPw2) return setPwMsg({ kind: "err", text: "New passwords don't match" });
     setPwBusy(true);
     try {
@@ -719,14 +720,14 @@ function AccountSettings({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className={labelCls}>
                 New password
-                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={pwBusy} required minLength={6} autoComplete="new-password" />
-                <span className={`mt-1 block text-[11px] ${newPw.length === 0 ? "text-zinc-600" : newPw.length >= 6 ? "text-emerald-400" : "text-amber-300"}`}>
-                  {newPw.length === 0 ? "At least 6 characters" : newPw.length >= 6 ? "Long enough" : `${6 - newPw.length} more character${6 - newPw.length === 1 ? "" : "s"}`}
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={pwBusy} required minLength={PASSWORD_MIN} autoComplete="new-password" />
+                <span className={`mt-1 block text-[11px] ${newPw.length === 0 ? "text-zinc-600" : newPw.length >= PASSWORD_MIN ? "text-emerald-400" : "text-amber-300"}`}>
+                  {newPw.length === 0 ? `At least ${PASSWORD_MIN} characters` : newPw.length >= PASSWORD_MIN ? "Long enough" : `${PASSWORD_MIN - newPw.length} more character${PASSWORD_MIN - newPw.length === 1 ? "" : "s"}`}
                 </span>
               </label>
               <label className={labelCls}>
                 Repeat new password
-                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={pwBusy} required minLength={6} autoComplete="new-password" />
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={newPw2} onChange={(e) => setNewPw2(e.target.value)} disabled={pwBusy} required minLength={PASSWORD_MIN} autoComplete="new-password" />
                 {newPw2.length > 0 && newPw2 !== newPw && <span className="mt-1 block text-[11px] text-amber-300">Doesn&apos;t match yet</span>}
               </label>
             </div>

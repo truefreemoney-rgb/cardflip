@@ -3,6 +3,7 @@ import { TRIAL_SCANS, createUser, findUserByEmail, needsEmailConfirm, totpEnable
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
+import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
@@ -82,15 +83,9 @@ export async function POST(req: Request) {
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
   }
-  if (password.length < 6) {
-    return NextResponse.json(
-      { error: "Password must be at least 6 characters." },
-      { status: 400 },
-    );
-  }
-  // Same ceiling as a reset (passwordProblem): hashing cost grows with the input.
-  if (password.length > 200) {
-    return NextResponse.json({ error: "That password is too long." }, { status: 400 });
+  const pwProblem = passwordProblem(password);
+  if (pwProblem) {
+    return NextResponse.json({ error: pwProblem }, { status: 400 });
   }
 
   if (isDisposableEmail(email)) {

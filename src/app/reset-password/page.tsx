@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import { apiPath } from "@/lib/client/basePath";
+import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -54,8 +55,9 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      setError(pwProblem);
       return;
     }
     if (password !== confirm) {
@@ -120,7 +122,7 @@ function ResetPasswordForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={FIELD}
-              placeholder="At least 6 characters"
+              placeholder={`At least ${PASSWORD_MIN} characters`}
               hint
             />
           </div>

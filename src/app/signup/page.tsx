@@ -15,6 +15,7 @@ import { mergeUser } from "@/lib/client/emailConfirm";
 import { readReferralCode } from "@/components/RefCapture";
 import { readTouch } from "@/components/AttributionCapture";
 import { PRICING, SCANS } from "@/lib/pricing";
+import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -83,8 +84,8 @@ export default function SignupPage() {
 
     if (!name.trim()) return setError("Enter your name.");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
-    if (password.length < 6)
-      return setError("Password must be at least 6 characters.");
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) return setError(pwProblem);
 
     setSubmitting(true);
     try {
@@ -191,7 +192,7 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={FIELD}
-                placeholder="At least 6 characters"
+                placeholder={`At least ${PASSWORD_MIN} characters`}
                 hint
               />
             </div>

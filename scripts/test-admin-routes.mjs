@@ -70,7 +70,7 @@ const status = async (p) => (await p).status;
 
 // --- no cookie: everything is 403 ------------------------------------------
 testCookies.clear();
-check("users POST without cookie → 403", await status(users.POST(req("POST", { name: "x", email: "x@y.co", password: "123456" }))), 403);
+check("users POST without cookie → 403", await status(users.POST(req("POST", { name: "x", email: "x@y.co", password: "12345678" }))), 403);
 check("settings GET without cookie → 403", await status(settings.GET()), 403);
 check("access PATCH without cookie → 403", await status(access.PATCH(req("PATCH", { override: null }), ctx("nope"))), 403);
 check("scans POST without cookie → 403", await status(scansRoute.POST(req("POST", { delta: 5, note: "x y z" }), ctx("nope"))), 403);
@@ -152,17 +152,17 @@ check("with cookie: settings GET → 200", await status(settings.GET()), 200);
 }
 
 // --- create account ----------------------------------------------------------
-check("create: name required", await status(users.POST(req("POST", { email: "a@b.co", password: "123456" }))), 400);
-check("create: real email required", await status(users.POST(req("POST", { name: "A", email: "nope", password: "123456" }))), 400);
-check("create: password floor", await status(users.POST(req("POST", { name: "A", email: "a@b.co", password: "12345" }))), 400);
+check("create: name required", await status(users.POST(req("POST", { email: "a@b.co", password: "12345678" }))), 400);
+check("create: real email required", await status(users.POST(req("POST", { name: "A", email: "nope", password: "12345678" }))), 400);
+check("create: password floor", await status(users.POST(req("POST", { name: "A", email: "a@b.co", password: "1234567" }))), 400);
 const created = await users.POST(req("POST", { name: "  Pat  ", email: " Pat@Example.com ", password: "hunter22" }));
 check("create: 201", created.status, 201);
 const pat = (await created.json()).user;
 check("create: normalised, no hash", [pat.name, pat.email, "passwordHash" in pat], ["Pat", "pat@example.com", false]);
-check("create: duplicate → 409", await status(users.POST(req("POST", { name: "B", email: "PAT@example.com", password: "123456" }))), 409);
-const adminMade = await (await users.POST(req("POST", { name: "Ops2", email: "ops2@example.com", password: "123456", role: "admin" }))).json();
+check("create: duplicate → 409", await status(users.POST(req("POST", { name: "B", email: "PAT@example.com", password: "12345678" }))), 409);
+const adminMade = await (await users.POST(req("POST", { name: "Ops2", email: "ops2@example.com", password: "12345678", role: "admin" }))).json();
 check("create: role admin honoured", adminMade.user.role, "admin");
-check("create: unknown role → user", (await (await users.POST(req("POST", { name: "U", email: "u@example.com", password: "123456", role: "god" }))).json()).user.role, "user");
+check("create: unknown role → user", (await (await users.POST(req("POST", { name: "U", email: "u@example.com", password: "12345678", role: "god" }))).json()).user.role, "user");
 
 // --- plan override -----------------------------------------------------------
 check("access: garbage → 400", await status(access.PATCH(req("PATCH", { override: "vip" }), ctx(pat.id))), 400);

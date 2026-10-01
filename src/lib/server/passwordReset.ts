@@ -106,9 +106,5 @@ export async function consumeResetToken(token: string, newPassword: string): Pro
   return findUserById(user.id);
 }
 
-/** Same floor as signup (api/auth/signup), so a reset can't set a password signup would reject. */
-export function passwordProblem(password: string): string | null {
-  if (password.length < 6) return "Password must be at least 6 characters.";
-  if (password.length > 200) return "That password is too long.";
-  return null;
-}
+/** Same rules as signup (lib/passwordRules.ts), so a reset can't set a password signup would reject. */
+export { passwordProblem } from "@/lib/passwordRules";

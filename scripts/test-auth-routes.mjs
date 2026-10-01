@@ -60,14 +60,14 @@ function post(body, ip) {
 const sessionCookie = (res) => res.cookies.get(SESSION_COOKIE)?.value ?? null;
 
 // --- signup -----------------------------------------------------------------
-check("signup: name required", (await signup.POST(post({ email: "a@b.co", password: "123456" }))).status, 400);
-check("signup: real email required", (await signup.POST(post({ name: "A", email: "not-an-email", password: "123456" }))).status, 400);
+check("signup: name required", (await signup.POST(post({ email: "a@b.co", password: "12345678" }))).status, 400);
+check("signup: real email required", (await signup.POST(post({ name: "A", email: "not-an-email", password: "12345678" }))).status, 400);
 // 09-30: "a@x.com,b@y.com" passed the old check and the mailer sent the welcome mail to every address in it.
 for (const many of ["a@x.com,b@y.com", "a@x.com;b@y.com", "A <a@x.com>", "\"a\"@x.com"]) {
-  check(`signup: one address only (${many})`, (await signup.POST(post({ name: "A", email: many, password: "123456" }))).status, 400);
+  check(`signup: one address only (${many})`, (await signup.POST(post({ name: "A", email: many, password: "12345678" }))).status, 400);
 }
-check("signup: password floor", (await signup.POST(post({ name: "A", email: "a@b.co", password: "12345" }))).status, 400);
-check("signup: name capped at 80", (await signup.POST(post({ name: "N".repeat(81), email: "a@b.co", password: "123456" }))).status, 400);
+check("signup: password floor", (await signup.POST(post({ name: "A", email: "a@b.co", password: "1234567" }))).status, 400);
+check("signup: name capped at 80", (await signup.POST(post({ name: "N".repeat(81), email: "a@b.co", password: "12345678" }))).status, 400);
 
 const created = await signup.POST(post({ name: "  Sam  ", email: "  Sam@Example.COM ", password: "hunter22" }));
 check("signup: created", created.status, 201);
@@ -76,28 +76,28 @@ check("signup: normalised public user", [createdBody.user.name, createdBody.user
 check("signup: no hash in payload", "passwordHash" in createdBody.user, false);
 const signupToken = sessionCookie(created);
 check("signup: session cookie is live", Boolean(signupToken && await getSessionUserId(signupToken)));
-check("signup: duplicate email → 409", (await signup.POST(post({ name: "B", email: "SAM@example.com", password: "123456" }))).status, 409);
+check("signup: duplicate email → 409", (await signup.POST(post({ name: "B", email: "SAM@example.com", password: "12345678" }))).status, 409);
 
 // --- one account per IP / device, no throwaway inboxes (Chris 09-29) ------------
-check("signup: mailinator refused", (await signup.POST(post({ name: "P", email: "probex@mailinator.com", password: "123456" }))).status, 400);
-check("signup: throwaway subdomain refused", (await signup.POST(post({ name: "P", email: "p@x.yopmail.com", password: "123456" }))).status, 400);
-check("signup: gmail allowed", (await signup.POST(post({ name: "G", email: "someone@gmail.com", password: "123456" }))).status, 201);
-const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com", password: "123456" }, "203.0.113.7"));
+check("signup: mailinator refused", (await signup.POST(post({ name: "P", email: "probex@mailinator.com", password: "12345678" }))).status, 400);
+check("signup: throwaway subdomain refused", (await signup.POST(post({ name: "P", email: "p@x.yopmail.com", password: "12345678" }))).status, 400);
+check("signup: gmail allowed", (await signup.POST(post({ name: "G", email: "someone@gmail.com", password: "12345678" }))).status, 201);
+const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com", password: "12345678" }, "203.0.113.7"));
 check("signup: first on an IP → 201", firstOnIp.status, 201);
 const device = firstOnIp.cookies.get("cf_dev")?.value;
 check("signup: sets the device cookie", Boolean(device));
-check("signup: second on the same IP still → 201", (await signup.POST(post({ name: "Two", email: "two@example.com", password: "123456" }, "203.0.113.7"))).status, 201);
-const sameDevice = post({ name: "Three", email: "three@example.com", password: "123456" }, "198.51.100.9");
+check("signup: second on the same IP still → 201", (await signup.POST(post({ name: "Two", email: "two@example.com", password: "12345678" }, "203.0.113.7"))).status, 201);
+const sameDevice = post({ name: "Three", email: "three@example.com", password: "12345678" }, "198.51.100.9");
 sameDevice.headers.set("cookie", `cf_dev=${device}`);
 check("signup: same device on a new IP still → 201", (await signup.POST(sameDevice)).status, 201);
 const trialUsed = async (email) => (await db.prepare("SELECT trial_scans_used AS n FROM users WHERE email = ?").get(email))?.n;
 check("signup: first on the IP keeps the free trial", await trialUsed("one@example.com"), 0);
 check("signup: repeat IP starts with the trial spent", await trialUsed("two@example.com"), 5);
 check("signup: repeat device starts with the trial spent", await trialUsed("three@example.com"), 5);
-await signup.POST(post({ name: "L1", email: "l1@example.com", password: "123456" }, "127.0.0.1"));
-await signup.POST(post({ name: "L2", email: "l2@example.com", password: "123456" }, "127.0.0.1"));
+await signup.POST(post({ name: "L1", email: "l1@example.com", password: "12345678" }, "127.0.0.1"));
+await signup.POST(post({ name: "L2", email: "l2@example.com", password: "12345678" }, "127.0.0.1"));
 check("signup: loopback (e2e in CI) never counts as a repeat", await trialUsed("l2@example.com"), 0);
-const fromCanada = post({ name: "C", email: "canada@example.com", password: "123456" });
+const fromCanada = post({ name: "C", email: "canada@example.com", password: "12345678" });
 fromCanada.headers.set("x-vercel-ip-country", "CA");
 await signup.POST(fromCanada);
 check(
@@ -109,26 +109,26 @@ check(
 // --- signup attribution (lib/attribution.ts, 09-30) --------------------------------
 const touchOf = async (email) =>
   db.prepare("SELECT s.src, s.medium, s.campaign, s.landing, s.ref_host FROM signup_log s JOIN users u ON u.id = s.user_id WHERE u.email = ?").get(email);
-const tagged = await signup.POST(post({ name: "T", email: "tagged@example.com", password: "123456", touch: { s: "bluesky", m: "social", c: "pokemon-set-0930", refHost: "", landing: "/", t: Date.now() } }));
+const tagged = await signup.POST(post({ name: "T", email: "tagged@example.com", password: "12345678", touch: { s: "bluesky", m: "social", c: "pokemon-set-0930", refHost: "", landing: "/", t: Date.now() } }));
 check("attribution: signup with a touch → 201", tagged.status, 201);
 check("attribution: the touch lands on the signup_log row", { ...(await touchOf("tagged@example.com")) }, { src: "bluesky", medium: "social", campaign: "pokemon-set-0930", landing: "/", ref_host: "" });
-const messy = await signup.POST(post({ name: "M", email: "messy@example.com", password: "123456", touch: { s: " BlueSky ", m: "Social!!", c: "Pokemon Set 0930<script>", refHost: "L.Facebook.com/x", landing: "/cards/pokemon?utm=1#top", t: 1 } }));
+const messy = await signup.POST(post({ name: "M", email: "messy@example.com", password: "12345678", touch: { s: " BlueSky ", m: "Social!!", c: "Pokemon Set 0930<script>", refHost: "L.Facebook.com/x", landing: "/cards/pokemon?utm=1#top", t: 1 } }));
 check("attribution: messy fields are sanitized, not refused", [messy.status, { ...(await touchOf("messy@example.com")) }], [201, { src: "bluesky", medium: "social", campaign: "pokemonset0930script", landing: "/cards/pokemon", ref_host: "l.facebook.comx" }]);
-const other = await signup.POST(post({ name: "O", email: "other@example.com", password: "123456", touch: { s: "other:news.example.org", m: "", c: "", refHost: "news.example.org", landing: "/pricing", t: Date.now() } }));
+const other = await signup.POST(post({ name: "O", email: "other@example.com", password: "12345678", touch: { s: "other:news.example.org", m: "", c: "", refHost: "news.example.org", landing: "/pricing", t: Date.now() } }));
 check("attribution: an outside referrer is kept as other:<host>", [other.status, (await touchOf("other@example.com")).src], [201, "other:news.example.org"]);
 let n = 0;
 for (const bad of ["nope", 5, [], {}, { s: "evil" }, { s: 5 }, { s: "x".repeat(500) }, null]) {
   const email = `bad${++n}@example.com`;
-  const res = await signup.POST(post({ name: "B", email, password: "123456", touch: bad }));
+  const res = await signup.POST(post({ name: "B", email, password: "12345678", touch: bad }));
   check(`attribution: malformed touch dropped, signup unaffected (${JSON.stringify(bad)?.slice(0, 24)})`, [res.status, (await touchOf(email)).src], [201, null]);
 }
-const none = await signup.POST(post({ name: "N", email: "notouch@example.com", password: "123456" }));
+const none = await signup.POST(post({ name: "N", email: "notouch@example.com", password: "12345678" }));
 check("attribution: no touch at all is an ordinary signup", [none.status, (await touchOf("notouch@example.com")).src], [201, null]);
 // A database that never got the new columns must not cost a signup: drop one, sign up with a touch, put it back.
 await db.prepare("ALTER TABLE signup_log DROP COLUMN landing").run();
 const realWarn = console.warn;
 console.warn = () => {};
-const columnless = await signup.POST(post({ name: "Z", email: "columnless@example.com", password: "123456", touch: { s: "x", m: "social", c: "a", refHost: "", landing: "/", t: Date.now() } }));
+const columnless = await signup.POST(post({ name: "Z", email: "columnless@example.com", password: "12345678", touch: { s: "x", m: "social", c: "a", refHost: "", landing: "/", t: Date.now() } }));
 console.warn = realWarn;
 check("attribution: a missing column never fails the signup (the guard row is still written)", [columnless.status, Number((await db.prepare("SELECT COUNT(*) AS n FROM signup_log s JOIN users u ON u.id = s.user_id WHERE u.email = 'columnless@example.com'").get()).n)], [201, 1]);
 await db.prepare("ALTER TABLE signup_log ADD COLUMN landing TEXT").run();
@@ -185,6 +185,13 @@ check("login: good code signs in", (await login.POST(post({ email: "totp@example
   check("backup code: spent, seven left", [(await go(backup.codes[0])).status, (await findUserByEmail("replay@example.com")).totpBackupCodes.length], [401, 7]);
   check("backup code: another one still works", (await go(backup.codes[1])).status, 200);
 }
+// The minimum is 8 since 10-01, for NEW passwords only: an account made with a shorter one still signs in.
+await createUser("Old Short", "oldshort@example.com", "abc123");
+check("login: a 6-character password from before the change still signs in", (await login.POST(post({ email: "oldshort@example.com", password: "abc123" }))).status, 200);
+check("signup: 7 characters refused with the new sentence, 8 accepted", [
+  (await (await signup.POST(post({ name: "A", email: "seven@example.com", password: "1234567" }))).json()).error,
+  (await signup.POST(post({ name: "A", email: "eight@example.com", password: "12345678" }))).status,
+], ["Password must be at least 8 characters.", 201]);
 check("signup: password ceiling", (await signup.POST(post({ name: "A", email: "long@example.com", password: "x".repeat(201) }))).status, 400);
 check("login: an absurdly long password is refused without hashing", (await login.POST(post({ email: "sam@example.com", password: "x".repeat(5000) }))).status, 401);
 
@@ -317,8 +324,8 @@ const probeBad = await reset.GET(new Request("http://test/api?token=bogus"));
 check("reset: GET flags a dead link", await probeBad.json(), { valid: false, email: null });
 const issued = await issueResetToken(sam);
 check("reset: GET names the account on a live link", await (await reset.GET(new Request(`http://test/api?token=${encodeURIComponent(issued.token)}`))).json(), { valid: true, email: "sam@example.com" });
-check("reset: password floor", (await reset.POST(post({ token: issued.token, password: "12345" }))).status, 400);
-check("reset: missing token → 400", (await reset.POST(post({ password: "123456" }))).status, 400);
+check("reset: password floor", (await reset.POST(post({ token: issued.token, password: "1234567" }))).status, 400);
+check("reset: missing token → 400", (await reset.POST(post({ password: "12345678" }))).status, 400);
 const done = await reset.POST(post({ token: issued.token, password: "fresh-pass" }));
 check("reset: success signs the seller in", [done.status, Boolean(sessionCookie(done))], [200, true]);
 check("reset: earlier sessions are gone", await getSessionUserId(loginToken), null);

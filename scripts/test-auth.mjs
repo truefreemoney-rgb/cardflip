@@ -186,8 +186,9 @@ const r3 = await issueResetToken(user);
 advance(HOUR + 1);
 check("expired link → null", await peekResetToken(r3.token), null);
 
-check("password floor", [passwordProblem("12345"), passwordProblem("123456"), passwordProblem("x".repeat(201))],
-  ["Password must be at least 6 characters.", null, "That password is too long."]);
+// 8 since 10-01 (Chris, after the sweep; was 6). New passwords only: login never checks length.
+check("password floor", [passwordProblem("1234567"), passwordProblem("12345678"), passwordProblem("x".repeat(201))],
+  ["Password must be at least 8 characters.", null, "That password is too long."]);
 
 Date.now = realNow;
 

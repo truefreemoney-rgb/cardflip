@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { updateUserPassword } from "@/lib/server/users";
@@ -25,10 +26,10 @@ export async function POST(req: NextRequest) {
     if (!verifyPassword(currentPassword, user.passwordHash)) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
     }
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
+    if (newPassword.length < PASSWORD_MIN) {
+      return NextResponse.json({ error: `New password must be at least ${PASSWORD_MIN} characters` }, { status: 400 });
     }
-    if (newPassword.length > 200) {
+    if (newPassword.length > PASSWORD_MAX) {
       return NextResponse.json({ error: "That password is too long" }, { status: 400 });
     }
     if (newPassword === currentPassword) {

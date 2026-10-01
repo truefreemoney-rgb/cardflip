@@ -11,6 +11,7 @@ import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import type { AccessOverride, Role, ScanTier } from "@/lib/server/users";
 import type { UserRollup } from "@/lib/server/adminStats";
 import { SCANS } from "@/lib/pricing";
+import { PASSWORD_MIN } from "@/lib/passwordRules";
 import { formatMoney } from "@/lib/listing";
 import { etDate, etDateTime } from "@/lib/time";
 import { ago, TIER_STYLE } from "@/components/admin/format";
@@ -474,7 +475,7 @@ function AddAccountForm({ onDone }: { onDone: () => void }) {
               Generate
             </button>
           </span>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className={`${input} font-mono`} />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} required minLength={PASSWORD_MIN} className={`${input} font-mono`} />
         </label>
         <div className="flex items-center gap-2">
           <div className="flex rounded-full border border-edge bg-black/30 p-0.5 text-xs">

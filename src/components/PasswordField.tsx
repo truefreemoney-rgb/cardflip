@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type InputHTMLAttributes } from "react";
+import { PASSWORD_MIN } from "@/lib/passwordRules";
 
 /**
  * A password input with an eye toggle and, for new passwords, a live length
@@ -11,12 +12,12 @@ import { useState, type InputHTMLAttributes } from "react";
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "className"> & {
   /** Show the "n more characters / long enough" hint (new passwords). */
   hint?: boolean;
-  /** Minimum length the hint counts toward. Signup enforces 6. */
+  /** Minimum length the hint counts toward. Defaults to the one rule (lib/passwordRules.ts). */
   minLength?: number;
   className: string;
 };
 
-export default function PasswordField({ hint = false, minLength = 6, className, value, ...rest }: Props) {
+export default function PasswordField({ hint = false, minLength = PASSWORD_MIN, className, value, ...rest }: Props) {
   const [show, setShow] = useState(false);
   const len = typeof value === "string" ? value.length : 0;
   const hintText =
