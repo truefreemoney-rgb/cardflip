@@ -415,7 +415,7 @@ export interface CurrentSeriesPoint {
 }
 
 /** A series point older than this is history, not "the current price". */
-const CURRENT_POINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const CURRENT_POINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Whether the chart's point may replace the resolved snapshot price (Chris,

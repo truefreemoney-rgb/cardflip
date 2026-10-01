@@ -41,7 +41,7 @@ import {
   type ListingPolicies,
 } from "@/lib/ebayInventory";
 import { FxUnavailableError, getFxRates } from "@/lib/server/fx";
-import { LocalPriceError, resolveLocalAsk, sellerAccountType, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
+import { LocalPriceError, marketFor, resolveLocalAsk, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
 
 /**
  * Pushing a CardFlip draft into the seller's own eBay account, on the user
@@ -94,7 +94,7 @@ export { EbayNotConnectedError } from "@/lib/server/ebayAuth";
 
 export async function ebayFetch(
   token: string,
-  method: "GET" | "PUT" | "POST",
+  method: "GET" | "PUT" | "POST" | "DELETE",
   path: string,
   body?: unknown,
   /** The Finances API lives on apiz.ebay.com; everything else on api.ebay.com (the sandbox hosts under EBAY_ENV=sandbox). */
@@ -487,19 +487,6 @@ export async function createDraft(
   return { card: saved ?? card, draftId: json.itemDraftId, draftUrl };
 }
 
-/**
- * The site an offer belongs on. An existing offer keeps the site it was
- * created on (an offer cannot move, and its price, currency and policies are
- * that site's); a card with no offer follows the seller's current site.
- */
-async function marketFor(userId: string, card: CardRecord): Promise<SellerMarket> {
-  if (card.ebayOfferId) {
-    const mp = marketplaceByEbayId(card.ebayMarketplace);
-    return { mp, account: isLocalMarketplace(mp) ? await sellerAccountType(userId) : null };
-  }
-  return sellerMarket(userId);
-}
-
 /** The asking price on a local site, or a seller-readable EbaySellError (no usable FX rate, no trusted market). */
 async function priceOnSite(card: CardRecord, here: SellerMarket, strategy: DraftInput["strategy"]): Promise<LocalAsk> {
   try {
@@ -544,13 +531,35 @@ export async function pushDraft(
   const sku = skuForCard(card.id);
   const itemPath = `/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`;
 
+  // An offer that was never published and sits on another site than the seller's current one (a US offer
+  // pushed before their site went live) is removed and made again on the right site: an unpublished offer is
+  // invisible to buyers and costs nothing, and an offer cannot change site. A published listing is never
+  // touched here (marketFor pins it to its own site). If eBay refuses the delete, nothing has changed and the
+  // seller hears why.
+  let existingOfferId = card.ebayOfferId;
+  if (here.staleOffer && existingOfferId) {
+    try {
+      await ebayFetch(token, "DELETE", `/sell/inventory/v1/offer/${encodeURIComponent(existingOfferId)}`, undefined, undefined, here.staleOffer);
+    } catch (err) {
+      const gone = err instanceof EbaySellError && (err.status === 404 || err.errors.some((e) => e.errorId === 25713 || e.errorId === 25002));
+      if (!gone) throw err;
+    }
+    await db
+      .prepare(
+        `UPDATE cards SET ebay_offer_id = NULL, ebay_pushed_at = NULL, ebay_marketplace = NULL, list_currency = NULL,
+                list_price_local = NULL WHERE id = ? AND user_id = ?`,
+      )
+      .run(card.id, userId);
+    existingOfferId = null;
+  }
+
   const item = buildInventoryItem(input);
   const degraded = await putInventoryItem(token, itemPath, item, mp);
 
   const defaults = await sellerDefaults(token, mp);
   const offer = buildOffer(input, defaults, mp);
 
-  let offerId = card.ebayOfferId;
+  let offerId = existingOfferId;
   let updated = false;
   if (offerId) {
     try {
@@ -571,29 +580,20 @@ export async function pushDraft(
     offerId = created.offerId;
   }
 
-  await setCardEbayListing(card.id, userId, {
+  // The offer id and the site it lives on are written in ONE transaction, so a failure between them can never
+  // leave a GB offer recorded as a US one. list_price_local is the authority for the listing and cards.price
+  // becomes its USD equivalent. A card that had a local site on record but got a US offer drops the stale site.
+  const saved = await setCardEbayListing(card.id, userId, {
     sku,
     offerId,
     pushedAt: Date.now(),
     // A re-push after publishing is an update to a live listing; keep the id.
+    market: priced
+      ? { marketplace: mp.marketplaceId, currency: mp.currency, priceLocal: priced.price, priceUsd: toUsd(priced.price, priced.rate) }
+      : card.ebayMarketplace
+        ? null
+        : undefined,
   });
-  // The site, currency and local asking price are recorded where the offer is
-  // created/priced: list_price_local is the authority for this listing, and
-  // cards.price becomes its USD equivalent. A card that had a local site on
-  // record but got a fresh US offer drops the stale site.
-  if (priced) {
-    await setCardListingMarket(card.id, userId, {
-      marketplace: mp.marketplaceId,
-      currency: mp.currency,
-      priceLocal: priced.price,
-      priceUsd: toUsd(priced.price, priced.rate),
-    });
-  } else if (card.ebayMarketplace) {
-    await db
-      .prepare("UPDATE cards SET ebay_marketplace = NULL, list_currency = NULL, list_price_local = NULL WHERE id = ? AND user_id = ?")
-      .run(card.id, userId);
-  }
-  const saved = await getCardForUser(card.id, userId);
 
   return {
     card: saved ?? card,
@@ -757,6 +757,11 @@ export async function publishDraft(
   if (!card.ebayOfferId) throw new EbaySellError("Send the draft to eBay first", 409);
   // The site the OFFER was created on (stored at push), never the seller's current home.
   const mp = marketplaceByEbayId(card.ebayMarketplace);
+  // A never-published offer on a different site than the seller's current one (made before their site went live)
+  // must not be published as is: send the push again, which replaces it on the right site (pushDraft).
+  if (!card.ebayListingId && (await sellerMarket(userId)).mp.marketplaceId !== mp.marketplaceId) {
+    throw new EbayPublishNeedsError("push", "Your eBay site changed since this draft was saved -- resending it now.");
+  }
 
   const token = await tokenFor(userId);
 

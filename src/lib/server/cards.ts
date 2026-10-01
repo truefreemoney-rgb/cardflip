@@ -368,6 +368,14 @@ export interface EbayListingState {
   listingId?: string | null;
   pushedAt?: number | null;
   publishedAt?: number | null;
+  /**
+   * The site the offer was created on, written in the SAME transaction as the
+   * offer id so a failure between the two can never leave a GB offer recorded
+   * as a US one. A value sets site / currency / local ask (and the USD ledger
+   * price when priceUsd is given); null clears them back to eBay US; undefined
+   * leaves them alone.
+   */
+  market?: { marketplace: string; currency: string; priceLocal: number; priceUsd?: number | null } | null;
 }
 
 /**
@@ -387,23 +395,39 @@ export async function setCardEbayListing(
   const listingId = state.listingId !== undefined ? state.listingId : existing.ebayListingId;
   const publishedAt =
     state.publishedAt !== undefined ? state.publishedAt : existing.ebayPublishedAt;
-  await db
-    .prepare(
-      `UPDATE cards
+  const params = [
+    state.sku,
+    state.offerId,
+    listingId,
+    state.pushedAt !== undefined ? state.pushedAt : existing.ebayPushedAt,
+    publishedAt,
+    now,
+    id,
+    userId,
+  ];
+  const offerSql = `UPDATE cards
        SET ebay_sku = ?, ebay_offer_id = ?, ebay_listing_id = ?, ebay_pushed_at = ?, ebay_published_at = ?,
            ebay_ended_at = NULL, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(
-      state.sku,
-      state.offerId,
-      listingId,
-      state.pushedAt !== undefined ? state.pushedAt : existing.ebayPushedAt,
-      publishedAt,
-      now,
-      id,
-      userId,
-    );
+       WHERE id = ? AND user_id = ?`;
+  if (state.market === undefined) {
+    await db.prepare(offerSql).run(...params);
+  } else {
+    await db.transaction(async (tx) => {
+      await tx.prepare(offerSql).run(...params);
+      if (state.market) {
+        await tx
+          .prepare(
+            `UPDATE cards SET ebay_marketplace = ?, list_currency = ?, list_price_local = ?,
+                    price = COALESCE(?, price) WHERE id = ? AND user_id = ?`,
+          )
+          .run(state.market.marketplace, state.market.currency, state.market.priceLocal, state.market.priceUsd ?? null, id, userId);
+      } else {
+        await tx
+          .prepare("UPDATE cards SET ebay_marketplace = NULL, list_currency = NULL, list_price_local = NULL WHERE id = ? AND user_id = ?")
+          .run(id, userId);
+      }
+    });
+  }
   return getCardForUser(id, userId);
 }
 

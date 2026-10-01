@@ -1,12 +1,15 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor } from "@/lib/fees";
-import { strategyValueUsd } from "@/lib/listing";
+import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor, listingFloorFor } from "@/lib/fees";
+import { CURRENT_POINT_MAX_AGE_MS, strategyValueUsd } from "@/lib/listing";
 import type { PriceStrategy } from "@/lib/types";
-import { toLocal, localAsk } from "@/lib/localPricing";
+import { pickLocalAsk, toLocal } from "@/lib/localPricing";
+import { addDays } from "@/lib/priceSeries";
 import {
   LOCAL_MARKET_COUNTRIES,
   US_MARKETPLACE,
+  formatLocalAmount,
+  isLocalMarketplace,
   marketplaceByEbayId,
   marketplaceFor,
   marketplaceLabel,
@@ -15,7 +18,7 @@ import {
 } from "@/lib/marketplaces";
 import type { CardRecord } from "@/lib/server/cards";
 import { getEbayAccountFacts, refreshEbayIdentityIfMissing } from "@/lib/server/ebayAuth";
-import { getFxRates, listingFxRate } from "@/lib/server/fx";
+import { FxUnavailableError, getFxRates, listingFxRate } from "@/lib/server/fx";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import { ebayLocalMarketsOn } from "@/lib/server/settings";
@@ -65,31 +68,53 @@ export async function sellerAccountType(userId: string): Promise<EbayAccountType
   return (await getEbayAccountFacts(userId)).accountType;
 }
 
-const lastOf = (prices: (number | null)[]): number | null => {
-  for (let j = prices.length - 1; j >= 0; j--) if (prices[j] != null) return prices[j];
-  return null;
+const lastIndexOf = (prices: (number | null)[]): number => {
+  for (let j = prices.length - 1; j >= 0; j--) if (prices[j] != null) return j;
+  return -1;
 };
 
+export type MarketValue =
+  | { ok: true; value: number; day: string }
+  | { ok: false; why: "none" | "stale"; day?: string };
+
 /**
- * The card's USD market value through its condition (the value before any
- * fees or postage), from our own daily series; null when the card has no
- * series or the price guard does not believe it. Never reads cards.price.
+ * The card's USD market value through its condition and the Quick Sale pick
+ * (the value before any fees or postage), from our own daily series. Not ok
+ * when the card has no series or the price guard does not believe it
+ * (why "none"), or when the latest point is older than the client's own
+ * "current price" rule (listing.ts CURRENT_POINT_MAX_AGE_MS, 7 days; why
+ * "stale"): a week-old figure is history, not a price to put on a live
+ * listing. Never reads cards.price.
  */
-export async function marketValueUsd(
+export async function marketValue(
   card: Pick<CardRecord, "catalogCardId" | "variant" | "game" | "condition">,
   /** The seller's Quick Sale pick (an undercut preference they chose, not a fact the client reports). */
   strategy: PriceStrategy = "market",
-): Promise<number | null> {
-  if (!card.catalogCardId) return null;
+  now = Date.now(),
+): Promise<MarketValue> {
+  if (!card.catalogCardId) return { ok: false, why: "none" };
   const row = { catalog_card_id: card.catalogCardId, variant: card.variant, game: card.game };
   const series = await usdSeries([card.catalogCardId], preferredVariants([row]));
   const s = heldSeries(series, row);
-  const market = s ? lastOf(s.prices) : null;
-  if (market == null || !(market > 0)) return null;
+  const idx = s ? lastIndexOf(s.prices) : -1;
+  const market = s && idx >= 0 ? s.prices[idx] : null;
+  if (!s || market == null || !(market > 0)) return { ok: false, why: "none" };
   const trust = await heldTrust([row]);
-  if (trust.flag(row)) return null;
+  if (trust.flag(row)) return { ok: false, why: "none" };
+  const day = addDays(s.startDay, idx);
+  if (now - Date.parse(`${day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return { ok: false, why: "stale", day };
   const value = strategyValueUsd(market, card.condition, strategy);
-  return value > 0 ? value : null;
+  return value > 0 ? { ok: true, value, day } : { ok: false, why: "none" };
+}
+
+/** marketValue, as a bare number (null when there is no usable value). */
+export async function marketValueUsd(
+  card: Pick<CardRecord, "catalogCardId" | "variant" | "game" | "condition">,
+  strategy: PriceStrategy = "market",
+  now = Date.now(),
+): Promise<number | null> {
+  const v = await marketValue(card, strategy, now);
+  return v.ok ? v.value : null;
 }
 
 export interface LocalAsk {
@@ -105,13 +130,14 @@ export interface LocalAsk {
 }
 
 /**
- * The price to send to `mp` for this card, in the site's currency.
- *  - A price the seller typed (price_locked) is a USD figure: converted at
- *    today's rate, checked against the local floor by the caller.
- *  - Otherwise: the USD MARKET value x today's rate, through the site's fee
- *    model and cheap-card taper (never cards.price, which the live refresh
- *    writes with the US fee model).
- * Throws FxUnavailableError (rate missing/stale) or LocalPriceError (no market).
+ * The price to send to `mp` for this card, in the site's currency, by the one
+ * rule in localPricing.ts pickLocalAsk: a price the seller typed (price_locked,
+ * a USD figure) converts at today's rate (the caller checks the local floor);
+ * otherwise the USD MARKET value x today's rate through the site's fee model and
+ * cheap-card taper (never cards.price, which the live refresh writes with the
+ * US fee model).
+ * Throws FxUnavailableError (rate missing/stale) or LocalPriceError (no market,
+ * or a market point older than a week).
  */
 export async function resolveLocalAsk(
   card: CardRecord,
@@ -120,16 +146,65 @@ export async function resolveLocalAsk(
   strategy: PriceStrategy = "market",
 ): Promise<LocalAsk> {
   const { rate, date } = await listingFxRate(mp.currency, marketplaceLabel(mp));
-  if (card.priceLocked && card.price > 0) {
-    return { price: toLocal(card.price, rate), rate, rateDate: date, usdValue: null, basis: "typed" };
+  const typed = card.priceLocked && card.price > 0;
+  let mv: MarketValue | null = null;
+  if (!typed) {
+    mv = await marketValue(card, strategy);
+    if (!mv.ok) {
+      throw new LocalPriceError(
+        mv.why === "stale"
+          ? `CardFlip's latest market price for this card is from ${mv.day}, too old to price an ${marketplaceLabel(mp)} listing from. Prices refresh daily: try again later, or type your own price.`
+          : `CardFlip has no trusted market price for this card, so it can't work out your ${marketplaceLabel(mp)} price. Type your own price and try again.`,
+      );
+    }
   }
-  const usdValue = await marketValueUsd(card, strategy);
-  if (usdValue == null) {
-    throw new LocalPriceError(
-      `CardFlip has no trusted market price for this card, so it can't work out your ${marketplaceLabel(mp)} price. Type your own price and try again.`,
-    );
+  const picked = pickLocalAsk(mp, account, rate, { locked: typed, priceUsd: card.price, valueUsd: mv?.ok ? mv.value : null });
+  if (!picked) throw new LocalPriceError(`CardFlip can't work out your ${marketplaceLabel(mp)} price for this card. Type your own price and try again.`);
+  return { price: picked.price, rate, rateDate: date, usdValue: mv?.ok ? mv.value : null, basis: picked.basis };
+}
+
+/**
+ * The site an offer belongs on. An offer that was PUBLISHED keeps the site it
+ * was created on (an offer cannot move, and its price, currency and policies
+ * are that site's). One that was never published follows the seller's
+ * CURRENT market: if that differs from where it was made (a US offer pushed
+ * before the seller's site went live), `staleOffer` names the old site so the
+ * push can delete it and create the right one (ebaySell.ts pushDraft).
+ */
+export async function marketFor(userId: string, card: CardRecord): Promise<SellerMarket & { staleOffer?: Marketplace }> {
+  if (!card.ebayOfferId) return sellerMarket(userId);
+  const stored = marketplaceByEbayId(card.ebayMarketplace);
+  if (card.ebayListingId) {
+    return { mp: stored, account: isLocalMarketplace(stored) ? await sellerAccountType(userId) : null };
   }
-  return { price: localAsk(mp, account, usdValue, rate), rate, rateDate: date, usdValue, basis: "market" };
+  const here = await sellerMarket(userId);
+  if (here.mp.marketplaceId === stored.marketplaceId) return { mp: stored, account: isLocalMarketplace(stored) ? here.account : null };
+  return { ...here, staleOffer: stored };
+}
+
+/**
+ * What a seller's push of THIS card would list at, by the same code the push
+ * runs (marketFor + resolveLocalAsk), so the number the editor and the confirm
+ * step show is by construction the number that is sent. `local: false` = the
+ * card lists on eBay US exactly as before (no number here).
+ */
+export type CardSiteQuote =
+  | { local: false }
+  | { local: true; key: string; currency: string; label: string; price: number; text: string; basis: "typed" | "market"; floor: number; rateDate: string }
+  | { local: true; key: string; currency: string; label: string; error: string };
+
+export async function quoteCardForSite(userId: string, card: CardRecord, strategy: PriceStrategy = "market"): Promise<CardSiteQuote> {
+  const here = await marketFor(userId, card);
+  const mp = here.mp;
+  if (!isLocalMarketplace(mp)) return { local: false };
+  const base = { local: true as const, key: mp.key, currency: mp.currency, label: marketplaceLabel(mp) };
+  try {
+    const ask = await resolveLocalAsk(card, mp, here.account, strategy);
+    return { ...base, price: ask.price, text: formatLocalAmount(mp, ask.price), basis: ask.basis, floor: listingFloorFor(mp, here.account), rateDate: ask.rateDate };
+  } catch (err) {
+    if (err instanceof FxUnavailableError || err instanceof LocalPriceError) return { ...base, error: err.message };
+    throw err;
+  }
 }
 
 /**
