@@ -17,7 +17,7 @@ import { heldTrust } from "@/lib/server/priceTrustSite";
  * Under $10 that can fire without a market move: a card listed at raw market
  * before the 09-30 value + fees + postage rule nudges up to it.
  *
- * A listing on another eBay site (ebay_marketplace set) is skipped: its ask is
+ * A LIVE listing on another eBay site (ebay_marketplace set, status listed: this query's only rows) is skipped: its ask is
  * in a local currency under that site's fee model, and the target here is the
  * US-fee USD figure, so a nudge would tell the seller to reprice it wrongly.
  *
