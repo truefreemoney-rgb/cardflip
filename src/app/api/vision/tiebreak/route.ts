@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
-import { TIEBREAK_MODEL, VisionNotConfiguredError, isVisionConfigured, tiebreakByPicture } from "@/lib/server/vision";
+import { VisionNotConfiguredError, isVisionConfigured, tiebreakByPicture, tiebreakModel } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import { parseGame } from "@/lib/games";
 import { dayBudgetUsed, dayBump, readsKey } from "@/lib/server/dayBudget";
@@ -11,7 +11,8 @@ import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/l
  * §3d): the scanner found two printings within a point of each other and
  * sends the photo plus the two ids; the stronger model looks at the photo
  * and both catalog pictures and says which. Same gates as /api/vision/scan;
- * counts against the same burst limit; billed on the scan ledger as Opus.
+ * counts against the same burst limit; billed on the scan ledger under the
+ * model that answered (Opus; Haiku for One Piece, vision.ts tiebreakModel).
  * Never fails the scan: any problem answers { id: null }.
  */
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
 
     const game = parseGame(body?.game);
     const result = await tiebreakByPicture(image, mediaType, game, ids);
-    await recordScanUsage(user.id, TIEBREAK_MODEL, result.usage, {
+    await recordScanUsage(user.id, tiebreakModel(game), result.usage, {
       game,
       tiebreak: ids,
       pick: result.pick,

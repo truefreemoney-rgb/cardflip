@@ -349,6 +349,8 @@ console.log("\nroutes");
   check("the locate route (a paid call that is not a scan) counts its page and checks it against today's reads before the call", loc.indexOf("await dayBump(`locate_${user.id}`)") > 0 && loc.includes("dayBudgetUsed(readsKey(user.id))") && loc.indexOf("await dayBump(") < loc.indexOf("await locateCards("), true);
   const tie = src("app/api/vision/tiebreak/route.ts");
   check("the tiebreak route allows one per card read today, checked before its Opus call", tie.includes("await dayBump(`tiebreak_${user.id}`)") && tie.includes("spent > (await dayBudgetUsed(readsKey(user.id)))") && tie.indexOf("await dayBump(") < tie.indexOf("await tiebreakByPicture("), true);
+  // 10-01: One Piece ties answer on Haiku; the ledger must price the model that answered, and know its rate.
+  check("the tiebreak route bills the model that answered, and every tiebreak model has a rate", [tie.includes("recordScanUsage(user.id, tiebreakModel(game)"), src("lib/server/scanUsage.ts").includes('"claude-haiku-4-5": {'), src("lib/server/vision.ts").includes('return game === "onepiece" ? TIEBREAK_MODEL_CHEAP : TIEBREAK_MODEL;')], [true, true, true]);
   check("the scan route counts a good read only after the read returns", scan.indexOf("dayBump(readsKey(user.id))") > scan.indexOf("const { read: card, usage: tokens } = scanned;"), true);
   const DB = await import(at("lib/server/dayBudget.ts"));
   check("dayBump returns the running count; dayBudgetSpent still means 'over the budget after this one'", [await DB.dayBump("t_bump"), await DB.dayBump("t_bump"), await DB.dayBudgetSpent("t_bump", 3), await DB.dayBudgetSpent("t_bump", 3), await DB.dayBudgetUsed("t_bump")], [1, 2, false, true, 4]);

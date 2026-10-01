@@ -1050,6 +1050,17 @@ function addUsage(a: VisionUsage, b: VisionUsage): VisionUsage {
 
 export const TIEBREAK_MODEL = "claude-opus-5";
 
+// One Piece ties are almost all base-vs-parallel of ONE number: different
+// art or frame, nothing subtle. 10-01 A/B (scripts/.op-tiebreak-ab-tmp.mjs):
+// Haiku 4.5 put the right card on top in 123/123 seller-photo ties (both
+// hard foils included), 81/82 on the panel, and Opus picked the same
+// printing in all 7 cases where Haiku left the listing's label — at ~0.4¢
+// a call instead of ~5¢. Other games stay on Opus until they are tested.
+export const TIEBREAK_MODEL_CHEAP = "claude-haiku-4-5";
+export function tiebreakModel(game: GameId): string {
+  return game === "onepiece" ? TIEBREAK_MODEL_CHEAP : TIEBREAK_MODEL;
+}
+
 export const TIEBREAK_SCHEMA = {
   type: "object",
   properties: {
@@ -1130,6 +1141,7 @@ export async function tiebreakByPicture(
   mediaType: string,
   game: GameId,
   ids: string[],
+  model: string = tiebreakModel(game),
 ): Promise<TiebreakResult> {
   const zero: VisionUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   ids = ids.slice(0, LETTERS.length);
@@ -1141,12 +1153,13 @@ export async function tiebreakByPicture(
     { type: "image" as const, source: { type: "base64" as const, media_type: p!.mediaType, data: p!.base64 } },
   ]);
   const response = await getClient().messages.create({
-    model: TIEBREAK_MODEL,
+    model,
     // Opus 5 thinks by default and those tokens count against max_tokens;
     // a tight cap (300-450) starved the JSON answer (09-10: "Unterminated
     // string", "no readable result"). Only generated tokens are billed.
     max_tokens: 4000,
-    output_config: { effort: "medium", format: { type: "json_schema", schema: TIEBREAK_SCHEMA } },
+    // Haiku 4.5 rejects `effort`.
+    output_config: { ...(model.includes("haiku") ? {} : { effort: "medium" as const }), format: { type: "json_schema", schema: TIEBREAK_SCHEMA } },
     system: SYSTEM_TIEBREAK,
     messages: [
       {

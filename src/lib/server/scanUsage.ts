@@ -15,6 +15,7 @@ import type { VisionUsage } from "@/lib/server/vision";
 const RATES: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
   "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
   "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
 };
 
 /** Cost in microdollars (1e-6 USD) for one call on `model`. */
