@@ -101,6 +101,13 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["P-058#promo", "onepiece", "Where the Wind Blows", "", "PROMO", "One Piece Promotion Cards", "P-058", null, "", "PR", "promo", 0.9, null],
   ["P-005#promo", "onepiece", "Kaido", "", "PROMO", "One Piece Promotion Cards", "P-005", null, "", "PR", "promotion-pack-2022", 3.5, null],
   ["op-kaido-094", "onepiece", "Kaido", "", "OP01", "Romance Dawn", "OP01-094", null, "2022-12-01", "SR", "", 4, null],
+  // DON!! cards (10-01, sync-onepiece.mjs --with-don): no number, name "DON!! Card", subtitle = who the art shows.
+  ["don-uta#don", "onepiece", "DON!! Card", "Uta", "DON", "Extra Booster: One Piece Heroines Edition (EB-03)", "", null, "", "DON!!", "", 1.2, null],
+  ["don-uta-gold#don", "onepiece", "DON!! Card", "Uta", "DON", "Extra Booster: One Piece Heroines Edition (EB-03)", "", null, "", "DON!!", "gold", 120, null],
+  ["don-luffy#don", "onepiece", "DON!! Card", "Luffy", "DON", "Premium Booster -The Best- (PRB-01)", "", null, "", "DON!!", "", 0.9, null],
+  ["don-gear5#don", "onepiece", "DON!! Card", "GEAR5 Luffy", "DON", "Premium Booster -The Best- Vol. 2 (PRB-02)", "", null, "", "DON!!", "", 2, null],
+  ["don-compass#don", "onepiece", "DON!! Card", "Green Compass", "DON", "Starter Deck 1: Straw Hat Crew (ST-01)", "", null, "", "DON!!", "", 0.1, null],
+  ["don-plain#don", "onepiece", "DON!! Card", "", "DON", "OPDD", "", null, "", "DON!!", "", 0.05, null],
   // Yu-Gi-Oh! (09-29): shapes from the TCGplayer sync — the first LOB run
   // prints "LOB-005", 1st Edition is a "-1st" twin, one reprint code in two rarities.
   ["ygo-21876", "yugioh", "Dark Magician", "", "LOB", "The Legend of Blue Eyes White Dragon", "LOB-005", null, "2002-03-08", "Ultra Rare", "", 42.7, null],
@@ -179,7 +186,26 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
     const law = [{ id: "a#promo", number: "P-056", setCode: "PROMO", rankScore: 1 }, { id: "b#promo", number: "P-056", setCode: "PROMO", rankScore: 1.1 }, { id: "c", number: "P-058", setCode: "ST16", rankScore: 1.4 }];
     check("One Piece promos: two promo printings on top still ask the picture when another number is inside the gap", tiebreakIds(law, "onepiece"), ["a#promo", "c"]);
     check("One Piece promos: a promo key cut short by glare ('P-00') finds that name's promo, not its regular card", await top("onepiece", "Kaido", pn("P-00", null, "P"), null, "standard"), "P-005#promo");
+    {
+      const { parseOnePieceDon, onePieceDonKey } = await import(at("lib/onepiece.ts"));
+      check("DON!! cards: the feed's names split into who / foil / set",
+        [parseOnePieceDon("DON!! Card (Koby) (Gold)", "DON!! Card (Koby) (Gold) - Premium Booster -The Best- Vol. 2 (PRB-02)"), parseOnePieceDon("DON!! Card // Green Compass", "DON!! Card // Green Compass - Starter Deck 1: Straw Hat Crew (ST-01)"), parseOnePieceDon("DON!! Card (Tournament Pack Vol. 2) [Winner]", "DON!! Card (Tournament Pack Vol. 2) [Winner] - One Piece Promotion Cards (OP-PR)"), parseOnePieceDon("DON!! Card (Gold)", "DON!! Card (Gold) - One Piece Promotion Cards (OP-PR)")],
+        [{ subtitle: "Koby", variant: "gold", setName: "Premium Booster -The Best- Vol. 2 (PRB-02)" }, { subtitle: "Green Compass", variant: "", setName: "Starter Deck 1: Straw Hat Crew (ST-01)" }, { subtitle: "Tournament Pack Vol. 2 Winner", variant: "", setName: "One Piece Promotion Cards (OP-PR)" }, { subtitle: "Gold", variant: "", setName: "One Piece Promotion Cards (OP-PR)" }]);
+      check("DON!! cards: the row id is the full name folded", onePieceDonKey("DON!! Card (Eustass \"Captain\" Kid) (Gold) - Premium Booster -The Best- (PRB-01)"), "don-don-card-eustass-captain-kid-gold-premium-booster-the-best-prb-01");
+      const donRead = (sub) => searchTcgCardsLocal("onepiece", "DON!! CARD", null, 5, sub, "parallel");
+      const uta = await donRead("Uta");
+      check("DON!! cards: the read's character leads, cheapest copy first, gold next", uta.slice(0, 2).map((c) => c.id), ["don-uta#don", "don-uta-gold#don"]);
+      check("DON!! cards: plain and gold of one character both reach the picture", tiebreakIds(uta, "onepiece"), ["don-uta#don", "don-uta-gold#don"]);
+      check("DON!! cards: 'Monkey.D.Luffy' finds the feed's 'Luffy' and 'GEAR5 Luffy'", (await donRead("Monkey.D.Luffy")).slice(0, 2).map((c) => c.id), ["don-luffy#don", "don-gear5#don"]);
+      check("DON!! cards: picker labels say who, the foil and the set", [printingLabel(uta[1]), printingLabel(uta[0]), printingLabel((await donRead("Green Compass"))[0])], ["Uta · Gold · EB-03", "Uta · EB-03", "Green Compass · ST-01"]);
+      check("DON!! cards: every DON!! match is offered in 'Which printing is yours?'", printingChoices(uta[0], uta).length, uta.length);
+      const typedDon = async (q) => (await searchTcgCardsLocal("onepiece", q, null, 24, null, null, null, true)).map((c) => c.id);
+      check("DON!! cards: typed 'don uta' finds Uta's, cheapest first; 'gold don uta' the gold one; 'don' all of them",
+        [await typedDon("don uta"), await typedDon("gold don uta"), (await typedDon("don")).length], [["don-uta#don", "don-uta-gold#don"], ["don-uta-gold#don"], 6]);
+      check("DON!! cards: a regular card's read never sees them", (await searchTcgCardsLocal("onepiece", "Uta", null, 8, null, null)).some((c) => c.setCode === "DON"), false);
+    }
     const { listTcgSets } = await import(at("lib/server/tcgCards.ts"));
+    check("DON!! cards: not a set in the By set browser", (await listTcgSets("onepiece")).some((s) => s.code.startsWith("DON|")), false);
     check("One Piece promos: not a set in the By set browser", (await listTcgSets("onepiece")).some((s) => s.code.startsWith("PROMO|")), false);
   }
   check("One Piece: base vs parallel of one number still sends #1 and #2",

@@ -18,7 +18,7 @@
     "sync:en": "node scripts/sync-cards.mjs en en_cards",
     "sync:mtg": "node --experimental-strip-types --no-warnings scripts/sync-mtg.mjs",
     "sync:lorcana": "node --experimental-strip-types --no-warnings scripts/sync-lorcana.mjs",
-    "sync:onepiece": "node --experimental-strip-types --no-warnings scripts/sync-onepiece.mjs --with-promos && node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",
+    "sync:onepiece": "node --experimental-strip-types --no-warnings scripts/sync-onepiece.mjs --with-promos --with-don && node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",
     "sync:onepiece:images": "node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",
     "sync:yugioh": "node --experimental-strip-types --no-warnings scripts/sync-yugioh.mjs",
     "export:mtg": "node scripts/export-mtg-mirror.mjs",

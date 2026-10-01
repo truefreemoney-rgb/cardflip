@@ -4,7 +4,7 @@ import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { TIEBREAK_GAP } from "@/lib/tiebreak";
 import { yugiohKey } from "@/lib/yugioh";
-import { ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
+import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 
@@ -117,10 +117,12 @@ export async function listTcgSets(game: TcgGame): Promise<SetInfo[]> {
   return cachedList(`sets:v1:${game}`, SET_LIST_TTL_MS, async () => {
     // One Piece promos (set_code PROMO): 1,082 loose printings with no
     // pictures are not a set to browse; scan and name search reach them.
+    // DON!! cards (set_code DON) carry the name of the set they came in, which
+    // would list every such set twice.
     const rows = (await db
       .prepare(
         `SELECT set_code, set_name, MIN(set_release_date) AS release_date
-           FROM tcg_cards WHERE game = ? AND set_code <> '${ONE_PIECE_PROMO_SET}'
+           FROM tcg_cards WHERE game = ? AND set_code NOT IN ('${ONE_PIECE_PROMO_SET}', '${ONE_PIECE_DON_SET}')
           GROUP BY set_code, set_name
           ORDER BY release_date DESC, set_name`,
       )
@@ -258,6 +260,17 @@ export async function searchTcgCardsLocal(
     else if (/^P-\d{3,4}$/i.test(bare)) { wantedCode = "P"; onePieceKeyRead = bare.toUpperCase(); }
   }
 
+  // A typed "don koby" / "gold don luffy" / "don": DON!! cards carry who is
+  // on them in the subtitle (the name is "DON!! Card" for all 187), so the
+  // other words are looked for there, in the foil tag and in the set name.
+  if (game === "onepiece" && typed && /(^|\s)don(!!)?(\s|$)/.test(needle)) {
+    const words = needle.split(/\s+/).filter((w) => !/^(don(!!)?|cards?)$/.test(w));
+    const don = ((await db
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'onepiece' AND set_code = '${ONE_PIECE_DON_SET}' ORDER BY price_usd IS NULL, price_usd LIMIT 400`)
+      .all()) as unknown as TcgRow[]).filter((r) => { const hay = fold(`${r.subtitle} ${r.variant} ${r.set_name}`); return words.every((w) => hay.includes(w)); });
+    if (don.length) return don.slice(0, limit).map((row, i) => ({ ...toCard(row), rankScore: i }));
+  }
+
   let rows: TcgRow[] = [];
   if (needle) {
     rows = (await db
@@ -369,16 +382,28 @@ export async function searchTcgCardsLocal(
     // Lorcana denominator = set total.
     if (printed?.setTotal && row.set_total) p += row.set_total === printed.setTotal ? 0 : 3;
     // Subtitle (Lorcana version line) separates "Ariel - On Human Legs" from "Ariel - Spectacular Singer".
-    if (wantedSub && row.subtitle) {
+    if (wantedSub && game === "onepiece" && row.set_code === ONE_PIECE_DON_SET) {
+      // DON!! card: the read names who the art shows ("Monkey.D.Luffy"), the
+      // feed tags it its own way ("Luffy", "GEAR5 Luffy", "Luffy Special
+      // DON!! Set Vol. 1") — one shared word of three letters or more is a match.
+      const words = (s: string) => s.split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+      const have = new Set(words(fold(row.subtitle)));
+      p += words(wantedSub).some((w) => have.has(w)) ? 0 : 3;
+    } else if (wantedSub && row.subtitle) {
       const rowSub = fold(row.subtitle);
       p += rowSub === wantedSub || rowSub.includes(wantedSub) || wantedSub.includes(rowSub) ? 0 : 3;
     }
     // Variant read off the face: the plain printing is the likelier one
     // when nothing special was seen; a seen variant lifts its row.
     const promoOnly = game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET && !regularNumbers.has(rowNumber);
-    if (promoOnly) {
+    const don = game === "onepiece" && row.set_code === ONE_PIECE_DON_SET;
+    if (promoOnly || don) {
       // A promo-only number's variant is its pack tag ("sealed-battle-kit-vol-1"),
       // not an art family: a "parallel" read says nothing for or against it.
+      // Same for a DON!! card ("gold", a pack name): the read names who is on
+      // it (subtitle, above), the picture and the seller's tap pick the rest —
+      // cheapest first, the copy most people hold.
+      if (don) p += Math.min(row.price_usd ?? 9999, 9999) / 1e6;
     } else if (wantedVariant !== null && game === "onepiece") {
       // Compare by family: the read says "parallel" for alt-art / special /
       // SPR rows alike; a starter-deck reprint has the same face as the base.

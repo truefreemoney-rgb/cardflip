@@ -71,6 +71,20 @@ check("One Piece: the sync's '#n' reprint row takes its own set's price",
   [opPrice("OP01-001"), opPrice("OP01-001#7")], ["[3.2]", "[2.5]"]);
 check("One Piece: same image + set split by printing tag",
   [opPrice("EB01-018_r1"), opPrice("EB01-018_r1#2658")], ["[4]", "[0.9]"]);
+{
+  // DON!! cards (10-01): no card id; the sync and the refresh both fold the feed's full name into the row id.
+  const { onePieceDonKey, parseOnePieceDon } = await import(new URL("../src/lib/onepiece.ts", import.meta.url).href);
+  const feed = [
+    { card_name: "DON!! Card (Koby) (Gold)", optcg_don_name: "DON!! Card (Koby) (Gold) - Premium Booster -The Best- Vol. 2 (PRB-02)", market_price: 53.53 },
+    { card_name: "DON!! Card (Koby)", optcg_don_name: "DON!! Card (Koby) - Premium Booster -The Best- Vol. 2 (PRB-02)", market_price: 0.4 },
+  ];
+  const asRow = (c) => { const d = parseOnePieceDon(c.card_name, c.optcg_don_name); return [`${onePieceDonKey(c.optcg_don_name)}#don`, { usd: 1, foil: null, setName: d.setName, variant: d.variant }]; };
+  const asPoint = (c) => { const d = parseOnePieceDon(c.card_name, c.optcg_don_name); return { id: onePieceDonKey(c.optcg_don_name), usd: c.market_price, foil: null, setName: d.setName, variant: d.variant }; };
+  const don = planTcgRefresh("onepiece", feed.map(asPoint), new Map(feed.map(asRow)), new Map(), "2026-10-01");
+  check("One Piece DON!! cards: each row takes its own price (gold $53.53, plain $0.40)",
+    don.upserts.map((u) => [u.cardId, u.prices]).sort(),
+    [["don-don-card-koby-gold-premium-booster-the-best-vol-2-prb-02#don", "[53.53]"], ["don-don-card-koby-premium-booster-the-best-vol-2-prb-02#don", "[0.4]"]]);
+}
 check("One Piece printing tag matches the sync's mapping",
   [onePieceNameVariant("Perona (Parallel)"), onePieceNameVariant("Roronoa Zoro (001)"), onePieceNameVariant("Shanks (Box Topper)")], ["parallel", "", "box-topper"]);
 check("a card missing from today's source keeps its price (no column, no point)",

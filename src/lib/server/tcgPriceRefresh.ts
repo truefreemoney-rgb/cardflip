@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import type { TcgGame } from "@/lib/server/tcgCards";
+import { onePieceDonKey, parseOnePieceDon } from "@/lib/onepiece";
 
 /**
  * Daily Lorcana / One Piece / Yu-Gi-Oh! prices (09-30, Chris: "we need the
@@ -132,6 +133,19 @@ async function onePiecePoints(): Promise<{ points: TcgPoint[]; failed: number }>
       failed++;
       console.warn(`onepiece prices ${path}:`, err instanceof Error ? err.message : err);
     }
+  }
+  // DON!! cards (10-01): their own feed, no card id; the mirror row's id is
+  // the feed's full name folded (lib/onepiece onePieceDonKey), one row each.
+  try {
+    const rows = listOf<{ card_name?: string; optcg_don_name?: string; market_price?: unknown }>(await getJson(`${API}/allDonCards/`));
+    for (const c of rows) {
+      if (!c.optcg_don_name) continue;
+      const don = parseOnePieceDon(String(c.card_name ?? ""), c.optcg_don_name);
+      points.push({ id: onePieceDonKey(c.optcg_don_name), usd: num(c.market_price), foil: null, setName: don.setName, variant: don.variant });
+    }
+  } catch (err) {
+    failed++;
+    console.warn("onepiece prices allDonCards:", err instanceof Error ? err.message : err);
   }
   return { points, failed };
 }

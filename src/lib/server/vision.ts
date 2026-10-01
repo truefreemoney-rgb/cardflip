@@ -245,7 +245,7 @@ export const TCG_READ_SCHEMA = {
     subtitle: {
       type: "string",
       description:
-        "Disney Lorcana only: the version line printed in smaller type directly under the character name (e.g. 'On Human Legs', 'Spectacular Singer'). An empty string for One Piece and when there is none.",
+        "Disney Lorcana only: the version line printed in smaller type directly under the character name (e.g. 'On Human Legs', 'Spectacular Singer'). An empty string when there is none. One Piece: an empty string, except on a DON!! card, where it is the character or object the artwork shows (e.g. 'Uta', 'Dracule Mihawk', 'Green Compass').",
     },
     variant: {
       type: "string",
@@ -270,6 +270,8 @@ Photos are phone snapshots: angled, glare, uneven light, sometimes still in a sl
 export const SYSTEM_ONEPIECE = `You identify One Piece Card Game cards from photos for a seller who is about to list them.
 
 Read what is actually on the card. The lookup keys on the card id printed small in the bottom-right corner, just left of the rarity letter — "OP01-077", "ST01-001", "EB01-005", "PRB01-002", promos "P-055" — so read it exactly: letters, digits, hyphen. Put the whole id in cardNumber (e.g. "OP01-077"); put the part before the hyphen in setCode (e.g. "OP01"); setTotal is null (One Piece prints no denominator). The name is the large text in the name band; subtitle is an empty string for this game.
+
+A DON!! card is the one exception: its band says only "DON!! CARD", its text is "Your Turn +1000", and it prints no card id. For it, name is "DON!! Card", cardNumber and setCode are null, and subtitle names who or what the artwork shows, as a One Piece fan would say it ("Uta", "Monkey.D.Luffy", "Dracule Mihawk", "Green Compass"); an empty string if you cannot tell. Do not lower confidence because there is no id.
 
 Alternate-art printings share the same id and are told apart only by the picture: report variant "parallel" when the illustration extends beyond the normal art box or is clearly a different illustration from the standard print, "manga" for a manga-panel style illustration, "box-topper" when a box-topper stamp is present, "full-art" for a borderless full-art print, "standard" for the normal framed print. "unknown" if unsure. The rarity letters near the id (C, UC, R, SR, SEC, L) are not the variant.
 

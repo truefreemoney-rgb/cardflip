@@ -12,6 +12,7 @@
 // tiebreak can pick the price line.
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
+import { ONE_PIECE_DON_SET, onePieceDonKey, parseOnePieceDon } from "../src/lib/onepiece.ts";
 
 const API = "https://optcgapi.com/api";
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
@@ -98,7 +99,8 @@ function promoVariant(cardName, imageId, key) {
 }
 
 // A feed that answers 200 with a fraction of its cards must not pass for a sync.
-const FEEDS = [
+// --only-don (with --with-don): just the DON!! feed, every other row untouched.
+const FEEDS = process.argv.includes("--only-don") ? [] : [
   ["sets", `${API}/allSetCards/`, 3000],
   ["starter decks", `${API}/allSTCards/`, 500],
   ...(process.argv.includes("--with-promos") ? [["promos", `${API}/allPromos/`, 800]] : []),
@@ -184,6 +186,35 @@ for (const [label, url, floor] of FEEDS) {
   }
   db.exec("COMMIT");
   console.log(`  ${label}: ${rows.length} entries`);
+}
+// DON!! cards (10-01, --with-don): their own feed, ~190 entries, cents to
+// hundreds of dollars (the gold ones). No card id is printed on them, so the
+// row has no collector_number; name "DON!! Card", subtitle = who or what the
+// art shows (what the scanner's read is matched on), variant "gold" or "",
+// set_code DON, set_name = the set it came in. The id is the feed's full name
+// folded — its own "don_121" looks positional (lib/onepiece.ts onePieceDonKey;
+// the daily price refresh derives the same id). The picture is the feed's.
+if (process.argv.includes("--with-don")) {
+  try {
+    let rows = await getJson(`${API}/allDonCards/`);
+    rows = Array.isArray(rows) ? rows : rows.results ?? rows.data ?? [];
+    if (rows.length < 150) throw new Error(`${rows.length} entries, expected at least 150`);
+    db.exec("BEGIN");
+    for (const c of rows) {
+      const full = String(c.optcg_don_name ?? "").trim();
+      if (!full) continue;
+      const don = parseOnePieceDon(String(c.card_name ?? ""), full);
+      const id = `${onePieceDonKey(full)}#don`;
+      upsert.run(id, "DON!! Card", don.subtitle, ONE_PIECE_DON_SET, don.setName, "", null, "", "DON!!", don.variant, String(c.card_image ?? ""), String(c.card_image ?? ""), c.market_price != null ? Number(c.market_price) : null, null, now);
+      promoPicture.run(String(c.card_image ?? ""), id);
+      total++;
+    }
+    db.exec("COMMIT");
+    console.log(`  DON!! cards: ${rows.length} entries`);
+  } catch (err) {
+    console.log(`  !! DON!! cards: ${err.message}`);
+    failedFeeds++;
+  }
 }
 const n = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece'").get().n;
 const variants = db.prepare("SELECT variant, COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece' GROUP BY variant ORDER BY n DESC LIMIT 8").all();

@@ -40,7 +40,7 @@ import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { foilChoices } from "@/lib/yugioh";
-import { ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
+import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
 import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
@@ -641,6 +641,9 @@ export default function AppPage() {
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
                 : numberMismatch
                   ? `read #${printed!.number}, closest printing is #${card.number}`
+                  : next.game === "onepiece" && card.setCode === ONE_PIECE_DON_SET
+                    ? // No number, no name: a photo cannot pin one of ~190 DON!! cards (10-01 test: 2 of 10).
+                      "DON!! card, pick yours: search DON plus the character or set"
                   : ambiguous
                     ? `${matches.length} printings matched, no number read`
                     : foreignPrint

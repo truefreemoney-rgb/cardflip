@@ -63,7 +63,8 @@ function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; numb
   const numbers = new Set<string>();
   for (const c of cards) {
     if (typeof c.rankScore !== "number" || c.rankScore - top > TIEBREAK_GAP) continue;
-    const key = onePieceKey(c.number ?? c.id);
+    // A DON!! card prints no number: each one is its own face.
+    const key = c.number === "" ? c.id : onePieceKey(c.number ?? c.id);
     if (numbers.has(key)) continue;
     numbers.add(key);
     out.push(c.id);

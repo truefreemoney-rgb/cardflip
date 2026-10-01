@@ -168,6 +168,10 @@ async function pull() {
 }
 
 let batch = flag("pull") || !fs.existsSync(LIST_PATH) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
+// One Piece DON!! photos (bucket "don", 10-01): no number and no name on the
+// card, the read cannot pin one of ~190 (2 of 10) and the scanner sends them
+// to Check match by design. They are scored only with --don or --id.
+if (!flag("don") && !opt("id")) { const n = batch.length; batch = batch.filter((p) => p.bucket !== "don"); if (batch.length < n) console.log(`(${n - batch.length} DON!! photos left out; --don scores them)`); }
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 if (opt("id")) batch = batch.filter((p) => opt("id").split(",").includes(p.id));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
@@ -206,6 +210,8 @@ function sameCard(c, p) {
   if (game === "yugioh") return yugiohKey(String(c.number)) === yugiohKey(p.number) && fold(c.name) === fold(p.name);
   // One Piece: the number names one card; the catalog spells a name two ways
   // across printings ("Sakazuk" / "Sakazuki" OP16-065), so the name is not the truth.
+  // A DON!! card prints no number: the row itself (plain or gold of that art) is the truth.
+  if (game === "onepiece" && p.number === "") return c.id === p.want || (p.wantAlso ?? []).includes(c.id);
   if (game === "onepiece") return baseNumber(c.number ?? c.collector_number) === p.number;
   // Lorcana: the catalog card name is "Name - Version"; number/total pins the set.
   const [cName, ...rest] = String(c.name).split(" - ");

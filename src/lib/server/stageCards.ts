@@ -197,8 +197,8 @@ async function iconRow(game: OtherGame, icon: string): Promise<GameRow | undefin
     game === "mtg"
       ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE (name = ? OR name LIKE ?) AND image_url <> '' AND price_usd BETWEEN ? AND ? AND ${MTG_REFEREE}
          ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`
-      : // set_code PROMO = One Piece promo printings (10-01): SAMPLE-stamped pictures, never a stage card.
-        `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND (name = ? OR name LIKE ?) AND image_url <> '' AND set_code <> 'PROMO' AND price_usd BETWEEN ? AND ?
+      : // set_code PROMO = One Piece promo printings (10-01): SAMPLE-stamped pictures, never a stage card. DON = DON!! cards: no name a visitor knows.
+        `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND (name = ? OR name LIKE ?) AND image_url <> '' AND set_code NOT IN ('PROMO', 'DON') AND price_usd BETWEEN ? AND ?
          ORDER BY (name = ?) DESC, ABS(price_usd - ?) LIMIT 1`;
   const like = `${icon}%`;
   const args = game === "mtg" ? [icon, like, lo, hi, icon, GAME_TARGET_USD] : [game, icon, like, lo, hi, icon, GAME_TARGET_USD];
@@ -212,7 +212,7 @@ async function bandRows(game: OtherGame): Promise<GameRow[]> {
     game === "mtg"
       ? `SELECT ${ROW_COLS} FROM mtg_cards WHERE image_url <> '' AND price_usd BETWEEN ? AND ? AND rarity IN ('rare', 'mythic') AND ${MTG_REFEREE}
          ORDER BY set_release_date DESC LIMIT 40`
-      : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND image_url <> '' AND set_code <> 'PROMO' AND price_usd BETWEEN ? AND ?
+      : `SELECT ${ROW_COLS} FROM tcg_cards WHERE game = ? AND image_url <> '' AND set_code NOT IN ('PROMO', 'DON') AND price_usd BETWEEN ? AND ?
          ORDER BY set_release_date DESC LIMIT 40`;
   const args = game === "mtg" ? [lo, hi] : [game, lo, hi];
   return (await db.prepare(sql).all(...args)) as unknown as GameRow[];
