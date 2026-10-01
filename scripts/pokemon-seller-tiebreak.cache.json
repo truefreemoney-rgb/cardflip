@@ -74,5 +74,53 @@
  "seller-267739852878|30th-016,me05-029": {
   "id": null,
   "pick": null
+ },
+ "seller-158376984244|base4-9,base1-9": {
+  "id": "base1-9",
+  "pick": "B"
+ },
+ "seller-800724449011|ex3-24,ex1-4": {
+  "id": "ex1-4",
+  "pick": "B"
+ },
+ "seller-820181056811|col1-27,hgssp-HGSS08": {
+  "id": null,
+  "pick": null
+ },
+ "seller-176405038327|sv01-225,sv01-045": {
+  "id": "sv01-225",
+  "pick": "A"
+ },
+ "seller-188966895879|xy9-10,sm1-21": {
+  "id": "xy9-10",
+  "pick": "A"
+ },
+ "seller-318911559126|sv03.5-148,sv03.5-181": {
+  "id": "sv03.5-148",
+  "pick": "A"
+ },
+ "seller-800734801283|ex2-15,ecard3-3": {
+  "id": null,
+  "pick": null
+ },
+ "seller-366597236344|base3-12,base3-27": {
+  "id": "base3-12",
+  "pick": "A"
+ },
+ "seller-398293580050|ex1-9,ex1-39": {
+  "id": "ex1-9",
+  "pick": "A"
+ },
+ "seller-377434290557|hgss1-36,hgss1-106": {
+  "id": "hgss1-106",
+  "pick": "B"
+ },
+ "seller-257725062917|sv01-231,sv01-247": {
+  "id": null,
+  "pick": null
+ },
+ "seller-407202715725|swsh12.5tg-TG15,swsh12tg-TG15": {
+  "id": null,
+  "pick": null
  }
 }
