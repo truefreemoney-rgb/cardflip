@@ -119,7 +119,9 @@ const imageUrl = env.EBAY_SANDBOX_IMAGE_URL ?? "https://images.pokemontcg.io/bas
 if (!PRINT_ONLY) {
   const missing = [];
   if (!env.EBAY_SANDBOX_CLIENT_ID) missing.push("EBAY_SANDBOX_CLIENT_ID");
-  if (!env.EBAY_SANDBOX_CLIENT_SECRET) missing.push("EBAY_SANDBOX_CLIENT_SECRET");
+  // The secret only mints access tokens from refresh tokens; a run on pasted access tokens never needs it.
+  const usesRefresh = SITES.some((s) => !env[`EBAY_SANDBOX_USER_TOKEN_${s}`] && !env.EBAY_SANDBOX_USER_TOKEN && env[`EBAY_SANDBOX_REFRESH_TOKEN_${s}`]);
+  if (usesRefresh && !env.EBAY_SANDBOX_CLIENT_SECRET) missing.push("EBAY_SANDBOX_CLIENT_SECRET (needed for the refresh tokens)");
   for (const s of SITES) {
     if (!env[`EBAY_SANDBOX_USER_TOKEN_${s}`] && !env[`EBAY_SANDBOX_REFRESH_TOKEN_${s}`] && !env.EBAY_SANDBOX_USER_TOKEN) {
       missing.push(`EBAY_SANDBOX_USER_TOKEN_${s} (or EBAY_SANDBOX_REFRESH_TOKEN_${s}, or EBAY_SANDBOX_USER_TOKEN)`);
