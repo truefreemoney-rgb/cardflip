@@ -16,6 +16,11 @@ import { todayUtc } from "@/lib/priceSeries";
  * metering (that's scanQuota.ts).
  */
 export async function dayBudgetSpent(name: string, budget: number): Promise<boolean> {
+  return (await dayBump(name)) > budget;
+}
+
+/** Count one more today and return the new count (a counter, not a cap: the caller compares). */
+export async function dayBump(name: string): Promise<number> {
   const key = `${name}_${todayUtc()}`;
   await sweepOldKeys(name);
   await db
@@ -27,8 +32,15 @@ export async function dayBudgetSpent(name: string, budget: number): Promise<bool
   const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as
     | { value: string }
     | undefined;
-  return Number(row?.value ?? 0) > budget;
+  return Number(row?.value ?? 0);
 }
+
+/**
+ * Successful card reads today (bumped by /api/vision/scan only after a read returns, never on a refunded one). The paid
+ * side calls that are not scans themselves (picture tiebreak, binder-page locate) are rationed against it (10-01 sweep:
+ * both were free model calls for any account holding one scan).
+ */
+export const readsKey = (userId: string) => `scanok_${userId}`;
 
 /** Today's count for a budget, without spending any (admin readouts). */
 export async function dayBudgetUsed(name: string): Promise<number> {

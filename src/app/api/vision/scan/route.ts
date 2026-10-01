@@ -12,7 +12,7 @@ import { parseGame } from "@/lib/games";
 import { gameFeaturesFor } from "@/lib/server/settings";
 import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import type { ScanQuota, User } from "@/lib/server/users";
-import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
 import {
   LIMITS,
   RateLimitError,
@@ -104,6 +104,8 @@ export async function POST(req: Request) {
     // a scan the seller already paid for.
     const [usage] = await Promise.all([
       Promise.resolve(reservation.usage),
+      // Today's good reads: the tiebreak and binder-locate routes are rationed against this.
+      dayBump(readsKey(user.id)).catch((err) => console.error("reads counter failed:", err instanceof Error ? err.message : err)),
       recordScanUsage(user.id, VISION_MODEL, tokens, {
         game: card.game ?? parseGame(body?.game),
         ...(card.switchedFrom ? { from: card.switchedFrom } : {}),

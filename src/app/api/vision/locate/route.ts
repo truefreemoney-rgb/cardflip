@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { VISION_MODEL, VisionNotConfiguredError, isVisionConfigured, locateCards } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
-import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { dayBudgetUsed, dayBump, readsKey } from "@/lib/server/dayBudget";
 import { outOfScansMessage, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
 import { cleanBoxes } from "@/lib/binder";
@@ -29,6 +29,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
  * is far above the 500-scan daily budget it feeds.
  */
 const LOCATE_DAILY_BUDGET = 100;
+const LOCATE_FREE_PAGES = 3;
 
 export async function POST(req: Request) {
   try {
@@ -51,7 +52,10 @@ export async function POST(req: Request) {
     if (!image) return NextResponse.json({ error: "Missing image" }, { status: 400 });
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
 
-    if (await dayBudgetSpent(`locate_${user.id}`, LOCATE_DAILY_BUDGET)) {
+    // A few pages a day free, then one per three cards actually read (10-01 sweep: locate was 100 free paid calls a day
+    // for any account with a scan left). A real binder session reads 9-12 cards a page, far ahead of this.
+    const pages = await dayBump(`locate_${user.id}`);
+    if (pages > LOCATE_DAILY_BUDGET || pages > LOCATE_FREE_PAGES + Math.floor((await dayBudgetUsed(readsKey(user.id))) / 3)) {
       return NextResponse.json({ error: "Today's page budget is used up — try again tomorrow", retryAfterSeconds: 3600 }, { status: 429, headers: { "Retry-After": "3600" } });
     }
 

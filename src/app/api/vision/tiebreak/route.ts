@@ -3,7 +3,7 @@ import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { TIEBREAK_MODEL, VisionNotConfiguredError, isVisionConfigured, tiebreakByPicture } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
 import { parseGame } from "@/lib/games";
-import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { dayBudgetUsed, dayBump, readsKey } from "@/lib/server/dayBudget";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
 
 /**
@@ -45,7 +45,10 @@ export async function POST(req: Request) {
     }
     if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
 
-    if (await dayBudgetSpent(`tiebreak_${user.id}`, TIEBREAK_DAILY_BUDGET)) return NextResponse.json({ id: null, reason: "budget" });
+    // One tiebreak per card actually read today (10-01 sweep: the flat 500 let any account with a scan left call Opus
+    // 500 times a day for free). The read is counted when /api/vision/scan returns, so its tiebreak always fits.
+    const spent = await dayBump(`tiebreak_${user.id}`);
+    if (spent > TIEBREAK_DAILY_BUDGET || spent > (await dayBudgetUsed(readsKey(user.id)))) return NextResponse.json({ id: null, reason: "budget" });
 
     const game = parseGame(body?.game);
     const result = await tiebreakByPicture(image, mediaType, game, ids);

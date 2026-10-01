@@ -345,9 +345,13 @@ console.log("\nroutes");
   const imp = src("app/api/cards/import/route.ts");
   check("the import route reserves through commitImport's hooks and gives back the unused", [imp.includes("reserveScans(user, n)"), imp.includes("giveBackScans(user, paid.held, n)"), imp.includes("recordScans(")], [true, true, false]);
   const loc = src("app/api/vision/locate/route.ts");
-  check("the locate route (a paid call that is not a scan) has its own durable daily budget before the call", loc.indexOf("await dayBudgetSpent(`locate_${user.id}`") > 0 && loc.indexOf("await dayBudgetSpent(") < loc.indexOf("await locateCards("), true);
+  // 10-01 sweep: both side calls are rationed against today's good reads (readsKey, bumped by the scan route on success).
+  check("the locate route (a paid call that is not a scan) counts its page and checks it against today's reads before the call", loc.indexOf("await dayBump(`locate_${user.id}`)") > 0 && loc.includes("dayBudgetUsed(readsKey(user.id))") && loc.indexOf("await dayBump(") < loc.indexOf("await locateCards("), true);
   const tie = src("app/api/vision/tiebreak/route.ts");
-  check("the tiebreak route has a durable daily budget before its Opus call", tie.includes("dayBudgetSpent(`tiebreak_${user.id}`") && tie.indexOf("await dayBudgetSpent(") < tie.indexOf("await tiebreakByPicture("), true);
+  check("the tiebreak route allows one per card read today, checked before its Opus call", tie.includes("await dayBump(`tiebreak_${user.id}`)") && tie.includes("spent > (await dayBudgetUsed(readsKey(user.id)))") && tie.indexOf("await dayBump(") < tie.indexOf("await tiebreakByPicture("), true);
+  check("the scan route counts a good read only after the read returns", scan.indexOf("dayBump(readsKey(user.id))") > scan.indexOf("const { read: card, usage: tokens } = scanned;"), true);
+  const DB = await import(at("lib/server/dayBudget.ts"));
+  check("dayBump returns the running count; dayBudgetSpent still means 'over the budget after this one'", [await DB.dayBump("t_bump"), await DB.dayBump("t_bump"), await DB.dayBudgetSpent("t_bump", 3), await DB.dayBudgetSpent("t_bump", 3), await DB.dayBudgetUsed("t_bump")], [1, 2, false, true, 4]);
   check("the plan/ledger code hard-codes no scan count or price", ["scanCredits.ts", "billingCredits.ts", "scanQuota.ts"].every((f) => !/\b(250|750)\b/.test(src(`lib/server/${f}`))), true);
   // A live subscriber's reservation really is atomic when the request's row is stale (the whole point).
   const id = await mkUser({ plan_scans: 3 });
