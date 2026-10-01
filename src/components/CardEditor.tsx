@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { belowFloor, floorRefusal, listingFloor } from "@/lib/fees";
+import { usePriceFloor } from "@/lib/client/localMarket";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
 import { MatchHero } from "@/components/CenteringPhoto";
@@ -20,6 +20,7 @@ import { speciesName as speciesOf } from "@/lib/speciesName";
 import { displayCardNumber } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import Price from "@/components/Price";
+import LocalListingLine from "@/components/LocalListingLine";
 import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote, priceFlagOf } from "@/lib/listing";
 import PriceFlagNote from "@/components/PriceFlagNote";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
@@ -607,6 +608,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     });
   }
   const price = item.priceOverride ?? quote?.suggested ?? 0;
+  // US sellers: the original floor. A seller on another eBay site: that site's break-even in their currency.
+  const priceFloor = usePriceFloor();
   const verified = Boolean(item.verifiedAt) || Boolean(item.ebayOfferId);
   // History chart altitude: the raw NM curve's shape is real demand signal,
   // but a slab or played copy lives at a different level — rescale the chart
@@ -1388,10 +1391,10 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               onValue={(n) => onChange({ priceOverride: n })}
               onCommit={(n) => {
                 // Never under the fee floor (Chris, 09-08): lift it and say so.
-                const floor = listingFloor();
-                if (belowFloor(n)) {
+                const { floor, below, refusal } = priceFloor;
+                if (below(n)) {
                   onChange({ priceOverride: floor });
-                  toast(floorRefusal(), "err");
+                  toast(refusal(), "err");
                   n = floor;
                 }
                 if (item.serverId) void updateServerCard(item.serverId, { price: n, priceLocked: true });
@@ -1400,6 +1403,13 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             />
           </div>
         </label>
+        {/* A seller on another eBay site sees what the listing will cost in their currency. */}
+        <LocalListingLine
+          typedUsd={item.priceOverride}
+          marketUsd={item.priceOverride == null ? (quote?.base ?? null) : null}
+          condition={item.condition}
+          strategy={item.strategy}
+        />
         {/* What they paid (09-27): optional, drives profit per card and the year-end report. */}
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           <span>

@@ -52,6 +52,13 @@ export interface ServerCard {
   rarity: string | null;
   /** Seller-chosen folder; null = uncategorized. */
   category: string | null;
+  /** The eBay site the offer lives on (EBAY_GB, ...); null = eBay US. listPriceLocal is the asking price in listCurrency (the authority for a local listing; price is its USD equivalent). */
+  ebayMarketplace?: string | null;
+  listCurrency?: string | null;
+  listPriceLocal?: number | null;
+  /** A sale in another currency: what the buyer paid, in soldCurrency (soldPrice is the USD equivalent at the sale date). */
+  soldPriceLocal?: number | null;
+  soldCurrency?: string | null;
   /** Server-issued once the draft was pushed to / published on the seller's eBay account. */
   ebayOfferId: string | null;
   ebayListingId: string | null;
