@@ -86,8 +86,10 @@ function Row({
 }) {
   return (
     <div className="px-4 py-3.5 sm:px-5">
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
+      {/* Wraps: on a phone the trial Plan row's two buttons squeezed the text
+          into a one-word column (10-01); they drop under it instead. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-[10rem] flex-1">
           <p className="text-sm font-medium text-white">{title}</p>
           {status && <div className="mt-0.5 text-xs text-zinc-500">{status}</div>}
         </div>
@@ -667,6 +669,8 @@ function AccountSettings({
                   <Dot on />Connected{overview.ebay.ebayUsername ? ` as ${overview.ebay.ebayUsername}` : ""}
                   {overview.ebay.connectedAt && <> · since {formatDate(overview.ebay.connectedAt)}</>}
                 </>
+              ) : user.role !== "admin" && user.tier === "trial" ? (
+                "Selling on eBay comes with a plan."
               ) : overview.ebay.available ? (
                 "Not connected — drafts you push from the editor land in the eBay account linked here."
               ) : (
@@ -679,7 +683,11 @@ function AccountSettings({
             )
           }
           action={
-            overview && overview.ebay.available ? (
+            overview && !overview.ebay.connected && user.role !== "admin" && user.tier === "trial" ? (
+              <Link href="/pricing" className="shrink-0 rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400">
+                Subscribe Now
+              </Link>
+            ) : overview && overview.ebay.available ? (
               <Link
                 href="/connect-ebay"
                 data-tour="connect-ebay"

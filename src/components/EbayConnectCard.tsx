@@ -128,6 +128,10 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
     title = `Connect your eBay account${who}`;
     body =
       "You'll sign in on eBay's own site — we never see your eBay password. Then every card you scan can become a draft listing under your account.";
+  } else if (trialOnly) {
+    title = "Subscribe to Sell on eBay";
+    body =
+      "Selling on eBay comes with a plan. Subscribe, then connect your eBay account here and every card you scan can become a listing under it.";
   } else {
     title = `eBay connection is on its way${who}`;
     body =
@@ -211,7 +215,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
           onClick={() => router.push("/pricing")}
           className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
-          Subscribe now
+          Subscribe Now
         </button>
       )}
 

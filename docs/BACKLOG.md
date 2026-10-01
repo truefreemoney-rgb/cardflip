@@ -82,7 +82,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] 09-28 Landing hero centered on phones; hero glow no longer cut off above How it works.
 - [x] (yea 09-04) Admin users makeover: avatar rows, Plan dropdown on every row, drawer (reset/role/delete), Add account.
 - [ ] Search cards results in the Watchlist tile; Watchlist gets By set.
-- [ ] Trial accounts see "Subscribe now" (→ /pricing) everywhere eBay would be offered: publish row, connect card, queue summary, header pill (09-06). Plan cards live when signed in.
+- [x] Trial accounts see "Subscribe now" (→ /pricing) everywhere eBay would be offered: publish row, connect card, queue summary, header pill (09-06). Plan cards live when signed in. (10-01: the four spots were already live; finished the leftovers = connect card title/body, Account eBay row, the helper lines under the publish row and the queue; checked as a local trial account at phone size. Chris: yea/nay on the live site.)
 - [ ] Earlier tonight (still awaiting): landing makeover, /pricing, account makeover, inventory toolbar, categories, QA batches.
 
 ### C. Shipped, NOT proven on production (needs a real action to confirm)

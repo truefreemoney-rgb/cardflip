@@ -357,7 +357,9 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       </div>
 
       <p className="-mt-3 text-[11px] text-zinc-600">
-        {item.ebayDraftUrl
+        {trialOnly
+          ? "Selling on eBay comes with a plan. Subscribe and every ready card publishes from right here, photo included."
+          : item.ebayDraftUrl
           ? "The draft is in My eBay › Drafts — finish and publish it there, or publish from here. Publishing means eBay's selling fees apply."
           : canPost
             ? pushed

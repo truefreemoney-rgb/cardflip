@@ -1685,6 +1685,8 @@ export default function AppPage() {
           <p className="text-center text-xs text-zinc-600">
             {user.ebayConnected
               ? "Drafts post straight to your eBay account. Nothing goes live until you publish."
+              : user.role !== "admin" && user.tier === "trial"
+              ? "Selling on eBay comes with a plan. Subscribe and every card lists from here."
               : "Connect your eBay account once and every card lists from here — draft, then publish."}
           </p>
         </main>
