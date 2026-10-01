@@ -27,8 +27,12 @@ const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i > -1 ? args[i + 1] : null; };
 const PHOTO_DIR = path.join(root, "backups/mtg-phone");
-const LIST_PATH = path.join(PHOTO_DIR, "batch.json");
-const CACHE_PATH = path.join(root, "scripts/mtg-phone.cache.json");
+// --seller (10-01): eBay seller photos instead of Chris's own (list built by scripts/mtg-seller-from-raw.mjs).
+// There `want` is a LIST of ids (the printing the title names, or every printing of that name in that set when
+// it names none) and `loose` is every printing of the name in the set. --id <id> runs one photo.
+const SELLER = flag("seller");
+const LIST_PATH = path.join(PHOTO_DIR, SELLER ? "seller.json" : "batch.json");
+const CACHE_PATH = path.join(root, SELLER ? "scripts/mtg-seller.cache.json" : "scripts/mtg-phone.cache.json");
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
 
 const env = {};
@@ -64,7 +68,8 @@ async function pull() {
   return batch;
 }
 
-let batch = flag("pull") || !fs.existsSync(LIST_PATH) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
+let batch = !SELLER && (flag("pull") || !fs.existsSync(LIST_PATH)) ? await pull() : JSON.parse(fs.readFileSync(LIST_PATH, "utf8"));
+if (opt("id")) { const ids = opt("id").split(","); batch = batch.filter((p) => ids.includes(p.id)); }
 if (opt("limit")) batch = batch.slice(0, Number(opt("limit")));
 const cache = fs.existsSync(CACHE_PATH) ? JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) : {};
 if (flag("fresh")) for (const p of batch) delete cache[p.id];
@@ -88,8 +93,12 @@ if (uncached > 0) {
   delete process.env.ANTHROPIC_API_KEY;
   console.log("no vision calls: running without an API key");
 }
+let spent = 0;
 async function readCard(b64) {
-  return (await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg")).read;
+  const res = await analyzeCardImageWithUsage(b64, "image/jpeg", "en", "mtg");
+  // Sonnet rates ($ per million): input 2, output 10, cache read 0.2, cache write 2.5 (scanUsage RATES); an Art Series picture match on Opus is not in this sum.
+  spent += (res.usage.inputTokens * 2 + res.usage.outputTokens * 10 + res.usage.cacheReadTokens * 0.2 + res.usage.cacheWriteTokens * 2.5) / 1e6;
+  return res.read;
 }
 
 // Local mirror row for the printing Chris kept, so a miss prints what it should have said.
@@ -103,7 +112,8 @@ const finishes = {};
 // nonfoil; the editor's variant picker). Rows with no variant are not scored.
 const finishMisses = [];
 let finishHit = 0, finishN = 0;
-let hit = 0, n = 0;
+let hit = 0, n = 0, looseHit = 0;
+const groups = {};
 for (const p of batch) {
   let read = cache[p.id];
   if (!read) {
@@ -126,21 +136,27 @@ for (const p of batch) {
     if (read.finish === p.finish) finishHit++;
     else finishMisses.push(`${p.name} [${p.set} ${p.number}]: kept ${p.finish}, read ${read.finish ?? "null"}`);
   }
-  if (top?.id === p.want) hit++;
+  const wants = Array.isArray(p.want) ? p.want : [p.want];
+  if (p.loose && top && p.loose.includes(top.id)) looseHit++;
+  // `tight` = the listing picture is a bare card scan or a stock image (no background), not a photo of a card on a table.
+  if (SELLER) { const g = (groups[p.tight ? "scans / stock images" : "real photos"] ??= { hit: 0, n: 0 }); g.n++; if (top && wants.includes(top.id)) g.hit++; }
+  if (top && wants.includes(top.id)) hit++;
   else {
-    const w = wantRow.get(p.want);
+    const w = wantRow.get(wants[0]);
     misses.push({
+      id: p.id, title: p.title ?? "", sameCard: Boolean(p.loose && top && p.loose.includes(top.id)),
       want: w ? `${w.name} [${w.set_code.toUpperCase()} ${w.collector_number}] ${w.frame_effects || "-"} / ${w.promo_types || "-"}` : `${p.name} [${p.set} ${p.number}] (not in local mirror)`,
       got: top ? `${top.name} [${top.setCode ?? ""} ${top.number}] ${top.id}` : "(nothing)",
       read: `name=${read.name} code=${read.setCode} number=${read.cardNumber} treatment=${read.treatment} marks=${(read.marks ?? []).join("+") || "-"} finish=${read.finish} artist=${read.artist} year=${read.copyrightYear} border=${read.borderColor}`,
-      rank: found.findIndex((c) => c.id === p.want),
+      rank: found.findIndex((c) => wants.includes(c.id)),
     });
   }
   process.stdout.write(`\r${n}/${batch.length}`);
 }
 process.stdout.write("\r");
-console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)`);
-console.log(`finish read: ${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+console.log(`\nexact printing on real phone photos: ${hit}/${n} = ${n ? ((hit / n) * 100).toFixed(1) : 0}%  (target ≥ 90%)${SELLER ? `   right card + set on top: ${looseHit}/${n} = ${n ? ((looseHit / n) * 100).toFixed(1) : 0}%` : ""}   spent this run ≈ $${spent.toFixed(2)}`);
+for (const [k, g] of Object.entries(groups)) console.log(`  ${k}: ${g.hit}/${g.n} = ${((g.hit / g.n) * 100).toFixed(1)}%`);
+console.log(`finish read:${Object.entries(finishes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
 if (finishN) {
   console.log(`finish vs the variant kept on the ledger: ${finishHit}/${finishN} = ${((finishHit / finishN) * 100).toFixed(1)}%  (${batch.length - finishN} cards keep no variant, not scored)`);
   for (const m of finishMisses) console.log(`  ✗ ${m}`);
@@ -148,5 +164,5 @@ if (finishN) {
   console.log("finish not scored: no batch card keeps a variant (run --pull after the ledger has foil/nonfoil set)");
 }
 for (const m of misses) {
-  console.log(`\n✗ want ${m.want}\n  got  ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
+  console.log(`\n✗ ${m.id ?? ""}${m.title ? `  "${m.title}"` : ""}${m.sameCard ? "  [right card + set, other printing]" : ""}\n  want ${m.want}\n  got ${m.got}${m.rank > 0 ? `  (right one at #${m.rank + 1})` : ""}\n  read ${m.read}`);
 }
