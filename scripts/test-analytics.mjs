@@ -81,6 +81,15 @@ console.log("/api/visit");
   check("first ping, some other site", await pingSrc({ path: "/t6", first: true, ref: "https://news.example.org/story" }), { src: "other:news.example.org", camp: "" });
   check("first ping, junk in the tag is sanitized", await pingSrc({ path: "/t7", first: true, utm_source: "<b>X</b>", utm_campaign: "A B!c" }), { src: "other:bxb", camp: "abc" });
   check("a later ping (no `first`) stays blank even with a tag in the body", await pingSrc({ path: "/t8", utm_source: "x", utm_campaign: "abc" }), { src: "", camp: "" });
+
+  // 10-01 sweep: an unauthenticated writer with no cap; any 200-char string was a new row.
+  const count = async () => (await db.prepare("SELECT COUNT(*) AS n FROM page_views").get()).n;
+  const before = await count();
+  for (const p of ["/<script>", "/a b", "/" + "x".repeat(170), "/é-raw"]) await visit.POST(mk({ path: p }, { "x-forwarded-for": "7.7.7.7" }));
+  check("paths the site could not serve are not stored", (await count()) - before, 0);
+  const flood = before;
+  for (let i = 0; i < 310; i++) await visit.POST(mk({ path: `/f${i}` }, { "x-forwarded-for": "6.6.6.6" }));
+  check("one IP stops adding rows after 300 a day", (await count()) - flood, 300);
 }
 console.log("getAnalytics");
 const now = Date.UTC(2026, 8, 26, 15, 0, 0); // 2026-09-26T15:00Z
