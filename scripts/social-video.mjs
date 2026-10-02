@@ -56,6 +56,9 @@ const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { topMovers, mixedMovers, recentlyFeatured, setSpotlight, gameLeads, gameJumps, isJump, socialDrafts, variantLabel } = await import(at("lib/server/social.ts"));
 const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord } = await import(at("lib/socialPlan.ts"));
+// Every video ends on the "Now scanning" card naming all the games we scan (Chris 10-02: "the final card on all 3
+// doesn't list all games we scan"). It used to be the mixed-movers video only; the rest ended on a Pokémon-era line.
+const ALL_GAMES_OUTRO = { games: POST_GAME_ORDER.map((g) => POST_GAME_NAMES[g]) };
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
 const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
@@ -195,7 +198,7 @@ async function build(kind, strict) {
         to: c.to,
         pct: moveLine(c),
       })),
-      outro: mixed ? { games: POST_GAME_ORDER.map((g) => POST_GAME_NAMES[g]) } : {},
+      outro: ALL_GAMES_OUTRO,
       frozen: { cards: [...shown].reverse().map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct, ...(c.game ? { game: c.game } : {}) })) },
     };
   }
@@ -223,7 +226,7 @@ async function build(kind, strict) {
         to: c.to,
         pct: moveLine(c, c.cardId === spot.leadId),
       })),
-      outro: {},
+      outro: ALL_GAMES_OUTRO,
       frozen: { cards: spot.cards.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant, from: c.from, to: c.to, pct: c.pct, ...(c.unsettled ? { unsettled: true } : {}), ...(c.rank ? { rank: c.rank } : {}) })) },
     };
   }
@@ -253,7 +256,7 @@ async function build(kind, strict) {
         to: c.price,
         pct: isJump(c) ? { text: `▲ ${c.pct.toFixed(1)}% this week`, cls: "up big", early: true } : { text: "market price today", cls: "muted" },
       })),
-      outro: {},
+      outro: ALL_GAMES_OUTRO,
       frozen: { leads: shown.map((c) => ({ game: c.game, name: c.name, setName: c.setName, number: c.number, price: c.price, ...(isJump(c) && c.cardId ? { cardId: c.cardId, from: c.from, pct: c.pct, ...(c.variant ? { variant: c.variant } : {}) } : {}) })) },
     };
   }
@@ -280,7 +283,9 @@ function hookFor(kind, cards) {
 /** Render one video for a slot; returns what the registry needs. */
 async function makeSlot(slot, kind, out, strict) {
   const built = await build(kind, strict);
-  const { cards, mixed } = built;
+  const { cards } = built;
+  // The end card names every game we scan, one per beat (Chris 10-02: all three videos, not only the mixed one): two bars.
+  const gamesOutro = Boolean(built.outro.games);
   const track = trackFor(slot);
   let withAudio = track.file !== "none" && fs.existsSync(track.file);
   if (track.file !== "none" && !withAudio) console.warn(`no backing track at ${track.file}, rendering silent`);
@@ -298,7 +303,7 @@ async function makeSlot(slot, kind, out, strict) {
     // and outro; the mixed outro names five games one per beat, then the address: two
     // bars. A repeat of the day's track starts 8 bars further in, moved off a drumless
     // stretch and onto the beat of the part it lands in (lib/audio-plan.mjs).
-    const plan = timelineFor(b, { section: track.section, cards: cards.length, mixed });
+    const plan = timelineFor(b, { section: track.section, cards: cards.length, mixed: gamesOutro });
     PERIOD = plan.PERIOD;
     ({ INTRO, BEAT, OUTRO } = plan);
     AUDIO_START = plan.start;
@@ -306,10 +311,10 @@ async function makeSlot(slot, kind, out, strict) {
     console.log(`beat: ${b.bpm} bpm, ${BEAT.toFixed(2)}s per card, ${track.name} from ${AUDIO_START.toFixed(2)}s${plan.rawStart !== b.start ? " (a later section: another video of the day has the opening)" : ""}${nudge ? ` (${nudge > 0 ? "+" : ""}${nudge}ms onto the beat of that part)` : ""}`);
   } else {
     console.log("audio: silent (drop MP3s into public/social/audio)");
-    if (mixed) OUTRO = 5;
+    if (gamesOutro) OUTRO = 5;
     withAudio = false;
   }
-  const TOTAL = withAudio || mixed ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
+  const TOTAL = withAudio || gamesOutro ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
   // Every video is laid out inside TikTok's safe box (Chris 10-01, from his phone: the old layouts sat off centre under the search
   // bar with an empty bottom third). The 1pm file every site posts gets it too: Reels and Shorts cover the same edges.
   const html = sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true });
