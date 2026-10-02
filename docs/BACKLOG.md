@@ -90,7 +90,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Help chat's Haiku call on prod — proven 10-01: one real question as the admin account in the pane, 200 in 1.6 s with a correct answer and a "reprice" guide action; the test conversation was cleared after (history was empty before).
 - [x] Trial selling gate on prod — proven 10-01: Chris signed a trial-tier account into the pane; /api/ebay/draft, /api/ebay/listing and /api/ebay/listing/publish each answered 402 { paywall, selling } with the "starts with a Scan Pack or a subscription" line (empty bodies, nothing created).
 - [x] Admin plan overrides on prod — proven 10-01 on the script-made test account "T" from the signed-in /admin console: trial → trial (5 scans), legacy → legacy, comp_standard → subscribed / standard / 250, comp_pro → subscribed / pro / 750, unlimited → owner, then back to Automatic (trial); a made-up value is refused 400, and a site-admin session without the console sign-in is refused 403 "Only the owner can do that".
-- [ ] Admin Add account on prod — verified locally only.
+- [x] Admin Add account on prod — proven 10-01: Chris added "Add Test" (addtest@example.com) from /admin/users; the row landed as role user, trial tier, password hashed, no session issued, no email-confirm wall, home_country empty until a first sign-in. The test row is his to delete.
 - [x] Magic switch on prod — proven 09-05 (public pages lost Magic after the flip).
 - [ ] Tour stamping (tour_seen_at) on prod — replay works, the once-only stamp not confirmed.
 - [ ] Verify-match gate on a live scan (needs a logged-in scan on a phone).
