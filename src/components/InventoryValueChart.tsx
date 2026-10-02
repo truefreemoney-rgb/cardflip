@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/client/basePath";
 import type { GameId } from "@/lib/types";
 import { formatMoney } from "@/lib/listing";
+import RangePills, { rangeDays, rangeWindow, type RangeChoice, type RangePreset } from "@/components/RangePills";
 
 /**
  * Inventory value over time — the strip under the In play / Earned panel
@@ -27,28 +28,35 @@ interface Props {
   className?: string;
 }
 
-const RANGES: { days: number; label: string }[] = [
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
-  { days: 365, label: "1 year" },
-];
-
+const DAY_MS = 86_400_000;
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 const money = (n: number) => formatMoney(n);
 
 export default function InventoryValueChart({ game, version = 0, status = "all", category = "all", className = "" }: Props) {
-  const [days, setDays] = useState(90);
+  const [choice, setChoice] = useState<RangeChoice>({ preset: "90d" });
+  /** True once the viewer has picked a range: from then on the strip stays up even when a range has too few days to draw. */
+  const [picked, setPicked] = useState(false);
   const [points, setPoints] = useState<Point[] | null>(null);
+  const from = "from" in choice ? choice.from : "";
+  const to = "from" in choice ? choice.to : "";
+  const preset = "preset" in choice ? choice.preset : "";
 
   useEffect(() => {
     let alive = true;
     const scope =
       (status !== "all" ? `&status=${encodeURIComponent(status)}` : "") +
       (category === "none" ? "&uncategorized=1" : category !== "all" ? `&category=${encodeURIComponent(category)}` : "");
+    const c: RangeChoice = from ? { from, to } : { preset: preset as RangePreset };
+    // The API counts days back from today (two at least: a line needs two points); picked dates are cut out of that here.
+    const days = from ? Math.ceil((Date.now() - parseDay(from)) / DAY_MS) + 1 : Math.max(2, rangeDays(c));
     apiFetch(`/api/cards/value-history?game=${game}&days=${days}${scope}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body: { points?: Point[] } | null) => {
-        if (alive) setPoints(body?.points ?? []);
+        if (!alive) return;
+        const all = body?.points ?? [];
+        if (!from) return setPoints(all);
+        const w = rangeWindow(c, Date.now());
+        setPoints(all.filter((p) => parseDay(p.day) >= w.since && parseDay(p.day) <= w.until));
       })
       .catch(() => {
         if (alive) setPoints([]);
@@ -56,7 +64,18 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     return () => {
       alive = false;
     };
-  }, [game, days, version, status, category]);
+  }, [game, preset, from, to, version, status, category]);
+
+  const pills = (
+    <RangePills
+      up
+      value={choice}
+      onChange={(c) => {
+        setPicked(true);
+        setChoice(c);
+      }}
+    />
+  );
 
   const geo = useMemo(() => {
     if (!points || points.length < 2) return null;
@@ -75,36 +94,33 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     return { W, H, line, area, lastX: sx(x1), lastY: sy(last), first, last, pct, n: points.length };
   }, [points]);
 
-  if (!geo) return null;
+  if (!geo) {
+    // Nothing to draw. Before any pick that means a new inventory: no strip. After one, keep the picker so the viewer can go back.
+    if (!picked) return null;
+    return (
+      <div className={`border-t border-edge/60 px-5 py-3 ${className}`}>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Inventory value</p>
+          {pills}
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">{points === null ? "Loading…" : "Not enough days in this range yet."}</p>
+      </div>
+    );
+  }
   const up = geo.last >= geo.first;
   const stroke = up ? "#34d399" : "#f87171";
   const diff = geo.last - geo.first;
 
   return (
     <div className={`border-t border-edge/60 px-5 py-3 ${className}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Inventory value</p>
-        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs">
-          <span className={`font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="flex items-baseline gap-3 text-xs uppercase tracking-[0.15em] text-zinc-500">
+          Inventory value
+          <span className={`font-medium normal-case tracking-normal tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
             {up ? "▲" : "▼"} {money(Math.abs(diff))} · {Math.abs(geo.pct).toFixed(1)}%
           </span>
-          {/* The same pill as the admin Analytics range picker (Chris 10-02). */}
-          <span className="flex items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1" role="group" aria-label="Range">
-            {RANGES.map((r) => (
-              <button
-                key={r.days}
-                type="button"
-                onClick={() => setDays(r.days)}
-                aria-pressed={days === r.days}
-                className={`rounded-full px-3 py-1.5 text-center tabular-nums transition ${
-                  days === r.days ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </span>
-        </div>
+        </p>
+        {pills}
       </div>
       <svg
         viewBox={`0 0 ${geo.W} ${geo.H}`}

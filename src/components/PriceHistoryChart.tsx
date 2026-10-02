@@ -5,10 +5,12 @@ import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
 import type { Currency, PokemonCard } from "@/lib/types";
 import { PRICE_FLAG_NOTE, type PriceFlag } from "@/lib/priceFlag";
+import RangePills, { rangeShort, rangeWindow, type RangeChoice } from "@/components/RangePills";
 
 /**
  * A card's price over time, drawn like a stock chart: quote header (current
- * price, change for the selected range), 1W/1M/3M/1Y/All, price axis with
+ * price, change for the selected range), the site's range picker (Dates, 24h,
+ * 7 days, 30 days, 90 days: components/RangePills.tsx), price axis with
  * gridlines, date ticks, line + area coloured by direction (up = emerald,
  * down = red), crosshair + tooltip on hover, min/max direct-labelled.
  *
@@ -39,15 +41,6 @@ const pointOf = (s: Series): RecordedPoint | null => {
   return last ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}) } : null;
 };
 
-type Range = 7 | 30 | 90 | 365 | 0;
-/** `label` is the sentence form under the chart ("3M low $4"); `pill` is the button, worded like every range picker on the site (Chris 10-02). */
-const RANGES: { value: Range; label: string; pill: string }[] = [
-  { value: 7, label: "1W", pill: "7 days" },
-  { value: 30, label: "1M", pill: "30 days" },
-  { value: 90, label: "3M", pill: "90 days" },
-  { value: 365, label: "1Y", pill: "1 year" },
-  { value: 0, label: "All", pill: "All" },
-];
 
 export interface TrendAverages {
   avg1: number | null;
@@ -253,7 +246,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   }, [targetFactor]);
   const scaled = targetFactor !== 1;
   if (scaled || exactVariant) trend = null; // raw source averages would contradict a scaled or graded curve
-  const [range, setRange] = useState<Range>(90);
+  const [range, setRange] = useState<RangeChoice>({ preset: "90d" });
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -291,10 +284,10 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   });
   const shown = useMemo(() => {
     if (!series) return [];
-    const pts = range === 0 ? series.points : (() => {
-      const cutoff = now - range * dayMs;
-      const inRange = series.points.filter((p) => parseDay(p.day) >= cutoff);
-      // A range with nothing in it (young series, "1Y") falls back to everything.
+    const pts = (() => {
+      const w = rangeWindow(range, now);
+      const inRange = series.points.filter((p) => parseDay(p.day) >= w.since && parseDay(p.day) <= w.until);
+      // A range with nothing in it (a young series, dates before it began) falls back to everything.
       return inRange.length >= 1 ? inRange : series.points;
     })();
     return factor === 1 ? pts : pts.map((p) => ({ ...p, price: Math.round(p.price * factor * 100) / 100 }));
@@ -380,7 +373,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   const gradId = `ph-fill-${cardId.replace(/[^a-z0-9]/gi, "")}`;
   const label = compact ? "text-[10px]" : "text-[11px]";
   const hovered = hover !== null && geo ? geo.pts[hover] : null;
-  const rangeLabel = RANGES.find((r) => r.value === range)?.label ?? "";
+  const rangeLabel = rangeShort(range);
 
   // Trend strip (Cardmarket averages) — direction over the last month.
   const trendPct =
@@ -426,22 +419,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
             </div>
           )}
         </div>
-        {/* The same pill as the admin Analytics range picker (Chris 10-02: every date changer on the site looks like it). */}
-        <div className="flex max-w-full items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1" role="tablist" aria-label="Range">
-          {RANGES.map((r) => (
-            <button
-              key={r.value}
-              role="tab"
-              aria-selected={range === r.value}
-              onClick={() => { setRange(r.value); setHover(null); }}
-              className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-center sm:px-3 ${label} transition ${
-                range === r.value ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              {r.pill}
-            </button>
-          ))}
-        </div>
+        {/* The one date changer (Chris 10-02): Dates, 24h, 7 days, 30 days, 90 days. */}
+        <RangePills value={range} onChange={(c) => { setRange(c); setHover(null); }} />
       </div>
 
       <div ref={boxRef} className="w-full" />
