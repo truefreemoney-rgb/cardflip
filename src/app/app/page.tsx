@@ -1026,14 +1026,23 @@ export default function AppPage() {
         // scenes; the card itself stays what the ledger row points at.
         if (item.card && item.candidates.length <= 1 && !item.verifiedAt) {
           const { id, card } = item;
+          // One Piece / Yu-Gi-Oh!: the printing pick IS the verification, so
+          // the editor holds its plain "Yes" until these candidates are in.
+          const asksPrinting = item.game === "onepiece" || item.game === "yugioh";
+          if (asksPrinting) patchItem(id, { printingsCheck: "loading" });
           void searchCards(card.englishName || card.name, card.number || null, "en", undefined, item.game)
             .then((found) => {
               const cur = itemsRef.current.find((i) => i.id === id);
-              if (!cur || cur.card?.id !== card.id || cur.candidates.length > 1) return;
+              if (!cur) return;
               const others = found.filter((c) => c.id !== card.id);
-              if (others.length > 0) patchItem(id, { candidates: [card, ...others] });
+              const fill = cur.card?.id === card.id && cur.candidates.length <= 1 && others.length > 0;
+              if (fill || asksPrinting) {
+                patchItem(id, { ...(fill ? { candidates: [card, ...others] } : {}), ...(asksPrinting ? { printingsCheck: null } : {}) });
+              }
             })
-            .catch(() => {});
+            .catch(() => {
+              if (asksPrinting) patchItem(id, { printingsCheck: "failed" });
+            });
         }
       }
     })();

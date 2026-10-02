@@ -770,7 +770,31 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 </div>
                 {/* Yu-Gi-Oh!: one set code, several foils — the photo can't
                     always tell them apart, the seller can (09-29). */}
-                {foils.length >= 2 ? (
+                {item.printingsCheck === "loading" ? (
+                  <p className="flex items-center justify-center gap-2 py-2 text-sm text-zinc-400">
+                    <Spinner className="h-3.5 w-3.5" /> Checking the printings…
+                  </p>
+                ) : item.printingsCheck === "failed" ? (
+                  // No plain "Yes": the printing is confirmed before the listing opens (Chris, 10-01).
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-amber-200">Couldn&apos;t load this card&apos;s printings, so it can&apos;t be verified yet.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({ printingsCheck: "loading" });
+                        void searchCards(card.englishName || card.name, card.number || null, "en", undefined, item.game)
+                          .then((found) => {
+                            const others = found.filter((c) => c.id !== card.id);
+                            onChange({ ...(others.length > 0 ? { candidates: [card, ...others] } : {}), printingsCheck: null });
+                          })
+                          .catch(() => onChange({ printingsCheck: "failed" }));
+                      }}
+                      className="w-full rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : foils.length >= 2 ? (
                   // One tap answers both questions (Chris 09-29): the foil
                   // picked IS the verification. Wrong card entirely → the
                   // "Not your card?" link below.

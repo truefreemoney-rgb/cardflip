@@ -355,6 +355,13 @@ export interface ScanItem {
   status: ScanStatus;
   /** Possible matches returned by the lookup, best first. */
   candidates: PokemonCard[];
+  /**
+   * A reopened One Piece / Yu-Gi-Oh! draft has one candidate until its
+   * printings are looked up again. While that runs ("loading") or after it
+   * failed ("failed") the verify step offers no plain Yes: the printing is
+   * confirmed before the listing opens (Chris, 10-01).
+   */
+  printingsCheck?: "loading" | "failed" | null;
   card: PokemonCard | null;
   condition: Condition;
   /**
