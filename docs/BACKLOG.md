@@ -92,7 +92,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] Admin plan overrides on prod — proven 10-01 on the script-made test account "T" from the signed-in /admin console: trial → trial (5 scans), legacy → legacy, comp_standard → subscribed / standard / 250, comp_pro → subscribed / pro / 750, unlimited → owner, then back to Automatic (trial); a made-up value is refused 400, and a site-admin session without the console sign-in is refused 403 "Only the owner can do that".
 - [x] Admin Add account on prod — proven 10-01: Chris added "Add Test" (addtest@example.com) from /admin/users; the row landed as role user, trial tier, password hashed, no session issued, no email-confirm wall, home_country empty until a first sign-in. The test row is his to delete.
 - [x] Magic switch on prod — proven 09-05 (public pages lost Magic after the flip).
-- [ ] Tour stamping (tour_seen_at) on prod — replay works, the once-only stamp not confirmed.
+- [x] Tour stamping (tour_seen_at) on prod — CONFIRMED 10-01 (read-only prod count): 8 of 15 accounts stamped; of the 9 signed up since the tour shipped, 3 are stamped, all within an hour of signup (the route wrote them), newest stamp 09-29 7:47 PM ET; Chris's account (stamped 09-04) loads /app with no tour. The 6 unstamped new accounts never closed or finished the tour.
 - [ ] Verify-match gate on a live scan (needs a logged-in scan on a phone).
 - [ ] Vision printing/finish accuracy on real phone photos.
 - [ ] Welcome email on a real subscribe; wishlist dip email (SMTP prod-only); Finances call after a real sale; ended-listing sync on an API-published listing; live-offer PUT; multi-qty order.
