@@ -90,6 +90,7 @@ function catalogStub(card: ServerCard): PokemonCard {
 
 /** Grid or rows — remembered per browser (Chris, 09-04: "way more visual"). */
 const VIEW_KEY = "cardflip.inventoryView";
+const SUMMARY_KEY = "cardflip.inventorySummary";
 type InventoryView = "grid" | "list";
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
@@ -468,6 +469,23 @@ export default function CollectionPage() {
     setView(next);
     try {
       window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Private mode / blocked storage: the choice just doesn't persist.
+    }
+  }
+  // The money panel folds away (Chris, 10-02), remembered per browser like the view.
+  const [summaryOpen, setSummaryOpen] = useState(() => {
+    try {
+      return typeof window === "undefined" || window.localStorage.getItem(SUMMARY_KEY) !== "closed";
+    } catch {
+      return true;
+    }
+  });
+  function toggleSummary() {
+    const next = !summaryOpen;
+    setSummaryOpen(next);
+    try {
+      window.localStorage.setItem(SUMMARY_KEY, next ? "open" : "closed");
     } catch {
       // Private mode / blocked storage: the choice just doesn't persist.
     }
@@ -1679,6 +1697,35 @@ export default function CollectionPage() {
             </button>
           </div>
         )}
+        {/* The whole panel folds to one line (Chris, 10-02: "make this section collapsible on desktop and
+            mobile"); the choice is remembered per browser. Folded, the line carries the two headline numbers. */}
+        <button
+          type="button"
+          onClick={toggleSummary}
+          aria-expanded={summaryOpen}
+          aria-controls="inventory-summary"
+          className={`flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left transition hover:bg-white/[0.03] ${summaryOpen ? "border-b border-edge/60" : ""}`}
+        >
+          {summaryOpen ? (
+            <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Summary</span>
+          ) : (
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs text-zinc-400">
+              <span className="whitespace-nowrap">
+                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{formatMoney(stats.inPlay)}</span>
+              </span>
+              <span className="whitespace-nowrap">
+                Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
+              </span>
+            </span>
+          )}
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-300">
+            {summaryOpen ? "Hide" : "Show"}
+            <svg viewBox="0 0 20 20" className={`h-4 w-4 transition-transform ${summaryOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 8l5 5 5-5" />
+            </svg>
+          </span>
+        </button>
+        <div id="inventory-summary" className={summaryOpen ? "" : "hidden"}>
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
             <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
@@ -1816,6 +1863,7 @@ export default function CollectionPage() {
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-emerald-300">{stats.sold.length}</span> sold
           </span>
+        </div>
         </div>
       </section>
 
