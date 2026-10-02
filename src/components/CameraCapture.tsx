@@ -67,11 +67,11 @@ const GUIDE_RATIO: Record<CaptureMode, number> = { card: 63 / 88, page: 8 / 11 }
 const GUIDE_HEIGHT: Record<CaptureMode, number> = { card: 0.82, page: 0.92 };
 
 /**
- * Room between the guide and the viewfinder's edge for the ✕ / torch /
- * sound column, so the brackets never sit under a button (Chris, 09-02,
- * phone: "everything overlaps, you can't see the square scan lines").
+ * Room between the guide and the viewfinder's edge. Nothing sits on the
+ * video since the 10-02 makeover (close, light and sound moved to the top
+ * bar), so this is only breathing room for the brackets.
  */
-const GUIDE_GUTTER_PX = 64;
+const GUIDE_GUTTER_PX = 16;
 
 interface GuideRect {
   x: number;
@@ -87,7 +87,7 @@ interface GuideRect {
  * two can't drift.
  *
  * The guide is 82% of the displayed video's height at 63:88 and centered,
- * unless that would run under the HUD's button column — then it's narrowed
+ * unless that would run into the viewfinder's edge — then it's narrowed
  * to leave GUIDE_GUTTER_PX each side and the height follows. object-contain
  * letterboxing is accounted for, so a pillarboxed phone stream maps 1:1.
  * Null until the element is laid out and the stream has a size.
@@ -451,25 +451,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
   // Android Back closes the scanner, not the app.
   useBackToClose("camera", onClose);
 
-  const statusDot = error
-    ? "bg-amber-400"
-    : !ready
-      ? "bg-zinc-600"
-      : identifying
-        ? "bg-brand-400 animate-pulse"
-        : "bg-brand-400";
-  const statusText = error
-    ? "Camera unavailable"
-    : !ready
-      ? "Opening the camera…"
-      : mode === "page"
-        ? pageNote ?? "Fill the guide with the whole page, then tap Capture"
-        : identifying
-          ? "Reading the last card — line up the next one"
-          : game
-            ? `Scanning ${GAMES[game].label} cards — fill the guide, tap Capture`
-            : "Fill the guide, then tap Capture";
-
   return (
     <div
       onPointerDown={() => void primeScanFx()}
@@ -487,28 +468,101 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
         tabIndex={-1}
         className="scanner-hud flex h-full w-full flex-col bg-surface-1 pt-[env(safe-area-inset-top)] outline-none sm:h-auto sm:max-w-lg sm:gap-3 sm:rounded-3xl sm:border sm:border-edge sm:p-4"
       >
-        {/* Status row: what the scanner is doing (left) and the running score
-            for the session (right). Fixed height so the viewfinder never
-            jumps as the text changes. */}
-        <div className="flex h-11 shrink-0 items-center gap-3 px-4 text-[11px] sm:h-auto sm:px-1">
-          <div className="flex min-w-0 flex-1 items-center gap-2 font-medium">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} />
-            <span className="truncate text-zinc-200">{statusText}</span>
+        {/* Top bar (10-02 makeover): every control that is not Capture lives
+            here, off the video — the one way out (left), Card / Page
+            (middle), light and sound (right). Solid, no blur: iOS. */}
+        {/* Widths at 360px with the light showing: 60 + 169 + 40 + 40 + gaps = 327 of 336. */}
+        <div className="flex h-12 shrink-0 items-center gap-1.5 px-3 sm:h-auto sm:px-0">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={captured > 0 ? "Done, close scanner" : "Close scanner"}
+            className="flex h-10 shrink-0 items-center whitespace-nowrap rounded-full border border-edge bg-surface-2 px-3 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong"
+          >
+            {captured > 0 ? "Done" : "Close"}
+          </button>
+
+          <div className="flex min-w-0 flex-1 justify-center">
+            {onCapturePage && (
+              <div
+                role="radiogroup"
+                aria-label="What to scan"
+                className="flex rounded-full border border-edge bg-surface-2 p-0.5 text-xs font-semibold"
+              >
+                {(["card", "page"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={mode === m}
+                    onClick={() => {
+                      if (m === mode) return;
+                      setMode(m);
+                      // The stream re-opens at the new size; hide the guide until it has a frame.
+                      setReady(false);
+                      setTorch("unavailable");
+                    }}
+                    className={`whitespace-nowrap rounded-full px-2.5 py-2 transition ${
+                      mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {m === "card" ? "One Card" : "Binder Page"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {tally && tally.count > 0 && (
-            <div className="flex shrink-0 items-baseline gap-1.5">
-              <span className="font-display text-sm font-semibold text-white">{tally.count}</span>
-              <span className="text-zinc-400">{tally.count === 1 ? "card" : "cards"}</span>
-              {tally.value > 0 && (
-                <>
-                  <span className="text-zinc-600">·</span>
-                  <span className="font-display text-sm font-semibold text-holo-gold">
-                    {formatMoney(tally.value)}
-                  </span>
-                </>
-              )}
-            </div>
+
+          {torch !== "unavailable" && (
+            <button
+              type="button"
+              onClick={toggleTorch}
+              aria-pressed={torch === "on"}
+              aria-label="Camera light"
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition ${
+                torch === "on"
+                  ? "border-amber-300/60 bg-amber-400 text-black"
+                  : "border-edge bg-surface-2 text-zinc-200 hover:border-edge-strong"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden>
+                <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
+              </svg>
+            </button>
           )}
+
+          {/* Sound + haptics toggle, remembered. */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !fxOn;
+              setFxOn(next);
+              setScanFxEnabled(next);
+            }}
+            aria-pressed={fxOn}
+            aria-label={fxOn ? "Scan sounds on" : "Scan sounds off"}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 transition hover:border-edge-strong ${
+              fxOn ? "text-zinc-200" : "text-zinc-500"
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
+              {fxOn ? (
+                <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+              ) : (
+                <path d="m16 9 5 6m0-6-5 6" />
+              )}
+            </svg>
+          </button>
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:rounded-2xl">
@@ -569,52 +623,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
                 )}
               </div>
             </div>
-          )}
-
-          {/* The one column that stays on the video: close, torch, sound —
-              a phone user reaches for the corner. The guide is narrowed to
-              clear it (GUIDE_GUTTER_PX). */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close scanner"
-            className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg leading-none text-white backdrop-blur transition hover:border-white/40 hover:bg-black/80"
-          >
-            ✕
-          </button>
-
-          {torch !== "unavailable" && (
-            <button
-              onClick={toggleTorch}
-              aria-pressed={torch === "on"}
-              aria-label="Camera light"
-              className={`absolute right-3 top-16 z-20 flex h-11 w-11 items-center justify-center rounded-full border text-lg backdrop-blur transition ${
-                torch === "on"
-                  ? "border-amber-300/60 bg-amber-400/90 shadow-lg shadow-amber-400/40"
-                  : "border-white/20 bg-black/60 hover:border-white/40"
-              }`}
-            >
-              {torch === "on" ? "🔆" : "🔦"}
-            </button>
-          )}
-
-          {/* Sound + haptics toggle, remembered. Sits under the torch. */}
-          {ready && (
-            <button
-              type="button"
-              onClick={() => {
-                const next = !fxOn;
-                setFxOn(next);
-                setScanFxEnabled(next);
-              }}
-              aria-pressed={fxOn}
-              aria-label={fxOn ? "Scan sounds on" : "Scan sounds off"}
-              className={`absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border text-base backdrop-blur transition ${
-                torch !== "unavailable" ? "top-[7.25rem]" : "top-16"
-              } ${fxOn ? "border-white/20 bg-black/60" : "border-white/10 bg-black/40 text-zinc-500"}`}
-            >
-              {fxOn ? "🔊" : "🔇"}
-            </button>
           )}
 
           {flash && (
@@ -689,17 +697,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
                 {pageNote}
               </p>
             ) : (
-              <p className="w-full text-center text-xs text-zinc-500">
-                Hold the phone square over a binder page, or cards laid out on a table, and
-                fill the guide. One shot finds every card — each one counts as a scan.
+              <p className="w-full text-center text-sm text-zinc-400">
+                Fill the guide with the whole page, then tap Capture.
+                <span className="mt-0.5 block text-xs text-zinc-500">Each card found counts as a scan.</span>
               </p>
             )
           ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} />
           ) : (
-            <p className="w-full text-center text-xs text-zinc-500">
-              Fill the guide with one card, then tap Capture. Keep going for a whole
-              stack — each shot is scanned while you line up the next.
+            <p className="w-full text-center text-sm text-zinc-400">
+              Fill the guide with one card, then tap Capture.
+              <span className="mt-0.5 block text-xs text-zinc-500">Keep going for a whole stack.</span>
             </p>
           )}
         </div>
@@ -713,49 +721,26 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
           </div>
         )}
 
-        {/* Card / Page: which guide the shot fills. Its own row so the two
-            targets never share a thumb with Capture. */}
-        {onCapturePage && (
-          <div className="flex shrink-0 justify-center px-3 pb-2 sm:px-0 sm:pb-0" role="radiogroup" aria-label="What to scan">
-            <div className="flex rounded-full border border-edge bg-surface-2 p-0.5 text-xs font-semibold">
-              {(["card", "page"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={mode === m}
-                  onClick={() => {
-                    if (m === mode) return;
-                    setMode(m);
-                    // The stream re-opens at the new size; hide the guide until it has a frame.
-                    setReady(false);
-                    setTorch("unavailable");
-                  }}
-                  className={`rounded-full px-4 py-1.5 transition ${
-                    mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {m === "card" ? "One Card" : "Binder Page"}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex shrink-0 items-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:gap-3 sm:px-0 sm:pb-0">
+        {/* Capture is the only button down here: the one obvious action. The
+            session's running score sits beside it once there is one. */}
+        <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
             onClick={capture}
             disabled={!ready || (mode === "page" && Boolean(pageNote))}
-            className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
+            className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-10"
           >
             {mode === "page" ? "Capture Page" : game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
           </button>
-          <button
-            onClick={onClose}
-            className="shrink-0 whitespace-nowrap rounded-full border border-edge bg-surface-2 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
-          >
-            {captured > 0 ? `Done · ${captured}` : "Cancel"}
-          </button>
+          {tally && tally.count > 0 && (
+            <div className="shrink-0 text-right leading-tight">
+              {tally.value > 0 && (
+                <p className="font-display text-sm font-semibold text-holo-gold">{formatMoney(tally.value)}</p>
+              )}
+              <p className="text-[11px] text-zinc-400">
+                {tally.count} {tally.count === 1 ? "card" : "cards"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
