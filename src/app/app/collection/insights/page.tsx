@@ -244,7 +244,7 @@ export default function InsightsPage() {
                 {(
                   [
                     ["Live on eBay", data.split.live, "bg-emerald-400"],
-                    ["Drafts", data.split.draft, "bg-brand-400"],
+                    ["Not Listed", data.split.draft, "bg-brand-400"],
                     ["Ended, unsold", data.split.ended, "bg-amber-400"],
                     ["Sold", data.split.sold, "bg-sky-400"],
                   ] as [string, Slice, string][]

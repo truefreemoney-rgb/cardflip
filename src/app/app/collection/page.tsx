@@ -94,7 +94,8 @@ type InventoryView = "grid" | "list";
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "ready", label: "Drafts" },
+  // "Drafts" until 10-02 (Chris: nothing is ever marked a draft; the rows already say Not Listed).
+  { value: "ready", label: "Not Listed" },
   { value: "listed", label: "Live" },
   { value: "ended", label: "Ended" },
   { value: "sold", label: "Sold" },
@@ -1802,7 +1803,7 @@ export default function CollectionPage() {
         <InventoryValueChart game={gameView} version={gameCards.length} status={filter} category={category} />
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
           <span className="text-zinc-400">
-            <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> drafts
+            <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> not listed
           </span>
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-sky-300">{stats.listed.length}</span> live
@@ -2199,12 +2200,12 @@ export default function CollectionPage() {
                       void applyToAll(
                         revertable,
                         () => ({ status: "ready" as const, listedAt: null, soldPrice: null, soldAt: null }),
-                        `${revertable.length} back to drafts`,
+                        `${revertable.length} back to Not Listed`,
                       )
                     }
                     className={bulkBtn}
                   >
-                    Back to drafts ({revertable.length})
+                    Back to Not Listed ({revertable.length})
                   </button>
                 )}
                 <button
