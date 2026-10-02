@@ -1680,7 +1680,7 @@ export default function CollectionPage() {
         )}
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
-            <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
+            <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
             {/* Two balances side by side (Chris, 10-02: "show the balance with and without ebay"): what the pile
                 puts in the pocket sold on eBay, and sold off eBay at the same prices (no fee, no postage). The
                 ledger under them is the difference. */}
@@ -1719,11 +1719,32 @@ export default function CollectionPage() {
                 net after eBay fees and postage, same as the admin panel leads
                 with (Chris, 08-31: sellers need to see the sale the way admin
                 does). */}
-            <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
-            <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-emerald-400">
-              <Price usd={stats.net} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            {/* Same shape as In Play (Chris, 10-02): what the eBay sales netted beside what the off-eBay
+                (hand-marked) sales brought in, with the total of the two on the label row. */}
+            <div className="flex min-h-6 items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
+              <p className="text-xs text-zinc-400">
+                Total{" "}
+                <span className="font-display text-base font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
+              </p>
+            </div>
+            <div className="mt-1.5 grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
+                <p className="font-display text-2xl font-semibold tracking-tight text-emerald-400 sm:text-3xl">
+                  <Price usd={stats.net - stats.handEarned} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                </p>
+                <p className="text-[11px] leading-snug text-zinc-500">After Fees and Postage</p>
+              </div>
+              <div className="min-w-0 border-l border-edge/60 pl-3">
+                <p className="text-[11px] font-medium text-zinc-400">Off eBay</p>
+                <p className="font-display text-2xl font-semibold tracking-tight text-emerald-300/90 sm:text-3xl">
+                  <Price usd={stats.handEarned} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                </p>
+                <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">
               {stats.sold.length === 0
                 ? scoped
                   ? "No sales in this view"
