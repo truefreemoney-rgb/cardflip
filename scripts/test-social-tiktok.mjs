@@ -611,5 +611,19 @@ console.log("10-01: the render script and the scene");
   check("the render script: the 7am video opens on the set's riser, counts the rest down, keeps each value rank, and freezes the caption's order", [src.includes("const order = spot.leadId ? [spot.cards[0], ...[...rest].reverse()] : [...spot.cards].reverse();"), src.includes("`No. ${c.rank ?? n - i}`"), src.includes("frozen: { cards: spot.cards.map(")], [true, true, true]);
 }
 
+console.log("10-02: every video ends on the all-games card, and the list fits the outro at any tempo");
+{
+  const src = read("scripts/social-video.mjs");
+  check("the render script: the set, movers and all-games videos all use the all-games outro, timed as the long one", [(src.match(/outro: ALL_GAMES_OUTRO,/g) ?? []).length, /outro: \{\},/.test(src), src.includes("mixed: gamesOutro")], [3, false, true]);
+  // The three tracks of 10-02: outro = 2 bars + 0.6 (a bar over 2.9s counts as two).
+  const fitsAll = [[60 / 123.05, 4.5], [60 / 74, 3.84], [60 / 92.5, 5.79]].map(([p, outro]) => {
+    const q = scene.outroStep(p, outro);
+    return [q <= p + 1e-9, 6.5 * q + 0.45 <= outro];
+  });
+  check("the fifth game name and the address are on screen before the video ends, at 123, 74 and 92 bpm", fitsAll, [[true, true], [true, true], [true, true]]);
+  check("a fast track keeps one name per beat; the slow 74 bpm track goes to half beats", [scene.outroStep(60 / 123.05, 4.5) === 60 / 123.05, scene.outroStep(60 / 74, 3.84) === 60 / 74 / 2], [true, true]);
+  check("a very short outro still fits the list", 6.5 * scene.outroStep(1, 2) + 0.45 <= 2.6, true);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

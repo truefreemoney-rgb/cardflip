@@ -54,6 +54,18 @@ function titleClass(t) {
  *                                   under the caption. Every video since 10-01 (Chris: "fix these issues for videos going forward").
  * }
  */
+/**
+ * How long each game name gets on the "Now scanning" end card. One musical beat when the whole list (five names, then
+ * the address at 6.5 steps) fits the outro; on a slow track it does not (10-02: the 74 bpm 1pm video ended on
+ * "Lorcana"), so the names go on half beats, and on whatever fits when even that is too long.
+ */
+export function outroStep(period, outro) {
+  const fits = (q) => 7.5 * q <= outro - 0.5;
+  if (fits(period)) return period;
+  if (fits(period / 2)) return period / 2;
+  return Math.max(0.12, (outro - 0.5) / 7.5);
+}
+
 export function sceneHtml(o) {
   const { W, H, logo, intro, cards, outro } = o;
   return `<!doctype html><html><head><meta charset="utf-8">
@@ -228,17 +240,18 @@ ${outro.games ? `<div id="outro" class="abs">
     const ot=t-(INTRO+N*BEAT);
     show(outro, ot>=0);
     if(ot>=0 && outro.querySelector(".games")){
-      // Mixed outro: logo, then one game name per beat, then the address.
+      // Games outro: logo, then one game name per step (a beat when the list fits the outro, see outroStep), then the address.
+      const Q=${outroStep(o.PERIOD > 0 ? o.PERIOD : o.BEAT / 4, o.OUTRO)};
       fadeIn(outro.querySelector("img"), ot, .4, 30);
-      fadeIn(outro.querySelector(".now"), ot-P*.5, .35, 20);
+      fadeIn(outro.querySelector(".now"), ot-Q*.5, .35, 20);
       outro.querySelectorAll(".games .g").forEach((g, i) => {
-        const gt = ot-P*(1+i);
+        const gt = ot-Q*(1+i);
         fadeIn(g, gt, .3, 30);
         const pop = gt>=0 ? Math.exp(-gt*9) : 0;
         g.style.transform += " scale("+(1+.14*pop)+")";
       });
-      fadeIn(outro.querySelector(".tag"), ot-P*6, .4);
-      fadeIn(outro.querySelector(".url"), ot-P*6.5, .45);
+      fadeIn(outro.querySelector(".tag"), ot-Q*6, .4);
+      fadeIn(outro.querySelector(".url"), ot-Q*6.5, .45);
     } else if(ot>=0){
       fadeIn(outro.querySelector("img"), ot, .5, 30);
       fadeIn(outro.querySelector(".line"), ot-.3, .5);
