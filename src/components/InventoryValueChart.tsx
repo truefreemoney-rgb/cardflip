@@ -28,9 +28,9 @@ interface Props {
 }
 
 const RANGES: { days: number; label: string }[] = [
-  { days: 30, label: "30d" },
-  { days: 90, label: "90d" },
-  { days: 365, label: "1y" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "1 year" },
 ];
 
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
@@ -84,19 +84,20 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     <div className={`border-t border-edge/60 px-5 py-3 ${className}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Inventory value</p>
-        <div className="flex items-baseline gap-3 text-xs">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs">
           <span className={`font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
             {up ? "▲" : "▼"} {money(Math.abs(diff))} · {Math.abs(geo.pct).toFixed(1)}%
           </span>
-          <span className="flex gap-1" role="group" aria-label="Range">
+          {/* The same pill as the admin Analytics range picker (Chris 10-02). */}
+          <span className="flex items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1" role="group" aria-label="Range">
             {RANGES.map((r) => (
               <button
                 key={r.days}
                 type="button"
                 onClick={() => setDays(r.days)}
                 aria-pressed={days === r.days}
-                className={`rounded-md px-1.5 py-0.5 tabular-nums transition ${
-                  days === r.days ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                className={`rounded-full px-3 py-1.5 text-center tabular-nums transition ${
+                  days === r.days ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 {r.label}

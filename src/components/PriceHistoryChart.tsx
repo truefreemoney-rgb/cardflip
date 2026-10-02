@@ -40,12 +40,13 @@ const pointOf = (s: Series): RecordedPoint | null => {
 };
 
 type Range = 7 | 30 | 90 | 365 | 0;
-const RANGES: { value: Range; label: string }[] = [
-  { value: 7, label: "1W" },
-  { value: 30, label: "1M" },
-  { value: 90, label: "3M" },
-  { value: 365, label: "1Y" },
-  { value: 0, label: "All" },
+/** `label` is the sentence form under the chart ("3M low $4"); `pill` is the button, worded like every range picker on the site (Chris 10-02). */
+const RANGES: { value: Range; label: string; pill: string }[] = [
+  { value: 7, label: "1W", pill: "7 days" },
+  { value: 30, label: "1M", pill: "30 days" },
+  { value: 90, label: "3M", pill: "90 days" },
+  { value: 365, label: "1Y", pill: "1 year" },
+  { value: 0, label: "All", pill: "All" },
 ];
 
 export interface TrendAverages {
@@ -425,18 +426,19 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
             </div>
           )}
         </div>
-        <div className="flex items-center gap-0.5 rounded-full bg-black/30 p-0.5" role="tablist" aria-label="Range">
+        {/* The same pill as the admin Analytics range picker (Chris 10-02: every date changer on the site looks like it). */}
+        <div className="flex max-w-full items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1" role="tablist" aria-label="Range">
           {RANGES.map((r) => (
             <button
               key={r.value}
               role="tab"
               aria-selected={range === r.value}
               onClick={() => { setRange(r.value); setHover(null); }}
-              className={`rounded-full px-2 py-0.5 ${label} font-medium transition ${
-                range === r.value ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+              className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-center sm:px-3 ${label} transition ${
+                range === r.value ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"
               }`}
             >
-              {r.label}
+              {r.pill}
             </button>
           ))}
         </div>
