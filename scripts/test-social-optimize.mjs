@@ -10,7 +10,7 @@
  * never touched.
  */
 import assert from "node:assert/strict";
-import { COOLDOWN_DAYS, MARGIN, MIN_DAYS, MIN_POSTS, SCORE_CAP, optimize } from "../src/lib/socialOptimize.ts";
+import { COOLDOWN_DAYS, EXPLORE_DAYS, LEAD_DAYS, MARGIN, MIN_DAYS, MIN_POSTS, RETRY_DAYS, SCORE_CAP, TRIAL_DAYS, TRIAL_MAX_DAYS, judgeTrial, optimize, step } from "../src/lib/socialOptimize.ts";
 
 const NOW = Date.parse("2026-10-20T16:00:00Z"); // noon Eastern
 const DAY = 86_400_000;
@@ -97,5 +97,83 @@ assert.equal(optimize({ posts: [], now: NOW, sitting }).change, null);
 // Meta's "+0000" timestamps parse.
 r = optimize({ posts: [{ ...post("ig", "set", 5, { views: 9 }), at: "2026-10-15T11:06:09+0000" }], now: NOW, sitting });
 assert.equal(r.counted, 1);
+
+// ---- Trials (Chris 10-02: a finding is a lead; a week in the same slot settles it) ----
+const dayOf = (age) => new Date(NOW - age * DAY).toISOString().slice(0, 10);
+/** `days` days of one kind in one slot on both sites, the newest `first` days old. */
+const inSlot = (kind, slot, level, days, first) => run(kind, level, days, first).map((p) => ({ ...p, slot }));
+// The trial: dips took 7am from set, starting 9 days ago. Before it, set posted at 7am for 12 days.
+const trial = { slot: "morning", from: "set", to: "dips", start: dayOf(9) };
+const before = [...inSlot("set", "morning", 10, 12, 10), ...inSlot("movers", "midday", 10, 20, 2), ...inSlot("games", "evening", 10, 20, 2)];
+
+// Not enough counted days yet: running (posts under 2 days old do not count).
+let v = judgeTrial([...before, ...inSlot("dips", "morning", 10, 5, 2)], NOW, trial);
+assert.deepEqual([v.verdict, v.days], ["running", 5]);
+assert.match(v.why, /^No change: trial running, price drops at 7am in place of set spotlight, 5 of 7 days counted/);
+assert.match(judgeTrial(before, NOW, { ...trial, start: dayOf(-2) }).why, /starts 2026-10-22\.$/);
+// Seven counted days, at least as good as set was IN THE SAME SLOT: it stays. Equal counts as "at least as well".
+v = judgeTrial([...before, ...inSlot("dips", "morning", 10, 7, 2)], NOW, trial);
+assert.deepEqual([v.verdict, v.trialScore, v.oldScore], ["keep", 1, 1]);
+assert.match(v.why, /^Trial over: price drops at 7am did at least as well \(1 vs 1 for set spotlight in the same slot/);
+// Worse than set was in that slot: set goes back.
+v = judgeTrial([...before, ...inSlot("dips", "morning", 6, 7, 2)], NOW, trial);
+assert.equal(v.verdict, "back");
+assert.match(v.why, /did worse .* so set spotlight goes back\.$/);
+// Same slot only: dips' strong 7pm posts from before the trial, and set's posts in another slot, do not count.
+v = judgeTrial([...before, ...inSlot("dips", "morning", 6, 7, 2), ...inSlot("dips", "evening", 99, 6, 10), ...inSlot("set", "evening", 1, 6, 10)], NOW, trial);
+assert.equal(v.verdict, "back");
+// Nothing left to compare against (the old kind has too few posts in that slot): it stays.
+v = judgeTrial([...before.filter((p) => p.kind !== "set"), ...inSlot("dips", "morning", 6, 7, 2)], NOW, trial);
+assert.equal(v.verdict, "keep");
+assert.match(v.why, /too few posts left in that slot to compare/);
+// A trial kind that hardly ever had a draft: ended after TRIAL_MAX_DAYS, the old kind goes back.
+v = judgeTrial([...before, ...inSlot("dips", "morning", 10, 2, 3)], NOW, { ...trial, start: dayOf(TRIAL_MAX_DAYS) });
+assert.equal(v.verdict, "back");
+assert.match(v.why, /only had a post on 2 days in 16/);
+
+// ---- One day of the loop (step) ----
+const idle = { off: false, trial: null, lastChangeDay: null, sinceDay: "2026-10-15", failed: {} };
+const lead = [...run("set", 6), ...run("movers", 10), ...run("games", 10), ...run("dips", 14)];
+// A lead starts a trial two days out, with a board line.
+let s = step({ posts: lead, now: NOW, sitting, state: idle });
+assert.ok(LEAD_DAYS === 2 && TRIAL_DAYS === 7);
+assert.deepEqual(s.action, { type: "start", trial: { slot: "morning", from: "set", to: "dips", start: "2026-10-22" } });
+assert.match(s.line, /^Social optimizer 2026-10-20 — trial: price drops takes 7am from set spotlight for a week, starting 2026-10-22\. /);
+// Switched off: the same numbers, nothing done, nothing on the board.
+s = step({ posts: lead, now: NOW, sitting, state: { ...idle, off: true } });
+assert.deepEqual([s.action.type, s.line, s.report.change], ["none", null, null]);
+assert.match(s.report.why, /^Switched off: nothing changes\. /);
+// A running trial blocks everything else; its verdict is the day's one action.
+const during = { ...sitting, morning: "dips" };
+s = step({ posts: [...before, ...inSlot("dips", "morning", 10, 3, 2)], now: NOW, sitting: during, state: { ...idle, trial } });
+assert.deepEqual([s.action.type, s.line], ["none", null]);
+s = step({ posts: [...before, ...inSlot("dips", "morning", 10, 7, 2)], now: NOW, sitting: during, state: { ...idle, trial } });
+assert.equal(s.action.type, "keep");
+assert.match(s.line, /^Social optimizer 2026-10-20 — Trial over: price drops at 7am did at least as well/);
+s = step({ posts: [...before, ...inSlot("dips", "morning", 6, 7, 2)], now: NOW, sitting: during, state: { ...idle, trial } });
+assert.deepEqual(s.action, { type: "back", trial, from: "2026-10-22" });
+assert.match(s.line, /so set spotlight goes back\. Back from 2026-10-22\.$/);
+// A failed trial is not tried again in that slot for RETRY_DAYS; the lead may still point at the other slot.
+s = step({ posts: lead, now: NOW, sitting, state: { ...idle, failed: { "morning:dips": "2026-10-01" } } });
+assert.deepEqual([s.action.type, s.action.trial?.slot], ["start", "evening"]);
+s = step({ posts: lead, now: NOW, sitting, state: { ...idle, failed: { "morning:dips": "2026-10-01", "evening:dips": "2026-10-01" } } });
+assert.equal(s.action.type, "none");
+assert.ok(RETRY_DAYS === 56 && step({ posts: lead, now: NOW, sitting, state: { ...idle, failed: { "morning:dips": "2026-08-20" } } }).action.trial?.slot === "morning");
+// Cooldown after a verdict: nothing starts for a week.
+assert.equal(step({ posts: lead, now: NOW, sitting, state: { ...idle, lastChangeDay: "2026-10-17" } }).action.type, "none");
+
+// The bench's turn: no lead, nothing changed for EXPLORE_DAYS, so the benched kind gets a week in the weaker slot.
+const flat = [...run("set", 9), ...run("movers", 10), ...run("games", 10)]; // dips has no posts at all
+assert.equal(step({ posts: flat, now: NOW, sitting, state: idle }).action.type, "none"); // 5 days since the first run: too soon
+s = step({ posts: flat, now: NOW, sitting, state: { ...idle, sinceDay: "2026-09-22" } });
+assert.ok(EXPLORE_DAYS === 28);
+assert.deepEqual(s.action, { type: "start", trial: { slot: "morning", from: "set", to: "dips", start: "2026-10-22", explore: true } });
+assert.match(s.line, /Nothing has changed for 28 days and price drops has not posted, so it gets a week at 7am/);
+assert.deepEqual(s.report.change, { slot: "morning", from: "set", to: "dips" });
+// The clock restarts at the last change, and a slot it failed in recently is passed over.
+assert.equal(step({ posts: flat, now: NOW, sitting, state: { ...idle, sinceDay: "2026-08-01", lastChangeDay: "2026-10-01" } }).action.type, "none");
+assert.equal(step({ posts: flat, now: NOW, sitting, state: { ...idle, sinceDay: "2026-09-22", failed: { "morning:dips": "2026-09-20" } } }).action.trial.slot, "evening");
+// Switched off, the bench waits too.
+assert.equal(step({ posts: flat, now: NOW, sitting, state: { ...idle, off: true, sinceDay: "2026-09-22" } }).action.type, "none");
 
 console.log("test-social-optimize: ok");

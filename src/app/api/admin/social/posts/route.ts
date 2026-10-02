@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { listSocialPosts, refreshSocialPosts } from "@/lib/server/socialPosts";
 import { AUTO_REPLY_KEY, sweepSocialInbox } from "@/lib/server/socialInbox";
+import { OPT_OFF_KEY } from "@/lib/server/socialOptimize";
 import { setSetting } from "@/lib/server/settings";
 
 /**
@@ -42,6 +43,11 @@ export async function POST(req: NextRequest) {
   if (body?.action === "autoReply") {
     await setSetting(AUTO_REPLY_KEY, body.on === false ? "0" : "1");
     return NextResponse.json({ autoReply: body.on !== false });
+  }
+  // The optimization loop's Off switch on /admin/social: off = it scores and reports, and changes nothing.
+  if (body?.action === "optimizer") {
+    await setSetting(OPT_OFF_KEY, body.on === false ? "1" : "");
+    return NextResponse.json({ optimizer: body.on !== false });
   }
   if (body?.action !== "refresh") return NextResponse.json({ error: "unknown action" }, { status: 400 });
   const started = Date.now();

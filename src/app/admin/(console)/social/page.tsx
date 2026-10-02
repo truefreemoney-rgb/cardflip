@@ -1,8 +1,11 @@
 import Link from "next/link";
+import SocialOptimizer from "@/components/admin/SocialOptimizer";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
 import TikTokPackage from "@/components/admin/TikTokPackage";
 import { currentVideoFor, eastern, siteStatus, slotAt, slotSchedule, socialGames } from "@/lib/server/socialPublish";
+import { optimizerStatus } from "@/lib/server/socialOptimize";
+import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { loadPackage } from "@/lib/server/socialTiktok";
 import { tiktokHandle } from "@/lib/server/sites/tiktok";
@@ -38,8 +41,10 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   // Same day the publisher keys on (Eastern), so after 8pm ET this page does not jump to UTC's tomorrow.
   const today = eastern().day;
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
+  await ensureSchedule();
   const games = await socialGames();
-  const [perGame, sites, waiting, tiktokTomorrow, tiktokToday] = await Promise.all([
+  const [optimizer, perGame, sites, waiting, tiktokTomorrow, tiktokToday] = await Promise.all([
+    optimizerStatus(),
     Promise.all(games.map((g) => socialDrafts(g, day))),
     siteStatus(SOCIAL_SITES),
     countNew(),
@@ -69,6 +74,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
         </nav>
       </div>
       <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} />
+      <SocialOptimizer on={optimizer.on} day={optimizer.day} why={optimizer.why} />
       <TikTokPackage tomorrow={tiktokTomorrow} today={tiktokToday} handle={tiktokHandle()} />
       <SocialPreview drafts={drafts} videos={videos} schedule={slotSchedule(day)} />
     </section>

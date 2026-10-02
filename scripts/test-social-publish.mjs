@@ -447,5 +447,54 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   check("plan tags: the 7pm post is 'games+jumps' and the 7am set 'set+lead' from 10-01 (older videos are stale, the net remakes them); before that, as it was", [planTag("evening", "2026-09-30"), planTag("evening", "2026-10-01"), planTag("morning", "2026-10-01"), planTag("midday", "2026-10-01"), planTag("morning", "2026-09-30")], ["games", "games+jumps", "set+lead", "movers", "set+also+set=base4"]);
 }
 
+// 10-02, the optimization loop's switch: a standing schedule entry in settings changes what a slot posts from its
+// day on (lib/server/socialSchedule.ts), and the daily job writes one to start a trial (lib/server/socialOptimize.ts).
+{
+  const { addScheduleEntry, loadSchedule, SCHEDULE_KEY } = await import(at("lib/server/socialSchedule.ts"));
+  const { slotKind: kindOn, planTag: tagOn } = await import(at("lib/server/socialPublish.ts"));
+  const { runSocialOptimize, optimizerStatus, OPT_TRIAL_KEY, OPT_OFF_KEY, OPT_LAST_KEY } = await import(at("lib/server/socialOptimize.ts"));
+  await addScheduleEntry({ from: "2026-11-10", morning: "dips", evening: "games" });
+  check(
+    "from its day on 7am posts the new kind; the day before, 1pm and 7pm are as they were",
+    [kindOn("morning", "2026-11-09"), kindOn("morning", "2026-11-10"), kindOn("morning", "2026-12-25"), kindOn("midday", "2026-11-10"), kindOn("evening", "2026-11-10")],
+    ["set", "dips", "dips", "movers", "games"],
+  );
+  check("the plan tag follows the kind, so a video made under the old one is stale and gets remade", [tagOn("morning", "2026-11-09").split("+")[0], tagOn("morning", "2026-11-10").split("+")[0]], ["set", "dips"]);
+  await addScheduleEntry({ from: "2026-11-20", morning: "set", evening: "games" });
+  check("a later entry puts the old kind back from its own day", [kindOn("morning", "2026-11-19"), kindOn("morning", "2026-11-20")], ["dips", "set"]);
+  await setSetting(SCHEDULE_KEY, "{not json");
+  await loadSchedule();
+  check("an unreadable schedule row = the standing schedule, never a crash", [kindOn("morning", "2026-11-10"), kindOn("evening", "2026-11-10")], ["set", "games"]);
+  await setSetting(SCHEDULE_KEY, "");
+
+  // The job, end to end: six days of posts where the benched kind (dips) clearly beat the 7am set spotlight.
+  const now = Date.now();
+  const today = eastern(now).day;
+  const put = db.prepare("INSERT INTO social_posts (site, post_id, url, text, at, likes, comments, shares, views, first_seen_at, read_at, kind, slot) VALUES (?, ?, ?, '', ?, 0, 0, 0, ?, ?, ?, ?, ?)");
+  for (let age = 3; age <= 8; age++) {
+    for (const [kind, slot, views] of [["set", "morning", 100], ["movers", "midday", 300], ["games", "evening", 300], ["dips", "evening", 900]]) {
+      for (const site of ["s1", "s2"]) await put.run(site, `${kind}-${age}`, `https://${site}/${kind}-${age}`, new Date(now - age * 86_400_000).toISOString(), views, now, now, kind, slot);
+    }
+  }
+  await setSetting(OPT_OFF_KEY, "1");
+  let rep = await runSocialOptimize(now);
+  check("switched off: it scores and says so, and starts nothing", [rep.change, rep.why.startsWith("Switched off: nothing changes."), await getSetting(OPT_TRIAL_KEY), kindOn("morning", addDays(today, 2))], [null, true, null, "set"]);
+  check("the page shows the switch and what the job last said", [(await optimizerStatus()).on, (await optimizerStatus()).day], [false, today]);
+  check("once per Eastern day", await runSocialOptimize(now), null);
+  await setSetting(OPT_OFF_KEY, "");
+  await setSetting(OPT_LAST_KEY, "");
+  rep = await runSocialOptimize(now);
+  const start = addDays(today, 2);
+  check("switched on: the lead starts a trial two days out", [rep.change, JSON.parse(await getSetting(OPT_TRIAL_KEY))], [{ slot: "morning", from: "set", to: "dips" }, { slot: "morning", from: "set", to: "dips", start }]);
+  check("the schedule: tomorrow is untouched, the start day posts the trial kind at 7am and nothing else moved", [kindOn("morning", addDays(today, 1)), kindOn("morning", start), kindOn("midday", start), kindOn("evening", start)], ["set", "dips", "movers", "games"]);
+  const top = (await loadBoard()).sections.find(isCompletedSection)?.items[0]?.text ?? "";
+  check("one board line says what starts when, and why", top.startsWith(`Social optimizer ${today} — trial: price drops takes 7am from set spotlight for a week, starting ${start}.`), true);
+  await setSetting(OPT_LAST_KEY, "");
+  rep = await runSocialOptimize(now + 1);
+  check("the next run leaves a running trial alone", [rep.change, rep.why.startsWith("No change: trial running, price drops at 7am"), JSON.parse(await getSetting(OPT_TRIAL_KEY)).start], [null, true, start]);
+  await setSetting(SCHEDULE_KEY, "");
+  await loadSchedule();
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

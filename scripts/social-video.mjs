@@ -66,6 +66,8 @@ const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
 const { parseVideoSpec } = await import(at("lib/socialVideo.ts"));
 const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
+// The optimization loop's standing schedule (settings): loaded before planTag / candidateKinds ask what a slot posts.
+await (await import(at("lib/server/socialSchedule.ts"))).ensureSchedule();
 
 if (ONLY.some((s) => !TIKTOK_SLOTS.includes(s))) { console.error(`--slot must be one of ${TIKTOK_SLOTS.join(", ")}`); process.exit(2); }
 if (FORCE && PACKAGE && !ONLY.length) { console.error("--force remakes only the slots named with --slot"); process.exit(2); }

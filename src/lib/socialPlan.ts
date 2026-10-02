@@ -38,8 +38,37 @@ export function countWord(n: number): string {
   return ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n] ?? String(n);
 }
 
+/**
+ * A standing change to the schedule (10-02, the daily optimization loop):
+ * from this Eastern day on, 7am and 7pm post these kinds, until a later
+ * entry says otherwise. Each entry is the whole picture for both slots; a
+ * slot it leaves out posts its SLOTS kind. The entries live in settings
+ * (lib/server/socialSchedule.ts loads them into this module, so dayPlan
+ * stays sync and every reader of it sees the same schedule). A one-off
+ * DAY_PLANS entry still wins on its day.
+ */
+export interface StandingEntry {
+  from: string;
+  morning?: PostKind;
+  evening?: PostKind;
+}
+let standing: StandingEntry[] = [];
+/** Replace the standing schedule this process reads (oldest first inside). */
+export function setStanding(entries: StandingEntry[]): void {
+  standing = [...entries].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+}
+/** The standing entry in force on a day: the latest one that has started. */
+export function standingFor(day: string): StandingEntry | undefined {
+  let hit: StandingEntry | undefined;
+  for (const e of standing) if (e.from <= day) hit = e;
+  return hit;
+}
+
 export function dayPlan(day: string | undefined): DayPlan {
-  return (day && DAY_PLANS[day]) || {};
+  if (!day) return {};
+  const s = standingFor(day);
+  if (!s) return DAY_PLANS[day] || {};
+  return { ...(s.morning ? { morning: s.morning } : {}), ...(s.evening ? { evening: s.evening } : {}), ...DAY_PLANS[day] };
 }
 
 /** The games a mixed movers post draws from, in the order they alternate. */

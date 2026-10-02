@@ -3,6 +3,7 @@ import { addDays } from "@/lib/priceSeries";
 import { GENERAL_TAGS, MAX_TAGS } from "@/lib/socialPlan";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
+import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { TIKTOK_MAX_CHARS } from "@/lib/server/sites/tiktok";
 import type { PostKind, SocialPost } from "@/lib/server/social";
 import {
@@ -145,6 +146,7 @@ interface SlotRead {
 
 /** One slot's registration and whether it can be handed over: present, made under today's plan, and (1pm) still the file the other sites post. */
 export async function readSlot(slot: Slot, day: string): Promise<SlotRead> {
+  await ensureSchedule();
   const spec = parseTiktokSpec(await getSetting(tiktokKey(slot, day)));
   if (!spec) return { state: "missing", spec: null };
   if (spec.plan !== planTag(slot, day)) return { state: "stale", spec };
@@ -233,6 +235,7 @@ export interface RegisterInput {
  * files this replaced, for the caller to delete from Blob.
  */
 export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: TiktokSpec; shared: VideoSpec | null; replaced: string[] }> {
+  await ensureSchedule();
   const plan = planTag(i.slot, i.day);
   const post = tiktokPost(i.draft, { cards: i.cards, leads: i.leads });
   const base: VideoSpec = {

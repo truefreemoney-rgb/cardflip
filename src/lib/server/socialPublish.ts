@@ -26,6 +26,7 @@ import {
   type SocialPost,
 } from "@/lib/server/social";
 import { dayPlan, gamesTags, jumpsOn, questionFor } from "@/lib/socialPlan";
+import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
@@ -436,8 +437,10 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const force = Boolean(opts.force);
   const { day: etDay, hour } = eastern(now);
   const day = opts.day ?? etDay;
+  // The optimization loop's standing schedule (settings), before anything asks what a slot posts.
+  await ensureSchedule();
   const connected = await connectedSites(opts.sites);
-  const slotKey = (site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
+  const slotKey =(site: SocialSite, slot: Slot) => `${SLOT_PREFIX}${site.id}:${slot}`;
   const kindKey = (site: SocialSite, kind: PostKind) => `${KIND_PREFIX}${site.id}:${kind}`;
   // Slots due now: the named one, else every slot whose hour has passed
   // today. That is the catch-up rule (Chris 09-25: every platform gets the
