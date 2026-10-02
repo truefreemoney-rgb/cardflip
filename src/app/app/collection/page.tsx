@@ -449,7 +449,7 @@ export default function CollectionPage() {
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
       ["Copies", String(card.quantity || 1)],
-      ["Scanned", formatDate(card.createdAt)],
+      ["Added", formatDate(card.createdAt)],
       ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
       ...(sold && card.soldAt ? ([["Sold", formatDate(card.soldAt)]] as [string, string][]) : []),
     ];
@@ -533,14 +533,14 @@ export default function CollectionPage() {
             if (sold || flagged || scanned == null || !(scanned > 0)) return null;
             const delta = priceValue - scanned;
             if (Math.abs(delta) < 0.01) {
-              return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was scanned at {formatMoney(scanned)}.</p>;
+              return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was added at {formatMoney(scanned)}.</p>;
             }
             const up = delta > 0;
             const pct = (Math.abs(delta) / scanned) * 100;
             return (
               <dl className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-edge bg-edge text-sm">
                 <div className="bg-black/25 px-3 py-2">
-                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Scanned at</dt>
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Added at</dt>
                   <dd className="font-display font-semibold text-zinc-300">{formatMoney(scanned)}</dd>
                 </div>
                 <div className="bg-black/25 px-3 py-2">
@@ -2221,7 +2221,7 @@ export default function CollectionPage() {
                         </span>
                       )}
                       <span className="whitespace-nowrap">
-                        Scanned {formatDate(card.createdAt)}
+                        Added {formatDate(card.createdAt)}
                         {card.status === "listed" && card.listedAt && ` · listed ${formatDate(card.listedAt)}`}
                         {sold && card.soldAt && ` · sold ${formatDate(card.soldAt)}`}
                         {!card.ebayListingUrl && card.ebayOfferId && " · draft on eBay"}
@@ -2320,7 +2320,7 @@ export default function CollectionPage() {
                           const pct = (Math.abs(card.price - scannedAt!) / scannedAt!) * 100;
                           return (
                             <span
-                              title={`Scanned at ${formatMoney(scannedAt!)} — today's market moved it ${up ? "up" : "down"} ${formatMoney(Math.abs(card.price - scannedAt!))}`}
+                              title={`Added at ${formatMoney(scannedAt!)} — today's market moved it ${up ? "up" : "down"} ${formatMoney(Math.abs(card.price - scannedAt!))}`}
                               className={`mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
                                 up ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
                               }`}

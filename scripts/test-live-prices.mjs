@@ -89,6 +89,9 @@ await updateCard(junkListed.id, user.id, { status: "listed", listedAt: Date.now(
 const junkOld = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(junkOld.id);
 const fine = await mk({ price: 250, catalogCardId: "fine-300", cardName: "Fine" });
+// The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-02: a flat
+// $10,000 Charizard read "added at $8,799.99, up 13.6%").
+const quickScan = await mk({ price: 17.59, scanPrice: 20, catalogCardId: "base1-58" });
 
 console.log("askingPriceFor");
 check("NM = market rounded", askingPriceFor(20, "Near Mint"), 20);
@@ -114,6 +117,8 @@ check("lock flag round-trips", (await getCardForUser(locked.id, user.id)).priceL
 check("fresh rows are unlocked", (await getCardForUser(draft.id, user.id)).priceLocked, false);
 check("scan price stored on create", (await getCardForUser(draft.id, user.id)).scanPrice, 12.5);
 check("scanned reported from the stored value", by[draft.id]?.scanned, 12.5);
+const quickRow = await getCardForUser(quickScan.id, user.id);
+check("quick-sale scan: the market ask is the scan price, so a flat market shows no move", [quickRow.scanPrice, quickRow.price], [20, 20]);
 check("older row: scanned backfilled from the series on its scan day (LP)", by[old.id]?.scanned, 17);
 check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, 17);
 check("variant stored on create and read back", (await getCardForUser(foil.id, user.id)).variant, "foil");

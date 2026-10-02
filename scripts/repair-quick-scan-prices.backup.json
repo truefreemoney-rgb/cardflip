@@ -1,0 +1,18 @@
+[
+ {
+  "id": "7627fae7-98f7-45a6-9bdb-43c28492ba7b",
+  "name": "Charizard",
+  "card": "base1-4-1st",
+  "status": "ready",
+  "price": 10000,
+  "scan_price": 8799.99
+ },
+ {
+  "id": "ee34a855-09eb-4d21-a1dc-371caa91e0ce",
+  "name": "Winds of Change",
+  "card": "a6e83b7b-07df-4ff0-8942-8fdb3f1502f9",
+  "status": "ready",
+  "price": 7.19,
+  "scan_price": 4.48
+ }
+]

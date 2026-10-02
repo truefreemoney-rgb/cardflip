@@ -80,6 +80,7 @@ export async function POST(req: Request) {
       condition,
       productType,
       price,
+      scanPrice: typeof body?.scanPrice === "number" && Number.isFinite(body.scanPrice) && body.scanPrice > 0 ? body.scanPrice : null,
       catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId.slice(0, 80) : null,
       rarity: typeof body?.rarity === "string" ? body.rarity.slice(0, 60) : null,
       category: typeof body?.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null,

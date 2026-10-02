@@ -666,6 +666,8 @@ export default function AppPage() {
               imageUrl: card.imageSmall,
               condition,
               price: quote?.suggested ?? 0,
+              // "Added at" compares against the market ask Inventory refreshes to, not the quick-sale price.
+              scanPrice: quotePrice(card, condition, "market")?.suggested ?? null,
               game: next.game,
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,

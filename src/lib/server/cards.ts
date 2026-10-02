@@ -214,6 +214,12 @@ export interface NewCard {
   condition: string;
   productType?: string | null;
   price: number;
+  /**
+   * The plain-market asking price on the add day, when `price` is something else. The scanner saves
+   * its quick-sale price (88% of market) and the Inventory live refresh then rewrites the row to the
+   * market ask, so "added at → now" read as a 13.6% gain the market never made (Chris, 10-02).
+   */
+  scanPrice?: number | null;
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
@@ -235,6 +241,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   const kind: CardKind = card.kind === "sealed" ? "sealed" : "card";
   const productType = kind === "sealed" ? (card.productType ?? null) : null;
   const game: GameId = parseGame(card.game);
+  const scanPrice = card.scanPrice != null && card.scanPrice > 0 ? card.scanPrice : card.price > 0 ? card.price : null;
 
   await db
     .prepare(
@@ -257,7 +264,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       // A row created unpriced (sealed product before the feed's default
       // lands) leaves scan_price NULL so the live refresh backfills it from
       // the series on the add day instead of pinning "scanned at $0".
-      card.price > 0 ? card.price : null,
+      scanPrice,
       card.catalogCardId ?? null,
       card.rarity ?? null,
       card.category ?? null,
@@ -283,7 +290,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     productType,
     status: "ready",
     price: card.price,
-    scanPrice: card.price > 0 ? card.price : null,
+    scanPrice,
     quantity: 1,
     catalogCardId: card.catalogCardId ?? null,
     listedAt: null,

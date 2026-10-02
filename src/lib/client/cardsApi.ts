@@ -84,6 +84,8 @@ export interface CreateCardInput {
   condition: string;
   productType?: string | null;
   price: number;
+  /** The plain-market asking price today, when `price` is the quick-sale one (see NewCard.scanPrice). */
+  scanPrice?: number | null;
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
