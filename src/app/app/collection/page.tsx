@@ -1700,7 +1700,6 @@ export default function CollectionPage() {
                 <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
               </div>
             </div>
-            <p className="mt-2 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             {stats.leftOut > 0 && (
               <p className="mt-1 text-xs text-amber-300">
                 {priceFlagLeftOut(stats.leftOut)}
@@ -1723,7 +1722,15 @@ export default function CollectionPage() {
                 (hand-marked) sales brought in, with the total of the two on the label row. */}
             <div className="flex min-h-6 items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
+              {/* The sale count rides here; the caption lines under both columns are gone (Chris, 10-02). */}
               <p className="text-xs text-zinc-400">
+                {stats.sold.length > 0 && (
+                  <>
+                    {stats.sold.length} sale{stats.sold.length === 1 ? "" : "s"}
+                    {stats.avgDays !== null && <span className="hidden sm:inline"> · ~{Math.max(1, Math.round(stats.avgDays))} days to sell</span>}
+                    {" · "}
+                  </>
+                )}
                 Total{" "}
                 <span className="font-display text-base font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
               </p>
@@ -1744,15 +1751,6 @@ export default function CollectionPage() {
                 <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
               </div>
             </div>
-            <p className="mt-2 text-xs text-zinc-500">
-              {stats.sold.length === 0
-                ? scoped
-                  ? "No sales in this view"
-                  : "Nothing sold yet — it starts counting at the first sale"
-                : `Take-home from ${stats.sold.length} sale${stats.sold.length === 1 ? "" : "s"}${
-                    stats.avgDays !== null ? ` · ~${Math.max(1, Math.round(stats.avgDays))} days to sell` : ""
-                  }`}
-            </p>
             {stats.sold.length > 0 ? (
               <Breakdown
                 rows={[
