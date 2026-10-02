@@ -1868,12 +1868,16 @@ export default function CollectionPage() {
       </section>
 
       {/* Toolbar (Chris, 09-04: the stacked rows were "an amazing mess"):
-          ONE panel, three tight rows — search + view + sort; status
-          filter (+ Offer to watchers); category chips. Rows scroll sideways on a
-          phone instead of wrapping into a stack. CSV export removed (Chris). */}
+          ONE panel — search + view + sort; status filter (+ Offer to
+          watchers); category chips. CSV export removed (Chris).
+          Phone makeover 10-02 (Chris: search read "Search na", the view
+          switch was two bare icons, the status row ran off the edge): search
+          gets its own full row, the view switch carries words and shares a
+          row with sort, the six statuses sit in a 3×2 block with nothing
+          hidden. One row from sm up, as before. No mask fades: iOS. */}
       <div className="rounded-2xl border border-edge bg-surface-1 p-2 sm:p-3">
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full min-w-0 sm:w-auto sm:flex-1">
             <svg viewBox="0 0 20 20" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
               <circle cx="9" cy="9" r="5.5" />
               <path d="M13.5 13.5 17 17" strokeLinecap="round" />
@@ -1883,16 +1887,16 @@ export default function CollectionPage() {
               aria-label="Filter cards by name, set or number"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, set or number"
+              placeholder="Search"
               className="h-10 w-full rounded-full border border-edge bg-black/25 pl-9 pr-3 text-base text-white placeholder:text-zinc-600 focus:border-brand-400 focus:outline-none sm:h-9 sm:text-sm"
             />
           </div>
-          {/* Slide tab (Chris, 09-04: "Switch View — Image or Text"): icons
-              only on a phone, labels from sm up. */}
+          {/* Slide tab (Chris, 09-04: "Switch View — Image or Text"): icon
+              and word on every screen (10-02: bare icons were not obvious). */}
           <div
             role="tablist"
             aria-label="Switch view"
-            className="relative grid h-10 w-[84px] shrink-0 grid-cols-2 rounded-full border border-edge bg-black/25 p-1 sm:h-9 sm:w-[152px]"
+            className="relative grid h-10 min-w-0 flex-1 grid-cols-2 rounded-full border border-edge bg-black/25 p-1 sm:h-9 sm:w-[168px] sm:flex-none"
           >
             <span
               aria-hidden
@@ -1906,9 +1910,9 @@ export default function CollectionPage() {
                 type="button"
                 role="tab"
                 aria-selected={view === v}
-                aria-label={v === "grid" ? "Image view" : "Text view"}
+                aria-label={v === "grid" ? "Images view" : "List view"}
                 onClick={() => chooseView(v)}
-                className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors sm:text-xs ${
                   view === v ? "text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -1924,7 +1928,7 @@ export default function CollectionPage() {
                     <path d="M4 5.5h12M4 10h12M4 14.5h12" />
                   </svg>
                 )}
-                <span className="hidden sm:inline">{v === "grid" ? "Image" : "Text"}</span>
+                <span>{v === "grid" ? "Images" : "List"}</span>
               </button>
             ))}
           </div>
@@ -1932,7 +1936,7 @@ export default function CollectionPage() {
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             aria-label="Sort cards"
-            className="h-10 shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9"
+            className="h-10 w-[38%] shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9 sm:w-auto"
           >
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -1942,14 +1946,14 @@ export default function CollectionPage() {
           </select>
         </div>
 
-        <div className="mt-2 flex items-center gap-2">
-          <div className="-mx-2 min-w-0 flex-1 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]">
-            <div className="flex w-max items-center gap-1 rounded-full bg-black/25 p-1">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-black/25 p-1 sm:flex sm:w-max sm:items-center sm:rounded-full">
             {FILTERS.map((f) => (
               <button
                 key={f.value}
                 onClick={() => setFilter(f.value)}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                className={`whitespace-nowrap rounded-full px-2 py-2 text-sm font-medium transition sm:px-3.5 sm:py-1.5 ${
                   filter === f.value ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -1962,7 +1966,7 @@ export default function CollectionPage() {
             <button
               type="button"
               onClick={() => (offerPanel ? setOfferPanel(false) : void openOfferPanel())}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition sm:py-1.5 ${
                 offerPanel ? "border-brand-400 bg-brand-500/15 text-white" : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"
               }`}
             >
@@ -1974,7 +1978,7 @@ export default function CollectionPage() {
         {/* Category chips (Chris, 09-04); with none yet, just the way to add
             one (09-08). */}
         {(
-          <div className="-mx-2 mt-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]">
+          <div className="-mx-2 mt-2 overflow-x-auto border-t border-edge px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-3 sm:px-3">
             <div className="flex w-max items-center gap-1.5">
               <svg viewBox="0 0 20 20" className="mr-0.5 h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
                 <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h3.4l1.6 1.6h6A1.5 1.5 0 0 1 17 8.1v6.4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-8Z" />
