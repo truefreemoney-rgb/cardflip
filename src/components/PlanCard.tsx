@@ -14,7 +14,7 @@ export const PLAN = {
   lines: [
     `${SCANS.standard} card scans a month, camera or photos`,
     "Card reading with condition and 1st Edition detection",
-    "Live TCGplayer market price for the exact printing and variant",
+    "Live market price for the exact printing and variant",
     "eBay listings written, published and repriced from CardFlip",
     "Inventory with categories, sort by value or rarity, sales tracking",
     "Watchlist with price alerts and 90-day history",

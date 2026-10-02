@@ -96,7 +96,7 @@ function PriceBlock({ page }: { page: CardPage }) {
     return (
       <>
         <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-          TCGplayer market price{prices.length > 1 ? `, ${headline.label}` : ""}
+          Market price{prices.length > 1 ? `, ${headline.label}` : ""}
         </p>
         <p className="font-display text-4xl font-bold tabular-nums text-emerald-300 sm:text-5xl">{formatMoney(headline.price)}</p>
         <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}. Recorded daily by CardFlip.</p>
@@ -196,7 +196,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
           <h2 className="font-display text-2xl font-semibold text-white">About this card</h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">{factsParagraph(f)}</p>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-500">
-            Prices are TCGplayer market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
+            Prices are market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
           </p>
         </section>
 

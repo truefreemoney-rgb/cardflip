@@ -555,6 +555,44 @@ export function quoteForItem(
 }
 
 /**
+ * Today's TCGplayer market for the printing the card is quoted on: the raw
+ * figure, no condition discount, no fees on top, and never an eBay row. Null
+ * when the catalog has no dollar price or the price guard flags it.
+ */
+export function tcgPriceOf(
+  card: PokemonCard,
+  variantOverride?: string,
+  currentPoint?: CurrentSeriesPoint | null,
+): number | null {
+  return quotePrice(withoutEbayPrices(card), "Near Mint", "market", variantOverride, currentPoint)?.base ?? null;
+}
+
+function withoutEbayPrices(card: PokemonCard): PokemonCard {
+  return { ...card, prices: card.prices.filter((p) => p.source !== "ebay") };
+}
+
+/** priceFlagOf for the Market price: judged on the catalog rows alone, so an eBay row never hides a flagged market. */
+export function marketFlagOf(card: PokemonCard, variantOverride?: string, currentPoint?: CurrentSeriesPoint | null): PriceFlag | null {
+  return priceFlagOf(withoutEbayPrices(card), variantOverride, currentPoint);
+}
+
+/**
+ * The price every screen LEADS with (Chris, 10-02: "use the TCG prices for all
+ * cards, across the whole website"): the TCGplayer market. The listing price
+ * (currentPrice, eBay comps first, with the condition and cheap-card math) is
+ * now the "eBay Suggested Price" beside it and what Build Listing publishes;
+ * it is unchanged. Listed and sold items keep their real figure; anything
+ * the catalog cannot price (sealed, slabs, no dollar row) falls back to
+ * currentPrice; a market the price guard flags is 0, never a number.
+ */
+export function headlinePrice(item: ScanItem): number {
+  if (item.status === "sold" || item.status === "listed") return currentPrice(item);
+  if (!item.card || item.kind === "sealed" || item.grading) return currentPrice(item);
+  if (marketFlagOf(item.card, effectiveVariant(item), item.currentPoint)) return 0;
+  return tcgPriceOf(item.card, effectiveVariant(item), item.currentPoint) ?? currentPrice(item);
+}
+
+/**
  * The condition string the ledger stores and My Cards displays. For a slab
  * that's the grade ("PSA 10") and for sealed product it's "Factory Sealed" —
  * "Near Mint" on either would misdescribe what's actually for sale.

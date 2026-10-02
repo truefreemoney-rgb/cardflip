@@ -40,6 +40,9 @@ export interface LivePrice {
   applied: boolean;
   /** Scan-time price: stored on create, else backfilled here from the series on the scan day. */
   scanned: number | null;
+  /** The raw market on the day the row was added (the series value, no condition or fee math): the screens lead
+   *  with the Market price since 10-02, so their "was $X" must be a market too, not the scan-time asking price. */
+  marketThen: number | null;
   /** The price guard does not believe this market: the screens show the note, not a suggestion (suggested is 0). */
   flag?: PriceFlag;
 }
@@ -101,15 +104,15 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       // it cannot stay: it would show as the card's price and pre-fill the editor.
       const blank = row.status === "ready" && row.price_locked !== 1 && row.price > 0;
       if (blank) moves.push({ id: row.id, price: 0 });
-      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, flag });
+      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, marketThen: null, flag });
       continue;
     }
     const suggested = askingPriceFor(market, row.condition);
     // Scan-time price for rows from before scan_price existed: the series
     // value on the scan day through the same condition math, stored once.
     let scanned = row.scan_price;
+    const then = onDay(s, new Date(row.created_at).toISOString().slice(0, 10));
     if (scanned == null) {
-      const then = onDay(s, new Date(row.created_at).toISOString().slice(0, 10));
       const asking = then != null ? askingPriceFor(then, row.condition) : 0;
       if (asking > 0) {
         scanned = asking;
@@ -131,6 +134,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       previous: row.price,
       applied,
       scanned,
+      marketThen: then != null && then > 0 ? Math.round(then * 100) / 100 : null,
     });
   }
   await batchUpdate(

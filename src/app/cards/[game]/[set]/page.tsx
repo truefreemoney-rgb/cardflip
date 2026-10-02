@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set
   return pageMetadata({
     title: `${l.set.name} ${name} card prices`,
     absoluteTitle: true,
-    description: `Market prices and price history for ${l.cards.length.toLocaleString("en-US")} ${name} cards from ${l.set.name}, most valuable first. TCGplayer prices, checked daily.`,
+    description: `Market prices and price history for ${l.cards.length.toLocaleString("en-US")} ${name} cards from ${l.set.name}, most valuable first. Checked daily.`,
     path: setPath(l.game, l.slug),
     noindex: l.cards.length === 0,
   });
@@ -83,7 +83,7 @@ export default async function SetPage({ params }: PageProps<"/cards/[game]/[set]
           {set.name} {name} card prices
         </h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
-          TCGplayer market prices for {name} cards from {set.name}
+          Market prices for {name} cards from {set.name}
           {set.release ? `, released ${etDate(`${set.release}T12:00:00Z`)}` : ""}. Cards priced {formatMoney(INDEX_FLOOR_USD)} and up, most valuable first. A price
           that looks wrong is not shown.
         </p>

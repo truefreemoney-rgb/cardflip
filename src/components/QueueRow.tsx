@@ -3,7 +3,7 @@
 import { displayCardNumber } from "@/lib/games";
 import CardImage from "@/components/CardImage";
 import StatusChip from "@/components/StatusChip";
-import { currentPrice, formatMoney } from "@/lib/listing";
+import { formatMoney, headlinePrice } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
 
 interface Props {
@@ -14,7 +14,8 @@ interface Props {
 }
 
 export default function QueueRow({ item, selected, onSelect, onRemove }: Props) {
-  const price = item.card ? currentPrice(item) : null;
+  // The Market price, like every other screen (Chris, 10-02); the listing price is in the editor.
+  const price = item.card ? headlinePrice(item) : null;
 
   return (
     <div

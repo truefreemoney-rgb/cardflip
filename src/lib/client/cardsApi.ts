@@ -135,6 +135,8 @@ export interface LivePrice {
   applied: boolean;
   /** The row's scan-time price (stored, or backfilled from history on the scan day). */
   scanned: number | null;
+  /** The raw market on the day the row was added: what the "was $X" pill compares today's market against (10-02). */
+  marketThen: number | null;
   /** The price guard does not believe today's market: the screens show the note, not a suggestion (suggested is 0, nothing was rewritten). */
   flag?: PriceFlag;
 }

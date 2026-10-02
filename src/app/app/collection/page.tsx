@@ -625,8 +625,9 @@ export default function CollectionPage() {
     // The price guard (lib/server/livePrices.ts): today's market is one the rule does not believe, so nothing is suggested from it.
     // Only while the price on screen is the market's: a price the seller typed (locked) is theirs and is not judged.
     const flagged = livePrices[card.id]?.flag != null && !sold && !card.priceLocked;
-    const priceLabel = sold ? "Sold for" : live ? "eBay listing price" : ended ? "Listed at" : flagged ? "Price" : "Suggested price";
+    const priceLabel = sold ? "Sold for" : live ? "eBay Listing Price" : ended ? "Listed At" : flagged || card.priceLocked ? "Your eBay Price" : "eBay Suggested Price";
     const priceValue = sold && card.soldPrice != null ? card.soldPrice : card.price;
+    const market = marketOf(card);
     const note = sold
       ? null
       : live
@@ -683,13 +684,33 @@ export default function CollectionPage() {
           )}
         </div>
 
-        {/* Price hero */}
+        {/* Price hero. Unsold (Chris, 10-02): the Market price leads, the
+            price Build Listing would publish sits beside it. Sold rows keep
+            the one sale figure. */}
         <div className="px-4 pb-4 pt-4">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>
+          {!sold && (
+            <dl className="mb-1 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+              <div className="bg-black/25 px-3 py-2.5">
+                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
+                <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
+                  {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
+                </dd>
+              </div>
+              <div className="bg-black/25 px-3 py-2.5">
+                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</dt>
+                <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-zinc-200">
+                  {card.price > 0 ? formatMoney(card.price) : "—"}
+                </dd>
+              </div>
+            </dl>
+          )}
+          {sold && <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>}
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className={`font-display text-3xl font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
-              {formatMoney(priceValue)}
-            </span>
+            {sold && (
+              <span className="font-display text-3xl font-bold tracking-tight text-emerald-400">
+                {formatMoney(priceValue)}
+              </span>
+            )}
             {sold && card.soldPrice != null && (() => {
               const b = saleBreakdown(card)!;
               // With a purchase price on file the caption is the real profit;
@@ -722,13 +743,15 @@ export default function CollectionPage() {
           {flagged && !live && !ended && <PriceFlagNote className="mt-2" soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
           {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
-          {/* Scanned → now (Chris, 09-08): the original scanned price, the
-              price today, and the move in $ and %. Sold rows tell the
-              sale story instead. */}
+          {/* Added → now (Chris, 09-08): the price when the card was added,
+              the price today, and the move in $ and %. Both sides are the
+              MARKET price since 10-02 (the hero leads with it): the market on
+              the day it was added against today's. Sold rows tell the sale
+              story instead. */}
           {(() => {
-            const scanned = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
-            if (sold || flagged || scanned == null || !(scanned > 0)) return null;
-            const delta = priceValue - scanned;
+            const scanned = lp?.marketThen ?? null;
+            if (sold || flagged || market == null || scanned == null || !(scanned > 0)) return null;
+            const delta = market - scanned;
             if (Math.abs(delta) < 0.01) {
               return <p className="mt-2 text-xs text-zinc-500">Unchanged since it was added at {formatMoney(scanned)}.</p>;
             }
@@ -742,7 +765,7 @@ export default function CollectionPage() {
                 </div>
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Now</dt>
-                  <dd className="font-display font-semibold text-white">{formatMoney(priceValue)}</dd>
+                  <dd className="font-display font-semibold text-white">{formatMoney(market)}</dd>
                 </div>
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Change</dt>
@@ -1053,6 +1076,27 @@ export default function CollectionPage() {
   /** Today's market per row (lib/server/livePrices.ts) — drafts the seller
    *  never priced by hand were repriced server-side and carry applied. */
   const [livePrices, setLive] = useState<Record<string, LivePrice>>({});
+  // False until the live-price request has answered, so a row waits ("…")
+  // instead of showing its eBay price and then swapping to the market.
+  const [liveLoaded, setLiveLoaded] = useState(false);
+  // Today's Market price per row id (believed markets only): what the price
+  // sort orders by. Its own state, set with livePrices, so the sort's memo
+  // has a plain dependency.
+  const [marketById, setMarketById] = useState<Record<string, number>>({});
+  /** Today's Market price for a row: the number every unsold card leads with
+   *  (Chris, 10-02). Null when the catalog has none or the price guard flags it. */
+  function marketOf(card: ServerCard): number | null {
+    const lp = livePrices[card.id];
+    return lp && !lp.flag && lp.market > 0 ? lp.market : null;
+  }
+  /** The headline text of an unsold row: the Market price, the row's own
+   *  price when there is no market (sealed, no catalog match, flagged). */
+  function headlineOf(card: ServerCard): string {
+    const market = marketOf(card);
+    if (market != null) return formatMoney(market);
+    if (!liveLoaded && card.catalogCardId && card.status !== "sold") return "…";
+    return formatMoney(card.price);
+  }
   const [repricing, setRepricing] = useState<string | null>(null);
   // Mass delete: ticked row ids. Listed rows can't be ticked — they're live
   // on eBay and deleting the ledger row wouldn't end the listing.
@@ -1124,8 +1168,11 @@ export default function CollectionPage() {
     // Live prices: today's market from our own series, drafts repriced in
     // place (Chris, 09-07: the scan-time price never updated).
     void fetchLivePrices().then((list) => {
-      if (cancelled || list.length === 0) return;
+      if (cancelled) return;
+      setLiveLoaded(true);
+      if (list.length === 0) return;
       setLive(Object.fromEntries(list.map((p) => [p.cardId, p])));
+      setMarketById(Object.fromEntries(list.filter((p) => !p.flag && p.market > 0).map((p) => [p.cardId, p.market])));
       const byId = new Map(list.map((p) => [p.cardId, p]));
       setCards((prev) =>
         prev.map((c) => {
@@ -1572,13 +1619,15 @@ export default function CollectionPage() {
       );
     });
     if (sort === "newest") return shown; // the server's own order
+    // Sorts by the number the row shows: the sale price, else the Market price, else the row's own.
+    const shownPrice = (c: ServerCard) => c.soldPrice ?? marketById[c.id] ?? c.price;
     return [...shown].sort((a, b) => {
       if (sort === "price") {
-        return (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
+        return shownPrice(b) - shownPrice(a);
       }
       if (sort === "rarity") {
         const byRarity = rarityRank(a.rarity) - rarityRank(b.rarity);
-        return byRarity !== 0 ? byRarity : (b.soldPrice ?? b.price) - (a.soldPrice ?? a.price);
+        return byRarity !== 0 ? byRarity : shownPrice(b) - shownPrice(a);
       }
       if (sort === "listedAge") {
         // Live listings first, oldest listing at the top — "what's been
@@ -1596,7 +1645,7 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [scopeCards, query, sort]);
+  }, [scopeCards, query, sort, marketById]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -2393,7 +2442,7 @@ export default function CollectionPage() {
                   <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
                     {sold && card.soldPrice != null
                       ? formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))
-                      : formatMoney(card.price)}
+                      : headlineOf(card)}
                   </span>
                 </span>
               </>
@@ -2580,10 +2629,13 @@ export default function CollectionPage() {
               const ghostSlot = `${slotBase.replace("inline-flex", "hidden sm:inline-flex")} border-dashed border-edge/60 text-zinc-600`;
               // The row chip compares against the SCANNED price, so it persists
               // across loads (Chris, 09-08: it vanished once the price settled).
-              const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
+              // Market against market since 10-02 (the row leads with the Market price): the market on the day
+              // the card was added vs today's. The scan-time ASKING price would fake a move on every cheap card.
+              const scannedAt = livePrices[card.id]?.marketThen ?? null;
+              const marketNow = marketOf(card);
               // A flagged market moves nothing: no "was $X, now $Y" chip built on it (the price guard).
               const rowFlag = !sold && !card.priceLocked && livePrices[card.id]?.flag != null;
-              const moved = !sold && !rowFlag && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - card.price) >= 0.01;
+              const moved = !sold && !rowFlag && marketNow != null && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - marketNow) >= 0.01;
               return (
               <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
                 <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
@@ -2742,30 +2794,38 @@ export default function CollectionPage() {
                             the price IS the Change price control — tap it (the
                             pencil says so) and the sheet changes it here AND on
                             eBay (09-04). Drafts are priced in the editor. */}
-                        {liveRow && card.ebayOfferId && repricing !== card.id ? (
-                          <button
-                            onClick={() => setPriceSheet(card.id)}
-                            title="Change price — here and on the live eBay listing"
-                            aria-label={`Change price, currently ${formatMoney(card.price)}`}
-                            className="group inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -mr-1.5 font-display text-lg font-bold tabular-nums tracking-tight text-white transition hover:bg-white/5"
-                          >
-                            {formatMoney(card.price)}
-                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-zinc-500 transition group-hover:text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                              <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <p className="font-display text-lg font-bold tabular-nums tracking-tight text-white">
-                            {repricing === card.id ? "Saving…" : formatMoney(card.price)}
-                          </p>
-                        )}
-                        {/* The move since this card was scanned, as a pill: direction, %, and the scan price. */}
+                        {/* The Market price leads every unsold row (Chris, 10-02). */}
+                        <p className="font-display text-lg font-bold tabular-nums tracking-tight text-white">
+                          {headlineOf(card)}
+                        </p>
+                        {/* A live listing's own price sits under it and IS the
+                            Change price control: the sheet changes it here AND
+                            on eBay (09-04). */}
+                        {liveRow &&
+                          (card.ebayOfferId && repricing !== card.id ? (
+                            <button
+                              onClick={() => setPriceSheet(card.id)}
+                              title="Change price — here and on the live eBay listing"
+                              aria-label={`Change price, currently ${formatMoney(card.price)} on eBay`}
+                              className="group -mr-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-300 transition hover:bg-white/5"
+                            >
+                              On eBay {formatMoney(card.price)}
+                              <svg viewBox="0 0 20 20" className="h-3 w-3 text-zinc-500 transition group-hover:text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <p className="whitespace-nowrap text-[11px] font-medium tabular-nums text-zinc-400">
+                              {repricing === card.id ? "Saving…" : `On eBay ${formatMoney(card.price)}`}
+                            </p>
+                          ))}
+                        {/* The market's move since this card was added, as a pill: direction, %, and the market then. */}
                         {moved && (() => {
-                          const up = card.price > scannedAt!;
-                          const pct = (Math.abs(card.price - scannedAt!) / scannedAt!) * 100;
+                          const up = marketNow! > scannedAt!;
+                          const pct = (Math.abs(marketNow! - scannedAt!) / scannedAt!) * 100;
                           return (
                             <span
-                              title={`Added at ${formatMoney(scannedAt!)} — today's market moved it ${up ? "up" : "down"} ${formatMoney(Math.abs(card.price - scannedAt!))}`}
+                              title={`The market was ${formatMoney(scannedAt!)} when this was added — it has moved ${up ? "up" : "down"} ${formatMoney(Math.abs(marketNow! - scannedAt!))}`}
                               className={`mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
                                 up ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
                               }`}

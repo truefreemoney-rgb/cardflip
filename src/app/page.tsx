@@ -58,7 +58,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Where do the prices come from?",
-    a: "The TCGplayer market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $5 are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth. From $5 to $10 part of those costs is added, less as the price goes up.",
+    a: "The market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $5 are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth. From $5 to $10 part of those costs is added, less as the price goes up.",
   },
   {
     q: "Do I need my own eBay account?",
@@ -81,7 +81,7 @@ const steps = [
   },
   {
     title: "Get the real price",
-    body: "It matches the exact printing, pulls the live TCGplayer market price for that variant, and adjusts for the condition you pick. Quick sale or full value, your call.",
+    body: "It matches the exact printing, pulls the live market price for that variant, and adjusts for the condition you pick. Quick sale or full value, your call.",
   },
   {
     title: "Post it",
@@ -286,7 +286,7 @@ export default async function Home() {
               <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 lg:justify-start" style={{ animationDelay: "240ms" }}>
                 {[
                   `${catalogLabel} printings, each priced on its own`,
-                  "TCGplayer market plus live eBay comps",
+                  "Market price plus live eBay comps",
                   "Your eBay account, your payout",
                 ].map((line) => (
                   <li key={line} className="flex items-center gap-1.5">
@@ -340,7 +340,7 @@ export default async function Home() {
                       {market && (
                         <p className="mt-2 flex items-baseline gap-2">
                           <span className="holo-text font-display text-2xl font-bold">{formatMoney(market.base, market.price.currency)}</span>
-                          <span className="text-[10px] text-zinc-500">TCGplayer market · {market.price.label}</span>
+                          <span className="text-[10px] text-zinc-500">Market price · {market.price.label}</span>
                         </p>
                       )}
                     </div>
@@ -400,7 +400,7 @@ export default async function Home() {
                   {i === 1 && market && quick && (
                     <div className="mx-auto max-w-[18rem] text-sm">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-zinc-500">TCGplayer market</span>
+                        <span className="text-zinc-500">Market price</span>
                         <span className="font-display text-lg font-semibold text-white">{formatMoney(market.base, market.price.currency)}</span>
                       </div>
                       <div className="mt-2 flex items-baseline justify-between text-xs">

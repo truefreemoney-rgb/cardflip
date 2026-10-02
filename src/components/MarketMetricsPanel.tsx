@@ -216,7 +216,7 @@ export default function MarketMetricsPanel({
       ? `Sold ${money(sold.average)}`
       : null,
     active != null ? `Asking ${money(active.average)}` : null,
-    tcg ? (tcgFlag ? "TCGplayer looks off" : `TCGplayer ${formatMoney(tcg.market, tcg.currency)}`) : null,
+    tcg ? (tcgFlag ? "Market looks off" : `Market ${formatMoney(tcg.market, tcg.currency)}`) : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -285,7 +285,7 @@ export default function MarketMetricsPanel({
           driving={driving === EBAY_VARIANT}
         />
         <Metric
-          label="TCGplayer"
+          label="Market"
           value={formatMoney(tcg?.market ?? recorded?.price ?? null, tcg?.currency ?? recorded?.currency)}
           detail={
             tcg

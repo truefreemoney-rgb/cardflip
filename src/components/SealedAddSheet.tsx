@@ -63,7 +63,7 @@ export default function SealedAddSheet({
           <div className="min-w-0">
             <p className="text-base font-semibold text-white">Add a sealed product</p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Booster boxes, ETBs, tins and packs. Priced from TCGplayer where we have it.
+              Booster boxes, ETBs, tins and packs. Priced from the market where we have it.
             </p>
           </div>
           <button

@@ -21,7 +21,7 @@ export const revalidate = 172800;
 
 export const metadata = pageMetadata({
   title: "Card prices",
-  description: "Market prices and price history for Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh! cards, by set. TCGplayer prices, checked daily.",
+  description: "Market prices and price history for Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh! cards, by set. Checked daily.",
   path: "/cards",
 });
 
@@ -45,7 +45,7 @@ export default async function CardsHubPage() {
         <Crumbs items={[{ name: "Card Prices" }]} />
         <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-5xl">Card prices</h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
-          What trading cards sell for, by game and set. Each page shows the TCGplayer market price for the exact printing, how it has moved, and the
+          What trading cards sell for, by game and set. Each page shows the market price for the exact printing, how it has moved, and the
           price history CardFlip has recorded. Prices are checked daily, and a price that looks wrong is not shown. Pages list cards from{" "}
           {formatMoney(INDEX_FLOOR_USD)} up.
         </p>

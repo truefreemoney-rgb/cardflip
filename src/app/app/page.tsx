@@ -19,7 +19,7 @@ import { scanCard } from "@/lib/ocr";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
-import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
+import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, makeSealedProduct, parseGradeQuery, type SetInfo } from "@/lib/grading";
 import SealedAddSheet from "@/components/SealedAddSheet";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
@@ -1377,7 +1377,7 @@ export default function AppPage() {
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
       tally={{
         count: items.filter((item) => item.card).length,
-        value: items.reduce((sum, item) => sum + (item.card ? currentPrice(item) : 0), 0),
+        value: items.reduce((sum, item) => sum + (item.card ? headlinePrice(item) : 0), 0),
       }}
       onCapture={onCameraCapture}
       onCapturePage={onCameraCapturePage}
@@ -1396,7 +1396,7 @@ export default function AppPage() {
   const listedItems = items.filter((i) => i.status === "listed");
   const pendingValue = items
     .filter((i) => i.status !== "sold")
-    .reduce((sum, item) => sum + currentPrice(item), 0);
+    .reduce((sum, item) => sum + headlinePrice(item), 0);
   const totalEarned = soldItems.reduce((sum, item) => sum + currentPrice(item), 0);
 
   const selected = items.find((i) => i.id === selectedId) ?? null;

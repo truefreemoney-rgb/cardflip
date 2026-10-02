@@ -8,7 +8,7 @@ import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
-import { currentPrice, effectiveVariant, formatMoney, priceFlagOf } from "@/lib/listing";
+import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import {
   fxCapture,
   fxMatch,
@@ -850,30 +850,29 @@ const TIER_STYLE: Record<
  * confidence shows only when vision reported one.
  */
 /**
- * The figure the chip shows: the card's LISTING price — the same number as
- * the queue row, the header tally and Your price (currentPrice: shared
- * quote, chart point, fee-aware floor). Chris, 09-03: the chip said $1.03
- * (market value) while the tally said $1.79 (floored listing price) —
- * "still shows the old price". One number, everywhere.
+ * The figure the chip shows: the Market price (headlinePrice) — the same
+ * number as the queue row and the header tally. History: 09-03 the chip said
+ * $1.03 (market) while the tally said $1.79 (listing price) and Chris wanted
+ * one number, so everything moved to the listing price; 10-02 he moved every
+ * screen to the Market price instead, with the listing price shown beside it
+ * as the eBay Suggested Price. Still one number, everywhere.
  */
 function revealMarket(item: ScanItem): number | null {
   if (!item.card) return null;
-  const price = currentPrice(item);
+  const price = headlinePrice(item);
   return price > 0 ? price : null;
 }
 
 function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => void }) {
   const card = item.card!;
-  // Hold the number until pricing has settled — eBay comps answered and the
-  // chart point fetched (undefined = not yet). Before this the chip showed
-  // the catalogue quote, then moved when comps/point landed a beat later
-  // (Chris, 09-03: "the user should never see the market at the camera
-  // scan, even for a moment"). One number, revealed once.
-  const settled =
-    item.ebayStatus !== "idle" && item.ebayStatus !== "loading" && item.currentPoint !== undefined;
+  // Hold the number until the chart point is fetched (undefined = not yet):
+  // it can move the market to today's figure, and the number is revealed
+  // once, never corrected a beat later. eBay comps no longer feed this number
+  // (10-02), so the chip does not wait on them.
+  const settled = item.currentPoint !== undefined;
   const market = settled ? revealMarket(item) : null;
   // The price guard: a market the rule does not believe is never the reveal number (no count-up, no tier flourish).
-  const flagged = settled && market == null && priceFlagOf(card, effectiveVariant(item), item.currentPoint) != null;
+  const flagged = settled && market == null && marketFlagOf(card, effectiveVariant(item), item.currentPoint) != null;
   const tier = revealTier(market);
   // A doubtful match is not a "match found" (Chris's phone 10-01: green MATCH FOUND at 40% sure on the wrong card).
   const style = item.matchDoubt ? { ...TIER_STYLE.plain, border: "border-amber-400/40", label: "text-amber-300", labelText: "CHECK MATCH" } : TIER_STYLE[tier];
@@ -919,7 +918,7 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
                 ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
                 : formatMoney(counted, "USD")}
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">list price</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
           </>
         ) : (
           <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>

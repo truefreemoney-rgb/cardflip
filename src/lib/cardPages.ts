@@ -408,7 +408,7 @@ export function cardDescription(v: CardView): string {
   const f = v.facts;
   const what = `${f.name} ${f.number} from ${f.setName}${f.tags.length ? ` (${f.tags.join(", ")})` : ""}`;
   if (v.headline) {
-    const price = `TCGplayer market price ${formatMoney(v.headline.price)} as of ${priceDayLabel(v.headline.day)}`;
+    const price = `Market price ${formatMoney(v.headline.price)} as of ${priceDayLabel(v.headline.day)}`;
     // The fullest wording that fits; a long card name gets the shorter ones (search cuts a description near 155).
     for (const text of [`${what}: ${price}, with price history. Checked daily by CardFlip.`, `${what}: ${price}, with price history.`, `${f.name} ${f.number}: ${price}.`]) {
       if (text.length <= 155) return text;

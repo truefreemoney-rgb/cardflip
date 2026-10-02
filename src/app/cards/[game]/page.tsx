@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: PageProps<"/cards/[game]">): 
   const sets = l.index.sets.filter((s) => s.qualifying > 0).length;
   return pageMetadata({
     title: `${gameTitle(l.game)} card prices by set`,
-    description: `Market prices and price history for ${sets.toLocaleString("en-US")} ${gameTitle(l.game)} sets, most valuable cards first. TCGplayer prices, checked daily.`,
+    description: `Market prices and price history for ${sets.toLocaleString("en-US")} ${gameTitle(l.game)} sets, most valuable cards first. Checked daily.`,
     path: gamePath(l.game),
   });
 }
@@ -67,7 +67,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
         <Crumbs items={[{ name: "Card Prices", href: "/cards" }, { name }]} />
         <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-5xl">{name} card prices</h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
-          TCGplayer market prices for {name} cards, by set. Each card page has the price for the exact printing, how it has moved and the recorded
+          Market prices for {name} cards, by set. Each card page has the price for the exact printing, how it has moved and the recorded
           history. Sets list cards from {formatMoney(INDEX_FLOOR_USD)} up; a price that looks wrong is not shown.
         </p>
 

@@ -195,7 +195,7 @@ function shortDay(day: string, withYear = false): string {
   });
 }
 function sourceLabel(s: string): string {
-  return s === "tcgplayer" ? "TCGplayer" : s === "cardmarket" ? "Cardmarket" : s;
+  return s === "tcgplayer" ? "Market" : s === "cardmarket" ? "Cardmarket" : s;
 }
 /** Axis-friendly price: whole dollars above $100, cents below. */
 function axisMoney(v: number, currency: Currency): string {

@@ -9,7 +9,7 @@ import Spinner from "@/components/Spinner";
 import HoloCard from "@/components/HoloCard";
 import { MatchHero } from "@/components/CenteringPhoto";
 import { addToWishlist } from "@/lib/client/wishlistApi";
-import { ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices } from "@/lib/listing";
+import { askingNoteFor, askingPriceFor, ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices, tcgPriceOf } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
@@ -96,6 +96,12 @@ export default function CardDetailModal({
   useFocusTrap(panelRef);
 
   const usdPrices = plausiblePrices(card.prices).filter((p) => p.currency === "USD");
+  // The pair the sheet leads with: today's market, and the price Build
+  // Listing would start a Near Mint copy at (same math, so the two screens agree).
+  const marketPrice = tcgPriceOf(card);
+  const ebaySuggested = marketPrice != null ? askingPriceFor(marketPrice, "Near Mint") : null;
+  const suggestedNote = marketPrice != null ? askingNoteFor(marketPrice, "Near Mint") : null;
+  const pricesLoading = loading && card.prices.length === 0;
 
   return (
     <div
@@ -175,6 +181,32 @@ export default function CardDetailModal({
 
               {aside}
 
+              {/* The two prices (Chris, 10-02), on Search Cards and the
+                  Watchlist; Inventory's own panel (aside) carries its pair. */}
+              {!aside && !sealed && (
+                <div className="mb-3">
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+                    <div className="bg-black/25 px-3 py-2.5">
+                      <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
+                      <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
+                        {marketPrice != null ? formatMoney(marketPrice) : pricesLoading ? "…" : "—"}
+                      </dd>
+                    </div>
+                    <div className="bg-black/25 px-3 py-2.5">
+                      <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">eBay Suggested Price</dt>
+                      <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-zinc-200">
+                        {ebaySuggested != null ? formatMoney(ebaySuggested) : pricesLoading ? "…" : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                  {ebaySuggested != null && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+                      {suggestedNote ?? "Suggested for a Near Mint copy."}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {onWatchlist ? (
                 <>
                   <p className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
@@ -215,7 +247,7 @@ export default function CardDetailModal({
                 </p>
               ) : usdPrices.length === 0 ? (
                 <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
-                  No current price table from TCGplayer for this printing.
+                  No current market price for this printing.
                 </p>
               ) : (
                 <table className="w-full text-left text-sm">
@@ -231,7 +263,7 @@ export default function CardDetailModal({
                     {/* USD only (Chris, 09-08: "we aren't going to be using euros yet"). */}
                     {usdPrices.map((p, i) => (
                       <tr key={i} className="border-b border-white/5 last:border-0">
-                        <td className="py-2 pr-4 capitalize text-zinc-300">{p.source}</td>
+                        <td className="py-2 pr-4 capitalize text-zinc-300">{p.source === "tcgplayer" ? "Market" : p.source}</td>
                         <td className="py-2 pr-4 text-zinc-400">{p.label}</td>
                         <td className="py-2 pr-4 text-right text-zinc-400">{formatMoney(p.low, p.currency)}</td>
                         {p.untrusted ? (

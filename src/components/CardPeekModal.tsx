@@ -87,7 +87,7 @@ export default function CardPeekModal({ card, onClose }: Props) {
                 {formatMoney(price.market ?? 0, price.currency)}
               </span>
               <span className="ml-2 text-xs text-zinc-500">
-                TCGplayer market
+                Market price
               </span>
             </p>
           )}
