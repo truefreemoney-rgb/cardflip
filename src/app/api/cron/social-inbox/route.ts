@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { sweepSocialInbox } from "@/lib/server/socialInbox";
+import { runSocialOptimize } from "@/lib/server/socialOptimize";
 import { refreshSocialPosts } from "@/lib/server/socialPosts";
 
 /**
@@ -28,5 +29,10 @@ export async function GET(req: NextRequest) {
   const started = Date.now();
   // Same ping also stores every post's counts for /admin/social/posts (the page never reads a platform itself).
   const [report, posts] = await Promise.all([sweepSocialInbox(), refreshSocialPosts()]);
-  return NextResponse.json({ ...report, posts: { stored: posts.stored, sites: posts.sites }, ms: Date.now() - started });
+  // The daily optimization loop scores the posts just stored; once per Eastern day, and it never fails the sweep.
+  const optimized = await runSocialOptimize().catch((err) => {
+    console.warn("social: optimizer failed", err instanceof Error ? err.message : err);
+    return null;
+  });
+  return NextResponse.json({ ...report, posts: { stored: posts.stored, sites: posts.sites }, ...(optimized ? { optimizer: { change: optimized.change, why: optimized.why } } : {}), ms: Date.now() - started });
 }

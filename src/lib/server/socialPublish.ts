@@ -712,6 +712,11 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
       return parts.join(" — ");
     })
     .join(" | ");
+  await addCompletedLine(`Social autopilot ${report.etDay} ${report.slot ? SLOTS[report.slot].label : ""} — ${text}`, now);
+}
+
+/** Put one done line at the top of the board's Completed section. Never throws: a board that will not save skips the note. */
+export async function addCompletedLine(line: string, now = Date.now()): Promise<void> {
   // Two tries: loadBoard may normalize and re-save, moving the stamp under us.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -721,7 +726,7 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
         completed = { id: randomUUID(), title: COMPLETED_TITLE, hint: "what got finished, newest first", items: [] };
         sections.push(completed);
       }
-      completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text: `Social autopilot ${report.etDay} ${report.slot ? SLOTS[report.slot].label : ""} — ${text}`, completedAt: now, from: "Claude — my queue (in order)" });
+      completed.items.unshift({ id: randomUUID(), done: true, owner: "Claude", text: line, completedAt: now, from: "Claude — my queue (in order)" });
       await saveBoard(sections, updatedAt);
       return;
     } catch (err) {
