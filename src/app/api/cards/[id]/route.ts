@@ -62,6 +62,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           ? Math.min(99, Math.max(1, Math.floor(body.quantity)))
           : undefined,
       status,
+      // A seller's own "sold" is a hand-marked sale (updateCard only stamps it on the move INTO sold).
+      soldByHand: status === "sold" ? true : undefined,
       listedAt: "listedAt" in (body ?? {}) ? num(body.listedAt) : undefined,
       soldPrice: "soldPrice" in (body ?? {}) ? num(body.soldPrice) : undefined,
       soldAt: "soldAt" in (body ?? {}) ? num(body.soldAt) : undefined,

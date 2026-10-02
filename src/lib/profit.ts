@@ -15,6 +15,8 @@ export interface SaleLike {
   soldFees: number | null;
   soldAt: number | null;
   costBasis: number | null;
+  /** Marked sold by hand = a sale made off eBay: no eBay fee, no postage (Chris, 10-01). */
+  soldByHand?: boolean | null;
 }
 
 export interface SaleBreakdown {
@@ -25,21 +27,32 @@ export interface SaleBreakdown {
   profit: number;
   feesActual: boolean;
   costKnown: boolean;
+  /** A hand-marked sale: fees and postage are 0 by rule, not an estimate. */
+  byHand: boolean;
+}
+
+/** What a sale puts in the seller's pocket before cost: the sold price, less the eBay fee and postage unless it was marked by hand. */
+export function saleNet(c: Pick<SaleLike, "soldPrice" | "soldFees" | "soldByHand">): number {
+  if (c.soldPrice == null) return 0;
+  return c.soldByHand ? c.soldPrice : netAfterFees(c.soldPrice, c.soldFees) - POSTAGE_USD;
 }
 
 export function saleBreakdown(c: SaleLike): SaleBreakdown | null {
   if (c.soldPrice == null) return null;
   const gross = c.soldPrice;
-  const fees = gross - netAfterFees(gross, c.soldFees);
+  const byHand = Boolean(c.soldByHand);
+  const fees = byHand ? 0 : gross - netAfterFees(gross, c.soldFees);
+  const postage = byHand ? 0 : POSTAGE_USD;
   const cost = c.costBasis ?? 0;
   return {
     gross,
     fees,
-    postage: POSTAGE_USD,
+    postage,
     cost,
-    profit: gross - fees - POSTAGE_USD - cost,
-    feesActual: c.soldFees != null,
+    profit: gross - fees - postage - cost,
+    feesActual: byHand || c.soldFees != null,
     costKnown: c.costBasis != null,
+    byHand,
   };
 }
 

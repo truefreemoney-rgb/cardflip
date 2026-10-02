@@ -38,6 +38,8 @@ export interface CardRecord {
   /** Actual fee eBay charged for this sale (Finances API). Null = not fetched
    * yet — display falls back to the estimate in lib/fees.ts. */
   soldFees: number | null;
+  /** The seller marked the sale by hand (off eBay): no eBay fee, no postage. */
+  soldByHand: boolean;
   /** What the seller paid for it; null = not entered. Profit = sale − fees − postage − this. */
   costBasis: number | null;
   /** Owned-card price alert: mail when the asking price reaches this; null = off. alertedAt = sent. */
@@ -116,6 +118,7 @@ interface CardRow {
   sold_price: number | null;
   sold_at: number | null;
   sold_fees: number | null;
+  sold_by_hand?: number | null;
   cost_basis: number | null;
   alert_price: number | null;
   alerted_at: number | null;
@@ -171,6 +174,7 @@ function fromRow(row: CardRow): CardRecord {
     soldPrice: row.sold_price,
     soldAt: row.sold_at,
     soldFees: row.sold_fees ?? null,
+    soldByHand: row.sold_by_hand === 1,
     costBasis: row.cost_basis ?? null,
     alertPrice: row.alert_price ?? null,
     alertedAt: row.alerted_at ?? null,
@@ -303,6 +307,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     soldPrice: null,
     soldAt: null,
     soldFees: null,
+    soldByHand: false,
     costBasis: card.costBasis ?? null,
     alertPrice: null,
     alertedAt: null,
@@ -582,6 +587,8 @@ export interface CardUpdate {
   listedAt?: number | null;
   soldPrice?: number | null;
   soldAt?: number | null;
+  /** The seller's own Mark as Sold (the PATCH route), not an eBay order: stamped only on the move INTO sold. */
+  soldByHand?: boolean;
   verifiedAt?: number | null;
   matchDoubt?: string | null;
   firstEdition?: boolean;
@@ -637,8 +644,11 @@ export async function updateCard(
     // "Not sold after all": leaving sold drops the sale's fee record and its
     // eBay order link, or a later re-sale would wear the old sale's fees.
     ...(patch.status !== undefined && patch.status !== "sold" && existingRow.status === "sold"
-      ? { sold_fees: null, ebay_order_id: null, ebay_line_item_id: null, sold_price_local: null, sold_currency: null }
+      ? { sold_fees: null, ebay_order_id: null, ebay_line_item_id: null, sold_price_local: null, sold_currency: null, sold_by_hand: null }
       : {}),
+    // A hand-marked sale (off eBay) carries no fee or postage. Only the move INTO sold stamps it:
+    // correcting the price of an eBay sale resends status "sold" and must not turn it into one.
+    ...(patch.status === "sold" && existingRow.status !== "sold" ? { sold_by_hand: patch.soldByHand ? 1 : null } : {}),
     // A hand-corrected sale price is a USD figure: the foreign-currency record no longer describes it.
     ...(patch.soldPrice !== undefined && patch.soldPrice !== existingRow.sold_price
       ? { sold_price_local: null, sold_currency: null }
@@ -654,7 +664,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, sold_by_hand = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -687,6 +697,7 @@ export async function updateCard(
       merged.sold_currency ?? null,
       merged.ebay_ended_at,
       merged.scan_price ?? null,
+      merged.sold_by_hand ?? null,
       merged.updated_at,
       id,
       userId,
@@ -814,9 +825,9 @@ export async function getPlatformStats(): Promise<PlatformStats> {
          (SELECT COUNT(*) FROM cards WHERE status = 'sold') as soldCount,
          (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold') as grossRevenue,
          (SELECT COALESCE(SUM(sold_fees), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NOT NULL) as actualFees,
-         (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NULL) as unfetchedGross,
-         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price IS NOT NULL) as unfetchedCount,
-         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_price > 10) as unfetchedOver10
+         (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_by_hand IS NULL) as unfetchedGross,
+         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_by_hand IS NULL AND sold_price IS NOT NULL) as unfetchedCount,
+         (SELECT COUNT(*) FROM cards WHERE status = 'sold' AND sold_fees IS NULL AND sold_by_hand IS NULL AND sold_price > 10) as unfetchedOver10
       `,
     )
     .get()) as {

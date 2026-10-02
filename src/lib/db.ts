@@ -812,6 +812,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "ebay_order_id TEXT",
       "ebay_line_item_id TEXT",
       "sold_fees REAL",
+      // 1 = the seller marked the sale by hand (Mark as Sold), a sale made off
+      // eBay: no eBay fee and no postage come off it (Chris, 10-01). NULL =
+      // an eBay order (the sales sync) or a row from before.
+      "sold_by_hand INTEGER",
       // Last time a discount offer was sent to this listing's watchers
       // (Negotiation API) — shown as a chip and a soft "already offered" guard.
       "watcher_offer_at INTEGER",

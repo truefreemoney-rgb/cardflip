@@ -48,7 +48,7 @@ import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut } from "@/lib/priceFlag";
-import { saleBreakdown } from "@/lib/profit";
+import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 import { etDate } from "@/lib/time";
 
@@ -172,7 +172,8 @@ function Breakdown({ rows, muted = false }: { rows: [string, number][]; muted?: 
 // a draft is a draft until the app publishes it, then it turns Live by
 // itself; publishDraft sets status = listed server-side.)
 function soldNowPatch(price: number) {
-  return { status: "sold" as const, soldPrice: price, soldAt: Date.now() };
+  // soldByHand mirrors what the server stamps on a seller's own Mark as Sold: no eBay fee, no postage.
+  return { status: "sold" as const, soldPrice: price, soldAt: Date.now(), soldByHand: true };
 }
 
 function watcherOfferNowPatch() {
@@ -672,7 +673,9 @@ export default function CollectionPage() {
                   <span className={`font-semibold ${b.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {b.profit < 0 ? "−" : ""}{formatMoney(Math.abs(b.profit))}
                   </span>
-                  {b.costKnown ? ` after ${b.feesActual ? "" : "estimated "}fees, postage and what you paid` : ` after ${b.feesActual ? "" : "estimated "}fees and postage`}
+                  {b.byHand
+                    ? b.costKnown ? " after what you paid (marked by hand: no eBay fee or postage)" : ", marked by hand: no eBay fee or postage"
+                    : b.costKnown ? ` after ${b.feesActual ? "" : "estimated "}fees, postage and what you paid` : ` after ${b.feesActual ? "" : "estimated "}fees and postage`}
                 </span>
               );
             })()}
@@ -1418,12 +1421,12 @@ export default function CollectionPage() {
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
     // Net = after eBay fees AND the postage the seller pays per sale (Chris,
     // 09-03: the tiles "should also reflect after ebay fees and shipping").
-    const net = sold.reduce(
-      (sum, c) => sum + (c.soldPrice != null ? netAfterFees(c.soldPrice, c.soldFees) - POSTAGE_USD : 0),
-      0,
-    );
+    // A sale marked by hand (off eBay) keeps the whole price (Chris, 10-01).
+    const net = sold.reduce((sum, c) => sum + saleNet(c), 0);
     // Every sale has its real fee recorded → the fee figure drops its "≈".
-    const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null);
+    const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null || c.soldByHand);
+    // Postage only comes off eBay sales.
+    const postedCopies = sold.filter((c) => c.soldPrice != null && !c.soldByHand).length;
     // Seller-typed and listed prices count; a flagged unlocked draft does not (leftOutKey above).
     const leftOutIds = new Set(leftOutKey ? leftOutKey.split(",") : []);
     const leftOut = drafts.filter((c) => leftOutIds.has(c.id));
@@ -1452,7 +1455,7 @@ export default function CollectionPage() {
     const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, avgDays, cost, costKnown, profit };
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, avgDays, cost, costKnown, profit };
   }, [gameCards, leftOutKey]);
 
 
@@ -1645,8 +1648,8 @@ export default function CollectionPage() {
               <Breakdown
                 rows={[
                   ["Sold for", stats.earned],
-                  [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldCopies * POSTAGE_USD)],
-                  [`Postage · ${stats.soldCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.soldCopies * POSTAGE_USD)],
+                  [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.postedCopies * POSTAGE_USD)],
+                  [`Postage · ${stats.postedCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.postedCopies * POSTAGE_USD)],
                   ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
                 ]}
               />
@@ -2195,7 +2198,7 @@ export default function CollectionPage() {
                   </span>
                   <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
                     {sold && card.soldPrice != null
-                      ? formatMoney(netAfterFees(card.soldPrice, card.soldFees))
+                      ? formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))
                       : formatMoney(card.price)}
                   </span>
                 </span>
@@ -2533,10 +2536,10 @@ export default function CollectionPage() {
                         </p>
                         <button
                           onClick={() => setSoldForm({ id: card.id, value: card.soldPrice!.toFixed(2) })}
-                          title={`${card.soldFees != null ? `eBay fees ${formatMoney(card.soldFees)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
+                          title={`${card.soldByHand ? "Marked sold by hand: no eBay fee or postage" : card.soldFees != null ? `eBay fees ${formatMoney(card.soldFees)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
                           className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
                         >
-                          you keep {formatMoney(netAfterFees(card.soldPrice, card.soldFees))}
+                          {card.soldByHand ? "no fees · edit" : `you keep ${formatMoney(netAfterFees(card.soldPrice, card.soldFees))}`}
                         </button>
                       </>
                     ) : (

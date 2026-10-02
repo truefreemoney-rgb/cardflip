@@ -132,7 +132,7 @@ export default function SalesReportPage() {
                     <p className="shrink-0 font-display text-sm font-semibold tabular-nums">{signed(b.profit)}</p>
                   </div>
                   <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
-                    {day(c.soldAt!)} · sold {formatMoney(b.gross)} · fees{b.feesActual ? "" : " est."} {formatMoney(b.fees)} · postage {formatMoney(b.postage)} ·{" "}
+                    {day(c.soldAt!)} · sold {formatMoney(b.gross)} · {b.byHand ? "marked by hand, no fees or postage" : `fees${b.feesActual ? "" : " est."} ${formatMoney(b.fees)} · postage ${formatMoney(b.postage)}`} ·{" "}
                     {b.costKnown ? `paid ${formatMoney(b.cost)}` : "no purchase price"}
                   </p>
                 </li>
@@ -143,7 +143,7 @@ export default function SalesReportPage() {
       </div>
 
       <p className="text-xs text-zinc-600">
-        Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale.
+        Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale. A sale you marked by hand carries no eBay fee and no postage.
         Check both against your own records before filing.
       </p>
     </main>

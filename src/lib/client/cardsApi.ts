@@ -31,6 +31,8 @@ export interface ServerCard {
   soldAt: number | null;
   /** Actual eBay fee for this sale (Finances API); null = the estimate applies. */
   soldFees: number | null;
+  /** Marked sold by hand (a sale off eBay): no eBay fee or postage comes off it. */
+  soldByHand: boolean;
   /** What the seller paid; null = not entered (profit per card, 09-27). */
   costBasis: number | null;
   /** Owned-card price alert target; alertedAt = the mail went out. */

@@ -19,7 +19,7 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { saleBreakdown, yearTotals, saleYears, saleYear, csvCell } = await import(at("lib/profit.ts"));
+const { saleBreakdown, saleNet, yearTotals, saleYears, saleYear, csvCell } = await import(at("lib/profit.ts"));
 const { estimatedEbayFees, POSTAGE_USD } = await import(at("lib/fees.ts"));
 
 const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs ${b}`);
@@ -42,6 +42,16 @@ const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs
 
   const loss = saleBreakdown({ soldPrice: 5, soldFees: null, soldAt: 0, costBasis: 20 });
   assert.ok(loss.profit < 0, "a loss is negative, not clamped");
+
+  // Marked sold by hand (off eBay, Chris 10-01): no eBay fee, no postage.
+  const hand = saleBreakdown({ soldPrice: 15, soldFees: null, soldAt: 0, costBasis: 4, soldByHand: true });
+  close(hand.fees, 0, "hand-marked: no fee");
+  close(hand.postage, 0, "hand-marked: no postage");
+  close(hand.profit, 11, "hand-marked: price minus cost");
+  assert.equal(hand.feesActual, true, "hand-marked: nothing is estimated");
+  assert.equal(hand.byHand, true);
+  close(saleNet({ soldPrice: 15, soldFees: null, soldByHand: true }), 15, "hand-marked net is the whole price");
+  close(saleNet({ soldPrice: 100, soldFees: 12 }), 100 - 12 - POSTAGE_USD, "eBay sale net");
 }
 
 // --- years (Eastern) ------------------------------------------------------
@@ -94,6 +104,21 @@ assert.equal(csvCell(null), "");
   assert.equal(cleared.costBasis, null, "null clears it");
   const again = await getCardForUser(card.id, user.id);
   assert.equal(again.costBasis, null);
+
+  // sold_by_hand: stamped only by the seller's own move INTO sold, never by the eBay sync's.
+  const hand = await updateCard(card.id, user.id, { status: "sold", soldPrice: 90, soldAt: Date.now(), soldByHand: true });
+  assert.equal(hand.soldByHand, true, "the seller's Mark as Sold is by hand");
+  const fixed = await updateCard(card.id, user.id, { soldPrice: 95 });
+  assert.equal(fixed.soldByHand, true, "a price correction keeps it");
+  assert.equal((await getCardForUser(card.id, user.id)).soldByHand, true, "stored");
+  const ebay = await createCard(user.id, {
+    cardName: "Blastoise", setName: "Base Set", cardNumber: "2", imageUrl: "https://example.test/b.png",
+    condition: "Near Mint", price: 50, game: "pokemon",
+  });
+  const synced = await updateCard(ebay.id, user.id, { status: "sold", soldPrice: 50, soldAt: Date.now() });
+  assert.equal(synced.soldByHand, false, "the sales sync's sold is not by hand");
+  const resent = await updateCard(ebay.id, user.id, { status: "sold", soldPrice: 55, soldByHand: true });
+  assert.equal(resent.soldByHand, false, "correcting an eBay sale's price does not make it hand-marked");
 }
 
 console.log("test:profit ok");
