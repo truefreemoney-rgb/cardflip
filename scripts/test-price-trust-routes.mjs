@@ -29,7 +29,7 @@ const { logPriceCheck, listPriceChecks } = await import(at("lib/server/priceChec
 const { createUser } = await import(at("lib/server/users.ts"));
 const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
 const { clearTrustMemo } = await import(at("lib/server/priceTrustSite.ts"));
-const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { liquidPrices, flatPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -57,7 +57,10 @@ await recordSeries(recordPoint, addDays, TODAY, "mtg-fine", "mtg", "nonfoil", li
 const seed = db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, synced_at) VALUES (?, ?, 'tst', 'Test Pokemon Set', ?, '2019-05-01', '', 0)`);
 await seed.run("pk-junk", "Deoxys", "1");
 await seed.run("pk-fine", "Umbreon", "2");
-await recordSeries(recordPoint, addDays, TODAY, "pk-junk", "pokemon", "holofoil", flatPrices(500, 87));
+await seed.run("pk-stale", "Deoxys stale", "3");
+await recordSeries(recordPoint, addDays, TODAY, "pk-junk", "pokemon", "holofoil", junkPrices(500));
+// Stale (10-02): a stuck $500 for 87 days is shown with a note, never hidden.
+await recordSeries(recordPoint, addDays, TODAY, "pk-stale", "pokemon", "holofoil", flatPrices(500, 87));
 await recordSeries(recordPoint, addDays, TODAY, "pk-fine", "pokemon", "holofoil", liquidPrices(300));
 clearTrustMemo();
 
@@ -78,7 +81,8 @@ console.log("/api/set-cards");
 {
   const pk = await get(setCards, "/api/set-cards?set=Test%20Pokemon%20Set");
   const by = Object.fromEntries(pk.body.cards.map((c) => [c.id, c]));
-  check("Pokemon set: the stuck $500 card carries the flag on its one price entry", [by["pk-junk"].prices.length, by["pk-junk"].prices[0].untrusted], [1, { hard: true, reason: "flat 87d" }]);
+  check("Pokemon set: the junk $500 card carries the flag on its one price entry", [by["pk-junk"].prices.length, by["pk-junk"].prices[0].untrusted?.hard, by["pk-junk"].prices[0].untrusted?.reason.startsWith("spike")], [1, true, true]);
+  check("... the stale $500 card carries the stale note, not a flag", [by["pk-stale"]?.prices[0].market, by["pk-stale"]?.prices[0].untrusted, by["pk-stale"]?.prices[0].stale], [500, undefined, { days: 87 }]);
   check("... the normal card is priced as before", [by["pk-fine"].prices[0].market, by["pk-fine"].prices[0].untrusted], [300, undefined]);
   const mtg = await get(setCards, "/api/set-cards?game=mtg&set=tst");
   const foil = mtg.body.cards.find((c) => c.id === "mtg-junk").prices.find((p) => p.variant === "foil" && p.source === "tcgplayer");
@@ -88,7 +92,9 @@ console.log("/api/set-cards");
 console.log("/api/price-history");
 {
   const h = await get(priceHistory, "/api/price-history?cardId=pk-junk");
-  check("the stuck series carries the verdict, points and stats stay", [h.body.series[0].untrusted, h.body.series[0].points.length > 50, h.body.series[0].stats.current], [{ hard: true, reason: "flat 87d" }, true, 500]);
+  check("the junk series carries the verdict, points and stats stay", [h.body.series[0].untrusted?.hard, h.body.series[0].points.length > 50, h.body.series[0].stats.current], [true, true, 500]);
+  const st = await get(priceHistory, "/api/price-history?cardId=pk-stale");
+  check("the stale series carries the note, not a verdict", [st.body.series[0].untrusted, st.body.series[0].stale], [undefined, { days: 87 }]);
   const f = await get(priceHistory, "/api/price-history?cardId=pk-fine");
   check("a normal series has no verdict", f.body.series[0].untrusted === undefined);
   const m = await get(priceHistory, "/api/price-history?cardId=mtg-junk");
@@ -110,7 +116,7 @@ console.log("price checks (Recent lookups)");
   const list = await listPriceChecks(u.id);
   const j = list.find((e) => e.cardId === "pk-junk");
   const f = list.find((e) => e.cardId === "pk-fine");
-  check("history read: the saved junk row is flagged, and so is its price row", [j.flag, j.prices[0].untrusted], [{ hard: true, reason: "flat 87d" }, { hard: true, reason: "flat 87d" }]);
+  check("history read: the saved junk row is flagged, and so is its price row", [j.flag?.hard, j.prices[0].untrusted?.hard], [true, true]);
   check("history read: a normal row is untouched", [f.flag, f.prices[0].untrusted, f.representativePrice], [undefined, undefined, 300]);
   // A number saved at an older, different price is history, not today's junk.
   await db.prepare("UPDATE price_checks SET prices_json = ? WHERE card_id = 'pk-junk'").run(JSON.stringify([{ source: "tcgplayer", variant: "holofoil", label: "Holofoil", currency: "USD", market: 240, low: null, high: null }]));

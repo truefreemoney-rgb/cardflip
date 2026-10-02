@@ -46,7 +46,7 @@ import { formatLocalAmount, marketplaceByEbayId, marketplaceLabel } from "@/lib/
 import { askingNoteFor, ebaySoldSearchUrl, formatMoney, isFirstEditionCard } from "@/lib/listing";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
-import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
+import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
@@ -748,6 +748,8 @@ export default function CollectionPage() {
             )}
           </div>
           {flagged && !live && !ended && <PriceFlagNote className="mt-2" soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
+          {/* The market has not updated in 45+ days (10-02): the number stands (above), this says how old it is. */}
+          {!flagged && !sold && lp?.stale && <PriceStaleNote className="mt-1.5" days={lp.stale.days} soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
           {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
           {/* Added → now (Chris, 09-08): the price when the card was added,

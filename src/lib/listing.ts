@@ -19,7 +19,7 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
-import type { PriceFlag } from "./priceFlag.ts";
+import type { PriceFlag, PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, POSTAGE_USD } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
@@ -412,6 +412,8 @@ export interface CurrentSeriesPoint {
   currency: Currency;
   /** The price guard flags this series (/api/price-history): its latest point is not a price to quote from. */
   untrusted?: PriceFlag;
+  /** The series' latest value has stood 45+ days (/api/price-history): shown, with a note. */
+  stale?: PriceStale;
 }
 
 /** A series point older than this is history, not "the current price". */
@@ -450,6 +452,21 @@ export function priceFlagOf(card: PokemonCard, variantOverride?: string, current
   const picked = override && canPriceListing(override) ? override : pickPrice(card);
   if (picked?.untrusted) return picked.untrusted;
   if (!picked && currentPoint?.untrusted && currentPoint.currency === "USD") return currentPoint.untrusted;
+  return null;
+}
+
+/**
+ * The stale note the screens add UNDER a market price (10-02): the row quotePrice
+ * prices from (or, with no row, the chart's latest point) has not changed in 45+
+ * days. Null for a moving market, a flagged row (the flag speaks instead) and
+ * whenever an eBay row carries the price.
+ */
+export function priceStaleOf(card: PokemonCard, variantOverride?: string, currentPoint?: CurrentSeriesPoint | null): PriceStale | null {
+  const override = variantOverride ? card.prices.find((p) => p.variant === variantOverride) : undefined;
+  const picked = override && canPriceListing(override) ? override : pickPrice(card);
+  if (picked?.untrusted) return null;
+  if (picked?.stale) return picked.stale;
+  if (!picked && currentPoint?.stale && !currentPoint.untrusted && currentPoint.currency === "USD") return currentPoint.stale;
   return null;
 }
 

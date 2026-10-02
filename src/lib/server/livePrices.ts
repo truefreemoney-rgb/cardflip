@@ -4,7 +4,7 @@ import { askingPriceFor } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
 import { heldTrust } from "@/lib/server/priceTrustSite";
-import type { PriceFlag } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
 /**
  * "Live" Inventory prices (Chris, 09-07: "it stays at the original value when
@@ -45,6 +45,8 @@ export interface LivePrice {
   marketThen: number | null;
   /** The price guard does not believe this market: the screens show the note, not a suggestion (suggested is 0). */
   flag?: PriceFlag;
+  /** The market has not changed in 45+ days (10-02): shown and suggested as usual, with a note under it. */
+  stale?: PriceStale;
 }
 
 interface Row {
@@ -127,6 +129,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       moves.push({ id: row.id, price: suggested });
       applied = true;
     }
+    const stale = trust.stale(row);
     out.push({
       cardId: row.id,
       market: Math.round(market * 100) / 100,
@@ -135,6 +138,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       applied,
       scanned,
       marketThen: then != null && then > 0 ? Math.round(then * 100) / 100 : null,
+      ...(stale ? { stale } : {}),
     });
   }
   await batchUpdate(

@@ -4,7 +4,7 @@ import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
-import type { PriceFlag } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -96,8 +96,18 @@ function valueOnOrBefore(s: TrustSeries, day: string): number | null {
   return null;
 }
 
-/** The verdict for one price, or null when it is fine (or there is nothing to judge). Pure. */
+/** The verdict for one price, or null when it is fine (or there is nothing to judge). Pure. A STALE price (see judgeStale) is fine here: shown, counted, mailed. */
 export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | null {
+  return judgeFull(data, opts).flag;
+}
+
+/** The stale note for one price (its value has stood 45+ days, nothing says it is wrong), or null. Pure. */
+export function judgeStale(data: TrustData, opts: JudgeOpts = {}): PriceStale | null {
+  return judgeFull(data, opts).stale;
+}
+
+/** Both readings at once (one rule run), for the loaders that annotate rows with either. */
+export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceFlag | null; stale: PriceStale | null } {
   const day = opts.day ?? todayUtc();
   const def = defaultSeries(data.series);
   const own = opts.variant ? data.series.find((s) => s.variant === opts.variant) : undefined;
@@ -111,7 +121,7 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
   if (opts.old) {
     // The OLD side of a move: this series up to that day, the siblings as they stood then (social.ts oldPriceOk).
     to = opts.old.value;
-    if (!(to > 0)) return null;
+    if (!(to > 0)) return NONE;
     prices = prices.slice(0, todayIdx - opts.old.back + 1);
   } else {
     to = s ? lastIn(s) : null;
@@ -126,7 +136,7 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
       prices = next;
       to = live;
     }
-    if (to == null || !(to > 0)) return null;
+    if (to == null || !(to > 0)) return NONE;
   }
 
   // Siblings: Pokemon's other printings, only for the default one (see the header).
@@ -141,12 +151,16 @@ export function judgeSeries(data: TrustData, opts: JudgeOpts = {}): PriceFlag | 
   const cmSpeaks = data.game === "pokemon" && (s ? s === def : data.series.length === 0);
   const refEur = data.game === "mtg" ? (variant === "foil" || variant === "etched" ? (data.eur?.foil ?? null) : (data.eur?.nonfoil ?? null)) : cmSpeaks ? data.cmEur : null;
   const verdict = priceTrust({ to, prices, siblings, refEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
-  if (verdict.ok) return null;
+  if (verdict.ok) return NONE;
+  // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
+  if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
   const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
   // Unverified only (soft signs): not evidence on a series too young to have any, or a price the table has no series for.
-  if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return null;
-  return { hard: !!verdict.hard, reason: verdict.reason };
+  if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return NONE;
+  return { flag: { hard: !!verdict.hard, reason: verdict.reason }, stale: null };
 }
+
+const NONE: { flag: null; stale: null } = { flag: null, stale: null };
 
 // ---------------------------------------------------------------------------
 // Loading
@@ -292,16 +306,23 @@ export interface TrustQuery {
  * are absent, so `map.has(key)` is the whole question. Two queries per 400 cards.
  */
 export async function siteTrust(queries: TrustQuery[], day = todayUtc()): Promise<Map<string, PriceFlag>> {
-  const out = new Map<string, PriceFlag>();
-  if (queries.length === 0) return out;
+  return (await siteTrustFull(queries, day)).flags;
+}
+
+/** siteTrust plus the stale notes, by the same key (one rule run per query). */
+export async function siteTrustFull(queries: TrustQuery[], day = todayUtc()): Promise<{ flags: Map<string, PriceFlag>; stale: Map<string, PriceStale> }> {
+  const flags = new Map<string, PriceFlag>();
+  const stale = new Map<string, PriceStale>();
+  if (queries.length === 0) return { flags, stale };
   const data = await loadTrustData(queries.map((q) => ({ cardId: q.cardId, game: q.game })), day);
   for (const q of queries) {
     const d = data.get(q.cardId);
     if (!d) continue;
-    const flag = judgeSeries(d, { variant: q.variant, exact: q.exact, liveUsd: q.liveUsd, day });
-    if (flag) out.set(trustKey(q.cardId, q.variant), flag);
+    const r = judgeFull(d, { variant: q.variant, exact: q.exact, liveUsd: q.liveUsd, day });
+    if (r.flag) flags.set(trustKey(q.cardId, q.variant), r.flag);
+    if (r.stale) stale.set(trustKey(q.cardId, q.variant), r.stale);
   }
-  return out;
+  return { flags, stale };
 }
 
 // ---------------------------------------------------------------------------
@@ -320,11 +341,19 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
   for (const c of cards) {
     for (const p of c.prices) if (isTrustedRow(p)) queries.push({ cardId: c.id, game: c.game ?? "pokemon", variant: p.variant, liveUsd: p.market, exact: true });
   }
-  const flags = await siteTrust(queries, day);
-  if (flags.size === 0) return cards;
+  const { flags, stale } = await siteTrustFull(queries, day);
+  if (flags.size === 0 && stale.size === 0) return cards;
+  const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)));
   return cards.map((c) => {
-    if (!c.prices.some((p) => isTrustedRow(p) && flags.has(trustKey(c.id, p.variant)))) return c;
-    return { ...c, prices: c.prices.map((p) => (isTrustedRow(p) && flags.has(trustKey(c.id, p.variant)) ? { ...p, untrusted: flags.get(trustKey(c.id, p.variant)) } : p)) };
+    if (!c.prices.some((p) => marked(c, p))) return c;
+    return {
+      ...c,
+      prices: c.prices.map((p) => {
+        if (!marked(c, p)) return p;
+        const k = trustKey(c.id, p.variant);
+        return flags.has(k) ? { ...p, untrusted: flags.get(k) } : { ...p, stale: stale.get(k) };
+      }),
+    };
   });
 }
 
@@ -342,7 +371,7 @@ export async function marketPriceFlagged(card: PokemonCard, price: number, day =
   const game = card.game ?? "pokemon";
   try {
     // A flag the client sent along is not evidence: judged fresh, on a copy.
-    const bare = { ...card, prices: (Array.isArray(card.prices) ? card.prices : []).map((p) => ({ ...p, untrusted: undefined })) };
+    const bare = { ...card, prices: (Array.isArray(card.prices) ? card.prices : []).map((p) => ({ ...p, untrusted: undefined, stale: undefined })) };
     const [annotated] = await withPriceFlags([bare], day);
     const carrying = annotated.prices.filter((p) => isTrustedRow(p) && Math.abs((p.market as number) - price) < 0.005);
     if (carrying.length > 0) return carrying.some((p) => p.untrusted);
@@ -370,6 +399,8 @@ export interface HeldTrust {
   flag(row: HeldRow, live?: number | null): PriceFlag | null;
   /** The same for a price it stood at `back` days ago: judged as an OLD price (strictest), siblings as they stood. */
   flagOld(row: HeldRow, back: number, value: number): PriceFlag | null;
+  /** The stale note on the row's current market (its value has stood 45+ days, nothing says it is wrong), null = moving or flagged. */
+  stale(row: HeldRow, live?: number | null): PriceStale | null;
 }
 
 const GAME_IDS: ReadonlySet<string> = new Set(["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]);
@@ -393,6 +424,10 @@ export async function heldTrust(rows: HeldRow[], day = todayUtc()): Promise<Held
       const d = data.get(row.catalog_card_id);
       return d ? judgeSeries(d, { variant: row.variant, day, old: { back, value } }) : null;
     },
+    stale(row, live) {
+      const d = data.get(row.catalog_card_id);
+      return d ? judgeStale(d, { variant: row.variant, liveUsd: live, day }) : null;
+    },
   };
 }
 
@@ -406,7 +441,7 @@ export async function heldTrustOrOpen(rows: HeldRow[], day = todayUtc()): Promis
     return await heldTrust(rows, day);
   } catch (err) {
     console.warn("price guard: could not read the price series, showing prices unjudged", err);
-    return { flag: () => null, flagOld: () => null };
+    return { flag: () => null, flagOld: () => null, stale: () => null };
   }
 }
 
@@ -416,15 +451,15 @@ export async function heldTrustOrOpen(rows: HeldRow[], day = todayUtc()): Promis
  * from ONE series read per 400 cards (a whole set is up to ~300 cards; a second
  * scan of the set was the 09-06 row-read outage's shape).
  */
-export async function latestUsdWithTrust(cardIds: string[], day = todayUtc()): Promise<Map<string, { price: number; variant: string; flag?: PriceFlag }>> {
-  const out = new Map<string, { price: number; variant: string; flag?: PriceFlag }>();
+export async function latestUsdWithTrust(cardIds: string[], day = todayUtc()): Promise<Map<string, { price: number; variant: string; flag?: PriceFlag; stale?: PriceStale }>> {
+  const out = new Map<string, { price: number; variant: string; flag?: PriceFlag; stale?: PriceStale }>();
   const data = await loadTrustData(cardIds.map((cardId) => ({ cardId, game: "pokemon" as GameId })), day);
   for (const [id, d] of data) {
     const def = defaultSeries(d.series);
     const price = def ? lastIn(def) : null;
     if (!def || price == null || !(price > 0)) continue;
-    const flag = judgeSeries(d, { day });
-    out.set(id, { price, variant: def.variant, ...(flag ? { flag } : {}) });
+    const { flag, stale } = judgeFull(d, { day });
+    out.set(id, { price, variant: def.variant, ...(flag ? { flag } : {}), ...(stale ? { stale } : {}) });
   }
   return out;
 }

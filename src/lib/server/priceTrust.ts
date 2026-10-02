@@ -26,7 +26,10 @@
  *     30-point medians, so a short glitch-low that recovers is not a spike).
  *  3. Sibling anchor (>= $50): >= 3x EVERY other variant of the same card.
  *  4. Stuck listing (>= $100): the identical value for >= 45 days. No sale
- *     in six weeks is a listing, not a market price.
+ *     in six weeks means the market has not updated: since 10-02 a NOTE
+ *     (`stale` = the days, hard false, the screens show the number with
+ *     "Market hasn't updated this in N months"), not a hide; tests 5-6 do not
+ *     run on top of it. For an OLD price (see `old`) it stays a hide.
  *  5. A fresh doubling (>= $100): a one-step rise >= 2x inside the last 10
  *     priced points that the price still stands >= 2x above, with no agreeing
  *     second source (Machamp $64 -> $146). A recovery from a short glitch-low
@@ -168,6 +171,14 @@ export interface PriceTrust {
   hard?: boolean;
   /** A second source priced the card within 3x and vouched for it (test 1). A move a caller finds suspicious is still believable when this is set. */
   agrees?: boolean;
+  /**
+   * Test 4 as a NOTE, not a hide (10-02): the identical value for this many
+   * calendar days (>= stuckDays) with no evidence it is wrong. The screens show
+   * the number with "Market hasn't updated this in N months" (hard is false);
+   * the social picks still skip it (ok is false). Charizard Plasma Storm 136:
+   * $1,150 flat 128 days was a fair Near Mint price that the hide buried.
+   */
+  stale?: number;
 }
 
 interface Features {
@@ -329,8 +340,15 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, vintage =
   const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);
   const sibRatio = sib > 0 ? to / sib : null;
   if (to >= T.spikeMinUsd && sibRatio != null && sibRatio >= T.siblingFail) return wrong(`sibling ${x(sibRatio)}`);
-  // 4. Stuck listing (an old price is stale sooner, and from $10: a parked $15.50 that "dropped" to $10 is not a drop).
-  if (to >= (old ? T.refMinUsd : T.gradedMinUsd) && f.runDays >= (old ? T.staleOldDays : T.stuckDays)) return wrong(`flat ${f.runDays}d`);
+  // 4. Stuck listing. An OLD price is stale sooner, and from $10: a parked $15.50 that "dropped" to $10 is not a drop, so it is wrong.
+  if (old && to >= T.refMinUsd && f.runDays >= T.staleOldDays) return wrong(`flat ${f.runDays}d`);
+  // A CURRENT price flat >= 45 days is a note, not a hide (10-02): no sale in six weeks says the market has not updated, not that the
+  // number is wrong (Charizard Plasma Storm 136: $1,150 flat 128 days, eBay Near Mint sold $1,276-$1,651). Tests 1-3 above still hide it
+  // when there is evidence; a 3-5x Cardmarket gap is named in the reason but does not hide it either (Europe runs far cheaper on US
+  // chase cards). The soft signs (thin, round) are the same statement as flat, so they do not run on top of it.
+  if (to >= T.gradedMinUsd && f.runDays >= T.stuckDays) {
+    return { ok: false, hard: false, stale: f.runDays, reason: [`flat ${f.runDays}d`, ...(refRatio != null ? [`cardmarket ${x(refRatio)}`] : [])].join(", ") };
+  }
 
   const thin = f.k30 <= T.thinChanges || f.runDays >= T.thinFlatDays;
   if (to < T.gradedMinUsd) {

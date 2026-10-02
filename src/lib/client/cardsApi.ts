@@ -1,7 +1,7 @@
 "use client";
 
 import type { GameId } from "@/lib/types";
-import type { PriceFlag } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
 import { apiFetch } from "@/lib/client/basePath";
 
@@ -139,6 +139,8 @@ export interface LivePrice {
   marketThen: number | null;
   /** The price guard does not believe today's market: the screens show the note, not a suggestion (suggested is 0, nothing was rewritten). */
   flag?: PriceFlag;
+  /** Today's market has not changed in 45+ days (10-02): shown and suggested as usual, with a note under it. */
+  stale?: PriceStale;
 }
 
 /** Today's market for every priced Inventory row; unlocked drafts are

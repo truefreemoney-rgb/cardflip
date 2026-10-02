@@ -19,7 +19,7 @@ import type {
 } from "@/lib/types";
 import PriceHistoryChart, { cardTrend, useLastRecordedPrice } from "@/components/PriceHistoryChart";
 import { etDate } from "@/lib/time";
-import { PRICE_FLAG_NOTE } from "@/lib/priceFlag";
+import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
 
 interface Props {
   card: PokemonCard;
@@ -61,6 +61,7 @@ function Metric({
   driving,
   tone = "default",
   flagged = false,
+  staleDays = null,
 }: {
   label: string;
   value: string;
@@ -69,6 +70,8 @@ function Metric({
   tone?: "default" | "strong";
   /** The price guard does not believe this number: the note replaces it (lib/priceFlag.ts). */
   flagged?: boolean;
+  /** The number has not changed in this many days (45+): it stands, a line under it says so (10-02). */
+  staleDays?: number | null;
 }) {
   return (
     <div
@@ -93,6 +96,7 @@ function Metric({
         </p>
       )}
       <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{detail}</p>
+      {!flagged && staleDays != null && <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">{priceStaleNote(staleDays)}</p>}
       {driving && (
         <p className="mt-1 text-[10px] font-medium text-emerald-400">
           Setting your price
@@ -186,6 +190,8 @@ export default function MarketMetricsPanel({
 
   // The price guard (lib/server/priceTrustSite.ts): a TCGplayer number the rule does not believe is never shown as a value.
   const tcgFlag = tcg ? tcg.untrusted : recorded?.untrusted;
+  // ... and one that has not updated in 45+ days is shown with a line saying so (10-02).
+  const tcgStale = tcg ? tcg.stale : recorded?.stale;
 
   // The sold tile needs eBay's Marketplace Insights, which eBay DENIED on
   // 2026-08-16 (partner-only). It isn't rendered; the plain "View sold on
@@ -296,6 +302,7 @@ export default function MarketMetricsPanel({
           }
           driving={driving === tcg?.variant && tcg != null && !tcgFlag}
           flagged={Boolean(tcgFlag)}
+          staleDays={tcgStale?.days ?? null}
         />
       </div>
 

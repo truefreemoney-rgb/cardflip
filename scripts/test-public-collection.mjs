@@ -80,16 +80,16 @@ check("a row with an off-list picture shows the empty tile", (await publicCollec
 
 console.log("\nthe price guard (priceTrustSite)");
 {
-  const { flatPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { junkPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
-  await recordSeries(recordPoint, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // a stuck round $500
+  await recordSeries(recordPoint, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   await card("Junk Draft", { price: 480, catalogCardId: "g-junk" });
   const typed = await card("Typed Draft", { price: 450, catalogCardId: "g-junk" });
   await db.prepare("UPDATE cards SET price_locked = 1 WHERE id = ?").run(typed.id);
   const live = await card("Live Ask", { price: 500, catalogCardId: "g-junk" });
   await db.prepare("UPDATE cards SET status = 'listed', listed_at = 1, ebay_listing_id = '2' WHERE id = ?").run(live.id);
   // A foil-held row at $0: the fallback price is the DEFAULT series' (junk $500 normal), so it is judged there, not on the healthy holofoil line.
-  await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "normal", flatPrices(500, 87));
+  await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "normal", junkPrices(500));
   await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "holofoil", liquidPrices(300));
   await card("Mixed Holo", { catalogCardId: "g-mix", variant: "holofoil" });
   const g = await publicCollection("chris");

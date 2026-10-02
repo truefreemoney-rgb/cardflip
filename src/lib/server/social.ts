@@ -267,7 +267,9 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
     });
     if (!trust.ok) {
       skipped.push({ id: cardId, reason: trust.reason });
-      if (!trust.hard) unverified.set(cardId, to);
+      // A stale price (flat 45+ days, 10-02) is skipped exactly as the old hard "flat" verdict was: the site shows it with a note,
+      // but a post never prints it, and it does not count as an unverified price that would stop a set from posting.
+      if (!trust.hard && trust.stale == null) unverified.set(cardId, to);
       continue;
     }
     // A price `back` days before today, judged as an old price: this series up to that day, the siblings as they stood then.

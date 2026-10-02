@@ -78,10 +78,10 @@ check("no cards → null", await buildDigest(empty.id, SUNDAY), null);
 
 console.log("the price guard (priceTrustSite)");
 {
-  const { flatPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { flatPrices, junkPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays } = await import(at("lib/priceSeries.ts"));
   const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
-  await recordSeries(recordPoint, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // stuck round $500
+  await recordSeries(recordPoint, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   await recordSeries(recordPoint, addDays, "2026-09-27", "g-fine", "pokemon", "holofoil", [...liquidPrices(200, 50), 260]); // a real +30% week
   // The week-ago side is a junk plateau (flat $100 for 40 days) that then moved: no honest "before".
   await recordSeries(recordPoint, addDays, "2026-09-27", "g-old", "pokemon", "holofoil", [...flatPrices(100, 41), 110, 120, 130, 140, 145, 148, 150]);

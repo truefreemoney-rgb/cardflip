@@ -634,6 +634,16 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("guard: a flagged chart point with no row: no quote", quotePrice({ name: "Test", setName: "Test", prices: [] }, "Near Mint", "market", undefined, pt(900, { untrusted: flag })), null);
   check("guard: ... and a flagged row is not rescued by a good point either (today's live price is the suspect)", quotePrice(flagged, "Near Mint", "market", undefined, pt(472.63)), null);
 
+  // Stale (10-02): a row whose value has stood 45+ days is quoted exactly as a normal one; priceStaleOf names the note.
+  const { priceStaleOf } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
+  const staleRow = { ...usd(500), stale: { days: 128 } };
+  const staleCard = { name: "Test", setName: "Test", prices: [staleRow] };
+  check("stale: quoted exactly like a normal card", JSON.stringify(quotePrice(staleCard, "Near Mint", "market")), JSON.stringify({ price: staleRow, base: 500, suggested: 500 }));
+  check("stale: priceStaleOf names the note", priceStaleOf(staleCard), { days: 128 });
+  check("stale: ... null for a normal card, a flagged card, and when eBay sold carries the price", [priceStaleOf(normal), priceStaleOf(flagged), priceStaleOf({ ...staleCard, prices: [ebaySold, staleRow] })], [null, null, null]);
+  check("stale: ... the chart point speaks when there is no row", priceStaleOf({ name: "T", setName: "T", prices: [] }, undefined, pt(900, { stale: { days: 50 } })), { days: 50 });
+  check("stale: priceFlagOf stays null for it (nothing is hidden)", priceFlagOf(staleCard), null);
+
   check("guard: priceFlagOf names the flagged row", priceFlagOf(flagged), flag);
   check("guard: ... null for a normal card", priceFlagOf(normal), null);
   check("guard: ... null when eBay sold carries the price", priceFlagOf({ ...flagged, prices: [ebaySold, junk(500)] }), null);

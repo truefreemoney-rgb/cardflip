@@ -111,12 +111,12 @@ check("retry lands", (await sweepCardAlerts(NOW, { send, configured: on })).sent
 
 console.log("the price guard (priceTrustSite)");
 {
-  const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { liquidPrices, flatPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays } = await import(at("lib/priceSeries.ts"));
   const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
   // A week of climbing after a long stretch at $100: 100 x41 (ending a week ago), then 110 ... 150 today.
   const tail = [110, 120, 130, 140, 145, 148, 150];
-  await recordSeries(recordPoint, addDays, TODAY, "g-junk-target", "pokemon", "holofoil", flatPrices(500, 87));
+  await recordSeries(recordPoint, addDays, TODAY, "g-junk-target", "pokemon", "holofoil", junkPrices(500));
   await recordSeries(recordPoint, addDays, TODAY, "g-junk-spike", "pokemon", "holofoil", [...liquidPrices(100, 60), 700]);
   await recordSeries(recordPoint, addDays, TODAY, "g-old-junk", "pokemon", "holofoil", [...flatPrices(100, 41), ...tail]);
   await recordSeries(recordPoint, addDays, TODAY, "g-fine-spike", "pokemon", "holofoil", [...liquidPrices(100, 40), ...tail]);
@@ -133,7 +133,7 @@ console.log("the price guard (priceTrustSite)");
   r = await sweepCardAlerts(NOW, { send, configured: on });
   const mine = sent.filter((m) => m.to === "guard@example.com").flatMap((m) => m.hits.map((h) => [h[0], h[1]])).sort();
   check("only the normal cards mail: a $300 target hit and a real +50% spike", mine, [["FineSpike", "spike"], ["FineTarget", "target"]]);
-  check("a flagged market fires no target (flat $500 for 87 days)", mine.some((h) => h[0] === "JunkTarget"), false);
+  check("a flagged market fires no target (a 5x spike to $500 that never came back)", mine.some((h) => h[0] === "JunkTarget"), false);
   check("... and no spike (a $700 jump that never came back)", mine.some((h) => h[0] === "JunkSpike"), false);
   check("... and no spike from a stale plateau as the OLD price", mine.some((h) => h[0] === "OldJunk"), false);
   check("the flagged target stays armed (nothing stamped)", (await getCardForUser(junkTarget.id, g.id)).alertedAt, null);

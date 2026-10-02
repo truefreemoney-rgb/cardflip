@@ -28,7 +28,7 @@ const { createUser } = await import(at("lib/server/users.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { inventoryValueSeries } = await import(at("lib/server/inventoryValue.ts"));
 const { collectionInsights } = await import(at("lib/server/insights.ts"));
-const { flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
 const { askingPriceFor } = await import(at("lib/listing.ts"));
 const { addDays, todayUtc, DAY_MS } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
@@ -92,7 +92,7 @@ console.log("\nthe price guard");
   await createCard(alice.id, { ...base, cardName: "Deoxys", condition: "Near Mint", catalogCardId: "junk-deoxys" });
   const typed = await createCard(alice.id, { ...base, cardName: "Typed", condition: "Near Mint", catalogCardId: "junk-deoxys" });
   await db.prepare("UPDATE cards SET price = 480, price_locked = 1 WHERE id = ?").run(typed.id);
-  await recordSeries(recordPoint, addDays, today, "junk-deoxys", "pokemon", "holofoil", flatPrices(500, 87)); // a stuck round $500
+  await recordSeries(recordPoint, addDays, today, "junk-deoxys", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   const after = await inventoryValueSeries(alice.id, "pokemon", 10, now);
   check("a flagged card adds nothing on any day: the line is exactly as before", after, pts);
   const ins = await collectionInsights(alice.id, "pokemon", now);

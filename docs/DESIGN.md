@@ -119,6 +119,14 @@ cleanly on failure). No placeholder cards, no invented prices, no fake
 testimonials, no fabricated eBay connection. Copy claims only what the
 product does today.
 
+A market price that has simply not changed in 45+ days is STALE, not wrong
+(10-02, Charizard Plasma Storm 136: $1,150 flat 128 days was a fair Near Mint
+price the hide buried). The number stands everywhere, with a muted line under
+it, "Market hasn't updated this in 4 months" (`priceStaleNote`, drawn by
+`PriceStaleNote` in `components/PriceFlagNote`), and the sold-listings link
+where the page has one. Nothing else changes for it: suggested price, totals,
+alerts and nudges read it as a market. The social posts still skip it.
+
 A market price the price guard does not believe (`lib/server/priceTrust.ts`,
 asked on the site through `lib/server/priceTrustSite.ts`, 09-30) is never
 presented as a card's value. Every screen shows the same sentence in place of

@@ -20,10 +20,10 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { judgeSeries, siteTrust, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
+const { judgeSeries, judgeStale, siteTrust, siteTrustFull, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { addDays, todayUtc, encodePrices } = await import(at("lib/priceSeries.ts"));
-const { PRICE_FLAG_NOTE } = await import(at("lib/priceFlag.ts"));
+const { PRICE_FLAG_NOTE, priceStaleNote } = await import(at("lib/priceFlag.ts"));
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -50,7 +50,16 @@ const DEOXYS = expand([[174.15, 10], [180, 2], [240, 14], [500, 9], [310, 14], [
 console.log("Pokemon: the rule as the site reads it");
 check("Rayquaza $1,013 vs Cardmarket EUR 45: flagged, proved wrong", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)], { cmEur: 45.13 })), [true, "cardmarket 20.4x"]);
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
-check("Deoxys: a round $500 for 87 days is a listing", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), [true, "flat 87d"]);
+// 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
+check("Deoxys: a round $500 for 87 days is stale, not hidden", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), null);
+check("... judgeStale carries the days", judgeStale(data("pokemon", [ser("holofoil", DEOXYS)])), { days: 87 });
+check("... a moving market has no stale note", judgeStale(data("pokemon", [ser("holofoil", liquid(300))])), null);
+check("... a hidden price has no stale note either (Rayquaza)", judgeStale(data("pokemon", [ser("holofoil", RAYQUAZA)], { cmEur: 45.13 })), null);
+check("the note wording: months from two months, weeks under", [priceStaleNote(128), priceStaleNote(87), priceStaleNote(45), priceStaleNote(60)], ["Market hasn't updated this in 4 months", "Market hasn't updated this in 3 months", "Market hasn't updated this in 6 weeks", "Market hasn't updated this in 2 months"]);
+// Charizard Plasma Storm 136 (bw8-136), the case that made the rule: $1,150 flat 128 days, Cardmarket EUR 302.44 (3.5x), eBay NM sold $1,276-$1,651.
+const CHARIZARD_PLASMA = [...liquid(1100, 30), ...Array(128).fill(1150)];
+check("Charizard bw8-136: shown", verdict(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), null);
+check("... with the 128-day note", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), { days: 128 });
 check("a liquid $300 card is fine", verdict(data("pokemon", [ser("holofoil", liquid(300))])), null);
 check("a $12 card is never looked at", verdict(data("pokemon", [ser("normal", [12, 12, 12])], { cmEur: 0.5 })), null);
 check("soft signs only come back as unverified (hard false)", verdict(data("pokemon", [ser("holofoil", liquid(499.99, 8))])), [false, "round, 9 priced days"]);
@@ -61,15 +70,18 @@ console.log("held variant and siblings");
 {
   const d = data("pokemon", [ser("normal", liquid(20)), ser("holofoil", liquid(90))]);
   check("default variant judged on the normal line", verdict(d), null);
-  check("the held holofoil is judged on ITS line, not the default", verdict(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)]), { variant: "holofoil" }), [true, "flat 87d"]);
-  check("... while the default normal line of the same card stays fine", verdict(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)])), null);
-  check("a held variant with no line of its own falls back to the default", verdict(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil" }), [true, "flat 87d"]);
-  check("... unless the caller asks for that printing exactly", verdict(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil", exact: true }), null);
+  // The stale note follows the same variant policy as the hide (Deoxys is the stale fixture since 10-02; Rayquaza the hidden one).
+  check("the held holofoil is judged on ITS line, not the default", judgeStale(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)]), { variant: "holofoil" }), { days: 87 });
+  check("... the hide too", verdict(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", RAYQUAZA)]), { variant: "holofoil" })?.[1]?.startsWith("spike"), true);
+  check("... while the default normal line of the same card stays fine", [verdict(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)])), judgeStale(data("pokemon", [ser("normal", liquid(20)), ser("holofoil", DEOXYS)]))], [null, null]);
+  check("a held variant with no line of its own falls back to the default", judgeStale(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil" }), { days: 87 });
+  check("... unless the caller asks for that printing exactly", [verdict(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil", exact: true }), judgeStale(data("pokemon", [ser("holofoil", DEOXYS)]), { variant: "reverseHolofoil", exact: true })], [null, null]);
   // Aquapolis-style: the reverse holo is $336 while Cardmarket's one average (the plain card) is EUR 28: 10.7x, and real.
   const aqua = data("pokemon", [ser("normal", liquid(177)), ser("reverseHolofoil", liquid(336))], { cmEur: 28.42 });
   check("the Cardmarket average does not referee a reverse holo (it is the plain card's price)", verdict(aqua, { variant: "reverseHolofoil" }), null);
   check("... while it still referees the default printing of the same card", verdict(data("pokemon", [ser("normal", liquid(177)), ser("reverseHolofoil", liquid(336))], { cmEur: 10 }), { variant: "normal" })?.[0], true);
-  check("a reverse holo is still judged on its own series (flat round $500 for 87 days)", verdict(data("pokemon", [ser("normal", liquid(20)), ser("reverseHolofoil", DEOXYS)], { cmEur: 28.42 }), { variant: "reverseHolofoil" }), [true, "flat 87d"]);
+  check("a reverse holo is still judged on its own series (flat round $500 for 87 days: stale)", judgeStale(data("pokemon", [ser("normal", liquid(20)), ser("reverseHolofoil", DEOXYS)], { cmEur: 28.42 }), { variant: "reverseHolofoil" }), { days: 87 });
+  check("... and hidden on its own series too (a spike)", verdict(data("pokemon", [ser("normal", liquid(20)), ser("reverseHolofoil", RAYQUAZA)], { cmEur: 28.42 }), { variant: "reverseHolofoil" })?.[0], true);
   const sib = data("pokemon", [ser("normal", liquid(160)), ser("holofoil", liquid(40))]);
   check("sibling anchor on the default: $160 normal vs a $40 holo is 4x", verdict(sib), [true, "sibling 4.0x"]);
   check("no sibling test for a non-default printing (a holo is 3x its reverse legitimately)", verdict(data("pokemon", [ser("holofoil", liquid(120)), ser("reverseHolofoil", liquid(30))]), { variant: "reverseHolofoil" }), null);
@@ -95,6 +107,7 @@ console.log("Lorcana / One Piece / Yu-Gi-Oh: hard verdicts only until the series
   check("young but hard (a doubling to $100+) still is", verdict(data("lorcana", [ser("normal", [40, 41, 42, 43, 44, 45, 46, 47, 150])]))?.[0], true);
   const old = data("lorcana", [ser("normal", Array(20).fill(500))]);
   check("with 14+ priced days the full rule applies (flat 20d round $500)", verdict(old)?.[0], false);
+  check("a young game's stale note is not held back: it is not a verdict against the price", judgeStale(data("onepiece", [ser("normal", Array(50).fill(500))])), { days: 50 });
 }
 
 console.log("a live price for today");
@@ -139,7 +152,7 @@ console.log("loader: one batch, only flagged cards come back");
     await db.prepare(`INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, price_usd, price_eur, price_eur_foil, synced_at) VALUES (?, ?, 'x', 'X', '1', 150, ?, ?, 0)`).run(id, id, eur, eurFoil);
   }
   clearTrustMemo();
-  const flags = await siteTrust([
+  const { flags, stale: staleMap } = await siteTrustFull([
     { cardId: "junk-rayquaza", game: "pokemon", variant: "holofoil" },
     { cardId: "fine-umbreon", game: "pokemon", variant: "holofoil" },
     { cardId: "junk-deoxys", game: "pokemon", variant: "holofoil" },
@@ -155,10 +168,12 @@ console.log("loader: one batch, only flagged cards come back");
   clearTrustMemo();
   check("Rayquaza flagged with its Cardmarket reason", flags.get(trustKey("junk-rayquaza", "holofoil")), { hard: true, reason: "cardmarket 20.4x" });
   check("Umbreon (Cardmarket agrees) is absent", flags.has(trustKey("fine-umbreon", "holofoil")), false);
-  check("Deoxys holofoil flagged flat", flags.get(trustKey("junk-deoxys", "holofoil"))?.reason, "flat 87d");
-  check("... its normal line is not", flags.has(trustKey("junk-deoxys", "normal")), false);
+  check("Deoxys holofoil is stale (87 days), not flagged", [flags.has(trustKey("junk-deoxys", "holofoil")), staleMap.get(trustKey("junk-deoxys", "holofoil"))], [false, { days: 87 }]);
+  check("... its normal line is neither", [flags.has(trustKey("junk-deoxys", "normal")), staleMap.has(trustKey("junk-deoxys", "normal"))], [false, false]);
   check("Magic foil flagged on the foil EUR, nonfoil not", [flags.has(trustKey("mtg-junk", "foil")), flags.has(trustKey("mtg-junk", "nonfoil")), flags.has(trustKey("mtg-fine", "nonfoil"))], [true, false, false]);
-  check("a card the price table has never seen is not flagged", flags.size, 3);
+  check("a card the price table has never seen is not flagged", flags.size, 2);
+  check("only the one stale card", staleMap.size, 1);
+  check("siteTrust (the hides alone) agrees", (await siteTrust([{ cardId: "junk-deoxys", game: "pokemon", variant: "holofoil" }, { cardId: "junk-rayquaza", game: "pokemon", variant: "holofoil" }])).size, 1);
   const loaded = await loadTrustData([{ cardId: "ebay-only", game: "pokemon" }]);
   check("eBay series are not read by the rule", loaded.get("ebay-only").series.length, 0);
 
@@ -166,10 +181,11 @@ console.log("loader: one batch, only flagged cards come back");
   const card = (id, prices, game) => ({ id, name: id, setName: "X", setSeries: "", number: "1", rarity: null, imageSmall: "", imageLarge: "", englishName: null, prices, ...(game ? { game } : {}) });
   const usd = (variant, market) => ({ source: "tcgplayer", variant, label: variant, currency: "USD", market, low: null, high: null });
   const eurRow = { source: "cardmarket", variant: "holofoil", label: "Cardmarket", currency: "EUR", market: 45.13, low: null, high: null };
-  const input = [card("junk-rayquaza", [usd("holofoil", 1013.27), eurRow]), card("fine-umbreon", [usd("holofoil", 198)]), card("mtg-junk", [usd("nonfoil", 150), usd("foil", 150)], "mtg")];
+  const input = [card("junk-rayquaza", [usd("holofoil", 1013.27), eurRow]), card("fine-umbreon", [usd("holofoil", 198)]), card("mtg-junk", [usd("nonfoil", 150), usd("foil", 150)], "mtg"), card("junk-deoxys", [usd("holofoil", 500)])];
   const before = JSON.stringify(input);
   const out = await withPriceFlags(input);
   check("the flagged USD row carries untrusted", out[0].prices[0].untrusted, { hard: true, reason: "cardmarket 20.4x" });
+  check("the stale USD row carries stale, not untrusted (Deoxys)", [out[3].prices[0].untrusted, out[3].prices[0].stale], [undefined, { days: 87 }]);
   check("the Cardmarket EUR row is never flagged", out[0].prices[1].untrusted === undefined);
   check("a normal card comes back as the same object", out[1] === input[1], true);
   check("Magic: only the flagged finish", out[2].prices.map((p) => !!p.untrusted), [false, true]);
@@ -182,10 +198,11 @@ console.log("loader: one batch, only flagged cards come back");
   check("a live price far from the series (a cached or pokemontcg.io number a cent-exact match would miss) is flagged", await marketPriceFlagged(umbreon(900), 900), true);
   check("a normal live price is not", await marketPriceFlagged(umbreon(198), 198), false);
   check("a flag the client sent along is not evidence", await marketPriceFlagged(umbreon(198, { untrusted: { hard: true, reason: "forged" } }), 198), false);
-  check("a number no row carries is matched to the series whose latest point it is (Deoxys 500)", await marketPriceFlagged(card("junk-deoxys", []), 500), true);
+  check("a number no row carries is matched to the series whose latest point it is (Rayquaza 1013.27)", await marketPriceFlagged(card("junk-rayquaza", []), 1013.27), true);
+  check("... a stale number is saved (Deoxys 500: a note, not a flag)", await marketPriceFlagged(card("junk-deoxys", []), 500), false);
   check("... and a number nothing explains is not judged", await marketPriceFlagged(card("junk-deoxys", []), 123), false);
   check("no catalog id: nothing to judge", await marketPriceFlagged(card("", [usd("holofoil", 900)]), 900), false);
-  check("a prices field that is not a list does not throw (the number is still matched to the series)", await marketPriceFlagged({ ...card("junk-deoxys", []), prices: null }, 500), true);
+  check("a prices field that is not a list does not throw (the number is still matched to the series)", await marketPriceFlagged({ ...card("junk-rayquaza", []), prices: null }, 1013.27), true);
 
   console.log("loadTrustData: overlapping callers share one read");
   clearTrustMemo();

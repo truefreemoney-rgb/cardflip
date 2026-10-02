@@ -10,7 +10,7 @@ import HoloCard from "@/components/HoloCard";
 import { MatchHero } from "@/components/CenteringPhoto";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import { askingNoteFor, askingPriceFor, ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices, tcgPriceOf } from "@/lib/listing";
-import { PriceFlagText } from "@/components/PriceFlagNote";
+import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
 import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
 import { displayCardNumber } from "@/lib/games";
@@ -279,7 +279,11 @@ export default function CardDetailModal({
                             </a>
                           </td>
                         ) : (
-                          <td className="py-2 text-right font-semibold text-emerald-400">{formatMoney(p.market, p.currency)}</td>
+                          <td className="py-2 text-right font-semibold text-emerald-400">
+                            {formatMoney(p.market, p.currency)}
+                            {/* The market has not updated in 45+ days (10-02): the number stands, this says how old it is. */}
+                            {p.stale && <PriceStaleNote className="mt-0.5 font-normal" days={p.stale.days} soldUrl={ebaySoldSearchUrl(card)} />}
+                          </td>
                         )}
                       </tr>
                     ))}

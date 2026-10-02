@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
 import type { Currency, PokemonCard } from "@/lib/types";
-import { PRICE_FLAG_NOTE, type PriceFlag } from "@/lib/priceFlag";
+import { PRICE_FLAG_NOTE, priceStaleNote, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
 import RangePills, { rangeShort, rangeWindow, type RangeChoice } from "@/components/RangePills";
 
 /**
@@ -32,13 +32,17 @@ export interface Series {
   points: Point[];
   /** The price guard flags this series (/api/price-history): the drawn history stays, the latest point is not presented as the price. */
   untrusted?: PriceFlag;
+  /** The latest value has stood 45+ days (/api/price-history, 10-02): shown, with a note. */
+  stale?: PriceStale;
 }
 
 /** The latest recorded point of a series, as the editor stores it (feeds pointCanRebase in lib/listing.ts). */
-export interface RecordedPoint { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag }
+export interface RecordedPoint { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag; stale?: PriceStale }
 const pointOf = (s: Series): RecordedPoint | null => {
   const last = s.points[s.points.length - 1];
-  return last ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}) } : null;
+  return last
+    ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}), ...(s.stale ? { stale: s.stale } : {}) }
+    : null;
 };
 
 
@@ -417,6 +421,10 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
                 <span className={`${label} text-zinc-500`}>first recorded {shortDay(last.day)}</span>
               )}
             </div>
+          )}
+          {/* The latest value has stood 45+ days (10-02): the number stands, this says how old it is. */}
+          {last && !flagged && !hovered && series?.stale && (
+            <p className={`${label} mt-0.5 text-zinc-400`}>{priceStaleNote(series.stale.days)}</p>
           )}
         </div>
         {/* The one date changer (Chris 10-02): Dates, 24h, 7 days, 30 days, 90 days. */}

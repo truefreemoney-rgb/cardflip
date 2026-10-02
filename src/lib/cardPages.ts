@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import { addDays, dayIndex, toPoints, type HistoryPoint } from "@/lib/priceSeries";
-import type { PriceFlag } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { etDate } from "@/lib/time";
 import { clipDescription, pageMetadata } from "@/lib/seo";
 import type { GameId } from "@/lib/types";
@@ -220,6 +220,8 @@ export interface VariantPrice {
   /** Priced days behind this printing's series. */
   days: number;
   flag: PriceFlag | null;
+  /** The value has stood 45+ days (10-02): printed, with a note. */
+  stale?: PriceStale | null;
 }
 
 /** A price too high to stand on a day or two of history (VERIFY_ABOVE_USD): never featured or indexed until it has some. */
@@ -230,6 +232,7 @@ export interface SeriesInput {
   startDay: string;
   prices: (number | null)[];
   flag: PriceFlag | null;
+  stale?: PriceStale | null;
 }
 
 /** Display order of printings: the one people usually mean first (same as variantRank in lib/server/priceHistory.ts). */
@@ -252,7 +255,7 @@ export function variantPrices(game: GameId, series: SeriesInput[], today: string
     // A four-figure price on a few days of history is never printed either (a $213k Yu-Gi-Oh! common got past the guard on day one).
     const young = !s.flag && isUnverified({ price: last.price, days });
     const flag = young ? { hard: false, reason: `unverified ${days}d` } : s.flag;
-    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag });
+    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag, ...(s.stale && !flag ? { stale: s.stale } : {}) });
   }
   return out.sort((a, b) => variantRank(a.variant) - variantRank(b.variant) || a.variant.localeCompare(b.variant));
 }

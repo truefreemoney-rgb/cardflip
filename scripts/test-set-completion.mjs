@@ -46,9 +46,9 @@ await recordPoint("base-3", "pokemon", "normal", "tcgplayer", "USD", 2.5);
 // base-4 has no usable price on purpose: a stuck round $500 for 87 days, which the site price guard
 // (priceTrustSite) flags, so it counts as unpriced and adds nothing to the cost to finish.
 {
-  const { flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(new URL("../src/lib/priceSeries.ts", import.meta.url).href);
-  await recordSeries(recordPoint, addDays, todayUtc(), "base-4", "pokemon", "holofoil", flatPrices(500, 87));
+  await recordSeries(recordPoint, addDays, todayUtc(), "base-4", "pokemon", "holofoil", junkPrices(500));
 }
 
 const u = await createUser("Seller", "seller@example.com", "hunter22", "user");

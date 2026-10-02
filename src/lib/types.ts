@@ -1,4 +1,4 @@
-import type { PriceFlag } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
 export type ScanLanguage = "en" | "ja" | "zh";
 
@@ -42,6 +42,8 @@ export interface CardPrice {
    * price_checks keep payloads verbatim, so the flag is added on the way out.
    */
   untrusted?: PriceFlag;
+  /** Set at response time on a TCGplayer USD row whose value has not changed in 45+ days (lib/priceFlag.ts PriceStale): shown, with a note. Never stored. */
+  stale?: PriceStale;
 }
 
 export interface PokemonCard {

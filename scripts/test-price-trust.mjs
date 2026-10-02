@@ -78,12 +78,23 @@ check("3x every other variant fails ($60 vs $15)", judge(liquid(60), { siblings:
 check("the HIGHEST other variant is the anchor ($60 vs $15 and $45)", judge(liquid(60), { siblings: [15, 45] }).ok);
 check("under $50 it does not apply ($40 vs $10)", judge(liquid(40), { siblings: [10] }).ok);
 
-console.log("test 4: stuck listing (>= $100)");
+console.log("test 4: stuck listing (>= $100) = a NOTE since 10-02 (ok false for the social picks, hard false + stale days for the screens)");
 const flat = (v, days) => [...liquid(v * 0.9, 20).slice(0, 20), ...Array(days).fill(v)];
-check("$121 flat 45 days fails", verdict(flat(121, 45)), [false, "flat 45d"]);
+check("$121 flat 45 days is stale", verdict(flat(121, 45)), [false, "flat 45d"]);
+check("... hard false, stale = the days: the screens show $121 with the note", [judge(flat(121, 45)).hard, judge(flat(121, 45)).stale], [false, 45]);
 check("$121 flat 44 days is only thin: one sign at $100-$499 is fine", judge(flat(121, 44)).ok);
 check("$80 flat 200 days is cheap and low-risk", judge(flat(80, 200)).ok);
 check("calendar days, not points: a null gap still counts", verdict([...liquid(120, 20), 121, ...Array(20).fill(null), 121, ...Array(30).fill(null), 121], {})[0], false);
+check("Deoxys: stale, not wrong (hard false, 87 days)", [judge(DEOXYS).hard, judge(DEOXYS).stale], [false, 87]);
+// Charizard Plasma Storm 136 (bw8-136), 10-02: TCGplayer $1,150 flat 128 days, Cardmarket EUR 302.44 (3.5x). eBay sold (read 10-02): raw
+// median $745, Near Mint $1,276-$1,651, so $1,150 is a fair NM price. The hide buried it; now it shows with the note and the gap named.
+const CHARIZARD_PLASMA = [...liquid(1100, 30), ...Array(128).fill(1150)];
+check("Charizard bw8-136 $1,150 flat 128d, Cardmarket 3.5x: shown with the note", judge(CHARIZARD_PLASMA, { refEur: 302.44 }), { ok: false, hard: false, stale: 128, reason: "flat 128d, cardmarket 3.5x" });
+check("... the soft signs (round $1,150, thin) do not pile on top of stale", judge(CHARIZARD_PLASMA).hard, false);
+check("... but a 5x Cardmarket gap still hides it (test 1 runs first)", judge(CHARIZARD_PLASMA, { refEur: 200 }).hard, true);
+check("... and a spike that never came back still hides it (test 2 runs first)", [judge(RAYQUAZA).hard, judge(RAYQUAZA).stale], [true, undefined]);
+check("... and a 3x sibling still hides it (test 3 runs first)", judge(CHARIZARD_PLASMA, { siblings: [300] }).hard, true);
+check("the stale note is for a CURRENT price only: as an OLD price flat is still wrong", judge(flat(121, 45), { old: true }), { ok: false, hard: true, reason: "flat 45d" });
 
 console.log("test 5: graded evidence ($100+)");
 check("$250 with one sign (round) passes", judge([...liquid(240, 40), 250]).ok);
@@ -103,7 +114,7 @@ const LUGIA_1ST = expand([[1299.96, 21], [1599.98, 30], [1299.96, 48], [1100.75,
 const HOOH_1ST = expand([[350, 2], [72, 2], [350, 14], [70.01, 4], [488.52, 17], [72, 10], [488.52, 52], [null, 2], [488.52, 33]]); // neo3-7-1st: flaps between 72 and 488, then sits at 488.52 for 87 days
 check("1st Ed Lugia $1,135 after a 4-day $165 dip is not a spike (it traded there for a month)", judge(LUGIA_1ST).ok);
 check("Rayquaza col1-20 is still a spike: it never traded near $536 before", verdict(RAYQUAZA.slice(0, 92))[1].startsWith("spike"));
-check("1st Ed Ho-oh is out for what it is: no sale at $488.52 in 87 days, not a spike", verdict(HOOH_1ST), [false, "flat 87d"]);
+check("1st Ed Ho-oh is out for what it is: no sale at $488.52 in 87 days, not a spike (stale, shown with the note)", [...verdict(HOOH_1ST), judge(HOOH_1ST).stale], [false, "flat 87d", 87]);
 check("a glitch-low that recovers is not a spike at any price ($150 x60, $40 x5, $150)", judge([...Array(60).fill(0).map((_, i) => 150 + (i % 4)), ...Array(5).fill(40), 150]).ok);
 check("one earlier blip does not turn a real spike into a recovery ($100 x60, $520 once, $100 x3, $530)", verdict([...liquid(100, 60), 520, 100, 100, 100, 530])[0], false);
 
@@ -119,7 +130,7 @@ console.log("10-01 review: a vintage print is not junk for being thin or round (
 check("$10,000 1st Ed Charizard (thin + round) is a vintage print: passes", judge([...Array(20).fill(9500), 10000], { vintage: true }).ok);
 check("the same numbers on a modern card are unverified, not wrong", [judge([...Array(20).fill(9500), 10000]).ok, judge([...Array(20).fill(9500), 10000]).hard], [false, false]);
 check("Magikarp & Wailord GX $882.13 (modern) flat 22 days, no second source: still unverified", verdict([...liquid(880, 40), ...Array(22).fill(882.13)]), [false, "thin"]);
-check("vintage still needs to trade: flat 45 days is a listing at any age", verdict(Array(50).fill(1200.5), { vintage: true }), [false, "flat 50d"]);
+check("vintage still needs to trade: flat 45 days is stale at any age (a note, not a hide)", [...verdict(Array(50).fill(1200.5), { vintage: true }), judge(Array(50).fill(1200.5), { vintage: true }).stale], [false, "flat 50d", 50]);
 check("the excuse starts at $500: a vintage $250 that is thin and round still fails", verdict([...Array(40).fill(200), 250], { vintage: true })[0], false);
 check("a second source that disagrees (3-5x) takes the excuse away ($949 vintage, thin, Cardmarket 4.0x)", verdict([...liquid(940, 40), ...Array(22).fill(949.79)], { vintage: true, refEur: 216 })[0], false);
 check("a vintage sign that is not thin or round still counts (spike at $1,900)", verdict([...liquid(900, 30), 1900, 1900, ...Array(12).fill(1899.99)], { vintage: true })[0], false);

@@ -19,8 +19,8 @@ import {
 import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
-import { PriceFlagText } from "@/components/PriceFlagNote";
-import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
+import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
+import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -146,6 +146,8 @@ interface Repriced {
   cards: Record<string, PokemonCard>;
   /** item.id → the price guard flags today's market (no number, out of the totals). */
   flags: Record<string, PriceFlag>;
+  /** item.id → today's market has not updated in 45+ days (10-02): the number shows, with a note under it. */
+  stale: Record<string, PriceStale>;
 }
 
 /** What the tile already knows about its card, shaped for the detail modal —
@@ -206,6 +208,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const cardIds: Record<string, string> = {};
   const resolved: Record<string, PokemonCard> = {};
   const flags: Record<string, PriceFlag> = {};
+  const stale: Record<string, PriceStale> = {};
   await Promise.all(
     targets.map(async (item) => {
       try {
@@ -225,13 +228,17 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
         const usd = match.prices.find((p) => p.currency === "USD" && p.market != null);
         if (usd?.untrusted) flags[item.id] = usd.untrusted;
-        else if (usd?.market != null) prices[item.id] = usd.market;
+        else if (usd?.market != null) {
+          prices[item.id] = usd.market;
+          // A market that has not updated in 45+ days (10-02): shown, with the note under it.
+          if (usd.stale) stale[item.id] = usd.stale;
+        }
       } catch {
         // Row keeps its saved price; delta and sparkline just don't show.
       }
     }),
   );
-  return { prices, cardIds, cards: resolved, flags };
+  return { prices, cardIds, cards: resolved, flags, stale };
 }
 
 /** Since-saved move as a chip; quiet when under a dollar and 1%. */
@@ -265,6 +272,7 @@ export default function WishlistPage() {
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
   // Rows whose current market the price guard flags: the note instead of a number, and out of the totals.
   const [nowFlags, setNowFlags] = useState<Record<string, PriceFlag>>({});
+  const [nowStale, setNowStale] = useState<Record<string, PriceStale>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
@@ -306,10 +314,11 @@ export default function WishlistPage() {
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
         fetchCurrentPrices(list)
-          .then(({ prices, cardIds, cards, flags }) => {
+          .then(({ prices, cardIds, cards, flags, stale }) => {
             if (cancelled) return;
             setNowPrices(prices);
             setNowFlags(flags);
+            setNowStale(stale);
             setResolvedIds(cardIds);
             resolvedCards.current = { ...resolvedCards.current, ...cards };
           })
@@ -783,6 +792,7 @@ export default function WishlistPage() {
                         )}
                         {!flagged && item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
                       </div>
+                      {!flagged && nowStale[item.id] && <PriceStaleNote className="mt-1" days={nowStale[item.id].days} soldUrl={ebaySoldSearchUrl(stubCard(item))} />}
                       <p className="mt-1 truncate text-[11px] text-zinc-500">
                         {!flagged && now != null && item.price != null
                           ? `Saved ${formatMoney(item.price)} · ${formatShortDate(item.addedAt)}`

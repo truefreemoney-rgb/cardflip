@@ -31,7 +31,7 @@ const { refreshLivePrices } = await import(at("lib/server/livePrices.ts"));
 const { askingPriceFor, CONDITION_MULTIPLIER } = await import(at("lib/listing.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
-const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { liquidPrices, flatPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -58,7 +58,8 @@ await recordPoint("base1-58", "pokemon", "normal", "tcgplayer", "USD", 20);
 // $100+ needs a real history: a one-point series is "unverified" to the price guard.
 await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(100));
 // Junk: a round $500 for 87 days (Deoxys), and a healthy $300 card.
-await recordSeries(recordPoint, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", flatPrices(500, 87));
+await recordSeries(recordPoint, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", junkPrices(500)); // hidden: a 5x spike that never came back
+await recordSeries(recordPoint, addDays, todayUtc(), "stale-deoxys", "pokemon", "holofoil", flatPrices(500, 87)); // stale (10-02): shown with a note
 await recordSeries(recordPoint, addDays, todayUtc(), "fine-300", "pokemon", "holofoil", liquidPrices(300));
 
 const draft = await mk({ price: 12.5, catalogCardId: "base1-58" });
@@ -89,6 +90,7 @@ await updateCard(junkListed.id, user.id, { status: "listed", listedAt: Date.now(
 const junkOld = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(junkOld.id);
 const fine = await mk({ price: 250, catalogCardId: "fine-300", cardName: "Fine" });
+const staleDraft = await mk({ price: 480, catalogCardId: "stale-deoxys", cardName: "Stale" });
 // The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-01: a flat
 // $10,000 Charizard read "added at $8,799.99, up 13.6%").
 const quickScan = await mk({ price: 17.59, scanPrice: 20, catalogCardId: "base1-58" });
@@ -139,7 +141,9 @@ check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { var
 
 console.log("the price guard");
 check("flagged draft: reported with the flag and no suggestion; its market-written price is blanked (applied)", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: true, suggested: 0, market: 500 });
-check("... the flag says why", by[junkDraft.id]?.flag, { hard: true, reason: "flat 87d" });
+check("... the flag says why", [by[junkDraft.id]?.flag?.hard, by[junkDraft.id]?.flag?.reason.startsWith("spike")], [true, true]);
+check("stale draft (flat $500 for 87 days): suggested and applied as usual, no flag, the note rides along", pick(by[staleDraft.id], ["flag", "market", "stale"]), { market: 500, stale: { days: 87 } });
+check("... its suggestion is the normal market ask", by[staleDraft.id]?.suggested > 0, true);
 check("... the stored 480 is blanked to 0 (the seller never typed it), and stays 0 on the next load", [(await getCardForUser(junkDraft.id, user.id)).price, (await refreshLivePrices(user.id)).find((p) => p.cardId === junkDraft.id)?.applied], [0, false]);
 check("flagged locked and listed rows are flagged too and keep their price", [by[junkLocked.id]?.flag?.hard, by[junkListed.id]?.flag?.hard, (await getCardForUser(junkLocked.id, user.id)).price, (await getCardForUser(junkListed.id, user.id)).price], [true, true, 450, 500]);
 check("flagged row: no scan-price backfill", [by[junkOld.id]?.scanned, (await getCardForUser(junkOld.id, user.id)).scanPrice], [null, null]);

@@ -24,6 +24,7 @@ import {
 } from "@/lib/cardPages";
 import { STRIP_TILES, loadCardPage, loadCardRecord, publicCardGame, setIndex, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
+import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
 import type { GameId } from "@/lib/types";
@@ -83,6 +84,7 @@ function PriceTable({ page }: { page: CardPage }) {
           <dd className="text-right">
             <PriceCell price={p.flag ? null : p.price} flagged={Boolean(p.flag)} className="text-base" />
             <span className="ml-2 text-xs text-zinc-500">{priceDayLabel(p.day)}</span>
+            {p.stale && !p.flag && <span className="block text-xs text-zinc-400">{priceStaleNote(p.stale.days)}</span>}
           </dd>
         </div>
       ))}
@@ -100,6 +102,8 @@ function PriceBlock({ page }: { page: CardPage }) {
         </p>
         <p className="font-display text-4xl font-bold tabular-nums text-emerald-300 sm:text-5xl">{formatMoney(headline.price)}</p>
         <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}. Recorded daily by CardFlip.</p>
+        {/* The value has stood 45+ days (10-02): the number stands, this says how old it is. */}
+        {headline.stale && <p className="mt-0.5 text-sm text-zinc-400">{priceStaleNote(headline.stale.days)}.</p>}
         {page.changes.length > 0 && (
           <ul className="mt-3 space-y-0.5 text-sm text-zinc-300">
             {page.changes.map((c) => (

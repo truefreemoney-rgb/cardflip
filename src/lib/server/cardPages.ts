@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cachedList } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { PRICE_TRUST, lastPriced } from "@/lib/server/priceTrust";
-import { judgeSeries, loadTrustData, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
+import { judgeFull, judgeSeries, loadTrustData, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { addDays, dayIndex, decodePrices, todayUtc, toPoints } from "@/lib/priceSeries";
 import {
@@ -322,7 +322,8 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
 
   let inputs: SeriesInput[];
   try {
-    inputs = series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) }));
+    // The stale note (10-02) rides along: a price that has stood 45+ days is printed with "Market hasn't updated this in N months".
+    inputs = series.map((s) => ({ ...s, ...judgeFull(data, { variant: s.variant, exact: true, day: today }) }));
   } catch (err) {
     console.warn(`card pages: the price guard failed on ${facts.id}, printing no price`, err);
     return { facts, decision: indexDecision([]), ...NO_PRICE };

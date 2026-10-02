@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     for (const card of cards) {
       const p = prices.get(card.id);
       if (!p) continue;
-      card.prices = [{ ...heldPriceEntry(p), ...(p.flag ? { untrusted: p.flag } : {}) }];
+      card.prices = [{ ...heldPriceEntry(p), ...(p.flag ? { untrusted: p.flag } : {}), ...(p.stale ? { stale: p.stale } : {}) }];
     }
     return NextResponse.json({ cards });
   } catch (err) {

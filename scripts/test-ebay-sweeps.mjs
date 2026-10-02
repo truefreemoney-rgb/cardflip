@@ -259,10 +259,10 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
 
 // --- the price guard (priceTrustSite): a flagged market never nudges, dips or becomes a baseline ---------
 {
-  const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { liquidPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
   const today = todayUtc();
-  await recordSeries(recordPoint, addDays, today, "g-junk", "pokemon", "holofoil", flatPrices(500, 87)); // a stuck round $500
+  await recordSeries(recordPoint, addDays, today, "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   await recordSeries(recordPoint, addDays, today, "g-fine", "pokemon", "holofoil", liquidPrices(300));
   const junkListed = await listedCard({ price: 200, catalogId: "g-junk", listedAt: NOW - 8 * DAY });
   const fineListed = await listedCard({ price: 150, catalogId: "g-fine", listedAt: NOW - 8 * DAY });

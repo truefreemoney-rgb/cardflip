@@ -21,8 +21,8 @@ import { displayCardNumber } from "@/lib/games";
 import { addToWishlist } from "@/lib/client/wishlistApi";
 import Price from "@/components/Price";
 import LocalListingLine from "@/components/LocalListingLine";
-import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote, priceFlagOf } from "@/lib/listing";
-import PriceFlagNote from "@/components/PriceFlagNote";
+import { CONDITIONS, CONDITION_MULTIPLIER, buildListing, canPriceListing, describeItemCondition, canBeFirstEdition, effectiveVariant, formatMoney, ebaySearchUrl, ebaySoldSearchUrl, isFirstEditionCard, isFirstEditionVariant, itemFirstEdition, quoteForItem, quotePrice, quickSaleEligible, withListingOverrides, floorNote, priceFlagOf, priceStaleOf } from "@/lib/listing";
+import PriceFlagNote, { PriceStaleNote } from "@/components/PriceFlagNote";
 import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/grading";
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
@@ -523,6 +523,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
   // The price guard: the market behind this card is one the rule does not believe, so no price is suggested (quote is null) and the note says why.
   const priceFlag = priceFlagOf(card, variant, currentPoint);
+  // The market behind the quote has not updated in 45+ days (10-02): the quote stands, a line under it says so.
+  const priceStale = priceStaleOf(card, variant, currentPoint);
   // Quick sale is a $5+ option (Chris, 09-03): under that, the only tile is
   // Market and it reads as selected whatever the remembered strategy says
   // (quotePrice already prices "quick" as market there). The test is on the
@@ -1092,6 +1094,13 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
           No market price is available for this card — set your own price below.
         </p>
+      )}
+      {quote && priceStale && (
+        <PriceStaleNote
+          className="px-1"
+          days={priceStale.days}
+          soldUrl={facts.firstEdition || item.grading ? ebaySoldSearchUrl(card, facts) : (item.ebaySoldUrl ?? ebaySoldSearchUrl(card))}
+        />
       )}
 
       <MarketMetricsPanel
