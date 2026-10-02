@@ -18,9 +18,9 @@ import {
 } from "@/lib/client/wishlistApi";
 import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
+import { ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
-import { priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
+import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -763,7 +763,19 @@ export default function WishlistPage() {
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         {flagged ? (
-                          <p className="text-xs font-medium leading-snug"><PriceFlagText /></p>
+                          // The note says "check sold listings": the tile hands over that search (10-02), as the Inventory and the detail view do.
+                          <p className="text-xs font-medium leading-snug">
+                            <PriceFlagText />.{" "}
+                            <a
+                              href={ebaySoldSearchUrl(stubCard(item))}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="whitespace-nowrap font-semibold text-amber-300 underline underline-offset-2 transition hover:text-amber-200"
+                            >
+                              {PRICE_FLAG_LINK}
+                            </a>
+                          </p>
                         ) : (
                           <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
                             {formatMoney(shownPrice)}
