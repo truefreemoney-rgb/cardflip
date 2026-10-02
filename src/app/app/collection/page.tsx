@@ -1794,9 +1794,11 @@ export default function CollectionPage() {
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
                 <p className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                  <Price usd={stats.inPlay} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                  {/* The eBay prices added up, BEFORE fees (Chris, 10-02: the after-fees figure up here "feels
+                      off" beside a no-fees market total); what is kept after fees is the ledger's last line. */}
+                  <Price usd={stats.inPlayGross} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
                 </p>
-                <p className="text-[11px] leading-snug text-zinc-500">After Fees and Postage</p>
+                <p className="text-[11px] leading-snug text-zinc-500">eBay Prices, Before Fees</p>
               </div>
               <div className="min-w-0 border-l border-edge/60 pl-3">
                 <p className="text-[11px] font-medium text-zinc-400">Off eBay</p>
@@ -1814,9 +1816,9 @@ export default function CollectionPage() {
             )}
             <Breakdown
               rows={[
-                ["eBay Prices", stats.inPlayGross],
                 ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
                 [`Postage · ${stats.inPlayCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.inPlayCopies * POSTAGE_USD)],
+                ["You Keep on eBay", stats.inPlay],
               ]}
             />
           </div>
