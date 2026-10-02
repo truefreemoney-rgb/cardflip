@@ -1481,6 +1481,9 @@ export default function CollectionPage() {
     const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null || c.soldByHand);
     // Postage only comes off eBay sales.
     const postedCopies = sold.filter((c) => c.soldPrice != null && !c.soldByHand).length;
+    const handSold = sold.filter((c) => c.soldPrice != null && c.soldByHand);
+    const handCount = handSold.length;
+    const handEarned = handSold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
     // Seller-typed and listed prices count; a flagged unlocked draft does not (leftOutKey above).
     const leftOutIds = new Set(leftOutKey ? leftOutKey.split(",") : []);
     const leftOut = drafts.filter((c) => leftOutIds.has(c.id));
@@ -1509,7 +1512,7 @@ export default function CollectionPage() {
     const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, avgDays, cost, costKnown, profit };
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, handCount, handEarned, avgDays, cost, costKnown, profit };
   }, [scopeCards, leftOutKey]);
 
 
@@ -1678,10 +1681,26 @@ export default function CollectionPage() {
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
-            <p className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-white">
-              <Price usd={stats.inPlay} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
+            {/* Two balances side by side (Chris, 10-02: "show the balance with and without ebay"): what the pile
+                puts in the pocket sold on eBay, and sold off eBay at the same prices (no fee, no postage). The
+                ledger under them is the difference. */}
+            <div className="mt-1.5 grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
+                <p className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                  <Price usd={stats.inPlay} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                </p>
+                <p className="text-[11px] leading-snug text-zinc-500">After Fees and Postage</p>
+              </div>
+              <div className="min-w-0 border-l border-edge/60 pl-3">
+                <p className="text-[11px] font-medium text-zinc-400">Off eBay</p>
+                <p className="font-display text-2xl font-semibold tracking-tight text-zinc-200 sm:text-3xl">
+                  <Price usd={stats.inPlayGross} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                </p>
+                <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">Take-home if every draft and live listing sells</p>
             {stats.leftOut > 0 && (
               <p className="mt-1 text-xs text-amber-300">
                 {priceFlagLeftOut(stats.leftOut)}
@@ -1716,7 +1735,13 @@ export default function CollectionPage() {
             {stats.sold.length > 0 ? (
               <Breakdown
                 rows={[
-                  ["Sold for", stats.earned],
+                  // With a hand-marked sale in the pile, the sales split by where they sold (those carry no fee or postage).
+                  ...(stats.handCount > 0
+                    ? ([
+                        [`Sold on eBay · ${stats.soldCopies - stats.handCount}`, stats.earned - stats.handEarned],
+                        [`Sold off eBay · ${stats.handCount}`, stats.handEarned],
+                      ] as [string, number][])
+                    : ([["Sold for", stats.earned]] as [string, number][])),
                   [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.postedCopies * POSTAGE_USD)],
                   [`Postage · ${stats.postedCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.postedCopies * POSTAGE_USD)],
                   ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
