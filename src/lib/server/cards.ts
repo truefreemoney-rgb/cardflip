@@ -217,7 +217,7 @@ export interface NewCard {
   /**
    * The plain-market asking price on the add day, when `price` is something else. The scanner saves
    * its quick-sale price (88% of market) and the Inventory live refresh then rewrites the row to the
-   * market ask, so "added at → now" read as a 13.6% gain the market never made (Chris, 10-02).
+   * market ask, so "added at → now" read as a 13.6% gain the market never made (Chris, 10-01).
    */
   scanPrice?: number | null;
   catalogCardId?: string | null;

@@ -1,4 +1,4 @@
-// One-off (10-02): held rows whose scan_price is the scanner's quick-sale price (88% of market)
+// One-off (10-01): held rows whose scan_price is the scanner's quick-sale price (88% of market)
 // instead of the market ask. Inventory compared it to today's market ask and showed a 13.6% gain
 // the market never made (Chris's 1st Edition Charizard: "added at $8,799.99", flat $10,000 chart).
 //

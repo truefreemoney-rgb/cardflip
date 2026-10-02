@@ -89,7 +89,7 @@ await updateCard(junkListed.id, user.id, { status: "listed", listedAt: Date.now(
 const junkOld = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(junkOld.id);
 const fine = await mk({ price: 250, catalogCardId: "fine-300", cardName: "Fine" });
-// The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-02: a flat
+// The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-01: a flat
 // $10,000 Charizard read "added at $8,799.99, up 13.6%").
 const quickScan = await mk({ price: 17.59, scanPrice: 20, catalogCardId: "base1-58" });
 

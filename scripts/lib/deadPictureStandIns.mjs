@@ -32,6 +32,10 @@ const OTHER_ART = new Set(["alt-art", "extended-art"]);
  */
 export function deadPictureStandIns(rows, dead, own = {}) {
   const live = new Map();
+  // A row already showing a picture we host is "live" on the next run; alt-art and extended-art
+  // rows must not borrow it then either (10-01: a second repoint run gave 8 extended-art rows
+  // the standard artwork, caught in the dry run before prod).
+  const hosted = new Set(Object.values(own));
   for (const r of rows) {
     if (!r.image_url || dead.has(r.image_url)) continue;
     if (!live.has(r.name)) live.set(r.name, []);
@@ -41,7 +45,7 @@ export function deadPictureStandIns(rows, dead, own = {}) {
   const out = new Map();
   for (const r of rows) {
     if (!dead.has(r.image_url)) continue;
-    const same = live.get(r.name) ?? [];
+    const same = (live.get(r.name) ?? []).filter((s) => !(OTHER_ART.has(r.variant) && hosted.has(s.image_url)));
     let pool = same.filter((s) => s.variant === r.variant);
     if (!pool.length && r.variant !== "alt-art") pool = same.filter((s) => s.variant !== "alt-art");
     if (!pool.length) {

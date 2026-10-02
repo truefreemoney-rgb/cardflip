@@ -1,4 +1,4 @@
-// Yu-Gi-Oh tokens that TCGplayer has no scan of and YGOPRODeck does not list by name (10-02):
+// Yu-Gi-Oh tokens that TCGplayer has no scan of and YGOPRODeck does not list by name (10-01):
 // the "Token: character & monster" cards pulled from 2025-26 boosters (printed TKN5-EN...) and
 // OTS Tournament Pack 26's Bomb Token. Yugipedia has the English print of each; copied into
 // public/catalog/yugioh (480px, never hotlinked) and added to scripts/yugioh-own-pictures.json,
@@ -8,7 +8,7 @@
 //   (push, wait for the deploy to serve the files)
 //   node scripts/repoint-dead-pictures.mjs --prod
 //
-// Left out on purpose (only a Japanese or a different English print exists there, checked 10-02;
+// Left out on purpose (only a Japanese or a different English print exists there, checked 10-01;
 // Chris: "wait for english"): the Beyond the Brave tokens Aster / Gong Strong / Kalin / Nash / Joey,
 // Audhumla, Clown Crew Cappello. Add them here once Yugipedia has the BETB English scans.
 // Fairy Tale Tails (UP01): the only English scan is the Ghosts From the Past print, which carries
