@@ -11,6 +11,7 @@
 // carries "(Parallel)" etc. — the variant column keeps that so the picture
 // tiebreak can pick the price line.
 import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
 import path from "node:path";
 import { ONE_PIECE_DON_SET, onePieceDonKey, parseOnePieceDon } from "../src/lib/onepiece.ts";
 
@@ -91,6 +92,13 @@ function splitVariant(name) {
 const PROMO_SET_CODE = "PROMO";
 // A blank feed picture never wipes one fill-missing-pictures.mjs found elsewhere (10-01).
 const promoPicture = db.prepare("UPDATE tcg_cards SET image_url = ?1 WHERE id = ?2 AND ?1 <> ''");
+// The feed hands ~16 promo / DON!! rows TCGplayer's "image not available"
+// drawing under a .jpg name (sweep-picture-links.mjs --game onepiece lists
+// them). That counts as no picture: fill-missing-pictures.mjs gives the row a
+// stand-in where one exists, and the next sync must not put the drawing back.
+const deadFile = path.join(process.cwd(), "scripts", "dead-pictures-onepiece.json");
+const DEAD_PICTURES = new Set(fs.existsSync(deadFile) ? JSON.parse(fs.readFileSync(deadFile, "utf8")) : []);
+const feedPicture = (c) => { const url = String(c.card_image ?? ""); return DEAD_PICTURES.has(url) ? "" : url; };
 function promoVariant(cardName, imageId, key) {
   const { variant } = splitVariant(cardName);
   if (variant) return variant.replace(/^-+|-+$/g, "");
@@ -139,14 +147,14 @@ for (const [label, url, floor] of FEEDS) {
         "",
         String(c.rarity ?? ""),
         promoVariant(c.card_name, imageId, key),
-        String(c.card_image ?? ""),
-        String(c.card_image ?? ""),
+        feedPicture(c),
+        feedPicture(c),
         c.market_price != null ? Number(c.market_price) : null,
         null,
         now,
       );
       // The upsert leaves image_url alone on a conflict (the images pass owns it for regular rows).
-      promoPicture.run(String(c.card_image ?? ""), `${imageId}#promo`);
+      promoPicture.run(feedPicture(c), `${imageId}#promo`);
       total++;
       continue;
     }
@@ -206,8 +214,8 @@ if (process.argv.includes("--with-don")) {
       if (!full) continue;
       const don = parseOnePieceDon(String(c.card_name ?? ""), full);
       const id = `${onePieceDonKey(full)}#don`;
-      upsert.run(id, "DON!! Card", don.subtitle, ONE_PIECE_DON_SET, don.setName, "", null, "", "DON!!", don.variant, String(c.card_image ?? ""), String(c.card_image ?? ""), c.market_price != null ? Number(c.market_price) : null, null, now);
-      promoPicture.run(String(c.card_image ?? ""), id);
+      upsert.run(id, "DON!! Card", don.subtitle, ONE_PIECE_DON_SET, don.setName, "", null, "", "DON!!", don.variant, feedPicture(c), feedPicture(c), c.market_price != null ? Number(c.market_price) : null, null, now);
+      promoPicture.run(feedPicture(c), id);
       total++;
     }
     db.exec("COMMIT");

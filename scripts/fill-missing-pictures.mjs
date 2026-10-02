@@ -13,6 +13,10 @@
 //   Then Bandai's own card list (en.onepiece-cardgame.com) by card id, only
 //   where that id is one printing (a "P-0xx" with a single row here): a
 //   regular number's promo printing has different art from its base card.
+//   Last, the printings that are known to look like another row of the same
+//   number (SAME_PICTURE_AS). Rows carrying the feed's "image not available"
+//   drawing (scripts/dead-pictures-onepiece.json, from sweep-picture-links.mjs
+//   --game onepiece) are blanked first so they go through the same steps.
 //
 // Writes the local mirror (data/cardflip.db) always; --prod also writes Turso
 // (.env.migration.json), only where the picture is still ''. sync-mtg and
@@ -88,8 +92,22 @@ const HAND_PRODUCTS = {
   "P-072_pr1#promo": "https://en.onepiece-cardgame.com/images/cardlist/card/P-072.png",
 };
 
+// Printings that look like another row of the same number, checked against
+// eBay seller photos (10-01): the CS 2023 Finalist cards are the CS 2023 Event
+// Pack cards in foil, the Demo Deck 2023 cards are the base cards. The Welcome
+// Pack Vol. 1 cards are NOT their base cards (full art, own background).
+const SAME_PICTURE_AS = { "cs-2023-event-pack-finalist-ver": "cs-2023-event-pack", "demo-deck-2023": "" };
+
 async function onePiece() {
-  const missing = (await local.execute("SELECT id, name, collector_number, variant, set_code FROM tcg_cards WHERE game = 'onepiece' AND COALESCE(image_url, '') = ''")).rows;
+  // A link the sweep found to be the "image not available" drawing is no picture.
+  const deadFile = path.join(root, "scripts", "dead-pictures-onepiece.json");
+  const deadLinks = fs.existsSync(deadFile) ? JSON.parse(fs.readFileSync(deadFile, "utf8")) : [];
+  if (!dry) for (const url of deadLinks) for (const col of ["image_url", "ref_image_url"]) {
+    const sql = `UPDATE tcg_cards SET ${col} = '' WHERE game = 'onepiece' AND ${col} = ?`;
+    await local.execute({ sql, args: [url] });
+    if (prod) await prod.execute({ sql, args: [url] });
+  }
+  const missing =(await local.execute("SELECT id, name, collector_number, variant, set_code FROM tcg_cards WHERE game = 'onepiece' AND COALESCE(image_url, '') = ''")).rows;
   console.log(`One Piece: ${missing.length} cards without a picture`);
   const feedRaw = await (await fetch("https://optcgapi.com/api/allPromos/", { headers: HEADERS, signal: AbortSignal.timeout(60000) })).json();
   const feed = new Map((Array.isArray(feedRaw) ? feedRaw : feedRaw.results ?? feedRaw.data ?? []).map((c) => [`${c.card_image_id ?? c.card_set_id}#promo`, c]));
@@ -138,6 +156,17 @@ async function onePiece() {
       const url = `https://en.onepiece-cardgame.com/images/cardlist/card/${card.collector_number}.png`;
       if (await imageOk(url)) {
         await write("tcg_cards", ["image_url", "ref_image_url"], card.id, url, "bandai card list");
+        done = true;
+      }
+    }
+    if (!done && String(card.variant) in SAME_PICTURE_AS) {
+      const twin = (await local.execute({
+        sql: "SELECT id, image_url FROM tcg_cards WHERE game = 'onepiece' AND collector_number = ? AND variant = ? AND COALESCE(image_url, '') <> '' ORDER BY id LIMIT 1",
+        args: [card.collector_number, SAME_PICTURE_AS[card.variant]],
+      })).rows[0];
+      if (twin) {
+        // Shown picture only: the scanner's reference stays empty for a stand-in.
+        await write("tcg_cards", ["image_url"], card.id, String(twin.image_url), `same picture as ${twin.id}`);
         done = true;
       }
     }

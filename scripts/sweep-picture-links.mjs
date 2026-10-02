@@ -30,6 +30,13 @@ async function status(url) {
       if (res.status === 405 || res.status === 501) res = await fetch(url, { signal: AbortSignal.timeout(15000) });
       if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); continue; }
       const type = res.headers.get("content-type") ?? "";
+      // optcgapi serves TCGplayer's "image not available" drawing (an SVG, 31 KB)
+      // as image/jpeg under a .jpg name: a small answer is opened and looked at.
+      const size = Number(res.headers.get("content-length") ?? 0);
+      if (res.ok && type.startsWith("image/") && game === "onepiece" && size > 0 && size < 40000) {
+        const body = Buffer.from(await (await fetch(url, { signal: AbortSignal.timeout(15000) })).arrayBuffer());
+        if (body.subarray(0, 1).toString("latin1") === "<") return "placeholder";
+      }
       return res.ok && type.startsWith("image/") ? 200 : res.status === 200 ? `200 ${type}` : res.status;
     } catch (err) {
       if (attempt === 2) return `error ${String(err.message ?? err).slice(0, 40)}`;
