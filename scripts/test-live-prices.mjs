@@ -126,6 +126,16 @@ check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, 50
 // $2 is a cheap card: value + fees + postage on top (09-30), same rule as the scanner.
 check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, askingPriceFor(2, "Near Mint"));
 check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
+// The "Added At" price belongs to one price series: a finish change or a printing swap clears it (10-01:
+// a nonfoil $2.13 scan price beside a $5.15 foil price read as a 141% gain), the next refresh backfills it.
+{
+  const swap = await mk({ price: 3, scanPrice: 3, catalogCardId: "mtg-bolt", game: "mtg", cardName: "Lightning Bolt" });
+  check("scan price survives an unrelated patch", (await updateCard(swap.id, user.id, { costBasis: 1 }))?.scanPrice, 3);
+  check("finish change clears the scan price", (await updateCard(swap.id, user.id, { variant: "foil" }))?.scanPrice ?? null, null);
+  await db.prepare("UPDATE cards SET scan_price = 3 WHERE id = ?").run(swap.id);
+  check("same finish again keeps it", (await updateCard(swap.id, user.id, { variant: "foil" }))?.scanPrice, 3);
+  check("printing swap clears the scan price", (await updateCard(swap.id, user.id, { catalogCardId: "base1-58" }))?.scanPrice ?? null, null);
+}
 
 console.log("the price guard");
 check("flagged draft: reported with the flag and no suggestion; its market-written price is blanked (applied)", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: true, suggested: 0, market: 500 });

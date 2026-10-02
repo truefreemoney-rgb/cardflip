@@ -655,7 +655,9 @@ export async function updateCard(
       : {}),
     // A different catalog card (printing / foil pick) is a different market: the old card's
     // scan price would read as a move the market never made. Null = the live refresh backfills it.
-    ...(patch.catalogCardId !== undefined && patch.catalogCardId !== existingRow.catalog_card_id
+    // A finish / printing change (nonfoil → foil) is the same thing: another price series.
+    ...((patch.catalogCardId !== undefined && patch.catalogCardId !== existingRow.catalog_card_id) ||
+    (patch.variant !== undefined && (patch.variant ?? null) !== (existingRow.variant ?? null))
       ? { scan_price: null }
       : {}),
     updated_at: Date.now(),
