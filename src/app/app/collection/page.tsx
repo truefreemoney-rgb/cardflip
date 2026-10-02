@@ -572,6 +572,13 @@ export default function CollectionPage() {
       const fresh = (await fetchLivePrices()).find((p) => p.cardId === card.id);
       if (fresh) {
         setLive((prev) => ({ ...prev, [card.id]: fresh }));
+        // Keep the sort / In Play market in step with the row.
+        setMarketById((prev) => {
+          const next = { ...prev };
+          if (!fresh.flag && fresh.market > 0) next[card.id] = fresh.market;
+          else delete next[card.id];
+          return next;
+        });
         patchCard(card.id, {
           ...(fresh.applied ? { price: fresh.suggested, priceLocked: false } : {}),
           scanPrice: fresh.scanned,
@@ -1761,7 +1768,7 @@ export default function CollectionPage() {
           ) : (
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs text-zinc-400">
               <span className="whitespace-nowrap">
-                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{formatMoney(stats.inPlayMarket)}</span>
+                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
               <span className="whitespace-nowrap">
                 Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
@@ -1794,7 +1801,8 @@ export default function CollectionPage() {
               <div className="min-w-0 border-l border-edge/60 pl-3">
                 <p className="text-[11px] font-medium text-zinc-400">Off eBay</p>
                 <p className="font-display text-2xl font-semibold tracking-tight text-zinc-200 sm:text-3xl">
-                  <Price usd={stats.inPlayMarket} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                  {/* Waits for the live prices: before they answer the sum would be the eBay prices. */}
+                  {liveLoaded ? <Price usd={stats.inPlayMarket} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" /> : "…"}
                 </p>
                 <p className="text-[11px] leading-snug text-zinc-500">Market Prices, No Fees</p>
               </div>
