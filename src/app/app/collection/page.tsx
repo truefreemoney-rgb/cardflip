@@ -653,7 +653,7 @@ export default function CollectionPage() {
     ) : sold ? (
       <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
     ) : card.verifiedAt ? (
-      <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active draft</span>
+      <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active</span>
     ) : (
       <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
     );
@@ -2250,7 +2250,7 @@ export default function CollectionPage() {
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
             {cards.length === 0
-              ? "Scan a card and it will show up here, tracked from draft to sold."
+              ? "Scan a card and it will show up here, tracked from scan to sold."
               : filter === "sealed"
                 ? "Booster boxes, ETBs and tins land here. Add one from the scanner with Add Sealed Product."
                 : "Try a different filter or search."}
@@ -2337,7 +2337,7 @@ export default function CollectionPage() {
                   {/* Always-visible affordance (Chris, 09-04: nothing said the
                       art was tappable). Right edge, above the name/price sticker; brightens on hover, and the button is the hit area. */}
                   <span className="pointer-events-none absolute bottom-16 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-100 shadow backdrop-blur transition group-hover:bg-brand-500/90 group-hover:text-white">
-                    {live ? "View listing" : draft ? "View draft" : "View card"}
+                    {live ? "View listing" : "View card"}
                     <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 7 9" /></svg>
                   </span>
                 </button>
