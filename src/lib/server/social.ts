@@ -6,7 +6,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
+import { GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -965,7 +965,10 @@ export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = fa
 
 /** Hashtags for a single-game post: the game's own, or the "also scans" set on a plan day. */
 function tagsFor(game: GameId, alsoScans: boolean): string[] {
-  return alsoScans && game === "pokemon" ? [...PLAN_TAGS.pokemonAlsoScans] : GAME_TAGS[game];
+  const out = alsoScans && game === "pokemon" ? [...PLAN_TAGS.pokemonAlsoScans] : [...GAME_TAGS[game]];
+  // Filled to MAX_TAGS with the general ones (10-02: Instagram takes five and was getting three). Each site still cuts from the end to its own limit.
+  for (const t of GENERAL_TAGS) if (!out.includes(t)) out.push(t);
+  return out.slice(0, MAX_TAGS);
 }
 
 /** Today's drafts for a game, in posting order. Empty when the data is thin. */

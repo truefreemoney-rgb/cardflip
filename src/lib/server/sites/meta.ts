@@ -282,6 +282,16 @@ function igCreds(): { base: string; userId: string; token: string } | null {
   return userId && token ? { base: GRAPH, userId, token } : null;
 }
 
+/**
+ * Instagram makes a hashtag of a card number ("Umbreon GX #154" linked to
+ * #154; seen on the live 10-02 set spotlight: five junk tags ahead of the
+ * three real ones, on a site that counts five). The number stays, the "#"
+ * goes; real tags start with a letter and are untouched.
+ */
+export function instagramCaption(text: string): string {
+  return text.replace(/#(?=\d)/g, "");
+}
+
 export const instagram: SocialSite = {
   id: "instagram",
   label: "Instagram",
@@ -298,9 +308,10 @@ export const instagram: SocialSite = {
     // Video = a Reel (9:16 MP4, shared to the feed too), pulled from its public Blob URL; nothing to park.
     const parked = p.video ? { url: p.video.url, done: async () => {} } : await parkImage("instagram", await asJpeg(p));
     try {
+      const caption = instagramCaption(p.text);
       const media: Record<string, string> = p.video
-        ? { media_type: "REELS", video_url: parked.url, share_to_feed: "true", caption: p.text }
-        : { image_url: parked.url, caption: p.text, alt_text: p.alt.slice(0, 1000) };
+        ? { media_type: "REELS", video_url: parked.url, share_to_feed: "true", caption }
+        : { image_url: parked.url, caption, alt_text: p.alt.slice(0, 1000) };
       const container = await graph<{ id?: string }>(
         `${c.base}/${c.userId}/media`,
         { method: "POST", headers: FORM, body: form({ ...media, access_token: c.token }) },

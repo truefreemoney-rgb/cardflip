@@ -415,8 +415,14 @@ console.log("engagement question: the lowest priority after the sign-off cut");
     check(`${label}: fits ${max}, keeps every tag the draft has (${real.hashtags.length}), the address stays`, [out.length <= max, tagCount, out.includes("cardflip.io")], [true, real.hashtags.length, true]);
   }
   const realSet = (await (await import(at("lib/server/social.ts"))).socialDrafts("pokemon", THU)).find((d) => d.kind === "set");
-  check("a set draft's question names its set; X (257) has no room for it: it is the first thing cut, the five card lines and all three tags stay", [realSet.question.includes("Scarlet & Violet") || realSet.question.includes("pull"), fitText(realSet, 257).includes(realSet.question), fitText(realSet, 257).split("\n").filter((l) => /\$\d/.test(l)).length, (fitText(realSet, 257).match(/#[A-Za-z]\w*/g) ?? []).length], [true, false, 5, 3]);
-  check("…while Bluesky (300) still has room for it", fitText(realSet, 300).includes(realSet.question), true);
+  // One character less room than the X text with its question needs: the question is the first thing cut.
+  const xFull = fitText(realSet, 257, 2);
+  const xTight = fitText(realSet, xFull.length - 1, 2);
+  check("a set draft's question names its set; on X (257, two tags) it fits, and with no room it is the first thing cut: the five card lines and both tags stay", [realSet.question.includes("Scarlet & Violet") || realSet.question.includes("pull"), xFull.includes(realSet.question), xTight.includes(realSet.question), xTight.split("\n").filter((l) => /\$\d/.test(l)).length, (xTight.match(/#[A-Za-z]\w*/g) ?? []).length], [true, true, false, 5, 2]);
+  check("…while Bluesky (300, three tags) still has room for it", fitText(realSet, 300, 3).includes(realSet.question), true);
+  // 10-02: a single-game draft carries five tags (the game's, then the general ones), so Instagram gets its five; card numbers lose their "#" there.
+  check("a single-game draft carries five tags, the game's first", [realSet.hashtags.length, realSet.hashtags.slice(0, 2)], [5, ["PokemonTCG", "PokemonCards"]]);
+  check("Instagram: card numbers are not hashtags, real tags are untouched", meta.instagramCaption("Umbreon GX #154 Holo: $135\n\n#PokemonTCG #TCG"), "Umbreon GX 154 Holo: $135\n\n#PokemonTCG #TCG");
   check("Facebook (5000): the question is there", fitText(real, 5000).includes(real.question), true);
 }
 
