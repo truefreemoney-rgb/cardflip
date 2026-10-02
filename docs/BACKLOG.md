@@ -131,6 +131,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [ ] LORCANA "FORMAT COCONUT" PICTURES (Chris 09-30): all 18 cards (set_code Coconut, 2026, unpriced) show Lorcast's grayscale "FOR BETA TEST ONLY" stock images. Swap them when the real cards are out. Should be automatic: sync-lorcana overwrites image_url every run (the Lorcast URL carries a ?version stamp) and scripts/catalog-sync.cmd (Task Scheduler "CardFlip catalog sync", weekly) pushes it to prod. CHECK after the real release: prod `SELECT image_url FROM tcg_cards WHERE game='lorcana' AND set_code='Coconut'` no longer ends ?1785781319, and By set → Format Coconut shows color cards. If Lorcast never replaces them, the only other source is real photos (no free catalog has them), same as One Piece.
 
 ### G. Pre-scale / business (unchanged from §0 PRE-SCALE)
+- [ ] SOMEDAY, not scheduled (Chris 10-01): sales tax on hand-marked (off-eBay) sales is left to the seller. A possible later add: a sales-tax ESTIMATE at tax-form time on the Sales Report. Needs the seller's US state first (we only store home country), so it starts with asking for it. Do not start without his go.
 - [ ] PSA at scale (paid tier email pending; or flag graded verify off at launch).
 - [ ] Soft-launch cohort first, measure conversion/churn/scans before ad spend. PLAN WRITTEN 09-06: docs/SOFT-LAUNCH.md (20-30 hand-invited sellers over 3 weeks, green/red table, week-by-week). Chris to read + start inviting.
 - [ ] Revenue shape: dealer tier, free-tier funnel, GMV fee — after retention.
