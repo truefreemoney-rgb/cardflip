@@ -643,13 +643,18 @@ export async function updateCard(
     ...(patch.soldPrice !== undefined && patch.soldPrice !== existingRow.sold_price
       ? { sold_price_local: null, sold_currency: null }
       : {}),
+    // A different catalog card (printing / foil pick) is a different market: the old card's
+    // scan price would read as a move the market never made. Null = the live refresh backfills it.
+    ...(patch.catalogCardId !== undefined && patch.catalogCardId !== existingRow.catalog_card_id
+      ? { scan_price: null }
+      : {}),
     updated_at: Date.now(),
   };
 
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -681,6 +686,7 @@ export async function updateCard(
       merged.sold_price_local ?? null,
       merged.sold_currency ?? null,
       merged.ebay_ended_at,
+      merged.scan_price ?? null,
       merged.updated_at,
       id,
       userId,

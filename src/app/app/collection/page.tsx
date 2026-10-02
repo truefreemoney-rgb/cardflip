@@ -43,7 +43,9 @@ import LocalListingLine from "@/components/LocalListingLine";
 import { priceFloorFor, useLocalMarket } from "@/lib/client/localMarket";
 import { toLocal } from "@/lib/localPricing";
 import { formatLocalAmount, marketplaceByEbayId, marketplaceLabel } from "@/lib/marketplaces";
-import { askingNoteFor, ebaySoldSearchUrl, formatMoney } from "@/lib/listing";
+import { askingNoteFor, ebaySoldSearchUrl, formatMoney, isFirstEditionCard } from "@/lib/listing";
+import { foilChoices, foilLabel } from "@/lib/yugioh";
+import { printingChoices, printingLabel } from "@/lib/onepiece";
 import PriceFlagNote, { PriceFlagText } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown } from "@/lib/profit";
@@ -175,6 +177,109 @@ function soldNowPatch(price: number) {
 
 function watcherOfferNowPatch() {
   return { watcherOfferAt: Date.now() };
+}
+
+/** "Yes, this is my card": the same checkpoint the listing page writes. */
+function verifiedNowPatch() {
+  return { verifiedAt: Date.now(), matchDoubt: null };
+}
+
+/**
+ * Mark as Sold (Chris, 10-01): a card sold off eBay still belongs in the
+ * stats, so the popup asks what it went for (prefilled with the asking
+ * price) and the row becomes a sold record. Bottom sheet on a phone,
+ * centered on a desktop, same shape as the reprice sheet.
+ */
+function MarkSoldSheet({
+  card,
+  onClose,
+  onSubmit,
+}: {
+  card: ServerCard;
+  onClose: () => void;
+  onSubmit: (price: number) => void;
+}) {
+  const [price, setPrice] = useState(card.price);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  useBodyScrollLock();
+  useBackToClose("mark-sold", onClose);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Mark ${card.cardName} as sold`}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <CardImage src={card.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded-md" />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-semibold leading-snug text-white">Mark as Sold</p>
+            <p className="line-clamp-2 text-sm leading-snug text-zinc-300 [overflow-wrap:anywhere]">{card.cardName}</p>
+            <p className="truncate text-xs text-zinc-500">
+              {card.setName}
+              {card.cardNumber ? ` · ${card.cardNumber}` : ""}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-white"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (price > 0) onSubmit(price);
+          }}
+        >
+          <label className="mt-5 block">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">What Did It Sell For?</span>
+            <span className="mt-1.5 flex items-center rounded-xl border border-edge bg-black/40 px-4 focus-within:border-brand-400">
+              <span className="text-2xl font-semibold text-zinc-500">$</span>
+              <PriceInput
+                value={price}
+                onValue={setPrice}
+                className="w-full bg-transparent py-3 pl-2 text-right font-display text-3xl font-semibold tracking-tight text-white outline-none"
+              />
+            </span>
+          </label>
+          <p className="mt-3 text-xs text-zinc-500">The sale counts in your stats. The card stays in Inventory as a sold record.</p>
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={price <= 0}
+              className="flex flex-[2] items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-default disabled:opacity-40"
+            >
+              Mark as Sold
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -390,11 +495,70 @@ export default function CollectionPage() {
   // list it on the listing page". Catalog rows are cached per ledger row.
   const [detail, setDetail] = useState<{ id: string; catalog: PokemonCard; loading: boolean } | null>(null);
   const catalogCache = useRef<Record<string, PokemonCard>>({});
+  // Mark as Sold popup (Chris, 10-01): the ledger row it is asking about.
+  const [soldSheet, setSoldSheet] = useState<string | null>(null);
+  // Verify Match happens IN the detail sheet (Chris, 10-01), not on the
+  // listing page. Yu-Gi-Oh! foils and One Piece printings share one number,
+  // so those games ask "which one is yours?" there too: the choices per
+  // ledger row, undefined while they load.
+  const [verifyChoices, setVerifyChoices] = useState<Record<string, PokemonCard[]>>({});
+  const [verifying, setVerifying] = useState<string | null>(null);
+
+  const asksPrinting = (card: ServerCard) => {
+    const game = parseGame(card.game);
+    return card.status === "ready" && !card.verifiedAt && card.kind !== "sealed" && (game === "yugioh" || game === "onepiece");
+  };
+
+  async function loadVerifyChoices(card: ServerCard, pick: PokemonCard) {
+    if (!asksPrinting(card) || !pick.id) return;
+    const game = parseGame(card.game);
+    const found = await searchCards(pick.englishName || pick.name, pick.number || null, "en", undefined, game).catch(() => [] as PokemonCard[]);
+    const choices = game === "yugioh" ? foilChoices(pick, found) : printingChoices(pick, found);
+    setVerifyChoices((prev) => ({ ...prev, [card.id]: choices }));
+  }
+
+  /** The seller's tap in the sheet: "yes, this one", or the printing / foil
+   *  that is really theirs. A different printing is a different product, so
+   *  the row follows it (name, set, picture, price) the way the listing page
+   *  does, and the price is re-quoted from today's market. */
+  async function verifyMatch(card: ServerCard, swap?: PokemonCard) {
+    if (verifying) return;
+    setVerifying(card.id);
+    if (!swap || swap.id === card.catalogCardId) {
+      await applyPatch(card, verifiedNowPatch());
+    } else {
+      setDetail((d) => (d?.id === card.id ? { ...d, catalog: swap } : d));
+      await applyPatch(card, {
+        cardName: swap.englishName || swap.name,
+        setName: swap.setName,
+        cardNumber: swap.number,
+        imageUrl: swap.imageSmall,
+        catalogCardId: swap.id,
+        rarity: swap.rarity ?? null,
+        firstEdition: isFirstEditionCard(swap),
+        variant: null,
+        priceLocked: false,
+        scanPrice: null,
+        ...verifiedNowPatch(),
+      });
+      const fresh = (await fetchLivePrices()).find((p) => p.cardId === card.id);
+      if (fresh) {
+        setLive((prev) => ({ ...prev, [card.id]: fresh }));
+        patchCard(card.id, {
+          ...(fresh.applied ? { price: fresh.suggested, priceLocked: false } : {}),
+          scanPrice: fresh.scanned,
+        });
+      }
+    }
+    setVerifying(null);
+  }
 
   async function openDetail(card: ServerCard) {
     const cached = catalogCache.current[card.id];
-    if (cached) {
+    // A printing picked in the sheet moved the row to another catalog card: the cached one is stale.
+    if (cached && (!card.catalogCardId || cached.id === card.catalogCardId)) {
       setDetail({ id: card.id, catalog: cached, loading: false });
+      if (verifyChoices[card.id] === undefined) void loadVerifyChoices(card, cached);
       return;
     }
     setDetail({ id: card.id, catalog: catalogStub(card), loading: true });
@@ -411,6 +575,9 @@ export default function CollectionPage() {
     }
     if (found) catalogCache.current[card.id] = found;
     setDetail((d) => (d?.id === card.id ? { id: card.id, catalog: found ?? d.catalog, loading: false } : d));
+    // No catalog row = nothing to compare printings against: an empty list lets the plain "Yes" show.
+    if (found) void loadVerifyChoices(card, found);
+    else if (asksPrinting(card)) setVerifyChoices((prev) => ({ ...prev, [card.id]: [] }));
   }
 
   /** The Inventory half of the detail view: this copy's status, price, facts
@@ -694,11 +861,72 @@ export default function CollectionPage() {
 
         {/* Actions: one primary, then the quiet row */}
         <div className="flex flex-col gap-2 p-4">
-          {draft && card.kind !== "sealed" && (
-            <Link href={href} className={`${primary} ${card.verifiedAt ? "bg-brand-500 hover:bg-brand-400" : "bg-amber-400 !text-black hover:bg-amber-300"}`}>
-              {card.verifiedAt ? "Build the Listing →" : "Verify match on the listing page →"}
+          {draft && card.kind !== "sealed" && card.verifiedAt && (
+            <Link href={href} className={`${primary} bg-brand-500 hover:bg-brand-400`}>
+              Build the Listing →
             </Link>
           )}
+          {/* Verifying happens right here (Chris, 10-01): the photo and the
+              match are on the stage beside this panel. One tap, or the
+              printing / foil pick for the games that have several per number. */}
+          {draft && card.kind !== "sealed" && !card.verifiedAt && (() => {
+            const choices = asksPrinting(card) ? verifyChoices[card.id] : [];
+            const busy = verifying === card.id;
+            const onePiece = parseGame(card.game) === "onepiece";
+            return (
+              <div className="flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-semibold text-white">Is This Your Card?</p>
+                  <p className="mt-0.5 text-sm text-zinc-400">Same name, set and number as the one in your hand?</p>
+                </div>
+                {choices === undefined || detail?.loading ? (
+                  <p className="flex items-center justify-center gap-2 py-2 text-sm text-zinc-400">
+                    <Spinner className="h-3.5 w-3.5" /> Checking the printings…
+                  </p>
+                ) : choices.length >= 2 ? (
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {onePiece ? "Which printing is yours? Tap it to confirm." : "Which foil is yours? Tap it to confirm."}
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-2">
+                      {choices.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void verifyMatch(card, c)}
+                          className={`flex items-center justify-center gap-3 rounded-full px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                            c.id === card.catalogCardId
+                              ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                              : "border border-edge text-zinc-200 hover:border-edge-strong hover:text-white"
+                          }`}
+                        >
+                          {onePiece && c.imageSmall ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={c.imageSmall} alt="" className="h-9 w-[26px] shrink-0 rounded-sm object-cover" />
+                          ) : null}
+                          <span>{onePiece ? printingLabel(c) : foilLabel(c)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void verifyMatch(card)}
+                    className="w-full rounded-full bg-emerald-500 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    Yes, This Is My Card
+                  </button>
+                )}
+                {/* A wrong card entirely is fixed where every printing can be browsed. */}
+                <Link href={href} className="text-center text-xs text-brand-300 underline underline-offset-4 hover:text-brand-200">
+                  Not Your Card? Fix It on the Listing Page
+                </Link>
+              </div>
+            );
+          })()}
           {live && card.ebayListingUrl && (
             <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={`${primary} bg-ebay hover:bg-ebay-hover`}>
               View on eBay ↗
@@ -734,6 +962,18 @@ export default function CollectionPage() {
                 <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
                   View the Sale on eBay ↗
                 </a>
+              )}
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetail(null);
+                    setSoldSheet(card.id);
+                  }}
+                  className={quiet}
+                >
+                  Mark as Sold
+                </button>
               )}
               {canDelete && (
                 <button
@@ -2058,16 +2298,21 @@ export default function CollectionPage() {
                             ? `#${card.cardNumber}`
                             : ""}
                   </span>
-                  {draft && card.kind !== "sealed" ? (
+                  {draft && card.kind !== "sealed" && !card.verifiedAt ? (
+                    // Verifying happens in the card sheet (Chris, 10-01).
+                    <button
+                      type="button"
+                      onClick={() => void openDetail(card)}
+                      className="shrink-0 rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25"
+                    >
+                      Verify
+                    </button>
+                  ) : draft && card.kind !== "sealed" ? (
                     <Link
                       href={resumeHref}
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                        card.verifiedAt
-                          ? "bg-white/5 text-zinc-200 hover:bg-white/10"
-                          : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
-                      }`}
+                      className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
                     >
-                      {card.verifiedAt ? "Build Listing" : "Verify"}
+                      Build Listing
                     </Link>
                   ) : live ? (
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -2131,8 +2376,11 @@ export default function CollectionPage() {
               // Real actions carry a tint so they read as buttons next to the
               // "Not Listed" ghost that fills slot two on desktop (Chris, 09-08).
               const viewBtn = `${slotBase} border-sky-400/30 text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10`;
-              const deleteBtn = `${slotBase} border-red-400/25 text-red-300/80 hover:border-red-400/60 hover:bg-red-400/10 hover:text-red-200`;
-              const ghostSlot = `${slotBase} hidden border-dashed border-edge/60 text-zinc-600 sm:inline-flex`;
+              // Delete is a small X (Chris, 10-01) so Mark as Sold fits beside it.
+              const deleteBtn = "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-400/25 text-red-300/80 transition hover:border-red-400/60 hover:bg-red-400/10 hover:text-red-200 sm:h-8 sm:w-8 sm:row-start-1";
+              const soldBtn = `${slotBase} border-emerald-400/30 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-400/10`;
+              // Desktop only: "hidden" beside slotBase's "inline-flex" lost the tie and the ghost showed on phones.
+              const ghostSlot = `${slotBase.replace("inline-flex", "hidden sm:inline-flex")} border-dashed border-edge/60 text-zinc-600`;
               // The row chip compares against the SCANNED price, so it persists
               // across loads (Chris, 09-08: it vanished once the price settled).
               const scannedAt = card.scanPrice ?? livePrices[card.id]?.scanned ?? null;
@@ -2357,36 +2605,40 @@ export default function CollectionPage() {
                 {/* ONE action row. Phone: primary stretches, quiet buttons
                     beside it, indented under the name block. sm+: tucked
                     right on the same visual line as the price. */}
-                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.25rem] sm:gap-1.5 sm:pl-0">
-                  {draft && card.kind !== "sealed" && (
+                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.5rem_2rem] sm:gap-1.5 sm:pl-0">
+                  {draft && card.kind !== "sealed" && !card.verifiedAt && (
+                    // Verify Match opens the big card sheet and the verifying
+                    // happens in there, photo beside the match (Chris, 10-01).
+                    <button
+                      type="button"
+                      onClick={() => void openDetail(card)}
+                      className={`${primaryBtn} sm:col-start-1 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25`}
+                    >
+                      Verify Match
+                    </button>
+                  )}
+                  {draft && card.kind !== "sealed" && card.verifiedAt && (
                     <Link
                       // Card identity rides along so the scanner can start the
                       // catalog search in parallel with the ledger fetch —
                       // sequential round trips made this feel stuck (09-02).
-                      // Verifying only happens on the listing screen, where the
-                      // seller's photo sits beside the match (Chris, 09-03) — so
-                      // an unverified draft's link IS the ask.
                       href={resumeHrefFor(card)}
-                      className={`${primaryBtn} sm:col-start-1 ${
-                        card.verifiedAt
-                          ? "bg-brand-500/15 text-brand-300 hover:bg-brand-500/25"
-                          : "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25"
-                      }`}
+                      className={`${primaryBtn} sm:col-start-1 bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}
                     >
-                      {card.verifiedAt ? "Build Listing" : "Verify Match"}
+                      Build Listing
                     </Link>
                   )}
-                  {/* Row states (Chris, 09-03): live → End Auction (flips to
-                      Sold on its own from eBay orders); ended → Relist +
-                      Delete; sold → Delete. No per-row Mark sold — eBay is
-                      the source of truth. */}
+                  {/* Row states: live → End Auction (flips to Sold on its own
+                      from eBay orders); draft / ended → Mark as Sold (a sale
+                      made off eBay, Chris 10-01) + the X delete; sold → the
+                      record. */}
                   {liveRow && (
                     <button
                       onClick={() => void endListing(card)}
                       disabled={ending === card.id}
                       // Amber, in the last slot (Chris, 09-08): the stop action sits where
                       // Delete sits on other rows, and reads as a warning, not a grey nothing.
-                      className={`${slotBase} order-last sm:col-start-3 border-amber-400/35 text-amber-300 hover:border-amber-400/70 hover:bg-amber-400/10`}
+                      className={`${slotBase} order-last sm:col-start-3 sm:col-span-2 border-amber-400/35 text-amber-300 hover:border-amber-400/70 hover:bg-amber-400/10`}
                     >
                       {ending === card.id ? "Ending…" : "End Auction"}
                     </button>
@@ -2431,19 +2683,31 @@ export default function CollectionPage() {
                       <span className={`${slotBase} sm:col-start-1 border-sky-400/40 bg-sky-400/15 font-semibold text-sky-300`}>
                         Sold{card.soldAt ? ` ${formatDate(card.soldAt)}` : ""}
                       </span>
-                      <span aria-hidden className={`${ghostSlot} sm:col-start-3`}>
+                      <span aria-hidden className={`${ghostSlot} sm:col-start-3 sm:col-span-2`}>
                         Kept on record
                       </span>
                     </>
                   )}
                   {(card.status !== "listed" || ended) && !sold && (
-                    <button
-                      onClick={() => remove(card)}
-                      aria-label={`Delete ${card.cardName}`}
-                      className={`${deleteBtn} sm:col-start-3`}
-                    >
-                      Delete
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setSoldSheet(card.id)}
+                        className={`${soldBtn} sm:col-start-3 ${draft && card.kind === "sealed" ? "flex-1 sm:flex-none" : ""}`}
+                      >
+                        Mark as Sold
+                      </button>
+                      <button
+                        onClick={() => remove(card)}
+                        aria-label={`Delete ${card.cardName}`}
+                        title="Delete"
+                        className={`${deleteBtn} sm:col-start-4`}
+                      >
+                        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                          <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </>
                   )}
                 </div>
               </li>
@@ -2525,6 +2789,20 @@ export default function CollectionPage() {
           }}
         />
       )}
+      {soldSheet && (() => {
+        const card = cards.find((c) => c.id === soldSheet);
+        if (!card) return null;
+        return (
+          <MarkSoldSheet
+            card={card}
+            onClose={() => setSoldSheet(null)}
+            onSubmit={(price) => {
+              setSoldSheet(null);
+              confirmSold(card, price.toFixed(2));
+            }}
+          />
+        );
+      })()}
       {priceSheet && (() => {
         const card = cards.find((c) => c.id === priceSheet);
         if (!card) return null;
