@@ -90,6 +90,9 @@ const HAND_PRODUCTS = {
   "don-don-card-alternate-art-gold-the-time-of-battle-op16#don": 698314,
   // Bandai's card list names this one "Premium Card Collection -Best Selection Vol.3-"; TCGplayer only has the Oda-signature print.
   "P-072_pr1#promo": "https://en.onepiece-cardgame.com/images/cardlist/card/P-072.png",
+  // The feed still calls it "Illustration Box Vol.1"; TCGplayer renamed the product "(Illustration Box Vol.2) (Textured)"
+  // (shops' old Vol.1 pages now carry that title; found through Google Images 10-01).
+  "ST13-016_pr1#promo": 623071,
   // Welcome Pack Vol. 1: no scan at TCGplayer or Bandai; our own copies (fill-onepiece-own-pictures.mjs).
   "OP05-030_pr1#promo": "https://cardflip.io/catalog/onepiece/OP05-030-welcome-pack-vol-1.jpg",
   "OP05-004#promo": "https://cardflip.io/catalog/onepiece/OP05-004-welcome-pack-vol-1.jpg",
