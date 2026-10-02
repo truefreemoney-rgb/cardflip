@@ -79,7 +79,7 @@ await seed.run("sv03.5-173", "Pikachu", "sv03.5", "151", "173", "2023-09-22", "h
 await seed.run("swshp-1", "Grookey", "swshp", "SWSH Black Star Promos", "SWSH001", "2019-11-15", "https://img/swshp-1/low.webp", null, null, "SWSHP");
 await db.prepare("INSERT INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES (?, ?, ?, ?)").run(777, 1, "base2-4", "pokemon");
 // $100+ needs a real history (the site price guard): a liquid 60-day series ending on the price.
-const { liquidPrices, flatPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { liquidPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
 const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
 await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(800));
 await recordSeries(recordPoint, addDays, todayUtc(), "base2-4", "pokemon", "holofoil", liquidPrices(400));
@@ -121,10 +121,10 @@ check("value = priced rows × quantity", p.value, Math.round((askingPriceFor(400
 
 console.log("\nthe price guard");
 await seed.run("col1-20", "Rayquaza", "col1", "Call of Legends", "20", "2011-02-09", "https://img/col1-20/low.webp", 95, 95, "CL");
-await recordSeries(recordPoint, addDays, todayUtc(), "col1-20", "pokemon", "holofoil", flatPrices(500, 87));
+await recordSeries(recordPoint, addDays, todayUtc(), "col1-20", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden); a flat series is a note now, not a hide
 const flagged = await previewImport("Name,Set,Number,Quantity\nRayquaza,Call of Legends,20/95,1\nCharizard,Base Set,4/102,1");
 const [junkRow, fineRow] = flagged.rows;
-check("a flagged market imports unpriced, with the flag for the review", [junkRow.status, junkRow.price, junkRow.flag], ["ok", 0, { hard: true, reason: "flat 87d" }]);
+check("a flagged market imports unpriced, with the flag for the review", [junkRow.status, junkRow.price, junkRow.flag], ["ok", 0, { hard: true, reason: "spike 5.0x still 5.0x" }]);
 check("a normal card next to it is priced as before", [fineRow.price, fineRow.flag], [askingPriceFor(800, "Near Mint"), undefined]);
 check("the flagged card adds nothing to the value", flagged.value, askingPriceFor(800, "Near Mint"));
 
