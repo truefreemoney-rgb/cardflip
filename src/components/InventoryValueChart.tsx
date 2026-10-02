@@ -31,6 +31,8 @@ interface Props {
 const DAY_MS = 86_400_000;
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 const money = (n: number) => formatMoney(n);
+/** "Sep 3". */
+const dayLabel = (d: string) => new Date(parseDay(d)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 export default function InventoryValueChart({ game, version = 0, status = "all", category = "all", className = "" }: Props) {
   const [choice, setChoice] = useState<RangeChoice>({ preset: "90d" });
@@ -91,8 +93,12 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     const area = `${line} L${sx(x1).toFixed(1)},${H} L${sx(x0).toFixed(1)},${H} Z`;
     const first = ys[0], last = ys[ys.length - 1];
     const pct = first > 0 ? ((last - first) / first) * 100 : 0;
-    return { W, H, line, area, lastX: sx(x1), lastY: sy(last), first, last, pct, n: points.length };
+    // Each day as a % of the box: the dots, the crosshair and the tooltip are HTML over the stretched drawing, so they stay round and sharp at any width.
+    const pts = points.map((p, i) => ({ day: p.day, value: p.value, left: (sx(xs[i]) / W) * 100, top: (sy(ys[i]) / H) * 100 }));
+    return { W, H, line, area, pts, hi: Math.max(...ys), lo: Math.min(...ys), hiTop: (sy(Math.max(...ys)) / H) * 100, loTop: (sy(Math.min(...ys)) / H) * 100, first, last, pct, n: points.length };
   }, [points]);
+  /** Index of the day under the pointer (checked against the line's length where it is read: a new range is a new line). */
+  const [hover, setHover] = useState<number | null>(null);
 
   if (!geo) {
     // Nothing to draw. Before any pick that means a new inventory: no strip. After one, keep the picker so the viewer can go back.
@@ -110,6 +116,7 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
   const up = geo.last >= geo.first;
   const stroke = up ? "#34d399" : "#f87171";
   const diff = geo.last - geo.first;
+  const tip = geo.pts[hover !== null && hover < geo.pts.length ? hover : geo.pts.length - 1];
 
   return (
     <div className={`border-t border-edge/60 px-5 py-3 ${className}`}>
@@ -122,17 +129,59 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
         </p>
         {pills}
       </div>
-      <svg
-        viewBox={`0 0 ${geo.W} ${geo.H}`}
-        preserveAspectRatio="none"
-        className="mt-1.5 h-12 w-full"
-        role="img"
-        aria-label={`Inventory value ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days: ${money(geo.first)} to ${money(geo.last)}`}
-      >
-        <path d={geo.area} fill={stroke} fillOpacity="0.12" />
-        <path d={geo.line} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={geo.lastX} cy={geo.lastY} r="1.6" fill={stroke} />
-      </svg>
+      {/* Read like the price chart (10-02): a value scale (high / low), dates under the line, and a crosshair that names any day's value. */}
+      <div className="mt-2 flex gap-2">
+        <div
+          className="relative h-20 min-w-0 flex-1 touch-pan-y"
+          onPointerMove={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            const at = ((e.clientX - box.left) / Math.max(1, box.width)) * 100;
+            let best = 0;
+            geo.pts.forEach((p, i) => {
+              if (Math.abs(p.left - at) < Math.abs(geo.pts[best].left - at)) best = i;
+            });
+            setHover(best);
+          }}
+          onPointerLeave={() => setHover(null)}
+        >
+          <svg
+            viewBox={`0 0 ${geo.W} ${geo.H}`}
+            preserveAspectRatio="none"
+            className="h-full w-full"
+            role="img"
+            aria-label={`Inventory value ${up ? "up" : "down"} ${Math.abs(geo.pct).toFixed(1)}% over ${geo.n} days: ${money(geo.first)} to ${money(geo.last)}`}
+          >
+            <path d={geo.area} fill={stroke} fillOpacity="0.12" />
+            <path d={geo.line} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          {/* High and low gridlines. */}
+          <span className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/10" style={{ top: `${geo.hiTop}%` }} />
+          {geo.hi !== geo.lo && <span className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/10" style={{ top: `${geo.loTop}%` }} />}
+          {/* Today's dot, or the day under the pointer with its line. */}
+          {tip && hover !== null && <span className="pointer-events-none absolute inset-y-0 w-px bg-white/20" style={{ left: `${tip.left}%` }} />}
+          <span
+            className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-[#12141f]"
+            style={{ left: `${tip.left}%`, top: `${tip.top}%`, backgroundColor: stroke }}
+          />
+          {hover !== null && (
+            <span
+              className={`pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-md border border-edge bg-[#171a28] px-1.5 py-0.5 text-[11px] tabular-nums text-zinc-200 shadow-lg shadow-black/50 ${tip.left > 50 ? "-translate-x-full" : ""}`}
+              style={{ left: `calc(${tip.left}% + ${tip.left > 50 ? -6 : 6}px)` }}
+            >
+              <span className="text-white">{money(tip.value)}</span> <span className="text-zinc-500">{dayLabel(tip.day)}</span>
+            </span>
+          )}
+        </div>
+        <div className="relative w-14 shrink-0 text-[10px] tabular-nums text-zinc-500" aria-hidden>
+          <span className="absolute left-0 -translate-y-1/2" style={{ top: `${geo.hiTop}%` }}>{money(geo.hi)}</span>
+          {geo.hi !== geo.lo && <span className="absolute left-0 -translate-y-1/2" style={{ top: `${geo.loTop}%` }}>{money(geo.lo)}</span>}
+        </div>
+      </div>
+      <div className="mr-16 mt-1 flex justify-between text-[10px] tabular-nums text-zinc-500" aria-hidden>
+        <span>{dayLabel(geo.pts[0].day)}</span>
+        {geo.pts.length > 4 && <span>{dayLabel(geo.pts[Math.floor(geo.pts.length / 2)].day)}</span>}
+        <span>{dayLabel(geo.pts[geo.pts.length - 1].day)}</span>
+      </div>
       <p className="mt-1 text-xs tabular-nums text-zinc-500">
         {money(geo.first)} → <span className="text-zinc-300">{money(geo.last)}</span>
         <span className="ml-1">asking, {geo.n} days</span>
