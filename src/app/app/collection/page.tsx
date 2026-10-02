@@ -1553,6 +1553,9 @@ export default function CollectionPage() {
     const leftOut = drafts.filter((c) => leftOutIds.has(c.id));
     const counted = [...drafts.filter((c) => !leftOut.includes(c)), ...listed];
     const inPlayGross = counted.reduce((sum, c) => sum + c.price * (c.quantity || 1), 0);
+    // The total of the rows (Chris, 10-02): each unsold card at the number its row shows, the Market
+    // price, or the row's own price where there is no market (same fallback as headlineOf).
+    const inPlayMarket = counted.reduce((sum, c) => sum + (marketById[c.id] ?? c.price) * (c.quantity || 1), 0);
     // What those listings would actually put in the seller's pocket: each
     // copy after the fee estimate and postage.
     const inPlay = counted.reduce(
@@ -1576,8 +1579,8 @@ export default function CollectionPage() {
     const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, handCount, handEarned, avgDays, cost, costKnown, profit };
-  }, [scopeCards, leftOutKey]);
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayMarket, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, handCount, handEarned, avgDays, cost, costKnown, profit };
+  }, [scopeCards, leftOutKey, marketById]);
 
 
   async function removeSelected() {
@@ -1758,7 +1761,7 @@ export default function CollectionPage() {
           ) : (
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs text-zinc-400">
               <span className="whitespace-nowrap">
-                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{formatMoney(stats.inPlay)}</span>
+                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{formatMoney(stats.inPlayMarket)}</span>
               </span>
               <span className="whitespace-nowrap">
                 Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
@@ -1777,8 +1780,9 @@ export default function CollectionPage() {
           <div className="p-5">
             <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
             {/* Two balances side by side (Chris, 10-02: "show the balance with and without ebay"): what the pile
-                puts in the pocket sold on eBay, and sold off eBay at the same prices (no fee, no postage). The
-                ledger under them is the difference. */}
+                puts in the pocket sold on eBay, and off eBay = the total of the rows, every card at its Market
+                price (Chris, later 10-02: "that should be the total of the rows"). The folded line shows the
+                same rows total. The ledger under them explains the On eBay figure only. */}
             <div className="mt-1.5 grid grid-cols-2 gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
@@ -1790,9 +1794,9 @@ export default function CollectionPage() {
               <div className="min-w-0 border-l border-edge/60 pl-3">
                 <p className="text-[11px] font-medium text-zinc-400">Off eBay</p>
                 <p className="font-display text-2xl font-semibold tracking-tight text-zinc-200 sm:text-3xl">
-                  <Price usd={stats.inPlayGross} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
+                  <Price usd={stats.inPlayMarket} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" />
                 </p>
-                <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
+                <p className="text-[11px] leading-snug text-zinc-500">Market Prices, No Fees</p>
               </div>
             </div>
             {stats.leftOut > 0 && (
@@ -1802,7 +1806,7 @@ export default function CollectionPage() {
             )}
             <Breakdown
               rows={[
-                ["Asking", stats.inPlayGross],
+                ["eBay Prices", stats.inPlayGross],
                 ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
                 [`Postage · ${stats.inPlayCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.inPlayCopies * POSTAGE_USD)],
               ]}
