@@ -6,7 +6,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames, questionFor } from "@/lib/socialPlan";
+import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -689,7 +689,21 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   // Then the set already on the day's night-rendered 7am video (10-01: prices moved overnight, the pool changed size, the
   // hash landed on Neo Discovery and the sites posted it over a Noble Victories video). Then the hash.
   const pinned = [dayPlan(day).set, await renderedSet(day)].find((s) => s && sets.includes(s));
-  const setId = pinned ?? sets[hashDay(day, `${game}:set`) % sets.length];
+  // From RISER_SETS_FROM the hash runs over the sets that HAVE a riser among their five most valuable cards, when any
+  // do (10-02: gains posts average 22 views, set posts 13, and that morning's Sun & Moon caption said "steady" four
+  // times). Same test as the lead card below: a held price, an old price the guard believes, a real jump. With no such
+  // set that day, every qualifying set is in the pool as before.
+  const rises = (id: string) => {
+    const s = series.get(id)!;
+    if (s.held < HELD_DAYS || !s.fromOk || !s.fromSettled || s.stepJump) return false;
+    const from = s.from ?? s.to;
+    return from > 0 && Math.min(from, s.to) >= MOVER_MIN_PRICE && ((s.to - from) / from) * 100 >= JUMP_MIN_PCT;
+  };
+  const hot = riserSetsOn(day)
+    ? sets.filter((id) => [...(bySet.get(id) ?? [])].sort((a, b) => settled(b) - settled(a) || a.localeCompare(b)).slice(0, minCards).some(rises))
+    : [];
+  const pool = hot.length > 0 ? hot : sets;
+  const setId = pinned ?? pool[hashDay(day, `${game}:set`) % pool.length];
   const top = (bySet.get(setId) ?? []).sort((a, b) => settled(b) - settled(a) || a.localeCompare(b)).slice(0, minCards * 2);
   const cat = await catalogRows(game, top);
   const cards: Mover[] = [];

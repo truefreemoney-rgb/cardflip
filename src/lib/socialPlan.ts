@@ -127,6 +127,17 @@ export function jumpsOn(day: string | undefined): boolean {
   return Boolean(day) && (day as string) >= JUMPS_FROM;
 }
 /**
+ * 10-02 (first read of a week of stats: gains posts 22 views a post, set
+ * spotlights 13). From this Eastern day on, the 7am set spotlight picks its
+ * set from the sets that have a real riser among their five most valuable
+ * cards, when any do, so the cover is a gain. Earlier days keep their set.
+ */
+export const RISER_SETS_FROM = "2026-10-03";
+export function riserSetsOn(day: string | undefined): boolean {
+  return Boolean(day) && (day as string) >= RISER_SETS_FROM;
+}
+
+/**
  * A game's top gainer must have moved at least this much to be "the biggest jump" (a +2% week is no headline: that game
  * keeps its lead card). The set spotlight uses it too: a riser takes the lead over the set's most valuable card when it
  * rose this much, or when that card fell (a +3% riser under a steady leader changes nothing).
