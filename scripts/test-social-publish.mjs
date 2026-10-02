@@ -113,6 +113,9 @@ check("alt text set", bsky.posts[0].alt.startsWith("Set spotlight:"));
 check("slot marked with the Eastern day", await getSetting(`${SLOT_PREFIX}bsky:morning`), THU);
 check("last-post day kept for the strip", await getSetting(`${LAST_POST_PREFIX}bsky`), THU);
 check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)), ["https://bsky/1"]);
+// 10-02, the optimization loop: every landed post is logged with the slot and kind it went out as (a dry run logs nothing).
+const logged = async (site) => (await db.prepare("SELECT url, day, slot, kind FROM social_post_log WHERE site = ? ORDER BY rowid").all(site)).map((l) => `${l.url} ${l.day} ${l.slot} ${l.kind}`);
+check("the landed post is logged as what it went out as", await logged("bsky"), [`https://bsky/1 ${THU} morning set`]);
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
@@ -120,6 +123,7 @@ r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", sites: [
 check("1pm: movers posted (midday=movers since 09-27)", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
 check("no-repeat: the landed gains post's cards are remembered for the kind", Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).sort(), ["sv1-2", "sv1-4", "sv1-7"]);
 check("same Eastern day: uris add up (Chris 09-26: tile said 1 post after three)", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)).length, 2);
+check("the 1pm post is logged under its own slot and kind", (await logged("bsky"))[1], `https://bsky/2 ${THU} midday movers`);
 r = await publishSocial({ day: THU, now: clock(23), origin: "http://x", sites: [bsky], fetchImage });
 // 09-30 (Chris: "never skip posts, i dont care the excuse"): this test DB has no stage cards (no all-games
 // picture) and one drop only, so the 7pm slot falls back instead of staying quiet — it still posts.
@@ -161,6 +165,7 @@ r = await publishSocial({ day: THU, now: clock(11), origin: "http://x", sites: [
 check("set already posted today → the morning slot posts the next kind with a draft (movers) instead", [r.sites[0].status, ded.posts[0].alt.startsWith("Pokémon movers of the week.")], ["posted", true]);
 check("the slot is still marked done (a slot always posts something)", await getSetting(`${SLOT_PREFIX}dedupe:morning`), THU);
 check("the kind actually posted (movers) is recorded, alongside the earlier set record", [await getSetting(`${KIND_PREFIX}dedupe:set`), await getSetting(`${KIND_PREFIX}dedupe:movers`)], [THU, THU]);
+check("the log holds the kind that went out, not the slot's own, and a failing site logs nothing", [(await logged("dedupe")).map((l) => l.split(" ").slice(2).join(" ")), await logged("broken")], [["morning movers"], []]);
 
 const ded2 = fakeSite("dedupe2");
 // Both movers and set already posted today for this site, and this

@@ -94,6 +94,81 @@ export function whenET(iso: string | number): string {
   return `${d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET`;
 }
 
+/**
+ * Kind and slot tags (10-02, the daily optimization loop). The platforms
+ * hand back a post's words and counts, not what the autopilot posted it as,
+ * so each stored post is tagged once: from the publisher's own log when the
+ * post is in it (social_post_log), else from its words and its Eastern hour
+ * (TikTok is posted by hand; rows from before the log shipped).
+ */
+export type PostKindTag = "set" | "movers" | "games" | "dips" | "card";
+export type SlotTag = "morning" | "midday" | "evening";
+
+/** One social_post_log row: what the publisher sent where. */
+export interface PostLogRow {
+  site: string;
+  /** What the site's post() returned. */
+  url: string;
+  /** Eastern day. */
+  day: string;
+  slot: SlotTag;
+  kind: PostKindTag;
+}
+
+/** The kind a caption was written for, read off its opening words; null when it is none of the autopilot's formats. */
+export function kindOfCaption(text: string): PostKindTag | null {
+  const s = text.slice(0, 90).toLowerCase();
+  if (s.includes("most valuable")) return "set";
+  if (s.includes("price gains")) return "movers";
+  if (s.includes("biggest price jump")) return "games";
+  if (s.includes("card of the day")) return "card";
+  if (s.includes("drop") || s.includes("fell") || s.includes("down")) return "dips";
+  return null;
+}
+
+/** Eastern day (YYYY-MM-DD) and hour of a post's timestamp; null when it does not parse. */
+export function easternOf(iso: string | number): { day: string; hour: number } | null {
+  const d = new Date(typeof iso === "string" ? iso.replace(/([+-]\d{2})(\d{2})$/, "$1:$2") : iso);
+  if (!iso || Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit" }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) % 24 };
+}
+
+/** The slot an Eastern hour falls in: before 11am morning, before 5pm midday, else evening. */
+export function slotOfHour(hour: number): SlotTag {
+  return hour < 11 ? "morning" : hour < 17 ? "midday" : "evening";
+}
+
+/** True when a logged url is this stored post: the same link, or one ending in the platform's post id (X and Facebook list a different link than they return). */
+export function sameLogged(post: { url: string; postId: string }, loggedUrl: string): boolean {
+  return loggedUrl === post.url || (post.postId !== "" && loggedUrl.endsWith(`/${post.postId}`));
+}
+
+/**
+ * The kind and slot one stored post went out as. `log` = the publisher's
+ * rows; `videos` = the TikTok videos registered per slot and day (their
+ * kind), since those are posted by hand and never logged. kind null = not
+ * one of ours (a hand-written post), and then the slot is null too.
+ */
+export function tagPost(
+  post: { site: string; postId: string; url: string; text: string; at: string },
+  log: PostLogRow[],
+  videos: Array<{ day: string; slot: SlotTag; kind: string }> = [],
+): { kind: PostKindTag | null; slot: SlotTag | null } {
+  const logged = log.find((l) => l.site === post.site && sameLogged(post, l.url));
+  if (logged) return { kind: logged.kind, slot: logged.slot };
+  const kind = kindOfCaption(post.text);
+  if (!kind) return { kind: null, slot: null };
+  const when = easternOf(post.at);
+  if (!when) return { kind, slot: null };
+  const planned =
+    post.site === "tiktok"
+      ? videos.find((v) => v.day === when.day && v.kind === kind)?.slot
+      : log.find((l) => l.site === post.site && l.day === when.day && l.kind === kind)?.slot;
+  return { kind, slot: planned ?? slotOfHour(when.hour) };
+}
+
 /** One-line preview of a post's words. */
 export function oneLine(text: string, max = 140): string {
   const t = text.replace(/\s+/g, " ").trim();

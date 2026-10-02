@@ -713,6 +713,21 @@ const SCHEMA = `
     at INTEGER NOT NULL,
     PRIMARY KEY (site, post_id)
   );
+  -- What the autopilot posted as what (10-02, the daily optimization loop):
+  -- one row per post that landed, written by publishSocial. The platforms
+  -- give back only words and counts, so this is how a social_posts row gets
+  -- its kind and slot (lib/server/socialPosts.ts tagSocialPosts). url = what
+  -- the site's post() returned; day = the Eastern day.
+  CREATE TABLE IF NOT EXISTS social_post_log (
+    site TEXT NOT NULL,
+    url TEXT NOT NULL,
+    day TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (site, url)
+  );
+  CREATE INDEX IF NOT EXISTS idx_social_post_log_day ON social_post_log(day);
   -- Throwaway-account guard (Chris 09-29, lib/server/signupGuard.ts): one row
   -- per public signup. ip_hash is a salted sha256, never the raw IP;
   -- device_id is the cf_dev cookie. One signup per ip_hash and per device.
@@ -903,6 +918,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The payment intent finds the pack from the charge;
   // reversed = scans already taken back, so partial refunds and a later dispute net out.
   ["scan_pack_purchases", ["payment_intent TEXT", "reversed INTEGER NOT NULL DEFAULT 0"]],
+  // The optimization loop (10-02): the kind (set / movers / games / dips) and slot (morning / midday / evening) a
+  // post went out as. NULL = not looked at yet, '' = looked at and it is none of ours (lib/socialPosts.ts tagPost).
+  ["social_posts", ["kind TEXT", "slot TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

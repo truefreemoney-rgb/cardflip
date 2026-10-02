@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { db } from "@/lib/db";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import {
   featuredByGame,
@@ -587,7 +588,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         // Every kind already posted today, or has no draft: keep the
         // slot's own kind and repeat it rather than skip the slot.
       }
-      let landed = 0;
+      const landedUris: string[] = [];
       for (const d of drafts) {
         const text = fitText(d, site.maxChars, site.maxTags);
         if (opts.dry) {
@@ -597,14 +598,21 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         try {
           const r = await postOne(site, d, text);
           entry.posts.push({ id: d.id, title: d.title, uri: r.uri, ...(r.video ? { video: r.video } : {}), ...(r.error ? { error: r.error } : {}) });
-          landed++;
+          landedUris.push(r.uri);
         } catch (err) {
           entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
         }
       }
-      if (!opts.dry && landed > 0) {
+      if (!opts.dry && landedUris.length > 0) {
         await setSetting(slotKey(site, p.slot), etDay);
         await setSetting(kindKey(site, kind), etDay);
+        // What went out as what, for the optimization loop (social_post_log). A failed write never costs the post.
+        try {
+          const log = db.prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at) VALUES (?, ?, ?, ?, ?, ?)");
+          for (const uri of landedUris) await log.run(site.id, uri, etDay, p.slot, kind, now);
+        } catch (err) {
+          console.warn("social: post log write failed", err instanceof Error ? err.message : err);
+        }
       }
     }
     if (!opts.dry) {

@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { socialPulse, type SitePulse } from "./socialPulse.ts";
 import { autoReplyOn, commentsForPosts, orphanComments, countNew, type SocialComment } from "./socialInbox.ts";
 import { likeOwnPosts, type SelfLikeReport } from "./socialSelfLike.ts";
-import { postKey, SITE_ORDER, tally, type PostTotals, type StoredPost } from "@/lib/socialPosts";
+import { getSetting } from "@/lib/server/settings";
+import { tiktokKey } from "@/lib/socialTiktok";
+import { easternOf, postKey, SITE_ORDER, tagPost, tally, type PostKindTag, type PostLogRow, type PostTotals, type SlotTag, type StoredPost } from "@/lib/socialPosts";
 
 /**
  * Social posts (Chris 09-28: "upgrade the pulse section for general post
@@ -71,9 +73,53 @@ export async function refreshSocialPosts(now = Date.now()): Promise<RefreshRepor
       sites.push({ site: s.site, label: s.label, connected: s.connected, error: s.connected ? s.error : null, posts: s.posts.length, readAt: now });
     }
   });
+  // Kind + slot on whatever is new (the optimization loop reads them). Never throws: an untagged row is retried next read.
+  await tagSocialPosts().catch((err) => console.warn("social: tagging posts failed", err instanceof Error ? err.message : err));
   // Like whatever of ours is not liked yet (backfill + retries). Never throws.
   const likes = await likeOwnPosts(now).catch((err) => [{ site: "all", liked: 0, error: err instanceof Error ? err.message : String(err) }]);
   return { at: now, sites, stored, likes };
+}
+
+const TAG_SLOTS: SlotTag[] = ["morning", "midday", "evening"];
+
+/**
+ * Tag every stored post not looked at yet with the kind and slot it went out
+ * as (lib/socialPosts.ts tagPost): the publisher's log first, else the words
+ * and the Eastern hour. Each row is tagged once; '' marks a post that is none
+ * of the autopilot's formats, so it is not read again. The first run after
+ * the columns ship is the backfill of every older row. Returns rows tagged.
+ */
+export async function tagSocialPosts(): Promise<number> {
+  const rows = (await db.prepare("SELECT site, post_id, url, text, at FROM social_posts WHERE kind IS NULL").all()) as Record<string, unknown>[];
+  if (rows.length === 0) return 0;
+  const posts = rows.map((r) => ({ site: String(r.site), postId: String(r.post_id), url: String(r.url ?? ""), text: String(r.text ?? ""), at: String(r.at ?? "") }));
+  const days = posts.map((p) => easternOf(p.at)?.day).filter((d): d is string => Boolean(d)).sort();
+  // A post can be listed a day after it went out; the log is read from the day before the oldest untagged one.
+  const from = days.length ? new Date(Date.parse(`${days[0]}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10) : "";
+  const log = ((await db.prepare("SELECT site, url, day, slot, kind FROM social_post_log WHERE day >= ?").all(from)) as Record<string, unknown>[]).map(
+    (r): PostLogRow => ({ site: String(r.site), url: String(r.url), day: String(r.day), slot: String(r.slot) as SlotTag, kind: String(r.kind) as PostKindTag }),
+  );
+  // TikTok is posted by hand: its slot is the one whose registered video for that day shows the post's kind.
+  const videos: Array<{ day: string; slot: SlotTag; kind: string }> = [];
+  const tiktokDays = new Set(posts.filter((p) => p.site === "tiktok").map((p) => easternOf(p.at)?.day).filter((d): d is string => Boolean(d)));
+  for (const day of tiktokDays) {
+    for (const slot of TAG_SLOTS) {
+      try {
+        const spec = JSON.parse((await getSetting(tiktokKey(slot, day))) || "null") as { kind?: string } | null;
+        if (spec?.kind) videos.push({ day, slot, kind: spec.kind });
+      } catch {
+        /* an unreadable row tags by the hour instead */
+      }
+    }
+  }
+  await db.transaction(async (tx) => {
+    const set = tx.prepare("UPDATE social_posts SET kind = ?, slot = ? WHERE site = ? AND post_id = ?");
+    for (const p of posts) {
+      const tag = tagPost(p, log, videos);
+      await set.run(tag.kind ?? "", tag.slot ?? "", p.site, p.postId);
+    }
+  });
+  return posts.length;
 }
 
 export interface PostsQuery {

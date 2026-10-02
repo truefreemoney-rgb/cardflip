@@ -5,10 +5,11 @@
  * them; comments group under "<site>:<post id>" in input order; counts
  * print exact with separators and a dash for unknown; the one-line preview
  * collapses whitespace and cuts on the limit; site labels cover every site
- * the autopilot posts to.
+ * the autopilot posts to; a post's kind and slot come from the publisher's
+ * log first, else from its words and Eastern hour (the optimization loop).
  */
 import assert from "node:assert/strict";
-import { count, groupByPost, oneLine, postKey, SITE_ORDER, siteLabel, tally, whenET } from "../src/lib/socialPosts.ts";
+import { count, easternOf, groupByPost, kindOfCaption, oneLine, postKey, sameLogged, SITE_ORDER, siteLabel, slotOfHour, tagPost, tally, whenET } from "../src/lib/socialPosts.ts";
 
 // tally
 assert.deepEqual(tally([]), { posts: 0, likes: 0, comments: 0, shares: 0, views: null });
@@ -55,5 +56,60 @@ assert.equal(whenET("2026-09-28T13:05:00-0400"), "Sep 28, 1:05 PM ET");
 assert.equal(whenET(Date.UTC(2026, 0, 2, 5, 0)), "Jan 2, 12:00 AM ET");
 assert.equal(whenET("nonsense"), "nonsense");
 assert.equal(whenET(""), "");
+
+// kind from the caption's opening words (real captions, prod 09-25 to 10-02)
+assert.equal(kindOfCaption("Sun & Moon: five of the most valuable cards right now\nUmbreon GX #154 $135"), "set");
+assert.equal(kindOfCaption("The five most valuable Pokémon cards in Power Keepers right now, market price from CardFlip's own"), "set");
+assert.equal(kindOfCaption("Pokémon and Magic price gains this week\nWobbuffet +134%"), "movers");
+assert.equal(kindOfCaption("The week's biggest price gains in Pokémon and Magic, from CardFlip's own price history."), "movers");
+assert.equal(kindOfCaption("Biggest price jumps this week\nPokémon: Cresselia +59%\nMagic: Void Winnower +29%"), "games");
+assert.equal(kindOfCaption("The biggest price jumps this week in Pokémon and Magic, and one card from Lorcana"), "games");
+assert.equal(kindOfCaption("Pokémon price drops this week\nDark Charizard -54%"), "dips");
+assert.equal(kindOfCaption("Card of the day: Friend Ball, Skyridge 126. Market price $15.71."), "card");
+// Not the autopilot's formats: a hand-written post, the 09-25 mixed list, an empty read.
+assert.equal(kindOfCaption("One scanner, five card games: Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh."), null);
+assert.equal(kindOfCaption("Pokémon price moves this week\nGrass Energy +650%"), null);
+assert.equal(kindOfCaption(""), null);
+
+// Eastern day and hour of a post, in every timestamp shape the platforms send
+assert.deepEqual(easternOf("2026-10-02T11:06:09+0000"), { day: "2026-10-02", hour: 7 });
+assert.deepEqual(easternOf("2026-10-02T03:30:00.000Z"), { day: "2026-10-01", hour: 23 });
+assert.deepEqual(easternOf("2026-01-02T05:00:00Z"), { day: "2026-01-02", hour: 0 });
+assert.equal(easternOf("nonsense"), null);
+assert.equal(easternOf(""), null);
+assert.deepEqual([7, 10, 11, 14, 16, 17, 19, 23].map(slotOfHour), ["morning", "morning", "midday", "midday", "midday", "evening", "evening", "evening"]);
+
+// the publisher's link against the link the platform lists (real pairs, 10-02)
+assert.ok(sameLogged({ url: "https://x.com/cardflipio/status/2105977590775165437", postId: "2105977590775165437" }, "https://x.com/i/status/2105977590775165437"));
+assert.ok(sameLogged({ url: "https://www.facebook.com/122110114887482847/posts/122112919971482847", postId: "1314676718400499_122112919971482847" }, "https://www.facebook.com/1314676718400499_122112919971482847"));
+assert.ok(sameLogged({ url: "https://bsky.app/profile/cardflip.bsky.social/post/3mwva4aq5cb2k", postId: "at://did:plc:abc/app.bsky.feed.post/3mwva4aq5cb2k" }, "https://bsky.app/profile/cardflip.bsky.social/post/3mwva4aq5cb2k"));
+assert.ok(!sameLogged({ url: "https://x.com/cardflipio/status/21", postId: "21" }, "https://x.com/i/status/2105977590775165421"));
+assert.ok(!sameLogged({ url: "https://www.tiktok.com/@cardflipio/video/7692", postId: "" }, "https://www.tiktok.com/"));
+
+// tagPost: the log wins over the words (a day plan can post any kind in any slot)
+const log = [
+  { site: "x", url: "https://x.com/i/status/111", day: "2026-10-02", slot: "evening", kind: "games" },
+  { site: "x", url: "https://x.com/i/status/222", day: "2026-10-02", slot: "morning", kind: "set" },
+];
+const xPost = (id, text, at) => ({ site: "x", postId: id, url: `https://x.com/cardflipio/status/${id}`, text, at });
+assert.deepEqual(tagPost(xPost("111", "Pokémon price gains this week", "2026-10-02T23:05:00Z"), log), { kind: "games", slot: "evening" });
+// Not in the log by link: the words give the kind, the log's row for that site, day and kind gives the slot,
+assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-10-03T01:10:00Z"), log), { kind: "set", slot: "morning" });
+// and with no such row (before the log shipped, another site's row) the Eastern hour does.
+assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-09-28T11:05:00Z"), log), { kind: "set", slot: "morning" });
+assert.deepEqual(tagPost({ ...xPost("999", "Pokémon price drops this week", "2026-10-02T23:05:00Z"), site: "threads" }, log), { kind: "dips", slot: "evening" });
+// TikTok is posted by hand, whenever: the slot is the one whose video that day shows the post's kind.
+const videos = [
+  { day: "2026-10-02", slot: "morning", kind: "set" },
+  { day: "2026-10-02", slot: "midday", kind: "movers" },
+  { day: "2026-10-02", slot: "evening", kind: "games" },
+];
+const tt = (text, at) => ({ site: "tiktok", postId: "7692", url: "https://www.tiktok.com/@cardflipio/video/7692", text, at });
+assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-10-02T15:40:00Z"), log, videos), { kind: "games", slot: "evening" });
+assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-09-20T15:40:00Z"), log, videos), { kind: "games", slot: "midday" });
+// None of ours: no kind and no slot, whatever the hour.
+assert.deepEqual(tagPost(xPost("5", "One scanner, five card games", "2026-10-02T23:05:00Z"), log, videos), { kind: null, slot: null });
+// A timestamp that does not parse keeps the kind and leaves the slot open.
+assert.deepEqual(tagPost(xPost("5", "Pokémon price gains this week", ""), log), { kind: "movers", slot: null });
 
 console.log("test-social-posts: ok");
