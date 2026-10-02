@@ -37,6 +37,9 @@ function outOfScans(user: User, usage: ScanQuota) {
 
 export async function POST(req: Request) {
   try {
+    // Stage clock (10-02): the read stores how long the gates and the vision
+    // call took, so scan speed is measured from real scans, not guessed.
+    const startedAt = Date.now();
     const user = await requireUser();
     const wall = subscriptionGate(user);
     if (wall) return wall;
@@ -84,6 +87,7 @@ export async function POST(req: Request) {
     const reservation = await reserveScan(user);
     if (reservation.taken < 1) return outOfScans(user, reservation.usage);
     let scanned;
+    const visionAt = Date.now();
     try {
       scanned = await analyzeCardImageWithUsage(
         image,
@@ -100,6 +104,7 @@ export async function POST(req: Request) {
       throw err;
     }
     const { read: card, usage: tokens } = scanned;
+    const visionMs = Date.now() - visionAt;
     // The token bill is written alongside; a ledger failure must never fail
     // a scan the seller already paid for.
     const [usage] = await Promise.all([
@@ -118,6 +123,9 @@ export async function POST(req: Request) {
         art: card.artStyle,
         kind: card.kind ?? null,
         conf: card.confidence,
+        // ms spent in the gates before the vision call, and in the call itself.
+        pre: visionAt - startedAt,
+        ms: visionMs,
       }).catch((err) =>
         console.error("scan_usage write failed:", err instanceof Error ? err.message : err),
       ),
