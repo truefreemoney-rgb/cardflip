@@ -21,6 +21,9 @@ interface Props {
   game: GameId;
   /** Bumped by the page when the pile changes (scan, delete, sale) so the line refetches. */
   version?: number;
+  /** The page's status tab ("all" = every status) and category ("all" | "none" = uncategorized | a name): the line follows the list. */
+  status?: string;
+  category?: string;
   className?: string;
 }
 
@@ -33,13 +36,16 @@ const RANGES: { days: number; label: string }[] = [
 const parseDay = (d: string) => Date.parse(`${d}T00:00:00Z`);
 const money = (n: number) => formatMoney(n);
 
-export default function InventoryValueChart({ game, version = 0, className = "" }: Props) {
+export default function InventoryValueChart({ game, version = 0, status = "all", category = "all", className = "" }: Props) {
   const [days, setDays] = useState(90);
   const [points, setPoints] = useState<Point[] | null>(null);
 
   useEffect(() => {
     let alive = true;
-    apiFetch(`/api/cards/value-history?game=${game}&days=${days}`)
+    const scope =
+      (status !== "all" ? `&status=${encodeURIComponent(status)}` : "") +
+      (category === "none" ? "&uncategorized=1" : category !== "all" ? `&category=${encodeURIComponent(category)}` : "");
+    apiFetch(`/api/cards/value-history?game=${game}&days=${days}${scope}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body: { points?: Point[] } | null) => {
         if (alive) setPoints(body?.points ?? []);
@@ -50,7 +56,7 @@ export default function InventoryValueChart({ game, version = 0, className = "" 
     return () => {
       alive = false;
     };
-  }, [game, days, version]);
+  }, [game, days, version, status, category]);
 
   const geo = useMemo(() => {
     if (!points || points.length < 2) return null;

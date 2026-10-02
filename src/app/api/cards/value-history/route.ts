@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
-import { inventoryValueSeries, MAX_VALUE_DAYS } from "@/lib/server/inventoryValue";
+import { inventoryValueSeries, MAX_VALUE_DAYS, type ValueScope } from "@/lib/server/inventoryValue";
 import type { GameId } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 
@@ -11,7 +11,14 @@ export async function GET(req: NextRequest) {
     const params = req.nextUrl.searchParams;
     const game: GameId = parseGame(params.get("game"));
     const days = Math.min(MAX_VALUE_DAYS, Math.max(2, Number(params.get("days")) || 90));
-    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days) });
+    // The page's tab and category: ?status=ready|listed|ended|sold|sealed, ?category=<name> or ?uncategorized=1.
+    const status = params.get("status");
+    const category = params.get("uncategorized") === "1" ? null : params.get("category")?.slice(0, 40) || undefined;
+    const scope: ValueScope = {
+      category,
+      status: status === "ready" || status === "listed" || status === "ended" || status === "sold" || status === "sealed" ? status : undefined,
+    };
+    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days, Date.now(), scope) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

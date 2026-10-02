@@ -1437,17 +1437,40 @@ export default function CollectionPage() {
 
   // The price guard: drafts priced off a market the rule does not believe (and not typed by the seller) count for nothing
   // in what is in play, so one junk $1,013 draft cannot double the number. A key, so the memo depends on a plain string.
-  const leftOutKey = gameCards
+  // The tab and the category pick the pile (Chris, 10-02: "the in play section should reflect the card results at
+  // the bottom ... if you change tabs and categories", the way it already followed the game). The money panel, the
+  // value line, the counts and the list are all this pile; the search box only narrows the list.
+  const scopeCards = useMemo(
+    () =>
+      gameCards.filter((card) => {
+        if (category === "none" ? card.category !== null : category !== "all" && card.category !== category) return false;
+        if (filter === "listed" && !isLive(card)) return false;
+        if (filter === "ended" && !isEnded(card)) return false;
+        if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
+        if (filter === "sealed" && card.kind !== "sealed") return false;
+        return true;
+      }),
+    [gameCards, filter, category],
+  );
+  const scoped = filter !== "all" || category !== "all";
+  const scopeLabel = [
+    filter !== "all" ? FILTERS.find((f) => f.value === filter)?.label : null,
+    category === "none" ? "Uncategorized" : category !== "all" ? category : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const leftOutKey = scopeCards
     .filter((c) => c.status === "ready" && !c.priceLocked && livePrices[c.id]?.flag != null)
     .map((c) => c.id)
     .join(",");
   const stats = useMemo(() => {
-    const drafts = gameCards.filter((c) => c.status === "ready");
+    const drafts = scopeCards.filter((c) => c.status === "ready");
     // "1 live" while nothing was live (Chris, 09-03): an ended auction is
     // neither live nor in play — it waits for Relist or Delete.
-    const listed = gameCards.filter(isLive);
-    const ended = gameCards.filter(isEnded);
-    const sold = gameCards.filter((c) => c.status === "sold");
+    const listed = scopeCards.filter(isLive);
+    const ended = scopeCards.filter(isEnded);
+    const sold = scopeCards.filter((c) => c.status === "sold");
 
     const earned = sold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
     // Net = after eBay fees AND the postage the seller pays per sale (Chris,
@@ -1487,7 +1510,7 @@ export default function CollectionPage() {
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
     return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, avgDays, cost, costKnown, profit };
-  }, [gameCards, leftOutKey]);
+  }, [scopeCards, leftOutKey]);
 
 
   async function removeSelected() {
@@ -1520,12 +1543,7 @@ export default function CollectionPage() {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const shown = gameCards.filter((card) => {
-      if (category === "none" ? card.category !== null : category !== "all" && card.category !== category) return false;
-      if (filter === "listed" && !isLive(card)) return false;
-      if (filter === "ended" && !isEnded(card)) return false;
-      if ((filter === "ready" || filter === "sold") && card.status !== filter) return false;
-      if (filter === "sealed" && card.kind !== "sealed") return false;
+    const shown = scopeCards.filter((card) => {
       if (!needle) return true;
       return (
         card.cardName.toLowerCase().includes(needle) ||
@@ -1558,7 +1576,7 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [gameCards, filter, query, sort, category]);
+  }, [scopeCards, query, sort]);
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -1639,6 +1657,24 @@ export default function CollectionPage() {
           instead of four equal tiles where three sat empty around a lone
           number (Chris, 09-03: "this whole design isn't sitting well"). */}
       <section className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
+        {/* Says which pile the numbers are for, with the way back to everything. */}
+        {scoped && (
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-edge/60 bg-brand-500/[0.07] px-5 py-2 text-xs">
+            <span className="text-zinc-300">
+              Showing <span className="font-semibold text-white">{scopeLabel}</span> · {scopeCards.length} card{scopeCards.length === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setFilter("all");
+                setCategory("all");
+              }}
+              className="font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
+            >
+              Show Everything
+            </button>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
             <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
@@ -1670,7 +1706,9 @@ export default function CollectionPage() {
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               {stats.sold.length === 0
-                ? "Nothing sold yet — it starts counting at the first sale"
+                ? scoped
+                  ? "No sales in this view"
+                  : "Nothing sold yet — it starts counting at the first sale"
                 : `Take-home from ${stats.sold.length} sale${stats.sold.length === 1 ? "" : "s"}${
                     stats.avgDays !== null ? ` · ~${Math.max(1, Math.round(stats.avgDays))} days to sell` : ""
                   }`}
@@ -1717,7 +1755,7 @@ export default function CollectionPage() {
         </div>
         {/* The pile's value day by day, from our own price series (Chris,
             09-10: "a graph of their listing value changing over time"). */}
-        <InventoryValueChart game={gameView} version={gameCards.length} />
+        <InventoryValueChart game={gameView} version={gameCards.length} status={filter} category={category} />
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> drafts

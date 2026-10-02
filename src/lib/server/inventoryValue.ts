@@ -50,20 +50,38 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 
 const dayOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
+/** The Inventory page's tab and category (Chris, 10-02: the panel follows the list under it). */
+export interface ValueScope {
+  /** A category name; null = uncategorized; undefined = every category. */
+  category?: string | null;
+  /** The status tab; undefined = All. "listed" is live only, "ended" the ended auctions. */
+  status?: "ready" | "listed" | "ended" | "sold" | "sealed";
+}
+
+const STATUS_SQL: Record<NonNullable<ValueScope["status"]>, string> = {
+  ready: "AND status = 'ready'",
+  listed: "AND status = 'listed' AND ebay_ended_at IS NULL",
+  ended: "AND status = 'listed' AND ebay_ended_at IS NOT NULL",
+  sold: "AND status = 'sold'",
+  sealed: "AND kind = 'sealed'",
+};
+
 export async function inventoryValueSeries(
   userId: string,
   game: GameId,
   days: number,
   now = Date.now(),
+  scope: ValueScope = {},
 ): Promise<ValuePoint[]> {
   const span = Math.min(MAX_VALUE_DAYS, Math.max(2, Math.floor(days)));
+  const categorySql = scope.category === undefined ? "" : scope.category === null ? "AND category IS NULL" : "AND category = ?";
   const rows = (await db
     .prepare(
       `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at FROM cards
-       WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL
+       WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL ${categorySql} ${scope.status ? STATUS_SQL[scope.status] : ""}
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
-    .all(userId, game)) as unknown as Row[];
+    .all(userId, game, ...(typeof scope.category === "string" ? [scope.category] : []))) as unknown as Row[];
   if (rows.length === 0) return [];
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));
