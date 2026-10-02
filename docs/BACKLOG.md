@@ -87,7 +87,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### C. Shipped, NOT proven on production (needs a real action to confirm)
 - [ ] Magic finish persistence (09-28): scan a foil on the phone, save, refresh → editor still says Foil; eBay draft aspect Finish = Foil; Inventory price = foil market. Verified by test:liveprices only.
-- [ ] Help chat's Haiku call on prod (verified only by a one-off script with the Vercel key; dev has no key).
+- [x] Help chat's Haiku call on prod — proven 10-01: one real question as the admin account in the pane, 200 in 1.6 s with a correct answer and a "reprice" guide action; the test conversation was cleared after (history was empty before).
 - [ ] Trial selling gate on prod (402 on draft/publish) — verified locally only.
 - [ ] Admin plan overrides on prod (comp/unlimited/legacy/trial) — verified locally only.
 - [ ] Admin Add account on prod — verified locally only.
