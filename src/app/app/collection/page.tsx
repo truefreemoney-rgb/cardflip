@@ -501,8 +501,10 @@ export default function CollectionPage() {
   // Verify Match happens IN the detail sheet (Chris, 10-01), not on the
   // listing page. Yu-Gi-Oh! foils and One Piece printings share one number,
   // so those games ask "which one is yours?" there too: the choices per
-  // ledger row, undefined while they load.
-  const [verifyChoices, setVerifyChoices] = useState<Record<string, PokemonCard[]>>({});
+  // ledger row, undefined while they load. "failed" = the printings could not
+  // be looked up: the card is NOT verifiable until they can (Chris, 10-01:
+  // both the card and its printing are confirmed before Build Listing opens).
+  const [verifyChoices, setVerifyChoices] = useState<Record<string, PokemonCard[] | "failed">>({});
   const [verifying, setVerifying] = useState<string | null>(null);
 
   const asksPrinting = (card: ServerCard) => {
@@ -513,9 +515,25 @@ export default function CollectionPage() {
   async function loadVerifyChoices(card: ServerCard, pick: PokemonCard) {
     if (!asksPrinting(card) || !pick.id) return;
     const game = parseGame(card.game);
-    const found = await searchCards(pick.englishName || pick.name, pick.number || null, "en", undefined, game).catch(() => [] as PokemonCard[]);
-    const choices = game === "yugioh" ? foilChoices(pick, found) : printingChoices(pick, found);
+    const found = await searchCards(pick.englishName || pick.name, pick.number || null, "en", undefined, game).catch(() => null);
+    const choices = found === null ? ("failed" as const) : game === "yugioh" ? foilChoices(pick, found) : printingChoices(pick, found);
     setVerifyChoices((prev) => ({ ...prev, [card.id]: choices }));
+  }
+
+  /** Try Again after a failed printings lookup: the catalog card fresh by id, then its printings. */
+  async function retryVerifyChoices(card: ServerCard) {
+    setVerifyChoices((prev) => {
+      const next = { ...prev };
+      delete next[card.id];
+      return next;
+    });
+    const pick = card.catalogCardId ? await fetchCardById(card.catalogCardId, parseGame(card.game)).catch(() => null) : null;
+    if (!pick) {
+      setVerifyChoices((prev) => ({ ...prev, [card.id]: "failed" }));
+      return;
+    }
+    setDetail((d) => (d?.id === card.id ? { ...d, catalog: pick, loading: false } : d));
+    await loadVerifyChoices(card, pick);
   }
 
   /** The seller's tap in the sheet: "yes, this one", or the printing / foil
@@ -559,7 +577,7 @@ export default function CollectionPage() {
     // A printing picked in the sheet moved the row to another catalog card: the cached one is stale.
     if (cached && (!card.catalogCardId || cached.id === card.catalogCardId)) {
       setDetail({ id: card.id, catalog: cached, loading: false });
-      if (verifyChoices[card.id] === undefined) void loadVerifyChoices(card, cached);
+      if (verifyChoices[card.id] === undefined || verifyChoices[card.id] === "failed") void loadVerifyChoices(card, cached);
       return;
     }
     setDetail({ id: card.id, catalog: catalogStub(card), loading: true });
@@ -576,9 +594,9 @@ export default function CollectionPage() {
     }
     if (found) catalogCache.current[card.id] = found;
     setDetail((d) => (d?.id === card.id ? { id: card.id, catalog: found ?? d.catalog, loading: false } : d));
-    // No catalog row = nothing to compare printings against: an empty list lets the plain "Yes" show.
+    // No catalog row = the printings can't be checked, so the card can't be verified yet (Try Again).
     if (found) void loadVerifyChoices(card, found);
-    else if (asksPrinting(card)) setVerifyChoices((prev) => ({ ...prev, [card.id]: [] }));
+    else if (asksPrinting(card)) setVerifyChoices((prev) => ({ ...prev, [card.id]: "failed" }));
   }
 
   /** The Inventory half of the detail view: this copy's status, price, facts
@@ -886,6 +904,19 @@ export default function CollectionPage() {
                   <p className="flex items-center justify-center gap-2 py-2 text-sm text-zinc-400">
                     <Spinner className="h-3.5 w-3.5" /> Checking the printings…
                   </p>
+                ) : choices === "failed" ? (
+                  // No plain "Yes" here: a One Piece / Yu-Gi-Oh! card is only
+                  // verified once its printing was confirmed too.
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-amber-200">Couldn&apos;t load this card&apos;s printings, so it can&apos;t be verified yet.</p>
+                    <button
+                      type="button"
+                      onClick={() => void retryVerifyChoices(card)}
+                      className="w-full rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300"
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 ) : choices.length >= 2 ? (
                   <div>
                     <p className="text-sm font-medium text-white">
