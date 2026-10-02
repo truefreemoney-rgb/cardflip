@@ -101,6 +101,27 @@ await check("admin console is gated (redirects to its login)", async () => {
   expect(res.status >= 300 && res.status < 400, `status ${res.status}`);
 });
 
+// --- sitemaps ----------------------------------------------------------------------------
+// Each child file is built on demand (ISR, kept a day) and every deploy throws
+// the copies away, so Googlebot's first read after a deploy met a cold build of
+// up to 10,000 cards. Search Console read every child once on 09-30 and the
+// slowest cold build, cards-magic-2.xml (~14s), came back "Couldn't fetch" and
+// was never retried. Reading every file here, every 15 minutes and after each
+// deploy, keeps a warm copy in front of Googlebot and fails the run on a file
+// that stopped answering. The route allows 60s (maxDuration), so wait that long.
+const SITEMAP_TIMEOUT_MS = 75_000;
+await check("sitemap index lists its files and every file answers (keeps the copies warm for Googlebot)", async () => {
+  const idx = await call("/sitemap.xml");
+  expect(idx.status === 200 && idx.text.includes("<sitemapindex"), `index status ${idx.status}`);
+  const files = [...idx.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
+  expect(files.length >= 2, `index lists ${files.length} files`);
+  for (const path of files) {
+    const res = await fetch(base + path, { signal: AbortSignal.timeout(SITEMAP_TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke" } });
+    const text = await res.text();
+    expect(res.status === 200 && text.includes("<urlset"), `${path}: status ${res.status}`);
+  }
+});
+
 // --- report ---------------------------------------------------------------------------
 let failed = 0;
 for (const r of results) {
