@@ -90,7 +90,6 @@ function catalogStub(card: ServerCard): PokemonCard {
 
 /** Grid or rows — remembered per browser (Chris, 09-04: "way more visual"). */
 const VIEW_KEY = "cardflip.inventoryView";
-const SUMMARY_KEY = "cardflip.inventorySummary";
 type InventoryView = "grid" | "list";
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
@@ -473,23 +472,14 @@ export default function CollectionPage() {
       // Private mode / blocked storage: the choice just doesn't persist.
     }
   }
-  // The money panel folds away (Chris, 10-02), remembered per browser like the view.
-  const [summaryOpen, setSummaryOpen] = useState(() => {
-    try {
-      return typeof window === "undefined" || window.localStorage.getItem(SUMMARY_KEY) !== "closed";
-    } catch {
-      return true;
-    }
-  });
+  // The money panel and the search / filter panel both fold away, and both
+  // start folded on every visit (Chris, 10-02: "always collapsed unless the
+  // user clicks it"), so neither is remembered.
+  const [summaryOpen, setSummaryOpen] = useState(false);
   function toggleSummary() {
-    const next = !summaryOpen;
-    setSummaryOpen(next);
-    try {
-      window.localStorage.setItem(SUMMARY_KEY, next ? "open" : "closed");
-    } catch {
-      // Private mode / blocked storage: the choice just doesn't persist.
-    }
+    setSummaryOpen((open) => !open);
   }
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   // "Mark sold" asks what it actually went for (prefilled with the asking
@@ -1448,6 +1438,14 @@ export default function CollectionPage() {
     categoryRaw === "all" || (categoryRaw === "none" ? categories.length > 0 : categories.includes(categoryRaw))
       ? categoryRaw
       : "all";
+  // What the folded search / filter line says when something narrows the list.
+  const narrowedBy = [
+    filter !== "all" ? FILTERS.find((f) => f.value === filter)?.label : null,
+    category === "none" ? "Uncategorized" : category !== "all" ? category : null,
+    query.trim() ? `"${query.trim()}"` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   function switchGame(next: GameId) {
     setGameView(next);
     setSelected(new Set());
@@ -1698,7 +1696,7 @@ export default function CollectionPage() {
           </div>
         )}
         {/* The whole panel folds to one line (Chris, 10-02: "make this section collapsible on desktop and
-            mobile"); the choice is remembered per browser. Folded, the line carries the two headline numbers. */}
+            mobile"); folded on every visit until it is tapped. Folded, the line carries the two headline numbers. */}
         <button
           type="button"
           onClick={toggleSummary}
@@ -1875,7 +1873,36 @@ export default function CollectionPage() {
           gets its own full row, the view switch carries words and shares a
           row with sort, the six statuses sit in a 3×2 block with nothing
           hidden. One row from sm up, as before. No mask fades: iOS. */}
-      <div className="rounded-2xl border border-edge bg-surface-1 p-2 sm:p-3">
+      <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
+        {/* Folded on every visit until it is tapped (Chris, 10-02). Folded,
+            the line names whatever is narrowing the list, so a filter left
+            on never hides cards without saying so. */}
+        <button
+          type="button"
+          onClick={() => setToolsOpen((open) => !open)}
+          aria-expanded={toolsOpen}
+          aria-controls="inventory-tools"
+          className={`flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left transition hover:bg-white/[0.03] ${toolsOpen ? "border-b border-edge/60" : ""}`}
+        >
+          <span className="flex min-w-0 items-center gap-2 text-xs text-zinc-400">
+            <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <circle cx="9" cy="9" r="5.5" />
+              <path d="M13.5 13.5 17 17" strokeLinecap="round" />
+            </svg>
+            {!toolsOpen && narrowedBy ? (
+              <span className="truncate font-medium text-brand-200">{narrowedBy}</span>
+            ) : (
+              <span className={toolsOpen ? "uppercase tracking-[0.15em] text-zinc-500" : ""}>Search, Sort &amp; Filter</span>
+            )}
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-300">
+            {toolsOpen ? "Hide" : "Show"}
+            <svg viewBox="0 0 20 20" className={`h-4 w-4 transition-transform ${toolsOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 8l5 5 5-5" />
+            </svg>
+          </span>
+        </button>
+        <div id="inventory-tools" className={toolsOpen ? "p-2 sm:p-3" : "hidden"}>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full min-w-0 sm:w-auto sm:flex-1">
             <svg viewBox="0 0 20 20" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -2036,6 +2063,7 @@ export default function CollectionPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {offerPanel && (
