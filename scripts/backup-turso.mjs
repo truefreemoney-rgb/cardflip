@@ -48,7 +48,29 @@ const raw = path.join(outDir, `cardflip-${day}.db`);
 const gz = `${raw}.gz`;
 fs.rmSync(raw, { force: true });
 
-const remote = createClient({ url, authToken });
+// A dropped connection mid-copy (UND_ERR_SOCKET from a cloud runner, 10-01)
+// used to end the whole backup: each query now retries on a fresh client.
+// SQL errors are not retried; the rowid fallback below depends on seeing them.
+let client = createClient({ url, authToken });
+const remote = {
+  async execute(q) {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await client.execute(q);
+      } catch (err) {
+        const text = `${err?.code ?? ""} ${err?.message ?? err}`;
+        if (attempt >= 5 || /SQLITE|SQL_|no such|syntax/i.test(text)) throw err;
+        console.warn(`\nconnection dropped (${String(err?.cause?.code ?? err?.code ?? err?.message).slice(0, 60)}), retry ${attempt} of 4`);
+        try { client.close(); } catch { /* already gone */ }
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+        client = createClient({ url, authToken });
+      }
+    }
+  },
+  close() {
+    client.close();
+  },
+};
 const local = new DatabaseSync(raw);
 local.exec("PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF;");
 
