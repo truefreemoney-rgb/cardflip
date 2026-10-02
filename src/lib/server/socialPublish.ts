@@ -27,6 +27,7 @@ import {
 } from "@/lib/server/social";
 import { dayPlan, gamesTags, jumpsOn, questionFor } from "@/lib/socialPlan";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
+import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
 import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
@@ -241,6 +242,8 @@ export interface PublishReport {
  * and only when none fits does it go, still before a single hashtag does.
  */
 export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
+  // The optimizer's hashtag plan (lib/socialTags.ts): the one place a post's tags are resolved for its day.
+  post = { ...post, hashtags: tagsOn(post.hashtags, post.day) };
   if (post.hashtags.length > maxTags) post = { ...post, hashtags: post.hashtags.slice(0, maxTags) };
   const short = post.shortCaption ?? post.caption;
   // Before any tag goes: the short caption with its sign-off cut to the

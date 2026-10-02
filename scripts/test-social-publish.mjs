@@ -487,12 +487,20 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   const start = addDays(today, 2);
   check("switched on: the lead starts a trial two days out", [rep.change, JSON.parse(await getSetting(OPT_TRIAL_KEY))], [{ slot: "morning", from: "set", to: "dips" }, { slot: "morning", from: "set", to: "dips", start }]);
   check("the schedule: tomorrow is untouched, the start day posts the trial kind at 7am and nothing else moved", [kindOn("morning", addDays(today, 1)), kindOn("morning", start), kindOn("midday", start), kindOn("evening", start)], ["set", "dips", "movers", "games"]);
-  const top = (await loadBoard()).sections.find(isCompletedSection)?.items[0]?.text ?? "";
+  // Two lines that day: the hashtag trial's (written last, so on top) and the kind trial's under it.
+  const [tagTop, top] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
   check("one board line says what starts when, and why", top.startsWith(`Social optimizer ${today} — trial: price drops takes 7am from set spotlight for a week, starting ${start}.`), true);
+  // Hashtags ride the same run (lib/socialTags.ts): off = nothing, on = the first challenger's trial two days out, loaded into the plan fitText reads.
+  const { TAGS_KEY, TAGS_WHY_KEY } = await import(at("lib/server/socialTags.ts"));
+  const { TAG_CANDIDATES, tagsOn } = await import(at("lib/socialTags.ts"));
+  check("hashtags: the same run starts the first challenger's trial, with its own board line", [JSON.parse(await getSetting(TAGS_KEY)), tagTop.startsWith(`Social optimizer ${today} — hashtag trial starts ${start}: #${TAG_CANDIDATES[0].in} in place of #${TAG_CANDIDATES[0].out}`)], [{ swaps: [], trial: { ...TAG_CANDIDATES[0], start } }, true]);
+  check("hashtags: the trial tag posts on the start day and not the day after", [tagsOn([TAG_CANDIDATES[0].out], start), tagsOn([TAG_CANDIDATES[0].out], addDays(start, 1))], [[TAG_CANDIDATES[0].in], [TAG_CANDIDATES[0].out]]);
   await setSetting(OPT_LAST_KEY, "");
   rep = await runSocialOptimize(now + 1);
   check("the next run leaves a running trial alone", [rep.change, rep.why.startsWith("No change: trial running, price drops at 7am"), JSON.parse(await getSetting(OPT_TRIAL_KEY)).start], [null, true, start]);
+  check("hashtags: the next run leaves the running trial alone", [JSON.parse(await getSetting(TAGS_KEY)).trial.start, (await getSetting(TAGS_WHY_KEY)).startsWith("Hashtag trial running")], [start, true]);
   await setSetting(SCHEDULE_KEY, "");
+  await setSetting(TAGS_KEY, "");
   await loadSchedule();
 }
 

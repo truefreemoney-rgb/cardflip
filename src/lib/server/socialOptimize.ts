@@ -5,6 +5,8 @@ import { addCompletedLine, eastern, SLOTS } from "@/lib/server/socialPublish";
 import { addScheduleEntry, loadSchedule } from "@/lib/server/socialSchedule";
 import { LEAD_DAYS, MAX_AGE_DAYS, SCORED_KINDS, step, type LoopState, type OptimizeReport, type ScoredKind, type ScoredPost, type Sitting, type Trial } from "@/lib/socialOptimize";
 import { standingFor } from "@/lib/socialPlan";
+import { runSocialTags } from "@/lib/server/socialTags";
+import type { TagPost } from "@/lib/socialTags";
 
 /**
  * The daily social optimization loop, the job (Chris 10-02: "should be
@@ -59,7 +61,7 @@ export async function runSocialOptimize(now = Date.now()): Promise<OptimizeRepor
   // first_seen_at is within hours of the post and is a plain integer (at is text in each platform's own shape); a week of slack past the window.
   const since = now - (MAX_AGE_DAYS + 7) * 86_400_000;
   const rows = (await db
-    .prepare(`SELECT site, kind, slot, at, likes, comments, shares, views FROM social_posts WHERE kind IN (${SCORED_KINDS.map(() => "?").join(", ")}) AND first_seen_at >= ?`)
+    .prepare(`SELECT site, kind, slot, at, text, likes, comments, shares, views FROM social_posts WHERE kind IN (${SCORED_KINDS.map(() => "?").join(", ")}) AND first_seen_at >= ?`)
     .all(...SCORED_KINDS, since)) as Record<string, unknown>[];
   const n = (v: unknown): number | null => (v == null ? null : Number(v));
   const posts: ScoredPost[] = rows.map((r) => ({ site: String(r.site), kind: String(r.kind), slot: String(r.slot ?? ""), at: String(r.at ?? ""), views: n(r.views), likes: n(r.likes), comments: n(r.comments), shares: n(r.shares) }));
@@ -92,6 +94,10 @@ export async function runSocialOptimize(now = Date.now()): Promise<OptimizeRepor
     await setSetting(OPT_CHANGED_KEY, day);
   }
   if (line) await addCompletedLine(line, now);
+  // Hashtags: the same once-a-day run, the same Off switch, its own trial (lib/socialTags.ts).
+  const tagPosts: TagPost[] = rows.map((r) => ({ site: String(r.site), at: String(r.at ?? ""), text: String(r.text ?? ""), views: n(r.views), likes: n(r.likes), comments: n(r.comments), shares: n(r.shares) }));
+  const tagLine = await runSocialTags(tagPosts, now, day, state.off);
+  if (tagLine) await addCompletedLine(tagLine, now);
   await setSetting(OPT_SINCE_KEY, sinceDay);
   await setSetting(OPT_REPORT_KEY, JSON.stringify(report));
   await setSetting(OPT_LAST_KEY, day);

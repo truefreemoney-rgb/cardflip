@@ -1,5 +1,6 @@
 import "server-only";
 import { getSetting, setSetting } from "@/lib/server/settings";
+import { loadTagPlan } from "@/lib/server/socialTags";
 import { setStanding, type StandingEntry } from "@/lib/socialPlan";
 
 /**
@@ -40,6 +41,8 @@ let loadedAt = 0;
 export async function loadSchedule(now = Date.now()): Promise<StandingEntry[]> {
   const entries = parseSchedule(await getSetting(SCHEDULE_KEY));
   setStanding(entries);
+  // The hashtag plan rides along: whoever asks what a slot posts also needs the tags it posts with.
+  await loadTagPlan();
   loadedAt = now;
   return entries;
 }
