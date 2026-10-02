@@ -300,6 +300,8 @@ export default function WishlistPage() {
   const [identifying, setIdentifying] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // Catalog picture per row, for a row that saved none (10-02: a search answer older than the picture fill).
+  const [catalogPictures, setCatalogPictures] = useState<Record<string, string>>({});
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -321,6 +323,7 @@ export default function WishlistPage() {
             setNowStale(stale);
             setResolvedIds(cardIds);
             resolvedCards.current = { ...resolvedCards.current, ...cards };
+            setCatalogPictures(Object.fromEntries(Object.entries(cards).map(([id, c]) => [id, c.imageSmall])));
           })
           .catch(() => {
             // Prices are decoration here; the list stands without them.
@@ -401,7 +404,18 @@ export default function WishlistPage() {
     setIdentifying(false);
   }
 
+  /** The saved row for a catalog card, so a search tile knows it is already on the list (and can take it off). */
+  const savedRowFor = (cardId: string) => items.find((i) => (i.cardId ?? resolvedIds[i.id]) === cardId) ?? null;
+
   async function handleAdd(card: PokemonCard) {
+    // A second tap on a saved tile takes the card off again (Chris 10-02), with
+    // the same Undo toast as the grid's remove.
+    const saved = savedRowFor(card.id);
+    if (saved) {
+      setAddedIds((prev) => { const next = new Set(prev); next.delete(card.id); return next; });
+      handleRemove(saved.id);
+      return;
+    }
     if (addedIds.has(card.id)) return;
     const price = priceFlagOf(card) ? null : (pickPrice(card)?.market ?? null);
     const item = await addToWishlist(card, resultsLanguage, price);
@@ -589,11 +603,11 @@ export default function WishlistPage() {
 
         {addError && <p className="text-xs text-red-400">{addError}</p>}
 
-        <CardSearchResults search={search} hint="tap one to add it">
+        <CardSearchResults search={search} hint="tap one to add it, tap again to remove it">
           {(shown) => (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
               {shown.map((card) => {
-                const added = addedIds.has(card.id);
+                const added = addedIds.has(card.id) || savedRowFor(card.id) != null;
                 const flagged = priceFlagOf(card) != null;
                 const price = flagged ? null : (pickPrice(card)?.market ?? null);
                 return (
@@ -739,7 +753,7 @@ export default function WishlistPage() {
                       className="relative w-full rounded-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
                     >
                       <CardImage
-                        src={item.imageUrl}
+                        src={item.imageUrl || catalogPictures[item.id] || ""}
                         alt={item.cardName}
                         className="aspect-[5/7] w-full rounded-lg"
                       />

@@ -64,6 +64,19 @@ await recordSeries(recordPoint, addDays, TODAY, "pk-stale", "pokemon", "holofoil
 await recordSeries(recordPoint, addDays, TODAY, "pk-fine", "pokemon", "holofoil", liquidPrices(300));
 clearTrustMemo();
 
+console.log("cached cards with no picture (10-02: card_cache rows older than a picture fill)");
+{
+  const { fillMissingPictures } = await import(at("lib/server/cardPictures.ts"));
+  await seed.run("pk-pic", "Pictured", "4");
+  await db.prepare("UPDATE en_cards SET image_url = 'https://img/pk-pic/low.webp' WHERE id = 'pk-pic'").run();
+  const stub = (id, game) => ({ id, name: id, englishName: null, setName: "Test", number: "1", imageSmall: "", imageLarge: "", prices: [], ...(game ? { game } : {}) });
+  const out = await fillMissingPictures([stub("pk-pic"), stub("pk-fine"), stub("mtg-fine", "mtg"), { ...stub("pk-junk"), imageSmall: "https://img/kept.webp", imageLarge: "https://img/kept-high.webp" }]);
+  check("a Pokémon card with no picture gets the catalog's (small + high)", [out[0].imageSmall, out[0].imageLarge], ["https://img/pk-pic/low.webp", "https://img/pk-pic/high.webp"]);
+  check("a card the catalog has no picture for stays empty", out[1].imageSmall, "");
+  check("a Magic card asks the Magic mirror", out[2].imageSmall, "https://img/x/normal/front/b.jpg");
+  check("a card with a picture is left alone", [out[3].imageSmall, out[3].imageLarge], ["https://img/kept.webp", "https://img/kept-high.webp"]);
+}
+
 console.log("/api/search-card (Magic by id)");
 {
   const junk = await get(searchCard, "/api/search-card?id=mtg-junk&game=mtg");

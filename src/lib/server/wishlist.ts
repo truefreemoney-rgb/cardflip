@@ -2,6 +2,7 @@ import { parseGame } from "@/lib/games";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { catalogPicture } from "@/lib/server/cardPictures";
 import { latestUsdPrice, latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen, marketPriceFlagged } from "@/lib/server/priceTrustSite";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
@@ -175,6 +176,16 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
       item.price = hit.price;
       await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, item.id, userId);
     }
+  }
+  // Rows saved with no picture (10-02: a search answer from a cache row older
+  // than the catalog's picture fill) get the catalog's picture, stored so the
+  // grid tile stops saying "No image" (the expanded view already resolved it).
+  for (const item of items) {
+    if (item.imageUrl || !item.cardId) continue;
+    const pic = await catalogPicture(item.cardId, item.game).catch(() => null);
+    if (!pic) continue;
+    item.imageUrl = pic.small;
+    await db.prepare("UPDATE wishlist_items SET image_url = ? WHERE id = ? AND user_id = ? AND coalesce(image_url, '') = ''").run(pic.small, item.id, userId);
   }
   return items;
 }

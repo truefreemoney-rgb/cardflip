@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { UpstreamError, mapCard, queryCards, type RawTcgCard } from "@/lib/tcg";
 import { fetchCjkCardDetail, searchCjkCardsLocal } from "@/lib/server/cjkCards";
 import { getCachedCards, putCachedCards } from "@/lib/server/cardCache";
+import { fillMissingPictures } from "@/lib/server/cardPictures";
 import {
   isSecretRareNumber,
   normalizeNumber,
@@ -54,7 +55,9 @@ const PRICING_BUDGET_MS = 2500;
  */
 async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
   try {
-    return await withPriceFlags(cards);
+    // A cached answer written before a card's picture was filled still says
+    // "No image" (10-02, lib/server/cardPictures.ts): pictures first, then flags.
+    return await withPriceFlags(await fillMissingPictures(cards));
   } catch (err) {
     console.warn("search-card: price guard unavailable", err);
     return cards;

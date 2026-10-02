@@ -144,6 +144,15 @@ const w2 = await addToWishlist(alice.id, LUGIA, "en", 999);
 check("adding twice is a silent no-op (same row back)", [w1.id === w2.id, w2.price], [true, 100]);
 check("wishlist has one row", (await listWishlist(alice.id)).length, 1);
 
+// 10-02: a row saved from a search answer older than the catalog's picture
+// fill stored "" and the grid tile said "No image" for good. The read fills it
+// from the catalog and stores it.
+await db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, synced_at)
+                  VALUES ('neo1-9', 'Lugia', 'neo1', 'Neo Genesis', '9', '2000-12-16', 'https://img.example/lugia-catalog.png', 0)`).run();
+await db.prepare("UPDATE wishlist_items SET image_url = '' WHERE id = ?").run(w1.id);
+check("a row with no picture gets the catalog's on read", (await listWishlist(alice.id))[0].imageUrl, "https://img.example/lugia-catalog.png");
+check("…and keeps it", (await db.prepare("SELECT image_url FROM wishlist_items WHERE id = ?").get(w1.id)).image_url, "https://img.example/lugia-catalog.png");
+
 await db.prepare("UPDATE wishlist_items SET card_id = NULL, game = NULL WHERE id = ?").run(w1.id);
 check("legacy row learns card_id on re-add", await (async () => {
   const w = await addToWishlist(alice.id, LUGIA, "en", 100);
