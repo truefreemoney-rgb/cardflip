@@ -124,7 +124,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ### F. Ops
 - [ ] MTG mirror + Pokémon set sync are manual from Chris's PC (Scryfall 429s cloud IPs).
-- [ ] Off-site backup copy (S3/Drive) on top of the nightly Turso dump.
+- [x] Off-site backup copy — DONE 10-01: private repo truefreemoney-rgb/cardflip-backups, workflow nightly-backup (02:10 UTC = 10:10 PM ET) runs scripts/backup-turso.mjs from cardflip main and saves the gzipped file as a private RELEASE, newest 14 kept. First good run 10-01 10:34 PM ET: 485,283 rows, 98.7 MB, counts + integrity ok. $0 (about 2 Actions minutes a night, ~0.5M Turso row reads). The PC copy at 10:00 AM ET stays. cardflip itself is PUBLIC: never put a backup or an artifact of one there.
 - [x] Move support@ out of personal Fastmail triage. DONE 09-06: Fastmail rule To/Cc/Bcc support@cardflip.io → folder "CardFlip Support", Notify on; tested from Gmail.
 - [ ] Infra tiers: Vercel (now Pro) / Turso plan at 10k+ users.
 - [x] Vercel Hobby cap note retired (Pro since 09-04).
