@@ -138,6 +138,17 @@ export function riserSetsOn(day: string | undefined): boolean {
 }
 
 /**
+ * 10-02 (the 7pm video opened on the same card as the 1pm: Dark Porygon2 ▲130%
+ * twice in one day, twin covers side by side). From this Eastern day on, a
+ * game's 7pm jump skips the cards that day's 1pm gains post shows, when
+ * another gainer is there to take its place. Earlier days keep their card.
+ */
+export const FRESH_JUMPS_FROM = "2026-10-02";
+export function freshJumpsOn(day: string | undefined): boolean {
+  return Boolean(day) && (day as string) >= FRESH_JUMPS_FROM;
+}
+
+/**
  * A game's top gainer must have moved at least this much to be "the biggest jump" (a +2% week is no headline: that game
  * keeps its lead card). The set spotlight uses it too: a riser takes the lead over the set's most valuable card when it
  * rose this much, or when that card fell (a +3% riser under a steady leader changes nothing).

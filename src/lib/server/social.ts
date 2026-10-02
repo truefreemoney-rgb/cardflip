@@ -6,7 +6,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
+import { JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -529,14 +529,37 @@ export const MOVER_GAMES: GameId[] = ["pokemon", "mtg"];
  * ("jumps" no-repeat list, FEATURED_DAYS) and needing at least JUMP_MIN_PCT.
  * Magic's history has a gap 09-16 to 09-23, so an empty 7-day look back is
  * retried over 6 days (mixedMovers does the same). null = no gainer to claim.
+ * From FRESH_JUMPS_FROM the cards today's 1pm gains post shows sit out too
+ * (the 7pm cover was the 1pm's No. 1 again); when nothing else qualifies the
+ * 1pm's card is kept, since a repeated gain beats a card with no move.
  */
 export async function gameGainer(game: GameId, day = todayUtc()): Promise<Mover | null> {
   if (!MOVER_GAMES.includes(game)) return null;
-  const exclude = await recentlyFeatured(game, "jumps", day);
-  let list = await topMovers(game, day, { direction: "up", exclude, limit: 1 });
-  if (list.length < 1) list = await topMovers(game, day, { direction: "up", exclude, limit: 1, days: MOVER_DAYS - 1 });
-  const m = list[0];
-  return m && m.imageUrl && m.pct >= JUMP_MIN_PCT ? m : null;
+  const seen = await recentlyFeatured(game, "jumps", day);
+  const pick = async (exclude: Set<string>): Promise<Mover | null> => {
+    let list = await topMovers(game, day, { direction: "up", exclude, limit: 1 });
+    if (list.length < 1) list = await topMovers(game, day, { direction: "up", exclude, limit: 1, days: MOVER_DAYS - 1 });
+    const m = list[0];
+    return m && m.imageUrl && m.pct >= JUMP_MIN_PCT ? m : null;
+  };
+  const midday = await middayGainers(game, day);
+  return (midday.size ? await pick(new Set([...seen, ...midday])) : null) ?? (await pick(seen));
+}
+
+/**
+ * The cards a game has in today's 1pm gains post: the mixed list on a day
+ * plan that mixes, else Pokémon's own top gainers (the 1pm is the Pokémon
+ * post). Empty before FRESH_JUMPS_FROM, and when the list is under three
+ * (socialDrafts posts no gains post then, so there is nothing to repeat).
+ */
+async function middayGainers(game: GameId, day: string): Promise<Set<string>> {
+  if (!freshJumpsOn(day)) return new Set();
+  const list = dayPlan(day).mixedMovers
+    ? await mixedMovers(day)
+    : game === "pokemon"
+      ? (await topMovers(game, day, { direction: "up", exclude: await recentlyFeatured(game, "movers", day) })).map((m) => ({ ...m, game }))
+      : [];
+  return new Set(list.length >= 3 ? list.filter((m) => m.game === game).map((m) => m.cardId) : []);
 }
 
 /**

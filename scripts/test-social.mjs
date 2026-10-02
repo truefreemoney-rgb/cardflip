@@ -450,5 +450,18 @@ check("a set question can name the set", [0, 1, 2, 3, 4, 5].some((i) => PL.quest
 check("hashtags: five games = the five game tags, four = four plus #TCG, one = its own two and the general ones, never more than five", [PL.gamesTags(["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]), PL.gamesTags(["pokemon", "mtg", "lorcana", "yugioh"]), PL.gamesTags(["pokemon"]), PL.PLAN_TAGS.games.length], [["PokemonTCG", "MTG", "DisneyLorcana", "OPTCG", "Yugioh"], ["PokemonTCG", "MTG", "DisneyLorcana", "Yugioh", "TCG"], ["PokemonTCG", "TCG", "TradingCards", "CardCollector", "PokemonCards"], 5]);
 check("a fan puts the biggest in the middle, on top", [PL.fanOrder(["a", "b", "c", "d", "e"]), PL.fanOrder(["a", "b", "c", "d"]), PL.fanOrder(["a"])], [["e", "c", "a", "b", "d"], ["c", "a", "b", "d"], ["a"]]);
 
+console.log("the 7pm jump is not a 1pm card again (10-02: Dark Porygon2 led both videos)");
+check("the rule is on from 10-02 and not before", [PL.freshJumpsOn("2026-10-01"), PL.freshJumpsOn("2026-10-02"), PL.freshJumpsOn(undefined)], [false, true, false]);
+const JF = addDays(J, 200);
+const rises = [75, 70, 65, 60, 57.5, 55]; // +50% … +10%: five fill the 1pm gains post, the sixth is left for 7pm
+for (const [i, to] of rises.entries()) await real(`jr7-${i + 1}`, `Climber ${i + 1}`, String(i + 1), "jr7", "Climb Set", wk(50, to), { end: JF });
+const noon7 = await topMovers("pokemon", JF, { direction: "up" });
+const g7 = (await SOC.gameJumps(JF)).find((l) => l.game === "pokemon");
+check("the 1pm shows the five biggest gainers; the 7pm jump is the next one, not the 1pm's No. 1", [noon7.map((m) => m.cardId), g7.cardId, Math.round(g7.pct)], [["jr7-1", "jr7-2", "jr7-3", "jr7-4", "jr7-5"], "jr7-6", 10]);
+const JG = addDays(J, 260);
+for (const [i, to] of [75, 70, 65].entries()) await real(`jr8-${i + 1}`, `Lone ${i + 1}`, String(i + 1), "jr8", "Lone Set", wk(50, to), { end: JG });
+const g8 = (await SOC.gameJumps(JG)).find((l) => l.game === "pokemon");
+check("every gainer is in the 1pm: the 7pm keeps the top one (a repeated gain beats a card with no move)", [g8.cardId, isJump(g8)], ["jr8-1", true]);
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
