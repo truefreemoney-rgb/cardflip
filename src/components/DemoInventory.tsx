@@ -60,7 +60,7 @@ export default function DemoInventory({ cards, priceOf, skip = 0 }: { cards: Pok
           );
         })}
       </ul>
-      <figcaption className="mt-3 text-xs text-zinc-500">Every card moves through these four steps on its own. You only press the shutter.</figcaption>
+      <figcaption className="mt-3 text-xs text-zinc-500">Scan a card and it takes these four steps on its own. Nothing to type, nothing to look up.</figcaption>
     </figure>
   );
 }

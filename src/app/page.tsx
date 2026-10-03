@@ -22,7 +22,7 @@ import PriceHistoryChart, { type Series } from "@/components/PriceHistoryChart";
 import { loadTrustData, withPriceFlags } from "@/lib/server/priceTrustSite";
 import { CHART_MIN_POINTS } from "@/lib/cardPages";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, POSTAGE_USD, netAfterFees } from "@/lib/fees";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, EBAY_FLAT_FEE_STEP_USD, POSTAGE_USD, ebayFlatFee, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -197,7 +197,30 @@ export default async function Home() {
   const listing =
     featured && quick ? buildListing(featured, quick.suggested, "Near Mint", quick.price.label) : null;
   // USD only (Chris 09-26: the site is American dollars, never a EUR row).
-  const variants = featured ? plausiblePrices(featured.prices).filter((p) => p.market && p.currency === "USD").slice(0, 4) : [];
+  const usdVariants = (c: PokemonCard) => plausiblePrices(c.prices).filter((p) => p.market && p.currency === "USD").slice(0, 4);
+  // The variants tile wants a card with MORE THAN ONE priced finish (Chris 10-02: one "Holofoil" row looked weird);
+  // the featured card leads when it has them, otherwise the wall card with the most.
+  const variantCard =
+    [featured, ...showcase].filter((c): c is PokemonCard => !!c).sort((a, b) => usdVariants(b).length - usdVariants(a).length)[0] ?? null;
+  const variants = variantCard ? usdVariants(variantCard) : [];
+  // The eBay tile's one-card story: a wall card the strip does not lead with, listed at market and repriced 7% under.
+  const ebayDemo = (() => {
+    const pool = [...showcase.slice(8), ...showcase.slice(0, 8).reverse()];
+    const card = pool.find((c) => (marketOf(c) ?? 0) >= 5) ?? null;
+    if (!card) return null;
+    const listed = marketOf(card)!;
+    return { card, listed, repriced: Math.max(1, Math.round(listed * 0.93 * 100) / 100) };
+  })();
+  // The binder tile's summary row: the eight wall cards as an Inventory would count them (statuses are the demo's).
+  const wall = showcase.slice(0, 8);
+  const binder = (() => {
+    if (wall.length < 8) return null;
+    const value = (cs: PokemonCard[]) => cs.reduce((n, c) => n + (marketOf(c) ?? 0), 0);
+    const live = wall.filter((_, i) => i % 3 === 1);
+    const sold = wall.filter((_, i) => i % 4 === 3);
+    const dearest = [...wall].sort((a, b) => (marketOf(b) ?? 0) - (marketOf(a) ?? 0))[0];
+    return { count: wall.length, value: value(wall), live, liveValue: value(live), sold, soldValue: value(sold), dearest };
+  })();
 
   // Our own recorded history for the hero card — the last 90 points of the
   // variant the quote is based on (falls back to the longest USD series).
@@ -490,7 +513,7 @@ export default async function Home() {
 
           <div className="mt-6 grid gap-3 md:grid-cols-6">
             {/* Inventory */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-3">
+            <div className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-3">
               <h3 className="font-display text-xl font-semibold text-white">Inventory that looks like a binder</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
                 Every scan lands in your Inventory with its price, status and photo. Sort by
@@ -498,6 +521,24 @@ export default async function Home() {
                 draft, what&apos;s live on eBay, and what sold.
               </p>
               <CardWall cards={showcase} />
+              {/* What the Inventory says about these eight, in the chart tile's four-number shape, so the two tiles
+                  end level (Chris 10-02: "i hate empty space"). Statuses are the demo's, hence Example. */}
+              {binder && (
+                <dl className="mt-auto grid grid-cols-2 gap-2 pt-4">
+                  {[
+                    { label: "Cards", value: String(binder.count), sub: `Dearest: ${binder.dearest.name}`, tone: "text-white" },
+                    { label: "Binder Value", value: formatMoney(binder.value), sub: "At market, this page", tone: "text-white" },
+                    { label: "Live on eBay", value: `${binder.live.length} · ${formatMoney(binder.liveValue)}`, sub: "Example", tone: "text-emerald-300" },
+                    { label: "Sold", value: `${binder.sold.length} · ${formatMoney(binder.soldValue)}`, sub: "Example", tone: "text-sky-300" },
+                  ].map((s) => (
+                    <div key={s.label} className="min-w-0 rounded-xl border border-edge bg-black/25 px-3 py-2">
+                      <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
+                      <dd className={`mt-0.5 truncate font-display text-base font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
+                      <dd className="truncate text-[11px] text-zinc-500">{s.sub}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </div>
 
             {/* Price history */}
@@ -552,8 +593,21 @@ export default async function Home() {
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Holo, reverse holo, 1st Edition, foil and etched are priced separately. Never averaged into a number that matches nothing.
               </p>
+              {variantCard && variants.length > 0 && (
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50 shadow-md shadow-black/40">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={variantCard.imageSmall || variantCard.imageLarge} alt="" aria-hidden width={245} height={342} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">{variantCard.name}</p>
+                    <p className="truncate text-xs text-zinc-500">{variantCard.setName}</p>
+                    <p className="text-[11px] text-zinc-500">{variants.length === 1 ? "One finish priced" : `${variants.length} finishes, ${variants.length} prices`}</p>
+                  </div>
+                </div>
+              )}
               {variants.length > 0 && (
-                <ul className="mt-5 divide-y divide-edge rounded-xl border border-edge bg-black/25 text-sm">
+                <ul className="mt-3 divide-y divide-edge rounded-xl border border-edge bg-black/25 text-sm">
                   {variants.map((p) => (
                     <li key={`${p.source}-${p.variant}`} className="flex items-center justify-between px-3 py-2">
                       <span className="text-zinc-300">{p.label}</span>
@@ -561,6 +615,12 @@ export default async function Home() {
                     </li>
                   ))}
                 </ul>
+              )}
+              {variants.length > 1 && (
+                <p className="mt-3 text-xs text-zinc-500">
+                  <span className="font-semibold text-white">{money(Math.max(...variants.map((p) => p.market!)) - Math.min(...variants.map((p) => p.market!)))}</span>{" "}
+                  between the dearest and cheapest finish of the same card. An averaged price would be wrong for both.
+                </p>
               )}
             </div>
 
@@ -570,20 +630,51 @@ export default async function Home() {
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Listings publish under your own account. Change a price in CardFlip and the live listing changes with it. Sales flip to Sold on their own.
               </p>
-              <div className="mt-5 flex flex-col gap-2">
-                <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-                  Live on eBay
-                </span>
-                <span className="inline-flex items-center gap-2 self-start rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
-              </div>
+              {/* The three sentences above, shown on one real card: listed, repriced in place, sold on its own
+                  (Chris 10-02: the two bare status pills "seem a little weird"). Static, marked Example. */}
+              {ebayDemo && (
+                <figure className="mt-5 rounded-xl border border-edge bg-black/25 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50 shadow-md shadow-black/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ebayDemo.card.imageSmall || ebayDemo.card.imageLarge} alt="" aria-hidden width={245} height={342} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-white">{ebayDemo.card.name}</p>
+                      <p className="truncate text-xs text-zinc-500">{ebayDemo.card.setName}</p>
+                    </div>
+                    <p className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Example</p>
+                  </div>
+                  <ol className="mt-3 space-y-2 text-xs">
+                    <li className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                        Live on eBay
+                      </span>
+                      <span className="font-display font-semibold tabular-nums text-white">{formatMoney(ebayDemo.listed)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3">
+                      <span className="truncate text-zinc-400">Repriced here, eBay updated</span>
+                      <span className="shrink-0 font-display font-semibold tabular-nums text-white">
+                        <span className="mr-1.5 font-normal text-zinc-500 line-through">{formatMoney(ebayDemo.listed)}</span>
+                        {formatMoney(ebayDemo.repriced)}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-sky-400/10 px-2.5 py-1 font-semibold text-sky-300">Sold</span>
+                      <span className="font-display font-semibold tabular-nums text-white">{formatMoney(ebayDemo.repriced)}</span>
+                    </li>
+                  </ol>
+                  <figcaption className="mt-2 text-[11px] text-zinc-500">Nothing to do on eBay. CardFlip did each step.</figcaption>
+                </figure>
+              )}
             </div>
 
             {/* Fees */}
             <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Fee-aware pricing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                Every suggestion accounts for eBay&apos;s {feePct} plus {money(EBAY_FLAT_FEE)} per order ({money(EBAY_FLAT_FEE_OVER_10)} over ) and {money(POSTAGE_USD)} postage, so a cheap card never lists at a loss.
+                Every suggested price already has eBay&apos;s cut taken out: the {feePct} fee, the {money(EBAY_FLAT_FEE)} per-order charge ({money(EBAY_FLAT_FEE_OVER_10)} on a sale over ${EBAY_FLAT_FEE_STEP_USD}) and {money(POSTAGE_USD)} postage. A cheap card never lists at a loss.
               </p>
               <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
@@ -597,6 +688,27 @@ export default async function Home() {
                   </div>
                 ))}
               </dl>
+              {/* The same sale the eBay tile shows, taken apart, so the three numbers above mean something
+                  (Chris 10-02: the fee tile ended short beside its neighbours). */}
+              {ebayDemo && (
+                <dl className="mt-3 rounded-xl border border-edge bg-black/25 px-3 py-2 text-xs">
+                  {[
+                    ["Sells for", formatMoney(ebayDemo.repriced), "text-white"],
+                    ["eBay fee", `- ${formatMoney(ebayDemo.repriced * EBAY_FEE_RATE)}`, "text-zinc-300"],
+                    ["Per order", `- ${formatMoney(ebayFlatFee(ebayDemo.repriced))}`, "text-zinc-300"],
+                    ["Postage", `- ${formatMoney(POSTAGE_USD)}`, "text-zinc-300"],
+                  ].map(([l, v, tone]) => (
+                    <div key={l} className="flex items-center justify-between py-0.5">
+                      <dt className="text-zinc-500">{l}</dt>
+                      <dd className={`font-display font-semibold tabular-nums ${tone}`}>{v}</dd>
+                    </div>
+                  ))}
+                  <div className="mt-1 flex items-center justify-between border-t border-edge pt-1.5">
+                    <dt className="font-medium text-zinc-300">You keep</dt>
+                    <dd className="font-display text-sm font-semibold tabular-nums text-emerald-300">{formatMoney(Math.max(0, netAfterFees(ebayDemo.repriced) - POSTAGE_USD))}</dd>
+                  </div>
+                </dl>
+              )}
             </div>
           </div>
         </section>
