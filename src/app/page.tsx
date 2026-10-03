@@ -18,7 +18,9 @@ import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
 import { GAMES } from "@/lib/games";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
-import { withPriceFlags } from "@/lib/server/priceTrustSite";
+import PriceHistoryChart, { type Series } from "@/components/PriceHistoryChart";
+import { loadTrustData, withPriceFlags } from "@/lib/server/priceTrustSite";
+import { CHART_MIN_POINTS } from "@/lib/cardPages";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, POSTAGE_USD, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
@@ -103,47 +105,25 @@ function money(n: number): string {
     : `$${n.toFixed(2)}`;
 }
 
-/** Our own recorded TCGplayer history for the featured card, as an SVG path. */
-function Sparkline({ points }: { points: { day: string; price: number }[] }) {
-  if (points.length < 2) return null;
-  const w = 320;
-  const h = 96;
-  const prices = points.map((p) => p.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const span = max - min || 1;
-  const xs = points.map((_, i) => (i / (points.length - 1)) * w);
-  const ys = prices.map((p) => h - 8 - ((p - min) / span) * (h - 16));
-  const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
-  const area = `${d} L${w},${h} L0,${h} Z`;
+/**
+ * Four numbers from the featured card's recorded history (newest point last):
+ * the move over 30 and 90 days and the high and low of the window shown.
+ */
+function historyStats(points: { day: string; price: number }[]): { label: string; value: string; tone: string }[] {
   const last = points[points.length - 1];
-  const first = points[0];
-  const delta = last.price - first.price;
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-display text-2xl font-semibold text-white">{money(last.price)}</span>
-        <span className={`text-xs font-medium ${delta >= 0 ? "text-emerald-400" : "text-rose-300"}`}>
-          {delta >= 0 ? "▲" : "▼"} {money(Math.abs(delta))} over {points.length} days
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 min-h-24 w-full flex-1" aria-hidden preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="spark-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#a78bfa" stopOpacity="0.35" />
-            <stop offset="1" stopColor="#a78bfa" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#spark-fill)" />
-        <path d={d} fill="none" stroke="#c4b5fd" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3.5" fill="#f0abfc" />
-      </svg>
-      <div className="flex justify-between text-[10px] text-zinc-600">
-        <span>{first.day.slice(5)}</span>
-        <span>{last.day.slice(5)}</span>
-      </div>
-    </div>
-  );
+  const change = (days: number) => {
+    const from = points[Math.max(0, points.length - 1 - days)];
+    if (!from || from === last || from.price <= 0) return null;
+    const pct = ((last.price - from.price) / from.price) * 100;
+    return { label: `${days} days`, value: `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(1)}%`, tone: pct >= 0 ? "text-emerald-300" : "text-rose-300" };
+  };
+  const prices = points.map((p) => p.price);
+  return [
+    change(30),
+    change(90),
+    { label: "High", value: money(Math.max(...prices)), tone: "text-white" },
+    { label: "Low", value: money(Math.min(...prices)), tone: "text-white" },
+  ].filter((s): s is { label: string; value: string; tone: string } => s !== null);
 }
 
 /** The corner brackets of the scanner's viewfinder guide. */
@@ -194,10 +174,19 @@ export default async function Home() {
   // (lib/server/priceTrustSite.ts) is dropped BEFORE the pick, exactly as the stage strip does. Fails open.
   const guarded = await withPriceFlags([...(featuredLive ? [featuredLive] : []), ...showcaseLive]).catch(() => [...(featuredLive ? [featuredLive] : []), ...showcaseLive]);
   const priceOk = (c: PokemonCard) => !c.prices.some((p) => p.untrusted);
-  const showcase = showcaseLive.filter((_, i) => priceOk(guarded[(featuredLive ? 1 : 0) + i]));
+  // Every wall card opens a price chart, so a card with no recorded history is not shown at all (Chris 10-02: "has to
+  // be perfect"; a modal saying "no price recorded yet" reads as a bug). CHART_MIN_POINTS priced days of one USD
+  // series, the same bar the public card pages use. One batched read; a read that fails keeps the wall (fails open).
+  const trust = await loadTrustData(guarded.map((c) => ({ cardId: c.id, game: c.game ?? "pokemon" }))).catch(() => null);
+  const charted = (c: PokemonCard) => {
+    if (!trust) return true;
+    const d = trust.get(c.id);
+    return !!d && d.series.some((s) => s.prices.filter((p) => p != null).length >= CHART_MIN_POINTS);
+  };
+  const showcase = showcaseLive.filter((c, i) => priceOk(guarded[(featuredLive ? 1 : 0) + i]) && charted(c));
   // The hero, the variants tile, the listing step and the price history all hang off `featured`: when the pick is
   // flagged or the lookup fails, the dearest wall card stands in instead of four blanks (Chris 10-02: "it's blank?").
-  const featured = featuredLive && priceOk(guarded[0]) ? featuredLive : (showcase[0] ?? null);
+  const featured = featuredLive && priceOk(guarded[0]) && charted(featuredLive) ? featuredLive : (showcase[0] ?? null);
 
   const heroCard = featured ?? showcase[0] ?? null;
   // The hero picture is the page's LCP: open the connection to its host while the HTML is still parsing.
@@ -213,6 +202,9 @@ export default async function Home() {
   // Our own recorded history for the hero card — the last 90 points of the
   // variant the quote is based on (falls back to the longest USD series).
   let history: { day: string; price: number }[] = [];
+  // The USD series themselves feed the real chart (the card pages' PriceHistoryChart, 10-02: the stretched
+  // sparkline "hurts my eyes"); `history` stays as the gate for showing the tile's chart at all.
+  let chartSeries: Series[] = [];
   if (featured) {
     try {
       const series = await getPriceHistory(featured.id);
@@ -221,6 +213,7 @@ export default async function Home() {
         usd.find((s) => s.variant === market?.price.variant) ??
         usd.slice().sort((a, b) => b.points.length - a.points.length)[0];
       history = pick ? pick.points.slice(-90) : [];
+      chartSeries = usd.map((s) => ({ variant: s.variant, source: s.source, currency: s.currency, points: s.points }));
     } catch {
       history = [];
     }
@@ -513,15 +506,24 @@ export default async function Home() {
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Our own daily record of the market, so you can see whether to sell now or sit on it.
               </p>
-              {history.length >= 2 ? (
-                // The chart grows to the tile's height so the column never ends hollow beside the wall (Chris 10-02).
-                <div className="mt-5 flex flex-1 flex-col">
+              {history.length >= 2 && featured ? (
+                // The same chart the card pages draw (range pills, labelled ends), compact, in the tile.
+                <div className="mt-4 flex flex-1 flex-col justify-end">
                   <p className="truncate text-xs text-zinc-500">
-                    {featured?.name} · {featured?.setName}
+                    {featured.name} · {featured.setName}
                   </p>
-                  <div className="mt-1 flex flex-1 flex-col">
-                    <Sparkline points={history} />
+                  <div className="mt-2 rounded-2xl border border-edge bg-black/25 p-3">
+                    <PriceHistoryChart cardId={featured.id} initialSeries={chartSeries} preferVariant={market?.price.variant ?? null} compact className="text-left" />
                   </div>
+                  {/* What the record says, in four numbers (Chris 10-02: "fill the space properly, use something meaningful"). */}
+                  <dl className="mt-3 grid grid-cols-2 gap-2">
+                    {historyStats(history).map((s) => (
+                      <div key={s.label} className="rounded-xl border border-edge bg-black/25 px-3 py-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
+                        <dd className={`mt-0.5 font-display text-base font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               ) : (
                 <p className="mt-5 text-xs text-zinc-600">History builds from the day a card is first priced.</p>
