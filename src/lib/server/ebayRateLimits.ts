@@ -93,7 +93,7 @@ export interface EbayLimitsReport {
   error: string | null;
 }
 
-const KEY = "ebay:rate-limits:v1";
+const KEY = "ebay:rate-limits:v2";
 const TTL_MS = 10 * 60 * 1000;
 
 export async function fetchRateLimits(): Promise<RawRateLimits> {
@@ -106,11 +106,45 @@ export async function fetchRateLimits(): Promise<RawRateLimits> {
   return (await res.json()) as RawRateLimits;
 }
 
+/**
+ * The selling APIs (Inventory, Fulfillment, Finances, Account) are called with
+ * a SELLER's token and eBay counts them per seller, under getUserRateLimits,
+ * not under the app's table (10-03: the first readout showed no Inventory row
+ * at all). Read with the owner's own seller token when eBay is connected;
+ * those rows are the owner's share, labelled so.
+ */
+export async function fetchUserRateLimits(userToken: string): Promise<RawRateLimits> {
+  const res = await fetch("https://api.ebay.com/developer/analytics/v1_beta/user_rate_limit/", {
+    headers: { authorization: `Bearer ${userToken}`, accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`eBay user_rate_limit ${res.status}: ${(await res.text()).slice(0, 160)}`);
+  return (await res.json()) as RawRateLimits;
+}
+
+export const SELLER_SUFFIX = " (per seller)";
+
+async function readAll(): Promise<EbayLimitRow[]> {
+  const app = summarizeRateLimits(await fetchRateLimits());
+  let seller: EbayLimitRow[] = [];
+  try {
+    const { findUserByEmail, OWNER_EMAIL } = await import("@/lib/server/users");
+    const { getUserAccessToken } = await import("@/lib/server/ebayAuth");
+    const owner = await findUserByEmail(OWNER_EMAIL);
+    const token = owner ? await getUserAccessToken(owner.id) : null;
+    if (token) seller = summarizeRateLimits(await fetchUserRateLimits(token)).map((r) => ({ ...r, api: `${r.api}${SELLER_SUFFIX}` }));
+  } catch (err) {
+    console.warn("eBay user rate limits unavailable:", err instanceof Error ? err.message : err);
+  }
+  // Seller-token APIs first (they are the ones a busy site spends), then the app's own.
+  return [...seller, ...app.filter((a) => !seller.some((s) => s.api === `${a.api}${SELLER_SUFFIX}`))];
+}
+
 /** Memoed ten minutes; a fetch that fails answers with the error and an empty table, never a blank page. */
 export async function ebayRateLimits(now = Date.now()): Promise<EbayLimitsReport> {
   if (!process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET) return { rows: [], at: null, stale: false, error: "eBay keys are not configured here" };
   try {
-    const value = await cachedList<{ rows: EbayLimitRow[]; at: number }>(KEY, TTL_MS, async () => ({ rows: summarizeRateLimits(await fetchRateLimits()), at: Date.now() }), now);
+    const value = await cachedList<{ rows: EbayLimitRow[]; at: number }>(KEY, TTL_MS, async () => ({ rows: await readAll(), at: Date.now() }), now);
     return { rows: value.rows, at: value.at, stale: now - value.at > TTL_MS, error: null };
   } catch (err) {
     return { rows: [], at: null, stale: false, error: err instanceof Error ? err.message : String(err) };
