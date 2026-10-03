@@ -120,14 +120,14 @@ function Sparkline({ points }: { points: { day: string; price: number }[] }) {
   const first = points[0];
   const delta = last.price - first.price;
   return (
-    <div>
+    <div className="flex h-full flex-col">
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-display text-2xl font-semibold text-white">{money(last.price)}</span>
         <span className={`text-xs font-medium ${delta >= 0 ? "text-emerald-400" : "text-rose-300"}`}>
           {delta >= 0 ? "▲" : "▼"} {money(Math.abs(delta))} over {points.length} days
         </span>
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 h-24 w-full" aria-hidden preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 min-h-24 w-full flex-1" aria-hidden preserveAspectRatio="none">
         <defs>
           <linearGradient id="spark-fill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor="#a78bfa" stopOpacity="0.35" />
@@ -503,27 +503,35 @@ export default async function Home() {
                 draft, what&apos;s live on eBay, and what sold.
               </p>
               <CardWall cards={showcase} />
-              <DemoInventory cards={showcase} priceOf={marketOf} />
             </div>
 
             {/* Price history */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
+            <div className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
               <h3 className="font-display text-xl font-semibold text-white">Price history, per printing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Our own daily record of the market, so you can see whether to sell now or sit on it.
               </p>
               {history.length >= 2 ? (
-                <div className="mt-5">
+                // The chart grows to the tile's height so the column never ends hollow beside the wall (Chris 10-02).
+                <div className="mt-5 flex flex-1 flex-col">
                   <p className="truncate text-xs text-zinc-500">
                     {featured?.name} · {featured?.setName}
                   </p>
-                  <div className="mt-1">
+                  <div className="mt-1 flex flex-1 flex-col">
                     <Sparkline points={history} />
                   </div>
                 </div>
               ) : (
                 <p className="mt-5 text-xs text-zinc-600">History builds from the day a card is first priced.</p>
               )}
+            </div>
+
+            {/* From scan to sold: four Inventory rows, one per stage, full width under the wall and the chart (10-02). */}
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-6">
+              <h3 className="font-display text-xl font-semibold text-white">From scan to sold</h3>
+              <div className="mt-4">
+                <DemoInventory cards={showcase} priceOf={marketOf} skip={8} />
+              </div>
             </div>
 
             {/* Variants */}
