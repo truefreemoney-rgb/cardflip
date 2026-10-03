@@ -15,6 +15,7 @@ import { PRICE, SCANS } from "@/lib/pricing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { GATED_GAMES, gamePublic, magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
+import { wallCards } from "@/lib/server/wallCards";
 import { GAMES } from "@/lib/games";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
@@ -160,15 +161,18 @@ export default async function Home() {
   // "include the new games"). Admin-only games stay off the landing page.
   const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
   const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
-  const [featuredLive, showcaseLive, catalogLabel, stages] = await Promise.all([
+  const [featuredLive, showcaseMirror, catalogLabel, stages] = await Promise.all([
     getFeaturedCard(),
-    getShowcaseCards(magic),
+    // The wall recipe (lib/wallMix.ts): 4 Pokémon, 2 Magic, 2 other games, each printing picked for its history.
+    wallCards(games),
     catalogSizeLabel(),
     // One real, priced card per game for the games strip; a game whose
     // mirror has nothing to show is skipped (data honesty, DESIGN.md).
     Promise.all(games.map(async (g) => ({ game: g, card: (await getGameStageCards(g).catch(() => ({ cards: [] as StageCard[] }))).cards.find((c) => c.lead) ?? null }))),
   ]);
   const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
+  // No mirrors here (fresh dev DB): the old upstream showcase, so the page still has a wall to show.
+  const showcaseLive = showcaseMirror.length >= 8 ? showcaseMirror : await getShowcaseCards(magic);
 
   // Data honesty: the hero card and the wall show real prices, so a card whose market the price guard flags
   // (lib/server/priceTrustSite.ts) is dropped BEFORE the pick, exactly as the stage strip does. Fails open.

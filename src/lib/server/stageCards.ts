@@ -33,6 +33,8 @@ const STAGE_TTL_MS = 6 * 60 * 60 * 1000;
 // "something else"; while the name stayed here any other slot could still
 // serve a Gyarados and read as no change at all.
 const ICONS = ["Charizard", "Pikachu", "Mewtwo", "Gengar", "Umbreon", "Blastoise", "Lucario", "Dragonite", "Rayquaza", "Eevee"];
+/** The same icon list for the homepage wall (lib/server/wallCards.ts). */
+export const STAGE_ICONS: readonly string[] = ICONS;
 
 // v2 (09-07): printings nearest $50, not the dearest — Chris: "make it something worth like $50".
 // v5 (09-09): $35 — "make the price around $35ish". The target lives in two
@@ -175,7 +177,7 @@ async function build(magic: boolean): Promise<StageCard[]> {
 const GAME_TARGET_USD = 50;
 const ICON_BAND: [number, number] = [15, 300];
 type OtherGame = Exclude<GameId, "pokemon">;
-const GAME_ICONS: Record<OtherGame, string[]> = {
+export const GAME_ICONS: Record<OtherGame, string[]> = {
   mtg: ["Sol Ring", "Lightning Bolt", "Sheoldred, the Apocalypse", "Ragavan, Nimble Pilferer", "The One Ring", "Teferi, Hero of Dominaria", "Force of Will", "Elesh Norn, Mother of Machines", "Atraxa, Praetors' Voice", "Jace, the Mind Sculptor"],
   // Elsa leads (Chris 09-30, after Mickey's $80 printing turned out to be the
   // blank-box signing promo 15/P2).
