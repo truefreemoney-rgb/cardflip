@@ -107,7 +107,30 @@ export function candidateKinds(slot: Slot, day: string, drafts: Pick<SocialPost,
 export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[] }): { title: string; caption: string } {
   const applied = data.cards?.length ? applyVideoCards(d, data.cards) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
-  return { title: applied.title, caption: fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, MAX_TAGS).replace(/^In the picture,/m, "In the video,") };
+  return {
+    title: applied.title,
+    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
+  };
+}
+
+/** The sign-off line the shared captions end with (social.ts SIGN_OFF), moved to the top on TikTok. */
+const SIGN_OFF = "Scan a card, see what it's worth. cardflip.io";
+export const TIKTOK_LEAD = "Scan a card, see what it's worth: cardflip.io (link in bio)";
+
+/**
+ * TikTok never links a URL in a caption and shows about one line before
+ * "more", so a sign-off at the bottom is read by almost nobody (Chris 10-02:
+ * views but no clicks to the site). The sign-off goes first, worded with the
+ * cue TikTok viewers act on ("link in bio"); the rest of the caption follows.
+ * Pure, so the hand-post captions (captions.txt) and the registered rows agree.
+ */
+export function tiktokLead(caption: string): string {
+  if (caption.startsWith(TIKTOK_LEAD)) return caption;
+  const lines = caption.split("\n").filter((l) => l !== SIGN_OFF);
+  while (lines.length && lines[lines.length - 1] === "") lines.pop();
+  // The sign-off left a blank before the hashtags; keep one blank between the body and the tags.
+  const body = lines.join("\n").replace(/\n\n\n+/g, "\n\n");
+  return `${TIKTOK_LEAD}\n\n${body}`;
 }
 
 /**

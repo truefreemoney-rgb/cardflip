@@ -164,7 +164,11 @@ check("the movers caption carries the frozen numbers and tags", [rows.midday.cap
 check("the all-games caption says video, not picture, on TikTok only (the other sites keep the picture wording)", [rows.evening.caption.includes("In the video, one card from each game"), rows.evening.caption.includes("In the picture"), drafts.find((d) => d.kind === "games").caption.includes("In the picture, one card")], [true, false, true]);
 check("the all-games caption names each game's lead card and carries all five game tags", [rows.evening.caption.includes("Charizard ex"), rows.evening.caption.includes("Dark Magician, Legend of Blue Eyes LOB-005: $55.25"), rows.evening.caption.includes("#PokemonTCG #MTG #DisneyLorcana #OPTCG #Yugioh")], [true, true, true]);
 const setDraft = drafts.find((d) => d.kind === "set");
-check("the stored caption IS the publisher's own text builder at TikTok's limit and five tags (fitText of the draft with the frozen cards)", rows.morning.caption, (() => { const a = applyVideoCards(setDraft, morning.spec.cards); return fitText({ ...a, hashtags: T.tiktokTags(a.hashtags) }, 2200, 5); })());
+check("the stored caption IS the publisher's own text builder at TikTok's limit and five tags (fitText of the draft with the frozen cards), with the sign-off moved to the top", rows.morning.caption, (() => { const a = applyVideoCards(setDraft, morning.spec.cards); return T.tiktokLead(fitText({ ...a, hashtags: T.tiktokTags(a.hashtags) }, 2200, 5)); })());
+// 10-02 (Chris: views but no clicks): TikTok never links a caption URL and shows one line before "more", so the
+// sign-off leads, worded "link in bio", and the bottom copy of it is gone; the tags stay last after one blank.
+check("every TikTok caption opens with the link-in-bio line and ends with the tags, the old sign-off gone from the bottom", ["morning", "midday", "evening"].map((s) => { const c = rows[s].caption; const lines = c.split("\n"); return [lines[0] === T.TIKTOK_LEAD, lines[1] === "", c.includes("\nScan a card, see what it's worth. cardflip.io"), lines[lines.length - 1].startsWith("#"), lines[lines.length - 2] === "", c.includes("\n\n\n")]; }), [[true, true, false, true, true, false], [true, true, false, true, true, false], [true, true, false, true, true, false]]);
+check("tiktokLead is idempotent", T.tiktokLead(T.tiktokLead("Body\n\nScan a card, see what it's worth. cardflip.io\n\n#A #B")), `${T.TIKTOK_LEAD}\n\nBody\n\n#A #B`);
 check("a row keeps the frozen cards and leads it drew (text can never drift from the video)", [rows.morning.cards.length, rows.evening.leads.map((l) => l.game)], [5, ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"]]);
 check("the parser refuses a row with no caption or no plan", [P.parseTiktokSpec(JSON.stringify({ ...rows.morning, caption: "" })), P.parseTiktokSpec(JSON.stringify({ ...rows.morning, plan: undefined })), P.parseTiktokSpec("nope")], [null, null, null]);
 
@@ -554,7 +558,7 @@ console.log("10-01: jumps video, lead-first set video, five hashtags, the questi
   const hashtagsOf = (s) => (s.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).map((t) => t.trim());
   check("every stored caption of the package carries at most five hashtags", ["morning", "midday", "evening"].map((s) => hashtagsOf(rows[s].caption).length <= 5), [true, true, true]);
   check("TikTok fills the room with the general tags: Pokémon's own two, then #TCG #TradingCards #CardCollector", hashtagsOf(rows.morning.caption), ["#PokemonTCG", "#PokemonCards", "#TCG", "#TradingCards", "#CardCollector"]);
-  check("every stored caption carries its question after the card lines and before the sign-off", ["morning", "midday", "evening"].map((s) => { const lines = rows[s].caption.split("\n"); const i = lines.findIndex((l) => l.endsWith("?")); return i > 0 && lines[i + 2]?.endsWith("cardflip.io") && /\$/.test(lines[i - 2]); }), [true, true, true]);
+  check("every stored caption carries its question after the card lines and before the tags (the sign-off leads on TikTok since 10-02)", ["morning", "midday", "evening"].map((s) => { const lines = rows[s].caption.split("\n"); const i = lines.findIndex((l) => l.endsWith("?")); return i > 0 && lines[i + 2]?.startsWith("#") && /\$/.test(lines[i - 2]); }), [true, true, true]);
   check("tiktokTags: the post's own first, the general ones fill, never more than five", [T.tiktokTags(["A", "B", "C", "D", "E", "F", "G"]), T.tiktokTags(["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"]), T.tiktokTags(["TCG"])], [["A", "B", "C", "D", "E"], ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"], ["TCG", "TradingCards", "CardCollector"]]);
 
   const jl = [
@@ -590,7 +594,7 @@ console.log("10-01: jumps video, lead-first set video, five hashtags, the questi
     { cardId: "p4", name: "Faller", number: "4", setName: "Jump Set", variant: "holofoil", from: 80, to: 60, pct: -25, rank: 3 },
   ];
   const setPost = T.tiktokPost(sd, { cards: setCards });
-  check("the set video's text lists the riser first and is the same text the publisher builds", [setPost.caption.split("\n")[2], hashtagsOf(setPost.caption).length], ["Riser A #1 Holo: $70.00, +40% this week", 5]);
+  check("the set video's text lists the riser first and is the same text the publisher builds", [setPost.caption.split("\n")[4], hashtagsOf(setPost.caption).length], ["Riser A #1 Holo: $70.00, +40% this week", 5]);
   check("a frozen set card keeps its value rank through the parser (the video's No. label)", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, cards: setCards })).cards.map((c) => c.rank), [2, 1, 3]);
 }
 
