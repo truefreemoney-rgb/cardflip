@@ -142,9 +142,18 @@ export function tiktokLead(caption: string): string {
  */
 export const TIKTOK_MAX_TAGS = 7;
 
+/**
+ * TikTok-only reach tags that fill a single-game caption to seven (Chris 10-03,
+ * after the 7am Pokémon post went out with five: "we need best with 7"). Counts
+ * from TikTok's own suggestion list that morning: #Pokemon 26.1M posts,
+ * #PokemonCommunity 4.2M. An all-games caption never reaches them (its five
+ * game tags + #TCG #TradingCards already make seven).
+ */
+export const TIKTOK_REACH_TAGS = ["Pokemon", "PokemonCommunity"];
+
 export function tiktokTags(tags: readonly string[]): string[] {
   const out: string[] = [];
-  for (const t of [...tags, ...GENERAL_TAGS]) if (!out.includes(t)) out.push(t);
+  for (const t of [...tags, ...GENERAL_TAGS, ...TIKTOK_REACH_TAGS]) if (!out.includes(t)) out.push(t);
   return out.slice(0, TIKTOK_MAX_TAGS);
 }
 

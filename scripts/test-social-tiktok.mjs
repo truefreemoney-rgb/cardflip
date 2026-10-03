@@ -557,9 +557,9 @@ console.log("10-01: jumps video, lead-first set video, five hashtags, the questi
   const PLm = await import(at("lib/socialPlan.ts"));
   const hashtagsOf = (s) => (s.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).map((t) => t.trim());
   check("every stored caption of the package carries at most seven hashtags", ["morning", "midday", "evening"].map((s) => hashtagsOf(rows[s].caption).length <= 7), [true, true, true]);
-  check("TikTok fills the room with the general tags: Pokémon's own two, then #TCG #TradingCards #CardCollector", hashtagsOf(rows.morning.caption), ["#PokemonTCG", "#PokemonCards", "#TCG", "#TradingCards", "#CardCollector"]);
+  check("TikTok fills the room to seven: Pokémon's own two, #TCG #TradingCards #CardCollector, then the reach tags #Pokemon #PokemonCommunity (10-03)", hashtagsOf(rows.morning.caption), ["#PokemonTCG", "#PokemonCards", "#TCG", "#TradingCards", "#CardCollector", "#Pokemon", "#PokemonCommunity"]);
   check("every stored caption carries its question after the card lines and before the tags (the sign-off leads on TikTok since 10-02)", ["morning", "midday", "evening"].map((s) => { const lines = rows[s].caption.split("\n"); const i = lines.findIndex((l) => l.endsWith("?")); return i > 0 && lines[i + 2]?.startsWith("#") && /\$/.test(lines[i - 2]); }), [true, true, true]);
-  check("tiktokTags: the post's own first, the general ones fill, never more than seven (10-02 seven-tag test won)", [T.tiktokTags(["A", "B", "C", "D", "E", "F", "G", "H"]), T.tiktokTags(["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"]), T.tiktokTags(["TCG"])], [["A", "B", "C", "D", "E", "F", "G"], ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards", "CardCollector"], ["TCG", "TradingCards", "CardCollector"]]);
+  check("tiktokTags: the post's own first, the general ones fill, never more than seven (10-02 seven-tag test won)", [T.tiktokTags(["A", "B", "C", "D", "E", "F", "G", "H"]), T.tiktokTags(["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards"]), T.tiktokTags(["TCG"])], [["A", "B", "C", "D", "E", "F", "G"], ["PokemonTCG", "MTG", "MagicTheGathering", "TCG", "TradingCards", "CardCollector", "Pokemon"], ["TCG", "TradingCards", "CardCollector", "Pokemon", "PokemonCommunity"]]);
 
   const jl = [
     { game: "mtg", name: "Jump Mage", setName: "Jump Masters", number: "7", price: 64, cardId: "m1", from: 40, pct: 60 },
@@ -594,7 +594,7 @@ console.log("10-01: jumps video, lead-first set video, five hashtags, the questi
     { cardId: "p4", name: "Faller", number: "4", setName: "Jump Set", variant: "holofoil", from: 80, to: 60, pct: -25, rank: 3 },
   ];
   const setPost = T.tiktokPost(sd, { cards: setCards });
-  check("the set video's text lists the riser first and is the same text the publisher builds", [setPost.caption.split("\n")[4], hashtagsOf(setPost.caption).length], ["Riser A #1 Holo: $70.00, +40% this week", 5]);
+  check("the set video's text lists the riser first and is the same text the publisher builds", [setPost.caption.split("\n")[4], hashtagsOf(setPost.caption).length], ["Riser A #1 Holo: $70.00, +40% this week", 7]);
   check("a frozen set card keeps its value rank through the parser (the video's No. label)", parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, cards: setCards })).cards.map((c) => c.rank), [2, 1, 3]);
 }
 
