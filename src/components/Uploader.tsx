@@ -158,18 +158,16 @@ export default function Uploader({ onOpenCamera, variant = "hero", showcase = []
           </button>
         )}
 
-        <Link href="/app/collection/import" className={tile}>
-          <TileBody label="Import a collection" hint="A Collectr, TCGplayer or TCG Collector CSV, no photos" icon={<IconFile />} />
-        </Link>
-
-        {/* One quiet line to the full feature list (Chris 10-03): the scanner is the first screen on every open, and
-            the phone header has no room for the word. Gone with the uploader once a scan is on screen. */}
-        <p className="text-center text-[11px] text-zinc-500">
-          New here?{" "}
-          <Link href="/features" className="font-medium text-zinc-300 transition hover:text-white">
-            See everything CardFlip does →
+        {/* Two tiles under Scan (Chris 10-03): Import, and the full feature list as a button of the same shape, since the
+            scanner is the first screen on every open and the phone header has no room for the word. */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/app/collection/import" className={tile}>
+            <TileBody label="Import" hint="From other apps" icon={<IconFile />} />
           </Link>
-        </p>
+          <Link href="/features" className={tile}>
+            <TileBody label="Features" hint="Everything it does" icon={<IconSpark />} />
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -193,6 +191,14 @@ function IconCamera() {
     <svg {...svg} width={20} height={20}>
       <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
       <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+function IconSpark() {
+  return (
+    <svg {...svg}>
+      <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z" />
+      <path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
     </svg>
   );
 }
