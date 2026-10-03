@@ -87,6 +87,27 @@ async function waitForContainer(url: string, step: string, tries = 12): Promise<
   throw new Error(`${step}: container never finished`);
 }
 
+/**
+ * Meta sometimes answers media_publish with 400 "Media ID is not available"
+ * right after the container reported FINISHED (10-03 7:05am ET: the morning
+ * Instagram post failed on it and only the 8:05 backstop pass published it).
+ * That one error is retried a few times, a short wait apart; anything else
+ * is thrown as before. The same creation_id is reused, so a retry after a
+ * publish that did go through is refused by Meta rather than doubled.
+ */
+export const IG_NOT_AVAILABLE = /Media ID is not available/i;
+export async function publishWhenAvailable<T>(publish: () => Promise<T>, tries = 4, waitMs = 10_000): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await publish();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (i >= tries || !IG_NOT_AVAILABLE.test(msg)) throw err;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+}
+
 /* ---------- 60-day tokens (Instagram Login + Threads) ---------- */
 
 /**
@@ -318,11 +339,14 @@ export const instagram: SocialSite = {
         "instagram media",
       );
       if (!container.id) throw new Error("instagram media: no container id");
+      const creationId = container.id;
       await waitForContainer(`${c.base}/${container.id}?fields=status_code&access_token=${encodeURIComponent(c.token)}`, "instagram media", p.video ? 48 : 12);
-      const published = await graph<{ id?: string }>(
-        `${c.base}/${c.userId}/media_publish`,
-        { method: "POST", headers: FORM, body: form({ creation_id: container.id, access_token: c.token }) },
-        "instagram media_publish",
+      const published = await publishWhenAvailable(() =>
+        graph<{ id?: string }>(
+          `${c.base}/${c.userId}/media_publish`,
+          { method: "POST", headers: FORM, body: form({ creation_id: creationId, access_token: c.token }) },
+          "instagram media_publish",
+        ),
       );
       if (!published.id) throw new Error("instagram media_publish: no id");
       const info = await graph<{ permalink?: string; shortcode?: string }>(

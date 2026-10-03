@@ -53,5 +53,19 @@ check("…and still answers 500", /status: 500/.test(route), true);
 const page = readFileSync(new URL("../src/app/admin/(console)/social/page.tsx", import.meta.url), "utf8");
 check("/admin/social shows the last crash", page.includes("recentPublishCrash()") && page.includes("The publisher crashed"), true);
 
+// Instagram media_publish (10-03 7:05am ET): Meta's "Media ID is not available" right after FINISHED is retried; anything else is not.
+{
+  const { publishWhenAvailable } = await import(at("lib/server/sites/meta.ts"));
+  let n = 0;
+  const flaky = async () => { n++; if (n < 3) throw new Error('instagram media_publish 400: {"error":{"message":"Media ID is not available","type":"OAuthException"}}'); return { id: "ok" }; };
+  check("media_publish: 'Media ID is not available' is retried until it goes through", [await publishWhenAvailable(flaky, 4, 1), n], [{ id: "ok" }, 3]);
+  n = 0;
+  const other = async () => { n++; throw new Error("instagram media_publish 400: bad token"); };
+  check("…any other error is thrown at once", [await publishWhenAvailable(other, 4, 1).catch((e) => e.message), n], ["instagram media_publish 400: bad token", 1]);
+  n = 0;
+  const never = async () => { n++; throw new Error("Media ID is not available"); };
+  check("…and it gives up after the last try", [await publishWhenAvailable(never, 3, 1).catch((e) => e.message), n], ["Media ID is not available", 3]);
+}
+
 console.log(fails === 0 ? "\nAll social crash checks passed." : `\n${fails} social crash check(s) FAILED.`);
 process.exit(fails === 0 ? 0 : 1);
