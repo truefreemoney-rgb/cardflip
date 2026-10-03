@@ -546,7 +546,7 @@ await real("tn1-5", "Cheap Ramp", "5", "tn1", "Then Set", ramp(2, 7), { eur: 6, 
 const tnA = await SOC.thenNow("pokemon", A);
 check("then vs now: the 4x ramp Cardmarket agrees with; not the 20x, the five-day spike, the unrefereed or the cheap one", [tnA?.cardId, tnA?.from, tnA?.to, Math.round(tnA?.pct), tnA?.thenDay], ["tn1-1", 5, 20, 300, addDays(A, -129)]);
 const tnCap = SOC.thenNowCaption("pokemon", tnA, "Would you buy it at today's price?");
-check("its caption: the month the history began, the old price, today's, the move since; tagged thennow", [tnCap.split("\n")[0], tnCap.split("\n")[2], kindOfCaption(tnCap), kindOfCaption(SOC.thenNowShortCaption("pokemon", tnA))], ["Then vs now: Pokémon: Ramp (Then Set #1, Holo).", `${SOC.thenMonth(tnA)}: $5.00. Today: $20.00, +300% since ${SOC.thenMonth(tnA)}, from CardFlip's own price history.`, "thennow", "thennow"]);
+check("its caption: the month the history began, the old price, today's, the move since; tagged thennow", [tnCap.split("\n")[0], tnCap.split("\n")[2], kindOfCaption(tnCap), kindOfCaption(SOC.thenNowShortCaption("pokemon", tnA))], ["Pokémon then vs now: Ramp (Then Set #1, Holo).", `${SOC.thenMonth(tnA)}: $5.00. Today: $20.00, +300% since ${SOC.thenMonth(tnA)}, from CardFlip's own price history.`, "thennow", "thennow"]);
 check("the month is a real month name", /^(January|February|March|April|May|June|July|August|September|October|November|December)$/.test(SOC.thenMonth(tnA)), true);
 check("no then-vs-now for Magic yet (its history began 09-16)", await SOC.thenNow("mtg", A), null);
 

@@ -1,6 +1,7 @@
 import type { PostKind } from "@/lib/server/social";
 import type { Slot } from "@/lib/server/socialPublish";
 import { parseVideoSpec, type VideoSpec } from "@/lib/socialVideo";
+import type { GameId } from "@/lib/types";
 
 /**
  * TikTok by hand (Chris 09-30). TikTok refused the developer app for
@@ -82,6 +83,8 @@ export interface TiktokSpec extends VideoSpec {
   kind: PostKind;
   /** The backing track's file name, for the record. */
   audio?: string;
+  /** The game the draft is filed under (10-03: an angle video may be Magic's or Yu-Gi-Oh's); the shared row is keyed by it. Older rows: Pokémon. */
+  game?: GameId;
 }
 
 function isSlot(v: unknown): v is Slot {
@@ -103,6 +106,7 @@ export function parseTiktokSpec(raw: string | null | undefined): TiktokSpec | nu
       plan: j.plan,
       kind: base.kind,
       audio: typeof j.audio === "string" ? j.audio : undefined,
+      game: typeof j.game === "string" ? (j.game as GameId) : undefined,
     };
   } catch {
     return null;

@@ -65,6 +65,8 @@ export interface VideoCard {
   unsettled?: boolean;
   /** A set-spotlight card's place by value among the five (1 = dearest): the video may open on the biggest riser instead (10-01), so the label keeps the value rank. */
   rank?: number;
+  /** Then vs now (10-03): the day `from` was read; the caption says its month, so a rebuilt caption still says "May". */
+  thenDay?: string;
 }
 
 function isVideoCard(v: unknown): v is VideoCard {
@@ -81,7 +83,8 @@ function isVideoCard(v: unknown): v is VideoCard {
     typeof c.pct === "number" &&
     (c.game === undefined || typeof c.game === "string") &&
     (c.unsettled === undefined || typeof c.unsettled === "boolean") &&
-    (c.rank === undefined || typeof c.rank === "number")
+    (c.rank === undefined || typeof c.rank === "number") &&
+    (c.thenDay === undefined || typeof c.thenDay === "string")
   );
 }
 
@@ -136,6 +139,8 @@ export interface VideoSpec {
   leads?: LeadCard[];
   /** The day plan the video was made under (socialTiktok.ts planTag); a row whose tag no longer matches is remade. Older rows have none and count as fresh. */
   plan?: string;
+  /** Head to head (10-03): which of the two frozen cards the video crowned (0 = the first), so the rebuilt verdict matches the screen. */
+  winner?: 0 | 1;
 }
 
 export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null {
@@ -157,6 +162,7 @@ export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null
       cards,
       leads,
       plan: typeof v.plan === "string" ? v.plan : undefined,
+      winner: v.winner === 0 || v.winner === 1 ? v.winner : undefined,
     };
   } catch {
     return null;

@@ -937,6 +937,20 @@ export async function pair(game: GameId, day = todayUtc(), { exclude = new Set<s
 }
 
 /**
+ * The Pair a registered head-to-head video froze (lib/socialVideo.ts: its two
+ * cards in order and the winner it crowned), rebuilt the way pair() would read
+ * them: a history game compares the week, a TCG game the price; both cards
+ * from one set name it. A row without a winner (older) recomputes it.
+ */
+export function pairFromCards(game: GameId, cards: Pick<Mover, "cardId" | "name" | "setName" | "number" | "variant" | "from" | "to" | "pct" | "unsettled" | "game">[], winner?: 0 | 1): Pair | null {
+  if (cards.length < 2) return null;
+  const [a, b] = cards.slice(0, 2).map((c) => ({ imageUrl: "", ...c, unsettled: Boolean(c.unsettled) }));
+  const byPrice = !MOVER_GAMES.includes(game);
+  const w = winner ?? (byPrice ? (a.to >= b.to ? 0 : 1) : a.pct >= b.pct ? 0 : 1);
+  return { a, b, winner: w, byPrice, ...(a.setName && a.setName === b.setName ? { setName: a.setName } : {}) };
+}
+
+/**
  * Guess the price (angle "guess"): one card worth guessing. History games:
  * the week's biggest riser that no gains post shows (last week's, or today's
  * 1pm), so the reveal is a move; with none, the card of the day. TCG games: a
@@ -1369,7 +1383,7 @@ export function guessShortCaption(game: GameId, cards: Mover[], question = ""): 
 
 export function thenNowCaption(game: GameId, m: Mover, question = ""): string {
   const month = thenMonth(m);
-  return [`Then vs now: ${POST_GAME_NAMES[game]}: ${cardRef(m)}.`, "", `${month}: ${money(m.from)}. Today: ${money(m.to)}, ${pctLabel(m.pct)} since ${month}, from CardFlip's own price history.`, "", ...qBlock(question), SIGN_OFF].join("\n");
+  return [`${POST_GAME_NAMES[game]} then vs now: ${cardRef(m)}.`, "", `${month}: ${money(m.from)}. Today: ${money(m.to)}, ${pctLabel(m.pct)} since ${month}, from CardFlip's own price history.`, "", ...qBlock(question), SIGN_OFF].join("\n");
 }
 export function thenNowShortCaption(game: GameId, m: Mover, question = ""): string {
   const month = thenMonth(m);

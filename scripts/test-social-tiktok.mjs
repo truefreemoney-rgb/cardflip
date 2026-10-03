@@ -620,7 +620,7 @@ console.log("10-01: the render script and the scene");
 console.log("10-02: every video ends on the all-games card, and the list fits the outro at any tempo");
 {
   const src = read("scripts/social-video.mjs");
-  check("the render script: the set, movers and all-games videos all use the all-games outro, timed as the long one", [(src.match(/outro: ALL_GAMES_OUTRO,/g) ?? []).length, /outro: \{\},/.test(src), src.includes("mixed: gamesOutro")], [3, false, true]);
+  check("the render script: the set, movers, all-games and angle videos all use the all-games outro, timed as the long one", [(src.match(/outro: ALL_GAMES_OUTRO,/g) ?? []).length, /outro: \{\},/.test(src), src.includes("mixed: gamesOutro")], [4, false, true]);
   // The three tracks of 10-02: outro = 2 bars + 0.6 (a bar over 2.9s counts as two).
   const fitsAll = [[60 / 123.05, 4.5], [60 / 74, 3.84], [60 / 92.5, 5.79]].map(([p, outro]) => {
     const q = scene.outroStep(p, outro);
@@ -629,6 +629,52 @@ console.log("10-02: every video ends on the all-games card, and the list fits th
   check("the fifth game name and the address are on screen before the video ends, at 123, 74 and 92 bpm", fitsAll, [[true, true], [true, true], [true, true]]);
   check("a fast track keeps one name per beat; the slow 74 bpm track goes to half beats", [scene.outroStep(60 / 123.05, 4.5) === 60 / 123.05, scene.outroStep(60 / 74, 3.84) === 60 / 74 / 2], [true, true]);
   check("a very short outro still fits the list", 6.5 * scene.outroStep(1, 2) + 0.45 <= 2.6, true);
+}
+
+
+// ---- 10-03 phase 2: the five content angles as videos ------------------------------------------------------
+console.log("phase 2: the angles are video kinds, frozen like the rest, keyed by the draft's game");
+{
+  check("the renderer knows the five angles (docs/SOCIAL-ANGLES-PLAN.md phase 2)", ["guess", "thennow", "versus", "sleepers", "top"].every((k) => T.VIDEO_KINDS.includes(k)), true);
+  const src = read("scripts/social-video.mjs");
+  check("the render script draws an angle from angleData (the draft's own pick), on the angle screens, timed by the screens' holds, and freezes the winner", [src.includes("if (isAngleKind(kind)) return buildAngle(kind, strict);"), src.includes("const a = await angleData(kind, day);"), src.includes("const beats = angle ? beatsOf(built.screens) : cards.length;"), src.includes("winner: made.frozen.winner"), src.includes("timelineFor(b, { section: track.section, cards: beats, mixed: gamesOutro })")], [true, true, true, true, true]);
+  check("…and keys the shared row by the draft's game, not TikTok's", [src.includes("const dg = draft.game ?? game;"), src.includes("await sharedVideo(slot, day, dg)"), src.includes("social/video/${dg}-${made.kind}-${day}${remake}.mp4")], [true, true, true]);
+  check("a one-off look: --kind renders one video of any kind to --out", src.includes('const ONE_KIND = arg("--kind", "");'), true);
+  const angles = await import(new URL("./lib/social-angles.mjs", import.meta.url).href);
+  check("a reveal, a then-vs-now and a head-to-head hold two BEATs each, a count-down screen one", angles.beatsOf([{ type: "reveal" }, { type: "thennow" }, { type: "versus" }, { type: "beat" }]), 7);
+  const vs = angles.angleScene({ W: 1080, H: 1920, logo: "data:,", intro: { kicker: "k", title: "t", sub: "s" }, screens: [{ type: "versus", a: { art: "", name: "A", meta: "#1", to: 1, pct: { text: "x", cls: "up" } }, b: { art: "", name: "B", meta: "#2", to: 2, pct: { text: "y", cls: "down" } }, win: 1, ask: "Which is worth more?", verdict: "B is worth more today: $2.00 to $1.00." }], outroGames: ["Pokémon"], INTRO: 2, BEAT: 4, OUTRO: 2, PERIOD: 1, MUSIC: true, TOTAL: 12 });
+  check("a TCG head to head asks which is worth more; the verdict is the answer the kicker turns into", [vs.includes('data-ask="Which is worth more?"'), vs.includes('data-answer="B is worth more today: $2.00 to $1.00."'), vs.includes('data-win="1"')], [true, true, true]);
+
+  // The Friday fixture drafts guess, top and versus (the data the six cards and the stage cards allow).
+  const guess = drafts.find((d) => d.kind === "guess");
+  const versus = drafts.find((d) => d.kind === "versus");
+  const top = drafts.find((d) => d.kind === "top");
+  const freeze = (d) => d.cardIds.map((id, i) => ({ cardId: id, name: `Card ${i + 1}`, number: String(i + 1), setName: "Frozen Set", variant: "", from: 10, to: 100 + i, pct: 25 - i * 10 }));
+  const g = applyVideoCards(guess, freeze(guess));
+  check("an angle's caption is rebuilt from the frozen cards through the angle builder: the frozen names and prices, the id and picture path unchanged", [g.id === guess.id, g.imagePath === guess.imagePath, g.kind, g.caption.includes("Card 1"), g.caption.includes("$100"), g.cardIds[0] === guess.cardIds[0]], [true, true, "guess", true, true, true]);
+  const vCards = freeze(versus);
+  const v0 = applyVideoCards(versus, vCards, { winner: 0 });
+  const v1 = applyVideoCards(versus, vCards, { winner: 1 });
+  check("a head to head rebuilds its verdict from the frozen pair and the winner the video crowned", [v0.title, /^Card 1 /.test(v0.caption.split("\n")[2]), /^Card 2 /.test(v1.caption.split("\n")[2]), v0.caption.includes("in Frozen Set")], ["Head to head: Card 1 vs Card 2", true, true, true]);
+  check("pairFromCards: a history game compares the week, a TCG game the price; no winner on the row recomputes it", [social.pairFromCards("pokemon", vCards).winner, social.pairFromCards("pokemon", vCards).byPrice, social.pairFromCards("yugioh", vCards).winner, social.pairFromCards("yugioh", vCards).byPrice, social.pairFromCards("pokemon", [vCards[0]])], [0, false, 1, true, null]);
+  const tn = applyVideoCards({ ...guess, kind: "thennow", id: "pokemon-thennow-" + FRI, game: "pokemon", mixed: undefined }, [{ ...freeze(guess)[0], from: 5, to: 20, pct: 300, thenDay: "2026-05-20" }]);
+  check("then vs now rebuilt from a frozen card says the month its old price was read", [tn.title, tn.caption.split("\n")[0], tn.caption.split("\n")[2]], ["Then vs now: Card 1", "Pokémon then vs now: Card 1 (Frozen Set #1).", "May: $5.00. Today: $20.00, +300% since May, from CardFlip's own price history."]);
+  const mixedTop = applyVideoCards(top, [{ ...freeze(top)[0], game: "pokemon" }, { ...freeze(top)[0], cardId: "m1", name: "Magic Card", game: "mtg" }, { ...freeze(top)[0], cardId: "l1", name: "Lorcana Card", game: "lorcana" }]);
+  check("a mixed top video's cards carry their game: the rebuilt post names each and tags every game shown", [mixedTop.caption.includes("Magic: Magic Card"), mixedTop.caption.includes("Lorcana: Lorcana Card"), mixedTop.hashtags.includes("MTG"), mixedTop.hashtags.includes("DisneyLorcana"), mixedTop.featured?.mtg?.[0]], [true, true, true, true, "m1"]);
+
+  // Register a guess video: TikTok-only while no slot names the kind; the shared row (keyed by the draft's game) once one does.
+  const frozenGuess = freeze(guess);
+  let r = await T.registerTiktokVideo({ slot: "evening", day: FRI, kind: "guess", url: "https://blob/tiktok/evening-guess.mp4", bytes: 1, seconds: 20, draft: guess, cards: frozenGuess, now: 1_800_000_000_000 });
+  check("a fallback angle video is TikTok-only: the row says the draft's game and the caption names the frozen card; no site posts it", [r.spec.game, r.shared, r.spec.caption.includes("Card 1"), await getSetting(videoKey(guess.game, "guess", FRI))], [guess.game, null, true, null]);
+  DAY_PLANS[FRI] = { evening: "guess" };
+  r = await T.registerTiktokVideo({ slot: "evening", day: FRI, kind: "guess", url: "https://blob/video/guess.mp4", bytes: 1, seconds: 20, draft: guess, cards: frozenGuess, now: 1_800_000_000_000 });
+  check("once the 7pm slot names the angle, its video is the file every site posts, under the draft's game, and the slot reads ready", [r.shared?.url, parseVideoSpec(await getSetting(videoKey(guess.game, "guess", FRI)))?.url, (await T.readSlot("evening", FRI)).state, (await currentVideoFor(guess))?.url], ["https://blob/video/guess.mp4", "https://blob/video/guess.mp4", "ready", "https://blob/video/guess.mp4"]);
+  check("…and the slot's candidate kinds lead with it", T.candidateKinds("evening", FRI, drafts)[0], "guess");
+  const vr = await T.registerTiktokVideo({ slot: "evening", day: FRI, kind: "versus", url: "https://blob/tiktok/evening-versus.mp4", bytes: 1, seconds: 20, draft: versus, cards: vCards, winner: 1, now: 1_800_000_000_000 });
+  check("a head-to-head row keeps the winner and its TikTok caption says that card won", [vr.spec.winner, P.parseTiktokSpec(await getSetting(P.tiktokKey("evening", FRI)))?.winner, /^Card 2 /m.test(vr.spec.caption)], [1, 1, true]);
+  delete DAY_PLANS[FRI];
+  await setSetting(videoKey(guess.game, "guess", FRI), "");
+  await setSetting(P.tiktokKey("evening", FRI), "");
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

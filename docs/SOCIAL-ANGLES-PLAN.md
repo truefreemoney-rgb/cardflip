@@ -74,7 +74,23 @@ the new kinds have scores):
    = card picture, top/sleepers = list picture, versus = two-card picture), `KIND_LABEL`, `KIND_ROTATION`,
    `FeaturedKind` + filing, `SocialPreview.tsx` kind union. Tests: test-social (drafts per kind, captions
    print the right prices, versus same game), test-social-posts (kindOfCaption).
-2. **Video** (`social-video.mjs` + `social-angles.mjs` tracked): `build()` branches per kind calling
+2. **DONE 10-03 (session 103).** Video. What shipped:
+   - `scripts/lib/social-angles.mjs` tracked (screens reveal / thennow / versus / beat; the versus ask is per screen:
+     "Which is worth more?" for a TCG pair). `scripts/social-video.mjs`: `buildAngle(kind)` draws from `angleData(kind, day)`
+     (the draft's own pick), every card must have art (a short list is not that post), `makeSlot` times the video by the
+     screens' holds (`beatsOf`, a reveal = two BEATs), the all-games outro on every angle. `--kind <kind> --out x.mp4`
+     renders one video of any kind by itself (how the angles are eyeballed; no slot, no register).
+   - `VIDEO_KINDS` + 5. Frozen rows: `VideoCard.thenDay`, `VideoSpec.winner` (head to head), both parsed; `TiktokSpec.game`.
+     `registerTiktokVideo` keys the shared row by the DRAFT's game (`videoKey(draft.game, kind, day)`, the key the
+     publisher reads), `sharedVideo(slot, day, game)`, `readSlot` compares under the row's game.
+   - `applyVideoCards` rebuilds an angle draft whole from the frozen cards through `angleDraft` (`pairFromCards` for versus,
+     the winner from the row), so title, both captions, tags and the no-repeat list say what the video shows.
+   - Caption copy: "Pokémon then vs now: Rain of Riches (…)" (was "Then vs now: Magic: …", a double colon).
+   - Tests: test-social-tiktok (phase 2 block: kinds, script pins, scene, rebuilds, register under the draft's game, the
+     winner), test-social-video (parser extras), test-social (then-vs-now pin).
+   - Still nothing posts an angle: no slot names one until phase 3 (`candidateKinds` leads with it the day one does).
+
+   Original sketch: `build()` branches per kind calling
    `angleData(kind, day)` (the same pick the draft and the picture use); `VIDEO_KINDS` + 5; frozen rows:
    `VideoCard.thenDay?` (thennow; `Mover.thenDay` already exists) + validator, versus = two cards in order and the
    winner; `applyVideoCards` branches (`angleDraft` rebuilds a caption from `AngleData`, so freeze cards → rebuild

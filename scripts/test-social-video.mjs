@@ -322,5 +322,13 @@ globalThis.fetch = realFetch;
   check("workflow has a render-only dispatch input", wf.includes("render_only:") && wf.includes("inputs.render_only != '1'"), true);
 }
 
+
+console.log("10-03 phase 2: the frozen row carries an angle's extras");
+{
+  const tn = { ...oneCard, thenDay: "2026-05-20" };
+  check("a then-vs-now card keeps the day its old price was read; a junk one voids the list", [parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, cards: [tn] })).cards?.[0]?.thenDay ?? null, parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, cards: [{ ...tn, thenDay: 5 }] })).cards ?? null], ["2026-05-20", null]);
+  check("a head-to-head row keeps the winner it crowned (0 or 1), nothing else", [0, 1, 2, "0", undefined].map((w) => parseVideoSpec(JSON.stringify({ url: "https://blob/x.mp4", bytes: 1, winner: w })).winner ?? null), [0, 1, null, null, null]);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

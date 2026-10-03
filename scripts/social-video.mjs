@@ -23,6 +23,8 @@
 //              [--min-hour N] exits when a schedule ping fires earlier than N
 //              o'clock Eastern (the EST-side 7pm ping runs an hour early).
 //   --slot morning|midday|evening   one TikTok slot by itself (or a comma list of them).
+//   --kind <kind>                   with --out: one video of that kind by itself, no slot, no register (a look at an
+//                                   angle: guess, thennow, versus, sleepers, top; or set, movers, dips, games).
 //   --force    with --slot: remake the named slot(s) even when ready (the workflow's tiktok_force), e.g. a registered video that
 //              shows a card the rules now leave out. Refused without --slot, so no run can redraw every ready video. A remake
 //              over an existing row is parked under a NEW blob path (Blob's CDN keeps serving an overwritten path's old bytes
@@ -42,6 +44,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { artDataUri, renderMp4, sceneHtml } from "./lib/social-scene.mjs";
+import { angleScene, beatsOf } from "./lib/social-angles.mjs";
 import { sectionFor, timelineFor, trackIndex } from "./lib/audio-plan.mjs";
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
@@ -54,8 +57,8 @@ const ONLY = arg("--slot", "").split(",").filter(Boolean);
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { topMovers, mixedMovers, recentlyFeatured, setSpotlight, gameLeads, gameJumps, isJump, socialDrafts, variantLabel } = await import(at("lib/server/social.ts"));
-const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord } = await import(at("lib/socialPlan.ts"));
+const { topMovers, mixedMovers, recentlyFeatured, setSpotlight, gameLeads, gameJumps, isJump, socialDrafts, variantLabel, angleData, thenMonth, versusVerdict } = await import(at("lib/server/social.ts"));
+const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord, isAngleKind, listNames } = await import(at("lib/socialPlan.ts"));
 // Every video ends on the "Now scanning" card naming all the games we scan (Chris 10-02: "the final card on all 3
 // doesn't list all games we scan"). It used to be the mixed-movers video only; the rest ended on a Pokémon-era line.
 const ALL_GAMES_OUTRO = { games: POST_GAME_ORDER.map((g) => POST_GAME_NAMES[g]) };
@@ -263,7 +266,64 @@ async function build(kind, strict) {
       frozen: { leads: shown.map((c) => ({ game: c.game, name: c.name, setName: c.setName, number: c.number, price: c.price, ...(isJump(c) && c.cardId ? { cardId: c.cardId, from: c.from, pct: c.pct, ...(c.variant ? { variant: c.variant } : {}) } : {}) })) },
     };
   }
+  if (isAngleKind(kind)) return buildAngle(kind, strict);
   throw new Error(`the video renderer has no scene for kind "${kind}"`);
+}
+
+/** A card's move line on an angle screen: a TCG stage card (no history) says today's price instead of a week. */
+const angleMove = (c, hero = false) => (c.unsettled ? { text: "market price today", cls: "muted" } : moveLine(c, hero));
+
+/**
+ * The five content angles (10-03, docs/SOCIAL-ANGLES-PLAN.md phase 2): the SAME pick the draft and the picture use
+ * (angleData), drawn on lib/social-angles.mjs screens instead of the count-down. guess = one "What's it worth?" reveal
+ * per card (a mixed post: one card per game); thennow = the old price struck through, today's counts up; versus = two
+ * cards, the question becomes the verdict; sleepers / top = the classic count-down screens. Every card must have art:
+ * the captions say what the post is ("five of the most valuable", "one card from each game"), so a short list is not it.
+ */
+async function buildAngle(kind, strict) {
+  const a = await angleData(kind, day);
+  if (!a) throw new Error(`no ${kind} data for ${day}`);
+  const gamesIn = POST_GAME_ORDER.filter((g) => a.cards.some((c) => (c.game ?? a.game) === g));
+  const who = a.mixed ? listNames(gamesIn.map((g) => POST_GAME_NAMES[g])) : POST_GAME_NAMES[a.game];
+  const shown = await withArt(a.cards, strict);
+  if (shown.length !== a.cards.length) throw new Error(`card art missing for ${kind}: ${a.cards.filter((c) => !shown.some((s) => s.cardId === c.cardId)).map((c) => c.name).join(", ")}`);
+  const metaOf = (c) => `${a.mixed ? `${POST_GAME_NAMES[c.game ?? a.game]} · ` : ""}${cleanSet(c.setName)} · ${/^[A-Z]/.test(c.number) ? numberText(c.number) : `#${numberText(c.number)}`}${variantLabel(c.variant ?? "") ? ` · ${variantLabel(c.variant)}` : ""}`;
+  const frozen = {
+    cards: a.cards.map((c) => ({ cardId: c.cardId, name: c.name, number: c.number, setName: c.setName, variant: c.variant ?? "", from: c.from, to: c.to, pct: c.pct, ...(c.game ? { game: c.game } : {}), ...(c.unsettled ? { unsettled: true } : {}), ...(c.thenDay ? { thenDay: c.thenDay } : {}) })),
+    ...(a.pair ? { winner: a.pair.winner } : {}),
+  };
+  const n = shown.length;
+  console.log(`${kind}: ${who} · ${shown.map((c) => `${c.name} ${c.to}${c.unsettled ? "" : ` ${c.pct > 0 ? "+" : ""}${c.pct.toFixed(1)}%`}`).join(" | ")}`);
+  const base = { kind, mixed: a.mixed, outro: ALL_GAMES_OUTRO, frozen };
+  if (kind === "guess") {
+    return {
+      ...base,
+      intro: a.mixed ? { kicker: "Guess the price", title: "What's it worth?", sub: "One card from each game. Guess before it shows." } : { kicker: `${who} · guess the price`, title: "What's it worth?", sub: "One card. Guess before it shows." },
+      screens: shown.map((c) => ({ type: "reveal", art: c.art, name: c.name, meta: metaOf(c), to: c.to, pct: angleMove(c, true) })),
+    };
+  }
+  if (kind === "thennow") {
+    const c = shown[0];
+    const month = thenMonth(c);
+    return {
+      ...base,
+      intro: { kicker: `${who} · then vs now`, title: `Since ${month}`, sub: "What one card did in a few months" },
+      screens: [{ type: "thennow", art: c.art, name: c.name, meta: metaOf(c), thenLabel: month, then: c.from, to: c.to, pct: { text: `▲ ${Math.round(c.pct)}% since ${month}`, cls: "up big" } }],
+    };
+  }
+  if (kind === "versus") {
+    const p = a.pair;
+    const side = (m) => { const c = shown.find((s) => s.cardId === m.cardId); return { art: c.art, name: c.name, meta: metaOf(c), to: c.to, pct: angleMove(c, true) }; };
+    return {
+      ...base,
+      intro: { kicker: p.setName ? `${who} · ${p.setName}` : `${who} · head to head`, title: "Head to head", sub: p.byPrice ? "Two cards. Which is worth more?" : "Two cards, one week. Which one moved?" },
+      screens: [{ type: "versus", a: side(p.a), b: side(p.b), win: p.winner, ask: p.byPrice ? "Which is worth more?" : "Which would you hold?", verdict: versusVerdict(p) }],
+    };
+  }
+  // sleepers / top: counted down, the best last (No. 1); a mixed list labels each card with its game instead.
+  const screens = [...shown].reverse().map((c, i) => ({ type: "beat", rank: a.mixed ? POST_GAME_NAMES[c.game ?? a.game] : `No. ${n - i}`, art: c.art, name: c.name, meta: metaOf(c), to: c.to, pct: angleMove(c, kind === "sleepers") }));
+  if (kind === "sleepers") return { ...base, intro: { kicker: `${who} · under $5`, title: "Sleepers", sub: "Cheap cards moving the most this week" }, screens };
+  return { ...base, intro: { kicker: `${who} · right now`, title: "Most valuable", sub: a.mixed ? "The dearest card in each game" : `The ${countWord(n)} dearest cards we price today` }, screens };
 }
 
 /**
@@ -286,7 +346,10 @@ function hookFor(kind, cards) {
 /** Render one video for a slot; returns what the registry needs. */
 async function makeSlot(slot, kind, out, strict) {
   const built = await build(kind, strict);
-  const { cards } = built;
+  const angle = Boolean(built.screens);
+  const cards = angle ? [] : built.cards;
+  // How many BEATs the video holds: one per card on the count-down, a screen's own hold on an angle (a reveal holds two).
+  const beats = angle ? beatsOf(built.screens) : cards.length;
   // The end card names every game we scan, one per beat (Chris 10-02: all three videos, not only the mixed one): two bars.
   const gamesOutro = Boolean(built.outro.games);
   const track = trackFor(slot);
@@ -306,7 +369,7 @@ async function makeSlot(slot, kind, out, strict) {
     // and outro; the mixed outro names five games one per beat, then the address: two
     // bars. A repeat of the day's track starts 8 bars further in, moved off a drumless
     // stretch and onto the beat of the part it lands in (lib/audio-plan.mjs).
-    const plan = timelineFor(b, { section: track.section, cards: cards.length, mixed: gamesOutro });
+    const plan = timelineFor(b, { section: track.section, cards: beats, mixed: gamesOutro });
     PERIOD = plan.PERIOD;
     ({ INTRO, BEAT, OUTRO } = plan);
     AUDIO_START = plan.start;
@@ -317,10 +380,12 @@ async function makeSlot(slot, kind, out, strict) {
     if (gamesOutro) OUTRO = 5;
     withAudio = false;
   }
-  const TOTAL = withAudio || gamesOutro ? Math.round((INTRO + BEAT * cards.length + OUTRO) * 1000) / 1000 : videoSeconds(cards.length);
+  const TOTAL = withAudio || gamesOutro ? Math.round((INTRO + BEAT * beats + OUTRO) * 1000) / 1000 : videoSeconds(beats);
   // Every video is laid out inside TikTok's safe box (Chris 10-01, from his phone: the old layouts sat off centre under the search
   // bar with an empty bottom third). The 1pm file every site posts gets it too: Reels and Shorts cover the same edges.
-  const html = sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true });
+  const html = angle
+    ? angleScene({ W, H, logo, intro: built.intro, screens: built.screens, outroGames: built.outro.games, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL })
+    : sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true });
   const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out, audio: withAudio ? { file: track.file, start: AUDIO_START } : null });
   console.log(`wrote ${out} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
   return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name };
@@ -335,12 +400,14 @@ async function register(slot, made, out, drafts) {
   // A video of the slot's own kind is the file every site posts in that slot (10-03: all three slots, was 1pm only) and lives under
   // social/video/; a fallback kind is TikTok-only and lives under social/tiktok/.
   const shared = made.kind === slotKind(slot, day);
+  // The draft's game keys the shared row (10-03: an angle video may be Magic's; the publisher reads videoKey(d.game, …)).
+  const dg = draft.game ?? game;
   // A remake over a row that exists gets its own path: Blob's CDN caches a path for up to a month, so overwriting it can keep serving the old video.
-  const prior = shared ? await sharedVideo(slot, day) : (await readSlot(slot, day)).spec;
+  const prior = shared ? await sharedVideo(slot, day, dg) : (await readSlot(slot, day)).spec;
   const remake = prior?.url ? `-r${Date.now().toString(36)}` : "";
-  const blobPath = shared ? `social/video/${game}-${made.kind}-${day}${remake}.mp4` : `social/tiktok/${slot}-${made.kind}-${day}${remake}.mp4`;
+  const blobPath = shared ? `social/video/${dg}-${made.kind}-${day}${remake}.mp4` : `social/tiktok/${slot}-${made.kind}-${day}${remake}.mp4`;
   const blob = await put(blobPath, fs.readFileSync(out), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
-  const r = await registerTiktokVideo({ slot, day, kind: made.kind, url: blob.url, bytes: made.bytes, seconds: made.seconds, draft, cards: made.frozen.cards, leads: made.frozen.leads, audio: made.audio });
+  const r = await registerTiktokVideo({ slot, day, kind: made.kind, url: blob.url, bytes: made.bytes, seconds: made.seconds, draft, cards: made.frozen.cards, leads: made.frozen.leads, winner: made.frozen.winner, audio: made.audio });
   // A re-render on the same day replaces the row; the old file only differs by path when the naming or kind changes.
   for (const u of r.replaced) { try { await del(u); } catch { /* already gone */ } }
   console.log(`registered ${slot} ${made.kind} → ${blob.url}`);
@@ -353,7 +420,16 @@ const outFor = (slot) => {
   return path.resolve(arg("--out", "social-video.mp4"));
 };
 
-if (!PACKAGE && !ONLY.length) {
+const ONE_KIND = arg("--kind", "");
+if (ONE_KIND) {
+  if (PACKAGE || ONLY.length || REGISTER) { console.error("--kind renders one video to --out by itself: no --package, --slot or --register"); process.exit(2); }
+  try {
+    await makeSlot("midday", ONE_KIND, outFor("midday"), true);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+} else if (!PACKAGE && !ONLY.length) {
   // The 1pm movers video, exactly as it has always been made (a thin movers list is an error, not a fallback).
   try {
     const drafts = REGISTER ? await socialDrafts(game, day) : [];

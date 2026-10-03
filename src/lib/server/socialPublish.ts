@@ -3,9 +3,11 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import {
+  angleDraft,
   featuredByGame,
   markFeatured,
   moversFromCards,
+  pairFromCards,
   socialDrafts,
   POST_SIZES,
   mixedMoversCaption,
@@ -424,9 +426,17 @@ export async function frozenMovers(game: GameId, kind: PostKind, day: string): P
  * computing their own card lists at different times). VideoCard drops
  * imageUrl/unsettled; the caption builders never read either.
  */
-export function applyVideoCards(d: SocialPost, cards: VideoCard[]): SocialPost {
+export function applyVideoCards(d: SocialPost, cards: VideoCard[], { winner }: { winner?: 0 | 1 } = {}): SocialPost {
   const movers: Mover[] = cards.map((c) => ({ ...c, imageUrl: "", unsettled: Boolean(c.unsettled) }));
   if (movers.length === 0) return d;
+  // An angle (10-03): the draft is rebuilt whole from the frozen cards through the same builder socialDrafts uses, so the
+  // title, both captions, the tags and the no-repeat list all say what the video shows (a mixed video's cards carry their game).
+  if (isAngleKind(d.kind)) {
+    const pair = d.kind === "versus" ? pairFromCards(d.game, movers, winner) : undefined;
+    if (d.kind === "versus" && !pair) return d;
+    const rebuilt = angleDraft({ kind: d.kind, game: d.game, mixed: Boolean(d.mixed) || movers.some((m) => m.game), cards: movers, ...(pair ? { pair } : {}) }, d.day);
+    return { ...d, ...rebuilt, id: d.id, imagePath: d.imagePath };
+  }
   // A video whose cards carry a game is a mixed one (day plan mixedMovers):
   // the draft's title and hashtags already say so, the text is rebuilt per game.
   const mixed = movers.some((m) => m.game);
@@ -521,7 +531,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const all = await Promise.all(
     rawDrafts.map(async (d) => {
       const spec = await currentVideoFor(d);
-      return spec?.cards?.length ? applyVideoCards(d, spec.cards) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
+      return spec?.cards?.length ? applyVideoCards(d, spec.cards, { winner: spec.winner }) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
     }),
   );
   const games = [...new Set(all.map((d) => d.game))];

@@ -45,7 +45,7 @@ import type { GameId } from "@/lib/types";
 /** Every draft the videos are made for is a Pokémon-keyed one (the games post is Pokémon-keyed too; socialPublish.ts GAMES). */
 export const TIKTOK_GAME: GameId = "pokemon";
 /** The kinds the video renderer can draw (a "card" of the day has no slot and no draft). */
-export const VIDEO_KINDS: PostKind[] = ["set", "movers", "dips", "games"];
+export const VIDEO_KINDS: PostKind[] = ["set", "movers", "dips", "games", "guess", "thennow", "versus", "sleepers", "top"];
 /** A dispatched render gets this long before the safety net calls it lost. */
 export const DISPATCH_GAP_MS = 45 * 60_000;
 /** A dispatch older than this is history (a render takes well under an hour): a later problem is a new one, not "still missing". */
@@ -104,8 +104,8 @@ export function candidateKinds(slot: Slot, day: string, drafts: Pick<SocialPost,
  * site (fitText to the site's limit, hashtags kept) and from the EXACT data
  * the video drew, so the caption always names what is on screen.
  */
-export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[] }): { title: string; caption: string } {
-  const applied = data.cards?.length ? applyVideoCards(d, data.cards) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
+export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[]; winner?: 0 | 1 }): { title: string; caption: string } {
+  const applied = data.cards?.length ? applyVideoCards(d, data.cards, { winner: data.winner }) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
   return {
     title: applied.title,
@@ -168,8 +168,8 @@ export async function sharedMovers(day: string): Promise<VideoSpec | null> {
  * render has made it. Chris 10-03: every autopilot post is a video where the site can take one, so all three slots
  * share their file; before, only the 1pm movers did. Raw: made under any plan.
  */
-export async function sharedVideo(slot: Slot, day: string): Promise<VideoSpec | null> {
-  return videoFor({ game: TIKTOK_GAME, kind: slotKind(slot, day), day });
+export async function sharedVideo(slot: Slot, day: string, game: GameId = TIKTOK_GAME): Promise<VideoSpec | null> {
+  return videoFor({ game, kind: slotKind(slot, day), day });
 }
 
 /**
@@ -198,7 +198,7 @@ export async function readSlot(slot: Slot, day: string): Promise<SlotRead> {
   if (spec.plan !== planTag(slot, day)) return { state: "stale", spec };
   if (spec.kind === slotKind(slot, day)) {
     // The slot's own kind is the file the other sites post too: the TikTok row and the shared row must agree.
-    const shared = await sharedVideo(slot, day);
+    const shared = await sharedVideo(slot, day, spec.game ?? TIKTOK_GAME);
     if (!shared || shared.url !== spec.url) return { state: "stale", spec };
   }
   return { state: "ready", spec };
@@ -270,6 +270,8 @@ export interface RegisterInput {
   draft: SocialPost;
   cards?: VideoCard[];
   leads?: LeadCard[];
+  /** Head to head: which frozen card the video crowned (0 = the first). */
+  winner?: 0 | 1;
   audio?: string;
   now?: number;
 }
@@ -287,7 +289,9 @@ export interface RegisterInput {
 export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: TiktokSpec; shared: VideoSpec | null; replaced: string[] }> {
   await ensureSchedule();
   const plan = planTag(i.slot, i.day);
-  const post = tiktokPost(i.draft, { cards: i.cards, leads: i.leads });
+  const post = tiktokPost(i.draft, { cards: i.cards, leads: i.leads, winner: i.winner });
+  // The shared row is keyed by the DRAFT's game (10-03: an angle video may be Magic's), the key the publisher reads (videoKey(d.game, …)).
+  const game: GameId = i.draft.game ?? TIKTOK_GAME;
   const base: VideoSpec = {
     url: i.url,
     bytes: i.bytes,
@@ -300,26 +304,27 @@ export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: Tik
     cards: i.cards,
     leads: i.leads,
     plan,
+    ...(i.winner === undefined ? {} : { winner: i.winner }),
   };
-  const spec: TiktokSpec = { ...base, slot: i.slot, day: i.day, title: post.title, caption: post.caption, plan, kind: i.kind, audio: i.audio };
+  const spec: TiktokSpec = { ...base, slot: i.slot, day: i.day, title: post.title, caption: post.caption, plan, kind: i.kind, audio: i.audio, game };
   const before = [parseTiktokSpec(await getSetting(tiktokKey(i.slot, i.day)))?.url];
   await setSetting(tiktokKey(i.slot, i.day), JSON.stringify(spec));
   let shared: VideoSpec | null = null;
   const own = slotKind(i.slot, i.day);
   if (i.kind === own) {
     shared = { ...base, cards: i.cards, leads: i.leads };
-    before.push((await sharedVideo(i.slot, i.day))?.url);
-    await setSetting(videoKey(TIKTOK_GAME, i.kind, i.day), JSON.stringify(shared));
+    before.push((await sharedVideo(i.slot, i.day, game))?.url);
+    await setSetting(videoKey(game, i.kind, i.day), JSON.stringify(shared));
   } else {
     // A remake that fell back to another kind (the slot's own art was missing): the file the sites post is still
     // the earlier one, and the row the TikTok slot replaced may BE that file. Deleting it left the sites'
     // row pointing at a 404 (09-30 review). Keep it while the row is current; a row made under a plan that has
     // since changed is no use to anyone, so that one goes (its picture posts instead, the net remakes it).
-    const old = await sharedVideo(i.slot, i.day);
+    const old = await sharedVideo(i.slot, i.day, game);
     if (old) {
       const stale = Boolean(old.plan) && old.plan !== plan;
       if (stale) {
-        await setSetting(videoKey(TIKTOK_GAME, own, i.day), "");
+        await setSetting(videoKey(game, own, i.day), "");
         before.push(old.url);
       } else for (let k = before.length - 1; k >= 0; k--) if (before[k] === old.url) before.splice(k, 1);
     }
