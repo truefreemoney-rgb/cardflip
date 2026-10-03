@@ -41,7 +41,6 @@ import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/v
 import { tiebreakIds } from "@/lib/tiebreak";
 import { foilChoices } from "@/lib/yugioh";
 import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
-import { primeScanFx } from "@/lib/client/scanFx";
 import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
 import type {
@@ -1052,8 +1051,6 @@ export default function AppPage() {
   const openCamera = useCallback(() => {
     // A toast left over from the previous session would flash a stale result.
     setCameraItemId(null);
-    // Inside the tap, so the scan sounds are allowed to play later.
-    void primeScanFx();
     categoryAskedRef.current = false;
     sessionItemIdsRef.current = [];
     setCameraOpen(true);
@@ -1375,10 +1372,8 @@ export default function AppPage() {
       game={game}
       onGameChange={setGame}
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
-      tally={{
-        count: items.filter((item) => item.card).length,
-        value: items.reduce((sum, item) => sum + (item.card ? headlinePrice(item) : 0), 0),
-      }}
+      queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
+      onRemove={removeItem}
       onCapture={onCameraCapture}
       onCapturePage={onCameraCapturePage}
       pageNote={pageNote}

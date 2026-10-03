@@ -9,16 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
-import {
-  fxCapture,
-  fxMatch,
-  fxMiss,
-  primeScanFx,
-  revealTier,
-  scanFxEnabled,
-  setScanFxEnabled,
-  type RevealTier,
-} from "@/lib/client/scanFx";
+import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { ScanItem } from "@/lib/types";
 import {
   SHARPNESS_BAND,
@@ -40,8 +31,14 @@ interface Props {
    * the seller lines up the next card.
    */
   lastScan?: ScanItem | null;
-  /** Everything identified so far this session — the running score in the HUD. */
-  tally?: { count: number; value: number } | null;
+  /**
+   * The scans waiting to be verified (identified, not yet listed or sold):
+   * the count and total on the result chip's button, and the rows of the
+   * session sheet behind the tray button (Chris 10-02).
+   */
+  queue?: ScanItem[];
+  /** Remove one scan from the queue (the × on the result chip and in the session sheet). */
+  onRemove?: (id: string) => void;
   onCapture: (file: File) => void;
   /**
    * Page mode: one shot of a binder page (or a spread). The page splits it
@@ -148,7 +145,7 @@ function guideInVideo(video: HTMLVideoElement, mode: CaptureMode = "card"): Guid
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, tally, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // Card (one card fills the guide) or Page (a binder page; one shot, every
@@ -178,7 +175,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
   const lastBlurRejectAt = useRef(0);
   // Lazy initialiser: read the stored preference once, on the client (the
   // modal only ever mounts client-side, after a tap).
-  const [fxOn, setFxOn] = useState(() => scanFxEnabled());
+  // The session sheet (10-02): every scan waiting to verify, each with a remove ×.
+  const [trayOpen, setTrayOpen] = useState(false);
+  const waiting = queue ?? [];
+  const verify = waiting.length > 0 ? { count: waiting.length, value: waiting.reduce((sum, item) => sum + headlinePrice(item), 0) } : null;
+  // The sheet is open only while there is something in it (the last × closes it).
+  const sheetOpen = trayOpen && verify !== null;
   // "unavailable" hides the button entirely — torches only exist on phone
   // back cameras, and a control that can't work is worse than none.
   const [torch, setTorch] = useState<"unavailable" | "off" | "on">(
@@ -452,10 +454,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
   useBackToClose("camera", onClose);
 
   return (
-    <div
-      onPointerDown={() => void primeScanFx()}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4"
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4">
       {/* .scanner-hud: the scanner's motion is exempt from the reduced-motion
           kill in globals.css — see the motion policy. Full-bleed on phones
           (the viewfinder is the screen, every zone gets its own row so
@@ -470,8 +469,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
       >
         {/* Top bar (10-02 makeover): every control that is not Capture lives
             here, off the video — the one way out (left), Card / Page
-            (middle), light and sound (right). Solid, no blur: iOS. */}
-        {/* Widths at 360px with the light showing: 60 + 169 + 40 + 40 + gaps = 327 of 336. */}
+            (middle), the light (right; the sound toggle went 10-02, Chris:
+            no audio in the scanner). Solid, no blur: iOS. */}
+        {/* Widths at 360px with the light showing: 60 + 169 + 40 + gaps = 281 of 336. */}
         <div className="flex h-12 shrink-0 items-center gap-1.5 px-3 sm:h-auto sm:px-0">
           <button
             type="button"
@@ -530,39 +530,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
               </svg>
             </button>
           )}
-
-          {/* Sound + haptics toggle, remembered. */}
-          <button
-            type="button"
-            onClick={() => {
-              const next = !fxOn;
-              setFxOn(next);
-              setScanFxEnabled(next);
-            }}
-            aria-pressed={fxOn}
-            aria-label={fxOn ? "Scan sounds on" : "Scan sounds off"}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 transition hover:border-edge-strong ${
-              fxOn ? "text-zinc-200" : "text-zinc-500"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-[18px] w-[18px]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
-              {fxOn ? (
-                <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
-              ) : (
-                <path d="m16 9 5 6m0-6-5 6" />
-              )}
-            </svg>
-          </button>
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:rounded-2xl">
@@ -703,7 +670,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
               </p>
             )
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} verify={verify} />
           ) : (
             <p className="w-full text-center text-sm text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -721,8 +688,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
           </div>
         )}
 
-        {/* Capture is the only button down here: the one obvious action. The
-            session's running score sits beside it once there is one. */}
+        {/* Capture is the only big button down here: the one obvious action.
+            The running "$1.50 · 1 card" score beside it went 10-02 (Chris:
+            annoying); the count and total live on the chip's verify button
+            now, and the small tray button here opens the session sheet. */}
         <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
             onClick={capture}
@@ -731,17 +700,135 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
           >
             {mode === "page" ? "Capture Page" : game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
           </button>
-          {tally && tally.count > 0 && (
-            <div className="shrink-0 text-right leading-tight">
-              {tally.value > 0 && (
-                <p className="font-display text-sm font-semibold text-holo-gold">{formatMoney(tally.value)}</p>
-              )}
-              <p className="text-[11px] text-zinc-400">
-                {tally.count} {tally.count === 1 ? "card" : "cards"}
-              </p>
-            </div>
+          {verify && (
+            <button
+              type="button"
+              onClick={() => setTrayOpen(true)}
+              aria-label={`${verify.count} ${verify.count === 1 ? "scan" : "scans"} waiting to verify, open the list`}
+              className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 text-zinc-200 transition hover:border-edge-strong"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="7" y="3" width="12" height="16" rx="2" />
+                <path d="M5 7v12a2 2 0 0 0 2 2h10" />
+              </svg>
+              <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-emerald-500 px-1.5 text-center text-[11px] font-bold leading-5 text-white tabular-nums">
+                {verify.count}
+              </span>
+            </button>
           )}
         </div>
+      </div>
+      {sheetOpen && verify && (
+        <SessionSheet items={waiting} total={verify.value} onRemove={onRemove} onClose={() => setTrayOpen(false)} onVerifyAll={onClose} />
+      )}
+    </div>
+  );
+}
+
+/** "5 Scans Waiting To Verify": the chip button's label; shorter once the numbers get long so the money keeps its room. */
+export function verifyLabel(count: number, value: number): string {
+  const noun = count === 1 ? "Scan" : "Scans";
+  const long = count >= 10 || value >= 1000;
+  return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
+}
+
+/** Thumbnail, name, set · number, price and a remove × — one scan in the session sheet. */
+function SessionRow({ item, onRemove }: { item: ScanItem; onRemove?: (id: string) => void }) {
+  const card = item.card;
+  const market = headlinePrice(item);
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2 p-2">
+      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/40">
+        {card?.imageSmall && <CardImage src={card.imageSmall} alt="" className="h-full w-full" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-white">{card?.name ?? "Not identified"}</p>
+        {card && (
+          <p className="truncate text-xs text-zinc-400">
+            {card.setName}
+            {card.number ? ` · #${card.number}` : ""}
+          </p>
+        )}
+      </div>
+      <p className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{market > 0 ? formatMoney(market) : "—"}</p>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={() => onRemove(item.id)}
+          aria-label={`Remove ${card?.name ?? "this scan"}`}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
+        >
+          ×
+        </button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * The session sheet (Chris 10-02): every scan waiting to verify, with a × on
+ * each, and Verify All at the bottom, which leaves the camera for the queue.
+ * Stacks over the scanner (z-60), closes on the backdrop or Escape.
+ */
+function SessionSheet({
+  items,
+  total,
+  onRemove,
+  onClose,
+  onVerifyAll,
+}: {
+  items: ScanItem[];
+  total: number;
+  onRemove?: (id: string) => void;
+  onClose: () => void;
+  onVerifyAll: () => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Scans waiting to verify"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border border-edge bg-surface-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-lg font-semibold text-white">Scans waiting to verify</p>
+            <p className="mt-0.5 text-sm text-zinc-400 tabular-nums">
+              {items.length} {items.length === 1 ? "scan" : "scans"}
+              {total > 0 ? ` · ${formatMoney(total)}` : ""}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white">
+            ×
+          </button>
+        </div>
+        <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+          {items.map((item) => (
+            <SessionRow key={item.id} item={item} onRemove={onRemove} />
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={onVerifyAll}
+          className="mt-4 w-full shrink-0 rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
+        >
+          Verify All
+        </button>
       </div>
     </div>
   );
@@ -752,7 +839,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, tally, onC
  * glass chip that fades up in its own row (never over the guide): icon,
  * MATCH FOUND, name, and confidence when vision reports one.
  */
-function ScanToast({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => void }) {
+interface ToastProps {
+  item: ScanItem;
+  onOpen?: (id: string) => void;
+  onRemove?: (id: string) => void;
+  /** The chip button's numbers: scans waiting and their market total. */
+  verify: { count: number; value: number } | null;
+}
+
+function ScanToast({ item, onOpen, onRemove, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -786,7 +881,7 @@ function ScanToast({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => 
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} verify={verify} />;
 }
 
 /**
@@ -863,7 +958,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) => void }) {
+function RevealChip({ item, onOpen, onRemove, verify }: ToastProps) {
   const card = item.card!;
   // Hold the number until the chart point is fetched (undefined = not yet):
   // it can move the market to today's figure, and the number is revealed
@@ -910,6 +1005,17 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
           {card.number ? ` · #${card.number}` : ""}
         </p>
       </div>
+      {/* Remove this scan on the spot (Chris 10-02): most unwanted scans are the last one. */}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={() => onRemove(item.id)}
+          aria-label={`Remove ${card.name}`}
+          className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-full text-zinc-500 transition hover:bg-white/10 hover:text-white"
+        >
+          ×
+        </button>
+      )}
       <div className="reveal-price shrink-0 text-right">
         {counted != null ? (
           <>
@@ -928,14 +1034,18 @@ function RevealChip({ item, onOpen }: { item: ScanItem; onOpen?: (id: string) =>
       </div>
     </div>
       {/* The next step lives on the result (Chris, 09-04): one button, names
-          the outcome. Keeps scanning if ignored. */}
+          the outcome. Keeps scanning if ignored. 10-02: it counts the scans
+          waiting and carries their total ("5 Scans Waiting To Verify · $23.40"),
+          the label shortens once the numbers get long, and the words truncate
+          before the money ever would. */}
       {onOpen && (
         <button
           type="button"
           onClick={() => onOpen(item.id)}
-          className="w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+          className="flex w-full items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
         >
-          Check and publish
+          <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value) : "Verify Your Scan"}</span>
+          {verify && verify.value > 0 && <span className="shrink-0 tabular-nums">{formatMoney(verify.value)}</span>}
         </button>
       )}
     </div>
