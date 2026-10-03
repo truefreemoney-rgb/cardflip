@@ -230,7 +230,7 @@ export async function previewImport(csv: string, scansLeft: number | null = null
       continue;
     }
     if (isSealedName(row.name)) {
-      rows.push({ ...base, reason: "Sealed products need your own photo — add them from the scanner" });
+      rows.push({ ...base, reason: "Sealed products can't be added to CardFlip — single cards only" });
       continue;
     }
     if (budget <= 0) {

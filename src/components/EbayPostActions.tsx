@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import { useSession } from "@/components/SessionProvider";
@@ -11,7 +11,6 @@ import {
   type EbayPostFailure,
   type EbayPushSuccess,
 } from "@/lib/client/ebayApi";
-import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import Price from "@/components/Price";
 import { fetchLocalAsk, useLocalMarket, type ServerLocalAsk } from "@/lib/client/localMarket";
 import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/listing";
@@ -46,6 +45,8 @@ interface Props {
    "Publish it", in the order they run; the last holds until eBay answers. */
 const PUBLISH_STEPS = ["Saving the draft", "Attaching your photo", "Publishing on eBay"] as const;
 const PUBLISH_STAGE_MS = [1200, 2800] as const;
+/** eBay's picture policy: the listing photo must be the seller's own shot, and since 10-03 the scan is the only way to take one. */
+const NO_PHOTO = "This card has no photo of its own yet. Scan it with the camera and the photo comes with it. Stock pictures aren't allowed on eBay.";
 
 export default function EbayPostActions({ item, listing, price, ebayConnected, onChange }: Props) {
   // Selling is paid (Chris, 09-04): the free trial scans and prices, it
@@ -66,9 +67,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   const [shipZip, setShipZip] = useState("");
   // Ireland: eBay refuses a postcode-only location, so the prompt also asks for a town.
   const [shipCity, setShipCity] = useState("");
-  const photoInput = useRef<HTMLInputElement>(null);
-  // Publish opened the photo picker: carry on publishing once the photo's up.
-  const resumeAfterPhoto = useRef<"publish" | null>(null);
 
   // A seller on another eBay site: the confirm step names the price in their currency ("£3.99 on eBay UK").
   const local = useLocalMarket();
@@ -97,28 +95,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   // this copy. A scanned item has one (item.file) and it uploads on the first
   // publish; a search-added or sealed item has nothing until they pick one.
   const hasPhoto = Boolean(item.photoAt || item.file);
-
-  // Picking a photo is step one of publishing, not a separate chore: once
-  // it's up, publishing carries on if that's what opened the picker.
-  async function pickPhoto(file: File | undefined) {
-    if (!file || !item.serverId) return;
-    setBusy("push");
-    setFailure(null);
-    const uploaded = await uploadCardPhoto(item.serverId, file);
-    if (!uploaded.ok) {
-      setBusy(null);
-      setFailure({ ok: false, code: "photo", message: uploaded.message, details: [] });
-      return;
-    }
-    onChange({ photoAt: uploaded.photoAt });
-    setBusy(null);
-    if (resumeAfterPhoto.current === "publish") {
-      resumeAfterPhoto.current = null;
-      await runPublish(true);
-    } else {
-      setNotice("Photo saved.");
-    }
-  }
+  // No photo picker any more (10-03, Chris): the only photo a listing can carry is the scan's own. A card that
+  // reached here without one (an import, an old search-added row) has to be scanned.
+  const needsScan = () =>
+    setFailure({ ok: false, code: "photo", message: NO_PHOTO, details: [] });
 
   function draftInput() {
     return {
@@ -188,9 +168,8 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   async function publishDirect(photoJustUploaded = false) {
     if (!item.card || !item.serverId) return;
     if (!hasPhoto && !photoJustUploaded) {
-      resumeAfterPhoto.current = "publish";
       setModal(null);
-      photoInput.current?.click();
+      needsScan();
       return;
     }
     if (!pushed) {
@@ -213,7 +192,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   async function push(photoJustUploaded = false, quiet = false): Promise<boolean> {
     if (!item.card || !item.serverId) return false;
     if (!hasPhoto && !photoJustUploaded) {
-      photoInput.current?.click();
+      needsScan();
       return false;
     }
     setBusy("push");
@@ -225,8 +204,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
     );
     setBusy(null);
     if (!result.ok) {
-      setFailure(result);
-      if (result.code === "needs_photo") photoInput.current?.click();
+      setFailure(result.code === "needs_photo" ? { ...result, message: NO_PHOTO } : result);
       return false;
     }
     afterPush(result, quiet);
@@ -274,43 +252,8 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
   return (
     <>
-      <input
-        ref={photoInput}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          void pickPhoto(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
       {canPost && !hasPhoto && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
-          <span>
-            Publishing from here needs your own photo of this {item.kind === "sealed" ? "product" : "card"} — stock
-            art isn&apos;t allowed on the listing.
-          </span>
-          <button
-            type="button"
-            onClick={() => photoInput.current?.click()}
-            disabled={busy !== null}
-            className="shrink-0 rounded-full border border-amber-300/40 px-3 py-1 font-semibold text-amber-100 transition hover:bg-amber-400/10 disabled:opacity-60"
-          >
-            Add photo
-          </button>
-        </div>
-      )}
-      {canPost && item.photoAt && !item.file && (
-        <p className="-mt-1 text-[11px] text-zinc-500">
-          Photo saved.{" "}
-          <button
-            type="button"
-            onClick={() => photoInput.current?.click()}
-            className="underline underline-offset-4 transition hover:text-zinc-300"
-          >
-            Replace
-          </button>
-        </p>
+        <p className="rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">{NO_PHOTO}</p>
       )}
       {/* Below lg the editor scrolls under a queue list — pin the publish row
           to the bottom of the scroll container so the primary action never

@@ -42,7 +42,7 @@ export const GUIDES: Guide[] = [
     title: "Publish a card on eBay",
     when: "the seller asks how to list, sell or publish a card, or why the Publish button is locked",
     steps: [
-      { path: "/app", sel: '[data-tour="capture"]', round: true, title: "Scan it", body: "Every listing starts from a real photo. Scan the card or upload a photo." },
+      { path: "/app", sel: '[data-tour="capture"]', round: true, title: "Scan it", body: "Every listing starts from a photo you take here. Scan the card with the camera." },
       { path: "/app", title: "Verify, then Publish", body: "In the editor, check the match and tap Verify Match. That unlocks Publish on eBay, photo included." },
     ],
   },

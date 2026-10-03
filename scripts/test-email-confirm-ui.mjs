@@ -332,7 +332,7 @@ assert.match(gate, /mustConfirmEmail/);
 const header = read("src/components/AppHeader.tsx");
 assert.match(header, /!user\.mustConfirmEmail && <ScanCounter/, "no scan counter behind the wall");
 
-for (const file of ["src/lib/client/visionApi.ts", "src/lib/client/binder.ts"]) {
+for (const file of ["src/lib/client/visionApi.ts"]) {
   assert.match(read(file), /status === 403 && data\?\.verifyEmail/, `${file} treats 403 verifyEmail like the quota refusal`);
 }
 

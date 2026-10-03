@@ -35,7 +35,7 @@ const sections: LegalSection[] = [
   {
     heading: "Your content",
     paragraphs: [
-      "The photos you upload and the listings you create are yours. You give CardFlip permission to store and process them solely to provide the service — for example, sending a card photo to our image-reading provider to identify the card. We claim no ownership of your content.",
+      "The photos you take and the listings you create are yours. You give CardFlip permission to store and process them solely to provide the service — for example, sending a card photo to our image-reading provider to identify the card. We claim no ownership of your content.",
       "You are responsible for what you list. Only list cards you actually own and may sell, describe them honestly, and do not use CardFlip to sell counterfeit or stolen items.",
     ],
   },

@@ -16,7 +16,6 @@ import {
   setWishlistAlert,
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
-import { identifyCardImage } from "@/lib/client/identifyCard";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
 import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
@@ -291,19 +290,15 @@ export default function WishlistPage() {
   // restoring <LanguageToggle> here re-enables it.
   const addLanguage: ScanLanguage = "en";
   // The same search as Search Cards (components/CardSearch): game, By Name /
-  // By Set, filter and sort. A photo is this page's own extra way in.
-  // Vision may identify a dropped image as a different language than the
-  // toggle, so the save has to use what the results actually are.
+  // By Set, filter and sort. The "From a Photo" way in (a file picker and a
+  // drop target) went 10-03 with every photo upload on the site.
   const [resultsLanguage, setResultsLanguage] = useState<ScanLanguage>("en");
   const search = useCardSearch(addLanguage, () => setResultsLanguage(addLanguage));
   const { game } = search;
-  const [identifying, setIdentifying] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   // Catalog picture per row, for a row that saved none (10-02: a search answer older than the picture fill).
   const [catalogPictures, setCatalogPictures] = useState<Record<string, string>>({});
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = user?.id;
   const [loadSeq, setLoadSeq] = useState(0);
@@ -389,19 +384,6 @@ export default function WishlistPage() {
         putBack(pending.index, pending.item);
       },
     });
-  }
-
-  async function handleImage(file: File | undefined) {
-    if (!file || !file.type.startsWith("image/") || identifying || search.searching) return;
-    setIdentifying(true);
-    setAddError(null);
-    search.setError(null);
-    search.show([], null);
-    const outcome = await identifyCardImage(file, addLanguage, game);
-    search.show(outcome.cards, `${outcome.cards.length} result${outcome.cards.length === 1 ? "" : "s"} from your photo`);
-    setResultsLanguage(outcome.language);
-    setAddError(outcome.error);
-    setIdentifying(false);
   }
 
   /** The saved row for a catalog card, so a search tile knows it is already on the list (and can take it off). */
@@ -555,50 +537,7 @@ export default function WishlistPage() {
       <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
         <CardSearchBox
           search={search}
-          disabled={identifying}
-          hint={search.mode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name, or from a photo — no need to have it in hand."}
-          rowProps={{
-            onDragOver: (e) => {
-              e.preventDefault();
-              setDragActive(true);
-            },
-            onDragLeave: () => setDragActive(false),
-            onDrop: (e) => {
-              e.preventDefault();
-              setDragActive(false);
-              void handleImage(e.dataTransfer.files?.[0]);
-            },
-          }}
-          extra={
-            /* Doubles as the drop target on desktop (Chris, 09-01: no dashed zone). */
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={identifying || search.searching}
-              className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:opacity-70 sm:flex-none ${
-                dragActive
-                  ? "border-brand-300 bg-brand-500/20 text-white"
-                  : "border-edge text-zinc-200 hover:border-edge-strong"
-              }`}
-            >
-              {identifying ? (
-                <>
-                  <Spinner className="h-4 w-4" /> Identifying…
-                </>
-              ) : (
-                "From a Photo"
-              )}
-            </button>
-          }
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            void handleImage(e.target.files?.[0]);
-            e.target.value = "";
-          }}
+          hint={search.mode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name — no need to have it in hand."}
         />
 
         {addError && <p className="text-xs text-red-400">{addError}</p>}
@@ -686,8 +625,7 @@ export default function WishlistPage() {
             Your watchlist is empty
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
-            Search for a card above or add one from a photo — no need to
-            have it in hand.
+            Search for a card above — no need to have it in hand.
           </p>
         </div>
       ) : (

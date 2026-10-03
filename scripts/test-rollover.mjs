@@ -344,9 +344,8 @@ console.log("\nroutes");
   check("…and answers 402 before spending anything when nothing is left", /reservation\.taken < 1\) return outOfScans/.test(scan), true);
   const imp = src("app/api/cards/import/route.ts");
   check("the import route reserves through commitImport's hooks and gives back the unused", [imp.includes("reserveScans(user, n)"), imp.includes("giveBackScans(user, paid.held, n)"), imp.includes("recordScans(")], [true, true, false]);
-  const loc = src("app/api/vision/locate/route.ts");
-  // 10-01 sweep: both side calls are rationed against today's good reads (readsKey, bumped by the scan route on success).
-  check("the locate route (a paid call that is not a scan) counts its page and checks it against today's reads before the call", loc.indexOf("await dayBump(`locate_${user.id}`)") > 0 && loc.includes("dayBudgetUsed(readsKey(user.id))") && loc.indexOf("await dayBump(") < loc.indexOf("await locateCards("), true);
+  // 10-01 sweep: the side call is rationed against today's good reads (readsKey, bumped by the scan route on success).
+  // (The binder locate route, the other side call, was removed 10-03 with every upload path.)
   const tie = src("app/api/vision/tiebreak/route.ts");
   check("the tiebreak route allows one per card read today, checked before its Opus call", tie.includes("await dayBump(`tiebreak_${user.id}`)") && tie.includes("spent > (await dayBudgetUsed(readsKey(user.id)))") && tie.indexOf("await dayBump(") < tie.indexOf("await tiebreakByPicture("), true);
   // 10-01: One Piece ties answer on Haiku; the ledger must price the model that answered, and know its rate.
@@ -497,9 +496,8 @@ console.log("\nreview fixes");
   ];
   check("every out-of-scans message ends with a full stop", msgs.map((m) => m.endsWith(".")), msgs.map(() => true));
   check("…and a legacy account is told when its day rolls over (Eastern)", msgs[1].startsWith("You've used today's"), true);
-  const loc = src("app/api/vision/locate/route.ts");
   const imp = src("app/api/cards/import/route.ts");
-  check("locate and import build their 402 from outOfScansMessage (next credit date or Scan Pack)", [loc.includes("error: outOfScansMessage(user)"), imp.includes("error: outOfScansMessage(user, quota)")], [true, true]);
+  check("import builds its 402 from outOfScansMessage (next credit date or Scan Pack)", imp.includes("error: outOfScansMessage(user, quota)"), true);
 }
 
 console.log(failures ? `\n${failures} failing` : "\nall rollover checks passed");

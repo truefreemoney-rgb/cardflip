@@ -115,7 +115,7 @@ check("promo number with code", [row(9).status, row(9).catalogCardId, row(9).pri
 check("not in the catalog → skipped", [row(10).status, row(10).reason], ["skip", "Not in our catalog"]);
 check("Magic → skipped", [row(11).status, row(11).reason], ["skip", "Only Pokémon imports for now"]);
 check("Japanese → skipped", [row(12).status, row(12).reason], ["skip", "Only English cards for now (japanese)"]);
-check("sealed → skipped", [row(13).status, row(13).reason], ["skip", "Sealed products need your own photo — add them from the scanner"]);
+check("sealed → skipped", [row(13).status, row(13).reason], ["skip", "Sealed products can't be added to CardFlip — single cards only"]);
 check("totals", [p.cards, p.matched, p.doubtful, p.skipped, p.truncated], [9, 6, 2, 4, false]);
 check("value = priced rows × quantity", p.value, Math.round((askingPriceFor(400, "Near Mint") + 2 * askingPriceFor(800, "Lightly Played") + askingPriceFor(400, "Near Mint") + askingPriceFor(10, "Near Mint") + askingPriceFor(400, "Near Mint") + askingPriceFor(10, "Near Mint")) * 100) / 100);
 

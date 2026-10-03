@@ -20,7 +20,7 @@ export const metadata = PUBLIC_META.pricing;
  */
 
 const covers = [
-  { n: "1", label: "scan", body: "One photo, one card. Camera or upload. A re-scan of the same card counts again; searching by name or number is free." },
+  { n: "1", label: "scan", body: "One camera shot, one card. A re-scan of the same card counts again; searching by name or number is free." },
   { n: String(PLAN.scans), label: "scans a month", body: `That's ${Math.floor(PLAN.scans / 9)} nine-pocket binder pages a month, or a few dozen cards a week with room to spare.` },
   { n: "0", label: "scans expire", body: `${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE}` },
   { n: SCANS.pack, label: "in a Scan Pack", body: `${PRICE.pack} once, no subscription. Pack scans never expire, and on a subscription they are spent only after your plan scans.` },

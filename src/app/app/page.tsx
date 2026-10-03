@@ -8,7 +8,6 @@ import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
 import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCapture";
-import { splitBinderPhoto } from "@/lib/client/binder";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";
@@ -20,8 +19,7 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
-import { GRADED_LOCKED, makeSealedProduct, parseGradeQuery, type SetInfo } from "@/lib/grading";
-import SealedAddSheet from "@/components/SealedAddSheet";
+import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
@@ -365,11 +363,7 @@ export default function AppPage() {
           // Vision first, OCR as the fallback. Tesseract misreads CJK badly
           // enough that the lookup needs fuzzy matching to cope; when vision
           // is available it reads the card directly and that guesswork goes away.
-          // A binder-page crop (lib/client/binder.ts names them) carries the
-          // pocket hint: the sleeve edge in the crop read as a slab holder
-          // on 3 of 9 cards in Chris's first good page (09-27).
-          const pocket = next.file.name.startsWith("binder-");
-          const vision = await scanCardWithVision(next.file, next.language, next.game, pocket);
+          const vision = await scanCardWithVision(next.file, next.language, next.game);
 
           if (vision.usage) {
             setScanUsage(vision.usage);
@@ -859,63 +853,10 @@ export default function AppPage() {
   // addCardFromSearch / addSealedProduct (the add-without-a-photo roads)
   // were removed 09-01 with their UI — eBay only accepts photos of the
   // actual item, so a queue entry with no scan photo was a dead end.
-  // Sealed product came back photo-first (Tier 2 #13, 09-27): the seller's
-  // photo of the box is the listing image, the set + kind picker names it,
-  // and the TCGplayer sealed feed prices it in SealedEditor. Nothing to
-  // scan, so the item enters "ready" and never goes through pump().
-  const [sealedOpen, setSealedOpen] = useState(false);
-  const addSealedItem = useCallback(
-    (file: File, set: SetInfo, productType: string) => {
-      const card = makeSealedProduct(set, productType, game);
-      const item: ScanItem = {
-        ...createItem(file, language, game),
-        kind: "sealed",
-        status: "ready",
-        card,
-        productType,
-        strategy: "market",
-      };
-      commit([...itemsRef.current, item]);
-      setSelectedId(item.id);
-      sessionItemIdsRef.current.push(item.id);
-      if (!categoryAskedRef.current) {
-        categoryAskedRef.current = true;
-        setCategoryPrompt({ existing: [] });
-        void fetchCategories().then((list) => {
-          setCategoryPrompt((p) => (p ? { existing: list } : p));
-        });
-      }
-      void (async () => {
-        const input = {
-          kind: "sealed" as const,
-          game,
-          cardName: card.name,
-          setName: set.name,
-          cardNumber: "",
-          imageUrl: set.logoUrl,
-          condition: "Factory Sealed",
-          productType,
-          price: 0,
-          catalogCardId: card.id,
-          category: scanCategoryRef.current,
-        };
-        const server = (await createServerCard(input)) ?? (await createServerCard(input));
-        if (!server) {
-          patchItem(item.id, { error: "Couldn't save this product — check your connection and add it again" });
-          return;
-        }
-        patchItem(item.id, { serverId: server.id });
-        // The seller named the set and the kind themselves: there is no
-        // match to verify, so the publish gate opens here (patchItem syncs
-        // verifiedAt to the ledger once serverId is set).
-        patchItem(item.id, { verifiedAt: Date.now() });
-        const uploaded = await uploadCardPhoto(server.id, file);
-        if (uploaded.ok) patchItem(item.id, { photoAt: uploaded.photoAt });
-        else toast(uploaded.message, "err");
-      })();
-    },
-    [commit, patchItem, language, game],
-  );
+  // Sealed product (photo-first, Tier 2 #13, 09-27) was removed 10-03 with
+  // every upload path (Chris: eBay rejects stock pictures; every listing
+  // starts from a camera scan). Existing sealed rows still open in
+  // SealedEditor; nothing new can be added.
 
   // /app?resume=<ledger id>: reopen ONE draft from My cards in the editor
   // (Chris, 09-01 — he was rescanning cards just to get the build page
@@ -1056,25 +997,6 @@ export default function AppPage() {
     setCameraOpen(true);
   }, []);
 
-  /** Photo uploads (QA leftover): same category ask as the first camera
-   *  capture, once per session; the picked category reaches every card
-   *  added this session, saved or not yet. */
-  const addUploads = useCallback(
-    (files: File[]) => {
-      const ids = addFiles(files);
-      sessionItemIdsRef.current.push(...ids);
-      if (ids.length > 0 && !categoryAskedRef.current) {
-        categoryAskedRef.current = true;
-        setCategoryPrompt({ existing: [] });
-        void fetchCategories().then((list) => {
-          setCategoryPrompt((p) => (p ? { existing: list } : p));
-        });
-      }
-      return ids;
-    },
-    [addFiles],
-  );
-
   /** Captures file silently; the category ask waits for Done (Chris,
    *  09-04: the sheet was covering the card the scanner had just found). */
   const onCameraCapture = useCallback(
@@ -1086,70 +1008,8 @@ export default function AppPage() {
     [addFiles],
   );
 
-  // Binder page (tier 1 #4, 09-27): one photo → the locate call finds every
-  // card → one queue item per crop, through the ordinary scan. The note is
-  // what the camera's chip slot says while that runs; it also holds Capture
-  // until the split lands so two pages can't race.
-  const [pageNote, setPageNote] = useState<string | null>(null);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const pageNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flashPageNote = useCallback((text: string, ms = 4000) => {
-    setPageNote(text);
-    if (pageNoteTimer.current) clearTimeout(pageNoteTimer.current);
-    pageNoteTimer.current = setTimeout(() => setPageNote(null), ms);
-  }, []);
-  const onPagePhoto = useCallback(
-    async (file: File, fromCamera: boolean) => {
-      if (pageNoteTimer.current) clearTimeout(pageNoteTimer.current);
-      setPageNote("Finding the cards on the page…");
-      const split = await splitBinderPhoto(file);
-      if (split.status === "done" && split.files.length > 0) {
-        const ids = addFiles(split.files);
-        sessionItemIdsRef.current.push(...ids);
-        if (fromCamera) setCameraItemId(ids[0] ?? null);
-        const n = split.files.length;
-        const trimmed = split.found - n;
-        const note =
-          trimmed > 0
-            ? `Found ${split.found} cards — queued ${n}, the rest are past the scans you have left`
-            : `Found ${n} ${n === 1 ? "card" : "cards"} — scanning ${n === 1 ? "it" : "them"} now`;
-        flashPageNote(note);
-        // No camera open on an upload: the trim has to be said somewhere.
-        if (!fromCamera && trimmed > 0) setPageError(note);
-        // A photo upload has no camera session; ask the category the way
-        // uploads do.
-        if (!fromCamera && !categoryAskedRef.current) {
-          categoryAskedRef.current = true;
-          setCategoryPrompt({ existing: [] });
-          void fetchCategories().then((list) => setCategoryPrompt((p) => (p ? { existing: list } : p)));
-        }
-        return;
-      }
-      const text =
-        split.status === "quota"
-          ? split.error ?? "You're out of scans — each card on a page is one scan"
-          : split.status === "empty"
-            ? "No cards found — fill the guide with the page and try again"
-            : split.status === "unconfigured"
-              ? "Page scanning isn't available right now"
-              : split.status === "done"
-                ? "You have no scans left for the cards on this page"
-                : "Couldn't read that page — hold still and try again";
-      flashPageNote(text, 5000);
-      if (!fromCamera) setPageError(text);
-    },
-    [addFiles, flashPageNote],
-  );
-  const onCameraCapturePage = useCallback((file: File) => void onPagePhoto(file, true), [onPagePhoto]);
-  const onPageUpload = useCallback(
-    (files: File[]) => {
-      setPageError(null);
-      void (async () => {
-        for (const file of files) await onPagePhoto(file, false);
-      })();
-    },
-    [onPagePhoto],
-  );
+  // Binder page (tier 1 #4, 09-27) was removed 10-03 with every upload path:
+  // one card per shot, from the camera, is the only way in.
 
   /** Camera closed: if this session scanned anything and hasn't been asked
    *  yet, ask "which category?" now, over the queue — never over the reveal. */
@@ -1375,8 +1235,6 @@ export default function AppPage() {
       queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
       onCapture={onCameraCapture}
-      onCapturePage={onCameraCapturePage}
-      pageNote={pageNote}
       onClose={closeCamera}
       onOpen={(id) => {
         setSelectedId(id);
@@ -1508,11 +1366,11 @@ export default function AppPage() {
           <div className="w-full max-w-md">
             <GameToggle game={game} onChange={setGame} block />
           </div>
-          <Uploader onFiles={addUploads} onPageFiles={onPageUpload} pageError={pageError} onOpenCamera={openCamera} onSealed={() => setSealedOpen(true)} showcase={showcase} game={game} />
+          <Uploader onOpenCamera={openCamera} showcase={showcase} game={game} />
           {/* The add-without-a-photo search and sealed-product rows were
-              removed 09-01 (Chris): eBay listings must show the actual item —
-              a card with no scan photo can only draft with catalog art eBay
-              won't accept, so every card starts from a real photo now. */}
+              removed 09-01 (Chris), photo uploads, binder pages and the
+              sealed sheet 10-03: eBay listings must show the actual item, so
+              every card starts from a camera scan now. */}
         </main>
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
@@ -1585,13 +1443,7 @@ export default function AppPage() {
                 line, the buttons under them. Desktop: unchanged (contents). */}
             <div className="flex flex-col gap-2 sm:contents">
               <GameToggle game={game} onChange={setGame} compact />
-              <Uploader
-                onFiles={addUploads}
-                onPageFiles={onPageUpload}
-                onOpenCamera={openCamera}
-                onSealed={() => setSealedOpen(true)}
-                variant="compact"
-              />
+              <Uploader onOpenCamera={openCamera} variant="compact" />
             </div>
           </div>
           {bulkNote && (
@@ -1706,9 +1558,6 @@ export default function AppPage() {
         </main>
       )}
       {camera}
-      {sealedOpen && (
-        <SealedAddSheet game={game} onClose={() => setSealedOpen(false)} onAdd={addSealedItem} />
-      )}
       {categoryPrompt && (
         <CategorySheet
           title="Which category?"

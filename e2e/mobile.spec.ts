@@ -127,8 +127,9 @@ test.describe("trial account", () => {
     const dialog = page.getByRole("dialog", { name: "Camera scanner" });
     await expect(dialog).toBeVisible();
     // No camera → the error state. Its buttons used to render below the video,
-    // under the sticky capture bar; they must be inside the viewport.
-    const choose = dialog.getByRole("button", { name: /Choose photos instead/ });
+    // under the sticky capture bar; they must be inside the viewport. (The
+    // "Choose photos instead" picker went 10-03 with every upload path.)
+    const choose = dialog.getByRole("button", { name: /Try the camera again/ });
     await expect(choose).toBeVisible({ timeout: 15_000 });
     const box = await choose.boundingBox();
     const vh = page.viewportSize()!.height;

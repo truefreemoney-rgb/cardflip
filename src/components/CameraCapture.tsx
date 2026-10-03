@@ -40,14 +40,6 @@ interface Props {
   /** Remove one scan from the queue (the × on the result chip and in the session sheet). */
   onRemove?: (id: string) => void;
   onCapture: (file: File) => void;
-  /**
-   * Page mode: one shot of a binder page (or a spread). The page splits it
-   * into one queue item per card (lib/client/binder.ts); this modal only
-   * frames and captures. Absent = no Page toggle.
-   */
-  onCapturePage?: (file: File) => void;
-  /** What the page split is doing right now, shown in the chip slot in Page mode. */
-  pageNote?: string | null;
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
   onOpen?: (id: string) => void;
@@ -145,25 +137,18 @@ function guideInVideo(video: HTMLVideoElement, mode: CaptureMode = "card"): Guid
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onCapture, onCapturePage, pageNote, onClose, onOpen }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onCapture, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  // Card (one card fills the guide) or Page (a binder page; one shot, every
-  // card on it is queued). Page asks the camera for its largest frame, since
-  // each card is a ninth of the shot and the read still needs its number.
-  // Page mode captures from the live view exactly like One Card (Chris,
-  // 09-27: "it has to be like one card scans" — a hand-off to the phone's
-  // camera app was built and pulled the same night). The stream is
-  // re-opened at the camera's largest frame when Page is picked: at the
-  // 1920 ask a page split nine ways left each card ~330px and its number
-  // unreadable (first binder test: nothing matched).
-  const [mode, setMode] = useState<CaptureMode>("card");
+  // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
+  // every upload path: one card per shot, from the camera, is the only way in.
+  const mode: CaptureMode = "card";
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
-  // The escape hatch when the camera won't open: a file picker right in the
-  // modal, so a denied permission doesn't dead-end the scanning flow.
-  const fallbackInputRef = useRef<HTMLInputElement>(null);
+  // No file-picker escape hatch when the camera won't open (10-03): a photo
+  // from the gallery is an upload, and eBay rejects listings that reuse
+  // pictures. The message says how to turn the camera back on instead.
   const [ready, setReady] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
@@ -219,7 +204,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // Some Android WebViews reject the ideal size + facing combination
         // outright (OverconstrainedError) instead of approximating, so the
         // ask relaxes twice before giving up (mobile QA 09-06).
-        const edge = mode === "page" ? 4096 : 1920;
+        const edge = 1920;
         const attempts: MediaStreamConstraints[] = [
           { video: { facingMode: { ideal: "environment" }, width: { ideal: edge }, height: { ideal: edge } } },
           { video: { facingMode: "environment" } },
@@ -265,10 +250,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         const missing = err instanceof DOMException && err.name === "NotFoundError";
         setError(
           denied
-            ? "Camera access is blocked for this site. Turn it on in your browser's site settings (the icon by the address bar), or scan from photos instead."
+            ? "Camera access is blocked for this site. Turn it on in your browser's site settings (the icon by the address bar), then try again. Every listing needs a photo you take here, so there is no photo upload."
             : missing
-              ? "No camera found on this device — you can scan from photos instead."
-              : "Couldn't open the camera — you can scan from photos instead.",
+              ? "No camera found on this device. CardFlip scans from a live camera only, so open cardflip.io on your phone."
+              : "Couldn't open the camera. Check that nothing else is using it, then try again.",
         );
       }
     })();
@@ -277,8 +262,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       cancelled = true;
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-    // mode: Page re-opens the stream at the larger ask (see above).
-  }, [retryKey, mode]);
+  }, [retryKey]);
 
   // iOS ends the MediaStream when the PWA is backgrounded or the phone locks;
   // the <video> then sits frozen/black until the sheet is closed and reopened
@@ -345,10 +329,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     // Score the attack-text band at the calibration geometry (see
-    // lib/sharpness.ts) straight off the capture canvas. The band is a
-    // single card's geometry, so Page mode skips the gate.
+    // lib/sharpness.ts) straight off the capture canvas.
     const score = (() => {
-      if (mode === "page") return Infinity;
       const bw = SHARPNESS_SAMPLE_WIDTH;
       const bh = Math.max(3, Math.round((bw * (sh * SHARPNESS_BAND.h)) / (sw * SHARPNESS_BAND.w)));
       const band = document.createElement("canvas");
@@ -391,9 +373,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           setTimeout(() => setBlurNote(null), 2500);
           return;
         }
-        const file = new File([blob], `${mode === "page" ? "page" : "camera"}-${Date.now()}.jpg`, { type: "image/jpeg" });
-        if (mode === "page" && onCapturePage) onCapturePage(file);
-        else onCapture(file);
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+        onCapture(file);
         setCaptured((count) => count + 1);
         setFlash(true);
         setTimeout(() => setFlash(false), 150);
@@ -402,7 +383,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       "image/jpeg",
       0.92,
     );
-  }, [onCapture, onCapturePage, mode]);
+  }, [onCapture, mode]);
 
   const bracket = "border-brand-400";
   // Sweep while the last capture is still identifying; off once a match is
@@ -482,36 +463,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             {captured > 0 ? "Done" : "Close"}
           </button>
 
-          <div className="flex min-w-0 flex-1 justify-center">
-            {onCapturePage && (
-              <div
-                role="radiogroup"
-                aria-label="What to scan"
-                className="flex rounded-full border border-edge bg-surface-2 p-0.5 text-xs font-semibold"
-              >
-                {(["card", "page"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="radio"
-                    aria-checked={mode === m}
-                    onClick={() => {
-                      if (m === mode) return;
-                      setMode(m);
-                      // The stream re-opens at the new size; hide the guide until it has a frame.
-                      setReady(false);
-                      setTorch("unavailable");
-                    }}
-                    className={`whitespace-nowrap rounded-full px-2.5 py-2 transition ${
-                      mode === m ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    {m === "card" ? "One Card" : "Binder Page"}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="flex min-w-0 flex-1 justify-center" />
 
           {torch !== "unavailable" && (
             <button
@@ -570,16 +522,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                 <span className={`absolute -right-px -top-px h-8 w-8 rounded-tr-xl border-r-3 border-t-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -left-px h-8 w-8 rounded-bl-xl border-b-3 border-l-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -right-px h-8 w-8 rounded-br-xl border-b-3 border-r-3 transition-colors ${bracket}`} />
-                {/* Page mode: a faint 3×3 so a binder page lines up pocket
-                    by pocket. A hint, not a crop — the cards are found in
-                    the photo wherever they sit. */}
-                {mode === "page" && (
-                  <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" aria-hidden>
-                    {Array.from({ length: 9 }, (_, i) => (
-                      <span key={i} className="border border-white/15" />
-                    ))}
-                  </span>
-                )}
                 {/* The strike, then the stamp + ring: the instant the match
                     lands. Keyed by scan id so every card gets its own. */}
                 {mode === "card" && revealed?.card && (
@@ -609,37 +551,20 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               <p className="max-w-sm text-sm text-zinc-300">{error}</p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
-                  onClick={() => fallbackInputRef.current?.click()}
-                  className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
-                >
-                  Choose photos instead
-                </button>
-                <button
                   onClick={() => {
                     setError(null);
                     setReady(false);
                     setTorch("unavailable");
                     setRetryKey((k) => k + 1);
                   }}
-                  className="rounded-full border border-edge bg-surface-2 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
+                  className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400"
                 >
                   Try the camera again
                 </button>
+                <button onClick={onClose} className="rounded-full border border-edge bg-surface-2 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong">
+                  Close
+                </button>
               </div>
-              <input
-                ref={fallbackInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  e.target.value = "";
-                  if (files.length === 0) return;
-                  for (const file of files) onCapture(file);
-                  onClose();
-                }}
-              />
             </div>
           )}
         </div>
@@ -655,20 +580,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             >
               {blurNote}
             </p>
-          ) : mode === "page" ? (
-            pageNote ? (
-              <p
-                role="status"
-                className="animate-fade-up w-full rounded-2xl border border-brand-400/30 bg-brand-500/10 px-4 py-3 text-center text-sm font-medium text-brand-100"
-              >
-                {pageNote}
-              </p>
-            ) : (
-              <p className="w-full text-center text-sm text-zinc-400">
-                Fill the guide with the whole page, then tap Capture.
-                <span className="mt-0.5 block text-xs text-zinc-500">Each card found counts as a scan.</span>
-              </p>
-            )
           ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} verify={verify} />
           ) : (
@@ -695,10 +606,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
             onClick={capture}
-            disabled={!ready || (mode === "page" && Boolean(pageNote))}
+            disabled={!ready}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-10"
           >
-            {mode === "page" ? "Capture Page" : game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
+            {game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
           </button>
           {verify && (
             <button

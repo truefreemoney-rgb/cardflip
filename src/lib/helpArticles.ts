@@ -29,7 +29,7 @@ export const helpArticles: HelpArticle[] = [
     paragraphs: [
       "Point the camera at a card, fill the frame, and tap Capture — the scanner reads the name and number, matches it against the catalogue, and shows the market price. Don't get so close that the edges are cut off; the status pill under the viewfinder tells you when to adjust.",
       "Pokémon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh! and One Piece are all supported. English cards only for now — Japanese and Chinese support is built and will be enabled later.",
-      "Holos and heavily reflective cards scan fine; tilt the card slightly if glare covers the name or number. You can also add cards without the camera: upload photos, or search the catalogue by name and number.",
+      "Holos and heavily reflective cards scan fine; tilt the card slightly if glare covers the name or number. There is no photo upload, on purpose: eBay rejects listings that reuse stock pictures, so every card you list carries the photo you took of it here. To check a price without scanning, search the catalogue by name and number.",
     ],
   },
   {

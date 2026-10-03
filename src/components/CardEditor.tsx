@@ -464,9 +464,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           </p>
         </div>
         {/* A failed read is not a dead end (Chris, 09-01 QoL pass): re-run
-            the same photo (lookups flake), swap in a better shot, or fall
-            through to the name search below. The page re-pumps whenever an
-            item returns to "queued". */}
+            the same photo (lookups flake), or fall through to the name search
+            below. The page re-pumps whenever an item returns to "queued". */}
         <div className="flex flex-wrap items-center justify-center gap-2">
           {item.file && (
             <button
@@ -478,28 +477,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               Scan again
             </button>
           )}
-          <label className="cursor-pointer rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2">
-            Use a different photo
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl);
-                onChange({
-                  file,
-                  previewUrl: URL.createObjectURL(file),
-                  status: "queued",
-                  error: null,
-                  vision: null,
-                  visionStatus: "idle",
-                });
-                e.target.value = "";
-              }}
-            />
-          </label>
+          {/* "Use a different photo" (a file picker) went 10-03 with every upload: a new shot comes from the camera. */}
         </div>
         {manualSearch}
       </div>

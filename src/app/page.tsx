@@ -69,7 +69,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Does it work on my phone?",
-    a: "Yes. CardFlip runs in Safari or Chrome, and on iPhone you can add it to the home screen for a full-screen scanner. The camera is the fastest way in, but you can also upload photos or search by name.",
+    a: "Yes. CardFlip runs in Safari or Chrome, and on iPhone you can add it to the home screen for a full-screen scanner. The camera is the only way to add a card, on purpose: eBay rejects listings that reuse stock pictures, so every card carries the photo you took. Searching a price by name is free.",
   },
   {
     q: "What does it cost?",
