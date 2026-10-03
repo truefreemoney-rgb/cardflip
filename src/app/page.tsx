@@ -490,7 +490,7 @@ export default async function Home() {
 
           <div className="mt-6 grid gap-3 md:grid-cols-6">
             {/* Inventory */}
-            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-4">
+            <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-3">
               <h3 className="font-display text-xl font-semibold text-white">Inventory that looks like a binder</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
                 Every scan lands in your Inventory with its price, status and photo. Sort by
@@ -501,7 +501,7 @@ export default async function Home() {
             </div>
 
             {/* Price history */}
-            <div className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-2">
+            <div className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-6 md:col-span-3">
               <h3 className="font-display text-xl font-semibold text-white">Price history, per printing</h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Our own daily record of the market, so you can see whether to sell now or sit on it.
@@ -512,7 +512,7 @@ export default async function Home() {
                   <p className="truncate text-xs text-zinc-500">
                     {featured.name} · {featured.setName}
                   </p>
-                  <div className="mt-2 rounded-2xl border border-edge bg-black/25 p-3">
+                  <div className="mt-2">
                     <PriceHistoryChart cardId={featured.id} initialSeries={chartSeries} preferVariant={market?.price.variant ?? null} compact className="text-left" />
                   </div>
                   {/* What the record says, in four numbers (Chris 10-02: "fill the space properly, use something meaningful"). */}

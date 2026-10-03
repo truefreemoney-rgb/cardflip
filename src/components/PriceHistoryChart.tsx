@@ -386,7 +386,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
       : null;
 
   return (
-    <section className={`rounded-2xl border border-edge bg-surface-1 ${compact ? "p-3" : "p-4"} ${className}`} aria-label="Price history">
+    <section className={`@container rounded-2xl border border-edge bg-surface-1 ${compact ? "p-3" : "p-4"} ${className}`} aria-label="Price history">
       {/* Quote header */}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div>
@@ -428,7 +428,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           )}
         </div>
         {/* The one date changer (Chris 10-02): Dates, 24h, 7 days, 30 days, 90 days. */}
-        <RangePills value={range} onChange={(c) => { setRange(c); setHover(null); }} />
+        <RangePills value={range} onChange={(c) => { setRange(c); setHover(null); }} fit />
       </div>
 
       <div ref={boxRef} className="w-full" />

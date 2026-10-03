@@ -13,11 +13,12 @@ export type RangePreset = "24h" | "7d" | "30d" | "90d";
 export type RangeChoice = { preset: RangePreset } | { from: string; to: string };
 
 /** `short` is the sentence form charts use ("3M low $4"). */
-export const RANGE_PRESETS: { id: RangePreset; label: string; days: number; short: string }[] = [
-  { id: "24h", label: "24h", days: 1, short: "24h" },
-  { id: "7d", label: "7 days", days: 7, short: "1W" },
-  { id: "30d", label: "30 days", days: 30, short: "1M" },
-  { id: "90d", label: "90 days", days: 90, short: "3M" },
+/** `tight` is the pill label inside a box under 24rem (the homepage tile, 10-02) when the pill is asked to `fit`. */
+export const RANGE_PRESETS: { id: RangePreset; label: string; tight: string; days: number; short: string }[] = [
+  { id: "24h", label: "24h", tight: "24h", days: 1, short: "24h" },
+  { id: "7d", label: "7 days", tight: "7d", days: 7, short: "1W" },
+  { id: "30d", label: "30 days", tight: "30d", days: 30, short: "1M" },
+  { id: "90d", label: "90 days", tight: "90d", days: 90, short: "3M" },
 ];
 
 const DAY_MS = 86_400_000;
@@ -53,7 +54,8 @@ function today(): string {
 }
 
 /** `up` opens the Dates panel above the pill (for a pill at the bottom of a clipped box, like the Inventory summary). */
-export default function RangePills({ value, onChange, up = false, className = "" }: { value: RangeChoice; onChange: (c: RangeChoice) => void; up?: boolean; className?: string }) {
+/** `fit`: inside a `@container` under 24rem the preset labels go short ("30d") so five pills never spill past a narrow panel. */
+export default function RangePills({ value, onChange, up = false, fit = false, className = "" }: { value: RangeChoice; onChange: (c: RangeChoice) => void; up?: boolean; fit?: boolean; className?: string }) {
   const custom = isDates(value) ? value : null;
   const [open, setOpen] = useState(false);
   const [a, setA] = useState(custom?.from ?? "");
@@ -76,11 +78,13 @@ export default function RangePills({ value, onChange, up = false, className = ""
     onChange({ from: a, to: b });
   }
 
-  const pill = (on: boolean) => `rounded-full px-2 py-1.5 text-center transition sm:px-3 ${on ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`;
+  // min-w-0 + flex-1 everywhere: in a box narrower than the five labels (the homepage tile, 10-02 "running over")
+  // the buttons shrink instead of the group spilling past its panel.
+  const pill = (on: boolean) => `min-w-0 rounded-full px-2 py-1.5 text-center transition sm:px-2.5 ${on ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`;
   const input = "rounded-lg border border-edge bg-black/30 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-brand-400/60 [color-scheme:dark]";
 
   return (
-    <div role="group" aria-label="Range" className={`flex w-full items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1 text-xs sm:w-auto ${className}`}>
+    <div role="group" aria-label="Range" className={`flex w-full max-w-full items-center gap-1 rounded-full border border-edge bg-surface-1/95 p-1 text-xs sm:w-auto ${className}`}>
       <div ref={box} className="relative flex-1 sm:flex-none">
         <button
           type="button"
@@ -118,8 +122,15 @@ export default function RangePills({ value, onChange, up = false, className = ""
       {RANGE_PRESETS.map((r) => {
         const on = custom === null && !isDates(value) && value.preset === r.id;
         return (
-          <button key={r.id} type="button" onClick={() => onChange({ preset: r.id })} aria-pressed={on} className={`flex-1 sm:flex-none sm:whitespace-nowrap ${pill(on)}`}>
-            {r.label}
+          <button key={r.id} type="button" onClick={() => onChange({ preset: r.id })} aria-pressed={on} className={`flex-1 whitespace-nowrap sm:flex-none ${pill(on)}`}>
+            {fit ? (
+              <>
+                <span className="@[24rem]:hidden">{r.tight}</span>
+                <span className="hidden @[24rem]:inline">{r.label}</span>
+              </>
+            ) : (
+              r.label
+            )}
           </button>
         );
       })}
