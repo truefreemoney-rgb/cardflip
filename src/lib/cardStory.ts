@@ -1,9 +1,9 @@
 import { POSTAGE_USD, coversAllCosts, coversCosts, estimatedEbayFees } from "./fees.ts";
-import { askingPriceFor, formatMoney } from "./listing.ts";
+import { CONDITIONS, askingPriceFor, formatMoney } from "./listing.ts";
 import { priceDayLabel, type CardFacts } from "./cardPages.ts";
 import { SCANS } from "./pricing.ts";
 import { dayIndex, type HistoryPoint } from "./priceSeries.ts";
-import type { GameId } from "./types.ts";
+import type { Condition, GameId } from "./types.ts";
 
 /**
  * What only CardFlip can say about a card, in words, for the public card pages
@@ -98,6 +98,57 @@ export function rangeWords(range: HistoryRange, current: { price: number; day: s
   const pos = (current.price - range.low.price) / (range.high.price - range.low.price);
   const where = pos >= 0.75 ? "near the top of" : pos <= 0.25 ? "near the bottom of" : "in the middle of";
   return `${span} Today's price sits ${where} that range.`;
+}
+
+// ---------------------------------------------------------------------------
+// The condition ladder: the eBay Suggested Price for each condition (SEO 10-02).
+
+export interface ConditionStep {
+  condition: Condition;
+  /** askingPriceFor(market, condition): the scanner's own number for that copy. */
+  ask: number;
+}
+
+/** Near Mint down to Heavily Played, each with its asking price (Damaged is not a price anyone searches for). Empty without a market price. */
+export function conditionLadder(market: number): ConditionStep[] {
+  if (!(market > 0)) return [];
+  return CONDITIONS.filter((c) => c !== "Damaged").map((condition) => ({ condition, ask: askingPriceFor(market, condition) }));
+}
+
+// ---------------------------------------------------------------------------
+// Rank in the set: where this card sits among the set's priced cards (SEO 10-02).
+
+export interface SetStanding {
+  /** 1 = the set's most valuable priced card. */
+  rank: number;
+  /** Cards of the set with a price the guard believes. */
+  priced: number;
+  /** The median of those prices. */
+  median: number;
+}
+
+const ordinal = (n: number): string => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+};
+
+/** "Charizard is the most valuable card in Base Set, 47x the set's median price of $20.10." Null when the set has one priced card (nothing to compare). */
+export function rankWords(name: string, setName: string, price: number, s: SetStanding): string | null {
+  if (s.priced < 2 || !(s.median > 0)) return null;
+  const of = `of ${s.priced.toLocaleString("en-US")} priced cards in ${setName}`;
+  const place =
+    s.rank === 1 ? `${name} is the most valuable ${of}` : s.rank <= 10 ? `${name} is the ${ordinal(s.rank)} most valuable ${of}` : `${name} ranks ${ordinal(s.rank)} ${of}`;
+  const ratio = price / s.median;
+  const vs =
+    ratio >= 1.95
+      ? `${Math.round(ratio)}x the set's median price of ${formatMoney(s.median)}`
+      : ratio >= 1.05
+        ? `above the set's median price of ${formatMoney(s.median)}`
+        : ratio > 0.95
+          ? `right at the set's median price of ${formatMoney(s.median)}`
+          : `below the set's median price of ${formatMoney(s.median)}`;
+  return `${place}, ${vs}.`;
 }
 
 // ---------------------------------------------------------------------------

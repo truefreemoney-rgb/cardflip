@@ -359,8 +359,19 @@ check("range words: at the high", cs.rangeWords(range, { price: 14.2, day: "2026
 check("range words: flat", cs.rangeWords(cs.historyRange([{ day: "2026-09-01", price: 5 }, { day: "2026-09-02", price: 5 }]), { price: 5, day: "2026-09-02" }), (s) => s.endsWith("The price has not moved in that time."));
 check("scan words: name, number, set and the free scans", cs.scanWords(facts), (s) => s.includes("Charizard 4/102, Base Set,") && s.includes(`${PRICING.trial.scans} scans are free`));
 check("scan words: the printing tags ride along", cs.scanWords({ ...facts, game: "yugioh", tags: ["Ultra Rare", "1st Edition"] }), (s) => s.includes("Base Set (Ultra Rare, 1st Edition),") && s.includes("set code and rarity"));
+// SEO content 10-02: the condition ladder, the rank in the set, other printings.
+check("condition ladder: Near Mint down to Heavily Played, never Damaged", cs.conditionLadder(100).map((s) => s.condition), ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played"]);
+check("condition ladder: Near Mint is the eBay Suggested Price, lower conditions ask less", cs.conditionLadder(100).map((s) => s.ask), (a) => a[0] === cs.sellMath(100).ask && a[1] < a[0] && a[2] < a[1] && a[3] < a[2]);
+check("condition ladder: no price, no ladder", cs.conditionLadder(0), []);
+check("rank words: the most valuable, a multiple of the median", cs.rankWords("Charizard", "Base Set", 944.53, { rank: 1, priced: 31, median: 18.73 }), "Charizard is the most valuable of 31 priced cards in Base Set, 50x the set's median price of $18.73.");
+check("rank words: an ordinal in the top ten", cs.rankWords("Blastoise", "Base Set", 40, { rank: 3, priced: 31, median: 20 }), "Blastoise is the 3rd most valuable of 31 priced cards in Base Set, 2x the set's median price of $20.00.");
+check("rank words: below the median past tenth", cs.rankWords("Magikarp", "Base Set", 10, { rank: 22, priced: 31, median: 20 }), "Magikarp ranks 22nd of 31 priced cards in Base Set, below the set's median price of $20.00.");
+check("rank words: at the median", cs.rankWords("Pidgey", "Base Set", 20, { rank: 15, priced: 31, median: 20 }), (s) => s.endsWith("right at the set's median price of $20.00."));
+check("rank words: a set with one priced card says nothing", cs.rankWords("Charizard", "Base Set", 944.53, { rank: 1, priced: 1, median: 944.53 }), null);
 const storyPageSrc = read("src/app/cards/[game]/[set]/[card]/page.tsx");
 check("the card page prints the sell line, the range and the scan angle", [/sellWords\(/.test(storyPageSrc), /rangeWords\(/.test(storyPageSrc), /scanWords\(/.test(storyPageSrc)], [true, true, true]);
+check("the card page prints the ladder, the rank and the other printings", [/conditionLadder\(/.test(storyPageSrc), /rankWords\(/.test(storyPageSrc), /otherPrintings\(/.test(storyPageSrc)], [true, true, true]);
+check("other printings and the set rank leave out flagged and unverified prices", [/isUnverified\(head\)\) continue/.test(serverSrc), /!c\.unverified\);\s*const prices = cards/.test(serverSrc)], [true, true]);
 check("the range's ends go through the guard's old-side check", /old: \{ back, value: end\.price \}/.test(serverSrc), true);
 
 console.log(`\ncard pages: ${pass} passed, ${fail} failed`);

@@ -22,8 +22,8 @@ import {
   setPath,
   type CardFacts,
 } from "@/lib/cardPages";
-import { STRIP_TILES, loadCardPage, loadCardRecord, publicCardGame, setIndex, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
-import { rangeWords, scanHeading, scanWords, sellMath, sellWords } from "@/lib/cardStory";
+import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setStanding, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
+import { conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
@@ -44,7 +44,7 @@ import type { GameId } from "@/lib/types";
 export const revalidate = 172800;
 export const generateStaticParams = async () => [];
 
-type Loaded = { kind: "redirect"; to: string } | { kind: "card"; page: CardPage; strip: Tile[]; setName: string };
+type Loaded = { kind: "redirect"; to: string } | { kind: "card"; page: CardPage; strip: Tile[]; setName: string; standing: SetStanding | null; printings: Tile[] };
 
 /** One read shared by generateMetadata and the page; null = 404. */
 const load = cache(async (gameSlug: string, setSlug: string, segment: string): Promise<Loaded | null> => {
@@ -64,8 +64,14 @@ const load = cache(async (gameSlug: string, setSlug: string, segment: string): P
   const page = await loadCardPage(rec);
   const index = await setIndex(game);
   const set = index.bySlug.get(f.setSlug);
-  const strip = set ? (await setTopTiles(game, set, f.setSlug)).filter((t) => t.key !== f.key).slice(0, STRIP_TILES) : [];
-  return { kind: "card", page, strip, setName: f.setName };
+  // The three daily-cached lists (set strip, set rank, other printings) are read together; each fails to empty on its own.
+  const [top, standing, printings] = await Promise.all([
+    set ? setTopTiles(game, set, f.setSlug) : Promise.resolve([] as Tile[]),
+    set && page.headline ? setStanding(game, set, f.key) : Promise.resolve(null),
+    otherPrintings(game, f),
+  ]);
+  const strip = top.filter((t) => t.key !== f.key).slice(0, STRIP_TILES);
+  return { kind: "card", page, strip, setName: f.setName, standing, printings };
 });
 
 export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set]/[card]">): Promise<Metadata> {
@@ -173,6 +179,7 @@ function SellStory({ f, page }: { f: CardFacts; page: CardPage }) {
   const words = page.headline ? sellWords(f.name, page.headline.price) : null;
   if (!words || !page.headline) return null;
   const m = sellMath(page.headline.price);
+  const ladder = conditionLadder(page.headline.price);
   return (
     <section className="flex flex-col rounded-2xl border border-edge bg-surface-1 p-5">
       <h2 className="font-display text-xl font-semibold text-white sm:text-2xl">Is {f.name} worth selling?</h2>
@@ -183,6 +190,18 @@ function SellStory({ f, page }: { f: CardFacts; page: CardPage }) {
         <Stat label="You Keep" value={formatMoney(m.net)} strong />
       </div>
       <p className="mt-4 text-sm leading-relaxed text-zinc-400">{words.detail}</p>
+      {/* The condition ladder (SEO 10-02): the eBay Suggested Price for each condition, the scanner's own numbers. */}
+      {ladder.length > 0 && (
+        <dl className="mt-4 divide-y divide-edge rounded-xl border border-edge bg-black/20 text-sm">
+          <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">eBay Suggested Price by condition</div>
+          {ladder.map((step) => (
+            <div key={step.condition} className="flex items-baseline justify-between gap-3 px-3 py-2">
+              <dt className="text-zinc-300">{step.condition}</dt>
+              <dd className="font-display font-semibold tabular-nums text-white">{formatMoney(step.ask)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <p className="mt-auto pt-4 text-sm">
         <Link href="/signup" className="font-medium text-brand-300 transition hover:text-brand-200">
           Price your own copy →
@@ -210,10 +229,12 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const l = await load(gameSlug, setSlug, card);
   if (!l) notFound();
   if (l.kind === "redirect") permanentRedirect(l.to);
-  const { page, strip } = l;
+  const { page, strip, standing, printings } = l;
   const f = page.facts;
   const game: GameId = f.game;
   const name = gameTitle(game);
+  // Rank in the set (SEO 10-02): one sentence from the daily set ranking, only when the set has company to compare against.
+  const rank = standing && page.headline ? rankWords(f.name, f.setName, page.headline.price, standing) : null;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -247,6 +268,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
             </p>
 
             <PriceBlock page={page} />
+            {rank && <p className="mt-3 text-sm leading-relaxed text-zinc-300">{rank}</p>}
             {page.prices.length > 1 && <PriceTable page={page} />}
 
             <div className="mt-6">
@@ -258,7 +280,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         <CardStory f={f} page={page} />
 
         {/* Two panels side by side from sm up: the sell math and the scan ask (Chris 10-02 makeover). */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:items-start">
           <SellStory f={f} page={page} />
           <ScanStory f={f} />
         </div>
@@ -272,6 +294,15 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
             </p>
           </div>
         </section>
+
+        {/* Other printings of the same card (SEO 10-02): the strongest internal links these pages have, prices through the guard. */}
+        {printings.length > 0 && (
+          <section className="mt-10">
+            <h2 className="font-display text-2xl font-semibold text-white">Other {f.name} cards</h2>
+            <p className="mt-1 text-sm text-zinc-400">Other printings of {f.name} with a current market price, most valuable first.</p>
+            <TileGrid game={game} tiles={printings} showSet />
+          </section>
+        )}
 
         {strip.length > 0 && (
           <section className="mt-10">

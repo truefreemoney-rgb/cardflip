@@ -29,7 +29,7 @@ import {
   type SeriesInput,
   type SetEntry,
 } from "@/lib/cardPages";
-import { historyRange, type HistoryRange } from "@/lib/cardStory";
+import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
 import type { Series } from "@/components/PriceHistoryChart";
 import type { GameId } from "@/lib/types";
 
@@ -472,6 +472,76 @@ export async function setTopTiles(game: GameId, set: SetEntry, setSlug: string):
   return cachedTiles(`seo:settop:v1:${game}:${set.key}`, async () => {
     const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified).slice(0, STRIP_TILES + 1);
     return cards.map((c) => ({ ...c, setSlug, setName: set.name }));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Rank in the set + other printings (SEO content 10-02, Chris: "maximize our SEO")
+
+/** The set's priced cards in value order with the median: one list per set a day, from which every card page reads its own rank. */
+interface SetStandings {
+  /** Card keys, most valuable first (believed, verified prices at the index floor or more). */
+  order: string[];
+  median: number;
+}
+
+async function setStandings(game: GameId, set: SetEntry): Promise<SetStandings> {
+  try {
+    return await cachedList(`seo:setrank:v1:${game}:${set.key}`, TOP_TTL_MS, async () => {
+      const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified);
+      const prices = cards.map((c) => c.price as number).sort((a, b) => a - b);
+      const mid = prices.length >> 1;
+      const median = prices.length === 0 ? 0 : prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+      return { order: cards.map((c) => c.key), median };
+    });
+  } catch (err) {
+    console.warn(`card pages: could not rank ${game} set ${set.key}`, err);
+    return { order: [], median: 0 };
+  }
+}
+
+/** Where a card sits among its set's priced cards; null when the set is unranked or the card is not in the ranked list. */
+export async function setStanding(game: GameId, set: SetEntry, key: string): Promise<SetStanding | null> {
+  const s = await setStandings(game, set);
+  const at = s.order.indexOf(key);
+  if (at < 0) return null;
+  return { rank: at + 1, priced: s.order.length, median: s.median };
+}
+
+/** Catalog rows that share this card's name in other sets (Pokémon reprints, Magic reprints, Yu-Gi-Oh! alternate sets). At most 40 rows before the guard. */
+function sameNameRows(game: GameId, name: string, notKey: string) {
+  // The page name of a tcg_cards row is "name - subtitle"; the lookup is by the bare name column, so sister printings with another subtitle (One Piece parallels) are found too.
+  const bare = game === "pokemon" || game === "mtg" ? name : name.split(" - ")[0];
+  if (game === "pokemon") return catalogRows(game, "name = ? AND id <> ? LIMIT 40", [bare, notKey]);
+  if (game === "mtg") return catalogRows(game, "name = ? AND (set_code || '-' || collector_number) <> ? LIMIT 40", [bare, notKey]);
+  return catalogRows(game, "name = ? AND id <> ? LIMIT 40", [bare, notKey]);
+}
+
+/**
+ * Other printings of the same card, most valuable first, each with the price the guard believes: the tiles for
+ * "Other <name> cards". Built once a day per name; flagged and unverified ones are left out (a list never prints a
+ * doubted number). Empty when the card is the only printing.
+ */
+export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "key">, limit = TOP_TILES): Promise<Tile[]> {
+  return cachedTiles(`seo:printings:v1:${game}:${f.name}`, async () => {
+    const rows = await sameNameRows(game, f.name, f.key);
+    if (rows.length === 0) return [];
+    const index = await setIndex(game);
+    const trust = await loadTrustData(rows.map((r) => ({ cardId: r.id, game })), todayUtc());
+    const out: Tile[] = [];
+    for (const r of rows) {
+      const data = trust.get(r.id);
+      if (!data) continue;
+      const today = todayUtc();
+      const prices = variantPrices(game, data.series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) })), today);
+      const head = headlinePrice(prices);
+      if (!head || head.price < indexFloorUsd(game) || isUnverified(head)) continue;
+      const setSlug = index.slugOf.get(r.set_key);
+      if (!setSlug) continue;
+      const fx = factsOf(game, r, setSlug);
+      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
+    }
+    return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, limit);
   });
 }
 
