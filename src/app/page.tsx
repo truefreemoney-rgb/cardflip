@@ -216,8 +216,9 @@ export default async function Home() {
   const binder = (() => {
     if (wall.length < 8) return null;
     const value = (cs: PokemonCard[]) => cs.reduce((n, c) => n + (marketOf(c) ?? 0), 0);
-    const live = wall.filter((_, i) => i % 3 === 1);
-    const sold = wall.filter((_, i) => i % 4 === 3);
+    // Every wall card is live or sold (Chris 10-02: the two totals should be all 8 cards): 3 sold, the other 5 live.
+    const sold = wall.filter((_, i) => i % 3 === 0);
+    const live = wall.filter((_, i) => i % 3 !== 0);
     const dearest = [...wall].sort((a, b) => (marketOf(b) ?? 0) - (marketOf(a) ?? 0))[0];
     return { count: wall.length, value: value(wall), live, liveValue: value(live), sold, soldValue: value(sold), dearest };
   })();
