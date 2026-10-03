@@ -127,6 +127,7 @@ export const TIKTOK_LEAD = "Scan a card, see what it's worth: cardflip.io (link 
 export function tiktokLead(caption: string): string {
   if (caption.startsWith(TIKTOK_LEAD)) return caption;
   const lines = caption.split("\n").filter((l) => l !== SIGN_OFF);
+  while (lines.length && lines[0] === "") lines.shift();
   while (lines.length && lines[lines.length - 1] === "") lines.pop();
   // The sign-off left a blank before the hashtags; keep one blank between the body and the tags.
   const body = lines.join("\n").replace(/\n\n\n+/g, "\n\n");

@@ -23,7 +23,7 @@ process.env.CRON_SECRET = "cron-test";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
-const { publishSocial, fitText, slotAt, eastern, LAST_POST_PREFIX, SLOT_PREFIX, KIND_PREFIX, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
+const { publishSocial, fitText, leadSignOff, slotAt, eastern, LAST_POST_PREFIX, SLOT_PREFIX, KIND_PREFIX, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { blueskyFacets, BLUESKY_MAX_CHARS } = await import(at("lib/server/sites/bluesky.ts"));
 const { getSetting, setSetting } = await import(at("lib/server/settings.ts"));
 const { loadBoard, isCompletedSection } = await import(at("lib/server/board.ts"));
@@ -189,7 +189,7 @@ console.log("tracked links never touch the words (09-30: the owner wants plain c
   const ep = "pokemon-set-0910";
   check("the campaign is the draft id with the day as MMDD, handed to every site", [xs, fb, ig, bs].map((s) => s.posts[0].campaign), [ep, ep, ep, ep]);
   check("no site's text carries a path, a utm or Link in bio", [xs, fb, ig, bs].every((s) => !/cardflip\.io\/|utm_|Link in bio/.test(s.posts[0].text)), true);
-  check("every site's text ends on the plain address and its tags, as before", [xs, fb, ig, bs].every((s) => /cardflip\.io\n\n(#\w+ ?)+$/.test(s.posts[0].text)), true);
+  check("every site's text LEADS with the sign-off (10-03; the tight sites with the bare address) and ends on its tags", [xs, fb, ig, bs].map((s) => (s.posts[0].text.startsWith("Scan a card, see what it's worth. cardflip.io\n\n") ? "full" : s.posts[0].text.startsWith("cardflip.io\n\n") ? "address" : "no") + (/\n\n(#\w+ ?)+$/.test(s.posts[0].text) ? "+tags" : "")), ["address+tags", "full+tags", "full+tags", "address+tags"]);
   check("X and Bluesky still fit their limits", [xs.posts[0].text.length <= 257, bs.posts[0].text.length <= 300], [true, true]);
 }
 console.log("text fitting");
@@ -197,13 +197,13 @@ const long = { caption: `${"x".repeat(280)}\n\ncardflip.io`, shortCaption: "PokÃ
 check("fits: caption + tags when room", fitText({ caption: "hi cardflip.io", shortCaption: "hi", hashtags: ["A"] }, 300), "hi cardflip.io\n\n#A");
 // 09-30 (Chris: "make sure to use hashtags to tag all the posts"): tags
 // outrank the long caption â€” the short caption WITH tags beats the long one without.
-check("keeps the tags: short caption + tags beats the long caption alone", fitText(long, 300), `${long.shortCaption}\n\n#PokemonTCG #TCG`);
+check("keeps the tags: short caption + tags beats the long caption alone", fitText(long, 300), `${leadSignOff(long.shortCaption)}\n\n#PokemonTCG #TCG`);
 {
   const five = { caption: "c".repeat(200), shortCaption: "s".repeat(190), hashtags: ["AAAAAAAAAA", "BBBBBBBBBB", "CCCCCCCCCC", "DDDDDDDDDD", "EEEEEEEEEE"] };
   check("trims the tag list from the end before dropping it (more tags first, long or short caption)", fitText(five, 240), `${"s".repeat(190)}\n\n#AAAAAAAAAA #BBBBBBBBBB #CCCCCCCCCC #DDDDDDDDDD`);
   check("never fewer than two tags: untagged caption when even two do not fit", fitText({ ...five, shortCaption: "c".repeat(200) }, 215), "c".repeat(200));
   const also = { caption: "l".repeat(400), shortCaption: `${"s".repeat(160)}\n\nAlso scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io`, hashtags: ["PokemonTCG", "PokemonCards", "TCG", "TradingCards"] };
-  check("cuts the sign-off to the address before it drops a tag", fitText(also, 240), `${"s".repeat(160)}\n\ncardflip.io\n\n#PokemonTCG #PokemonCards #TCG #TradingCards`);
+  check("cuts the sign-off to the address before it drops a tag (the address leads, 10-03)", fitText(also, 240), `cardflip.io\n\n${"s".repeat(160)}\n\n#PokemonTCG #PokemonCards #TCG #TradingCards`);
   // The 7pm all-games tags (Chris 09-30: tags for every game, biggest reach):
   // one per game first, so a cut list still names all five.
   const { PLAN_TAGS } = await import(at("lib/socialPlan.ts"));
@@ -227,11 +227,11 @@ check("keeps the tags: short caption + tags beats the long caption alone", fitTe
     firstFive,
   ]);
 }
-check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${long.shortCaption}
+check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${leadSignOff(long.shortCaption)}
 
 #PokemonTCG #TCG`);
 const tiny = fitText(long, 40);
-check("last resort still ends on cardflip.io", [tiny.length <= 40, tiny.endsWith("cardflip.io")], [true, true]);
+check("last resort still carries cardflip.io, leading (10-03)", [tiny.length <= 40, tiny.startsWith("cardflip.io\n\n")], [true, true]);
 check("bluesky limit constant", BLUESKY_MAX_CHARS, 300);
 
 console.log("bluesky facets");
@@ -396,16 +396,17 @@ console.log("engagement question: the lowest priority after the sign-off cut");
     hashtags: ["PokemonTCG", "PokemonCards", "TCG"],
   };
   const tags = "#PokemonTCG #PokemonCards #TCG";
-  check("a roomy site gets the full caption, the question after the card lines and before the sign-off, every tag", fitText(q, 5000), `${q.caption}\n\n${tags}`);
+  check("a roomy site gets the full caption, the sign-off moved to the top (10-03), the question after the card lines, every tag", fitText(q, 5000), `${leadSignOff(q.caption)}\n\n${tags}`);
+  check("leadSignOff: the exact sign-off line goes first, one blank after it, nothing else moves; a bare address or the Also-scans form stays put", [leadSignOff("A\n\nB\n\nScan a card, see what it's worth. cardflip.io"), leadSignOff("A\n\ncardflip.io"), leadSignOff("A\n\nAlso scans Magic. cardflip.io"), leadSignOff("Scan a card, see what it's worth. cardflip.io\n\nA")], ["Scan a card, see what it's worth. cardflip.io\n\nA\n\nB", "A\n\ncardflip.io", "A\n\nAlso scans Magic. cardflip.io", "Scan a card, see what it's worth. cardflip.io\n\nA"]);
   const shortFull = `${q.shortCaption}\n\n${tags}`;
   // 5 characters under the short caption with everything: the sign-off goes to the bare address first, the question stays.
   const mid = fitText(q, shortFull.length - 5);
-  check("tight: the sign-off is cut to the address FIRST, the question and every tag stay", [mid.includes(Q), mid.endsWith(`cardflip.io\n\n${tags}`) && !mid.includes("Scan a card"), mid.length <= shortFull.length - 5], [true, true, true]);
+  check("tight: the sign-off is cut to the address FIRST, the question and every tag stay", [mid.includes(Q), mid.startsWith("cardflip.io\n\n") && mid.endsWith(tags) && !mid.includes("Scan a card"), mid.length <= shortFull.length - 5], [true, true, true]);
   // Below that the question goes, and still no hashtag and no card line does.
   const tinyQ = shortFull.length - (SIGN.length - "cardflip.io".length);
   const tight = fitText(q, tinyQ - 3);
   check("tighter: the question is the next thing cut, before a hashtag or a card line", [tight.includes(Q), tight.includes("Miraidon ex +50%"), tight.includes("Gardevoir ex +20%"), tight.endsWith(tags), tight.length <= tinyQ - 3], [false, true, true, true, true]);
-  check("without a question nothing changes (older drafts, the card post)", fitText({ ...q, question: undefined, caption: q.caption.replace(`${Q}\n\n`, ""), shortCaption: q.shortCaption.replace(`${Q}\n\n`, "") }, 5000), `${q.caption.replace(`${Q}\n\n`, "")}\n\n${tags}`);
+  check("without a question nothing changes (older drafts, the card post)", fitText({ ...q, question: undefined, caption: q.caption.replace(`${Q}\n\n`, ""), shortCaption: q.shortCaption.replace(`${Q}\n\n`, "") }, 5000), `${leadSignOff(q.caption.replace(`${Q}\n\n`, ""))}\n\n${tags}`);
   // The real thing, on X's 257 and Bluesky's 300: the question only appears when it fits, and no site loses a tag for it.
   const real = (await (await import(at("lib/server/social.ts"))).socialDrafts("pokemon", THU)).find((d) => d.kind === "movers");
   check("a real draft carries its question in both captions", [Boolean(real.question), real.caption.includes(real.question), real.shortCaption.includes(real.question)], [true, true, true]);

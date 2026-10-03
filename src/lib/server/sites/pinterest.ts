@@ -99,7 +99,8 @@ export function pinterestAuthUrl(origin: string, state: string): string {
  */
 export function pinterestFields(text: string): { title: string; description: string } {
   const clean = text.replace(/\r/g, "").trim();
-  const firstLine = clean.split("\n")[0]?.trim() ?? "";
+  // The sign-off leads every caption (10-03); the title is the first line after it.
+  const firstLine = clean.split("\n").map((l) => l.trim()).find((l) => l && !/^Scan a card, see what it's worth/i.test(l)) ?? "";
   let title = firstLine;
   if (title.length > PINTEREST_TITLE_MAX) {
     const cut = title.slice(0, PINTEREST_TITLE_MAX - 1);

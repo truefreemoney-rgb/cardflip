@@ -252,7 +252,31 @@ export interface PublishReport {
  * there is after the sign-off cut: every version above is tried WITH it first,
  * and only when none fits does it go, still before a single hashtag does.
  */
+/** The caption builders' closing line (lib/server/social.ts SIGN_OFF); leadSignOff moves it to the top. */
+export const SIGN_OFF_LINE = "Scan a card, see what it's worth. cardflip.io";
+
+/**
+ * The sign-off LEADS every post (Chris 10-02 for TikTok, 10-03 for every site:
+ * "we need to start putting this at the top of descriptions"). The builders
+ * still write it last (fitText cuts from the end and must keep it); this moves
+ * the exact SIGN_OFF line to the front, one blank line after it. A short form
+ * ("Also scans Magic ... cardflip.io") or a bare "cardflip.io" stays where it is.
+ */
+export function leadSignOff(text: string): string {
+  const lines = text.split("\n");
+  const i = lines.indexOf(SIGN_OFF_LINE);
+  if (i <= 0) return text;
+  lines.splice(i, 1);
+  // The sign-off left a blank before the hashtags; keep one blank between the body and the tags.
+  const body = lines.join("\n").replace(/\n\n\n+/g, "\n\n").replace(/\n+$/, "");
+  return `${SIGN_OFF_LINE}\n\n${body}`;
+}
+
 export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
+  return leadSignOff(fitTextRaw(post, maxChars, maxTags));
+}
+
+function fitTextRaw(post: SocialPost, maxChars: number, maxTags = Infinity): string {
   // The optimizer's hashtag plan (lib/socialTags.ts): the one place a post's tags are resolved for its day.
   post = { ...post, hashtags: tagsOn(post.hashtags, post.day) };
   if (post.hashtags.length > maxTags) post = { ...post, hashtags: post.hashtags.slice(0, maxTags) };
@@ -261,10 +285,12 @@ export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity):
   // address ("Also scans Magic, Lorcana, One Piece and Yu-Gi-Oh. cardflip.io"
   // → "cardflip.io"; the picture still carries the pills).
   const cut = short.lastIndexOf("\n");
-  const tiny = cut > 0 && short.endsWith("cardflip.io") ? `${short.slice(0, cut)}\ncardflip.io` : short;
+  // The address leads too (10-03: the sign-off goes at the top everywhere, even when cut to the bare address).
+  const tiny = cut > 0 && short.endsWith("cardflip.io") ? `cardflip.io\n\n${short.slice(0, cut).trimEnd()}` : short;
   const withQ = tiny === short ? [post.caption, short] : [post.caption, short, tiny];
   const q = post.question;
-  const noQ = (t: string) => (q ? t.replace(`${q}\n\n`, "") : t);
+  // The question sits before the sign-off, or last once the address leads (10-03): either way it comes out whole.
+  const noQ = (t: string) => (q ? t.replace(`${q}\n\n`, "").replace(`\n\n${q}`, "") : t);
   const texts = q ? [...withQ, ...withQ.map(noQ)] : withQ;
   for (let n = post.hashtags.length; n >= Math.min(2, post.hashtags.length); n--) {
     const tags = post.hashtags.slice(0, n).map((h) => `#${h}`).join(" ");
@@ -276,7 +302,7 @@ export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity):
   }
   if (post.caption.length <= maxChars) return post.caption;
   if (short.length <= maxChars) return short;
-  // Last resort: cut on a line boundary and keep the sign-off.
+  // Last resort: cut on a line boundary and keep the address, leading (10-03).
   const signOff = "cardflip.io";
   const lines = short.split("\n");
   let out = "";
@@ -284,7 +310,7 @@ export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity):
     if (`${out}${line}\n${signOff}`.length > maxChars) break;
     out += `${line}\n`;
   }
-  return `${out}${signOff}`;
+  return `${signOff}\n\n${out.trimEnd()}`;
 }
 
 /** Shrink a PNG below the site's byte cap (JPEG, falling quality). */
