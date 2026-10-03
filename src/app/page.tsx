@@ -215,12 +215,13 @@ export default async function Home() {
   const wall = showcase.slice(0, 8);
   const binder = (() => {
     if (wall.length < 8) return null;
-    const value = (cs: PokemonCard[]) => cs.reduce((n, c) => n + (marketOf(c) ?? 0), 0);
-    // Every wall card is live or sold (Chris 10-02: the two totals should be all 8 cards): 3 sold, the other 5 live.
-    const sold = wall.filter((_, i) => i % 3 === 0);
-    const live = wall.filter((_, i) => i % 3 !== 0);
+    // Both totals cover ALL eight (Chris 10-02): listed = the eBay Suggested Price of each, sold = what the seller keeps
+    // after eBay fees and postage when every one sells at that price.
+    const asks = wall.map((c) => marketOf(c) ?? 0);
+    const liveValue = asks.reduce((n, a) => n + a, 0);
+    const soldValue = asks.reduce((n, a) => n + Math.max(0, netAfterFees(a) - POSTAGE_USD), 0);
     const games = new Set(wall.map((c) => c.game ?? "pokemon")).size;
-    return { count: wall.length, value: value(wall), live, liveValue: value(live), sold, soldValue: value(sold), games };
+    return { count: wall.length, liveValue, fees: liveValue - soldValue, soldValue, games };
   })();
 
   // Our own recorded history for the hero card — the last 90 points of the
@@ -528,9 +529,9 @@ export default async function Home() {
                 <dl className="mt-auto grid grid-cols-2 gap-2 pt-4">
                   {[
                     { label: "Cards", value: String(binder.count), sub: binder.games > 1 ? `Across ${binder.games} games` : "One game, one binder", tone: "text-white" },
-                    { label: "Binder Value", value: formatMoney(binder.value), sub: "At market, this page", tone: "text-white" },
-                    { label: "Live on eBay", value: `${binder.live.length} · ${formatMoney(binder.liveValue)}`, sub: "Example", tone: "text-emerald-300" },
-                    { label: "Sold", value: `${binder.sold.length} · ${formatMoney(binder.soldValue)}`, sub: "Example", tone: "text-sky-300" },
+                    { label: "Live on eBay", value: formatMoney(binder.liveValue), sub: "All 8, listed at market", tone: "text-emerald-300" },
+                    { label: "Fees and Postage", value: `- ${formatMoney(binder.fees)}`, sub: "eBay’s cut on all 8", tone: "text-zinc-300" },
+                    { label: "Sold", value: formatMoney(binder.soldValue), sub: "You keep when all 8 sell", tone: "text-sky-300" },
                   ].map((s) => (
                     <div key={s.label} className="min-w-0 rounded-xl border border-edge bg-black/25 px-3 py-2">
                       <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
