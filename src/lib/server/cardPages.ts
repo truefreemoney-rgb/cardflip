@@ -23,6 +23,7 @@ import {
   printingTags,
   setSlugs,
   slugify,
+  variantLabel,
   variantPrices,
   type CardFacts,
   type CardView,
