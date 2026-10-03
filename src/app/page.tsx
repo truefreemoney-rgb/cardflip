@@ -561,7 +561,9 @@ export default async function Home() {
               </p>
               {history.length >= 2 && featured ? (
                 // The same chart the card pages draw (range pills, labelled ends), compact, in the tile.
-                <div className="mt-4 flex flex-1 flex-col justify-end">
+                // No justify-end: on wide screens the binder tile is taller, and the slack used to open as a hole above the
+                // card header (Chris 10-03: "whats up with this gap"). The stat tiles below take it instead.
+                <div className="mt-4 flex flex-1 flex-col">
                   {/* The card the chart and the four stats belong to (Chris 10-02: feature the name so that is obvious). */}
                   <div className="flex items-center gap-3">
                     <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50 shadow-md shadow-black/40">
@@ -577,9 +579,9 @@ export default async function Home() {
                     <PriceHistoryChart cardId={featured.id} initialSeries={chartSeries} preferVariant={market?.price.variant ?? null} compact className="text-left" />
                   </div>
                   {/* What the record says, in four numbers (Chris 10-02: "fill the space properly, use something meaningful"). */}
-                  <dl className="mt-3 grid grid-cols-2 gap-2">
+                  <dl className="mt-3 grid flex-1 auto-rows-fr grid-cols-2 gap-2">
                     {historyStats(history).map((s) => (
-                      <div key={s.label} className="rounded-xl border border-edge bg-black/25 px-3 py-2">
+                      <div key={s.label} className="flex flex-col justify-center rounded-xl border border-edge bg-black/25 px-3 py-2">
                         <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
                         <dd className={`mt-0.5 font-display text-base font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
                       </div>
