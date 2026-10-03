@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { format } from "node:util";
 import { db } from "@/lib/db";
 
 /**
@@ -9,15 +10,27 @@ import { db } from "@/lib/db";
  *
  * Writers: instrumentation.ts onRequestError (every unhandled route error)
  * plus explicit reportServerError calls in jobs. Reader: the admin console's
- * Errors section. 30-day retention, pruned opportunistically on write.
+ * Errors section. Ring buffer: the newest MAX_ROWS lines, never older than
+ * 30 days, pruned on every write.
+ *
+ * Server log (10-03): instrumentation.ts also routes every server-side
+ * console.warn / console.error here (level 'warn' | 'error', source
+ * 'console'), because three times in one day the cause of a prod fault lived
+ * only in Vercel's runtime logs. Warnings are shown on /admin/errors but do
+ * not count toward the error KPI or the digest email.
  */
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+/** Ring-buffer size — "a few hundred" lines is enough to read a bad day. */
+const MAX_ROWS = 500;
+
+export type LogLevel = "error" | "warn";
 
 export interface ErrorEvent {
   id: string;
   at: number;
   source: string;
+  level: LogLevel;
   message: string;
   stack: string | null;
   digest: string | null;
@@ -28,18 +41,63 @@ export async function reportServerError(
   source: string,
   err: unknown,
   digest?: string,
+  level: LogLevel = "error",
 ): Promise<void> {
   try {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error && err.stack ? err.stack.slice(0, 4000) : null;
     const now = Date.now();
     await db.prepare(
-      "INSERT INTO error_events (id, at, source, message, stack, digest) VALUES (?, ?, ?, ?, ?, ?)",
-    ).run(randomUUID(), now, source.slice(0, 200), message.slice(0, 1000), stack, digest ?? null);
-    await db.prepare("DELETE FROM error_events WHERE at < ?").run(now - RETENTION_MS);
+      "INSERT INTO error_events (id, at, source, level, message, stack, digest) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run(randomUUID(), now, source.slice(0, 200), level, message.slice(0, 1000), stack, digest ?? null);
+    // One statement: age cutoff + row cap together.
+    await db
+      .prepare(
+        "DELETE FROM error_events WHERE at < ? OR id NOT IN (SELECT id FROM error_events ORDER BY at DESC LIMIT ?)",
+      )
+      .run(now - RETENTION_MS, MAX_ROWS);
   } catch {
     // Last resort only — the original error is already being handled upstream.
   }
+}
+
+/** Writes allowed in flight at once — a log storm must not pile up Turso calls. */
+const MAX_IN_FLIGHT = 8;
+
+/**
+ * Route console.warn / console.error through the log. Idempotent (HMR,
+ * repeated register() calls). reportServerError never logs to the console
+ * itself, so db.ts's own console.error on a failed schema probe adds one row
+ * and stops; the sync guard covers anything format() might print.
+ */
+export function captureConsole(): void {
+  const g = globalThis as { __cardflipConsoleCaptured?: boolean };
+  if (g.__cardflipConsoleCaptured) return;
+  g.__cardflipConsoleCaptured = true;
+  let inside = false;
+  let inFlight = 0;
+  const hook = (level: LogLevel, original: (...args: unknown[]) => void) =>
+    (...args: unknown[]) => {
+      original(...args);
+      if (inside || inFlight >= MAX_IN_FLIGHT) return;
+      inside = true;
+      try {
+        const firstErr = args.find((a): a is Error => a instanceof Error);
+        const text = format(...args).slice(0, 1000);
+        // Carry the stack when one was logged; the message is the whole line.
+        const payload = firstErr ? Object.assign(new Error(text), { stack: firstErr.stack }) : text;
+        inFlight++;
+        void reportServerError("console", payload, undefined, level).finally(() => {
+          inFlight--;
+        });
+      } catch {
+        // never throws into the caller's console call
+      } finally {
+        inside = false;
+      }
+    };
+  console.error = hook("error", console.error.bind(console));
+  console.warn = hook("warn", console.warn.bind(console));
 }
 
 export async function listRecentErrors(limit = 50): Promise<ErrorEvent[]> {
@@ -52,7 +110,7 @@ export async function listRecentErrors(limit = 50): Promise<ErrorEvent[]> {
 /** Errors in the last 24h — the admin KPI tile. */
 export async function errorCount24h(): Promise<number> {
   const row = (await db
-    .prepare("SELECT COUNT(*) AS n FROM error_events WHERE at > ?")
+    .prepare("SELECT COUNT(*) AS n FROM error_events WHERE level = 'error' AND at > ?")
     .get(Date.now() - 24 * 60 * 60 * 1000)) as { n: number } | undefined;
   return row?.n ?? 0;
 }
@@ -68,7 +126,7 @@ export interface ErrorGroup {
 export async function errorGroups24h(limit = 10): Promise<ErrorGroup[]> {
   const rows = (await db
     .prepare(
-      "SELECT source, message, COUNT(*) AS count, MAX(at) AS lastAt FROM error_events WHERE at > ? GROUP BY source, message ORDER BY count DESC, lastAt DESC LIMIT ?",
+      "SELECT source, message, COUNT(*) AS count, MAX(at) AS lastAt FROM error_events WHERE level = 'error' AND at > ? GROUP BY source, message ORDER BY count DESC, lastAt DESC LIMIT ?",
     )
     .all(Date.now() - 24 * 60 * 60 * 1000, limit)) as unknown as ErrorGroup[];
   return rows;

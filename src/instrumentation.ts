@@ -25,6 +25,10 @@ export async function onRequestError(
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
+  // Server log: every console.warn/error lands in error_events (/admin/errors)
+  // so a prod fault no longer needs the Vercel runtime log to diagnose.
+  const { captureConsole } = await import("@/lib/server/errorLog");
+  captureConsole();
   // Seed import first (async, batched — see db.ts), then the daily ticks.
   const { seedMtgMirror } = await import("@/lib/db");
   await seedMtgMirror();
