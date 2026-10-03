@@ -23,6 +23,7 @@ import {
   type CardFacts,
 } from "@/lib/cardPages";
 import { STRIP_TILES, loadCardPage, loadCardRecord, publicCardGame, setIndex, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
+import { rangeWords, scanWords, sellWords } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
@@ -130,9 +131,13 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
     <section className="mt-10">
       <h2 className="font-display text-2xl font-semibold text-white">Price history</h2>
       {page.chart ? (
-        <div className="mt-4 rounded-2xl border border-edge bg-surface-1 p-4">
-          <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact className="text-left" />
-        </div>
+        <>
+          <div className="mt-4 rounded-2xl border border-edge bg-surface-1 p-4">
+            <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact className="text-left" />
+          </div>
+          {/* The range in words (10-02): server HTML search can read, from guard-checked points only. */}
+          {page.range && page.headline && <p className="mt-3 max-w-prose text-sm leading-relaxed text-zinc-400">{rangeWords(page.range, page.headline)}</p>}
+        </>
       ) : page.headline && page.trackingSince ? (
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
           Tracking since {etDate(`${page.trackingSince}T12:00:00Z`)}. The chart appears once CardFlip has a week of prices for this card.
@@ -140,6 +145,25 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">No price history is shown for this card right now.</p>
       )}
+    </section>
+  );
+}
+
+/** "Is Charizard worth selling?": the listing math in one line, from the headline price the guard let through. */
+function SellStory({ f, page }: { f: CardFacts; page: CardPage }) {
+  const words = page.headline ? sellWords(f.name, page.headline.price) : null;
+  if (!words) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="font-display text-2xl font-semibold text-white">Is {f.name} worth selling?</h2>
+      <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">
+        <span className="font-semibold text-white">{words.verdict}</span> {words.detail}
+      </p>
+      <p className="mt-2 text-sm">
+        <Link href="/signup" className="text-brand-300 transition hover:text-brand-200">
+          Price your own copy
+        </Link>
+      </p>
     </section>
   );
 }
@@ -195,6 +219,13 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         </div>
 
         <CardStory f={f} page={page} />
+
+        <SellStory f={f} page={page} />
+
+        <section className="mt-10">
+          <h2 className="font-display text-2xl font-semibold text-white">Scan {f.name} with your phone</h2>
+          <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">{scanWords(f)}</p>
+        </section>
 
         <section className="mt-10">
           <h2 className="font-display text-2xl font-semibold text-white">About this card</h2>

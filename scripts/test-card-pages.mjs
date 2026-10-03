@@ -323,5 +323,38 @@ check("no search-console verification change (env-driven, as before)", /BING_SIT
 check("egg is noindex", /PRIVATE_META\.egg/.test(read("src/app/egg/layout.tsx")), true);
 check("not-found is noindex", /PRIVATE_META\.notFound/.test(read("src/app/not-found.tsx")), true);
 
+// --- 10. card story: the unique words on every card page (10-02) ------------------
+
+console.log("card story");
+const cs = await import(at("lib/cardStory.ts"));
+const fees = await import(at("lib/fees.ts"));
+const quarter = cs.sellMath(0.25);
+check("sell math: a $0.25 card lists at $1.50 (Chris 09-30) and the seller keeps its value", [quarter.ask, quarter.covers, quarter.net >= 0.25], [1.5, "all", true]);
+check("sell math: $7.50 lists at $8.68 (the taper)", [cs.sellMath(7.5).ask, cs.sellMath(7.5).covers], [8.68, "part"]);
+const twentyFive = cs.sellMath(25);
+check("sell math: from $10 up the market price stands and the net is ask − fees − postage", [twentyFive.covers, twentyFive.net], ["none", Math.round((twentyFive.ask - fees.estimatedEbayFees(twentyFive.ask) - fees.POSTAGE_USD) * 100) / 100]);
+check("sell words: a cheap card is not worth selling on its own", cs.sellWords("Spidops", 0.25).verdict, "Not on its own.");
+check("sell words: a $25 card is", cs.sellWords("Charizard", 25).verdict, "Yes.");
+check("sell words: the detail names the card, the eBay Suggested Price and what you keep", cs.sellWords("Charizard", 25).detail, (d) => d.includes("Charizard") && d.includes("eBay Suggested Price") && d.includes("keep about $"));
+check("sell words: never the word TCGplayer", cs.sellWords("Charizard", 25).detail.toLowerCase().includes("tcgplayer"), false);
+check("sell words: no price, no sentence", cs.sellWords("Charizard", 0), null);
+const storyPts = [
+  { day: "2026-07-01", price: 10 },
+  { day: "2026-07-15", price: 14.2 },
+  { day: "2026-08-20", price: 9.8 },
+  { day: "2026-09-30", price: 13.5 },
+];
+const range = cs.historyRange(storyPts);
+check("range: high, low, inclusive days", [range.high.price, range.low.price, range.days], [14.2, 9.8, 92]);
+check("range: one point is no range", cs.historyRange(storyPts.slice(0, 1)), null);
+check("range words: near the top", cs.rangeWords(range, { price: 13.5, day: "2026-09-30" }), "Across 92 days of daily prices, the high was $14.20 on Jul 15, 2026 and the low $9.80 on Aug 20, 2026. Today's price sits near the top of that range.");
+check("range words: at the high", cs.rangeWords(range, { price: 14.2, day: "2026-09-30" }), (s) => s.endsWith("Today's price is the highest CardFlip has recorded for this card."));
+check("range words: flat", cs.rangeWords(cs.historyRange([{ day: "2026-09-01", price: 5 }, { day: "2026-09-02", price: 5 }]), { price: 5, day: "2026-09-02" }), (s) => s.endsWith("The price has not moved in that time."));
+check("scan words: name, number, set and the free scans", cs.scanWords(facts), (s) => s.includes("Charizard 4/102 in Base Set") && s.includes(`${PRICING.trial.scans} scans are free`));
+check("scan words: the printing tags ride along", cs.scanWords({ ...facts, game: "yugioh", tags: ["Ultra Rare", "1st Edition"] }), (s) => s.includes("(Ultra Rare, 1st Edition)") && s.includes("set code and the rarity"));
+const storyPageSrc = read("src/app/cards/[game]/[set]/[card]/page.tsx");
+check("the card page prints the sell line, the range and the scan angle", [/sellWords\(/.test(storyPageSrc), /rangeWords\(/.test(storyPageSrc), /scanWords\(/.test(storyPageSrc)], [true, true, true]);
+check("the range's ends go through the guard's old-side check", /old: \{ back, value: end\.price \}/.test(serverSrc), true);
+
 console.log(`\ncard pages: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

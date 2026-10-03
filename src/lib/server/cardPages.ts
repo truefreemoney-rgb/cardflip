@@ -28,6 +28,7 @@ import {
   type SeriesInput,
   type SetEntry,
 } from "@/lib/cardPages";
+import { historyRange, type HistoryRange } from "@/lib/cardStory";
 import type { Series } from "@/components/PriceHistoryChart";
 import type { GameId } from "@/lib/types";
 
@@ -291,9 +292,11 @@ export interface CardPage extends CardView {
   trackingSince: string | null;
   /** "Up 12.3% over the last 30 days" lines, the guard-checked ones only. */
   changes: string[];
+  /** The headline series' high and low for the range sentence; null under two points or when the guard doubts either end. */
+  range: HistoryRange | null;
 }
 
-const NO_PRICE: Pick<CardPage, "prices" | "headline" | "chart" | "trackingSince" | "changes"> = { prices: [], headline: null, chart: null, trackingSince: null, changes: [] };
+const NO_PRICE: Pick<CardPage, "prices" | "headline" | "chart" | "trackingSince" | "changes" | "range"> = { prices: [], headline: null, chart: null, trackingSince: null, changes: [], range: null };
 
 /** The price side of a card page: fresh printings with the guard's verdicts, the change words, the chart. Fails closed: a guard error prints no price. */
 export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise<CardPage> {
@@ -332,7 +335,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   const prices = variantPrices(facts.game, inputs, today);
   const headline = headlinePrice(prices);
   const decision = indexDecision(prices);
-  if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [] };
+  if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
   const line = series.find((s) => s.variant === headline.variant);
   const points = line ? toPoints(line) : [];
@@ -346,7 +349,17 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
     changes.push(changeWords(c.pct, days));
   }
   const chart: Series[] | null = points.length >= CHART_MIN_POINTS ? [{ variant: headline.variant, source: "tcgplayer", currency: "USD", points }] : null;
-  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes };
+  // The range sentence (10-02): its high and low go through the same old-side check as the change words, so a junk spike
+  // the guard would not print as a price is never printed as "the high" either; one doubted end drops the sentence.
+  let range = historyRange(points);
+  for (const end of range ? [range.high, range.low] : []) {
+    const back = dayIndex(end.day, headline.day);
+    if (back > 0 && judgeSeries(data, { variant: headline.variant, exact: true, day: headline.day, old: { back, value: end.price } })) {
+      range = null;
+      break;
+    }
+  }
+  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes, range };
 }
 
 // ---------------------------------------------------------------------------
