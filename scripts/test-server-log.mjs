@@ -73,6 +73,12 @@ console.error("a"); console.error("b"); console.error("c");
 await settle();
 check("burst of three adds three rows", (await listRecentErrors()).length, before + 3);
 
+// Node's own boot warnings are not ours — skipped, not logged
+console.error("(node:4) ExperimentalWarning: vm.USE_MAIN_CONTEXT_DEFAULT_LOADER is an experimental feature\n(Use `node --trace-warnings ...` to show where the warning was created)");
+console.warn("(node:12) DeprecationWarning: punycode is deprecated");
+await settle();
+check("Node process warnings are skipped", (await listRecentErrors()).length, before + 3);
+
 // --- ring buffer -------------------------------------------------------------
 const now = Date.now();
 const insert = db.prepare(

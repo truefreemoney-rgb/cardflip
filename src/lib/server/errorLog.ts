@@ -63,6 +63,7 @@ export async function reportServerError(
 
 /** Writes allowed in flight at once — a log storm must not pile up Turso calls. */
 const MAX_IN_FLIGHT = 8;
+const NODE_WARNING = /^\(node:\d+\) /;
 
 /**
  * Route console.warn / console.error through the log. Idempotent (HMR,
@@ -84,6 +85,9 @@ export function captureConsole(): void {
       try {
         const firstErr = args.find((a): a is Error => a instanceof Error);
         const text = format(...args).slice(0, 1000);
+        // Node's own process warnings ("(node:4) ExperimentalWarning: vm...")
+        // fire on every cold start and are not ours to fix — skip them.
+        if (NODE_WARNING.test(text)) return;
         // Carry the stack when one was logged; the message is the whole line.
         const payload = firstErr ? Object.assign(new Error(text), { stack: firstErr.stack }) : text;
         inFlight++;
