@@ -143,7 +143,9 @@ async function readAll(): Promise<{ rows: EbayLimitRow[]; note: string | null }>
     else {
       const raw = await fetchUserRateLimits(token);
       seller = summarizeRateLimits(raw).map((r) => ({ ...r, api: `${r.api}${SELLER_SUFFIX}` }));
-      if (seller.length === 0) sellerNote = `Per-seller limits: eBay listed ${listed(raw) || "nothing"}.`;
+      // 10-03 on prod: the seller table came back with Trading, Catalog, document, identity, Analytics and Marketing
+      // only; eBay publishes no Inventory or Finances figure for a seller here, so the tile says so instead of hiding it.
+      if (seller.length === 0) sellerNote = `eBay publishes no per-seller Inventory or Finances figures for this account (it listed only: ${listed(raw) || "nothing"}).`;
     }
   } catch (err) {
     sellerNote = `Per-seller limits unavailable: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200);
