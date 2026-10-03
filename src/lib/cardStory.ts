@@ -42,7 +42,7 @@ export function sellMath(market: number): SellMath {
 }
 
 export interface SellWords {
-  /** The short answer: "Yes.", "Yes, just.", "Not on its own." */
+  /** The short answer: always "Yes." (Chris 10-02: no "Not on its own" / "Yes, just" for cheap cards). */
   verdict: string;
   /** The math in plain English. */
   detail: string;
@@ -54,10 +54,10 @@ export function sellWords(name: string, market: number): SellWords | null {
   const m = sellMath(market);
   const base = `A Near Mint copy of ${name} is worth about ${formatMoney(m.market)} today. The eBay Suggested Price is ${formatMoney(m.ask)}; after eBay's fees and ${formatMoney(m.postage)} postage you would keep about ${formatMoney(m.net)}.`;
   if (m.covers === "all") {
-    return { verdict: "Not on its own.", detail: `${base} That is the card's value and nothing more: the asking price only carries the selling costs.` };
+    return { verdict: "Yes.", detail: `${base} The asking price carries the selling costs, so the sale returns the card's full value.` };
   }
   if (m.covers === "part") {
-    return { verdict: "Yes, just.", detail: `${base} Part of the selling costs ride on top of the value at this price, so the sale clears a little under the card's full worth.` };
+    return { verdict: "Yes.", detail: `${base} Part of the selling costs ride on top of the value at this price.` };
   }
   const share = Math.round((m.net / m.market) * 100);
   return { verdict: "Yes.", detail: `${base} That is ${share}% of the market price.` };
@@ -104,19 +104,22 @@ export function rangeWords(range: HistoryRange, current: { price: number; day: s
 // The scan angle: what the scanner reads off this card.
 
 const SCAN_MARKS: Record<GameId, string> = {
-  pokemon: "the card number and the set symbol",
-  mtg: "the collector number, the set code and the finish (a foil reads off the shine)",
-  yugioh: "the set code and the rarity",
+  pokemon: "the card number and set symbol",
+  mtg: "the collector number, set code and finish",
+  yugioh: "the set code and rarity",
   onepiece: "the card code",
-  lorcana: "the card number and the set",
+  lorcana: "the card number and set",
 };
 
-/** One paragraph on scanning this exact card with CardFlip; the facts come from the catalog row. */
+/** The heading over scanWords: "Have a Charizard?" */
+export const scanHeading = (name: string): string => `Have a ${name}?`;
+
+/** One paragraph on scanning this exact card with CardFlip (reworded 10-02, Chris hated "Point your phone at…"); the facts come from the catalog row. */
 export function scanWords(f: Pick<CardFacts, "game" | "name" | "number" | "setName" | "tags">): string {
   const printing = f.tags.length ? ` (${f.tags.join(", ")})` : "";
   return (
-    `Point your phone at ${f.name} in the CardFlip app and the scanner reads ${SCAN_MARKS[f.game]} off the photo, ` +
-    `matches it to ${f.name} ${f.number} in ${f.setName}${printing}, and shows today's market price with an eBay Suggested Price for the copy in your hand. ` +
-    `${SCANS.trial} scans are free to start.`
+    `Scan it with CardFlip and get today's market price and an eBay Suggested Price for your copy in seconds. ` +
+    `The scanner reads ${SCAN_MARKS[f.game]} off the card, so it picks out ${f.name} ${f.number}, ${f.setName}${printing}, from every other printing. ` +
+    `Your first ${SCANS.trial} scans are free.`
   );
 }

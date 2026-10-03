@@ -23,7 +23,7 @@ import {
   type CardFacts,
 } from "@/lib/cardPages";
 import { STRIP_TILES, loadCardPage, loadCardRecord, publicCardGame, setIndex, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
-import { rangeWords, scanWords, sellWords } from "@/lib/cardStory";
+import { rangeWords, scanHeading, scanWords, sellWords } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
@@ -223,7 +223,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         <SellStory f={f} page={page} />
 
         <section className="mt-10">
-          <h2 className="font-display text-2xl font-semibold text-white">Scan {f.name} with your phone</h2>
+          <h2 className="font-display text-2xl font-semibold text-white">{scanHeading(f.name)}</h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">{scanWords(f)}</p>
         </section>
 
