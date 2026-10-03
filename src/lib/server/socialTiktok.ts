@@ -1,6 +1,6 @@
 import "server-only";
 import { addDays } from "@/lib/priceSeries";
-import { GENERAL_TAGS, MAX_TAGS } from "@/lib/socialPlan";
+import { GENERAL_TAGS } from "@/lib/socialPlan";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
@@ -109,7 +109,7 @@ export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: L
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
   return {
     title: applied.title,
-    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
+    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
   };
 }
 
@@ -134,14 +134,18 @@ export function tiktokLead(caption: string): string {
 }
 
 /**
- * TikTok shows five hashtags and more reads as spam (10-01): the post's own,
- * game tags first, then the general ones (#TCG #TradingCards #CardCollector)
- * for whatever room is left, never past MAX_TAGS.
+ * TikTok takes seven hashtags (10-02 test: the 7pm all-games post with the five
+ * game tags + #TCG #TradingCards outran every five-tag post within three hours,
+ * Chris: "that last post did really well"). The post's own game tags first,
+ * then the general ones (#TCG #TradingCards #CardCollector) for the room left.
+ * Other sites keep MAX_TAGS (Instagram stops at five).
  */
+export const TIKTOK_MAX_TAGS = 7;
+
 export function tiktokTags(tags: readonly string[]): string[] {
   const out: string[] = [];
   for (const t of [...tags, ...GENERAL_TAGS]) if (!out.includes(t)) out.push(t);
-  return out.slice(0, MAX_TAGS);
+  return out.slice(0, TIKTOK_MAX_TAGS);
 }
 
 /** The movers row the other sites post at 1:05pm (settings social_video:pokemon:movers:<day>), if the render has made it. Raw: made under any plan. */
