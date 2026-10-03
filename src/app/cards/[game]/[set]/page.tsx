@@ -5,7 +5,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
-import { gamePath, gameTitle, INDEX_FLOOR_USD, setPath, type SetEntry } from "@/lib/cardPages";
+import { gamePath, gameTitle, indexFloorUsd, setPath, type SetEntry } from "@/lib/cardPages";
 import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
@@ -40,7 +40,7 @@ const load = cache(async (gameSlug: string, setSlug: string): Promise<Loaded | n
   const found = await setBySlug(game, setSlug);
   if (!found) return null;
   const all = await loadSetCards(game, found.set);
-  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => c.price != null && c.price >= INDEX_FLOOR_USD && !c.unverified) };
+  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified) };
 });
 
 export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set]">): Promise<Metadata> {
@@ -84,13 +84,13 @@ export default async function SetPage({ params }: PageProps<"/cards/[game]/[set]
         </h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           Market prices for {name} cards from {set.name}
-          {set.release ? `, released ${etDate(`${set.release}T12:00:00Z`)}` : ""}. Cards priced {formatMoney(INDEX_FLOOR_USD)} and up, most valuable first. A price
+          {set.release ? `, released ${etDate(`${set.release}T12:00:00Z`)}` : ""}. Cards priced {formatMoney(indexFloorUsd(game))} and up, most valuable first. A price
           that looks wrong is not shown.
         </p>
 
         {tiles.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-edge bg-surface-1 px-4 py-10 text-center text-sm text-zinc-400">
-            No card in this set has a current price of {formatMoney(INDEX_FLOOR_USD)} or more right now.
+            No card in this set has a current price of {formatMoney(indexFloorUsd(game))} or more right now.
           </p>
         ) : (
           <>

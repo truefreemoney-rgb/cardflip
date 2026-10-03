@@ -43,6 +43,14 @@ export const gameTitle = (game: GameId): string => (game === "pokemon" ? "Pokém
 
 /** A card is indexed (and listed in the sitemap) from this price up; cheaper pages still resolve, noindex and followed. */
 export const INDEX_FLOOR_USD = 5;
+/**
+ * The long-tail games (SEO, Chris 10-02): One Piece, Lorcana and Yu-Gi-Oh! card-name searches have thin competition (no
+ * Scryfall), so every card priced $1 and up has an indexed page there; Pokémon and Magic keep the $5 floor for now.
+ */
+export const LONG_TAIL_FLOOR_USD = 1;
+export const LONG_TAIL_GAMES: readonly GameId[] = ["onepiece", "lorcana", "yugioh"];
+/** The index floor of a game: $1 for the long-tail games, $5 otherwise. */
+export const indexFloorUsd = (game: GameId): number => (LONG_TAIL_GAMES.includes(game) ? LONG_TAIL_FLOOR_USD : INDEX_FLOOR_USD);
 /** A price whose last recorded day is older than this many days is not "current": not printed, not counted. */
 export const FRESH_DAYS = 7;
 /**
@@ -271,15 +279,15 @@ export interface IndexDecision {
 }
 
 /**
- * Index the page only when it shows a real price at or over the floor: some fresh
- * printing the guard believes is worth $5 or more. A page whose prices are all
+ * Index the page only when it shows a real price at or over the floor (indexFloorUsd:
+ * $5, $1 for the long-tail games): some fresh printing the guard believes is worth that much. A page whose prices are all
  * flagged, all stale or all under the floor still resolves (noindex, follow).
  */
-export function indexDecision(prices: VariantPrice[]): IndexDecision {
+export function indexDecision(prices: VariantPrice[], floor = INDEX_FLOOR_USD): IndexDecision {
   if (prices.length === 0) return { index: false, reason: "no-price" };
   const printable = prices.filter((p) => !p.flag);
   if (printable.length === 0) return { index: false, reason: "flagged" };
-  const floored = printable.filter((p) => p.price >= INDEX_FLOOR_USD);
+  const floored = printable.filter((p) => p.price >= floor);
   if (floored.length === 0) return { index: false, reason: "below-floor" };
   return floored.some((p) => !isUnverified(p)) ? { index: true, reason: "ok" } : { index: false, reason: "unverified" };
 }

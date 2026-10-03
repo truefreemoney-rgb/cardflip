@@ -144,6 +144,13 @@ check("a week-old price is stale", [cp.isFresh("2026-09-23", today), cp.isFresh(
 const prices5 = cp.variantPrices("pokemon", [fresh(5)], today);
 check("$5.00 is indexed", cp.indexDecision(prices5), { index: true, reason: "ok" });
 check("$4.99 is not", cp.indexDecision(cp.variantPrices("pokemon", [fresh(4.99)], today)), { index: false, reason: "below-floor" });
+// Long-tail games (10-02): $1 floor for One Piece, Lorcana and Yu-Gi-Oh!; Pokémon and Magic keep $5.
+check("long-tail floor is $1", [cp.LONG_TAIL_FLOOR_USD, cp.indexFloorUsd("onepiece"), cp.indexFloorUsd("lorcana"), cp.indexFloorUsd("yugioh")], [1, 1, 1, 1]);
+check("Pokémon and Magic keep the $5 floor", [cp.indexFloorUsd("pokemon"), cp.indexFloorUsd("mtg")], [5, 5]);
+check("a $1.00 Yu-Gi-Oh! card is indexed at its floor", cp.indexDecision(cp.variantPrices("yugioh", [fresh(1)], today), cp.indexFloorUsd("yugioh")), { index: true, reason: "ok" });
+check("a $0.99 one is not", cp.indexDecision(cp.variantPrices("yugioh", [fresh(0.99)], today), cp.indexFloorUsd("yugioh")), { index: false, reason: "below-floor" });
+check("the sitemap and the card loader use the per-game floor", [/indexFloorUsd\(game\)/.test(read("src/lib/server/cardSitemap.ts")), /indexDecision\(prices, indexFloorUsd\(facts\.game\)\)/.test(read("src/lib/server/cardPages.ts"))], [true, true]);
+check("no page names the flat floor any more", ["src/app/cards/page.tsx", "src/app/cards/[game]/page.tsx", "src/app/cards/[game]/[set]/page.tsx"].some((f) => /INDEX_FLOOR_USD/.test(read(f))), false);
 check("no price is not", cp.indexDecision([]), { index: false, reason: "no-price" });
 check("a stale price is dropped", cp.variantPrices("pokemon", [mk("holofoil", "2026-09-01", [50, 50])], today), []);
 const flagged = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "cardmarket 20x" })], today);

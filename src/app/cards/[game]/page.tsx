@@ -6,7 +6,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
-import { gamePath, gameTitle, INDEX_FLOOR_USD, setPath } from "@/lib/cardPages";
+import { gamePath, gameTitle, indexFloorUsd, setPath } from "@/lib/cardPages";
 import { gameTopTiles, publicCardGame, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
@@ -68,7 +68,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
         <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-5xl">{name} card prices</h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           Market prices for {name} cards, by set. Each card page has the price for the exact printing, how it has moved and the recorded
-          history. Sets list cards from {formatMoney(INDEX_FLOOR_USD)} up; a price that looks wrong is not shown.
+          history. Sets list cards from {formatMoney(indexFloorUsd(game))} up; a price that looks wrong is not shown.
         </p>
 
         {top.length > 0 && (
@@ -80,7 +80,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
 
         <section className="mt-10">
           <h2 className="font-display text-2xl font-semibold text-white">Sets</h2>
-          <p className="mt-1 text-sm text-zinc-500">Newest first. The count is cards priced {formatMoney(INDEX_FLOOR_USD)} and up.</p>
+          <p className="mt-1 text-sm text-zinc-500">Newest first. The count is cards priced {formatMoney(indexFloorUsd(game))} and up.</p>
           <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {sets.map((s) => (
               <li key={s.key}>

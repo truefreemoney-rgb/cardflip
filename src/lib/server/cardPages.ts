@@ -10,6 +10,7 @@ import {
   CHART_MIN_POINTS,
   FRESH_DAYS,
   INDEX_FLOOR_USD,
+  indexFloorUsd,
   changeOver,
   changeWords,
   displayNumber,
@@ -136,7 +137,7 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
            FROM tcg_cards WHERE game = ? AND image_url <> '' AND id NOT LIKE '%#%'
           GROUP BY set_code, set_name`,
       )
-      .all(INDEX_FLOOR_USD, INDEX_FLOOR_USD, game)) as unknown as SetRow[];
+      .all(indexFloorUsd(game), indexFloorUsd(game), game)) as unknown as SetRow[];
   }
   return rows
     .filter((r) => Number(r.n) > 0 && (r.name || r.code))
@@ -334,7 +335,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
 
   const prices = variantPrices(facts.game, inputs, today);
   const headline = headlinePrice(prices);
-  const decision = indexDecision(prices);
+  const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
   const line = series.find((s) => s.variant === headline.variant);
@@ -469,7 +470,7 @@ async function cachedTiles(key: string, build: () => Promise<Tile[]>): Promise<T
 /** The most valuable cards of one set the guard believes, for the strip on a card page. Built once a day per set. */
 export async function setTopTiles(game: GameId, set: SetEntry, setSlug: string): Promise<Tile[]> {
   return cachedTiles(`seo:settop:v1:${game}:${set.key}`, async () => {
-    const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= INDEX_FLOOR_USD && !c.unverified).slice(0, STRIP_TILES + 1);
+    const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified).slice(0, STRIP_TILES + 1);
     return cards.map((c) => ({ ...c, setSlug, setName: set.name }));
   });
 }

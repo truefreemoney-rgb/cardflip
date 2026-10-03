@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { helpArticles } from "@/lib/helpArticles";
 import { todayUtc } from "@/lib/priceSeries";
-import { INDEX_FLOOR_USD, SITEMAP_CHUNK, cardPath, gamePath, indexDecision, parseCardKey, setPath, slugify, variantPrices } from "@/lib/cardPages";
+import { SITEMAP_CHUNK, indexFloorUsd, cardPath, gamePath, indexDecision, parseCardKey, setPath, slugify, variantPrices } from "@/lib/cardPages";
 import { judgeSeries, loadTrustData } from "@/lib/server/priceTrustSite";
 import { staticEntries } from "@/lib/sitemapPages";
 import { sitemapChildren, type SitemapChild, type SitemapEntry } from "@/lib/sitemapXml";
@@ -33,20 +33,21 @@ const MTG_SKIPPED = "('token', 'memorabilia', 'minigame', 'alchemy')";
 
 /** The grouped select (one row per card) a game's files page through, with `head` as its column list. */
 function cardsSql(game: GameId, head: string): string {
+  const floor = indexFloorUsd(game);
   const series = "p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ?";
   if (game === "pokemon") {
     return `SELECT ${head} FROM en_cards c JOIN price_series p ON p.card_id = c.id
              WHERE p.game = 'pokemon' AND ${series} AND c.image_url <> '' AND c.id NOT GLOB '*[^A-Za-z0-9._-]*'
-             GROUP BY c.id HAVING MAX(json_extract(p.prices, '$[#-1]')) >= ${INDEX_FLOOR_USD}`;
+             GROUP BY c.id HAVING MAX(json_extract(p.prices, '$[#-1]')) >= ${floor}`;
   }
   if (game === "mtg") {
     return `SELECT ${head} FROM mtg_cards c JOIN mtg_sets s ON s.code = c.set_code JOIN price_series p ON p.card_id = c.id AND ${series}
-             WHERE (c.price_usd >= ${INDEX_FLOOR_USD} OR c.price_usd_foil >= ${INDEX_FLOOR_USD} OR c.price_usd_etched >= ${INDEX_FLOOR_USD})
+             WHERE (c.price_usd >= ${floor} OR c.price_usd_foil >= ${floor} OR c.price_usd_etched >= ${floor})
                AND c.image_url <> '' AND c.lang = 'en' AND s.set_type NOT IN ${MTG_SKIPPED}
              GROUP BY c.id`;
   }
   return `SELECT ${head} FROM tcg_cards c JOIN price_series p ON p.card_id = c.id AND ${series}
-           WHERE c.game = '${game}' AND (c.price_usd >= ${INDEX_FLOOR_USD} OR c.price_usd_foil >= ${INDEX_FLOOR_USD})
+           WHERE c.game = '${game}' AND (c.price_usd >= ${floor} OR c.price_usd_foil >= ${floor})
              AND c.image_url <> '' AND c.id NOT LIKE '%#%'
            GROUP BY c.id`;
 }
@@ -77,7 +78,7 @@ async function indexedIds(game: GameId, ids: string[], today: string): Promise<S
       const data = trust.get(id);
       if (!data) continue;
       const inputs = data.series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) }));
-      if (indexDecision(variantPrices(game, inputs, today)).index) ok.add(id);
+      if (indexDecision(variantPrices(game, inputs, today), indexFloorUsd(game)).index) ok.add(id);
     }
     return ok;
   } catch (err) {
