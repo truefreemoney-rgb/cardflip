@@ -91,9 +91,11 @@ export interface EbayLimitsReport {
   at: number | null;
   stale: boolean;
   error: string | null;
+  /** Why the per-seller half (or the app half) is missing, when it is; shown on the tile so the cause is never only in a log. */
+  note: string | null;
 }
 
-const KEY = "ebay:rate-limits:v2";
+const KEY = "ebay:rate-limits:v3";
 const TTL_MS = 10 * 60 * 1000;
 
 export async function fetchRateLimits(): Promise<RawRateLimits> {
@@ -124,29 +126,40 @@ export async function fetchUserRateLimits(userToken: string): Promise<RawRateLim
 
 export const SELLER_SUFFIX = " (per seller)";
 
-async function readAll(): Promise<EbayLimitRow[]> {
-  const app = summarizeRateLimits(await fetchRateLimits());
+/** What eBay listed, for the tile's note when none of it matched the names we watch. */
+const listed = (json: RawRateLimits): string => (json.rateLimits ?? []).map((a) => `${a.apiContext ?? "?"}/${a.apiName ?? "?"}`).join(", ");
+
+async function readAll(): Promise<{ rows: EbayLimitRow[]; note: string | null }> {
+  const appRaw = await fetchRateLimits();
+  const app = summarizeRateLimits(appRaw);
   let seller: EbayLimitRow[] = [];
+  let sellerNote: string | null = null;
   try {
     const { findUserByEmail, OWNER_EMAIL } = await import("@/lib/server/users");
     const { getUserAccessToken } = await import("@/lib/server/ebayAuth");
     const owner = await findUserByEmail(OWNER_EMAIL);
     const token = owner ? await getUserAccessToken(owner.id) : null;
-    if (token) seller = summarizeRateLimits(await fetchUserRateLimits(token)).map((r) => ({ ...r, api: `${r.api}${SELLER_SUFFIX}` }));
+    if (!token) sellerNote = "Per-seller limits: the owner's eBay connection is not available.";
+    else {
+      const raw = await fetchUserRateLimits(token);
+      seller = summarizeRateLimits(raw).map((r) => ({ ...r, api: `${r.api}${SELLER_SUFFIX}` }));
+      if (seller.length === 0) sellerNote = `Per-seller limits: eBay listed ${listed(raw) || "nothing"}.`;
+    }
   } catch (err) {
-    console.warn("eBay user rate limits unavailable:", err instanceof Error ? err.message : err);
+    sellerNote = `Per-seller limits unavailable: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200);
   }
+  if (app.length === 0) sellerNote = `${sellerNote ?? ""} App limits: eBay listed ${listed(appRaw) || "nothing"}.`.trim();
   // Seller-token APIs first (they are the ones a busy site spends), then the app's own.
-  return [...seller, ...app.filter((a) => !seller.some((s) => s.api === `${a.api}${SELLER_SUFFIX}`))];
+  return { rows: [...seller, ...app.filter((a) => !seller.some((s) => s.api === `${a.api}${SELLER_SUFFIX}`))], note: sellerNote };
 }
 
 /** Memoed ten minutes; a fetch that fails answers with the error and an empty table, never a blank page. */
 export async function ebayRateLimits(now = Date.now()): Promise<EbayLimitsReport> {
-  if (!process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET) return { rows: [], at: null, stale: false, error: "eBay keys are not configured here" };
+  if (!process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET) return { rows: [], at: null, stale: false, error: "eBay keys are not configured here", note: null };
   try {
-    const value = await cachedList<{ rows: EbayLimitRow[]; at: number }>(KEY, TTL_MS, async () => ({ rows: await readAll(), at: Date.now() }), now);
-    return { rows: value.rows, at: value.at, stale: now - value.at > TTL_MS, error: null };
+    const value = await cachedList<{ rows: EbayLimitRow[]; note: string | null; at: number }>(KEY, TTL_MS, async () => ({ ...(await readAll()), at: Date.now() }), now);
+    return { rows: value.rows, at: value.at, stale: now - value.at > TTL_MS, error: null, note: value.note ?? null };
   } catch (err) {
-    return { rows: [], at: null, stale: false, error: err instanceof Error ? err.message : String(err) };
+    return { rows: [], at: null, stale: false, error: err instanceof Error ? err.message : String(err), note: null };
   }
 }

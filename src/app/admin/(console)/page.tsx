@@ -290,6 +290,7 @@ export default async function AdminOverviewPage() {
                 : ""}
             {ebayLimits.at ? ` Read ${ago(ebayLimits.at, now)}.` : ""}
           </p>
+          {ebayLimits.note && <p className="mt-1 text-[11px] text-amber-300/80">{ebayLimits.note}</p>}
         </Tile>
       </div>
     </section>
