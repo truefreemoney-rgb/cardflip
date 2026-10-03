@@ -60,7 +60,12 @@ await Promise.all(Array.from({ length: 24 }, async () => {
 }));
 fs.writeFileSync(out, JSON.stringify(dead, null, 1));
 // The links alone, committed: sync-yugioh.mjs and repoint-dead-pictures.mjs read it.
-fs.writeFileSync(path.join(process.cwd(), "scripts", `dead-pictures-${game}.json`), JSON.stringify([...new Set(dead.map((d) => d.image_url))].sort(), null, 0));
+// MERGE, never overwrite (10-03): rows already repointed no longer carry their dead
+// link, so a re-sweep only sees the still-dead ones; sync re-inserts every TCGplayer
+// link and needs the whole history to re-apply the stand-ins.
+const deadFile = path.join(process.cwd(), "scripts", `dead-pictures-${game}.json`);
+const known = fs.existsSync(deadFile) ? JSON.parse(fs.readFileSync(deadFile, "utf8")) : [];
+fs.writeFileSync(deadFile, JSON.stringify([...new Set([...known, ...dead.map((d) => d.image_url)])].sort(), null, 0));
 const byStatus = {};
 for (const d of dead) byStatus[d.status] = (byStatus[d.status] ?? 0) + 1;
 console.log(`${dead.length} rows with a dead link (${Object.entries(byStatus).map(([k, v]) => `${k}: ${v}`).join(", ") || "none"}) -> ${out}`);
