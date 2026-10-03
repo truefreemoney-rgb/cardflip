@@ -322,6 +322,14 @@ export default function Uploader({ onFiles, onOpenCamera, onPageFiles, pageError
           </Link>
         </div>
 
+        {/* One quiet line to the full feature list (Chris 10-03): the scanner is the first screen on every open, and
+            the phone header has no room for the word. Gone with the uploader once a scan is on screen. */}
+        <p className="text-center text-[11px] text-zinc-500">
+          New here?{" "}
+          <Link href="/features" className="font-medium text-zinc-300 transition hover:text-white">
+            See everything CardFlip does →
+          </Link>
+        </p>
         {/* Drag and drop only exists with a mouse. */}
         <p className="hidden text-center text-[11px] text-zinc-600 [@media(pointer:fine)]:block">
           Or drop photos anywhere here · JPG, PNG, HEIC · a whole stack at once is fine

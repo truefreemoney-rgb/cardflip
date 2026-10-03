@@ -103,11 +103,7 @@ export default function AppHeader() {
               }`}
             />
           )}
-          {/* Everything CardFlip does, one tap from the app (Chris 10-03: "get it in the top nav"). Phones reach it
-              from Account and the help page: the first row there is already full (logo · Help · scans · eBay). */}
-          <Link href="/features" className="hidden py-2 text-xs text-zinc-500 transition hover:text-zinc-300 sm:block">
-            Features
-          </Link>
+          {/* Features lives in the gear menu (AppTabs) on every size, 10-03. */}
           <button
             onClick={async () => {
               await logout();
