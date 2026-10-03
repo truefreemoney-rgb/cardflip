@@ -194,8 +194,10 @@ export default async function Home() {
   // (lib/server/priceTrustSite.ts) is dropped BEFORE the pick, exactly as the stage strip does. Fails open.
   const guarded = await withPriceFlags([...(featuredLive ? [featuredLive] : []), ...showcaseLive]).catch(() => [...(featuredLive ? [featuredLive] : []), ...showcaseLive]);
   const priceOk = (c: PokemonCard) => !c.prices.some((p) => p.untrusted);
-  const featured = featuredLive && priceOk(guarded[0]) ? featuredLive : null;
   const showcase = showcaseLive.filter((_, i) => priceOk(guarded[(featuredLive ? 1 : 0) + i]));
+  // The hero, the variants tile, the listing step and the price history all hang off `featured`: when the pick is
+  // flagged or the lookup fails, the dearest wall card stands in instead of four blanks (Chris 10-02: "it's blank?").
+  const featured = featuredLive && priceOk(guarded[0]) ? featuredLive : (showcase[0] ?? null);
 
   const heroCard = featured ?? showcase[0] ?? null;
   // The hero picture is the page's LCP: open the connection to its host while the HTML is still parsing.
