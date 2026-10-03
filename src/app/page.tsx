@@ -509,9 +509,17 @@ export default async function Home() {
               {history.length >= 2 && featured ? (
                 // The same chart the card pages draw (range pills, labelled ends), compact, in the tile.
                 <div className="mt-4 flex flex-1 flex-col justify-end">
-                  <p className="truncate text-xs text-zinc-500">
-                    {featured.name} · {featured.setName}
-                  </p>
+                  {/* The card the chart and the four stats belong to (Chris 10-02: feature the name so that is obvious). */}
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/50 shadow-md shadow-black/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={featured.imageSmall || featured.imageLarge} alt="" aria-hidden width={245} height={342} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-display text-base font-semibold text-white">{featured.name}</p>
+                      <p className="truncate text-xs text-zinc-400">{featured.setName}</p>
+                    </div>
+                  </div>
                   <div className="mt-2">
                     <PriceHistoryChart cardId={featured.id} initialSeries={chartSeries} preferVariant={market?.price.variant ?? null} compact className="text-left" />
                   </div>
