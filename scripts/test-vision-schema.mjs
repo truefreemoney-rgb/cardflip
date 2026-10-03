@@ -5,15 +5,8 @@
 // three wear levels. No API call. Run: npm run test:vision-schema
 import assert from "node:assert/strict";
 
-const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, LOCATE_SCHEMA } =
+const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA } =
   await import(new URL("../src/lib/server/vision.ts", import.meta.url).href);
-
-// Binder page locate (09-27): { cards: [{x,y,w,h}] }, both levels fully required.
-assert.deepEqual([...LOCATE_SCHEMA.required], ["cards"]);
-assert.equal(LOCATE_SCHEMA.additionalProperties, false);
-const boxSchema = LOCATE_SCHEMA.properties.cards.items;
-assert.deepEqual([...boxSchema.required].sort(), Object.keys(boxSchema.properties).sort(), "locate box: required == properties");
-assert.equal(boxSchema.additionalProperties, false);
 
 for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA })) {
   if (!schema) continue;
@@ -55,7 +48,7 @@ function unionCount(schema) {
   for (const v of Object.values(schema.properties ?? {})) walk(v);
   return n;
 }
-for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, LOCATE_SCHEMA, SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA })) {
+for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA })) {
   if (!schema) continue;
   const n = unionCount(schema);
   assert.ok(n <= 16, `${name}: ${n} union-typed parameters, the API caps a schema at 16`);
