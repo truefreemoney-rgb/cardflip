@@ -1,4 +1,4 @@
-﻿# CardFlip Board
+# CardFlip Board
 
 The one organised list. Ask "list categories" and this is what gets read.
 Every task is one line; detail and history live in BACKLOG.md. Rules:
@@ -44,6 +44,7 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Claude] RUNNER UPGRADE 3 — check the merged result: runner rebases onto main right before opening the PR; the board's Merge button refuses until CI is green on that rebased head (a green PR still broke main after merge, 09-09). ~1 day.
 - [ ] [Claude] RUNNER UPGRADE 7 — the runner cannot see Chris's photos (its cloud box blocks the Vercel Blob host; run #19 read the task from the text alone). Fix: the Run button copies each photo into the repo on a board-assets branch; the runner fetches that branch and reads the file. ~1h.
 - [ ] [Claude] RUNNER UPGRADE 6 — self-review step before the PR: re-read the issue + the diff and answer "does this do what was asked, on a phone, in the site's style". Prompt change. ~30 min.
+- [ ] [Claude] DEAD CODE: delete the vision card-locator left behind by the upload removal (Chris 10-03). lib/server/vision locateCards and anything only it used have no caller since c199c24; remove, npm test + tsc, confirm the scanner still reads on prod. Not customer-visible.
 
 ## Prove on prod — built, not yet seen live
 
