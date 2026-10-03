@@ -75,6 +75,9 @@ function ptcgioCandidates(card) {
 // https://tcgcsv.com/tcgplayer/3/groups). Trainer-kit groups hold both
 // half-decks, so numbers repeat and the name settles it.
 const TCGCSV_GROUPS = {
+  // 2014 / 2015: pokemontcg.io dropped its mcd14 / mcd15 scans (sweep 10-03, 24 rows 404).
+  "McDonald's Collection 2014": [1692],
+  "McDonald's Collection 2015": [1694],
   "McDonald's Collection 2016": [3087],
   "McDonald's Collection 2017": [2148],
   "McDonald's Collection 2018": [2364],
@@ -136,7 +139,7 @@ async function groupProducts(groupId) {
 const normNum = (n) => String(n ?? "").split("/")[0].trim().replace(/^([A-Za-z]*)0+(?=\d)/, "$1").toLowerCase();
 // "Pokémon Collector" = "Pokemon Collector (#22)", "Umbreon ☆" = "Umbreon Star",
 // "Grass Energy" = "Basic Grass Energy", "Hau (#19) (Lycanroc Half-Deck)" = "Hau" (10-01).
-const normName = (n) => String(n ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/☆/g, " star").replace(/\s*[-–]\s*\d+\s*$/, "").replace(/(\s*\([^)]*\))+\s*$/, "").replace(/^basic\s+/i, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const normName = (n) => String(n ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/☆/g, " star").replace(/\s*[-–]\s*\d+(?:\/\d+)?\s*$/, "").replace(/(\s*\([^)]*\))+\s*$/, "").replace(/^basic\s+/i, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 async function tcgcsvCandidates(card) {
   const groups = TCGCSV_GROUPS[card.set_name];
   if (!groups) return [];

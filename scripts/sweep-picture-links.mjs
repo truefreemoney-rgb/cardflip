@@ -15,7 +15,12 @@ const arg = (name, fallback) => (process.argv.includes(name) ? process.argv[proc
 const game = arg("--game", "yugioh");
 const out = arg("--out", path.join(process.cwd(), "backups", `dead-picture-links-${game}.json`));
 const local = createClient({ url: "file:data/cardflip.db" });
-const rows = (await local.execute({ sql: "SELECT id, name, set_code, collector_number, image_url FROM tcg_cards WHERE game = ? AND COALESCE(image_url, '') <> ''", args: [game] })).rows;
+// Pokémon and Magic live in their own tables (10-03); every other game is a tcg_cards game.
+const OWN_TABLE = { pokemon: "en_cards", mtg: "mtg_cards" };
+const rows = (OWN_TABLE[game]
+  ? await local.execute(`SELECT id, name, '' AS set_code, '' AS collector_number, image_url FROM ${OWN_TABLE[game]} WHERE COALESCE(image_url, '') <> ''`)
+  : await local.execute({ sql: "SELECT id, name, set_code, collector_number, image_url FROM tcg_cards WHERE game = ? AND COALESCE(image_url, '') <> ''", args: [game] })
+).rows;
 const byUrl = new Map();
 for (const r of rows) {
   if (!byUrl.has(r.image_url)) byUrl.set(r.image_url, []);
@@ -23,11 +28,15 @@ for (const r of rows) {
 }
 console.log(`${game}: ${rows.length} rows, ${byUrl.size} distinct links`);
 
+// Scryfall answers 400 to a library-default User-Agent (10-03: a bare sweep called
+// all 98k Magic links dead) and asks for <= 10 requests a second.
+const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io; support@cardflip.io)", Accept: "image/*,*/*;q=0.8" };
+const CONCURRENCY = game === "mtg" ? 6 : 24;
 async function status(url) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      let res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(15000) });
-      if (res.status === 405 || res.status === 501) res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      let res = await fetch(url, { method: "HEAD", headers: HEADERS, signal: AbortSignal.timeout(15000) });
+      if (res.status === 405 || res.status === 501) res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(15000) });
       if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); continue; }
       const type = res.headers.get("content-type") ?? "";
       // optcgapi serves TCGplayer's "image not available" drawing (an SVG, 31 KB)
@@ -50,7 +59,7 @@ const urls = [...byUrl.keys()];
 const dead = [];
 let next = 0;
 let checked = 0;
-await Promise.all(Array.from({ length: 24 }, async () => {
+await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
   while (next < urls.length) {
     const url = urls[next++];
     const s = await status(url);
