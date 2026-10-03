@@ -9,8 +9,10 @@
 //   node scripts/repoint-dead-pictures.mjs --prod
 //
 // Left out on purpose (only a Japanese or a different English print exists there, checked 10-01;
-// Chris: "wait for english"): the Beyond the Brave tokens Aster / Gong Strong / Kalin / Nash / Joey,
-// Audhumla, Clown Crew Cappello. Add them here once Yugipedia has the BETB English scans.
+// Chris: "wait for english"): the Beyond the Brave tokens Aster / Gong Strong / Kalin / Nash
+// (Joey found 10-03 via its Legendary Decks II print), Audhumla (SAMPLE stamp everywhere incl.
+// Konami's DB, 10-03), Clown Crew Cappello (Japanese only). Add them once an English scan exists;
+// English release is 2026-10-09.
 // Fairy Tale Tails (UP01): the only English scan is the Ghosts From the Past print, which carries
 // the card's OLD printed name, "Fairy Tail Tales". Not a stand-in for a row named the new way.
 import fs from "node:fs";
@@ -47,6 +49,9 @@ const PICTURES = {
   "Token: Yusei & Junk Warrior": T("YuseiandJunkWarrior"),
   'Token: Yuto and "Dark Rebellion Xyz Dragon"': T("YutoandDarkRebellionXyzDragon"),
   "Token: Yuya & Performapal Show Down": T("YuyaandPerformapalShowDown"),
+  // 10-03: Yugipedia has no TKN5 English scan of the Beyond the Brave Joey token yet, but the
+  // same token (same page, same art) was printed in English in Legendary Decks II (LDK2-ENT03).
+  "Token: Joey and Red-Eyes Black Dragon": "Token-LDK2-EN-UR-LE-JoeyandRedEyesBlackDragon.png",
 };
 
 const own = JSON.parse(fs.readFileSync(MAP, "utf8"));
