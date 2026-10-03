@@ -112,6 +112,7 @@ export const HELP_LINKS: Record<string, string> = {
   "/app/wishlist": "Watchlist",
   "/app/account": "Account",
   "/help": "Help articles",
+  "/features": "Features",
   "/pricing": "Pricing",
 };
 

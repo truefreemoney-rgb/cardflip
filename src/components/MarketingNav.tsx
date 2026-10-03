@@ -51,6 +51,9 @@ export default function MarketingNav() {
           <Link href="/#how-it-works" className={`${link} hidden sm:inline-block`}>
             How It Works
           </Link>
+          <Link href="/features" className={`${link} hidden sm:inline-block`}>
+            Features
+          </Link>
           {/* Phones keep the short row (Pricing / Log In / Get Started); Card Prices is in the footer there. */}
           <Link href="/cards" className={`${link} hidden sm:inline-block`}>
             Card Prices

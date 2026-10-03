@@ -1091,6 +1091,15 @@ function AccountSettings({
           }
         />
         <Row
+          title="Features"
+          status="Everything CardFlip does, on one page, with a link into each screen."
+          action={
+            <Link href="/features" className={rowBtn}>
+              Open
+            </Link>
+          }
+        />
+        <Row
           title="Help center"
           status="Short articles on how every part of CardFlip works."
           action={

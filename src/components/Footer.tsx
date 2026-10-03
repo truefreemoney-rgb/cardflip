@@ -13,6 +13,9 @@ export default function Footer() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 text-xs text-zinc-600 sm:flex-row">
         <span>© {new Date().getFullYear()} CardFlip</span>
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-0.5">
+          <Link href="/features" className="py-1.5 transition hover:text-zinc-300">
+            Features
+          </Link>
           <Link href="/pricing" className="py-1.5 transition hover:text-zinc-300">
             Pricing
           </Link>

@@ -235,7 +235,7 @@ check("a full chunk is one valid file", sx.urlsetXml(Array.from({ length: cp.SIT
 const stat = sp.staticEntries(helpArticles.map((a) => a.id));
 const statPaths = stat.map((e) => e.path);
 check("static pages: no /login, no private pages", statPaths.some((p) => p === "/login" || p.startsWith("/app") || p.startsWith("/admin") || p === "/reset-password"), false);
-check("static pages: home, pricing, cards, signup, terms, privacy", ["/", "/pricing", "/help", "/cards", "/signup", "/terms", "/privacy"].every((p) => statPaths.includes(p)), true);
+check("static pages: home, features, pricing, cards, signup, terms, privacy", ["/", "/features", "/pricing", "/help", "/cards", "/signup", "/terms", "/privacy"].every((p) => statPaths.includes(p)), true);
 check("static pages: every help article has a URL", helpArticles.every((a) => statPaths.includes(`/help/${a.id}`)), true);
 check("static pages: no duplicates", new Set(statPaths).size, statPaths.length);
 

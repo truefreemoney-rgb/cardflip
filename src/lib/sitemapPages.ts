@@ -8,6 +8,7 @@ import type { SitemapEntry } from "@/lib/sitemapXml";
  */
 export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", lastmod: "2026-09-30" },
+  { path: "/features", lastmod: "2026-10-03" },
   { path: "/pricing", lastmod: "2026-09-04" },
   { path: "/help", lastmod: "2026-09-30" },
   { path: "/cards", lastmod: "2026-09-30" },

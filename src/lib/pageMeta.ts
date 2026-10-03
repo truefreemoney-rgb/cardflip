@@ -23,6 +23,12 @@ export const PUBLIC_META = {
     path: "/pricing",
     ogTitle: `CardFlip pricing — ${PRICE_LINE.standard}, or a ${PRICE.pack} Scan Pack`,
   }),
+  features: pageMetadata({
+    title: "Features",
+    description: "Everything CardFlip does: scan five games, price the exact printing, track your collection, and list on your own eBay in one tap.",
+    path: "/features",
+    ogTitle: "Everything CardFlip does",
+  }),
   help: pageMetadata({
     title: "Help",
     description: "How CardFlip works — scanning, pricing, eBay listings, offers, and your account.",

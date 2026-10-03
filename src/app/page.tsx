@@ -470,6 +470,12 @@ export default async function Home() {
               </div>
             ))}
           </div>
+          {/* The full list lives on /features (10-02: the homepage keeps its one promise; the curious get one tap more). */}
+          <div className="mt-5 flex justify-center">
+            <Link href="/features" className="rounded-full border border-edge px-8 py-3.5 text-center text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2">
+              See Everything CardFlip Does
+            </Link>
+          </div>
         </section>
 
         {/* ============================ Games ============================== */}
