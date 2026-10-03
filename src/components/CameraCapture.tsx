@@ -463,7 +463,37 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             {captured > 0 ? "Done" : "Close"}
           </button>
 
-          <div className="flex min-w-0 flex-1 justify-center" />
+          {/* Session tally (10-03, Chris: the gap between Close and the light
+              looked bare). Idle = what is being scanned; once a card lands it
+              counts the stack and its market total, the same numbers as the
+              verify chip, so the top of the screen always says where you are. */}
+          <div className="flex min-w-0 flex-1 justify-center">
+            <div
+              aria-live="polite"
+              className="flex h-10 min-w-0 items-center gap-2 rounded-full border border-edge bg-surface-2 px-3.5 text-xs text-zinc-300"
+            >
+              {verify ? (
+                <>
+                  <span className="font-semibold tabular-nums text-white">
+                    {verify.count} {verify.count === 1 ? "card" : "cards"}
+                  </span>
+                  {verify.value > 0 && (
+                    <>
+                      <span className="h-3 w-px bg-edge-strong" aria-hidden />
+                      <span className="truncate font-semibold tabular-nums text-emerald-300">
+                        {formatMoney(verify.value, "USD")}
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_theme(colors.emerald.400)]" aria-hidden />
+                  <span className="truncate">Scanning <span className="font-semibold text-white">{game ? GAMES[game].label : "Cards"}</span></span>
+                </>
+              )}
+            </div>
+          </div>
 
           {torch !== "unavailable" && (
             <button
@@ -572,7 +602,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         {/* The result chip lives under the viewfinder, not over the guide —
             on a phone the guide is most of the frame and a chip on it hid
             the card. Until the first scan the slot carries the how-to. */}
-        <div className="flex min-h-24 shrink-0 items-center px-3 py-1 sm:px-0 sm:py-0">
+        <div className="flex min-h-[4.25rem] shrink-0 items-center px-3 sm:px-0">
           {blurNote ? (
             <p
               role="status"
@@ -583,9 +613,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} verify={verify} />
           ) : (
-            <p className="w-full text-center text-sm text-zinc-400">
+            <p className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
-              <span className="mt-0.5 block text-xs text-zinc-500">Keep going for a whole stack.</span>
+              <span className="block text-xs text-zinc-500">Keep going for a whole stack.</span>
             </p>
           )}
         </div>
@@ -594,7 +624,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             Magic with the switch on Pokémon). The scanner also switches by
             itself when the card is another game; this row says it up front. */}
         {game && onGameChange && (
-          <div className="flex shrink-0 justify-center px-3 pb-2 sm:px-0 sm:pb-0">
+          <div className="flex shrink-0 justify-center px-3 pb-1.5 sm:px-0 sm:pb-0">
             <GameToggle game={game} onChange={onGameChange} compact />
           </div>
         )}
