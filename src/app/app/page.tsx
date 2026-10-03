@@ -1584,7 +1584,11 @@ export default function AppPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 sm:contents">
+            {/* Phones: five game pills no longer share a row with the two Add
+                buttons (10-02, iPhone: Add Cards / Add Sealed ran off the page
+                once Lorcana, One Piece and Yu-Gi-Oh joined) — pills on one
+                line, the buttons under them. Desktop: unchanged (contents). */}
+            <div className="flex flex-col gap-2 sm:contents">
               <GameToggle game={game} onChange={setGame} compact />
               <Uploader
                 onFiles={addUploads}
