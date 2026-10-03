@@ -34,5 +34,5 @@ export async function GET(req: NextRequest) {
     console.warn("social: optimizer failed", err instanceof Error ? err.message : err);
     return null;
   });
-  return NextResponse.json({ ...report, posts: { stored: posts.stored, sites: posts.sites }, ...(optimized ? { optimizer: { change: optimized.change, why: optimized.why } } : {}), ms: Date.now() - started });
+  return NextResponse.json({ ...report, posts: { stored: posts.stored, sites: posts.sites }, ...(optimized ? { optimizer: { forDay: optimized.forDay, picks: optimized.picks, why: optimized.why } } : {}), ms: Date.now() - started });
 }

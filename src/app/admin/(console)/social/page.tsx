@@ -6,6 +6,7 @@ import TikTokPackage from "@/components/admin/TikTokPackage";
 import { currentVideoFor, eastern, siteStatus, slotAt, slotLabel, slotSchedule, socialGames } from "@/lib/server/socialPublish";
 import { tagsOn } from "@/lib/socialTags";
 import { optimizerStatus } from "@/lib/server/socialOptimize";
+import { GAME_NAME, KIND_NAME } from "@/lib/socialOptimize";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { loadPackage } from "@/lib/server/socialTiktok";
@@ -85,7 +86,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
         </p>
       )}
       <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} morningLabel={slotLabel("morning", day)} />
-      <SocialOptimizer on={optimizer.on} day={optimizer.day} why={optimizer.why} />
+      <SocialOptimizer on={optimizer.on} day={optimizer.day} why={optimizer.why} forDay={optimizer.forDay} picks={optimizer.picks} scores={optimizer.scores} names={KIND_NAME} games={GAME_NAME} />
       <TikTokPackage tomorrow={tiktokTomorrow} today={tiktokToday} handle={tiktokHandle()} />
       <SocialPreview drafts={drafts} videos={videos} schedule={slotSchedule(day)} />
     </section>

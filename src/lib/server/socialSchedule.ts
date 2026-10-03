@@ -1,7 +1,7 @@
 import "server-only";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { loadTagPlan } from "@/lib/server/socialTags";
-import { setStanding, type StandingEntry } from "@/lib/socialPlan";
+import { ANGLE_GAMES, ANGLE_KINDS, isAngleKind, setStanding, type AngleGame, type StandingEntry } from "@/lib/socialPlan";
 
 /**
  * The standing schedule the daily optimization loop writes (10-02): which
@@ -16,10 +16,12 @@ import { setStanding, type StandingEntry } from "@/lib/socialPlan";
  * never wrong about today.
  */
 export const SCHEDULE_KEY = "social_schedule";
-/** Entries kept: the one in force, a few before it, and any still to start. */
-const KEEP = 8;
+/** Entries kept: a month of daily picks (phase 3 writes one a day; the optimizer's no-repeat rule reads the last two). */
+const KEEP = 30;
 const TTL_MS = 5 * 60_000;
-const OPEN_KINDS = ["set", "games", "dips"];
+/** The kinds an open slot may post: the four originals and the five angles (never movers: 1pm is the shared video). */
+const OPEN_KINDS = ["set", "games", "dips", ...ANGLE_KINDS];
+const GAMES = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh", "mixed"];
 
 export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
   if (!raw) return [];
@@ -27,9 +29,17 @@ export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
     const list = JSON.parse(raw) as unknown;
     if (!Array.isArray(list)) return [];
     const kind = (v: unknown) => (typeof v === "string" && OPEN_KINDS.includes(v) ? (v as StandingEntry["morning"]) : undefined);
+    // A game rides only with an angle kind, and only one the kind runs for.
+    const game = (k: StandingEntry["morning"], v: unknown) => (k && isAngleKind(k) && typeof v === "string" && GAMES.includes(v) && (ANGLE_GAMES[k] as string[]).includes(v) ? (v as AngleGame) : undefined);
     return list
       .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === "object" && /^\d{4}-\d{2}-\d{2}$/.test(String((e as Record<string, unknown>).from)))
-      .map((e) => ({ from: String(e.from), ...(kind(e.morning) ? { morning: kind(e.morning) } : {}), ...(kind(e.evening) ? { evening: kind(e.evening) } : {}) }));
+      .map((e) => {
+        const morning = kind(e.morning);
+        const evening = kind(e.evening);
+        const morningGame = game(morning, e.morningGame);
+        const eveningGame = game(evening, e.eveningGame);
+        return { from: String(e.from), ...(morning ? { morning } : {}), ...(evening ? { evening } : {}), ...(morningGame ? { morningGame } : {}), ...(eveningGame ? { eveningGame } : {}) };
+      });
   } catch {
     return [];
   }

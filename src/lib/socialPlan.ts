@@ -14,6 +14,9 @@ export interface DayPlan {
   morning?: PostKind;
   /** The 7pm slot posts this kind instead of SLOTS.evening ("games" = all five games in one picture). */
   evening?: PostKind;
+  /** The game the 7am angle runs for (phase 3: the optimizer's pick; angleGameOrder puts it first). */
+  morningGame?: AngleGame;
+  eveningGame?: AngleGame;
   /** The 1pm movers post and video mix Pokémon and Magic gainers (MIXED_PER_GAME each) and the video ends on every game. */
   mixedMovers?: boolean;
   /** Pokémon pictures and captions say the scanner also reads the other games. */
@@ -51,6 +54,9 @@ export interface StandingEntry {
   from: string;
   morning?: PostKind;
   evening?: PostKind;
+  /** The game an angle kind in that slot runs for (phase 3, the daily rotation). */
+  morningGame?: AngleGame;
+  eveningGame?: AngleGame;
 }
 let standing: StandingEntry[] = [];
 /** Replace the standing schedule this process reads (oldest first inside). */
@@ -68,7 +74,13 @@ export function dayPlan(day: string | undefined): DayPlan {
   if (!day) return {};
   const s = standingFor(day);
   if (!s) return DAY_PLANS[day] || {};
-  return { ...(s.morning ? { morning: s.morning } : {}), ...(s.evening ? { evening: s.evening } : {}), ...DAY_PLANS[day] };
+  return {
+    ...(s.morning ? { morning: s.morning } : {}),
+    ...(s.evening ? { evening: s.evening } : {}),
+    ...(s.morning && s.morningGame ? { morningGame: s.morningGame } : {}),
+    ...(s.evening && s.eveningGame ? { eveningGame: s.eveningGame } : {}),
+    ...DAY_PLANS[day],
+  };
 }
 
 /** The games a mixed movers post draws from, in the order they alternate. */
@@ -231,15 +243,36 @@ export function isAngleKind(kind: string): kind is AngleKind {
 }
 
 /**
- * A kind's game order on an Eastern day: the cycle's pick first, then the rest
- * in ANGLE_GAMES order, so the caller takes the first that has data that day
- * (a game that is not public yet, or has nothing to say, hands the day to the next).
+ * A kind's game cycle on an Eastern day: the cycle's pick first, then the rest
+ * in ANGLE_GAMES order. One strict cycle per kind, offset per kind.
  */
-export function angleGameOrder(kind: AngleKind, day: string): AngleGame[] {
+export function angleCycle(kind: AngleKind, day: string): AngleGame[] {
   const list = ANGLE_GAMES[kind];
   const n = Math.round(Date.parse(`${day}T00:00:00Z`) / 86_400_000) + ANGLE_KINDS.indexOf(kind) * 2;
   const i = ((n % list.length) + list.length) % list.length;
   return [...list.slice(i), ...list.slice(0, i)];
+}
+
+/**
+ * A kind's game order on an Eastern day: the day plan's game first when the
+ * schedule names this kind for a slot (phase 3, the optimizer's pick, so the
+ * draft, the picture and the video all agree with the plan tag), else the
+ * cycle's pick; then the rest, so the caller takes the first that has data
+ * that day (a game that is not public yet, or has nothing to say, hands the
+ * day to the next).
+ */
+export function angleGameOrder(kind: AngleKind, day: string): AngleGame[] {
+  const list = angleCycle(kind, day);
+  const p = dayPlan(day);
+  const planned = p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : undefined;
+  if (!planned || !list.includes(planned)) return list;
+  return [planned, ...list.filter((g) => g !== planned)];
+}
+
+/** The plan's game for a kind on a day, when the schedule names it for a slot (planTag reads it). */
+export function plannedGame(kind: PostKind, day: string): AngleGame | undefined {
+  const p = dayPlan(day);
+  return p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : undefined;
 }
 
 /** The pool's order for one cycle; the first of a cycle never repeats the last of the one before it. */

@@ -1,15 +1,17 @@
 /**
  * The daily social optimization loop, the rules (Chris 10-02: the
- * optimizing must be a job in the product, "should be daily"). Pure: no DB,
- * no fetch — tested in scripts/test-social-optimize.mjs. The job that feeds
- * it and acts on it is lib/server/socialOptimize.ts.
+ * optimizing must be a job in the product, "should be daily"; 10-03: all
+ * five angles in rotation, rotate the game too, "the optimizer makes the
+ * choices", docs/SOCIAL-ANGLES-PLAN.md). Pure: no DB, no fetch — tested in
+ * scripts/test-social-optimize.mjs. The job that feeds it and acts on it is
+ * lib/server/socialOptimize.ts.
  *
- * What it can decide is small on purpose. Four kinds exist (set, movers,
- * games, dips), three post each day, and 1pm is always the movers video. So
- * one kind sits on the bench, and the only move is: the benched kind takes
- * the 7am or 7pm slot from the kind posting there.
+ * Nine kinds exist; 1pm is always the movers video (the shared file every
+ * site posts and the best-measured post). The two open slots, 7am and 7pm,
+ * are a WEIGHTED DAILY ROTATION over the other eight (phase 3, replacing the
+ * one-bench trial of 10-02):
  *
- * Scoring (optimize):
+ * Scoring (scoreKinds):
  * - Posts 2 to 28 days old only: views keep growing for two days, and a
  *   month-old result says little about now.
  * - Each post is scored against its own site's average (1.0 = an average
@@ -19,53 +21,63 @@
  * - One runaway post cannot carry a kind: a post counts for at most
  *   SCORE_CAP times its site's average.
  * - A kind needs MIN_POSTS posts over MIN_DAYS days or there is no opinion.
- * - The bench must beat the sitting kind by MARGIN.
  *
- * A finding is only a LEAD (measured on prod 10-02): a kind and its time of
- * day are tangled. Set has only ever posted at 7am, dips at 7pm, so "dips
- * beat set" may only mean "7pm beats 7am". So a finding starts a TRIAL
- * (step, judgeTrial; Chris approved the plan 10-02, and a trial may take
- * 7pm as well as 7am: "you pick the slot"):
- * - The benched kind takes the slot for TRIAL_DAYS, starting two days out
- *   (tomorrow's TikTok videos render tonight).
- * - Then it is judged against the old kind IN THAT SAME SLOT. It stays only
- *   if it did at least as well; otherwise the old kind goes back, and that
- *   kind-in-that-slot is not tried again for RETRY_DAYS.
- * - One trial at a time, and nothing new for COOLDOWN_DAYS after a verdict.
- * - With no finding for EXPLORE_DAYS the benched kind gets a trial anyway,
- *   in the slot whose kind scores lowest: a benched kind earns no numbers,
- *   so without this the loop would have nothing to compare.
+ * The draw (rotate), seeded by the day so every reader agrees:
+ * - Weight = the kind's score. A kind with no opinion yet gets the mean of
+ *   the known scores (an optimistic prior: every new kind gets aired and
+ *   earns numbers). A kind scoring under FLOOR of the mean is weighted at
+ *   FLOOR of it: a weak kind airs seldom, never never.
+ * - Never the same kind in both slots, never the kind that sat in that slot
+ *   yesterday, never a kind posted in the last NO_REPEAT_DAYS days; each rule
+ *   is relaxed in turn when it would leave nothing.
+ * - Game per angle kind: one strict cycle over the games that have data for
+ *   it (lib/socialPlan.ts angleCycle), seeded by day. (Per-game scores wait
+ *   for a game column on the post log.)
+ *
+ * The Off switch on /admin/social writes nothing: the entry in force stays,
+ * so yesterday's picks repeat.
  */
 import { easternOf } from "./socialPosts.ts";
+import { ANGLE_GAMES, angleCycle, isAngleKind, type AngleGame, type StandingEntry } from "./socialPlan.ts";
 
-export type ScoredKind = "set" | "movers" | "games" | "dips";
+export type ScoredKind = "set" | "movers" | "games" | "dips" | "guess" | "thennow" | "versus" | "sleepers" | "top";
 export type OpenSlot = "morning" | "evening";
-export const SCORED_KINDS: ScoredKind[] = ["set", "movers", "games", "dips"];
+export const SCORED_KINDS: ScoredKind[] = ["set", "movers", "games", "dips", "guess", "thennow", "versus", "sleepers", "top"];
+/** The kinds the two open slots draw from (1pm is the movers video, never in the draw). */
+export const POOL_KINDS: ScoredKind[] = SCORED_KINDS.filter((k) => k !== "movers");
 export const OPEN_SLOTS: OpenSlot[] = ["morning", "evening"];
-export const KIND_NAME: Record<ScoredKind, string> = { set: "set spotlight", movers: "weekly gains", games: "all-games jumps", dips: "price drops" };
+export const KIND_NAME: Record<ScoredKind, string> = {
+  set: "set spotlight",
+  movers: "weekly gains",
+  games: "all-games jumps",
+  dips: "price drops",
+  guess: "guess the price",
+  thennow: "then vs now",
+  versus: "head to head",
+  sleepers: "sleepers under $5",
+  top: "most valuable",
+};
 export const SLOT_NAME: Record<OpenSlot, string> = { morning: "7am", evening: "7pm" };
+export const GAME_NAME: Record<AngleGame, string> = { pokemon: "Pokémon", mtg: "Magic", lorcana: "Lorcana", onepiece: "One Piece", yugioh: "Yu-Gi-Oh", mixed: "all games" };
 
 export const MIN_AGE_DAYS = 2;
 export const MAX_AGE_DAYS = 28;
 export const MIN_POSTS = 10;
 export const MIN_DAYS = 5;
-export const MARGIN = 1.2;
 export const SCORE_CAP = 4;
-export const COOLDOWN_DAYS = 7;
-export const TRIAL_DAYS = 7;
-/** A trial that cannot gather TRIAL_DAYS of posts by this many days after its start is ended (the kind had no draft most days). */
-export const TRIAL_MAX_DAYS = 16;
-/** A change takes effect this many days out: tomorrow's TikTok videos render tonight. */
-export const LEAD_DAYS = 2;
-export const EXPLORE_DAYS = 28;
-export const RETRY_DAYS = 56;
+/** A kind is never weighted under this share of the mean: weak kinds air seldom, not never. */
+export const FLOOR = 0.25;
+/** A kind posted this many days back (either slot) is not drawn again. */
+export const NO_REPEAT_DAYS = 2;
+/** The 8am job picks this many days out: tomorrow, whose TikTok videos render tonight. */
+export const LEAD_DAYS = 1;
 
 const DAY_MS = 86_400_000;
 
 export interface ScoredPost {
   site: string;
   kind: string;
-  /** The slot it went out in (social_posts.slot); only the trial verdict reads it. */
+  /** The slot it went out in (social_posts.slot). */
   slot?: string;
   /** ISO timestamp of the post. */
   at: string;
@@ -84,42 +96,10 @@ export interface KindScore {
   score: number | null;
 }
 
-export type Sitting = { morning: ScoredKind; midday: ScoredKind; evening: ScoredKind };
-
-export interface OptimizeInput {
-  posts: ScoredPost[];
-  now: number;
-  /** The standing schedule: the kind each slot posts. */
-  sitting: Sitting;
-  /** Eastern day of the last change or verdict, if any. */
-  lastChangeDay?: string | null;
-  /** "slot:kind" pairs not to propose (a trial of that kind in that slot failed recently). */
-  skip?: string[];
-}
-
-export interface OptimizeReport {
-  /** Eastern day the report was made. */
-  day: string;
-  /** Posts that counted (in the age window, on a site with numbers). */
-  counted: number;
-  scores: KindScore[];
-  /** The lead the numbers point at, or null. */
-  change: { slot: OpenSlot; from: ScoredKind; to: ScoredKind } | null;
-  /** One plain sentence: what it found and why it does or does not change anything. */
-  why: string;
-}
-
 function isScored(kind: string): kind is ScoredKind {
   return (SCORED_KINDS as string[]).includes(kind);
 }
-function addDays(day: string, n: number): string {
-  return new Date(Date.parse(`${day}T12:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
-}
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY_MS);
-}
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 interface Normed {
   post: ScoredPost;
@@ -151,183 +131,148 @@ function normalize(posts: ScoredPost[], now: number): Normed[] {
   return out;
 }
 
-function average(list: Normed[]): { posts: number; days: number; score: number | null } {
-  const days = new Set(list.map((n) => n.day).filter(Boolean)).size;
-  return { posts: list.length, days, score: list.length ? round2(list.reduce((s, n) => s + n.norm, 0) / list.length) : null };
-}
-
-/** Score every kind and name at most one lead. */
-export function optimize(input: OptimizeInput): OptimizeReport {
-  const day = easternOf(input.now)?.day ?? "";
-  const normed = normalize(input.posts, input.now);
-  const scores: KindScore[] = SCORED_KINDS.map((kind) => {
-    const a = average(normed.filter((n) => n.kind === kind));
-    return { kind, posts: a.posts, days: a.days, score: a.posts >= MIN_POSTS && a.days >= MIN_DAYS ? a.score : null };
+/** Score every kind. */
+export function scoreKinds(posts: ScoredPost[], now: number): { counted: number; scores: KindScore[] } {
+  const normed = normalize(posts, now);
+  const scores = SCORED_KINDS.map((kind): KindScore => {
+    const list = normed.filter((n) => n.kind === kind);
+    const days = new Set(list.map((n) => n.day).filter(Boolean)).size;
+    const score = list.length ? round2(list.reduce((s, n) => s + n.norm, 0) / list.length) : null;
+    return { kind, posts: list.length, days, score: list.length >= MIN_POSTS && days >= MIN_DAYS ? score : null };
   });
-  const scoreOf = (k: ScoredKind) => scores.find((s) => s.kind === k)?.score ?? null;
-  const report = (change: OptimizeReport["change"], why: string): OptimizeReport => ({ day, counted: normed.length, scores, change, why });
-
-  if (input.lastChangeDay && day) {
-    const since = daysBetween(input.lastChangeDay, day);
-    if (since >= 0 && since < COOLDOWN_DAYS) return report(null, `No change: the schedule changed ${since === 0 ? "today" : `${plural(since, "day")} ago`}, and the new post needs ${COOLDOWN_DAYS} days of numbers first.`);
-  }
-  const posting = [input.sitting.morning, input.sitting.midday, input.sitting.evening];
-  const bench = SCORED_KINDS.filter((k) => !posting.includes(k));
-  let best: { slot: OpenSlot; from: ScoredKind; to: ScoredKind; ratio: number } | null = null;
-  const unsure: ScoredKind[] = [];
-  for (const to of bench) {
-    const challenger = scoreOf(to);
-    if (challenger == null) {
-      unsure.push(to);
-      continue;
-    }
-    for (const slot of OPEN_SLOTS) {
-      if (input.skip?.includes(`${slot}:${to}`)) continue;
-      const from = input.sitting[slot];
-      const sitting = scoreOf(from);
-      if (sitting == null) {
-        if (!unsure.includes(from)) unsure.push(from);
-        continue;
-      }
-      // A sitting kind scoring nothing loses to any bench kind that scores at all.
-      const ratio = sitting > 0 ? challenger / sitting : challenger > 0 ? Infinity : 0;
-      if (ratio >= MARGIN && (!best || ratio > best.ratio)) best = { slot, from, to, ratio };
-    }
-  }
-  if (best) {
-    const pct = Number.isFinite(best.ratio) ? `${Math.round((best.ratio - 1) * 100)}% better than` : "where there was nothing for";
-    return report(
-      { slot: best.slot, from: best.from, to: best.to },
-      `The ${KIND_NAME[best.to]} posts did ${pct} the ${KIND_NAME[best.from]} posts over the last ${MAX_AGE_DAYS} days (${scoreOf(best.to)} vs ${scoreOf(best.from)}, 1.0 = an average post), so ${KIND_NAME[best.to]} is worth a trial at ${SLOT_NAME[best.slot]}. The two posted at different times of day, so this is a lead, not proof.`,
-    );
-  }
-  if (unsure.length) {
-    const lines = unsure.map((k) => {
-      const s = scores.find((x) => x.kind === k)!;
-      return `${KIND_NAME[k]} (${plural(s.posts, "post")} over ${plural(s.days, "day")})`;
-    });
-    return report(null, `No change: not enough posts yet to judge ${lines.join(" and ")}; a kind needs ${MIN_POSTS} posts over ${MIN_DAYS} days.`);
-  }
-  return report(null, `No change: nothing on the bench beats what is posting by ${Math.round((MARGIN - 1) * 100)}%.`);
+  return { counted: normed.length, scores };
 }
 
-/** A kind on trial in a slot. */
-export interface Trial {
-  slot: OpenSlot;
-  /** The kind that sat there, and goes back if the trial fails. */
-  from: ScoredKind;
-  /** The kind on trial. */
-  to: ScoredKind;
-  /** First Eastern day the trial kind posts. */
-  start: string;
-  /** True when nothing pointed at it: the bench's turn to earn numbers. */
-  explore?: boolean;
+/** A mulberry32 stream seeded by a day and a salt: the same day always draws the same. */
+function seeded(day: string, salt: string): () => number {
+  let a = 0;
+  for (const ch of `${day}:${salt}`) a = (Math.imul(a ^ ch.charCodeAt(0), 0x85ebca6b) ^ (a >>> 13)) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-export interface TrialVerdict {
-  verdict: "running" | "keep" | "back";
-  /** Days of trial posts old enough to count. */
-  days: number;
-  /** Same slot, 1.0 = an average post on its site; null = nothing to go on. */
-  trialScore: number | null;
-  oldScore: number | null;
+export interface Pick {
+  kind: ScoredKind;
+  /** The angle's game; null for a kind that has no game dimension. */
+  game: AngleGame | null;
+}
+export type DayPicks = Record<OpenSlot, Pick>;
+
+export interface RotateInput {
+  /** The Eastern day being picked. */
+  day: string;
+  scores: KindScore[];
+  /** The kinds that sat in each slot the day before. */
+  yesterday: Record<OpenSlot, ScoredKind>;
+  /** Every kind posted in the last NO_REPEAT_DAYS days, any slot. */
+  recent: ScoredKind[];
+  /** The kinds in the draw; POOL_KINDS unless the caller knows better. */
+  pool?: ScoredKind[];
+}
+
+/** Every pool kind's weight for the draw: its score, the mean for an unknown, never under FLOOR of the mean. */
+export function weights(scores: KindScore[], pool: ScoredKind[] = POOL_KINDS): Record<string, number> {
+  const known = pool.map((k) => scores.find((s) => s.kind === k)?.score).filter((s): s is number => s != null);
+  const mean = known.length ? known.reduce((a, b) => a + b, 0) / known.length : 1;
+  const out: Record<string, number> = {};
+  for (const k of pool) {
+    const s = scores.find((x) => x.kind === k)?.score;
+    out[k] = round2(Math.max(s ?? mean, mean * FLOOR, 0.01));
+  }
+  return out;
+}
+
+function draw(cands: ScoredKind[], w: Record<string, number>, rand: () => number): ScoredKind {
+  const total = cands.reduce((n, k) => n + (w[k] ?? 0), 0);
+  let r = rand() * total;
+  for (const k of cands) {
+    r -= w[k] ?? 0;
+    if (r < 0) return k;
+  }
+  return cands[cands.length - 1];
+}
+
+/** The game an angle kind runs for on a day: the cycle's pick (lib/socialPlan.ts). null for a kind with no games. */
+export function gameFor(kind: ScoredKind, day: string): AngleGame | null {
+  return isAngleKind(kind) ? (angleCycle(kind, day)[0] ?? ANGLE_GAMES[kind][0] ?? null) : null;
+}
+
+/** The day's picks for the two open slots: a seeded weighted draw under the no-repeat rules, each relaxed in turn when it leaves nothing. */
+export function rotate(input: RotateInput): DayPicks {
+  const pool = input.pool?.length ? input.pool : POOL_KINDS;
+  const w = weights(input.scores, pool);
+  const chosen: ScoredKind[] = [];
+  const picks = {} as DayPicks;
+  for (const slot of OPEN_SLOTS) {
+    const rules: Array<(k: ScoredKind) => boolean> = [(k) => !chosen.includes(k), (k) => k !== input.yesterday[slot], (k) => !input.recent.includes(k)];
+    let cands: ScoredKind[] = [];
+    for (let n = rules.length; n >= 0 && cands.length === 0; n--) cands = pool.filter((k) => rules.slice(0, n).every((r) => r(k)));
+    const kind = draw(cands, w, seeded(input.day, slot));
+    chosen.push(kind);
+    picks[slot] = { kind, game: gameFor(kind, input.day) };
+  }
+  return picks;
+}
+
+export interface OptimizeReport {
+  /** Eastern day the report was made. */
+  day: string;
+  /** The day the picks are for. */
+  forDay: string;
+  /** Posts that counted (in the age window, on a site with numbers). */
+  counted: number;
+  scores: KindScore[];
+  /** Each pool kind's weight in the draw. */
+  weights: Record<string, number>;
+  /** The picks written, or null (switched off). */
+  picks: DayPicks | null;
+  /** One plain sentence: what it picked and why. */
   why: string;
 }
 
-/** Judge a trial against the old kind in the same slot, once it has TRIAL_DAYS of counted posts. */
-export function judgeTrial(posts: ScoredPost[], now: number, trial: Trial): TrialVerdict {
-  const today = easternOf(now)?.day ?? "";
-  const inSlot = normalize(posts, now).filter((n) => n.post.slot === trial.slot);
-  const mine = average(inSlot.filter((n) => n.kind === trial.to && n.day >= trial.start));
-  const old = average(inSlot.filter((n) => n.kind === trial.from && n.day < trial.start));
-  const what = `${KIND_NAME[trial.to]} at ${SLOT_NAME[trial.slot]}`;
-  const base = { days: mine.days, trialScore: mine.score, oldScore: old.score };
-  if (mine.days < TRIAL_DAYS) {
-    if (today && daysBetween(trial.start, today) >= TRIAL_MAX_DAYS) {
-      return { ...base, verdict: "back", why: `Trial ended: ${what} only had a post on ${plural(mine.days, "day")} in ${TRIAL_MAX_DAYS}, so ${KIND_NAME[trial.from]} goes back.` };
-    }
-    const wait = today && today < trial.start ? `starts ${trial.start}` : `${mine.days} of ${TRIAL_DAYS} days counted (a post counts once it is ${MIN_AGE_DAYS} days old)`;
-    return { ...base, verdict: "running", why: `No change: trial running, ${what} in place of ${KIND_NAME[trial.from]}, ${wait}.` };
-  }
-  if (old.score == null || old.posts < MIN_POSTS) {
-    return { ...base, verdict: "keep", why: `Trial over: ${what} scored ${mine.score}, and ${KIND_NAME[trial.from]} has too few posts left in that slot to compare, so ${KIND_NAME[trial.to]} stays.` };
-  }
-  const numbers = `${mine.score} vs ${old.score} for ${KIND_NAME[trial.from]} in the same slot, 1.0 = an average post`;
-  if ((mine.score ?? 0) >= old.score) return { ...base, verdict: "keep", why: `Trial over: ${what} did at least as well (${numbers}), so it stays.` };
-  return { ...base, verdict: "back", why: `Trial over: ${what} did worse (${numbers}), so ${KIND_NAME[trial.from]} goes back.` };
-}
-
-/** What the loop remembers between days (settings, lib/server/socialOptimize.ts). */
-export interface LoopState {
-  /** The Off switch on /admin/social: score and report, change nothing. */
-  off: boolean;
-  trial: Trial | null;
-  /** Eastern day of the last start or verdict. */
-  lastChangeDay: string | null;
-  /** Eastern day the loop first ran: the exploration clock starts here when nothing has changed yet. */
-  sinceDay: string | null;
-  /** "slot:kind" → the Eastern day a trial of that kind in that slot failed. */
-  failed: Record<string, string>;
-}
-
-export type LoopAction =
-  | { type: "none" }
-  /** The trial kind takes the slot from trial.start. */
-  | { type: "start"; trial: Trial }
-  /** The trial kind stays; the schedule is already right. */
-  | { type: "keep"; trial: Trial }
-  /** The old kind takes the slot back from `from`. */
-  | { type: "back"; trial: Trial; from: string };
-
 export interface LoopStep {
   report: OptimizeReport;
-  action: LoopAction;
-  /** The board line for a start or a verdict; null on a day nothing happens. */
-  line: string | null;
+  /** The schedule entry to write, or null (switched off). */
+  entry: StandingEntry | null;
 }
 
-/**
- * One day of the loop: the scores, and at most one thing to do. `sitting` is
- * the schedule as it stands for the day a change would start (today +
- * LEAD_DAYS), with a running trial's kind in its slot.
- */
-export function step(input: { posts: ScoredPost[]; now: number; sitting: Sitting; state: LoopState }): LoopStep {
-  const { posts, now, sitting, state } = input;
-  const today = easternOf(now)?.day ?? "";
-  const skip = Object.entries(state.failed)
-    .filter(([, day]) => daysBetween(day, today) < RETRY_DAYS)
-    .map(([pair]) => pair);
-  const report = optimize({ posts, now, sitting, lastChangeDay: state.lastChangeDay, skip });
-  const none = (why: string): LoopStep => ({ report: { ...report, change: null, why }, action: { type: "none" }, line: null });
-  if (state.off) return none(`Switched off: nothing changes. ${report.why}`);
+export function describePick(p: Pick): string {
+  return p.game ? `${KIND_NAME[p.kind]} (${GAME_NAME[p.game]})` : KIND_NAME[p.kind];
+}
 
-  if (state.trial) {
-    const v = judgeTrial(posts, now, state.trial);
-    if (v.verdict === "running") return none(v.why);
-    const action: LoopAction = v.verdict === "keep" ? { type: "keep", trial: state.trial } : { type: "back", trial: state.trial, from: addDays(today, LEAD_DAYS) };
-    const tail = v.verdict === "back" ? ` Back from ${addDays(today, LEAD_DAYS)}.` : "";
-    // The report carries the whole story (/admin/social shows it), not just the verdict sentence.
-    return { report: { ...report, change: null, why: `${v.why}${tail}` }, action, line: `Social optimizer ${today} — ${v.why}${tail}` };
-  }
+function scoreLine(scores: KindScore[], w: Record<string, number>): string {
+  const parts = POOL_KINDS.map((k) => {
+    const s = scores.find((x) => x.kind === k);
+    return `${KIND_NAME[k]} ${s?.score != null ? s.score : `– (${s?.posts ?? 0} of ${MIN_POSTS} posts)`}`;
+  });
+  const unknown = POOL_KINDS.filter((k) => scores.find((x) => x.kind === k)?.score == null);
+  const prior = unknown.length ? ` A kind with no score yet is weighted at the average (${w[unknown[0]]}) until it has ${MIN_POSTS} posts over ${MIN_DAYS} days.` : "";
+  return `Scores (1.0 = an average post on its site): ${parts.join(", ")}.${prior}`;
+}
 
-  const start = addDays(today, LEAD_DAYS);
-  if (report.change) {
-    const trial: Trial = { ...report.change, start };
-    const why = `Trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${report.why}`;
-    return { report: { ...report, why }, action: { type: "start", trial }, line: `Social optimizer ${today} — ${why}` };
+/** One day of the loop: the scores, and the picks for `day` (today + LEAD_DAYS). */
+export function step(input: { posts: ScoredPost[]; now: number; day: string; off: boolean; yesterday: Record<OpenSlot, ScoredKind>; recent: ScoredKind[]; pool?: ScoredKind[] }): LoopStep {
+  const today = easternOf(input.now)?.day ?? "";
+  const { counted, scores } = scoreKinds(input.posts, input.now);
+  const w = weights(scores, input.pool?.length ? input.pool : POOL_KINDS);
+  const base = { day: today, forDay: input.day, counted, scores, weights: w };
+  if (input.off) {
+    const stay = `${KIND_NAME[input.yesterday.morning]} at 7am, ${KIND_NAME[input.yesterday.evening]} at 7pm`;
+    return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w)}` }, entry: null };
   }
-  // The bench's turn: nothing has changed for EXPLORE_DAYS, so the benched kind earns some numbers in the weaker slot.
-  const clock = state.lastChangeDay ?? state.sinceDay;
-  const cooling = state.lastChangeDay != null && daysBetween(state.lastChangeDay, today) < COOLDOWN_DAYS;
-  if (clock && !cooling && daysBetween(clock, today) >= EXPLORE_DAYS) {
-    const bench = SCORED_KINDS.find((k) => ![sitting.morning, sitting.midday, sitting.evening].includes(k));
-    const scoreOf = (k: ScoredKind) => report.scores.find((s) => s.kind === k)?.score ?? null;
-    const open = OPEN_SLOTS.filter((s) => bench && !skip.includes(`${s}:${bench}`) && scoreOf(sitting[s]) != null).sort((a, b) => scoreOf(sitting[a])! - scoreOf(sitting[b])!);
-    if (bench && open.length) {
-      const trial: Trial = { slot: open[0], from: sitting[open[0]], to: bench, start, explore: true };
-      const why = `Nothing has changed for ${EXPLORE_DAYS} days and ${KIND_NAME[bench]} has not posted, so it gets a week at ${SLOT_NAME[trial.slot]} (the weaker slot: ${KIND_NAME[trial.from]} scores ${scoreOf(trial.from)}) to earn numbers.`;
-      return { report: { ...report, change: { slot: trial.slot, from: trial.from, to: trial.to }, why }, action: { type: "start", trial }, line: `Social optimizer ${today} — Trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${why}` };
-    }
-  }
-  return { report, action: { type: "none" }, line: null };
+  const picks = rotate({ day: input.day, scores, yesterday: input.yesterday, recent: input.recent, pool: input.pool });
+  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.evening)} at 7pm, drawn by score (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w)}`;
+  const entry: StandingEntry = {
+    from: input.day,
+    morning: picks.morning.kind,
+    evening: picks.evening.kind,
+    ...(picks.morning.game ? { morningGame: picks.morning.game } : {}),
+    ...(picks.evening.game ? { eveningGame: picks.evening.game } : {}),
+  };
+  return { report: { ...base, picks, why }, entry };
 }

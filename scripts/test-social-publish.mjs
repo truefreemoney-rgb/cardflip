@@ -459,7 +459,7 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
 {
   const { addScheduleEntry, loadSchedule, SCHEDULE_KEY } = await import(at("lib/server/socialSchedule.ts"));
   const { slotKind: kindOn, planTag: tagOn } = await import(at("lib/server/socialPublish.ts"));
-  const { runSocialOptimize, optimizerStatus, OPT_TRIAL_KEY, OPT_OFF_KEY, OPT_LAST_KEY } = await import(at("lib/server/socialOptimize.ts"));
+  const { runSocialOptimize, optimizerStatus, OPT_OFF_KEY, OPT_LAST_KEY } = await import(at("lib/server/socialOptimize.ts"));
   await addScheduleEntry({ from: "2026-11-10", morning: "dips", evening: "games" });
   check(
     "from its day on 7am posts the new kind; the day before, 1pm and 7pm are as they were",
@@ -469,12 +469,22 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   check("the plan tag follows the kind, so a video made under the old one is stale and gets remade", [tagOn("morning", "2026-11-09").split("+")[0], tagOn("morning", "2026-11-10").split("+")[0]], ["set", "dips"]);
   await addScheduleEntry({ from: "2026-11-20", morning: "set", evening: "games" });
   check("a later entry puts the old kind back from its own day", [kindOn("morning", "2026-11-19"), kindOn("morning", "2026-11-20")], ["dips", "set"]);
+  // Phase 3 (docs/SOCIAL-ANGLES-PLAN.md): an angle in a slot carries its game; the plan tag names both, so a changed pick remakes the video.
+  const { angleGameOrder, isAngleKind, plannedGame } = await import(at("lib/socialPlan.ts"));
+  await addScheduleEntry({ from: "2026-11-25", morning: "guess", morningGame: "mtg", evening: "versus", eveningGame: "lorcana" });
+  check("an angle entry: the slots post the angles, the tags carry the game", [kindOn("morning", "2026-11-25"), kindOn("evening", "2026-11-25"), tagOn("morning", "2026-11-25"), tagOn("evening", "2026-11-25"), plannedGame("guess", "2026-11-25"), plannedGame("set", "2026-11-25")], ["guess", "versus", "guess@mtg", "versus@lorcana", "mtg", undefined]);
+  check("the angle's game order leads with the plan's game, then the cycle; a kind the plan does not name keeps its cycle", [angleGameOrder("guess", "2026-11-25")[0], angleGameOrder("versus", "2026-11-25")[0], new Set(angleGameOrder("guess", "2026-11-25")).size, angleGameOrder("top", "2026-11-25").length], ["mtg", "lorcana", 6, 3]);
+  await loadSchedule();
+  const stored = JSON.parse(await getSetting(SCHEDULE_KEY));
+  check("the row stores the game, and a game is dropped when it does not fit the kind", [stored.find((e) => e.from === "2026-11-25").morningGame, (await (async () => { await setSetting(SCHEDULE_KEY, JSON.stringify([{ from: "2026-11-26", morning: "set", morningGame: "mtg", evening: "thennow", eveningGame: "yugioh" }])); return loadSchedule(); })())[0]], ["mtg", { from: "2026-11-26", morning: "set", evening: "thennow" }]);
   await setSetting(SCHEDULE_KEY, "{not json");
   await loadSchedule();
   check("an unreadable schedule row = the standing schedule, never a crash", [kindOn("morning", "2026-11-10"), kindOn("evening", "2026-11-10")], ["set", "games"]);
   await setSetting(SCHEDULE_KEY, "");
 
-  // The job, end to end: six days of posts where the benched kind (dips) clearly beat the 7am set spotlight.
+  // The job, end to end (phase 3): six days of posts, dips far ahead; the 8am run writes TOMORROW's picks as one entry.
+  await setSetting(SCHEDULE_KEY, "");
+  await loadSchedule();
   const now = Date.now();
   const today = eastern(now).day;
   const put = db.prepare("INSERT INTO social_posts (site, post_id, url, text, at, likes, comments, shares, views, first_seen_at, read_at, kind, slot) VALUES (?, ?, ?, '', ?, 0, 0, 0, ?, ?, ?, ?, ?)");
@@ -483,28 +493,31 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
       for (const site of ["s1", "s2"]) await put.run(site, `${kind}-${age}`, `https://${site}/${kind}-${age}`, new Date(now - age * 86_400_000).toISOString(), views, now, now, kind, slot);
     }
   }
+  const tomorrow = addDays(today, 1);
   await setSetting(OPT_OFF_KEY, "1");
   let rep = await runSocialOptimize(now);
-  check("switched off: it scores and says so, and starts nothing", [rep.change, rep.why.startsWith("Switched off: nothing changes."), await getSetting(OPT_TRIAL_KEY), kindOn("morning", addDays(today, 2))], [null, true, null, "set"]);
-  check("the page shows the switch and what the job last said", [(await optimizerStatus()).on, (await optimizerStatus()).day], [false, today]);
+  check("switched off: it scores and says so, and writes nothing (tomorrow stays the standing mix)", [rep.picks, rep.why.startsWith("Switched off: the schedule stays as it stands (set spotlight at 7am, all-games jumps at 7pm)."), kindOn("morning", tomorrow), kindOn("evening", tomorrow), rep.scores.find((s) => s.kind === "dips").score > rep.scores.find((s) => s.kind === "set").score], [null, true, "set", "games", true]);
+  const st = await optimizerStatus();
+  check("the page shows the switch, the scores and what the job last said", [st.on, st.day, st.picks, st.scores.length, st.forDay], [false, today, null, 9, tomorrow]);
   check("once per Eastern day", await runSocialOptimize(now), null);
   await setSetting(OPT_OFF_KEY, "");
   await setSetting(OPT_LAST_KEY, "");
   rep = await runSocialOptimize(now);
-  const start = addDays(today, 2);
-  check("switched on: the lead starts a trial two days out", [rep.change, JSON.parse(await getSetting(OPT_TRIAL_KEY))], [{ slot: "morning", from: "set", to: "dips" }, { slot: "morning", from: "set", to: "dips", start }]);
-  check("the schedule: tomorrow is untouched, the start day posts the trial kind at 7am and nothing else moved", [kindOn("morning", addDays(today, 1)), kindOn("morning", start), kindOn("midday", start), kindOn("evening", start)], ["set", "dips", "movers", "games"]);
-  // Two lines that day: the hashtag trial's (written last, so on top) and the kind trial's under it.
-  const [tagTop, top] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
-  check("one board line says what starts when, and why", top.startsWith(`Social optimizer ${today} — Trial: price drops takes 7am from set spotlight for a week, starting ${start}.`), true);
+  const stored2 = JSON.parse(await getSetting(SCHEDULE_KEY));
+  check("switched on: tomorrow's picks are written as one entry; today is untouched; 1pm stays the movers video", [rep.forDay, stored2.length, stored2[0].from, stored2[0].morning, stored2[0].evening, kindOn("morning", tomorrow), kindOn("evening", tomorrow), kindOn("midday", tomorrow), kindOn("morning", today), kindOn("evening", today)], [tomorrow, 1, tomorrow, rep.picks.morning.kind, rep.picks.evening.kind, rep.picks.morning.kind, rep.picks.evening.kind, "movers", "set", "games"]);
+  check("the picks skip the kinds that posted today and yesterday (set, games) and never repeat each other", [["set", "games"].includes(rep.picks.morning.kind), ["set", "games"].includes(rep.picks.evening.kind), rep.picks.morning.kind === rep.picks.evening.kind], [false, false, false]);
+  check("an angle pick carries its game into the entry and the plan tag", [isAngleKind(rep.picks.morning.kind) ? stored2[0].morningGame === rep.picks.morning.game && tagOn("morning", tomorrow).startsWith(`${rep.picks.morning.kind}@${rep.picks.morning.game}`) : stored2[0].morningGame === undefined], [true]);
+  check("the page shows tomorrow's picks", [(await optimizerStatus()).picks, (await optimizerStatus()).forDay], [rep.picks, tomorrow]);
   // Hashtags ride the same run (lib/socialTags.ts): off = nothing, on = the first challenger's trial two days out, loaded into the plan fitText reads.
+  const start = addDays(today, 2);
+  const [tagTop] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
   const { TAGS_KEY, TAGS_WHY_KEY } = await import(at("lib/server/socialTags.ts"));
   const { TAG_CANDIDATES, tagsOn } = await import(at("lib/socialTags.ts"));
   check("hashtags: the same run starts the first challenger's trial, with its own board line", [JSON.parse(await getSetting(TAGS_KEY)), tagTop.startsWith(`Social optimizer ${today} — hashtag trial starts ${start}: #${TAG_CANDIDATES[0].in} in place of #${TAG_CANDIDATES[0].out}`)], [{ swaps: [], trial: { ...TAG_CANDIDATES[0], start } }, true]);
   check("hashtags: the trial tag posts on the start day and not the day after", [tagsOn([TAG_CANDIDATES[0].out], start), tagsOn([TAG_CANDIDATES[0].out], addDays(start, 1))], [[TAG_CANDIDATES[0].in], [TAG_CANDIDATES[0].out]]);
   await setSetting(OPT_LAST_KEY, "");
-  rep = await runSocialOptimize(now + 1);
-  check("the next run leaves a running trial alone", [rep.change, rep.why.startsWith("No change: trial running, price drops at 7am"), JSON.parse(await getSetting(OPT_TRIAL_KEY)).start], [null, true, start]);
+  const rep2 = await runSocialOptimize(now + 1);
+  check("the next run (same day again) draws the same picks: seeded by the day", [rep2.picks, JSON.parse(await getSetting(SCHEDULE_KEY)).length], [rep.picks, 1]);
   check("hashtags: the next run leaves the running trial alone", [JSON.parse(await getSetting(TAGS_KEY)).trial.start, (await getSetting(TAGS_WHY_KEY)).startsWith("Hashtag trial running")], [start, true]);
   await setSetting(SCHEDULE_KEY, "");
   await setSetting(TAGS_KEY, "");

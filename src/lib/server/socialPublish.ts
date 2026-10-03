@@ -28,7 +28,7 @@ import {
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { dayPlan, gamesTags, isAngleKind, jumpsOn, questionFor } from "@/lib/socialPlan";
+import { dayPlan, gamesTags, isAngleKind, jumpsOn, plannedGame, questionFor } from "@/lib/socialPlan";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
@@ -377,9 +377,11 @@ async function defaultFetchVideo(url: string): Promise<Buffer> {
 export function planTag(slot: Slot, day: string): string {
   const p = dayPlan(day);
   const kind = slotKind(slot, day);
+  // An angle carries its game ("guess@mtg", phase 3): a changed pick remakes the video.
+  const game = plannedGame(kind, day);
   // "jumps" / "lead" (10-01): the 7pm post is each game's biggest jump and the set spotlight leads with its biggest riser, so a video
   // made before that rule is stale (the render safety net remakes it) and one made after it is not.
-  return [kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : "", kind === "games" && jumpsOn(day) ? "jumps" : "", kind === "set" && jumpsOn(day) ? "lead" : ""].filter(Boolean).join("+");
+  return [game ? `${kind}@${game}` : kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : "", kind === "games" && jumpsOn(day) ? "jumps" : "", kind === "set" && jumpsOn(day) ? "lead" : ""].filter(Boolean).join("+");
 }
 
 /** The MP4 registered for a draft by the render job, or null (picture post). */

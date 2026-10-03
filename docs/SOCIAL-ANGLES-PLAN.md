@@ -98,10 +98,29 @@ the new kinds have scores):
    kind, day)`; a mixed post's game is "pokemon" with cards carrying their game, as mixed movers today). Note the
    publisher's `draftsForKind` matches `d.game === g` over the games seen in the drafts, so an `mtg-guess` draft is
    found once a slot names `guess`. Tests: test-social-tiktok (plan tags, candidateKinds order), test-social-video.
-3. **Rotation + optimizer** (`socialOptimize.ts`, `socialSchedule.ts`, `socialPlan.ts`): weighted daily
-   rotation above, game dimension, admin page shows the day's picks and each kind's score. Tests:
-   test-social-optimize rewritten for the pool (seeded, deterministic). This is the phase that turns the
-   rotation on; until then the standing schedule stays set/movers/games.
+3. **DONE 10-03 (session 104).** Rotation + optimizer. The rotation is ON: the first 8am run (10-04) writes 10-05's picks.
+   - `lib/socialOptimize.ts` rewritten: `SCORED_KINDS` = 9, `POOL_KINDS` = 8 (movers pinned at 1pm), `scoreKinds` (the old
+     scoring, unchanged rules), `weights` (score; unknown = mean of the known, FLOOR 0.25 of the mean), `rotate` (mulberry32
+     seeded by day + slot; rules: not the other slot's pick, not yesterday's kind in that slot, not a kind from the last
+     NO_REPEAT_DAYS = 2; relaxed in turn when they leave nothing), `gameFor` (angle game = `angleCycle` pick), `step` →
+     `{report, entry}`. The trial machinery (judgeTrial, Trial, explore, failed, cooldown) is GONE. LEAD_DAYS = 1: the 8am
+     job writes TOMORROW's entry, tonight's render reads it.
+   - `StandingEntry` + `morningGame` / `eveningGame`; `DayPlan` carries them; `angleGameOrder` leads with the plan's game
+     (`angleCycle` is the raw cycle); `plannedGame(kind, day)`; `planTag` = `guess@mtg` for an angle in a slot.
+     `socialSchedule.ts`: OPEN_KINDS + the angles, a game parses only with an angle kind that runs for it, KEEP 30.
+   - Job (`lib/server/socialOptimize.ts`): yesterday / recent from `slotKind` over the schedule itself (no DB read), Off =
+     nothing written (the entry in force stays), report keeps `forDay`, `picks`, `scores`, `weights`; no board line (one a
+     day would be noise); hashtags unchanged. `optimizerStatus` returns picks + scores; `SocialOptimizer.tsx` shows
+     "<day>: 7am guess the price · Magic · 7pm head to head · Pokémon" and a score chip per kind.
+   - Tests: test-social-optimize rewritten (scoring pins kept, weights, the draw, step); test-social-publish (angle entry,
+     plan tags with the game, parse drops a game that does not fit, the job end to end writes tomorrow's entry).
+   - NOT done, next in this area: per-(kind, game) scores need a `game` column on social_post_log + social_posts and the
+     tagger (socialPosts.ts tagPost) to carry it; until then the game is the cycle. `available` (kinds with a draft) is not
+     passed: the publisher's FALLBACK_KINDS and the render's candidateKinds cover a pick with no draft.
+5. **Format dimension** (Chris 10-03 evening: "mostly videos … occasional static images, put it in the optimizer and let it
+   optimize itself"): a per-slot video-vs-picture choice the optimizer draws and scores (video weighted high by default,
+   static a minority option it trials), on the sites that take both. Today every slot shares its video, which already
+   satisfies "mostly video"; this phase adds the static minority as a measured option. After phase 4.
 4. **Visual templates** (separate ask, Chris 10-03 "bored of the same template"): 3 looks for the scene,
    rotated by `dayShuffle` with another salt; `classic` stays byte-identical for the CSS-substring pins.
 
