@@ -104,12 +104,14 @@ const log = [
   { site: "x", url: "https://x.com/i/status/222", day: "2026-10-02", slot: "morning", kind: "set" },
 ];
 const xPost = (id, text, at) => ({ site: "x", postId: id, url: `https://x.com/cardflipio/status/${id}`, text, at });
-assert.deepEqual(tagPost(xPost("111", "Pokémon price gains this week", "2026-10-02T23:05:00Z"), log), { kind: "games", slot: "evening" });
+// A logged row carries its game and format (phase 5); a row from before 10-03 has neither.
+assert.deepEqual(tagPost(xPost("111", "Pokémon price gains this week", "2026-10-02T23:05:00Z"), log), { kind: "games", slot: "evening", game: null, format: null });
+assert.deepEqual(tagPost(xPost("222", "whatever", "2026-10-02T11:05:00Z"), [{ ...log[1], game: "mtg", format: "picture" }]), { kind: "set", slot: "morning", game: "mtg", format: "picture" });
 // Not in the log by link: the words give the kind, the log's row for that site, day and kind gives the slot,
-assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-10-03T01:10:00Z"), log), { kind: "set", slot: "morning" });
+assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-10-03T01:10:00Z"), log), { kind: "set", slot: "morning", game: null, format: null });
 // and with no such row (before the log shipped, another site's row) the Eastern hour does.
-assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-09-28T11:05:00Z"), log), { kind: "set", slot: "morning" });
-assert.deepEqual(tagPost({ ...xPost("999", "Pokémon price drops this week", "2026-10-02T23:05:00Z"), site: "threads" }, log), { kind: "dips", slot: "evening" });
+assert.deepEqual(tagPost(xPost("999", "Base Set 2: the five most valuable cards right now", "2026-09-28T11:05:00Z"), log), { kind: "set", slot: "morning", game: null, format: null });
+assert.deepEqual(tagPost({ ...xPost("999", "Pokémon price drops this week", "2026-10-02T23:05:00Z"), site: "threads" }, log), { kind: "dips", slot: "evening", game: null, format: null });
 // TikTok is posted by hand, whenever: the slot is the one whose video that day shows the post's kind.
 const videos = [
   { day: "2026-10-02", slot: "morning", kind: "set" },
@@ -117,11 +119,12 @@ const videos = [
   { day: "2026-10-02", slot: "evening", kind: "games" },
 ];
 const tt = (text, at) => ({ site: "tiktok", postId: "7692", url: "https://www.tiktok.com/@cardflipio/video/7692", text, at });
-assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-10-02T15:40:00Z"), log, videos), { kind: "games", slot: "evening" });
-assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-09-20T15:40:00Z"), log, videos), { kind: "games", slot: "midday" });
+// A TikTok post is always the video.
+assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-10-02T15:40:00Z"), log, videos), { kind: "games", slot: "evening", game: null, format: "video" });
+assert.deepEqual(tagPost(tt("The biggest price jumps this week in Pokémon and Magic", "2026-09-20T15:40:00Z"), log, videos), { kind: "games", slot: "midday", game: null, format: "video" });
 // None of ours: no kind and no slot, whatever the hour.
-assert.deepEqual(tagPost(xPost("5", "One scanner, five card games", "2026-10-02T23:05:00Z"), log, videos), { kind: null, slot: null });
+assert.deepEqual(tagPost(xPost("5", "One scanner, five card games", "2026-10-02T23:05:00Z"), log, videos), { kind: null, slot: null, game: null, format: null });
 // A timestamp that does not parse keeps the kind and leaves the slot open.
-assert.deepEqual(tagPost(xPost("5", "Pokémon price gains this week", ""), log), { kind: "movers", slot: null });
+assert.deepEqual(tagPost(xPost("5", "Pokémon price gains this week", ""), log), { kind: "movers", slot: null, game: null, format: null });
 
 console.log("test-social-posts: ok");

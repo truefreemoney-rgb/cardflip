@@ -38,7 +38,7 @@
  * so yesterday's picks repeat.
  */
 import { easternOf } from "./socialPosts.ts";
-import { ANGLE_GAMES, angleCycle, isAngleKind, type AngleGame, type StandingEntry } from "./socialPlan.ts";
+import { ANGLE_GAMES, angleCycle, isAngleKind, type AngleGame, type PostFormat, type StandingEntry } from "./socialPlan.ts";
 
 export type ScoredKind = "set" | "movers" | "games" | "dips" | "guess" | "thennow" | "versus" | "sleepers" | "top";
 export type OpenSlot = "morning" | "evening";
@@ -71,6 +71,12 @@ export const FLOOR = 0.25;
 export const NO_REPEAT_DAYS = 2;
 /** The 8am job picks this many days out: tomorrow, whose TikTok videos render tonight. */
 export const LEAD_DAYS = 1;
+/**
+ * The picture's weight against the video's until the picture has a score of its own (phase 5, Chris 10-03: "mostly
+ * videos … occasional static images, put it in the optimizer and let it optimize itself"): one open slot in five or so
+ * is the picture, never both slots on one day, and 1pm is always the video.
+ */
+export const PICTURE_PRIOR = 0.2;
 
 const DAY_MS = 86_400_000;
 
@@ -85,6 +91,10 @@ export interface ScoredPost {
   likes: number | null;
   comments: number | null;
   shares: number | null;
+  /** The post's game ("mixed" for a one-per-game list); null on rows from before the log carried it. */
+  game?: string | null;
+  /** video or picture; null when unknown. */
+  format?: string | null;
 }
 
 export interface KindScore {
@@ -131,16 +141,48 @@ function normalize(posts: ScoredPost[], now: number): Normed[] {
   return out;
 }
 
-/** Score every kind. */
-export function scoreKinds(posts: ScoredPost[], now: number): { counted: number; scores: KindScore[] } {
+function scoreOf(list: Normed[]): { posts: number; days: number; score: number | null } {
+  const days = new Set(list.map((n) => n.day).filter(Boolean)).size;
+  const score = list.length ? round2(list.reduce((s, n) => s + n.norm, 0) / list.length) : null;
+  return { posts: list.length, days, score: list.length >= MIN_POSTS && days >= MIN_DAYS ? score : null };
+}
+
+/** An angle's score for one game (null until MIN_POSTS over MIN_DAYS). */
+export interface GameScore {
+  kind: ScoredKind;
+  game: AngleGame;
+  posts: number;
+  score: number | null;
+}
+/** video vs picture, on the sites that have posted both in the window (a picture-only site says nothing about the choice). */
+export interface FormatScore {
+  format: PostFormat;
+  posts: number;
+  score: number | null;
+}
+
+/** Score every kind, each angle's games, and the two formats. */
+export function scoreKinds(posts: ScoredPost[], now: number): { counted: number; scores: KindScore[]; games: GameScore[]; formats: FormatScore[] } {
   const normed = normalize(posts, now);
-  const scores = SCORED_KINDS.map((kind): KindScore => {
-    const list = normed.filter((n) => n.kind === kind);
-    const days = new Set(list.map((n) => n.day).filter(Boolean)).size;
-    const score = list.length ? round2(list.reduce((s, n) => s + n.norm, 0) / list.length) : null;
-    return { kind, posts: list.length, days, score: list.length >= MIN_POSTS && days >= MIN_DAYS ? score : null };
+  const scores = SCORED_KINDS.map((kind): KindScore => ({ kind, ...scoreOf(normed.filter((n) => n.kind === kind)) }));
+  const games: GameScore[] = [];
+  for (const kind of SCORED_KINDS) {
+    if (!isAngleKind(kind)) continue;
+    for (const game of ANGLE_GAMES[kind]) {
+      const { posts: n, score } = scoreOf(normed.filter((x) => x.kind === kind && x.post.game === game));
+      if (n) games.push({ kind, game, posts: n, score });
+    }
+  }
+  const both = new Set<string>();
+  for (const site of new Set(normed.map((n) => n.post.site))) {
+    const f = new Set(normed.filter((n) => n.post.site === site).map((n) => n.post.format));
+    if (f.has("video") && f.has("picture")) both.add(site);
+  }
+  const formats = (["video", "picture"] as PostFormat[]).map((format): FormatScore => {
+    const { posts: n, score } = scoreOf(normed.filter((x) => both.has(x.post.site) && x.post.format === format));
+    return { format, posts: n, score };
   });
-  return { counted: normed.length, scores };
+  return { counted: normed.length, scores, games, formats };
 }
 
 /** A mulberry32 stream seeded by a day and a salt: the same day always draws the same. */
@@ -160,6 +202,8 @@ export interface Pick {
   kind: ScoredKind;
   /** The angle's game; null for a kind that has no game dimension. */
   game: AngleGame | null;
+  /** What the slot posts on the sites that take both. */
+  format: PostFormat;
 }
 export type DayPicks = Record<OpenSlot, Pick>;
 
@@ -167,6 +211,10 @@ export interface RotateInput {
   /** The Eastern day being picked. */
   day: string;
   scores: KindScore[];
+  /** Each angle's per-game scores; a kind with any scored game draws its game by score instead of the cycle. */
+  games?: GameScore[];
+  /** video vs picture; the picture is weighted PICTURE_PRIOR until it has a score. */
+  formats?: FormatScore[];
   /** The kinds that sat in each slot the day before. */
   yesterday: Record<OpenSlot, ScoredKind>;
   /** Every kind posted in the last NO_REPEAT_DAYS days, any slot. */
@@ -197,24 +245,46 @@ function draw(cands: ScoredKind[], w: Record<string, number>, rand: () => number
   return cands[cands.length - 1];
 }
 
-/** The game an angle kind runs for on a day: the cycle's pick (lib/socialPlan.ts). null for a kind with no games. */
-export function gameFor(kind: ScoredKind, day: string): AngleGame | null {
-  return isAngleKind(kind) ? (angleCycle(kind, day)[0] ?? ANGLE_GAMES[kind][0] ?? null) : null;
+/**
+ * The game an angle kind runs for on a day. With no per-game score yet, the cycle's pick (lib/socialPlan.ts, one strict
+ * cycle so every game gets its turn); once any of the kind's games has a score, a seeded weighted draw over its games
+ * (unknown games at the mean, nothing under FLOOR of it). null for a kind with no games.
+ */
+export function gameFor(kind: ScoredKind, day: string, games: GameScore[] = []): AngleGame | null {
+  if (!isAngleKind(kind)) return null;
+  const mine = games.filter((g) => g.kind === kind && g.score != null);
+  if (!mine.length) return angleCycle(kind, day)[0] ?? ANGLE_GAMES[kind][0] ?? null;
+  const mean = mine.reduce((a, g) => a + (g.score as number), 0) / mine.length;
+  const w: Record<string, number> = {};
+  for (const g of ANGLE_GAMES[kind]) w[g] = Math.max(mine.find((x) => x.game === g)?.score ?? mean, mean * FLOOR, 0.01);
+  return draw(ANGLE_GAMES[kind] as unknown as ScoredKind[], w, seeded(day, `${kind}:game`)) as unknown as AngleGame;
+}
+
+/** The format weights: the video's score (1 when unknown) against the picture's (PICTURE_PRIOR of the video's until it has one). */
+export function formatWeights(formats: FormatScore[] = []): Record<PostFormat, number> {
+  const video = formats.find((f) => f.format === "video")?.score ?? 1;
+  const picture = formats.find((f) => f.format === "picture")?.score;
+  return { video: round2(Math.max(video, 0.01)), picture: round2(Math.max(picture ?? video * PICTURE_PRIOR, 0.01)) };
 }
 
 /** The day's picks for the two open slots: a seeded weighted draw under the no-repeat rules, each relaxed in turn when it leaves nothing. */
 export function rotate(input: RotateInput): DayPicks {
   const pool = input.pool?.length ? input.pool : POOL_KINDS;
   const w = weights(input.scores, pool);
+  const fw = formatWeights(input.formats);
   const chosen: ScoredKind[] = [];
   const picks = {} as DayPicks;
+  let pictureDrawn = false;
   for (const slot of OPEN_SLOTS) {
     const rules: Array<(k: ScoredKind) => boolean> = [(k) => !chosen.includes(k), (k) => k !== input.yesterday[slot], (k) => !input.recent.includes(k)];
     let cands: ScoredKind[] = [];
     for (let n = rules.length; n >= 0 && cands.length === 0; n--) cands = pool.filter((k) => rules.slice(0, n).every((r) => r(k)));
     const kind = draw(cands, w, seeded(input.day, slot));
     chosen.push(kind);
-    picks[slot] = { kind, game: gameFor(kind, input.day) };
+    // The format: never the picture in both slots on one day (the picture is the occasional post, the video the rule).
+    const format: PostFormat = pictureDrawn ? "video" : (draw(["video", "picture"] as unknown as ScoredKind[], fw, seeded(input.day, `${slot}:format`)) as unknown as PostFormat);
+    if (format === "picture") pictureDrawn = true;
+    picks[slot] = { kind, game: gameFor(kind, input.day, input.games), format };
   }
   return picks;
 }
@@ -227,6 +297,8 @@ export interface OptimizeReport {
   /** Posts that counted (in the age window, on a site with numbers). */
   counted: number;
   scores: KindScore[];
+  games: GameScore[];
+  formats: FormatScore[];
   /** Each pool kind's weight in the draw. */
   weights: Record<string, number>;
   /** The picks written, or null (switched off). */
@@ -242,37 +314,42 @@ export interface LoopStep {
 }
 
 export function describePick(p: Pick): string {
-  return p.game ? `${KIND_NAME[p.kind]} (${GAME_NAME[p.game]})` : KIND_NAME[p.kind];
+  return `${p.game ? `${KIND_NAME[p.kind]} (${GAME_NAME[p.game]})` : KIND_NAME[p.kind]}${p.format === "picture" ? ", as a picture" : ""}`;
 }
 
-function scoreLine(scores: KindScore[], w: Record<string, number>): string {
+function scoreLine(scores: KindScore[], w: Record<string, number>, formats: FormatScore[] = []): string {
   const parts = POOL_KINDS.map((k) => {
     const s = scores.find((x) => x.kind === k);
     return `${KIND_NAME[k]} ${s?.score != null ? s.score : `– (${s?.posts ?? 0} of ${MIN_POSTS} posts)`}`;
   });
   const unknown = POOL_KINDS.filter((k) => scores.find((x) => x.kind === k)?.score == null);
   const prior = unknown.length ? ` A kind with no score yet is weighted at the average (${w[unknown[0]]}) until it has ${MIN_POSTS} posts over ${MIN_DAYS} days.` : "";
-  return `Scores (1.0 = an average post on its site): ${parts.join(", ")}.${prior}`;
+  const fw = formatWeights(formats);
+  const pic = formats.find((f) => f.format === "picture");
+  const fmt = ` Video ${fw.video} vs picture ${fw.picture}${pic?.score == null ? ` (the picture's own score needs ${MIN_POSTS} posts on sites that post both; it has ${pic?.posts ?? 0})` : ""}.`;
+  return `Scores (1.0 = an average post on its site): ${parts.join(", ")}.${prior}${fmt}`;
 }
 
 /** One day of the loop: the scores, and the picks for `day` (today + LEAD_DAYS). */
 export function step(input: { posts: ScoredPost[]; now: number; day: string; off: boolean; yesterday: Record<OpenSlot, ScoredKind>; recent: ScoredKind[]; pool?: ScoredKind[] }): LoopStep {
   const today = easternOf(input.now)?.day ?? "";
-  const { counted, scores } = scoreKinds(input.posts, input.now);
+  const { counted, scores, games, formats } = scoreKinds(input.posts, input.now);
   const w = weights(scores, input.pool?.length ? input.pool : POOL_KINDS);
-  const base = { day: today, forDay: input.day, counted, scores, weights: w };
+  const base = { day: today, forDay: input.day, counted, scores, games, formats, weights: w };
   if (input.off) {
     const stay = `${KIND_NAME[input.yesterday.morning]} at 7am, ${KIND_NAME[input.yesterday.evening]} at 7pm`;
-    return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w)}` }, entry: null };
+    return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w, formats)}` }, entry: null };
   }
-  const picks = rotate({ day: input.day, scores, yesterday: input.yesterday, recent: input.recent, pool: input.pool });
-  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.evening)} at 7pm, drawn by score (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w)}`;
+  const picks = rotate({ day: input.day, scores, games, formats, yesterday: input.yesterday, recent: input.recent, pool: input.pool });
+  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.evening)} at 7pm, drawn by score (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w, formats)}`;
   const entry: StandingEntry = {
     from: input.day,
     morning: picks.morning.kind,
     evening: picks.evening.kind,
     ...(picks.morning.game ? { morningGame: picks.morning.game } : {}),
     ...(picks.evening.game ? { eveningGame: picks.evening.game } : {}),
+    ...(picks.morning.format === "picture" ? { morningFormat: "picture" as const } : {}),
+    ...(picks.evening.format === "picture" ? { eveningFormat: "picture" as const } : {}),
   };
   return { report: { ...base, picks, why }, entry };
 }

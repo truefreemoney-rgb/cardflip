@@ -12,6 +12,8 @@ import { useState } from "react";
 export interface OptimizerPick {
   kind: string;
   game: string | null;
+  /** "picture" when the slot posts its picture instead of the video (phase 5); anything else is the video. */
+  format?: string;
 }
 export interface OptimizerScore {
   kind: string;
@@ -58,7 +60,7 @@ export default function SocialOptimizer({
     }
   }
 
-  const pick = (p: OptimizerPick) => `${names[p.kind] ?? p.kind}${p.game ? ` · ${games[p.game] ?? p.game}` : ""}`;
+  const pick = (p: OptimizerPick) => `${names[p.kind] ?? p.kind}${p.game ? ` · ${games[p.game] ?? p.game}` : ""}${p.format === "picture" ? " · picture" : ""}`;
   return (
     <div className="mb-3 rounded-xl border border-edge px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">

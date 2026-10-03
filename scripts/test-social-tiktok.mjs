@@ -180,6 +180,21 @@ check("7am and 7pm: the picture site posts the same pictures as before, the vide
 check("7pm with the video attached says 'In the video', the picture site keeps 'In the picture'", [bVid.posts[2].text.includes("In the video, one card"), bVid.posts[2].text.includes("In the picture"), bPic.posts[2].text.includes("In the picture, one card")], [true, false, true]);
 check("1pm: tomorrow's registered movers video is what the 1:05pm post finds (the video site gets that file)", [bVid.posts[1].video?.url, bVid.posts[1].video?.seconds, bPic.posts[1].video ?? null], ["https://blob/tiktok/midday-movers-2026-09-11.mp4", 26.2, null]);
 check("1pm text is the same movers post (the frozen cards are the ones the draft had)", bVid.posts[1].text === BASE.vid[1].text, true);
+// Phase 5 (the format dimension): a schedule entry that makes 7pm "picture" posts the picture on the video site too, the video left on the shelf;
+// the log says so; 7am (video) is untouched. Then the entry is cleared.
+{
+  const { addScheduleEntry, loadSchedule, SCHEDULE_KEY } = await import(at("lib/server/socialSchedule.ts"));
+  const { slotFormat } = await import(at("lib/socialPlan.ts"));
+  await addScheduleEntry({ from: FRI, morning: "set", evening: "games", eveningFormat: "picture" });
+  check("the plan says 7pm is the picture, 7am and 1pm the video; the format is not part of the plan tag (the video is still rendered)", [slotFormat("evening", FRI), slotFormat("morning", FRI), slotFormat("midday", FRI), T.planTag("evening", FRI)], ["picture", "video", "video", "games"]);
+  const bFmt = fakeSite("b_fmt", { postsVideo: true });
+  await publishSocial({ day: FRI, now: clock(23), origin: "http://x", slot: "evening", force: true, sites: [bFmt], fetchImage, fetchVideo });
+  await publishSocial({ day: FRI, now: clock(11), origin: "http://x", slot: "morning", force: true, sites: [bFmt], fetchImage, fetchVideo });
+  const fmtLog = (await db.prepare("SELECT slot, format, game FROM social_post_log WHERE site = 'b_fmt' ORDER BY slot").all()).map((l) => `${l.slot} ${l.format} ${l.game}`);
+  check("7pm went out as the picture (no video attached, picture wording), 7am as the video; the log says which", [bFmt.posts[0].video ?? null, bFmt.posts[0].text.includes("In the picture, one card"), bFmt.posts[1].video?.url, fmtLog], [null, true, morning.spec.url, ["evening picture pokemon", "morning video pokemon"]]);
+  await setSetting(SCHEDULE_KEY, "");
+  await loadSchedule();
+}
 check("no site row existed for any kind before the package", [before.movers, before.set, before.games], [null, null, null]);
 
 // ---- 3. The night render's day ----------------------------------------------------------------------------

@@ -116,6 +116,8 @@ check("uris kept", JSON.parse(await getSetting(`${LAST_POST_PREFIX}bsky:uris`)),
 // 10-02, the optimization loop: every landed post is logged with the slot and kind it went out as (a dry run logs nothing).
 const logged = async (site) => (await db.prepare("SELECT url, day, slot, kind FROM social_post_log WHERE site = ? ORDER BY rowid").all(site)).map((l) => `${l.url} ${l.day} ${l.slot} ${l.kind}`);
 check("the landed post is logged as what it went out as", await logged("bsky"), [`https://bsky/1 ${THU} morning set`]);
+// Phase 5: the log also says the post's game and format (this fake site takes no video, so the picture went).
+check("…with its game and format", (await db.prepare("SELECT game, format FROM social_post_log WHERE site = 'bsky'").all()).map((l) => `${l.game} ${l.format}`), ["pokemon picture"]);
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);

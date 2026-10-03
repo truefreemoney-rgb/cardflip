@@ -117,10 +117,24 @@ the new kinds have scores):
    - NOT done, next in this area: per-(kind, game) scores need a `game` column on social_post_log + social_posts and the
      tagger (socialPosts.ts tagPost) to carry it; until then the game is the cycle. `available` (kinds with a draft) is not
      passed: the publisher's FALLBACK_KINDS and the render's candidateKinds cover a pick with no draft.
-5. **Format dimension** (Chris 10-03 evening: "mostly videos … occasional static images, put it in the optimizer and let it
-   optimize itself"): a per-slot video-vs-picture choice the optimizer draws and scores (video weighted high by default,
-   static a minority option it trials), on the sites that take both. Today every slot shares its video, which already
-   satisfies "mostly video"; this phase adds the static minority as a measured option. After phase 4.
+5. **DONE 10-03 (session 104).** Format dimension (Chris 10-03 evening: "mostly videos … occasional static images, put it
+   in the optimizer and let it optimize itself") + the game and format columns:
+   - `social_post_log` and `social_posts` gain `game` ("mixed" for a one-per-game list) and `format` (video / picture);
+     the publisher logs both per landed post (`landed[]`, format = "video" only when the MP4 went out), the tagger
+     (`tagPost` → `PostTag`) carries them onto social_posts; a TikTok post is always "video"; older rows are null.
+   - `PostFormat`, `StandingEntry.morningFormat / eveningFormat` (stored only as "picture"; absent = video), `DayPlan`
+     carries them, `slotFormat(slot, day)` (1pm is always the video). `postOne` posts the picture on a video site when
+     the slot's format is picture; `planTag` does NOT include the format (the video is still rendered and stays current).
+   - Optimizer: `scoreKinds` returns `games` (per angle × game) and `formats` (video vs picture, counted only on sites
+     that posted both in the window). `gameFor(kind, day, games)`: the cycle until any of the kind's games has a score,
+     then a seeded weighted draw (unknown = mean, FLOOR). `formatWeights`: video's score (1 when unknown) vs picture's
+     (PICTURE_PRIOR = 0.2 of the video's until it has MIN_POSTS). `rotate` draws a format per open slot, never the picture
+     in both slots on one day. The sentence says ", as a picture" and prints "Video 1 vs picture 0.2 (…)".
+   - /admin/social pick shows "· picture" when drawn. Tests: test-social-optimize (phase 5 block), test-social-posts
+     (tagPost game/format), test-social-publish (log columns), test-social-tiktok (a picture entry posts the picture on
+     the video site, the log says which).
+   - Open: the picture site baseline. A site that never takes video (Pinterest) contributes nothing to the format score
+     by design; only Meta, X and Bluesky decide it.
 4. **DONE 10-03 (session 104).** Visual templates: `scripts/lib/social-looks.mjs`, LOOKS = classic / ember / arctic.
    `lookCss(look)` is appended right before `</style>` in both scenes (`sceneHtml`, `angleScene`; `o.look`); classic
    appends "" so that scene is byte-identical. ember = maroon field, amber labels, gold title, 18px art radius; arctic =

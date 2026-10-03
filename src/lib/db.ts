@@ -922,7 +922,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   ["scan_pack_purchases", ["payment_intent TEXT", "reversed INTEGER NOT NULL DEFAULT 0"]],
   // The optimization loop (10-02): the kind (set / movers / games / dips) and slot (morning / midday / evening) a
   // post went out as. NULL = not looked at yet, '' = looked at and it is none of ours (lib/socialPosts.ts tagPost).
-  ["social_posts", ["kind TEXT", "slot TEXT"]],
+  // 10-03 phase 5: the game the post was about ("mixed" for a one-per-game list) and its format (video / picture), from
+  // the publisher's log, so the loop can score an angle per game and the video-vs-picture choice.
+  ["social_posts", ["kind TEXT", "slot TEXT", "game TEXT", "format TEXT"]],
+  ["social_post_log", ["game TEXT", "format TEXT"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

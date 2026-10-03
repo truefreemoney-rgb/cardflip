@@ -96,8 +96,16 @@ export async function tagSocialPosts(): Promise<number> {
   const days = posts.map((p) => easternOf(p.at)?.day).filter((d): d is string => Boolean(d)).sort();
   // A post can be listed a day after it went out; the log is read from the day before the oldest untagged one.
   const from = days.length ? new Date(Date.parse(`${days[0]}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10) : "";
-  const log = ((await db.prepare("SELECT site, url, day, slot, kind FROM social_post_log WHERE day >= ?").all(from)) as Record<string, unknown>[]).map(
-    (r): PostLogRow => ({ site: String(r.site), url: String(r.url), day: String(r.day), slot: String(r.slot) as SlotTag, kind: String(r.kind) as PostKindTag }),
+  const log = ((await db.prepare("SELECT site, url, day, slot, kind, game, format FROM social_post_log WHERE day >= ?").all(from)) as Record<string, unknown>[]).map(
+    (r): PostLogRow => ({
+      site: String(r.site),
+      url: String(r.url),
+      day: String(r.day),
+      slot: String(r.slot) as SlotTag,
+      kind: String(r.kind) as PostKindTag,
+      game: r.game ? String(r.game) : null,
+      format: r.format === "video" || r.format === "picture" ? r.format : null,
+    }),
   );
   // TikTok is posted by hand: its slot is the one whose registered video for that day shows the post's kind.
   const videos: Array<{ day: string; slot: SlotTag; kind: string }> = [];
@@ -113,10 +121,10 @@ export async function tagSocialPosts(): Promise<number> {
     }
   }
   await db.transaction(async (tx) => {
-    const set = tx.prepare("UPDATE social_posts SET kind = ?, slot = ? WHERE site = ? AND post_id = ?");
+    const set = tx.prepare("UPDATE social_posts SET kind = ?, slot = ?, game = ?, format = ? WHERE site = ? AND post_id = ?");
     for (const p of posts) {
       const tag = tagPost(p, log, videos);
-      await set.run(tag.kind ?? "", tag.slot ?? "", p.site, p.postId);
+      await set.run(tag.kind ?? "", tag.slot ?? "", tag.game ?? "", tag.format ?? "", p.site, p.postId);
     }
   });
   return posts.length;

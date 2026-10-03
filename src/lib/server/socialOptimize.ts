@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { addCompletedLine, eastern, slotKind } from "@/lib/server/socialPublish";
 import { addScheduleEntry, loadSchedule } from "@/lib/server/socialSchedule";
-import { LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, step, type DayPicks, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
+import { LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, step, type DayPicks, type FormatScore, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
 import { runSocialTags, TAGS_WHY_KEY } from "@/lib/server/socialTags";
 import type { TagPost } from "@/lib/socialTags";
 
@@ -50,10 +50,21 @@ export async function runSocialOptimize(now = Date.now()): Promise<OptimizeRepor
   // first_seen_at is within hours of the post and is a plain integer (at is text in each platform's own shape); a week of slack past the window.
   const since = now - (MAX_AGE_DAYS + 7) * 86_400_000;
   const rows = (await db
-    .prepare(`SELECT site, kind, slot, at, text, likes, comments, shares, views FROM social_posts WHERE kind IN (${SCORED_KINDS.map(() => "?").join(", ")}) AND first_seen_at >= ?`)
+    .prepare(`SELECT site, kind, slot, at, text, likes, comments, shares, views, game, format FROM social_posts WHERE kind IN (${SCORED_KINDS.map(() => "?").join(", ")}) AND first_seen_at >= ?`)
     .all(...SCORED_KINDS, since)) as Record<string, unknown>[];
   const n = (v: unknown): number | null => (v == null ? null : Number(v));
-  const posts: ScoredPost[] = rows.map((r) => ({ site: String(r.site), kind: String(r.kind), slot: String(r.slot ?? ""), at: String(r.at ?? ""), views: n(r.views), likes: n(r.likes), comments: n(r.comments), shares: n(r.shares) }));
+  const posts: ScoredPost[] = rows.map((r) => ({
+    site: String(r.site),
+    kind: String(r.kind),
+    slot: String(r.slot ?? ""),
+    at: String(r.at ?? ""),
+    views: n(r.views),
+    likes: n(r.likes),
+    comments: n(r.comments),
+    shares: n(r.shares),
+    game: r.game ? String(r.game) : null,
+    format: r.format ? String(r.format) : null,
+  }));
 
   await loadSchedule(now);
   const target = dayAfter(day, LEAD_DAYS);
@@ -80,6 +91,7 @@ export interface OptimizerStatus {
   forDay: string | null;
   picks: DayPicks | null;
   scores: KindScore[];
+  formats: FormatScore[];
   weights: Record<string, number>;
 }
 
@@ -95,6 +107,7 @@ export async function optimizerStatus(): Promise<OptimizerStatus> {
     forDay: report?.forDay ?? null,
     picks: report?.picks ?? null,
     scores: Array.isArray(report?.scores) ? report.scores : [],
+    formats: Array.isArray(report?.formats) ? report.formats : [],
     weights: report?.weights ?? {},
   };
 }

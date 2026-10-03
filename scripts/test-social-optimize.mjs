@@ -12,7 +12,7 @@
  * the last two days; 1pm is never touched; off writes nothing.
  */
 import assert from "node:assert/strict";
-import { FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, NO_REPEAT_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
+import { FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, NO_REPEAT_DAYS, PICTURE_PRIOR, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
 import { ANGLE_GAMES, angleCycle } from "../src/lib/socialPlan.ts";
 
 const NOW = Date.parse("2026-10-20T16:00:00Z"); // noon Eastern
@@ -117,6 +117,40 @@ assert.equal(gameFor("thennow", "2026-10-21"), angleCycle("thennow", "2026-10-21
 assert.ok(ANGLE_GAMES.thennow.includes(gameFor("thennow", "2026-10-21")));
 assert.equal(gameFor("set", "2026-10-21"), null);
 
+// ---- Phase 5: the game by score, the format by score ----
+// Per-game scores: once any of an angle's games has a score, the game is drawn by score (unknown games at the mean), seeded by day.
+const { angleCycle: _ac } = await import("../src/lib/socialPlan.ts");
+const tagged = (kind, game, level, days = 6) => run(kind, level, days).map((p) => ({ ...p, game, format: "video" }));
+let sk = scoreKinds([...tagged("guess", "mtg", 40), ...tagged("guess", "pokemon", 1), ...tagged("guess", "lorcana", 1)], NOW);
+assert.deepEqual(sk.games.filter((g) => g.score != null).map((g) => [g.game, g.posts]), [["pokemon", 12], ["mtg", 12], ["lorcana", 12]]);
+assert.equal(sk.scores.find((s) => s.kind === "guess").posts, 36);
+const gameDraws = Array.from({ length: 60 }, (_, i) => gameFor("guess", `2027-03-${String((i % 28) + 1).padStart(2, "0")}`, sk.games));
+// Magic scores ~2.9, the two weak games sit at the floor, the three unscored games at the mean (~1.0 each): Magic is the most drawn, about a half.
+const mtgDays = gameDraws.filter((g) => g === "mtg").length;
+assert.ok(mtgDays >= 20 && mtgDays > gameDraws.filter((g) => g === "pokemon").length, `Magic should be drawn most, got ${mtgDays} of 60`);
+assert.ok(new Set(gameDraws).size >= 3, "the other games still get aired (mean weight for the unknown, a floor for the weak)");
+assert.equal(gameFor("guess", "2027-03-01", sk.games), gameFor("guess", "2027-03-01", sk.games), "seeded");
+assert.equal(gameFor("guess", "2027-03-01", sk.games.filter((g) => g.kind !== "guess")), angleCycle("guess", "2027-03-01")[0], "no score for this kind: the cycle");
+// Formats: scored only on sites that posted both; the picture starts at PICTURE_PRIOR of the video.
+assert.ok(PICTURE_PRIOR === 0.2);
+assert.deepEqual(formatWeights([]), { video: 1, picture: 0.2 });
+sk = scoreKinds([...run("set", 10).map((p) => ({ ...p, format: "video" })), ...run("games", 10).map((p) => ({ ...p, format: "picture" }))], NOW);
+assert.deepEqual(sk.formats.map((f) => [f.format, f.posts, f.score]), [["video", 12, 1], ["picture", 12, 1]]);
+// A site that only ever posts one format is left out of the format scores (it says nothing about the choice): here "tt" is video-only, so only "bs" counts.
+sk = scoreKinds([...run("set", 10).map((p) => ({ ...p, format: "video" })), ...run("games", 10).map((p) => ({ ...p, format: p.site === "bs" ? "picture" : "video" }))], NOW);
+assert.deepEqual(sk.formats.map((f) => f.posts), [6, 6]);
+// The draw: with no score the picture takes about a fifth of the open slots and never both slots on one day.
+const noRepeat = { scores: none(), yesterday: { morning: "set", evening: "games" }, recent: [] };
+const fmtDays = Array.from({ length: 100 }, (_, i) => rotate({ ...noRepeat, day: `2027-${String(4 + Math.floor(i / 28)).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}` }));
+const pictures = fmtDays.flatMap((d) => [d.morning.format, d.evening.format]).filter((f) => f === "picture").length;
+assert.ok(pictures >= 15 && pictures <= 50, `about a fifth of 200 slots, got ${pictures}`);
+assert.ok(fmtDays.every((d) => !(d.morning.format === "picture" && d.evening.format === "picture")), "never both");
+// A picture that scores well is drawn more; one that scores badly, less.
+const good = [{ format: "video", posts: 20, score: 0.8 }, { format: "picture", posts: 20, score: 2.4 }];
+const goodDays = Array.from({ length: 60 }, (_, i) => rotate({ ...noRepeat, formats: good, day: `2027-05-${String((i % 28) + 1).padStart(2, "0")}` }));
+assert.ok(goodDays.filter((d) => d.morning.format === "picture").length >= 35, "a strong picture score wins most mornings");
+assert.deepEqual(formatWeights([{ format: "video", posts: 20, score: 1.5 }, { format: "picture", posts: 20, score: 0.3 }]), { video: 1.5, picture: 0.3 });
+
 // ---- One day of the loop (step) ----
 assert.ok(LEAD_DAYS === 1 && NO_REPEAT_DAYS === 2);
 const posts = [...run("set", 6), ...run("movers", 10), ...run("games", 10), ...run("dips", 14)];
@@ -127,7 +161,15 @@ assert.ok(s.entry && s.entry.from === "2026-10-21" && s.entry.morning === s.repo
 assert.ok(!["set", "games", "dips"].includes(s.entry.morning) && !["set", "games", "dips"].includes(s.entry.evening), "the last two days' kinds sit out");
 assert.equal(s.entry.morningGame, s.report.picks.morning.game ?? undefined, "the entry carries the angle's game");
 assert.match(s.report.why, /^2026-10-21: .+ at 7am, .+ at 7pm, drawn by score \(never a kind from the last 2 days\)\. Scores \(1\.0 = an average post on its site\): set spotlight 0\.\d+, all-games jumps 1(\.\d+)?, price drops 1\.\d+, guess the price – \(0 of 10 posts\)/);
-assert.match(s.report.why, /A kind with no score yet is weighted at the average \([\d.]+\) until it has 10 posts over 5 days\.$/);
+assert.match(s.report.why, /A kind with no score yet is weighted at the average \([\d.]+\) until it has 10 posts over 5 days\. Video 1 vs picture 0\.2 \(the picture's own score needs 10 posts on sites that post both; it has 0\)\.$/);
+// The entry carries "picture" only when drawn (absent = video), and the sentence says so.
+const pic = Array.from({ length: 60 }, (_, i) => step({ posts, now: NOW, day: `2027-06-${String((i % 28) + 1).padStart(2, "0")}`, off: false, yesterday: { morning: "set", evening: "games" }, recent: [] })).find((x) => x.report.picks.morning.format === "picture" || x.report.picks.evening.format === "picture");
+assert.ok(pic, "some day draws a picture");
+const picSlot = pic.report.picks.morning.format === "picture" ? "morning" : "evening";
+assert.equal(pic.entry[`${picSlot}Format`], "picture");
+assert.equal(pic.entry[`${picSlot === "morning" ? "evening" : "morning"}Format`], undefined);
+assert.match(pic.report.why, /, as a picture at 7[ap]m/);
+assert.equal(s.entry.morningFormat === undefined || s.entry.morningFormat === "picture", true);
 assert.equal(s.report.counted, 48);
 assert.equal(Object.keys(s.report.weights).length, POOL_KINDS.length);
 // Switched off: the same numbers, nothing written, the sentence says what stays.

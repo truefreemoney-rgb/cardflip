@@ -103,6 +103,8 @@ export function whenET(iso: string | number): string {
  */
 export type PostKindTag = "set" | "movers" | "games" | "dips" | "card" | "guess" | "thennow" | "versus" | "sleepers" | "top";
 export type SlotTag = "morning" | "midday" | "evening";
+/** What went out: the MP4, or the picture (10-03 phase 5, the format dimension). */
+export type FormatTag = "video" | "picture";
 
 /** One social_post_log row: what the publisher sent where. */
 export interface PostLogRow {
@@ -113,6 +115,18 @@ export interface PostLogRow {
   day: string;
   slot: SlotTag;
   kind: PostKindTag;
+  /** The post's game ("mixed" for a one-per-game list); rows from before 10-03 have none. */
+  game?: string | null;
+  format?: FormatTag | null;
+}
+
+export interface PostTag {
+  kind: PostKindTag | null;
+  slot: SlotTag | null;
+  /** From the log only; null when the post was tagged by its words. */
+  game: string | null;
+  /** From the log; a TikTok post is always the video. */
+  format: FormatTag | null;
 }
 
 /** The kind a caption was written for, read off its opening words; null when it is none of the autopilot's formats. */
@@ -162,18 +176,19 @@ export function tagPost(
   post: { site: string; postId: string; url: string; text: string; at: string },
   log: PostLogRow[],
   videos: Array<{ day: string; slot: SlotTag; kind: string }> = [],
-): { kind: PostKindTag | null; slot: SlotTag | null } {
+): PostTag {
   const logged = log.find((l) => l.site === post.site && sameLogged(post, l.url));
-  if (logged) return { kind: logged.kind, slot: logged.slot };
+  if (logged) return { kind: logged.kind, slot: logged.slot, game: logged.game ?? null, format: logged.format ?? null };
+  const format: FormatTag | null = post.site === "tiktok" ? "video" : null;
   const kind = kindOfCaption(post.text);
-  if (!kind) return { kind: null, slot: null };
+  if (!kind) return { kind: null, slot: null, game: null, format: null };
   const when = easternOf(post.at);
-  if (!when) return { kind, slot: null };
+  if (!when) return { kind, slot: null, game: null, format };
   const planned =
     post.site === "tiktok"
       ? videos.find((v) => v.day === when.day && v.kind === kind)?.slot
       : log.find((l) => l.site === post.site && l.day === when.day && l.kind === kind)?.slot;
-  return { kind, slot: planned ?? slotOfHour(when.hour) };
+  return { kind, slot: planned ?? slotOfHour(when.hour), game: null, format };
 }
 
 /** One-line preview of a post's words. */

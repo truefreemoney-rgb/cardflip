@@ -17,6 +17,9 @@ export interface DayPlan {
   /** The game the 7am angle runs for (phase 3: the optimizer's pick; angleGameOrder puts it first). */
   morningGame?: AngleGame;
   eveningGame?: AngleGame;
+  /** The slot posts its picture instead of its video on the sites that take both (phase 5; absent = video). */
+  morningFormat?: PostFormat;
+  eveningFormat?: PostFormat;
   /** The 1pm movers post and video mix Pokémon and Magic gainers (MIXED_PER_GAME each) and the video ends on every game. */
   mixedMovers?: boolean;
   /** Pokémon pictures and captions say the scanner also reads the other games. */
@@ -57,7 +60,13 @@ export interface StandingEntry {
   /** The game an angle kind in that slot runs for (phase 3, the daily rotation). */
   morningGame?: AngleGame;
   eveningGame?: AngleGame;
+  /** video (the default when absent) or picture (phase 5: the optimizer's occasional static post). */
+  morningFormat?: PostFormat;
+  eveningFormat?: PostFormat;
 }
+/** What a slot posts on the sites that take both: the rendered MP4, or the picture drawn from the same cards. */
+export type PostFormat = "video" | "picture";
+export const POST_FORMATS: PostFormat[] = ["video", "picture"];
 let standing: StandingEntry[] = [];
 /** Replace the standing schedule this process reads (oldest first inside). */
 export function setStanding(entries: StandingEntry[]): void {
@@ -79,8 +88,16 @@ export function dayPlan(day: string | undefined): DayPlan {
     ...(s.evening ? { evening: s.evening } : {}),
     ...(s.morning && s.morningGame ? { morningGame: s.morningGame } : {}),
     ...(s.evening && s.eveningGame ? { eveningGame: s.eveningGame } : {}),
+    ...(s.morningFormat ? { morningFormat: s.morningFormat } : {}),
+    ...(s.eveningFormat ? { eveningFormat: s.eveningFormat } : {}),
     ...DAY_PLANS[day],
   };
+}
+
+/** The format a slot posts on a day: the plan's, else video (1pm is always the video: the shared file every site posts). */
+export function slotFormat(slot: "morning" | "midday" | "evening", day: string | undefined): PostFormat {
+  const p = dayPlan(day);
+  return (slot === "morning" ? p.morningFormat : slot === "evening" ? p.eveningFormat : undefined) ?? "video";
 }
 
 /** The games a mixed movers post draws from, in the order they alternate. */

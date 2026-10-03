@@ -28,7 +28,7 @@ import {
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { dayPlan, gamesTags, isAngleKind, jumpsOn, plannedGame, questionFor } from "@/lib/socialPlan";
+import { dayPlan, gamesTags, isAngleKind, jumpsOn, plannedGame, questionFor, slotFormat } from "@/lib/socialPlan";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
@@ -593,7 +593,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     return p;
   }
 
-  async function postOne(site: SocialSite, d: SocialPost, text: string): Promise<{ uri: string; video?: "yes" | "fallback"; error?: string }> {
+  async function postOne(site: SocialSite, d: SocialPost, text: string, slot: Slot): Promise<{ uri: string; video?: "yes" | "fallback"; error?: string }> {
     const png = await pngFor(d);
     const img = await fitImage(png, site.maxImageBytes);
     const base: SitePost = {
@@ -605,7 +605,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       alt: `${d.title}. ${d.caption.split("\n")[0]}`,
       campaign: draftCampaign(d.id),
     };
-    const video = site.postsVideo ? await videoOf(d) : null;
+    // The slot's format (phase 5): the optimizer may make a slot the picture now and then, on the sites that take both.
+    const video = site.postsVideo && slotFormat(slot, day) === "video" ? await videoOf(d) : null;
     if (!video) return site.post(base);
     try {
       // The all-games caption is written for the picture; with the file attached it is a video (the picture fallback below keeps the picture wording).
@@ -658,28 +659,28 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         // Every kind already posted today, or has no draft: keep the
         // slot's own kind and repeat it rather than skip the slot.
       }
-      const landedUris: string[] = [];
+      const landed: Array<{ uri: string; game: string; format: "video" | "picture" }> = [];
       for (const d of drafts) {
         const text = fitText(d, site.maxChars, site.maxTags);
         if (opts.dry) {
-          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && (await currentVideoFor(d)) ? "yes" : undefined });
+          entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && slotFormat(p.slot, day) === "video" && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;
         }
         try {
-          const r = await postOne(site, d, text);
+          const r = await postOne(site, d, text, p.slot);
           entry.posts.push({ id: d.id, title: d.title, uri: r.uri, ...(r.video ? { video: r.video } : {}), ...(r.error ? { error: r.error } : {}) });
-          landedUris.push(r.uri);
+          landed.push({ uri: r.uri, game: d.mixed ? "mixed" : d.game, format: r.video === "yes" ? "video" : "picture" });
         } catch (err) {
           entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
         }
       }
-      if (!opts.dry && landedUris.length > 0) {
+      if (!opts.dry && landed.length > 0) {
         await setSetting(slotKey(site, p.slot), etDay);
         await setSetting(kindKey(site, kind), etDay);
-        // What went out as what, for the optimization loop (social_post_log). A failed write never costs the post.
+        // What went out as what, for the optimization loop (social_post_log): kind, slot, game and format. A failed write never costs the post.
         try {
-          const log = db.prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at) VALUES (?, ?, ?, ?, ?, ?)");
-          for (const uri of landedUris) await log.run(site.id, uri, etDay, p.slot, kind, now);
+          const log = db.prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at, game, format) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+          for (const l of landed) await log.run(site.id, l.uri, etDay, p.slot, kind, now, l.game, l.format);
         } catch (err) {
           console.warn("social: post log write failed", err instanceof Error ? err.message : err);
         }

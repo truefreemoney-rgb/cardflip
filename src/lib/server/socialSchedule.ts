@@ -38,7 +38,19 @@ export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
         const evening = kind(e.evening);
         const morningGame = game(morning, e.morningGame);
         const eveningGame = game(evening, e.eveningGame);
-        return { from: String(e.from), ...(morning ? { morning } : {}), ...(evening ? { evening } : {}), ...(morningGame ? { morningGame } : {}), ...(eveningGame ? { eveningGame } : {}) };
+        // Only "picture" is worth storing: absent means video.
+        const format = (v: unknown) => (v === "picture" ? ("picture" as const) : undefined);
+        const morningFormat = format(e.morningFormat);
+        const eveningFormat = format(e.eveningFormat);
+        return {
+          from: String(e.from),
+          ...(morning ? { morning } : {}),
+          ...(evening ? { evening } : {}),
+          ...(morningGame ? { morningGame } : {}),
+          ...(eveningGame ? { eveningGame } : {}),
+          ...(morningFormat ? { morningFormat } : {}),
+          ...(eveningFormat ? { eveningFormat } : {}),
+        };
       });
   } catch {
     return [];
