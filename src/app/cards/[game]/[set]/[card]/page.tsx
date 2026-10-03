@@ -23,7 +23,7 @@ import {
   type CardFacts,
 } from "@/lib/cardPages";
 import { STRIP_TILES, loadCardPage, loadCardRecord, publicCardGame, setIndex, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
-import { rangeWords, scanHeading, scanWords, sellWords } from "@/lib/cardStory";
+import { rangeWords, scanHeading, scanWords, sellMath, sellWords } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
@@ -132,11 +132,15 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
       <h2 className="font-display text-2xl font-semibold text-white">Price history</h2>
       {page.chart ? (
         <>
-          <div className="mt-4 rounded-2xl border border-edge bg-surface-1 p-4">
-            <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact className="text-left" />
+          <div className="mt-4 overflow-hidden rounded-2xl border border-edge bg-surface-1">
+            <div className="p-4">
+              <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact className="text-left" />
+            </div>
+            {/* The range in words (10-02): server HTML search can read, from guard-checked points only. Sits inside the chart panel as its caption. */}
+            {page.range && page.headline && (
+              <p className="border-t border-edge bg-black/20 px-4 py-3 text-sm leading-relaxed text-zinc-300">{rangeWords(page.range, page.headline)}</p>
+            )}
           </div>
-          {/* The range in words (10-02): server HTML search can read, from guard-checked points only. */}
-          {page.range && page.headline && <p className="mt-3 max-w-prose text-sm leading-relaxed text-zinc-400">{rangeWords(page.range, page.headline)}</p>}
         </>
       ) : page.headline && page.trackingSince ? (
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
@@ -149,21 +153,54 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
   );
 }
 
-/** "Is Charizard worth selling?": the listing math in one line, from the headline price the guard let through. */
+/** One number with its label, inside the sell panel. */
+function Stat({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-edge bg-black/20 px-3 py-2.5 lg:block">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className={`font-display text-lg font-semibold tabular-nums lg:mt-0.5 ${strong ? "text-emerald-300" : "text-white"}`}>{value}</p>
+    </div>
+  );
+}
+
+/**
+ * "Is Charizard worth selling?": the listing math as a panel (Chris 10-02:
+ * words fine, make it look better): the verdict large, the three numbers the
+ * sentence names as tiles, the sentence itself under them. Null without a
+ * headline price the guard let through.
+ */
 function SellStory({ f, page }: { f: CardFacts; page: CardPage }) {
   const words = page.headline ? sellWords(f.name, page.headline.price) : null;
-  if (!words) return null;
+  if (!words || !page.headline) return null;
+  const m = sellMath(page.headline.price);
   return (
-    <section className="mt-10">
-      <h2 className="font-display text-2xl font-semibold text-white">Is {f.name} worth selling?</h2>
-      <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">
-        <span className="font-semibold text-white">{words.verdict}</span> {words.detail}
-      </p>
-      <p className="mt-2 text-sm">
-        <Link href="/signup" className="text-brand-300 transition hover:text-brand-200">
-          Price your own copy
+    <section className="flex flex-col rounded-2xl border border-edge bg-surface-1 p-5">
+      <h2 className="font-display text-xl font-semibold text-white sm:text-2xl">Is {f.name} worth selling?</h2>
+      <p className="mt-1 font-display text-4xl font-bold text-emerald-300">{words.verdict}</p>
+      <div className="mt-4 grid gap-2 lg:grid-cols-3">
+        <Stat label="Market" value={formatMoney(m.market)} />
+        <Stat label="eBay Suggested" value={formatMoney(m.ask)} />
+        <Stat label="You Keep" value={formatMoney(m.net)} strong />
+      </div>
+      <p className="mt-4 text-sm leading-relaxed text-zinc-400">{words.detail}</p>
+      <p className="mt-auto pt-4 text-sm">
+        <Link href="/signup" className="font-medium text-brand-300 transition hover:text-brand-200">
+          Price your own copy →
         </Link>
       </p>
+    </section>
+  );
+}
+
+/** "Have a Charizard?": the scan angle as the second panel beside the sell story, carrying the one ask. */
+function ScanStory({ f }: { f: CardFacts }) {
+  return (
+    <section className="flex flex-col rounded-2xl border border-brand-500/30 bg-brand-500/10 p-5">
+      <h2 className="font-display text-xl font-semibold text-white sm:text-2xl">{scanHeading(f.name)}</h2>
+      <p className="mt-3 text-sm leading-relaxed text-zinc-300">{scanWords(f)}</p>
+      <div className="mt-auto pt-5">
+        <ScanCta className="w-full sm:w-auto" />
+      </div>
     </section>
   );
 }
@@ -220,19 +257,20 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
 
         <CardStory f={f} page={page} />
 
-        <SellStory f={f} page={page} />
+        {/* Two panels side by side from sm up: the sell math and the scan ask (Chris 10-02 makeover). */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <SellStory f={f} page={page} />
+          <ScanStory f={f} />
+        </div>
 
-        <section className="mt-10">
-          <h2 className="font-display text-2xl font-semibold text-white">{scanHeading(f.name)}</h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">{scanWords(f)}</p>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="font-display text-2xl font-semibold text-white">About this card</h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">{factsParagraph(f)}</p>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-500">
-            Prices are market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
-          </p>
+        <section className="mt-4 rounded-2xl border border-edge bg-surface-1 p-5 sm:flex sm:items-start sm:gap-8">
+          <h2 className="shrink-0 font-display text-lg font-semibold text-white sm:w-40">About this card</h2>
+          <div className="mt-1 sm:mt-0">
+            <p className="text-sm leading-relaxed text-zinc-300">{factsParagraph(f)}</p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+              Prices are market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
+            </p>
+          </div>
         </section>
 
         {strip.length > 0 && (
