@@ -734,19 +734,22 @@ export default function CollectionPage() {
                 </span>
               );
             })()}
-            {live && card.ebayOfferId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDetail(null);
-                  setPriceSheet(card.id);
-                }}
-                className="text-sm font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
-              >
-                Change price
-              </button>
-            )}
           </div>
+          {/* A live listing's price control is a real button that says where the
+              change lands (Chris 10-03, first live reprice: the text link read as
+              a local edit, not "this changes the eBay listing"). */}
+          {live && card.ebayOfferId && (
+            <button
+              type="button"
+              onClick={() => {
+                setDetail(null);
+                setPriceSheet(card.id);
+              }}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border border-ebay/60 bg-ebay/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ebay/20"
+            >
+              Change eBay Listing Price
+            </button>
+          )}
           {flagged && !live && !ended && <PriceFlagNote className="mt-2" soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
           {/* The market has not updated in 45+ days (10-02): the number stands (above), this says how old it is. */}
           {!flagged && !sold && lp?.stale && <PriceStaleNote className="mt-1.5" days={lp.stale.days} soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
@@ -2818,8 +2821,8 @@ export default function CollectionPage() {
                           (card.ebayOfferId && repricing !== card.id ? (
                             <button
                               onClick={() => setPriceSheet(card.id)}
-                              title="Change price — here and on the live eBay listing"
-                              aria-label={`Change price, currently ${formatMoney(card.price)} on eBay`}
+                              title="Change the eBay listing price (here and on eBay)"
+                              aria-label={`Change the eBay listing price, currently ${formatMoney(card.price)}`}
                               className="group -mr-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-300 transition hover:bg-white/5"
                             >
                               On eBay {formatMoney(card.price)}
