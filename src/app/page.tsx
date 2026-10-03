@@ -219,8 +219,8 @@ export default async function Home() {
     // Every wall card is live or sold (Chris 10-02: the two totals should be all 8 cards): 3 sold, the other 5 live.
     const sold = wall.filter((_, i) => i % 3 === 0);
     const live = wall.filter((_, i) => i % 3 !== 0);
-    const dearest = [...wall].sort((a, b) => (marketOf(b) ?? 0) - (marketOf(a) ?? 0))[0];
-    return { count: wall.length, value: value(wall), live, liveValue: value(live), sold, soldValue: value(sold), dearest };
+    const games = new Set(wall.map((c) => c.game ?? "pokemon")).size;
+    return { count: wall.length, value: value(wall), live, liveValue: value(live), sold, soldValue: value(sold), games };
   })();
 
   // Our own recorded history for the hero card — the last 90 points of the
@@ -527,7 +527,7 @@ export default async function Home() {
               {binder && (
                 <dl className="mt-auto grid grid-cols-2 gap-2 pt-4">
                   {[
-                    { label: "Cards", value: String(binder.count), sub: `Dearest: ${binder.dearest.name}`, tone: "text-white" },
+                    { label: "Cards", value: String(binder.count), sub: binder.games > 1 ? `Across ${binder.games} games` : "One game, one binder", tone: "text-white" },
                     { label: "Binder Value", value: formatMoney(binder.value), sub: "At market, this page", tone: "text-white" },
                     { label: "Live on eBay", value: `${binder.live.length} · ${formatMoney(binder.liveValue)}`, sub: "Example", tone: "text-emerald-300" },
                     { label: "Sold", value: `${binder.sold.length} · ${formatMoney(binder.soldValue)}`, sub: "Example", tone: "text-sky-300" },
