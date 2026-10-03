@@ -133,7 +133,7 @@ check("set slug pattern", [cp.isSetSlug("base-set"), cp.isSetSlug("Base Set"), c
 // --- 3. the $5 floor, freshness, the guard ---------------------------------------
 
 console.log("floor and guard");
-check("floor is $5", cp.INDEX_FLOOR_USD, 5);
+check("floor is $1 (10-03: every game)", cp.INDEX_FLOOR_USD, 1);
 const today = "2026-09-30";
 const mk = (variant, startDay, prices, flag = null) => ({ variant, startDay, prices, flag });
 const fresh = (p, variant = "holofoil", flag = null) => mk(variant, "2026-09-28", [p, p, p], flag);
@@ -141,12 +141,12 @@ check("lastPoint skips trailing nulls", cp.lastPoint("2026-09-28", [4, 5, null])
 check("lastPoint of nothing", cp.lastPoint("2026-09-28", [null, null]), null);
 check("a week-old price is stale", [cp.isFresh("2026-09-23", today), cp.isFresh("2026-09-22", today)], [true, false]);
 
-const prices5 = cp.variantPrices("pokemon", [fresh(5)], today);
-check("$5.00 is indexed", cp.indexDecision(prices5), { index: true, reason: "ok" });
-check("$4.99 is not", cp.indexDecision(cp.variantPrices("pokemon", [fresh(4.99)], today)), { index: false, reason: "below-floor" });
-// Long-tail games (10-02): $1 floor for One Piece, Lorcana and Yu-Gi-Oh!; Pokémon and Magic keep $5.
+const prices5 = cp.variantPrices("pokemon", [fresh(1)], today);
+check("$1.00 is indexed", cp.indexDecision(prices5), { index: true, reason: "ok" });
+check("$0.99 is not", cp.indexDecision(cp.variantPrices("pokemon", [fresh(0.99)], today)), { index: false, reason: "below-floor" });
+// Long-tail games went to $1 on 10-02; Pokémon and Magic followed 10-03 (Chris: all games).
 check("long-tail floor is $1", [cp.LONG_TAIL_FLOOR_USD, cp.indexFloorUsd("onepiece"), cp.indexFloorUsd("lorcana"), cp.indexFloorUsd("yugioh")], [1, 1, 1, 1]);
-check("Pokémon and Magic keep the $5 floor", [cp.indexFloorUsd("pokemon"), cp.indexFloorUsd("mtg")], [5, 5]);
+check("Pokémon and Magic index from $1 too (10-03)", [cp.indexFloorUsd("pokemon"), cp.indexFloorUsd("mtg")], [1, 1]);
 check("a $1.00 Yu-Gi-Oh! card is indexed at its floor", cp.indexDecision(cp.variantPrices("yugioh", [fresh(1)], today), cp.indexFloorUsd("yugioh")), { index: true, reason: "ok" });
 check("a $0.99 one is not", cp.indexDecision(cp.variantPrices("yugioh", [fresh(0.99)], today), cp.indexFloorUsd("yugioh")), { index: false, reason: "below-floor" });
 check("the sitemap and the card loader use the per-game floor", [/indexFloorUsd\(game\)/.test(read("src/lib/server/cardSitemap.ts")), /indexDecision\(prices, indexFloorUsd\(facts\.game\)\)/.test(read("src/lib/server/cardPages.ts"))], [true, true]);
@@ -158,7 +158,7 @@ check("a flagged price is kept as a row but never the headline", [flagged.length
 check("a page with only flagged prices is noindex", cp.indexDecision(flagged), { index: false, reason: "flagged" });
 const mixed = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: false, reason: "flat" }), fresh(6, "reverseHolofoil")], today);
 check("the headline skips the flagged printing", cp.headlinePrice(mixed)?.variant, "reverseHolofoil");
-check("a flagged $900 does not make a page indexable on its own", cp.indexDecision(cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "x" }), fresh(2, "reverseHolofoil")], today)).index, false);
+check("a flagged $900 does not make a page indexable on its own", cp.indexDecision(cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "x" }), fresh(0.5, "reverseHolofoil")], today)).index, false);
 check("printings sort usual-first", cp.variantPrices("pokemon", [fresh(3, "reverseHolofoil"), fresh(9, "holofoil"), fresh(1, "normal")], today).map((p) => p.variant), ["normal", "holofoil", "reverseHolofoil"]);
 check("one price line for Yu-Gi-Oh! and One Piece", [cp.variantLabel("yugioh", "normal"), cp.variantLabel("onepiece", "normal")], ["Market price", "Market price"]);
 
@@ -192,12 +192,12 @@ check("H1 has name, number, set, price", cp.cardHeading(facts), "Charizard 4/102
 check("indexable page has no robots tag", m5.robots, undefined);
 check("canonical is the card path", m5.alternates?.canonical, "/cards/pokemon/base-set/charizard--base1-4");
 check("og image is the card art", m5.openGraph?.images?.[0]?.url, facts.image);
-check("description prints the price as of its day", m5.description, (d) => d.includes("$5.00") && d.includes("Sep 30, 2026") && d.length <= 155);
+check("description prints the price as of its day", m5.description, (d) => d.includes("$1.00") && d.includes("Sep 30, 2026") && d.length <= 155);
 const longFacts = { ...facts, name: "Torrential Tribute", number: "HL04-EN006", setName: "Hobby League 4 Special Promotional Collection", tags: ["Parallel Rare", "1st Edition"] };
 const mLong = cp.cardMetadata(view(cp.variantPrices("pokemon", [fresh(12.46)], today), longFacts));
 check("description: the cents of a price never start the clip, and it fits", mLong.description, (d) => d.startsWith("Torrential Tribute") && d.includes("$12.46") && d.length <= 155);
 check("clipDescription splits on sentence ends, not on the dot in a price", seo.clipDescription("Card costs $12.46 today. " + "Second sentence here. ".repeat(10), 60), "Card costs $12.46 today. Second sentence here.");
-const mBelow = cp.cardMetadata(view(cp.variantPrices("pokemon", [fresh(3)], today)));
+const mBelow = cp.cardMetadata(view(cp.variantPrices("pokemon", [fresh(0.5)], today)));
 check("below the floor: noindex,follow", mBelow.robots, { index: false, follow: true });
 const mFlag = cp.cardMetadata(view(flagged));
 check("flagged: noindex and the number is not in the description", [mFlag.robots, String(mFlag.description).includes("900")], [{ index: false, follow: true }, false]);

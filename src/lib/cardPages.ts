@@ -41,15 +41,18 @@ export function gameFromSlug(slug: string): GameId | null {
 /** The pages' own name for a game ("Pokémon", "Magic: The Gathering"). */
 export const gameTitle = (game: GameId): string => (game === "pokemon" ? "Pokémon" : GAMES[game].fullName.replace(/ (TCG|Card Game)$/, ""));
 
-/** A card is indexed (and listed in the sitemap) from this price up; cheaper pages still resolve, noindex and followed. */
-export const INDEX_FLOOR_USD = 5;
 /**
- * The long-tail games (SEO, Chris 10-02): One Piece, Lorcana and Yu-Gi-Oh! card-name searches have thin competition (no
- * Scryfall), so every card priced $1 and up has an indexed page there; Pokémon and Magic keep the $5 floor for now.
+ * A card is indexed (and listed in the sitemap) from this price up; cheaper pages still resolve, noindex and followed.
+ * $5 until 10-03; Chris: every game from $1 ("why can't we just do all games"). Under $1 stays out: bulk commons are thin pages.
+ */
+export const INDEX_FLOOR_USD = 1;
+/**
+ * The long-tail games (SEO, Chris 10-02): One Piece, Lorcana and Yu-Gi-Oh! went to $1 first (thin competition, no Scryfall);
+ * Pokémon and Magic followed 10-03, so the two floors are equal now. Kept apart so one can move without the other.
  */
 export const LONG_TAIL_FLOOR_USD = 1;
 export const LONG_TAIL_GAMES: readonly GameId[] = ["onepiece", "lorcana", "yugioh"];
-/** The index floor of a game: $1 for the long-tail games, $5 otherwise. */
+/** The index floor of a game ($1 everywhere since 10-03). */
 export const indexFloorUsd = (game: GameId): number => (LONG_TAIL_GAMES.includes(game) ? LONG_TAIL_FLOOR_USD : INDEX_FLOOR_USD);
 /** A price whose last recorded day is older than this many days is not "current": not printed, not counted. */
 export const FRESH_DAYS = 7;
@@ -279,8 +282,7 @@ export interface IndexDecision {
 }
 
 /**
- * Index the page only when it shows a real price at or over the floor (indexFloorUsd:
- * $5, $1 for the long-tail games): some fresh printing the guard believes is worth that much. A page whose prices are all
+ * Index the page only when it shows a real price at or over the floor (indexFloorUsd, $1): some fresh printing the guard believes is worth that much. A page whose prices are all
  * flagged, all stale or all under the floor still resolves (noindex, follow).
  */
 export function indexDecision(prices: VariantPrice[], floor = INDEX_FLOOR_USD): IndexDecision {

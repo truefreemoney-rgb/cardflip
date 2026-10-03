@@ -13,7 +13,7 @@ import type { GameId } from "@/lib/types";
 /**
  * The sitemap's reads (lib/sitemapXml.ts has the files). Each child file is one
  * paged query of the cards worth indexing: fresh TCGplayer price, a picture, a
- * key a page can have, priced at the $5 floor. Pokémon keeps its prices only in
+ * key a page can have, priced at the $1 floor (10-03; $5 before). Pokémon keeps its prices only in
  * price_series (the JSON array's last element, read in SQL, never decoded in
  * JS); the other games read the catalog's price columns. lastmod is the
  * series' updated_day. Queries run when a crawler asks and the response is
