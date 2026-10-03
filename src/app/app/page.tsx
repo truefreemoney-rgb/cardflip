@@ -1623,6 +1623,10 @@ export default function AppPage() {
             </p>
           )}
 
+          {/* Both grid children carry min-w-0 (10-02, iPhone): a grid item's default
+              min-width is its content, so the queue and the editor grew to the
+              viewport width (390 in a 358 column), 16px past the right edge, and
+              iOS let the whole page pan sideways. */}
           <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
             {/* On a phone the queue sits above the editor — capped low so the
                 card being edited starts on screen instead of under a
@@ -1630,7 +1634,7 @@ export default function AppPage() {
             {/* The queue pins to the viewport and scrolls inside itself on desktop, so
                 picking the next card never means scrolling away from the listing
                 and back (Chris, 09-03). Phones keep the short strip above the editor. */}
-            <aside className="flex max-h-[32dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start">
+            <aside className="flex min-w-0 max-h-[32dvh] flex-col gap-1 overflow-y-auto rounded-2xl border border-edge bg-surface-1 p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start">
               {items.map((item) => (
                 <QueueRow
                   key={item.id}
@@ -1642,7 +1646,7 @@ export default function AppPage() {
               ))}
             </aside>
 
-            <section className="min-h-[24rem] rounded-2xl border border-edge bg-surface-1">
+            <section className="min-w-0 min-h-[24rem] rounded-2xl border border-edge bg-surface-1">
               {selected ? (
                 selected.kind === "sealed" ? (
                   <SealedEditor
