@@ -17,10 +17,10 @@ const STAGES = [
 export default function DemoInventory({ cards, priceOf }: { cards: PokemonCard[]; priceOf: (c: PokemonCard) => number | null }) {
   // One card per stage, no repeated names (the wall is allowed twins; the list is not).
   const rows: PokemonCard[] = [];
-  // Pokémon only (Chris 09-26): the frame is the Pokémon story.
+  // Any game the wall shows (10-02: all five are public; the Pokémon-only rule from the Magic beta left the
+  // frame with two names, Charizard and Pikachu, so it rendered nothing from 09-30 to 10-02).
   // Priced / Listed / Sold need a real price; Scanned is "pricing…" anyway.
-  const pool = cards.filter((c) => !c.game || c.game === "pokemon");
-  for (const c of pool) {
+  for (const c of cards) {
     if (rows.length === STAGES.length) break;
     if (rows.length > 0 && priceOf(c) === null) continue;
     if (!rows.some((r) => r.name === c.name)) rows.push(c);
