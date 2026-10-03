@@ -192,13 +192,15 @@ Eastern day, three 9:16 videos, each registered with its caption.
 
 | Slot | Video | Registered as |
 |---|---|---|
-| 7:05am | the morning picture post as video: `slotKind("morning", day)`, normally the set spotlight | `social_tiktok:morning:<day>` (TikTok only) |
+| 7:05am | the morning post as video: `slotKind("morning", day)`, normally the set spotlight | `social_tiktok:morning:<day>` AND `social_video:pokemon:set:<day>` |
 | 1:05pm | the movers video, the SAME file every site posts at 1:05pm | `social_tiktok:midday:<day>` AND `social_video:pokemon:movers:<day>` |
-| 7:05pm | the evening picture post as video: the all-games post, one lead card per public game | `social_tiktok:evening:<day>` (TikTok only) |
+| 7:05pm | the evening post as video: the all-games post, one lead card per public game | `social_tiktok:evening:<day>` AND `social_video:pokemon:games:<day>` |
 
-- The 7am and 7pm rows live in their OWN namespace on purpose: a row in
-  `social_video:` means "every site posts video in this slot", and the other
-  six sites keep posting those pictures live.
+Since 10-03 (Chris: "all the auto-pilot social posts should be videos if possible") every slot's video of the slot's own kind is the shared row, so the five video sites (Bluesky, X, Facebook, Instagram, Threads) post all three slots as video; Pinterest has no video path and keeps the pictures. A fallback kind (the slot's own could not be drawn) stays TikTok-only. The games row carries its `leads`, and the publisher rebuilds the caption from them (`applyGameLeads`), swapping "In the picture," for "In the video," only when the file is actually attached.
+
+- The TikTok rows live in their OWN namespace: a row in `social_video:` means
+  "every site posts video in this slot"; the TikTok row adds the hand-post
+  caption. Before 10-03 only 1pm wrote the shared row.
 - A row is the site-video row plus `slot`, `day`, `title`, `caption`, `plan`,
   `kind`, `audio`. The caption (text + hashtags) comes from the publisher's own
   text builder (`applyVideoCards` / `applyGameLeads` → `fitText` at TikTok's

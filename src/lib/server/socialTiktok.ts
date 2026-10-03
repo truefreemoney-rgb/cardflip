@@ -164,6 +164,15 @@ export async function sharedMovers(day: string): Promise<VideoSpec | null> {
 }
 
 /**
+ * The row the other sites post for a slot (settings social_video:pokemon:<the slot's kind that day>:<day>), if the
+ * render has made it. Chris 10-03: every autopilot post is a video where the site can take one, so all three slots
+ * share their file; before, only the 1pm movers did. Raw: made under any plan.
+ */
+export async function sharedVideo(slot: Slot, day: string): Promise<VideoSpec | null> {
+  return videoFor({ game: TIKTOK_GAME, kind: slotKind(slot, day), day });
+}
+
+/**
  * The 1pm movers video as the sites will find it: present and made under the
  * plan in force now (ready), present but made under one that has since changed
  * (stale: a plan pushed after the night render must not be answered by "it
@@ -187,8 +196,9 @@ export async function readSlot(slot: Slot, day: string): Promise<SlotRead> {
   const spec = parseTiktokSpec(await getSetting(tiktokKey(slot, day)));
   if (!spec) return { state: "missing", spec: null };
   if (spec.plan !== planTag(slot, day)) return { state: "stale", spec };
-  if (slot === "midday" && spec.kind === SLOTS.midday.kind) {
-    const shared = await sharedMovers(day);
+  if (spec.kind === slotKind(slot, day)) {
+    // The slot's own kind is the file the other sites post too: the TikTok row and the shared row must agree.
+    const shared = await sharedVideo(slot, day);
     if (!shared || shared.url !== spec.url) return { state: "stale", spec };
   }
   return { state: "ready", spec };
@@ -266,10 +276,13 @@ export interface RegisterInput {
 
 /**
  * Register one rendered video for a slot and day. The TikTok row is always
- * written. The 1pm movers video is ALSO the row every other site posts at
- * 1:05pm (social_video:pokemon:movers:<day>); the 7am and 7pm videos are not,
- * so the six sites keep posting those pictures live. Returns the URLs of
- * files this replaced, for the caller to delete from Blob.
+ * written. A video of the slot's own kind that day is ALSO the row every other
+ * site posts in that slot (social_video:pokemon:<kind>:<day>): since 10-03 all
+ * three slots, not just the 1pm movers (Chris: "all the auto-pilot social posts
+ * should be videos if possible"); a site with no video path (Pinterest) keeps
+ * the picture. A fallback kind (the slot's own could not be drawn) stays
+ * TikTok-only. Returns the URLs of files this replaced, for the caller to
+ * delete from Blob.
  */
 export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: TiktokSpec; shared: VideoSpec | null; replaced: string[] }> {
   await ensureSchedule();
@@ -292,20 +305,21 @@ export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: Tik
   const before = [parseTiktokSpec(await getSetting(tiktokKey(i.slot, i.day)))?.url];
   await setSetting(tiktokKey(i.slot, i.day), JSON.stringify(spec));
   let shared: VideoSpec | null = null;
-  if (i.slot === "midday" && i.kind === SLOTS.midday.kind) {
-    shared = { ...base, cards: i.cards, leads: undefined };
-    before.push((await sharedMovers(i.day))?.url);
+  const own = slotKind(i.slot, i.day);
+  if (i.kind === own) {
+    shared = { ...base, cards: i.cards, leads: i.leads };
+    before.push((await sharedVideo(i.slot, i.day))?.url);
     await setSetting(videoKey(TIKTOK_GAME, i.kind, i.day), JSON.stringify(shared));
-  } else if (i.slot === "midday") {
-    // A remake that fell back to another kind (the movers art was missing): the file the sites post is still
-    // the earlier movers one, and the row the TikTok slot replaced may BE that file. Deleting it left the sites'
+  } else {
+    // A remake that fell back to another kind (the slot's own art was missing): the file the sites post is still
+    // the earlier one, and the row the TikTok slot replaced may BE that file. Deleting it left the sites'
     // row pointing at a 404 (09-30 review). Keep it while the row is current; a row made under a plan that has
     // since changed is no use to anyone, so that one goes (its picture posts instead, the net remakes it).
-    const old = await sharedMovers(i.day);
+    const old = await sharedVideo(i.slot, i.day);
     if (old) {
-      const stale = Boolean(old.plan) && old.plan !== planTag("midday", i.day);
+      const stale = Boolean(old.plan) && old.plan !== plan;
       if (stale) {
-        await setSetting(videoKey(TIKTOK_GAME, SLOTS.midday.kind, i.day), "");
+        await setSetting(videoKey(TIKTOK_GAME, own, i.day), "");
         before.push(old.url);
       } else for (let k = before.length - 1; k >= 0; k--) if (before[k] === old.url) before.splice(k, 1);
     }

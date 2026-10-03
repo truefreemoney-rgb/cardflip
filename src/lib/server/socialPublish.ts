@@ -383,7 +383,9 @@ export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Pr
  */
 export async function currentVideoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
   const spec = await videoFor(d);
-  if (spec?.plan && d.kind === SLOTS[VIDEO_SLOT].kind && spec.plan !== planTag(VIDEO_SLOT, d.day)) return null;
+  // The plan it must match is the one of the slot that posts this kind today (10-03: every slot shares its video, not just 1pm).
+  const slot = SLOT_ORDER.find((s) => slotKind(s, d.day) === d.kind);
+  if (spec?.plan && slot && spec.plan !== planTag(slot, d.day)) return null;
   return spec;
 }
 
@@ -507,7 +509,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const all = await Promise.all(
     rawDrafts.map(async (d) => {
       const spec = await currentVideoFor(d);
-      return spec?.cards?.length ? applyVideoCards(d, spec.cards) : d;
+      return spec?.cards?.length ? applyVideoCards(d, spec.cards) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
     }),
   );
   const games = [...new Set(all.map((d) => d.game))];
@@ -582,7 +584,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     const video = site.postsVideo ? await videoOf(d) : null;
     if (!video) return site.post(base);
     try {
-      const { uri } = await site.post({ ...base, video });
+      // The all-games caption is written for the picture; with the file attached it is a video (the picture fallback below keeps the picture wording).
+      const { uri } = await site.post({ ...base, text: text.replace(/^In the picture,/m, "In the video,"), video });
       return { uri, video: "yes" };
     } catch (err) {
       // Video is the upgrade, the picture is the post: never lose the slot to a video upload.

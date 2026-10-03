@@ -148,7 +148,8 @@ check("nothing registered yet: all three slots need a render", await T.slotsToRe
 const morning = await register("morning", FRI);
 const evening = await register("evening", FRI);
 check("7am is the set spotlight, 7pm the all-games post (kinds follow the slot mapping)", [morning.spec.kind, evening.spec.kind], ["set", "games"]);
-check("7am and 7pm register ONLY in the TikTok namespace: the site video rows stay empty", [await videoFor({ game: "pokemon", kind: "set", day: FRI }), await videoFor({ game: "pokemon", kind: "games", day: FRI }), morning.shared, evening.shared], [null, null, null, null]);
+// 10-03 (Chris: every autopilot post is a video where the site can take one): 7am and 7pm share their file like 1pm does.
+check("7am and 7pm ALSO register the row every site posts in that slot (set and games), the games row carrying its leads", [(await videoFor({ game: "pokemon", kind: "set", day: FRI }))?.url === morning.spec.url, (await videoFor({ game: "pokemon", kind: "games", day: FRI }))?.url === evening.spec.url, morning.shared?.cards?.length, evening.shared?.leads?.length], [true, true, 5, 5]);
 check("…under social_tiktok:<slot>:<day>", [await getSetting(P.tiktokKey("morning", FRI)) !== null, await getSetting(P.tiktokKey("evening", FRI)) !== null, await getSetting(P.tiktokKey("midday", FRI))], [true, true, null]);
 const midday = await register("midday", FRI);
 const shared = await videoFor({ game: "pokemon", kind: "movers", day: FRI });
@@ -175,10 +176,11 @@ check("the parser refuses a row with no caption or no plan", [P.parseTiktokSpec(
 console.log("the other six sites are untouched by the package");
 const bPic = fakeSite("b_pic"); const bVid = fakeSite("b_vid", { postsVideo: true });
 for (const [slot, h] of [["morning", 11], ["midday", 17], ["evening", 23]]) await publishSocial({ day: FRI, now: clock(h), origin: "http://x", slot, force: true, sites: [bPic, bVid], fetchImage, fetchVideo });
-check("7am and 7pm: the same picture posts as before, same text, and no video even on the video site", [0, 2].map((i) => [bPic.posts[i].text === BASE.pic[i].text, bPic.posts[i].alt === BASE.pic[i].alt, bVid.posts[i].video ?? null, bVid.posts[i].text === BASE.vid[i].text]), [[true, true, null, true], [true, true, null, true]]);
+check("7am and 7pm: the picture site posts the same pictures as before, the video site gets the registered files", [0, 2].map((i) => [bPic.posts[i].text === BASE.pic[i].text, bPic.posts[i].alt === BASE.pic[i].alt, bPic.posts[i].video ?? null, bVid.posts[i].video?.url]), [[true, true, null, morning.spec.url], [true, true, null, evening.spec.url]]);
+check("7pm with the video attached says 'In the video', the picture site keeps 'In the picture'", [bVid.posts[2].text.includes("In the video, one card"), bVid.posts[2].text.includes("In the picture"), bPic.posts[2].text.includes("In the picture, one card")], [true, false, true]);
 check("1pm: tomorrow's registered movers video is what the 1:05pm post finds (the video site gets that file)", [bVid.posts[1].video?.url, bVid.posts[1].video?.seconds, bPic.posts[1].video ?? null], ["https://blob/tiktok/midday-movers-2026-09-11.mp4", 26.2, null]);
 check("1pm text is the same movers post (the frozen cards are the ones the draft had)", bVid.posts[1].text === BASE.vid[1].text, true);
-check("no site row ever appeared for set or games", [await videoFor({ game: "pokemon", kind: "set", day: FRI }), await videoFor({ game: "pokemon", kind: "games", day: FRI }), before.movers, before.set, before.games], [null, null, null, null, null]);
+check("no site row existed for any kind before the package", [before.movers, before.set, before.games], [null, null, null]);
 
 // ---- 3. The night render's day ----------------------------------------------------------------------------
 console.log("the night render registers under TOMORROW's Eastern day");

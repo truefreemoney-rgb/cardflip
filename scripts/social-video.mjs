@@ -64,7 +64,8 @@ const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await impor
 const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
 const { parseVideoSpec } = await import(at("lib/socialVideo.ts"));
-const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
+const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, sharedVideo, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
+const { slotKind } = await import(at("lib/server/socialPublish.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
 // The optimization loop's standing schedule (settings): loaded before planTag / candidateKinds ask what a slot posts.
 await (await import(at("lib/server/socialSchedule.ts"))).ensureSchedule();
@@ -331,10 +332,11 @@ async function register(slot, made, out, drafts) {
   const draft = drafts.find((d) => d.kind === made.kind);
   if (!draft) throw new Error(`no ${made.kind} draft for ${day} to build the caption from`);
   const { put, del } = await import("@vercel/blob");
-  // The 1pm movers file keeps the path every site has always read; the TikTok-only videos live under social/tiktok/.
-  const shared = slot === "midday" && made.kind === SLOTS.midday.kind;
+  // A video of the slot's own kind is the file every site posts in that slot (10-03: all three slots, was 1pm only) and lives under
+  // social/video/; a fallback kind is TikTok-only and lives under social/tiktok/.
+  const shared = made.kind === slotKind(slot, day);
   // A remake over a row that exists gets its own path: Blob's CDN caches a path for up to a month, so overwriting it can keep serving the old video.
-  const prior = shared ? await sharedMovers(day) : (await readSlot(slot, day)).spec;
+  const prior = shared ? await sharedVideo(slot, day) : (await readSlot(slot, day)).spec;
   const remake = prior?.url ? `-r${Date.now().toString(36)}` : "";
   const blobPath = shared ? `social/video/${game}-${made.kind}-${day}${remake}.mp4` : `social/tiktok/${slot}-${made.kind}-${day}${remake}.mp4`;
   const blob = await put(blobPath, fs.readFileSync(out), { access: "public", addRandomSuffix: false, contentType: "video/mp4", allowOverwrite: true });
