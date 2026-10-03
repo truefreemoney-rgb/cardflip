@@ -1,4 +1,5 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { PRICE_TRUST, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
@@ -6,7 +7,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn } from "@/lib/socialPlan";
+import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, angleGameOrder, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn, type AngleKind } from "@/lib/socialPlan";
 
 /**
  * Social autopilot — the content engine (docs/SOCIAL-AUTOPILOT.md).
@@ -63,8 +64,11 @@ export const FEATURED_DAYS = 7;
 export const SET_MIN_CARDS = 5;
 export const SET_MIN_PRICE = 10;
 
-/** "games" = every public game in one picture (a day-plan kind, lib/socialPlan.ts). */
-export type PostKind = "movers" | "card" | "dips" | "set" | "games";
+/**
+ * "games" = every public game in one picture (a day-plan kind, lib/socialPlan.ts).
+ * guess / thennow / versus / sleepers / top = the five content angles (10-03, ANGLE_KINDS there).
+ */
+export type PostKind = "movers" | "card" | "dips" | "set" | "games" | "guess" | "thennow" | "versus" | "sleepers" | "top";
 export type PostSize = "square" | "story" | "landscape";
 export const POST_SIZES: Record<PostSize, { width: number; height: number }> = {
   square: { width: 1080, height: 1080 },
@@ -88,7 +92,18 @@ export interface Mover {
   game?: GameId;
   /** A set spotlight card's place by value among the set's five (1 = the most valuable): the list itself may lead with the biggest riser instead. */
   rank?: number;
+  /** Then vs now: the day `from` was read (the first day of the card's history); the caption says its month. */
+  thenDay?: string;
 }
+
+/** The sleepers band: cards priced from SLEEPER_MIN to under SLEEPER_MAX today, moved up at least SLEEPER_MIN_PCT this week. */
+export const SLEEPER_MIN = 1;
+export const SLEEPER_MAX = 5;
+export const SLEEPER_MIN_PCT = 15;
+/** Then vs now: a history at least this old, a believable rise (1.8x to 6x; a 20x on a promo is a bad old print), today at least THEN_MIN_NOW. */
+export const THEN_MIN_DAYS = 90;
+export const THEN_MIN_NOW = 20;
+const THEN_BAND: [number, number] = [1.8, 6];
 
 export interface SocialPost {
   id: string;
@@ -112,6 +127,8 @@ export interface SocialPost {
    * after the card lines and before the sign-off, in caption and shortCaption).
    */
   question?: string;
+  /** An angle post in "mixed" mode: one card per public game (the cards carry their game; `game` is the draft loop's). */
+  mixed?: boolean;
 }
 
 interface SeriesRow {
@@ -195,19 +212,47 @@ function dayDiff(fromDay: string, toDay: string): number {
  * holds sealed products, which made "tcgp-sealed" count as a set and a quarter
  * of the card-of-the-day pool a non-card.
  */
-async function freshSeries(game: GameId, day: string, days: number): Promise<FreshSeries> {
+const seriesScope = new AsyncLocalStorage<Map<string, Promise<FreshSeries>>>();
+
+/**
+ * Run `fn` with freshSeries memoized per (game, day, days, band): one drafts
+ * build (ten kinds, five games) reads each pool once instead of once per
+ * kind. Outside a scope every call reads the database, so a test that writes
+ * a row and asks again sees it.
+ */
+export function withSeriesCache<T>(fn: () => Promise<T>): Promise<T> {
+  return seriesScope.run(new Map(), fn);
+}
+
+function freshSeries(game: GameId, day: string, days: number, band?: [number, number]): Promise<FreshSeries> {
+  const store = seriesScope.getStore();
+  if (!store) return loadFreshSeries(game, day, days, band);
+  const key = `${game}:${day}:${days}:${band ? band.join("-") : ""}`;
+  let p = store.get(key);
+  if (!p) {
+    p = loadFreshSeries(game, day, days, band);
+    store.set(key, p);
+  }
+  return p;
+}
+
+async function loadFreshSeries(game: GameId, day: string, days: number, band?: [number, number]): Promise<FreshSeries> {
   const since = new Date(Date.parse(day + "T00:00:00Z") - 3 * 86_400_000).toISOString().slice(0, 10);
   const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
+  // A price band (sleepers, 10-03: cards from $1 to under $5) replaces the pool floor: the floor exists so a $1.83 common
+  // "up 69%" never headlines the gains, and the sleepers post is exactly the post about those cards, under the same guards.
+  // Magic's band is read dearest first, so when it is over the cap the sample is the more collectible end of it.
+  const [poolMin, poolMax] = band ?? [game === "mtg" ? MTG_POOL_MIN_USD : POOL_MIN_USD, Infinity];
   const rows = (
     game === "mtg"
       ? await db
           .prepare(
             `SELECT p.card_id, p.variant, p.start_day, p.prices, m.price_eur FROM mtg_cards m
               JOIN price_series p ON p.card_id = m.id AND p.game = 'mtg' AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ?
-              WHERE p.variant = 'nonfoil' AND m.price_usd >= ?
+              WHERE p.variant = 'nonfoil' AND m.price_usd >= ?${band ? " AND m.price_usd < ? ORDER BY m.price_usd DESC" : ""}
               LIMIT ${MTG_POOL_CAP}`,
           )
-          .all(since, MTG_POOL_MIN_USD)
+          .all(...(band ? [since, poolMin, poolMax] : [since, poolMin]))
       : await db
           .prepare(
             // Only cards worth posting (09-30): the unordered ROW_CAP sample was
@@ -229,12 +274,12 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
                   SELECT card_id FROM price_series
                    WHERE game = ? AND currency = 'USD' AND source = 'tcgplayer' AND updated_day >= ?
                      AND MAX(COALESCE(json_extract(prices, '$[#-1]'), 0), COALESCE(json_extract(prices, '$[#-2]'), 0),
-                             COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?)
+                             COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?${band ? " AND COALESCE(json_extract(prices, '$[#-1]'), json_extract(prices, '$[#-2]'), 0) < ?" : ""})
               LIMIT ${ROW_CAP}`,
           )
-          .all(cmSince, game, since, game, since, POOL_MIN_USD)
+          .all(...(band ? [cmSince, game, since, game, since, poolMin, poolMax] : [cmSince, game, since, game, since, poolMin]))
   ) as unknown as SeriesRow[];
-  if (rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
+  if (!band && rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
   // One entry per card: its series (so the preferred variant speaks for it and the rest are its siblings) and the second-source price.
   const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; refPrices: (number | null)[] | null; released: string }>();
   for (const r of rows) {
@@ -408,9 +453,9 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 export async function topMovers(
   game: GameId,
   day = todayUtc(),
-  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down", exclude = new Set<string>() } = {},
+  { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down", exclude = new Set<string>(), band = undefined as [number, number] | undefined } = {},
 ): Promise<Mover[]> {
-  const { cards: series } = await freshSeries(game, day, days);
+  const { cards: series } = await freshSeries(game, day, days, band);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];
   const stepped: string[] = [];
@@ -598,7 +643,7 @@ export async function gameJumps(day = todayUtc()): Promise<GameLead[]> {
   return jumps.length ? [...jumps, ...picked.filter((l) => !isJump(l))] : picked;
 }
 
-type FeaturedKind = "movers" | "dips" | "jumps";
+export type FeaturedKind = "movers" | "dips" | "jumps" | AngleKind;
 
 async function featuredMap(game: GameId, kind: FeaturedKind): Promise<Record<string, string>> {
   try {
@@ -660,6 +705,319 @@ export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = CO
     to: s.to,
     pct: from > 0 ? ((s.to - from) / from) * 100 : 0,
   };
+}
+
+// ---- The five angles (10-03, docs/SOCIAL-ANGLES-PLAN.md) --------------------------------------------------------
+
+/**
+ * "Most valuable" runs only for the games with a second price source to
+ * referee the dearest tail (Pokémon: Cardmarket; Magic: Scryfall's EUR), the
+ * guard freshSeries applies. The dearest tcg_cards rows of Yu-Gi-Oh are
+ * TCGplayer placeholders (10-03, the first render: "Genex Ally Axel $213,589",
+ * "Bujingi Crane $199,379") and nothing vouches for Lorcana's or One Piece's
+ * either, so those games draw guess and head to head from their price-guarded
+ * stage picks ($15–$300) and sit this angle out until they have a referee.
+ */
+const TOP_GAMES: GameId[] = ["pokemon", "mtg"];
+
+/** POST_GAME_ORDER minus any gated game whose public switch is off (the same gate gameLeads applies). */
+async function publicGames(): Promise<GameId[]> {
+  const out: GameId[] = [];
+  for (const g of POST_GAME_ORDER) {
+    if ((GATED_GAMES as readonly string[]).includes(g) && !(await gamePublic(g as GatedGame))) continue;
+    out.push(g);
+  }
+  return out;
+}
+
+/** "Charizard ex (Special Illustration Rare)" and "Charizard ex" are one name on a dearest-five list. */
+const baseName = (name: string) => displayName(name).replace(/\s*\(.*$/, "").toLowerCase();
+const nonNull = <T,>(v: T | null | undefined): v is T => v != null;
+const medianOf = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)];
+
+/**
+ * A Mover from a fresh series and its catalog row, priced the way the set
+ * spotlight prices a card: today's point when it held HELD_DAYS days, else the
+ * week's median; the week claimed only when both ends are prices the movers
+ * would print (held, the old price believed and settled, no lone step).
+ */
+function moverOf(game: GameId, cardId: string, c: CatalogRow, s: FreshCard): Mover {
+  const median = s.held < HELD_DAYS;
+  const to = median ? s.median : s.to;
+  const unsettled = median || s.from == null || !s.fromOk || !s.fromSettled || Boolean(s.stepJump);
+  const from = unsettled ? to : (s.from as number);
+  return { cardId, name: displayName(c.name), setName: c.set_name, number: c.number, imageUrl: postArtUrl(game, c.image_url), variant: s.variant, from, to, pct: !unsettled && from > 0 ? ((to - from) / from) * 100 : 0, unsettled };
+}
+
+/**
+ * A TCG game's scanner-stage picks (popular cards, $15–$300, price-guarded;
+ * One Piece its checked-clean lead only, as gameLeads) as Movers, each with
+ * its tcg_cards id so the no-repeat list and a frozen video row can name it.
+ */
+async function stageMovers(game: GameId): Promise<Mover[]> {
+  const { getGameStageCards } = await import("@/lib/server/stageCards");
+  const cards = (await getGameStageCards(game)).cards.filter((c) => c.imageUrl && c.price != null && c.price > 0);
+  const pool = game === "onepiece" ? cards.filter((c) => c.lead) : cards;
+  const out: Mover[] = [];
+  for (const c of pool) {
+    const row = (await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined;
+    out.push({ cardId: row?.id ?? `${game}:${c.setName}:${c.number}`, name: displayName(c.name), setName: cleanSet(c.setName), number: c.number, imageUrl: c.imageUrl, variant: "", from: c.price as number, to: c.price as number, pct: 0, unsettled: true });
+  }
+  return out;
+}
+
+/**
+ * Most valuable (angle "top"): the dearest `limit` cards a game prices today,
+ * one per name, dearest first: settled, guard-passed prices (freshSeries), so a
+ * one-day print is never "the most valuable". A card the guard could not vouch
+ * for is simply not on the list, which is why the caption says "five of the
+ * most valuable", never "the five most valuable". TOP_GAMES only.
+ */
+export async function topByPrice(game: GameId, day = todayUtc(), limit = 5): Promise<Mover[]> {
+  const out: Mover[] = [];
+  if (!TOP_GAMES.includes(game)) return out;
+  const seen = new Set<string>();
+  const { cards: series } = await freshSeries(game, day, MOVER_DAYS);
+  const ranked = [...series.entries()].filter(([, s]) => s.held >= HELD_DAYS).sort((a, b) => b[1].to - a[1].to || a[0].localeCompare(b[0])).slice(0, limit * 4);
+  const cat = await catalogRows(game, ranked.map(([id]) => id));
+  for (const [id, s] of ranked) {
+    const c = cat.get(id);
+    if (!c || !c.image_url || seen.has(baseName(c.name))) continue;
+    seen.add(baseName(c.name));
+    out.push(moverOf(game, id, c, s));
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/**
+ * Sleepers under $5 (angle "sleepers"): the cards priced from SLEEPER_MIN to
+ * under SLEEPER_MAX today with the biggest weekly gains (SLEEPER_MIN_PCT or
+ * more), under every guard the movers apply (a held price, a believed and
+ * settled old price, no lone step). Their own pool band: the movers' pool
+ * floors at $5 on purpose, and this is the post about the cards under it.
+ */
+export async function sleepers(game: GameId, day = todayUtc(), { limit = 3, exclude = new Set<string>() } = {}): Promise<Mover[]> {
+  if (!MOVER_GAMES.includes(game)) return [];
+  const list = await topMovers(game, day, { direction: "up", limit: limit * 10, minPrice: SLEEPER_MIN, exclude, band: [SLEEPER_MIN, SLEEPER_MAX] });
+  return list.filter((m) => m.to < SLEEPER_MAX && m.pct >= SLEEPER_MIN_PCT && m.imageUrl).slice(0, limit);
+}
+
+/**
+ * Then vs now (angle "thennow"): the card that rose the most from the start of
+ * its history (THEN_MIN_DAYS or more ago) to today, a rise a collector
+ * believes: the series start (median of its first ten points, $3 or more), a
+ * middle that sits between the ends (a rise that happened, not a spike or an
+ * old typo), a flat last five days, today settled and guard-passed, the
+ * Cardmarket referee within 3x (the sample's Rillaboom $6.35 → $148 was junk
+ * without it), and THEN_BAND (1.8x–6x). `from` is the then price, `thenDay`
+ * the day it was read.
+ */
+export async function thenNow(game: GameId, day = todayUtc(), { exclude = new Set<string>() } = {}): Promise<Mover | null> {
+  if (!MOVER_GAMES.includes(game)) return null;
+  const { cards: series } = await freshSeries(game, day, MOVER_DAYS);
+  const startBy = addDays(day, -THEN_MIN_DAYS);
+  const fresh = addDays(day, -3);
+  type Row = { card_id: string; variant: string; start_day: string; prices: string; ref: number | null; ref_prices: string | null };
+  const rows = (
+    game === "mtg"
+      ? await db
+          .prepare(
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, m.price_eur AS ref, NULL AS ref_prices FROM mtg_cards m
+              JOIN price_series p ON p.card_id = m.id AND p.game = 'mtg' AND p.source = 'tcgplayer' AND p.currency = 'USD'
+              WHERE p.variant = 'nonfoil' AND p.start_day <= ? AND p.updated_day >= ? AND m.price_usd >= ?`,
+          )
+          .all(startBy, fresh, THEN_MIN_NOW)
+      : await db
+          .prepare(
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, NULL AS ref, c.prices AS ref_prices FROM price_series p
+              JOIN en_cards e ON e.id = p.card_id
+              JOIN price_series c ON c.card_id = p.card_id AND c.variant = 'average' AND c.source = 'cardmarket' AND c.updated_day >= ?
+              WHERE p.game = ? AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.start_day <= ? AND p.updated_day >= ?
+                AND COALESCE(json_extract(p.prices, '$[#-1]'), json_extract(p.prices, '$[#-2]'), 0) >= ?`,
+          )
+          .all(addDays(day, -PRICE_TRUST.refMaxAgeDays), game, startBy, fresh, THEN_MIN_NOW)
+  ) as unknown as Row[];
+  let best: { ratio: number; cardId: string; then: number; now: number; variant: string; thenDay: string } | null = null;
+  for (const r of rows) {
+    const s = series.get(r.card_id);
+    if (!s || s.variant !== r.variant || s.held < HELD_DAYS || exclude.has(r.card_id)) continue;
+    const ref = game === "mtg" ? r.ref : r.ref_prices ? lastPriced(decodePrices(r.ref_prices)) : null;
+    const now = s.to;
+    if (ref == null || ref < 1 || now < THEN_MIN_NOW || now / (ref * 1.1) > 3) continue;
+    const upTo = decodePrices(r.prices).slice(0, dayDiff(r.start_day, day) + 1);
+    const early = upTo.slice(0, 10).filter(nonNull);
+    if (early.length < 3) continue;
+    const then = medianOf(early);
+    if (then < 3) continue;
+    const late = upTo.slice(-5).filter(nonNull);
+    if (late.length < 5 || Math.max(...late) / Math.min(...late) > 1.12) continue;
+    const half = Math.floor(upTo.length / 2);
+    const mid = upTo.slice(Math.max(0, half - 5), half + 5).filter(nonNull);
+    if (mid.length === 0) continue;
+    const m = medianOf(mid);
+    if (m < then * 0.9 || m > now * 1.1) continue;
+    const ratio = now / then;
+    if (ratio < THEN_BAND[0] || ratio > THEN_BAND[1]) continue;
+    if (!best || ratio > best.ratio || (ratio === best.ratio && r.card_id < best.cardId)) best = { ratio, cardId: r.card_id, then, now, variant: r.variant, thenDay: r.start_day };
+  }
+  if (!best) return null;
+  const c = (await catalogRows(game, [best.cardId])).get(best.cardId);
+  if (!c || !c.image_url) return null;
+  return {
+    cardId: best.cardId,
+    name: displayName(c.name),
+    setName: c.set_name,
+    number: c.number,
+    imageUrl: postArtUrl(game, c.image_url),
+    variant: best.variant,
+    from: best.then,
+    to: best.now,
+    pct: ((best.now - best.then) / best.then) * 100,
+    thenDay: best.thenDay,
+  };
+}
+
+/** Head to head: two cards of ONE game. `winner` is the index of the better week (byPrice: the dearer card). */
+export interface Pair {
+  a: Mover;
+  b: Mover;
+  winner: 0 | 1;
+  /** Both cards come from this set (today's set spotlight). */
+  setName?: string;
+  /** TCG games: no week to compare, the question is which is worth more. */
+  byPrice: boolean;
+}
+
+/** A head to head needs a story: one of the two moved this week, and their weeks differ by at least this many points. */
+const VERSUS_MIN_GAP_PCT = 2;
+
+/** The two cards of a pool priced closest to each other whose weeks tell a story (one moved, the gap is real), so there is always a winner. */
+function closestPair(pool: Mover[]): [Mover, Mover] | null {
+  let best: [Mover, Mover] | null = null;
+  let gap = Infinity;
+  for (let i = 0; i < pool.length; i++) {
+    for (let j = i + 1; j < pool.length; j++) {
+      const g = Math.abs(Math.log(pool[i].to / pool[j].to));
+      const moved = Math.abs(pool[i].pct) >= 1 || Math.abs(pool[j].pct) >= 1;
+      if (g < gap && moved && Math.abs(pool[i].pct - pool[j].pct) >= VERSUS_MIN_GAP_PCT) {
+        gap = g;
+        best = [pool[i], pool[j]];
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Head to head (angle "versus"; Chris 10-03: never cards of different games).
+ * History games: two settled cards of today's set spotlight (Pokémon) or of
+ * the week's movers, priced closest to each other, the better week wins.
+ * TCG games: two popular stage cards at least 10% apart, rotating by day, the
+ * dearer wins ("Which is worth more?").
+ */
+export async function pair(game: GameId, day = todayUtc(), { exclude = new Set<string>() } = {}): Promise<Pair | null> {
+  if (MOVER_GAMES.includes(game)) {
+    const spot = game === "pokemon" ? await setSpotlight(game, day) : null;
+    const fromSet = spot ? spot.cards.filter((c) => !c.unsettled && !exclude.has(c.cardId)) : [];
+    const pool = fromSet.length >= 2 ? fromSet : (await topMovers(game, day, { limit: 10, exclude })).filter((m) => m.imageUrl);
+    const picked = closestPair(pool);
+    if (!picked) return null;
+    const [a, b] = picked;
+    return { a, b, winner: a.pct >= b.pct ? 0 : 1, byPrice: false, ...(fromSet.length >= 2 ? { setName: spot!.setName } : {}) };
+  }
+  const pool = (await stageMovers(game)).filter((m) => !exclude.has(m.cardId));
+  if (pool.length < 2) return null;
+  const a = pool[hashDay(day, `${game}:versus`) % pool.length];
+  const b = pool
+    .filter((m) => m !== a && Math.abs(Math.log(m.to / a.to)) >= 0.095)
+    .sort((x, y) => Math.abs(Math.log(x.to / a.to)) - Math.abs(Math.log(y.to / a.to)) || x.cardId.localeCompare(y.cardId))[0];
+  if (!b) return null;
+  return { a, b, winner: a.to >= b.to ? 0 : 1, byPrice: true };
+}
+
+/**
+ * Guess the price (angle "guess"): one card worth guessing. History games:
+ * the week's biggest riser that no gains post shows (last week's, or today's
+ * 1pm), so the reveal is a move; with none, the card of the day. TCG games: a
+ * popular stage card, rotating by day.
+ */
+export async function guessCard(game: GameId, day = todayUtc(), { exclude = new Set<string>() } = {}): Promise<Mover | null> {
+  if (MOVER_GAMES.includes(game)) {
+    const skip = new Set([...exclude, ...(await recentlyFeatured(game, "movers", day)), ...(await middayGainers(game, day))]);
+    const risers = await topMovers(game, day, { direction: "up", limit: 5, exclude: skip });
+    const m = risers.find((r) => r.pct >= JUMP_MIN_PCT && r.to >= COTD_MIN_PRICE && r.imageUrl);
+    if (m) return m;
+    const c = await cardOfTheDay(game, day);
+    return c && !exclude.has(c.cardId) && c.imageUrl ? c : null;
+  }
+  const pool = (await stageMovers(game)).filter((m) => !exclude.has(m.cardId));
+  return pool.length ? pool[hashDay(day, `${game}:guess`) % pool.length] : null;
+}
+
+/** "Mixed" = one card per public game in one post (guess, top) or the two history games' sleepers interleaved; null unless at least two games take part. */
+async function mixedAngle(kind: AngleKind, day: string, games: GameId[]): Promise<Mover[] | null> {
+  if (kind === "top") {
+    const lists = await Promise.all(games.filter((g) => TOP_GAMES.includes(g)).map(async (g) => (await topByPrice(g, day, 1)).map((m) => ({ ...m, game: g }))));
+    const cards = lists.flat().sort((a, b) => b.to - a.to || a.cardId.localeCompare(b.cardId));
+    return cards.length >= 3 ? cards : null;
+  }
+  if (kind === "guess") {
+    const cards = (
+      await Promise.all(
+        games.map(async (g) => {
+          const m = await guessCard(g, day, { exclude: await recentlyFeatured(g, "guess", day) });
+          return m ? [{ ...m, game: g }] : [];
+        }),
+      )
+    ).flat();
+    return cards.length >= 3 ? cards : null;
+  }
+  if (kind === "sleepers") {
+    const lists = await Promise.all(MOVER_GAMES.filter((g) => games.includes(g)).map(async (g) => (await sleepers(g, day, { limit: 2, exclude: await recentlyFeatured(g, "sleepers", day) })).map((m) => ({ ...m, game: g }))));
+    if (lists.filter((l) => l.length > 0).length < 2) return null;
+    const out: Mover[] = [];
+    for (let i = 0; i < 2; i++) for (const l of lists) if (l[i]) out.push(l[i]);
+    return out.slice(0, 3);
+  }
+  return null;
+}
+
+/** An angle's cards for the day: the game the rotation picked, or the next one with something to say. */
+export interface AngleData {
+  kind: AngleKind;
+  /** The game the post is about; a mixed post is filed under Pokémon (the draft loop's game) and its cards carry their own. */
+  game: GameId;
+  mixed: boolean;
+  cards: Mover[];
+  pair?: Pair;
+}
+
+/**
+ * The day's data for one angle (lib/socialPlan.ts angleGameOrder: the cycle's
+ * game first, then the rest), the first game that is public and has the data,
+ * each under its own no-repeat list. null = nothing to post for this angle today.
+ */
+export async function angleData(kind: AngleKind, day = todayUtc()): Promise<AngleData | null> {
+  const games = await publicGames();
+  for (const g of angleGameOrder(kind, day)) {
+    if (g === "mixed") {
+      const cards = await mixedAngle(kind, day, games);
+      if (cards) return { kind, game: "pokemon", mixed: true, cards };
+      continue;
+    }
+    if (!games.includes(g)) continue;
+    const exclude = await recentlyFeatured(g, kind, day);
+    if (kind === "versus") {
+      const p = await pair(g, day, { exclude });
+      if (p) return { kind, game: g, mixed: false, cards: [p.a, p.b], pair: p };
+      continue;
+    }
+    const cards =
+      kind === "top" ? await topByPrice(g, day) : kind === "sleepers" ? await sleepers(g, day, { exclude }) : kind === "thennow" ? [await thenNow(g, day, { exclude })].filter(nonNull) : [await guessCard(g, day, { exclude })].filter(nonNull);
+    if (cards.length >= (kind === "top" ? 5 : kind === "sleepers" ? 3 : 1)) return { kind, game: g, mixed: false, cards };
+  }
+  return null;
 }
 
 /** The set on the day's registered 7am TikTok video (settings social_tiktok:morning:<day>, kind "set"), if there is one. */
@@ -977,6 +1335,134 @@ export function setShortCaption(game: GameId, spot: SetSpotlight, alsoScans = fa
   return [`${spot.setName}: five of the most valuable cards right now`, ...spot.cards.map((m) => `${m.name} #${m.number} ${money(m.to)}`), "", ...qBlock(question), shortSignOff(alsoScans ? [game] : null)].join("\n");
 }
 
+// ---- Angle captions (the same voice: plain, no exclamation marks, the question block, cardflip.io last) ------------
+
+/** "Umbreon ex (Prismatic Evolutions #161, Holo)". */
+function cardRef(m: Mover): string {
+  const v = variantLabel(m.variant);
+  return `${m.name} (${cleanSet(m.setName)} ${numberLabel(m.number)}${v ? `, ${v}` : ""})`;
+}
+/** ", +34% this week" / ", steady this week" / "" when no week is claimed (unsettled, or a TCG game with no history yet). */
+function weekNote(m: Mover): string {
+  return m.unsettled ? "" : Math.abs(m.pct) >= 1 ? `, ${pctLabel(m.pct)} this week` : ", steady this week";
+}
+/** The month a then-vs-now card's old price was read ("May"); "then" when the row carries no day. */
+export function thenMonth(m: Pick<Mover, "thenDay">): string {
+  return m.thenDay && /^\d{4}-\d{2}-\d{2}$/.test(m.thenDay) ? new Date(`${m.thenDay}T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" }) : "then";
+}
+const gameName = (m: Mover, game: GameId) => POST_GAME_NAMES[m.game ?? game];
+
+export function guessTitle(cards: Mover[]): string {
+  return cards.length > 1 ? "What's it worth? One card from each game" : `What's it worth? ${cards[0].name}`;
+}
+export function guessCaption(game: GameId, cards: Mover[], question = ""): string {
+  if (cards.length > 1) {
+    return ["What's it worth? One card from each game, market price today:", "", ...cards.map((m) => `${gameName(m, game)}: ${cardRef(m)}: ${money(m.to)}${weekNote(m)}`), "", ...qBlock(question), SIGN_OFF].join("\n");
+  }
+  const m = cards[0];
+  return [`What's it worth? ${POST_GAME_NAMES[game]}: ${cardRef(m)}.`, "", `Market price ${money(m.to)} today${weekNote(m)}, from CardFlip's own price history.`, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+export function guessShortCaption(game: GameId, cards: Mover[], question = ""): string {
+  const lines = cards.length > 1 ? cards.map((m) => `${gameName(m, game)}: ${m.name} ${money(m.to)}`) : [`${cards[0].name}, ${cleanSet(cards[0].setName)} ${numberLabel(cards[0].number)}`, `Market price ${money(cards[0].to)} today`];
+  return [cards.length > 1 ? "What's it worth? One card from each game" : "What's it worth?", ...lines, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+export function thenNowCaption(game: GameId, m: Mover, question = ""): string {
+  const month = thenMonth(m);
+  return [`Then vs now: ${POST_GAME_NAMES[game]}: ${cardRef(m)}.`, "", `${month}: ${money(m.from)}. Today: ${money(m.to)}, ${pctLabel(m.pct)} since ${month}, from CardFlip's own price history.`, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+export function thenNowShortCaption(game: GameId, m: Mover, question = ""): string {
+  const month = thenMonth(m);
+  return [`Then vs now: ${m.name}`, `${month} ${money(m.from)} → today ${money(m.to)}, ${pctLabel(m.pct)}`, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+/** "Charizard climbed 7.6% this week, Emolga held at $87.03." (Chris 10-03: "stood still" read weird); by price: "Elsa is worth more today: $61.00 to $55.25." */
+export function versusVerdict(p: Pair): string {
+  const [w, l] = p.winner === 0 ? [p.a, p.b] : [p.b, p.a];
+  if (p.byPrice) return `${w.name} is worth more today: ${money(w.to)} to ${money(l.to)}.`;
+  const did = (c: Mover) => (Math.abs(c.pct) < 1 ? `held at ${money(c.to)}` : `${c.pct > 0 ? "climbed" : "slipped"} ${Math.abs(c.pct).toFixed(1)}%`);
+  return `${w.name} ${did(w)} this week, ${l.name} ${did(l)}.`;
+}
+export function versusTitle(p: Pair): string {
+  return `Head to head: ${p.a.name} vs ${p.b.name}`;
+}
+export function versusCaption(game: GameId, p: Pair, question = ""): string {
+  const intro = p.byPrice
+    ? `${POST_GAME_NAMES[game]} head to head: ${cardRef(p.a)} vs ${cardRef(p.b)}. Which is worth more?`
+    : `${POST_GAME_NAMES[game]} head to head${p.setName ? ` in ${p.setName}` : ""}: ${cardRef(p.a)} at ${money(p.a.to)} vs ${cardRef(p.b)} at ${money(p.b.to)}. Which one moved this week?`;
+  return [intro, "", `${versusVerdict(p)} ${p.byPrice ? "Market price from CardFlip." : "From CardFlip's own price history."}`, "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+export function versusShortCaption(game: GameId, p: Pair, question = ""): string {
+  return [`${POST_GAME_NAMES[game]} head to head: ${p.a.name} vs ${p.b.name}`, versusVerdict(p), "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+/** "Pokémon" for a single-game list, "Pokémon and Magic" for a mixed one. */
+function listWho(game: GameId, cards: Mover[]): string {
+  const games = moverGames(cards);
+  return games.length ? listNames(games.map((g) => POST_GAME_NAMES[g])) : POST_GAME_NAMES[game];
+}
+export function sleepersTitle(game: GameId, cards: Mover[]): string {
+  return `${listWho(game, cards)} sleepers under $5`;
+}
+export function sleepersCaption(game: GameId, cards: Mover[], question = ""): string {
+  const mixed = moverGames(cards).length > 0;
+  return [
+    `${listWho(game, cards)} cards under $5 moving the most this week, from CardFlip's own price history.`,
+    "",
+    ...cards.map((m) => `${mixed ? `${gameName(m, game)}: ` : ""}${cardRef(m)} ${money(m.from)} → ${money(m.to)}, ${pctLabel(m.pct)}`),
+    "",
+    ...qBlock(question),
+    SIGN_OFF,
+  ].join("\n");
+}
+export function sleepersShortCaption(game: GameId, cards: Mover[], question = ""): string {
+  return [sleepersTitle(game, cards), ...cards.map((m) => `${m.name} ${money(m.to)}, ${pctLabel(m.pct)}`), "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+export function topTitle(game: GameId, cards: Mover[]): string {
+  return moverGames(cards).length ? "The most valuable card in each game" : `Most valuable ${POST_GAME_NAMES[game]} cards right now`;
+}
+export function topCaption(game: GameId, cards: Mover[], question = ""): string {
+  const games = moverGames(cards);
+  if (games.length) {
+    return [`The most valuable card in each game priced on CardFlip today: ${listNames(games.map((g) => POST_GAME_NAMES[g]))}.`, "", ...cards.map((m) => `${gameName(m, game)}: ${cardRef(m)}: ${money(m.to)}${weekNote(m)}`), "", ...qBlock(question), SIGN_OFF].join("\n");
+  }
+  return [`Five of the most valuable ${POST_GAME_NAMES[game]} cards priced on CardFlip today, across every set.`, "", ...cards.map((m) => `${cardRef(m)}: ${money(m.to)}${weekNote(m)}`), "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+export function topShortCaption(game: GameId, cards: Mover[], question = ""): string {
+  const mixed = moverGames(cards).length > 0;
+  return [mixed ? "The most valuable card in each game" : `Five of the most valuable ${POST_GAME_NAMES[game]} cards today, across every set`, ...cards.map((m) => `${mixed ? `${gameName(m, game)}: ` : ""}${m.name} ${money(m.to)}`), "", ...qBlock(question), SIGN_OFF].join("\n");
+}
+
+/** One angle's draft (socialDrafts): the kind's caption pair, its own tags (a mixed post tags every game it shows), the cards for the no-repeat list. */
+export function angleDraft(a: AngleData, day: string): SocialPost {
+  const { kind, game, cards } = a;
+  const q = questionFor(kind, day);
+  const games = a.mixed ? moverGames(cards) : [];
+  const text =
+    kind === "guess"
+      ? { title: guessTitle(cards), caption: guessCaption(game, cards, q), shortCaption: guessShortCaption(game, cards, q) }
+      : kind === "thennow"
+        ? { title: `Then vs now: ${cards[0].name}`, caption: thenNowCaption(game, cards[0], q), shortCaption: thenNowShortCaption(game, cards[0], q) }
+        : kind === "versus"
+          ? { title: versusTitle(a.pair as Pair), caption: versusCaption(game, a.pair as Pair, q), shortCaption: versusShortCaption(game, a.pair as Pair, q) }
+          : kind === "sleepers"
+            ? { title: sleepersTitle(game, cards), caption: sleepersCaption(game, cards, q), shortCaption: sleepersShortCaption(game, cards, q) }
+            : { title: topTitle(game, cards), caption: topCaption(game, cards, q), shortCaption: topShortCaption(game, cards, q) };
+  return {
+    id: `${game}-${kind}-${day}`,
+    kind,
+    game,
+    day,
+    ...text,
+    question: q,
+    hashtags: a.mixed ? gamesTags(games) : tagsFor(game, false),
+    imagePath: `/api/social/image?kind=${kind}&game=${game}&day=${day}`,
+    cardIds: cards.map((m) => m.cardId),
+    ...(a.mixed ? { mixed: true, featured: featuredByGame(cards) } : {}),
+  };
+}
+
 /** Hashtags for a single-game post: the game's own, or the "also scans" set on a plan day. */
 function tagsFor(game: GameId, alsoScans: boolean): string[] {
   const out = alsoScans && game === "pokemon" ? [...PLAN_TAGS.pokemonAlsoScans] : [...GAME_TAGS[game]];
@@ -986,7 +1472,11 @@ function tagsFor(game: GameId, alsoScans: boolean): string[] {
 }
 
 /** Today's drafts for a game, in posting order. Empty when the data is thin. */
-export async function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
+export function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
+  return withSeriesCache(() => buildDrafts(game, day));
+}
+
+async function buildDrafts(game: GameId, day: string): Promise<SocialPost[]> {
   // A day plan (lib/socialPlan.ts) can mix Magic into the Pokémon movers,
   // add the all-games picture, and name the other games on Pokémon posts.
   const plan = dayPlan(day);
@@ -1084,6 +1574,13 @@ export async function socialDrafts(game: GameId, day = todayUtc()): Promise<Soci
       imagePath: `/api/social/image?kind=dips&game=${game}&day=${day}`,
       cardIds: dips.map((m) => m.cardId),
     });
+  }
+  // The five angles ride the Pokémon loop (the one the publisher runs) and carry their own game: the day's rotation pick,
+  // or the next game with the data (angleData). Nothing posts them until the schedule names them (phase 3): the publisher
+  // only posts a slot's kind and its FALLBACK_KINDS, so today they are drafts on /admin/social, pictures and words ready.
+  if (game === "pokemon") {
+    const angles = await Promise.all(ANGLE_KINDS.map((kind) => angleData(kind, day)));
+    for (const a of angles) if (a) posts.push(angleDraft(a, day));
   }
   return posts;
 }

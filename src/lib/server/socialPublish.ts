@@ -20,12 +20,13 @@ import {
   isJump,
   setCaption,
   setShortCaption,
+  type FeaturedKind,
   type GameLead,
   type Mover,
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { dayPlan, gamesTags, jumpsOn, questionFor } from "@/lib/socialPlan";
+import { dayPlan, gamesTags, isAngleKind, jumpsOn, questionFor } from "@/lib/socialPlan";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
@@ -117,7 +118,18 @@ export function slotSchedule(day: string, now = Date.now()): Partial<Record<Post
   }
   return out;
 }
-const KIND_LABEL: Record<PostKind, string> = { set: "set spotlight", movers: "movers of the week", games: "all five games", dips: "price drops", card: "card of the day" };
+const KIND_LABEL: Record<PostKind, string> = {
+  set: "set spotlight",
+  movers: "movers of the week",
+  games: "all five games",
+  dips: "price drops",
+  card: "card of the day",
+  guess: "guess the price",
+  thennow: "then vs now",
+  versus: "head to head",
+  sleepers: "sleepers under $5",
+  top: "most valuable",
+};
 /**
  * "7am set spotlight" for what the slot ACTUALLY posts that day: the optimizer
  * (lib/server/socialOptimize.ts) and DAY_PLANS can put another kind in the
@@ -696,11 +708,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     // The 7pm all-games post files its per-game jumps under their own "jumps" list (a lead card has no id and files nothing).
     const landedIds = new Set(report.sites.flatMap((s) => s.posts.filter((p) => p.uri).map((p) => p.id)));
     for (const d of all) {
-      if ((d.kind !== "movers" && d.kind !== "dips" && d.kind !== "games") || !landedIds.has(d.id)) continue;
+      // The five angles (10-03) file under their own kind too, so a card that led "guess the price" sits out the next week of it.
+      if ((d.kind !== "movers" && d.kind !== "dips" && d.kind !== "games" && !isAngleKind(d.kind)) || !landedIds.has(d.id)) continue;
       if (d.kind === "games" && !d.featured) continue;
       // A mixed post files each card under its own game's list (a Magic card under Pokémon's would repeat on Magic's next post).
       const byGame = d.featured ?? { [d.game]: d.cardIds };
-      const list = d.kind === "games" ? "jumps" : d.kind;
+      const list: FeaturedKind = d.kind === "games" ? "jumps" : (d.kind as FeaturedKind);
       for (const [g, ids] of Object.entries(byGame) as [GameId, string[]][]) await markFeatured(g, list, day, ids);
     }
     await noteOnBoard(report, now);

@@ -104,7 +104,7 @@ check("card with no 7d point is flat, not NaN", Number.isFinite((await cardOfThe
 
 console.log("captions / drafts");
 const drafts = await socialDrafts("pokemon", TODAY);
-check("two drafts: movers + set spotlight", drafts.map((d) => d.kind), ["movers", "set"]);
+check("drafts: movers + set spotlight, then the angles the day's data allows (guess, head to head, most valuable; no sleepers under $5, no then-vs-now history)", drafts.map((d) => d.kind), ["movers", "set", "guess", "versus", "top"]);
 
 console.log("setSpotlight");
 const spot = await setSpotlight("pokemon", TODAY);
@@ -472,6 +472,118 @@ const JG = addDays(J, 260);
 for (const [i, to] of [75, 70, 65].entries()) await real(`jr8-${i + 1}`, `Lone ${i + 1}`, String(i + 1), "jr8", "Lone Set", wk(50, to), { end: JG });
 const g8 = (await SOC.gameJumps(JG)).find((l) => l.game === "pokemon");
 check("every gainer is in the 1pm: the 7pm keeps the top one (a repeated gain beats a card with no move)", [g8.cardId, isJump(g8)], ["jr8-1", true]);
+
+// ---- 10-03: the five angles (docs/SOCIAL-ANGLES-PLAN.md phase 1: data, captions, rotation) -----------------------
+console.log("the five angles (10-03): rotation, head to head, then the fixtures of one day");
+const { kindOfCaption } = await import(at("lib/socialPosts.ts"));
+check("game rotation: a strict cycle per kind (every game first once per cycle), kinds offset from each other, then-vs-now only the history games", [
+  Array.from({ length: 6 }, (_, i) => PL.angleGameOrder("guess", addDays(J, i))[0]).sort(),
+  PL.ANGLE_GAMES.thennow,
+  new Set(PL.ANGLE_KINDS.map((k) => PL.angleGameOrder(k, J)[0])).size > 1,
+  PL.angleGameOrder("top", J).length,
+], [["lorcana", "mixed", "mtg", "onepiece", "pokemon", "yugioh"], ["pokemon", "mtg"], true, 3]);
+// Head to head on the J set spotlight (jp1): the two settled cards priced closest whose weeks differ: the faller and the flat card, the flat one wins.
+const pJ = await SOC.pair("pokemon", J);
+// jp1-5 (flat for 48 days) prints no week in the spotlight (its old price is judged stale), so the settled pool is the riser, the step jumper, the faller and jp1-2: the riser and the faller sit closest in price.
+check("head to head picks two cards of ONE set priced closest to each other whose weeks differ; the better week wins", [pJ.setName, [pJ.a.cardId, pJ.b.cardId], pJ.winner, pJ.byPrice], ["Jump Set", ["jp1-1", "jp1-4"], 0, false]);
+check("verdict wording (Chris 10-03: no 'stood still'): climbed / slipped / held at $X", [SOC.versusVerdict(pJ), SOC.versusVerdict({ a: { ...pJ.b, name: "Flat Five", to: 55.5, pct: 0.3 }, b: pJ.b, winner: 0, byPrice: false })], ["Riser A climbed 40.0% this week, Faller slipped 25.0%.", "Flat Five held at $55.50 this week, Faller slipped 25.0%."]);
+check("the versus caption names the game and the set, both prices up front, the verdict, no exclamation marks", (() => { const c = SOC.versusCaption("pokemon", pJ, "Which one gets your pick?").split("\n"); return [c[0], c[2], c[4], c[6], c.join("").includes("!")]; })(), ["Pokémon head to head in Jump Set: Riser A (Jump Set #1, Holo) at $70.00 vs Faller (Jump Set #4, Holo) at $60.00. Which one moved this week?", "Riser A climbed 40.0% this week, Faller slipped 25.0%. From CardFlip's own price history.", "Which one gets your pick?", "Scan a card, see what it's worth. cardflip.io", false]);
+check("a pair where neither card moved is no head to head (two flat cards)", SOC.versusVerdict({ a: { ...pJ.a, pct: 0.4 }, b: { ...pJ.b, pct: 0.2 }, winner: 0, byPrice: false }).includes("held at") && (await (async () => { for (const [n, v] of [[1, flat(50)], [2, flat(48)], [3, flat(46)], [4, flat(44)], [5, flat(42)]]) await real(`jv1-${n}`, `Still ${n}`, String(n), "jv1", "Still Set", v, { end: addDays(J, 400) }); return (await SOC.pair("pokemon", addDays(J, 400))) === null; })()), true);
+
+const A = addDays(J, 100); // 2027-02-28: a day of its own, every fixture below ends on it
+// Most valuable: one per name, settled prices only, the guard's verdict respected.
+for (const [id, name, usd, extra] of [
+  ["tp1-1", "Charizard ex", 500, {}],
+  ["tp1-2", "Charizard ex (Special Illustration Rare)", 450, {}],
+  ["tp1-3", "Umbreon", 300, {}],
+  ["tp1-4", "Mew", 250, {}],
+  ["tp1-5", "Lugia", 200, {}],
+  ["tp1-6", "Pikachu", 150, {}],
+  ["tp1-7", "Zapdos", 120, {}],
+]) await real(id, name, id.split("-")[1], "tp1", "Top Set", liquid(usd), { eur: usd * 0.9, end: A, ...extra });
+await real("tp1-8", "Spiky", "8", "tp1", "Top Set", [...flat(100), 2000], { eur: 90, end: A }); // one-day print: not "the most valuable"
+await real("tp1-9", "Junk", "9", "tp1", "Top Set", liquid(400), { eur: 10, end: A }); // 36x Cardmarket: the guard drops it
+const topA = await SOC.topByPrice("pokemon", A);
+check("most valuable: dearest first, one card per name (the SIR Charizard folds into Charizard ex), a one-day print and a junk price never rank", topA.map((m) => m.cardId), ["tp1-1", "tp1-3", "tp1-4", "tp1-5", "tp1-6"]);
+const topCap = SOC.topCaption("pokemon", topA, "Which one surprised you?");
+check("its caption says FIVE OF the most valuable (the guard may have dropped a dearer card), across every set; the tagger reads it as 'top', not the set spotlight", [topCap.split("\n")[0], topCap.split("\n")[2].startsWith("Charizard ex (Top Set #1, Holo): $500"), kindOfCaption(topCap), kindOfCaption(SOC.topShortCaption("pokemon", topA)), kindOfCaption("Sun & Moon: five of the most valuable cards right now")], ["Five of the most valuable Pokémon cards priced on CardFlip today, across every set.", true, "top", "top", "set"]);
+// A TCG game reads tcg_cards by today's price: no promos, no card without a picture, one per name.
+const tcg = (id, game, name, code, setName, num, price, img = `https://img.example/${id}.png`) =>
+  db.prepare("INSERT INTO tcg_cards (id, game, name, set_code, set_name, collector_number, image_url, price_usd, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)").run(id, game, name, code, setName, num, img, price);
+await tcg("yg-1", "yugioh", "Blue-Eyes White Dragon", "LOB", "Legend of Blue Eyes (Worldwide English)", "LOB-001", 400);
+await tcg("yg-2", "yugioh", "Blue-Eyes White Dragon", "SDK", "Starter Deck Kaiba", "SDK-001", 350);
+await tcg("yg-3", "yugioh", "Dark Magician", "LOB", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 300);
+await tcg("yg-4", "yugioh", "Exodia the Forbidden One", "LOB", "Legend of Blue Eyes (Worldwide English)", "LOB-124", 250);
+await tcg("yg-5", "yugioh", "Prize Card", "PROMO", "Tournament Prize", "P-1", 99999);
+await tcg("yg-6", "yugioh", "No Picture", "LOB", "Legend of Blue Eyes (Worldwide English)", "LOB-002", 800, "");
+await tcg("yg-7", "yugioh", "Red-Eyes Black Dragon", "LOB", "Legend of Blue Eyes (Worldwide English)", "LOB-070", 200);
+await tcg("yg-8", "yugioh", "Kuriboh", "MRD", "Metal Raiders", "MRD-071", 150);
+// The dearest tcg_cards rows have no second price source (10-03 first render: "Genex Ally Axel $213,589"): no "most valuable" for those games, whatever the rows say.
+check("no most-valuable list for a game without a price referee (Yu-Gi-Oh, Lorcana, One Piece), however dear its rows", [await SOC.topByPrice("yugioh", A), await SOC.topByPrice("lorcana", A), await SOC.topByPrice("onepiece", A)], [[], [], []]);
+
+// Sleepers under $5: their own pool band, the movers' guards, the movers' floor still keeps them out of the gains post.
+await real("sl1-1", "Penny", "1", "sl1", "Sleep Set", wk(2, 2.6), { eur: 2, end: A });      // +30%
+await real("sl1-2", "Nickel", "2", "sl1", "Sleep Set", wk(1.5, 1.8), { eur: 1.5, end: A }); // +20%
+await real("sl1-3", "Dime", "3", "sl1", "Sleep Set", wk(3, 3.6), { eur: 3, end: A });      // +20%
+await real("sl1-4", "Quarter", "4", "sl1", "Sleep Set", wk(4, 4.4), { eur: 4, end: A });   // +10%: under SLEEPER_MIN_PCT
+await real("sl1-5", "Dollar", "5", "sl1", "Sleep Set", wk(5.5, 8), { eur: 6, end: A });    // +45% but $8 today: not under $5
+await real("sl1-6", "Cent", "6", "sl1", "Sleep Set", wk(0.5, 0.8), { eur: 0.5, end: A });  // +60% under the $1 floor
+await real("sl1-7", "Spiky Cent", "7", "sl1", "Sleep Set", [...flat(2), 3], { eur: 2, end: A }); // one-day step
+const slA = await SOC.sleepers("pokemon", A);
+check("sleepers: the $1–$5 cards up 15%+ with a held price, biggest first; the +10%, the $8, the 80¢ and the one-day step sit out", slA.map((m) => [m.cardId, Math.round(m.pct)]), [["sl1-1", 30], ["sl1-2", 20], ["sl1-3", 20]]);
+check("the gains post never shows them (the $10 floor stands)", (await topMovers("pokemon", A, { direction: "up", limit: 20 })).some((m) => m.cardId.startsWith("sl1-")), false);
+const slCap = SOC.sleepersCaption("pokemon", slA, "Any of these in your binder?");
+check("sleepers caption: 'under $5', each card's move in dollars and %, tagged as sleepers", [slCap.split("\n")[0], slCap.split("\n")[2], kindOfCaption(slCap), kindOfCaption(SOC.sleepersShortCaption("pokemon", slA)), SOC.sleepersTitle("pokemon", slA)], ["Pokémon cards under $5 moving the most this week, from CardFlip's own price history.", "Penny (Sleep Set #1, Holo) $2.00 → $2.60, +30%", "sleepers", "sleepers", "Pokémon sleepers under $5"]);
+check("no sleepers for a game without history", await SOC.sleepers("lorcana", A), []);
+
+// Then vs now: months of history, a rise that happened, Cardmarket agreeing, the band.
+const ramp = (from, to, n = 110) => [...Array(10).fill(from), ...Array.from({ length: n }, (_, i) => Math.round((from + ((to - from) * (i + 1)) / n) * 100) / 100), ...Array(10).fill(to)];
+await real("tn1-1", "Ramp", "1", "tn1", "Then Set", ramp(5, 20), { eur: 16, end: A });            // 4x, Cardmarket agrees
+await real("tn1-2", "Rocket", "2", "tn1", "Then Set", ramp(1, 20), { eur: 16, end: A });          // 20x: a bad old print
+await real("tn1-3", "Spike", "3", "tn1", "Then Set", [...Array(125).fill(5), ...Array(5).fill(20)], { eur: 16, end: A }); // the rise is five days old
+await real("tn1-4", "Unrefereed", "4", "tn1", "Then Set", ramp(6, 24), { end: A });            // no Cardmarket: no then-vs-now
+await real("tn1-5", "Cheap Ramp", "5", "tn1", "Then Set", ramp(2, 7), { eur: 6, end: A });       // today under $20
+const tnA = await SOC.thenNow("pokemon", A);
+check("then vs now: the 4x ramp Cardmarket agrees with; not the 20x, the five-day spike, the unrefereed or the cheap one", [tnA?.cardId, tnA?.from, tnA?.to, Math.round(tnA?.pct), tnA?.thenDay], ["tn1-1", 5, 20, 300, addDays(A, -129)]);
+const tnCap = SOC.thenNowCaption("pokemon", tnA, "Would you buy it at today's price?");
+check("its caption: the month the history began, the old price, today's, the move since; tagged thennow", [tnCap.split("\n")[0], tnCap.split("\n")[2], kindOfCaption(tnCap), kindOfCaption(SOC.thenNowShortCaption("pokemon", tnA))], ["Then vs now: Pokémon: Ramp (Then Set #1, Holo).", `${SOC.thenMonth(tnA)}: $5.00. Today: $20.00, +300% since ${SOC.thenMonth(tnA)}, from CardFlip's own price history.`, "thennow", "thennow"]);
+check("the month is a real month name", /^(January|February|March|April|May|June|July|August|September|October|November|December)$/.test(SOC.thenMonth(tnA)), true);
+check("no then-vs-now for Magic yet (its history began 09-16)", await SOC.thenNow("mtg", A), null);
+
+// Guess the price: the week's riser no gains post shows; a TCG game's popular stage card.
+await real("gs1-1", "Guess Riser", "1", "gs1", "Guess Set", wk(50, 75), { eur: 60, end: A }); // +50%, the only mover worth the name on A
+const gA = await SOC.guessCard("pokemon", A);
+check("guess: the week's riser (+50%), not a card from today's 1pm list", [gA.cardId, Math.round(gA.pct), (await topMovers("pokemon", A, { direction: "up" })).length < 3], ["gs1-1", 50, true]);
+const gCap = SOC.guessCaption("pokemon", [gA], "Did you guess it?");
+check("guess caption: the question first, the answer below, the week; tagged guess", [gCap.split("\n")[0], gCap.split("\n")[2], kindOfCaption(gCap), kindOfCaption(SOC.guessShortCaption("pokemon", [gA]))], ["What's it worth? Pokémon: Guess Riser (Guess Set #1, Holo).", "Market price $75.00 today, +50% this week, from CardFlip's own price history.", "guess", "guess"]);
+await markFeatured("pokemon", "guess", addDays(A, -1), ["gs1-1"]);
+check("no-repeat: a card that led yesterday's guess sits out; the card of the day stands in", (await SOC.guessCard("pokemon", A, { exclude: await recentlyFeatured("pokemon", "guess", A) }))?.cardId !== "gs1-1", true);
+await tcg("lc-1", "lorcana", "Elsa", "TFC", "The First Chapter", "42", 61);
+const gL = await SOC.guessCard("lorcana", A);
+check("a TCG game's guess is its popular stage card, with its catalog id and no week claimed", [gL.cardId, gL.name, gL.to, gL.unsettled, SOC.guessCaption("lorcana", [gL]).split("\n")[2]], ["lc-1", "Elsa", 61, true, "Market price $61.00 today, from CardFlip's own price history."]);
+
+// Head to head in a TCG game: two popular cards at least 10% apart, the dearer wins.
+await tcg("lc-2", "lorcana", "Mickey Mouse", "TFC", "The First Chapter", "1", 40);
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v14:lorcana", JSON.stringify([stg("Elsa", "The First Chapter", "42", 61, { lead: true }), stg("Mickey Mouse", "The First Chapter", "1", 40)]), Date.now());
+const pL = await SOC.pair("lorcana", A);
+check("TCG head to head: by price, the dearer card wins, the verdict says so", [pL.byPrice, [pL.a.cardId, pL.b.cardId].sort(), [pL.a, pL.b][pL.winner].cardId, SOC.versusVerdict(pL), SOC.versusCaption("lorcana", pL).split("\n")[0].endsWith("Which is worth more?")], [true, ["lc-1", "lc-2"], "lc-1", "Elsa is worth more today: $61.00 to $40.00.", true]);
+check("Yu-Gi-Oh's caption says Yu-Gi-Oh without the exclamation mark", SOC.guessCaption("yugioh", [{ ...gL, name: "Dark Magician" }]).includes("Yu-Gi-Oh:") && !SOC.guessCaption("yugioh", [gL]).includes("!"), true);
+
+// The drafts: every angle rides the Pokémon loop with its own game; nothing posts them (no slot names them) but the words and pictures are ready.
+const angleDrafts = (await SOC.socialDrafts("pokemon", A)).filter((d) => PL.isAngleKind(d.kind));
+check("all five angles draft on A (then-vs-now and sleepers fall through Magic to Pokémon; the others take the rotation's game or the next with data)", angleDrafts.map((d) => d.kind).sort(), ["guess", "sleepers", "thennow", "top", "versus"]);
+for (const d of angleDrafts) {
+  check(`${d.kind}@${d.mixed ? "mixed" : d.game}: id, no exclamation marks, question in the caption, ends on cardflip.io, picture path carries kind and day, cards listed, at most five tags`, [d.id, d.caption.includes("!"), d.caption.includes(d.question) && d.shortCaption.includes(d.question), d.caption.trimEnd().endsWith("cardflip.io"), d.imagePath, d.cardIds.length > 0, d.hashtags.length <= 5], [`${d.game}-${d.kind}-${A}`, false, true, true, `/api/social/image?kind=${d.kind}&game=${d.game}&day=${A}`, true, true]);
+}
+const vD = angleDrafts.find((d) => d.kind === "versus");
+check("head to head never mixes games: both cards share the draft's game", vD.cardIds.length === 2 && !vD.mixed && [vD.game, PL.angleGameOrder("versus", A)].every(Boolean), true);
+check("the Magic loop drafts no angles (they ride the Pokémon loop once)", (await SOC.socialDrafts("mtg", A)).filter((d) => PL.isAngleKind(d.kind)), []);
+// Mixed: a day whose guess rotation starts on "mixed" drafts one card per public game (Magic has no fresh data on A: four games).
+const mixedDay = Array.from({ length: 6 }, (_, i) => addDays(A, i)).find((d) => PL.angleGameOrder("guess", d)[0] === "mixed");
+const gm = (await SOC.socialDrafts("pokemon", mixedDay)).find((d) => d.kind === "guess");
+check("a mixed guess: one card per game, filed by game for the no-repeat lists, one tag per game, the caption names each game", [gm.mixed, Object.keys(gm.featured).sort(), gm.hashtags, gm.title, gm.caption.split("\n")[0], gm.caption.split("\n").slice(2, 6).every((l) => /^(Pokémon|Lorcana|One Piece|Yu-Gi-Oh): /.test(l))], [true, ["lorcana", "onepiece", "pokemon", "yugioh"], ["PokemonTCG", "DisneyLorcana", "OPTCG", "Yugioh", "TCG"], "What's it worth? One card from each game", "What's it worth? One card from each game, market price today:", true]);
+check("the picture route's kind list knows the angles (the image is drawn from the same angleData)", (await import("node:fs")).readFileSync(new URL("../src/app/api/social/image/route.tsx", import.meta.url), "utf8").includes("...ANGLE_KINDS] as const"), true);
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v14:lorcana", JSON.stringify(STAGES["stage:v14:lorcana"]), Date.now());
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

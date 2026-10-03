@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import {
   POST_SIZES,
+  angleData,
   cardOfTheDay,
   gameJumps,
   gameLeads,
@@ -13,11 +14,15 @@ import {
   pctLabel,
   recentlyFeatured,
   setSpotlight,
+  thenMonth,
   topMovers,
   variantLabel,
   displayName,
+  versusVerdict,
+  withSeriesCache,
   type GameLead,
   type Mover,
+  type Pair,
   type PostSize,
 } from "@/lib/server/social";
 import type { GameId } from "@/lib/types";
@@ -25,7 +30,7 @@ import { fallbackArtUrl } from "@/lib/cardArt";
 import { frozenMovers } from "@/lib/server/socialPublish";
 import { parseGame } from "@/lib/games";
 import { todayUtc } from "@/lib/priceSeries";
-import { POST_GAME_NAMES, dayPlan, fanOrder, jumpsOn, listNames, otherGameNames } from "@/lib/socialPlan";
+import { ANGLE_KINDS, POST_GAME_NAMES, dayPlan, fanOrder, isAngleKind, jumpsOn, listNames, otherGameNames } from "@/lib/socialPlan";
 
 /**
  * The social post as a picture (docs/SOCIAL-AUTOPILOT.md): one PNG per
@@ -119,7 +124,7 @@ export async function GET(req: NextRequest) {
   if (!(await allowed(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = req.nextUrl.searchParams;
   const kindParam = q.get("kind");
-  const kind = (["card", "dips", "set", "games"] as const).find((k) => k === kindParam) ?? "movers";
+  const kind = (["card", "dips", "set", "games", ...ANGLE_KINDS] as const).find((k) => k === kindParam) ?? "movers";
   const game: GameId = parseGame(q.get("game"));
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
@@ -151,6 +156,26 @@ export async function GET(req: NextRequest) {
       <Movers movers={await Promise.all(spot.cards.map(withArt))} label={label} tall={tall} wide={wide} heading={spot.setName} mode="price" alsoScans={alsoScans} leadId={spot.leadId} />,
       size,
     );
+  }
+  if (isAngleKind(kind)) {
+    // The five angles (10-03): the same data the draft was written from (angleData: the day's game rotation, or the next game with data).
+    const a = await withSeriesCache(() => angleData(kind, day ?? todayUtc()));
+    if (!a) return NextResponse.json({ error: "Nothing for this angle today" }, { status: 404 });
+    const cards = await Promise.all(a.cards.map(withArt));
+    if (cards.some((c) => !c.imageUrl)) return NextResponse.json({ error: "Card art missing" }, { status: 502 });
+    const name = POST_GAME_NAMES[a.game];
+    if (kind === "versus") return new ImageResponse(<Versus pair={{ ...(a.pair as Pair), a: cards[0], b: cards[1] }} label={name} tall={tall} wide={wide} />, size);
+    if (kind === "thennow") return new ImageResponse(<CardOfTheDay card={cards[0]} label={name} tall={tall} wide={wide} kicker={`${name} · then vs now`} then />, size);
+    if (kind === "guess" && !a.mixed) return new ImageResponse(<CardOfTheDay card={cards[0]} label={name} tall={tall} wide={wide} kicker={`${name} · what's it worth?`} />, size);
+    if (kind === "guess") return new ImageResponse(<Movers movers={cards} label="" tall={tall} wide={wide} heading="What's it worth?" mode="price" sub="One card from each game, market price today" showSet />, size);
+    if (kind === "top") {
+      return new ImageResponse(
+        <Movers movers={cards} label={a.mixed ? "" : name} tall={tall} wide={wide} heading={a.mixed ? "Most valuable card in each game" : "Most valuable right now"} mode="price" sub={a.mixed ? "One card per game, market price today" : `Five of the most valuable cards · ${name} market price today`} showSet />,
+        size,
+      );
+    }
+    const games = [...new Set(cards.map((m) => m.game))].filter((g): g is GameId => Boolean(g));
+    return new ImageResponse(<Movers movers={cards} label={a.mixed ? "" : name} tall={tall} wide={wide} heading={a.mixed ? `${listNames(games.map((g) => POST_GAME_NAMES[g]))} sleepers under $5` : "sleepers under $5"} />, size);
   }
   const frozen = day && (kind === "movers" || kind === "dips") ? await frozenMovers(game, kind, day) : null;
   if (kind === "movers" && plan.mixedMovers && game === "pokemon") {
@@ -237,12 +262,14 @@ function Pct({ pct, size }: { pct: number; size: number }) {
 }
 
 /** mode "move" = from → to with the % (movers, dips); "price" = today's price with the week's % as a footnote (set spotlight). */
-function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, leadId }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price"; alsoScans?: string[]; leadId?: string }) {
+function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, leadId, sub, showSet }: { movers: Mover[]; label: string; tall: boolean; wide: boolean; heading: string; mode?: "move" | "price"; alsoScans?: string[]; leadId?: string; sub?: string; showSet?: boolean }) {
   const rows = wide ? movers.slice(0, 3) : movers;
   // Six rows (a mixed list) or the "Also scans" pills: smaller art so the footer stays on the picture.
   const tight = rows.length > 5 || Boolean(alsoScans?.length);
-  const art = wide ? 92 : tall ? 200 : rows.length > 5 ? 96 : tight ? 108 : 126;
-  const fs = wide ? 24 : tall ? 38 : 28;
+  // Three rows (sleepers under $5): bigger art and type, so the picture is full, not a list with a hole under it.
+  const few = rows.length <= 3 && !wide;
+  const art = wide ? 92 : few ? (tall ? 340 : 196) : tall ? 200 : rows.length > 5 ? 96 : tight ? 108 : 126;
+  const fs = wide ? 24 : few ? (tall ? 50 : 34) : tall ? 38 : 28;
   const price = mode === "price";
   const headline = price || !label ? heading : `${label} ${heading}`;
   return (
@@ -252,17 +279,17 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, 
         {headline}
       </div>
       <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : 26, color: MUTED, marginTop: 4 }}>
-        {price ? `Five of the most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history"}
+        {sub ?? (price ? `Five of the most valuable cards · ${label} market price today` : "Market price, last 7 days, from CardFlip's price history")}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : tall ? 26 : tight ? 10 : 12, marginTop: wide ? 14 : tall ? 40 : tight ? 18 : 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: wide ? 8 : few ? (tall ? 40 : 16) : tall ? 26 : tight ? 10 : 12, marginTop: wide ? 14 : few ? (tall ? 60 : 22) : tall ? 40 : tight ? 18 : 24 }}>
         {rows.map((m) => (
           <div
             key={m.cardId}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 24,
-              padding: wide ? 6 : tall ? 14 : 10,
+              gap: few ? 32 : 24,
+              padding: wide ? 6 : few ? (tall ? 18 : 12) : tall ? 14 : 10,
               paddingLeft: wide ? 6 : 14,
               paddingRight: wide ? 16 : 24,
               borderRadius: 18,
@@ -281,7 +308,7 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, 
               <div style={{ display: "flex", fontSize: fs, fontWeight: 600 }}>{m.name}</div>
               <div style={{ display: "flex", fontSize: fs * 0.72, color: MUTED }}>
                 {price
-                  ? `#${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}`
+                  ? `${m.game ? `${POST_GAME_NAMES[m.game]} · ` : ""}${showSet ? `${m.setName} · ` : ""}#${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}`
                   : `${m.game ? `${POST_GAME_NAMES[m.game]} · ` : ""}${m.setName} · ${m.number}`}
               </div>
               {price ? (
@@ -305,8 +332,14 @@ function Movers({ movers, label, tall, wide, heading, mode = "move", alsoScans, 
   );
 }
 
-function CardOfTheDay({ card, label, tall, wide }: { card: Mover; label: string; tall: boolean; wide: boolean }) {
+/**
+ * One card, large. `kicker` replaces "{label} card of the day" (guess the
+ * price, then vs now); `then` draws the old price struck through above
+ * today's and the move "since May" (then vs now, the card's `from`/`thenDay`).
+ */
+function CardOfTheDay({ card, label, tall, wide, kicker, then }: { card: Mover; label: string; tall: boolean; wide: boolean; kicker?: string; then?: boolean }) {
   const artH = wide ? 440 : tall ? 900 : 620;
+  const foot = then ? `since ${thenMonth(card)}` : card.unsettled ? "market price today" : "last 7 days";
   return (
     <Frame tall={tall} wide={wide}>
       <div style={{ display: "flex", flexDirection: tall ? "column" : "row", alignItems: "center", gap: 48, flex: 1 }}>
@@ -318,18 +351,24 @@ function CardOfTheDay({ card, label, tall, wide }: { card: Mover; label: string;
         )}
         <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: tall ? "center" : "flex-start", textAlign: tall ? "center" : "left" }}>
           <div style={{ display: "flex", fontSize: wide ? 22 : 26, color: MUTED, textTransform: "uppercase", letterSpacing: 3 }}>
-            {label} card of the day
+            {kicker ?? `${label} card of the day`}
           </div>
           <div style={{ display: "flex", fontSize: wide ? 48 : 64, fontWeight: 700, marginTop: 12, letterSpacing: -1 }}>{card.name}</div>
           <div style={{ display: "flex", fontSize: wide ? 26 : 34, color: MUTED, marginTop: 6 }}>
             {card.setName} · {card.number}
           </div>
+          {then ? (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginTop: 24, color: MUTED }}>
+              <div style={{ display: "flex", fontSize: wide ? 26 : 32 }}>{thenMonth(card)}</div>
+              <div style={{ display: "flex", fontSize: wide ? 44 : 60, fontWeight: 700, textDecoration: "line-through" }}>{money(card.from)}</div>
+            </div>
+          ) : null}
           <div
             style={{
               display: "flex",
               fontSize: wide ? 88 : 120,
               fontWeight: 800,
-              marginTop: 24,
+              marginTop: then ? 4 : 24,
               backgroundImage: HOLO,
               backgroundClip: "text",
               color: "transparent",
@@ -338,8 +377,8 @@ function CardOfTheDay({ card, label, tall, wide }: { card: Mover; label: string;
             {money(card.to)}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
-            <Pct pct={card.pct} size={wide ? 30 : 40} />
-            <div style={{ display: "flex", fontSize: wide ? 24 : 30, color: MUTED }}>last 7 days</div>
+            {then || !card.unsettled ? <Pct pct={card.pct} size={wide ? 30 : 40} /> : null}
+            <div style={{ display: "flex", fontSize: wide ? 24 : 30, color: MUTED }}>{foot}</div>
           </div>
         </div>
       </div>
@@ -451,6 +490,77 @@ function AllGames({ leads: given, tall, wide }: { leads: GameLead[]; tall: boole
         ))}
       </div>
       </div>
+    </Frame>
+  );
+}
+
+/**
+ * Head to head (angle "versus", 10-03): two cards of one game side by side,
+ * each with its price and its week (or "market price today" for a TCG game
+ * with no history), the winner's tile edged green, the verdict underneath
+ * in the caption's words (versusVerdict).
+ */
+function Versus({ pair, label, tall, wide }: { pair: Pair; label: string; tall: boolean; wide: boolean }) {
+  // Art no wider than its tile: half the content width minus the gap and the tile's padding (story: (1080 − 160 − 32) / 2 − 40 ≈ 404px wide → 560 tall).
+  const artH = wide ? 300 : tall ? 560 : 440;
+  const nameFs = wide ? 26 : tall ? 44 : 32;
+  const priceFs = wide ? 44 : tall ? 80 : 56;
+  const sides = [pair.a, pair.b];
+  // The two tiles share one height (the row stretches them) and centre their own content, so a name that wraps on one
+  // side never shifts the other; the set line wraps inside its tile instead of running under the neighbour.
+  const meta = (m: Mover) => `${m.setName} · ${m.number}${variantLabel(m.variant) ? ` · ${variantLabel(m.variant)}` : ""}`;
+  return (
+    <Frame tall={tall} wide={wide}>
+      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 38 : tall ? 64 : 50, fontWeight: 700, letterSpacing: -1, whiteSpace: "nowrap" }}>
+        {label} head to head
+      </div>
+      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 20 : tall ? 30 : 26, color: MUTED, marginTop: 4 }}>
+        {pair.byPrice ? "Which is worth more? Market price today" : `${pair.setName ? `${pair.setName} · ` : ""}Two cards, one week. Which one moved?`}
+      </div>
+      <div style={{ display: "flex", flexGrow: 1, alignItems: "stretch", justifyContent: "center", gap: wide ? 24 : 32, marginTop: wide ? 10 : 24, marginBottom: wide ? 0 : 12 }}>
+        {sides.map((m, i) => {
+          const win = pair.winner === i;
+          return (
+            <div
+              key={m.cardId}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                flex: 1,
+                minWidth: 0,
+                padding: wide ? 12 : 20,
+                borderRadius: 22,
+                background: win ? "rgba(74,222,128,0.10)" : "rgba(170,180,255,0.07)",
+                border: win ? "2px solid rgba(74,222,128,0.6)" : "1px solid rgba(255,255,255,0.11)",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.imageUrl} alt="" width={artH * 0.716} height={artH} style={{ borderRadius: 14, objectFit: "cover", boxShadow: "0 10px 40px rgba(0,0,0,0.6)" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: nameFs * 1.15 * 2, marginTop: wide ? 10 : 18, fontSize: m.name.length > 22 ? nameFs * 0.85 : nameFs, fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>{m.name}</div>
+              <div style={{ display: "flex", justifyContent: "center", fontSize: nameFs * (meta(m).length > 30 ? 0.56 : 0.68), color: MUTED, marginTop: 4, textAlign: "center", lineHeight: 1.2 }}>{meta(m)}</div>
+              <div style={{ display: "flex", fontSize: priceFs, fontWeight: 800, marginTop: wide ? 6 : 12, backgroundImage: HOLO, backgroundClip: "text", color: "transparent" }}>{money(m.to)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+                {pair.byPrice ? (
+                  <div style={{ display: "flex", fontSize: nameFs * 0.7, color: MUTED }}>market price today</div>
+                ) : (
+                  <>
+                    <Pct pct={m.pct} size={nameFs * 0.9} />
+                    <div style={{ display: "flex", fontSize: nameFs * 0.7, color: MUTED }}>this week</div>
+                  </>
+                )}
+              </div>
+              {win ? (
+                <div style={{ display: "flex", marginTop: wide ? 8 : 14, fontSize: nameFs * 0.6, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: UP, padding: "4px 14px", borderRadius: 9999, border: "1px solid rgba(74,222,128,0.5)" }}>
+                  {pair.byPrice ? "worth more" : "winner"}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", flexShrink: 0, fontSize: wide ? 22 : tall ? 34 : 28, color: "#e4e4e7", marginTop: wide ? 10 : 20, textAlign: "center", justifyContent: "center" }}>{versusVerdict(pair)}</div>
     </Frame>
   );
 }

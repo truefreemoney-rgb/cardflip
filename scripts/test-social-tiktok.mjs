@@ -93,7 +93,7 @@ function fakeSite(id, { postsVideo = false } = {}) {
   return { id, label: id, maxChars: 5000, maxImageBytes: 1_000_000, postsVideo, posts, connected: () => true, async post(p) { posts.push(p); return { uri: `https://${id}/${posts.length}` }; } };
 }
 const drafts = await social.socialDrafts("pokemon", FRI);
-check("fixture: the Friday has games, movers and set drafts (no drops)", drafts.map((d) => d.kind).sort(), ["games", "movers", "set"]);
+check("fixture: the Friday has games, movers and set drafts (no drops), plus the angles the data allows (10-03; no slot names them, so the package never draws them yet)", drafts.map((d) => d.kind).sort(), ["games", "guess", "movers", "set", "top", "versus"]);
 
 // What the render job draws and freezes for each kind (scripts/social-video.mjs build()).
 async function frozenFor(kind) {

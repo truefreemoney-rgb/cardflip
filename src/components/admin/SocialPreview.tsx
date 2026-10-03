@@ -1,6 +1,7 @@
 "use client";
 
 import type { GameId } from "@/lib/types";
+import type { PostKind } from "@/lib/server/social";
 
 import { useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
@@ -14,14 +15,30 @@ import { POST_GAME_NAMES } from "@/lib/socialPlan";
  */
 export interface DraftView {
   id: string;
-  kind: "movers" | "card" | "dips" | "set" | "games";
+  kind: PostKind;
   game: GameId;
   day: string;
   title: string;
   caption: string;
   hashtags: string[];
   imagePath: string;
+  /** An angle post that shows one card per game (the cards carry their game). */
+  mixed?: boolean;
 }
+
+/** The small line under a draft's title: what kind of post it is. */
+const KIND_SUB: Record<PostKind, string> = {
+  movers: "movers of the week",
+  dips: "price drops this week",
+  set: "set spotlight",
+  games: "one scanner, every game",
+  card: "card of the day",
+  guess: "guess the price",
+  thennow: "then vs now",
+  versus: "head to head",
+  sleepers: "sleepers under $5",
+  top: "most valuable",
+};
 
 const SIZES = [
   ["square", "Square 1080", "aspect-square"],
@@ -87,7 +104,7 @@ function Draft({ draft, video, goesLive }: { draft: DraftView; video?: string; g
           <GoesLive at={goesLive} video={draft.kind === "movers"} />
           <h2 className="font-semibold text-white">{draft.title}</h2>
           <p className="text-xs text-zinc-500">
-            {draft.kind === "games" ? "Every game" : POST_GAME_NAMES[draft.game]} · {draft.kind === "movers" ? "movers of the week" : draft.kind === "dips" ? "price drops this week" : draft.kind === "set" ? "set spotlight" : draft.kind === "games" ? "one scanner, every game" : "card of the day"} · {draft.day}
+            {draft.kind === "games" || draft.mixed ? "Every game" : POST_GAME_NAMES[draft.game]} · {KIND_SUB[draft.kind]} · {draft.day}
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-1">

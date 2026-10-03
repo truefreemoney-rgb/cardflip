@@ -101,7 +101,7 @@ export function whenET(iso: string | number): string {
  * post is in it (social_post_log), else from its words and its Eastern hour
  * (TikTok is posted by hand; rows from before the log shipped).
  */
-export type PostKindTag = "set" | "movers" | "games" | "dips" | "card";
+export type PostKindTag = "set" | "movers" | "games" | "dips" | "card" | "guess" | "thennow" | "versus" | "sleepers" | "top";
 export type SlotTag = "morning" | "midday" | "evening";
 
 /** One social_post_log row: what the publisher sent where. */
@@ -118,6 +118,13 @@ export interface PostLogRow {
 /** The kind a caption was written for, read off its opening words; null when it is none of the autopilot's formats. */
 export function kindOfCaption(text: string): PostKindTag | null {
   const s = text.slice(0, 90).toLowerCase();
+  // The five angles (10-03) open on their own words; "most valuable" alone is still the set spotlight, so the
+  // all-sets list says "across every set" / "in each game" and is read first.
+  if (s.includes("across every set") || s.includes("most valuable card in each game")) return "top";
+  if (s.includes("what's it worth")) return "guess";
+  if (s.includes("then vs now")) return "thennow";
+  if (s.includes("head to head")) return "versus";
+  if (s.includes("under $5")) return "sleepers";
   if (s.includes("most valuable")) return "set";
   if (s.includes("price gains")) return "movers";
   if (s.includes("biggest price jump")) return "games";

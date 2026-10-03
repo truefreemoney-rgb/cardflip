@@ -66,6 +66,18 @@ assert.equal(kindOfCaption("Biggest price jumps this week\nPokémon: Cresselia +
 assert.equal(kindOfCaption("The biggest price jumps this week in Pokémon and Magic, and one card from Lorcana"), "games");
 assert.equal(kindOfCaption("Pokémon price drops this week\nDark Charizard -54%"), "dips");
 assert.equal(kindOfCaption("Card of the day: Friend Ball, Skyridge 126. Market price $15.71."), "card");
+// The five angles (10-03), long and short forms; "most valuable" alone stays the set spotlight.
+assert.equal(kindOfCaption("Five of the most valuable Pokémon cards priced on CardFlip today, across every set.\n\nCharizard ex (Base Set #4, Holo): $500"), "top");
+assert.equal(kindOfCaption("Five of the most valuable Pokémon cards today, across every set\nCharizard ex $500"), "top");
+assert.equal(kindOfCaption("The most valuable card in each game priced on CardFlip today: Pokémon, Magic, Lorcana and Yu-Gi-Oh."), "top");
+assert.equal(kindOfCaption("The most valuable card in each game\nPokémon: Charizard ex $500"), "top");
+assert.equal(kindOfCaption("What's it worth? Pokémon: Umbreon ex (Prismatic Evolutions #161, Holo).\n\nMarket price $412 today, +34% this week"), "guess");
+assert.equal(kindOfCaption("What's it worth?\nUmbreon ex, Prismatic Evolutions #161\nMarket price $412 today"), "guess");
+assert.equal(kindOfCaption("Then vs now: Pokémon: Rillaboom (Sword & Shield #14, Holo).\n\nMay: $6.35. Today: $24.00, +278% since May"), "thennow");
+assert.equal(kindOfCaption("Pokémon head to head in Base Set: Charizard (Base Set #4, Holo) at $500 vs Blastoise (Base Set #2, Holo) at $300. Which one moved this week?"), "versus");
+assert.equal(kindOfCaption("Lorcana head to head: Elsa vs Mickey Mouse\nElsa is worth more today: $61.00 to $40.00."), "versus");
+assert.equal(kindOfCaption("Pokémon cards under $5 moving the most this week, from CardFlip's own price history.\n\nPenny (Sleep Set #1, Holo) $2.00 → $2.60, +30%"), "sleepers");
+assert.equal(kindOfCaption("Pokémon and Magic sleepers under $5\nPenny $2.60, +30%"), "sleepers");
 // Not the autopilot's formats: a hand-written post, the 09-25 mixed list, an empty read.
 assert.equal(kindOfCaption("One scanner, five card games: Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh."), null);
 assert.equal(kindOfCaption("Pokémon price moves this week\nGrass Energy +650%"), null);

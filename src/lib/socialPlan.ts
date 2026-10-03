@@ -199,7 +199,48 @@ export const QUESTIONS: Record<PostKind, QuestionPool> = {
   set: [(s) => `Which card from ${s} is your favourite?`, "Did you pull any of these back in the day?", (s) => `Do you still have any ${s} cards?`],
   games: ["Which game are you collecting?", "Which of these games do you collect?", "Which game has your best card?"],
   card: ["Is this one in your collection?", "Would you keep it or sell it?"],
+  guess: ["Did you guess it?", "Were you close?", "Higher or lower than you thought?"],
+  thennow: ["Did you pick one up back then?", "Still climbing, or has it peaked?", "Would you buy it at today's price?"],
+  versus: ["Which one would you rather own?", "Did you back the right card?", "Which one gets your pick?"],
+  sleepers: ["Any of these in your binder?", "Which one would you grab for under five dollars?", "Which cheap card are you watching?"],
+  top: ["Which of these would you most like to own?", "Have you ever held one of these?", "Which one surprised you?"],
 };
+
+/**
+ * The five content angles (Chris 10-03, all five sample videos approved, docs/SOCIAL-ANGLES-PLAN.md):
+ * guess the price, then vs now, head to head, sleepers under $5, most valuable. Each runs for the
+ * games that have the data for it ("mixed" = one card per public game in one post); head to head
+ * never pits cards of different games. The game ROTATES by day, one strict cycle per kind, each
+ * kind's cycle offset from the others so two kinds do not land on the same game all week. Phase 3
+ * hands the choice to the optimizer; until then this cycle is the choice.
+ */
+export const ANGLE_KINDS = ["guess", "thennow", "versus", "sleepers", "top"] as const;
+export type AngleKind = (typeof ANGLE_KINDS)[number];
+export type AngleGame = GameId | "mixed";
+export const ANGLE_GAMES: Record<AngleKind, AngleGame[]> = {
+  guess: ["pokemon", "mtg", "lorcana", "onepiece", "yugioh", "mixed"],
+  // Needs months of history and a second price source: Pokémon's and Magic's began mid-May 2026, the other three 09-30.
+  thennow: ["pokemon", "mtg"],
+  versus: ["pokemon", "mtg", "lorcana", "onepiece", "yugioh"],
+  sleepers: ["pokemon", "mtg", "mixed"],
+  // Only the refereed games (social.ts TOP_GAMES): the dearest Yu-Gi-Oh rows are TCGplayer placeholders. "mixed" needs three games, so it falls through to Pokémon until a third game has a referee.
+  top: ["pokemon", "mtg", "mixed"],
+};
+export function isAngleKind(kind: string): kind is AngleKind {
+  return (ANGLE_KINDS as readonly string[]).includes(kind);
+}
+
+/**
+ * A kind's game order on an Eastern day: the cycle's pick first, then the rest
+ * in ANGLE_GAMES order, so the caller takes the first that has data that day
+ * (a game that is not public yet, or has nothing to say, hands the day to the next).
+ */
+export function angleGameOrder(kind: AngleKind, day: string): AngleGame[] {
+  const list = ANGLE_GAMES[kind];
+  const n = Math.round(Date.parse(`${day}T00:00:00Z`) / 86_400_000) + ANGLE_KINDS.indexOf(kind) * 2;
+  const i = ((n % list.length) + list.length) % list.length;
+  return [...list.slice(i), ...list.slice(0, i)];
+}
 
 /** The pool's order for one cycle; the first of a cycle never repeats the last of the one before it. */
 function cycleOrder(cycle: number, n: number): number[] {

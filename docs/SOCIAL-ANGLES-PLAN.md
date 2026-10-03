@@ -45,7 +45,28 @@ the new kinds have scores):
 
 ## Phases (one per session; each ships green and is live only as far as it goes)
 
-1. **Kinds + drafts + captions + pictures** (`social.ts`): `PostKind` + 5, `QUESTIONS` pools, caption
+1. **DONE 10-03 (session 102).** Kinds + drafts + captions + pictures. What shipped and where it differs from the sketch:
+   - `socialPlan.ts`: `ANGLE_KINDS`, `ANGLE_GAMES`, `angleGameOrder(kind, day)` = one strict cycle per kind, offset per kind
+     (phase 3 replaces this with the optimizer's pick); `QUESTIONS` + 5 pools.
+   - `social.ts`: `topByPrice`, `sleepers` (freshSeries takes a price `band`, $1–<$5, Magic's band read dearest first),
+     `thenNow` (90+ days, Cardmarket/Scryfall referee within 3x, 1.8x–6x, flat last five days), `pair` (closest prices,
+     one card moved, weeks ≥ 2 points apart; TCG games: two price-guarded stage cards ≥ 10% apart, the dearer wins),
+     `guessCard` (the riser no gains post shows, else the card of the day; TCG: a stage card by day), `mixedAngle`,
+     `angleData(kind, day)` = the rotation's game or the next with data, `angleDraft`. Drafts ride the Pokémon loop with
+     their own `game`; `withSeriesCache` memoizes freshSeries inside one drafts build (ten kinds no longer re-read the pool).
+   - **"Most valuable" is Pokémon + Magic only** (`TOP_GAMES`): the first Yu-Gi-Oh render was TCGplayer placeholders
+     ("Genex Ally Axel $213,589"), and nothing referees Lorcana's or One Piece's dearest rows. `mixed` top needs three
+     games, so it falls through to Pokémon until a third game has a referee. Magic's history also began in May, so
+     then-vs-now runs for it today (first draft: Rain of Riches $5.94 → $25.43).
+   - Pictures: `route.tsx` kinds + 5 (guess = card of the day frame with a kicker, thennow = the same with the old price
+     struck through, versus = new `Versus`, sleepers/top = `Movers`, three-row lists drawn larger). Captions tagged by
+     `kindOfCaption` (top says "across every set" / "in each game" so it is never read as the set spotlight).
+   - No-repeat: `FeaturedKind` + 5, the publisher files angle posts under their kind once they land.
+   - Nothing posts yet: the publisher posts a slot's kind + `FALLBACK_KINDS`, the schedule whitelist (`OPEN_KINDS`) and
+     `VIDEO_KINDS` do not know the angles. /admin/social shows them as "Not Posting This Day".
+   - Tests: test-social (the angles block at the end), test-social-posts (tagger), test-social-tiktok (fixture count).
+
+   Original sketch: `PostKind` + 5, `QUESTIONS` pools, caption
    builders, `socialDrafts` emits the new kinds with `game` = the day's rotation pick (data helpers:
    `topByPrice(game)`, `sleepers(game)`, `thenNow(game)`, `pair(game)`, `guessCard(game)`; 3 TCG games
    read `tcg_cards` via `getGameStageCards`, catalogRows needs a `tcg_cards` branch), `kindOfCaption`
@@ -53,10 +74,14 @@ the new kinds have scores):
    = card picture, top/sleepers = list picture, versus = two-card picture), `KIND_LABEL`, `KIND_ROTATION`,
    `FeaturedKind` + filing, `SocialPreview.tsx` kind union. Tests: test-social (drafts per kind, captions
    print the right prices, versus same game), test-social-posts (kindOfCaption).
-2. **Video** (`social-video.mjs` + `social-angles.mjs` tracked): `build()` branches per kind calling the
-   same helpers; `VIDEO_KINDS` + 5; frozen rows: `VideoCard.thenDay?` (thennow) + validator, versus = two
-   cards in order; `applyVideoCards` branches; register uses the draft's game (not `TIKTOK_GAME`) so the
-   shared row key matches. Tests: test-social-tiktok (plan tags, candidateKinds order), test-social-video.
+2. **Video** (`social-video.mjs` + `social-angles.mjs` tracked): `build()` branches per kind calling
+   `angleData(kind, day)` (the same pick the draft and the picture use); `VIDEO_KINDS` + 5; frozen rows:
+   `VideoCard.thenDay?` (thennow; `Mover.thenDay` already exists) + validator, versus = two cards in order and the
+   winner; `applyVideoCards` branches (`angleDraft` rebuilds a caption from `AngleData`, so freeze cards → rebuild
+   through it); register uses the draft's game (not `TIKTOK_GAME`) so the shared row key matches (`videoKey(d.game,
+   kind, day)`; a mixed post's game is "pokemon" with cards carrying their game, as mixed movers today). Note the
+   publisher's `draftsForKind` matches `d.game === g` over the games seen in the drafts, so an `mtg-guess` draft is
+   found once a slot names `guess`. Tests: test-social-tiktok (plan tags, candidateKinds order), test-social-video.
 3. **Rotation + optimizer** (`socialOptimize.ts`, `socialSchedule.ts`, `socialPlan.ts`): weighted daily
    rotation above, game dimension, admin page shows the day's picks and each kind's score. Tests:
    test-social-optimize rewritten for the pool (seeded, deterministic). This is the phase that turns the
