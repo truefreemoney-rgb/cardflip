@@ -7,6 +7,7 @@ import { ago, money, num } from "@/components/admin/format";
 import { getAdminOverview } from "@/lib/server/adminStats";
 import { getOverviewPulse, localTesterText } from "@/lib/server/overview";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
+import { ebayRateLimits, GROWTH_CHECK_LINE } from "@/lib/server/ebayRateLimits";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export const maxDuration = 60;
  */
 export default async function AdminOverviewPage() {
   await requireOwnerPage();
-  const [o, p, { last24h: spend24h, last30d: spend30d }] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary()]);
+  const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary(), ebayRateLimits()]);
   const s = o.stats;
   const now = p.now;
 
@@ -254,6 +255,41 @@ export default async function AdminOverviewPage() {
               ))}
             </ul>
           )}
+        </Tile>
+        {/* eBay's daily call caps for our app (10-03, Chris: "how bad is eBay going
+            to get hammered with a lot of users?"). Calls are free; the cap is the
+            wall, and a cap under GROWTH_CHECK_LINE means the free growth check has
+            not happened yet. Read from eBay's analytics API, memoed ten minutes. */}
+        <Tile>
+          <Head href="https://developer.ebay.com/my/keys" link="eBay keys">eBay API limits today</Head>
+          {ebayLimits.error ? (
+            <p className="mt-1 text-xs text-rose-300">{ebayLimits.error}</p>
+          ) : ebayLimits.rows.length === 0 ? (
+            <p className="mt-1 text-xs text-zinc-500">eBay reported no limits for the APIs we use.</p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {ebayLimits.rows.map((r) => {
+                const pct = r.limit > 0 ? r.used / r.limit : 0;
+                const tone = pct >= 0.8 ? "text-rose-300" : pct >= 0.5 ? "text-amber-300" : "text-zinc-200";
+                return (
+                  <li key={r.api} className="flex items-baseline justify-between gap-3 text-xs">
+                    <span className="text-zinc-400">{r.api}</span>
+                    <span className={`tabular-nums ${tone}`} title={`${r.resource || "all resources"}${r.resetAt ? `, resets ${ago(r.resetAt, now).replace(" ago", "")} from now` : ""}`}>
+                      {num(r.used)} of {num(r.limit)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <p className="mt-2 text-[11px] text-zinc-600">
+            {ebayLimits.rows.some((r) => r.limit > 0 && r.limit < GROWTH_CHECK_LINE)
+              ? "Starter caps: eBay's free application growth check raises these into the millions. File it before real sellers arrive."
+              : ebayLimits.rows.length > 0
+                ? "Grown-up caps: the growth check is done."
+                : ""}
+            {ebayLimits.at ? ` Read ${ago(ebayLimits.at, now)}.` : ""}
+          </p>
         </Tile>
       </div>
     </section>
