@@ -31,7 +31,11 @@ console.log(`${game}: ${rows.length} rows, ${byUrl.size} distinct links`);
 // Scryfall answers 400 to a library-default User-Agent (10-03: a bare sweep called
 // all 98k Magic links dead) and asks for <= 10 requests a second.
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io; support@cardflip.io)", Accept: "image/*,*/*;q=0.8" };
-const CONCURRENCY = game === "mtg" ? 6 : 24;
+// 10-03: ~40k fast Scryfall requests got this PC (where sync-mtg runs) connection-blocked
+// for a while. Magic goes 2-wide with a gap; sample with --limit rather than all 98k.
+const CONCURRENCY = game === "mtg" ? 2 : 24;
+const GAP_MS = game === "mtg" ? 100 : 0;
+const LIMIT = Number(arg("--limit", 0)) || Infinity;
 async function status(url) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -55,7 +59,7 @@ async function status(url) {
   return "gave up";
 }
 
-const urls = [...byUrl.keys()];
+const urls = [...byUrl.keys()].slice(0, LIMIT);
 const dead = [];
 let next = 0;
 let checked = 0;
@@ -63,6 +67,7 @@ await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
   while (next < urls.length) {
     const url = urls[next++];
     const s = await status(url);
+    if (GAP_MS) await new Promise((r) => setTimeout(r, GAP_MS));
     if (s !== 200) for (const r of byUrl.get(url)) dead.push({ id: r.id, name: r.name, set_code: r.set_code, collector_number: r.collector_number, image_url: url, status: s });
     if (++checked % 5000 === 0) console.log(`  ${checked}/${urls.length} checked, ${dead.length} dead rows so far`);
   }
