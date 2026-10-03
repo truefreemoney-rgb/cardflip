@@ -375,7 +375,7 @@ check("other printings and the set rank leave out flagged and unverified prices"
 check("the range's ends go through the guard's old-side check", /old: \{ back, value: end\.price \}/.test(serverSrc), true);
 
 // 10-03: a Magic card with no dollar series (Black Lotus) prints Cardmarket's figure in dollars at the ECB rate, with no chart and no indexing on it.
-check("no dollar series + a Cardmarket price = a dollar headline at usdPerEur, chart null, decision from indexDecision", [serverSrc.includes("if (series.length === 0 && rec.eur) {"), serverSrc.includes("usdPerEur().catch(() => null)"), serverSrc.includes("headline: prices[0], decision: indexDecision(prices, indexFloorUsd(facts.game)), chart: null")], [true, true, true]);
+check("no fresh dollar price + a Cardmarket price = a dollar headline at usdPerEur, chart null, decision from indexDecision", [serverSrc.includes("if (prices.length === 0 && rec.eur) {"), serverSrc.includes("usdPerEur().catch(() => null)"), serverSrc.includes("headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null")], [true, true, true]);
 
 console.log(`\ncard pages: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
