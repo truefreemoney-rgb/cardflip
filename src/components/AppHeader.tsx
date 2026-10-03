@@ -103,7 +103,6 @@ export default function AppHeader() {
               }`}
             />
           )}
-          {/* Features lives in the gear menu (AppTabs) on every size, 10-03. */}
           <button
             onClick={async () => {
               await logout();
