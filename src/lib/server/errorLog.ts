@@ -104,11 +104,19 @@ export function captureConsole(): void {
   console.warn = hook("warn", console.warn.bind(console));
 }
 
-export async function listRecentErrors(limit = 50): Promise<ErrorEvent[]> {
-  const rows = (await db
-    .prepare("SELECT * FROM error_events ORDER BY at DESC LIMIT ?")
-    .all(limit)) as unknown as ErrorEvent[];
+export async function listRecentErrors(limit = 50, level?: LogLevel): Promise<ErrorEvent[]> {
+  const rows = (level
+    ? await db.prepare("SELECT * FROM error_events WHERE level = ? ORDER BY at DESC LIMIT ?").all(level, limit)
+    : await db.prepare("SELECT * FROM error_events ORDER BY at DESC LIMIT ?").all(limit)) as unknown as ErrorEvent[];
   return rows;
+}
+
+/** How many lines of each level the ring buffer holds right now — the Log page's filter counts. */
+export async function logLevelCounts(): Promise<Record<LogLevel, number>> {
+  const rows = (await db.prepare("SELECT level, COUNT(*) AS n FROM error_events GROUP BY level").all()) as unknown as { level: LogLevel; n: number }[];
+  const out: Record<LogLevel, number> = { error: 0, warn: 0 };
+  for (const r of rows) if (r.level in out) out[r.level] = r.n;
+  return out;
 }
 
 /** Errors in the last 24h — the admin KPI tile. */

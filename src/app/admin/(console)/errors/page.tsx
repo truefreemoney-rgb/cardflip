@@ -1,12 +1,28 @@
+import Link from "next/link";
 import { fmtDate, num } from "@/components/admin/format";
-import { errorCount24h, listRecentErrors } from "@/lib/server/errorLog";
+import { errorCount24h, listRecentErrors, logLevelCounts, type LogLevel } from "@/lib/server/errorLog";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminErrorsPage() {
+type Filter = "error" | "warn" | "all";
+const FILTERS: [Filter, string][] = [
+  ["error", "Errors"],
+  ["warn", "Warnings"],
+  ["all", "All"],
+];
+
+export default async function AdminErrorsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   await requireOwnerPage();
-  const [recent, errors24h] = await Promise.all([listRecentErrors(200), errorCount24h()]);
+  const { show } = await searchParams;
+  // Errors first: after one afternoon the console hook logged ten warnings per error (10-03).
+  const filter: Filter = show === "warn" || show === "all" ? show : "error";
+  const [recent, errors24h, counts] = await Promise.all([
+    listRecentErrors(200, filter === "all" ? undefined : (filter as LogLevel)),
+    errorCount24h(),
+    logLevelCounts(),
+  ]);
+  const countOf = (f: Filter) => (f === "all" ? counts.error + counts.warn : counts[f]);
   return (
     <section>
       <div className="mb-3 flex items-baseline justify-between">
@@ -15,10 +31,23 @@ export default async function AdminErrorsPage() {
           {errors24h ? `${num(errors24h)} errors in the last 24h` : "no errors in the last 24h"} · newest 500 lines kept
         </span>
       </div>
+      <div className="mb-3 flex flex-wrap gap-1">
+        {FILTERS.map(([f, label]) => (
+          <Link
+            key={f}
+            href={f === "error" ? "/admin/errors" : `/admin/errors?show=${f}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition ${filter === f ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+          >
+            {label} <span className="text-zinc-500">{num(countOf(f))}</span>
+          </Link>
+        ))}
+      </div>
       <div className="rounded-2xl border border-edge bg-surface-1">
         {recent.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            Nothing logged — unhandled route errors and every server console.warn / console.error land here automatically.
+            {filter === "error"
+              ? "No errors logged — unhandled route errors and every server console.error land here automatically."
+              : "Nothing logged at this level yet."}
           </p>
         ) : (
           <ul className="divide-y divide-white/5">
