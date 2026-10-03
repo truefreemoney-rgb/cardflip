@@ -196,6 +196,11 @@ check("ended: ENDED, INACTIVE, 404, UNPUBLISHED-without-listing stamped", [await
 check("ended: result lists the four", e.ended.map((c) => c.id).sort(), [endedOffer, inactive, gone, purged].sort());
 check("ended: never-published offer not checked", [await endedAt(neverPublished), calls.some((u) => u.includes("OF-G"))], [false, false]);
 check("ended: throttled on the next pass", (await syncEndedEbayListings(uid)).skipped, "throttled");
+// 10-03: the gap is ONE minute now (Chris ended a card on eBay and Inventory still said listed two minutes later under the old ten).
+await db.prepare("UPDATE price_history_meta SET value = ? WHERE key = ?").run(String(Date.now() - 61_000), `ebay_ended_sync:${uid}`);
+check("ended: a pass 61 s after the last one asks eBay again (one-minute gap, 10-03)", (await syncEndedEbayListings(uid)).skipped === undefined, true);
+await db.prepare("UPDATE price_history_meta SET value = ? WHERE key = ?").run(String(Date.now() - 30_000), `ebay_ended_sync:${uid}`);
+check("ended: 30 s after is still throttled", (await syncEndedEbayListings(uid)).skipped, "throttled");
 routes.offers = new Map([["OF-A", json({}, 500)]]);
 check("ended: 500 → error, nothing thrown", (await syncEndedEbayListings(uid, true)).skipped, "error");
 

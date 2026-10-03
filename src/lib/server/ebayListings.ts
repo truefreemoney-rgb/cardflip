@@ -20,7 +20,10 @@ import { marketplaceByEbayId } from "@/lib/marketplaces";
  * SOLD has already flipped to "sold" and never reaches this query.
  */
 
-const THROTTLE_MS = 10 * 60 * 1000;
+// One minute (10-03: Chris ended a card on eBay at 12:29, opened Inventory at 12:31 and it still read
+// 'listed' because the last ask was at 12:23 under the old ten-minute gap). One GET per live listing,
+// at most MAX_CHECKS_PER_PASS, so a minute is cheap against eBay's daily call cap.
+const THROTTLE_MS = 60 * 1000;
 const MAX_CHECKS_PER_PASS = 25;
 
 export interface EndedSyncResult {
