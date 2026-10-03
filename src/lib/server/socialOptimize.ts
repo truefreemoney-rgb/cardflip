@@ -5,7 +5,7 @@ import { addCompletedLine, eastern, SLOTS } from "@/lib/server/socialPublish";
 import { addScheduleEntry, loadSchedule } from "@/lib/server/socialSchedule";
 import { LEAD_DAYS, MAX_AGE_DAYS, SCORED_KINDS, step, type LoopState, type OptimizeReport, type ScoredKind, type ScoredPost, type Sitting, type Trial } from "@/lib/socialOptimize";
 import { standingFor } from "@/lib/socialPlan";
-import { runSocialTags } from "@/lib/server/socialTags";
+import { runSocialTags, TAGS_WHY_KEY } from "@/lib/server/socialTags";
 import type { TagPost } from "@/lib/socialTags";
 
 /**
@@ -104,8 +104,10 @@ export async function runSocialOptimize(now = Date.now()): Promise<OptimizeRepor
   return report;
 }
 
-/** For /admin/social: the switch and what the loop last said. */
+/** For /admin/social: the switch and what the loop last said, about the post kinds and about the hashtags (both run in the same 8am job). */
 export async function optimizerStatus(): Promise<{ on: boolean; day: string | null; why: string | null }> {
   const report = parseJson<OptimizeReport | null>(await getSetting(OPT_REPORT_KEY), null);
-  return { on: (await getSetting(OPT_OFF_KEY)) !== "1", day: report?.day ?? null, why: report?.why ?? null };
+  const tagsWhy = report ? await getSetting(TAGS_WHY_KEY) : null;
+  const why = [report?.why, tagsWhy].filter(Boolean).join(" ");
+  return { on: (await getSetting(OPT_OFF_KEY)) !== "1", day: report?.day ?? null, why: why || null };
 }

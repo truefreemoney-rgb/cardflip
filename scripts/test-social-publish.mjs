@@ -495,7 +495,7 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   check("the schedule: tomorrow is untouched, the start day posts the trial kind at 7am and nothing else moved", [kindOn("morning", addDays(today, 1)), kindOn("morning", start), kindOn("midday", start), kindOn("evening", start)], ["set", "dips", "movers", "games"]);
   // Two lines that day: the hashtag trial's (written last, so on top) and the kind trial's under it.
   const [tagTop, top] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
-  check("one board line says what starts when, and why", top.startsWith(`Social optimizer ${today} — trial: price drops takes 7am from set spotlight for a week, starting ${start}.`), true);
+  check("one board line says what starts when, and why", top.startsWith(`Social optimizer ${today} — Trial: price drops takes 7am from set spotlight for a week, starting ${start}.`), true);
   // Hashtags ride the same run (lib/socialTags.ts): off = nothing, on = the first challenger's trial two days out, loaded into the plan fitText reads.
   const { TAGS_KEY, TAGS_WHY_KEY } = await import(at("lib/server/socialTags.ts"));
   const { TAG_CANDIDATES, tagsOn } = await import(at("lib/socialTags.ts"));

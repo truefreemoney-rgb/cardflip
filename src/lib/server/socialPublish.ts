@@ -117,6 +117,17 @@ export function slotSchedule(day: string, now = Date.now()): Partial<Record<Post
   }
   return out;
 }
+const KIND_LABEL: Record<PostKind, string> = { set: "set spotlight", movers: "movers of the week", games: "all five games", dips: "price drops", card: "card of the day" };
+/**
+ * "7am set spotlight" for what the slot ACTUALLY posts that day: the optimizer
+ * (lib/server/socialOptimize.ts) and DAY_PLANS can put another kind in the
+ * 7am or 7pm slot, and SLOTS[slot].label only knows the default. Call
+ * ensureSchedule() first where the schedule may not be loaded.
+ */
+export function slotLabel(slot: Slot, day: string): string {
+  const h = SLOTS[slot].hour;
+  return `${h % 12 || 12}${h < 12 ? "am" : "pm"} ${KIND_LABEL[slotKind(slot, day)] ?? SLOTS[slot].label}`;
+}
 /** "7:05am" / "1:05pm" / "7:05pm": the crons fire at :05 (callers add " ET" where it is shown). */
 export function slotTimeLabel(slot: Slot): string {
   const h = SLOTS[slot].hour;
@@ -718,7 +729,7 @@ export async function noteOnBoard(report: PublishReport, now = Date.now()): Prom
       return parts.join(" — ");
     })
     .join(" | ");
-  await addCompletedLine(`Social autopilot ${report.etDay} ${report.slot ? SLOTS[report.slot].label : ""} — ${text}`, now);
+  await addCompletedLine(`Social autopilot ${report.etDay} ${report.slot ? slotLabel(report.slot, report.etDay) : ""} — ${text}`, now);
 }
 
 /** Put one done line at the top of the board's Completed section. Never throws: a board that will not save skips the note. */

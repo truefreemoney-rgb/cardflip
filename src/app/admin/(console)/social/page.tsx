@@ -3,7 +3,8 @@ import SocialOptimizer from "@/components/admin/SocialOptimizer";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
 import TikTokPackage from "@/components/admin/TikTokPackage";
-import { currentVideoFor, eastern, siteStatus, slotAt, slotSchedule, socialGames } from "@/lib/server/socialPublish";
+import { currentVideoFor, eastern, siteStatus, slotAt, slotLabel, slotSchedule, socialGames } from "@/lib/server/socialPublish";
+import { tagsOn } from "@/lib/socialTags";
 import { optimizerStatus } from "@/lib/server/socialOptimize";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
@@ -51,7 +52,8 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
     loadPackage(addDays(today, 1)),
     loadPackage(today),
   ]);
-  const drafts = perGame.flat();
+  // The tags each draft will actually carry: the standing swaps and a running hashtag trial (lib/socialTags.ts), as the publisher applies them.
+  const drafts = perGame.flat().map((d) => ({ ...d, hashtags: tagsOn(d.hashtags, d.day) }));
   // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts (one made under an older plan does not go out, so it is not shown).
   const videos: Record<string, string> = {};
   for (const d of drafts) {
@@ -73,7 +75,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>
       </div>
-      <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} />
+      <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} morningLabel={slotLabel("morning", day)} />
       <SocialOptimizer on={optimizer.on} day={optimizer.day} why={optimizer.why} />
       <TikTokPackage tomorrow={tiktokTomorrow} today={tiktokToday} handle={tiktokHandle()} />
       <SocialPreview drafts={drafts} videos={videos} schedule={slotSchedule(day)} />

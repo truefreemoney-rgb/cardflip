@@ -22,14 +22,15 @@ interface Report {
   sites: Array<{ label: string; status: string; reason?: string; posts: Array<{ title: string; uri?: string; error?: string }> }>;
 }
 
-export default function SocialSites({ sites, day, slotNow, notice }: { sites: SiteView[]; day: string; slotNow: string | null; notice?: string | null }) {
+/** morningLabel: what the 7am slot posts that day (socialPublish slotLabel), since a trial or a day plan can change it. */
+export default function SocialSites({ sites, day, slotNow, notice, morningLabel = "7am set spotlight" }: { sites: SiteView[]; day: string; slotNow: string | null; notice?: string | null; morningLabel?: string }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(notice ?? null);
   const anyConnected = sites.some((s) => s.connected);
 
-  /** No site = every connected site, next unposted slot. A site = that site only, its 7am set spotlight, re-posted if it already went out. */
+  /** No site = every connected site, next unposted slot. A site = that site only, its 7am post, re-posted if it already went out. */
   async function postNow(site?: SiteView) {
-    const ask = site ? `Post today's 7am set spotlight to ${site.label} only, now? (Re-posts if it already went out.)` : `Post the next slot's picture to every connected site now?`;
+    const ask = site ? `Post today's ${morningLabel} to ${site.label} only, now? (Re-posts if it already went out.)` : `Post the next slot's picture to every connected site now?`;
     if (!confirm(ask)) return;
     setBusy(true);
     setNote(null);

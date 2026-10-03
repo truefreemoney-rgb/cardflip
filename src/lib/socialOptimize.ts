@@ -306,13 +306,15 @@ export function step(input: { posts: ScoredPost[]; now: number; sitting: Sitting
     if (v.verdict === "running") return none(v.why);
     const action: LoopAction = v.verdict === "keep" ? { type: "keep", trial: state.trial } : { type: "back", trial: state.trial, from: addDays(today, LEAD_DAYS) };
     const tail = v.verdict === "back" ? ` Back from ${addDays(today, LEAD_DAYS)}.` : "";
-    return { report: { ...report, change: null, why: v.why }, action, line: `Social optimizer ${today} — ${v.why}${tail}` };
+    // The report carries the whole story (/admin/social shows it), not just the verdict sentence.
+    return { report: { ...report, change: null, why: `${v.why}${tail}` }, action, line: `Social optimizer ${today} — ${v.why}${tail}` };
   }
 
   const start = addDays(today, LEAD_DAYS);
   if (report.change) {
     const trial: Trial = { ...report.change, start };
-    return { report, action: { type: "start", trial }, line: `Social optimizer ${today} — trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${report.why}` };
+    const why = `Trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${report.why}`;
+    return { report: { ...report, why }, action: { type: "start", trial }, line: `Social optimizer ${today} — ${why}` };
   }
   // The bench's turn: nothing has changed for EXPLORE_DAYS, so the benched kind earns some numbers in the weaker slot.
   const clock = state.lastChangeDay ?? state.sinceDay;
@@ -324,7 +326,7 @@ export function step(input: { posts: ScoredPost[]; now: number; sitting: Sitting
     if (bench && open.length) {
       const trial: Trial = { slot: open[0], from: sitting[open[0]], to: bench, start, explore: true };
       const why = `Nothing has changed for ${EXPLORE_DAYS} days and ${KIND_NAME[bench]} has not posted, so it gets a week at ${SLOT_NAME[trial.slot]} (the weaker slot: ${KIND_NAME[trial.from]} scores ${scoreOf(trial.from)}) to earn numbers.`;
-      return { report: { ...report, change: { slot: trial.slot, from: trial.from, to: trial.to }, why }, action: { type: "start", trial }, line: `Social optimizer ${today} — trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${why}` };
+      return { report: { ...report, change: { slot: trial.slot, from: trial.from, to: trial.to }, why }, action: { type: "start", trial }, line: `Social optimizer ${today} — Trial: ${KIND_NAME[trial.to]} takes ${SLOT_NAME[trial.slot]} from ${KIND_NAME[trial.from]} for a week, starting ${start}. ${why}` };
     }
   }
   return { report, action: { type: "none" }, line: null };

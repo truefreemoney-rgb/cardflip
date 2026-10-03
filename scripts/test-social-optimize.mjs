@@ -138,7 +138,8 @@ const lead = [...run("set", 6), ...run("movers", 10), ...run("games", 10), ...ru
 let s = step({ posts: lead, now: NOW, sitting, state: idle });
 assert.ok(LEAD_DAYS === 2 && TRIAL_DAYS === 7);
 assert.deepEqual(s.action, { type: "start", trial: { slot: "morning", from: "set", to: "dips", start: "2026-10-22" } });
-assert.match(s.line, /^Social optimizer 2026-10-20 — trial: price drops takes 7am from set spotlight for a week, starting 2026-10-22\. /);
+assert.match(s.line, /^Social optimizer 2026-10-20 — Trial: price drops takes 7am from set spotlight for a week, starting 2026-10-22\. /);
+assert.match(s.report.why, /^Trial: price drops takes 7am from set spotlight for a week, starting 2026-10-22\. The price drops posts did/); // /admin/social shows the whole story
 // Switched off: the same numbers, nothing done, nothing on the board.
 s = step({ posts: lead, now: NOW, sitting, state: { ...idle, off: true } });
 assert.deepEqual([s.action.type, s.line, s.report.change], ["none", null, null]);
@@ -153,6 +154,7 @@ assert.match(s.line, /^Social optimizer 2026-10-20 — Trial over: price drops a
 s = step({ posts: [...before, ...inSlot("dips", "morning", 6, 7, 2)], now: NOW, sitting: during, state: { ...idle, trial } });
 assert.deepEqual(s.action, { type: "back", trial, from: "2026-10-22" });
 assert.match(s.line, /so set spotlight goes back\. Back from 2026-10-22\.$/);
+assert.match(s.report.why, /so set spotlight goes back\. Back from 2026-10-22\.$/);
 // A failed trial is not tried again in that slot for RETRY_DAYS; the lead may still point at the other slot.
 s = step({ posts: lead, now: NOW, sitting, state: { ...idle, failed: { "morning:dips": "2026-10-01" } } });
 assert.deepEqual([s.action.type, s.action.trial?.slot], ["start", "evening"]);
