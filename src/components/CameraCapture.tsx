@@ -285,7 +285,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     };
   }, []);
 
-  const toggleTorch = useCallback(async () => {
+  // Plain function (10-03): the React Compiler lint refused the useCallback here.
+  const toggleTorch = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return;
 
@@ -300,7 +301,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       // rather than leaving a toggle that silently does nothing.
       setTorch("unavailable");
     }
-  }, [torch]);
+  };
 
   const capture = useCallback(() => {
     const video = videoRef.current;
