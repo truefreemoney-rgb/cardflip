@@ -13,6 +13,7 @@ import { tiktokHandle } from "@/lib/server/sites/tiktok";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { socialDrafts } from "@/lib/server/social";
 import { countNew } from "@/lib/server/socialInbox";
+import { recentPublishCrash } from "@/lib/server/socialCrash";
 import { addDays } from "@/lib/priceSeries";
 
 export const dynamic = "force-dynamic";
@@ -44,13 +45,14 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
   await ensureSchedule();
   const games = await socialGames();
-  const [optimizer, perGame, sites, waiting, tiktokTomorrow, tiktokToday] = await Promise.all([
+  const [optimizer, perGame, sites, waiting, tiktokTomorrow, tiktokToday, crash] = await Promise.all([
     optimizerStatus(),
     Promise.all(games.map((g) => socialDrafts(g, day))),
     siteStatus(SOCIAL_SITES),
     countNew(),
     loadPackage(addDays(today, 1)),
     loadPackage(today),
+    recentPublishCrash(),
   ]);
   // The tags each draft will actually carry: the standing swaps and a running hashtag trial (lib/socialTags.ts), as the publisher applies them.
   const drafts = perGame.flat().map((d) => ({ ...d, hashtags: tagsOn(d.hashtags, d.day) }));
@@ -75,6 +77,13 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
           <Link href={`/admin/social?day=${addDays(day, 1)}`} className="rounded-full border border-edge px-3 py-1 text-zinc-300 hover:text-white">{addDays(day, 1)} →</Link>
         </nav>
       </div>
+      {crash && (
+        <p role="alert" className="mb-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <span className="font-semibold text-white">The publisher crashed</span> at{" "}
+          {new Date(crash.at).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ET
+          {crash.slot ? ` on the ${crash.slot} slot` : ""}: <span className="font-mono text-xs">{crash.message}</span>
+        </p>
+      )}
       <SocialSites sites={sites} day={day} slotNow={slotAt()} notice={notice} morningLabel={slotLabel("morning", day)} />
       <SocialOptimizer on={optimizer.on} day={optimizer.day} why={optimizer.why} />
       <TikTokPackage tomorrow={tiktokTomorrow} today={tiktokToday} handle={tiktokHandle()} />

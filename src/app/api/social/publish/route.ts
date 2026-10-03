@@ -1,3 +1,4 @@
+import { recordPublishCrash } from "@/lib/server/socialCrash";
 import { NextRequest, NextResponse } from "next/server";
 import { secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
@@ -59,14 +60,22 @@ async function run(req: NextRequest) {
   const onlySite = q.get("site");
   const sites = onlySite ? SOCIAL_SITES.filter((s) => s.id === onlySite) : SOCIAL_SITES;
   if (onlySite && sites.length === 0) return NextResponse.json({ error: `unknown site ${onlySite}` }, { status: 400 });
-  const report = await publishSocial({
-    slot,
-    origin: req.nextUrl.origin,
-    sites,
-    force: q.get("force") === "1",
-    dry: q.get("dry") === "1",
-    day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
-  });
+  let report: Awaited<ReturnType<typeof publishSocial>>;
+  try {
+    report = await publishSocial({
+      slot,
+      origin: req.nextUrl.origin,
+      sites,
+      force: q.get("force") === "1",
+      dry: q.get("dry") === "1",
+      day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
+    });
+  } catch (err) {
+    // The whole run fell over (10-02 9:51pm ET: a bare 500, no trace). Record it, mail Chris, and say why in the body.
+    console.error("social publish crashed", err);
+    const crash = await recordPublishCrash(err, { slot: slot ?? null });
+    return NextResponse.json({ error: "publisher crashed", crash }, { status: 500 });
+  }
   // Ride-along: renew the 60-day Instagram/Threads tokens weekly (never on a dry run).
   const tokens = q.get("dry") === "1" ? [] : await refreshMetaTokens().catch((err) => [{ site: "meta", status: "failed", reason: err instanceof Error ? err.message : String(err) }]);
   return NextResponse.json({ ...report, tokens });
