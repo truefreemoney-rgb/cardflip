@@ -280,20 +280,36 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         <CardStory f={f} page={page} />
 
         {/* Two panels side by side from sm up: the sell math and the scan ask (Chris 10-02 makeover). */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:items-start">
+        {/* Two columns from sm up: the sell math left; the scan ask and About this card stacked right, the second growing so the columns end level (Chris 10-02: "I hate this empty space"). */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <SellStory f={f} page={page} />
-          <ScanStory f={f} />
-        </div>
-
-        <section className="mt-4 rounded-2xl border border-edge bg-surface-1 p-5 sm:flex sm:items-start sm:gap-8">
-          <h2 className="shrink-0 font-display text-lg font-semibold text-white sm:w-40">About this card</h2>
-          <div className="mt-1 sm:mt-0">
-            <p className="text-sm leading-relaxed text-zinc-300">{factsParagraph(f)}</p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-              Prices are market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
-            </p>
+          <div className="flex flex-col gap-4">
+            <ScanStory f={f} />
+            <section className="flex-1 rounded-2xl border border-edge bg-surface-1 p-5">
+              <h2 className="font-display text-lg font-semibold text-white">About this card</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-300">{factsParagraph(f)}</p>
+              <dl className="mt-3 divide-y divide-edge rounded-xl border border-edge bg-black/20 text-sm">
+                {[
+                  ["Set", f.setName],
+                  ["Number", f.number],
+                  ["Released", f.release ? etDate(`${f.release}T12:00:00Z`) : ""],
+                  ["Rarity", f.rarity],
+                  ["Printing", f.tags.join(", ")],
+                ]
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-baseline justify-between gap-3 px-3 py-2">
+                      <dt className="text-zinc-500">{k}</dt>
+                      <dd className="text-right text-zinc-200">{v}</dd>
+                    </div>
+                  ))}
+              </dl>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+                Prices are market prices in US dollars for the printing shown, recorded once a day. A price that looks wrong is not shown.
+              </p>
+            </section>
           </div>
-        </section>
+        </div>
 
         {/* Other printings of the same card (SEO 10-02): the strongest internal links these pages have, prices through the guard. */}
         {printings.length > 0 && (
