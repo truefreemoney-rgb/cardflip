@@ -83,6 +83,14 @@ export default function ListedPanel({ item, onNext }: Props) {
         )}
         {/* Momentum after publish (Chris, 09-02: "list next card at the
             bottom and maybe track card in my cards"). */}
+        {/* Inventory is where the price changes and the listing ends: a real
+            button, not a footnote link (Chris 10-03, first live LP push). */}
+        <Link
+          href="/app/collection"
+          className="inline-flex items-center justify-center rounded-full border border-edge bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+        >
+          Open Inventory
+        </Link>
         {onNext && (
           <button
             onClick={onNext}
@@ -94,13 +102,7 @@ export default function ListedPanel({ item, onNext }: Props) {
       </div>
 
       {/* The sale records itself when the eBay order comes in (sales sync). */}
-      <p className="max-w-xs text-xs leading-snug text-zinc-500">
-        When it sells, it&apos;s marked sold here automatically. Change the price or end the listing from{" "}
-        <Link href="/app/collection" className="text-zinc-300 underline underline-offset-2 hover:text-white">
-          Inventory
-        </Link>
-        .
-      </p>
+      <p className="max-w-xs text-xs leading-snug text-zinc-500">When it sells, it&apos;s marked sold here automatically. Change the price or end the listing from Inventory.</p>
     </div>
   );
 }
