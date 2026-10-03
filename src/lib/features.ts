@@ -66,7 +66,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { title: "Inventory", body: "Every scanned card with its status: in the binder, live on eBay, ended or sold. Search, sort, categories and bulk actions.", href: "/app/collection", cta: "Open Inventory" },
       { title: "Collection insights", body: "What the whole collection is worth, its move over 7 and 30 days, the biggest movers and your top ten cards.", href: "/app/collection/insights", cta: "See insights" },
       { title: "Set completion", body: "For every set you hold cards from: how many you have, how many are missing, and what finishing the set would cost today.", href: "/app/collection/sets", cta: "See sets" },
-      { title: "Import a collection", body: "Bring a Collectr, TCGplayer or TCG Collector export in as a CSV and every card lands in Inventory, priced.", href: "/app/collection/import", cta: "Import" },
       { title: "Watchlist with alerts", body: "Watch any card with a target price. A daily check emails you the day it gets there.", href: "/app/wishlist", cta: "Open Watchlist" },
       { title: "Share your collection", body: "A public page of your collection at cardflip.io/u/your-handle, with today's prices and a Buy on eBay button where a card is listed.", href: "/app/account", cta: "Set it up" },
       { title: "Sales report", body: "Every sale with eBay's real fees and your profit, by month, downloadable as a CSV for tax time.", href: "/app/collection/report", cta: "Open report" },

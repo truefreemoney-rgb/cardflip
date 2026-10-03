@@ -342,8 +342,7 @@ console.log("\nroutes");
   check("…and gives the scan back when the read throws", /catch \(err\) \{\s*await giveBackScans\(user, reservation\)/.test(scan), true);
   check("…and no longer counts after the call", scan.includes("recordScan("), false);
   check("…and answers 402 before spending anything when nothing is left", /reservation\.taken < 1\) return outOfScans/.test(scan), true);
-  const imp = src("app/api/cards/import/route.ts");
-  check("the import route reserves through commitImport's hooks and gives back the unused", [imp.includes("reserveScans(user, n)"), imp.includes("giveBackScans(user, paid.held, n)"), imp.includes("recordScans(")], [true, true, false]);
+  // (The CSV import route, which reserved through commitImport's hooks, was removed 10-03.)
   // 10-01 sweep: the side call is rationed against today's good reads (readsKey, bumped by the scan route on success).
   // (The binder locate route, the other side call, was removed 10-03 with every upload path.)
   const tie = src("app/api/vision/tiebreak/route.ts");
@@ -496,8 +495,6 @@ console.log("\nreview fixes");
   ];
   check("every out-of-scans message ends with a full stop", msgs.map((m) => m.endsWith(".")), msgs.map(() => true));
   check("…and a legacy account is told when its day rolls over (Eastern)", msgs[1].startsWith("You've used today's"), true);
-  const imp = src("app/api/cards/import/route.ts");
-  check("import builds its 402 from outOfScansMessage (next credit date or Scan Pack)", imp.includes("error: outOfScansMessage(user, quota)"), true);
 }
 
 console.log(failures ? `\n${failures} failing` : "\nall rollover checks passed");

@@ -199,9 +199,6 @@ assert.ok(has(account, "Cancel Plan") && !has(account, ">Cancel plan<"));
 const paywall = read("src/components/Paywall.tsx");
 assert.ok(has(paywall, "user?.scans?.frozen"), "the wall names the paused balance");
 
-const importPage = read("src/app/app/collection/import/page.tsx");
-assert.ok(has(importPage, "moreScansSentence(user?.scans, user?.tier)"), "the import page says how to get more scans");
-
 const users = read("src/components/admin/AdminUsersTable.tsx");
 assert.ok(has(users, "plan scans left") && has(users, "AdjustScansControl"), "the admin table shows plan scans left and has the Adjust Scans control");
 assert.ok(has(read("src/app/admin/(console)/users/page.tsx"), "planScans: planScansLeft(u)"), "the admin page passes plan scans");

@@ -12,8 +12,7 @@ import type { GameId } from "@/lib/types";
  * drag-and-drop, binder-page photos and the sealed-product sheet were removed
  * 10-03 (Chris: eBay rejects listings that reuse stock pictures, every card
  * must be a photo the seller took here, and uploads earned nothing). The CSV
- * import stays: it brings cards in without pictures, so nothing from it can
- * list until it is scanned.
+ * import went the same day: scanning is the only way a card gets in.
  */
 interface Props {
   /**
@@ -158,16 +157,12 @@ export default function Uploader({ onOpenCamera, variant = "hero", showcase = []
           </button>
         )}
 
-        {/* Two tiles under Scan (Chris 10-03): Import, and the full feature list as a button of the same shape, since the
-            scanner is the first screen on every open and the phone header has no room for the word. */}
-        <div className="grid grid-cols-2 gap-2">
-          <Link href="/app/collection/import" className={tile}>
-            <TileBody label="Import" hint="From other apps" icon={<IconFile />} />
-          </Link>
-          <Link href="/features" className={tile}>
-            <TileBody label="Features" hint="Everything it does" icon={<IconSpark />} />
-          </Link>
-        </div>
+        {/* One tile under Scan (Chris 10-03): the full feature list as a button of the same shape, since the scanner
+            is the first screen on every open and the phone header has no room for the word. The CSV import went
+            the same day ("i just think its dumb"): scanning is the only way a card gets in. */}
+        <Link href="/features" className={tile}>
+          <TileBody label="Everything CardFlip does" hint="Every feature on one page" icon={<IconSpark />} />
+        </Link>
       </div>
     </div>
   );
@@ -199,14 +194,6 @@ function IconSpark() {
     <svg {...svg}>
       <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z" />
       <path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
-    </svg>
-  );
-}
-function IconFile() {
-  return (
-    <svg {...svg}>
-      <path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
-      <path d="M14 3.5V8h4.5M9 13h6M9 16.5h4" />
     </svg>
   );
 }

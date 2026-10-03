@@ -1701,9 +1701,6 @@ export default function CollectionPage() {
         </div>
         {gameView === "pokemon" && (
           <div className="flex items-center gap-4">
-            <Link href="/app/collection/import" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
-              Import CSV →
-            </Link>
             <Link href="/app/collection/sets" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
               Set Completion →
             </Link>
