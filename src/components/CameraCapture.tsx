@@ -795,7 +795,7 @@ function SessionSheet({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/90 sm:items-center sm:p-4" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
@@ -803,7 +803,7 @@ function SessionSheet({
         aria-label="Scans waiting to verify"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border border-edge bg-surface-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
+        className="panel-solid animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
