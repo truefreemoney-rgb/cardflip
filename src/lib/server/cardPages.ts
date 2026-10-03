@@ -324,6 +324,19 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   }
   const data: TrustData = { game: facts.game, series, cmEur, eur: rec.eur, released: rec.released };
 
+  // No dollar series at all (10-03: Black Lotus, every print; TCGplayer publishes nothing for it): the page prints
+  // Cardmarket's figure in dollars at the cached ECB rate (lib/listing.ts withEurMarket is the same rule for scans and
+  // search). No history behind it: no chart, no change words, and the page is not indexed on it (indexDecision: unverified).
+  if (series.length === 0 && rec.eur) {
+    const variant = rec.eur.nonfoil ? "nonfoil" : rec.eur.foil ? "foil" : null;
+    const eur = variant === "nonfoil" ? rec.eur.nonfoil : rec.eur.foil;
+    const rate = variant && eur ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
+    if (variant && eur && rate) {
+      const prices = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * 100) / 100, day: today, days: 0, flag: null }];
+      return { facts, prices, headline: prices[0], decision: indexDecision(prices, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
+    }
+  }
+
   let inputs: SeriesInput[];
   try {
     // The stale note (10-02) rides along: a price that has stood 45+ days is printed with "Market hasn't updated this in N months".

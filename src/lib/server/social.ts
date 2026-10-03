@@ -787,7 +787,37 @@ export async function topByPrice(game: GameId, day = todayUtc(), limit = 5): Pro
     out.push(moverOf(game, id, c, s));
     if (out.length >= limit) break;
   }
+  if (game === "mtg") return eurOnlyTop(out, limit, seen);
   return out;
+}
+
+/**
+ * Magic's dearest cards often have NO TCGplayer price at all (10-03: Black
+ * Lotus, every print, carries only Cardmarket's EUR average), so the list of
+ * "most valuable" was Time Walk down. Those rows join at their EUR price in
+ * dollars at the day's rate (fx.ts, Frankfurter, cached per day), with no week
+ * claimed (unsettled). Only cards above the fifth USD card are fetched, and
+ * the rate only when there is one; a day with no rate leaves the list as it was.
+ */
+async function eurOnlyTop(usd: Mover[], limit: number, seen: Set<string>): Promise<Mover[]> {
+  const floorUsd = usd.length >= limit ? usd[usd.length - 1].to : 0;
+  // A generous EUR floor (a euro has not bought less than half a dollar): the exact cut is made after the rate is known.
+  const rows = (await db
+    .prepare(`SELECT id, name, set_name, collector_number AS number, image_url, price_eur FROM mtg_cards WHERE price_usd IS NULL AND price_eur IS NOT NULL AND price_eur > ? AND image_url != '' AND lang = 'en' ORDER BY price_eur DESC LIMIT ?`)
+    .all(floorUsd / 2, limit * 4)) as unknown as (CatalogRow & { price_eur: number })[];
+  if (rows.length === 0) return usd;
+  const { usdPerEur } = await import("@/lib/server/fx");
+  const rate = await usdPerEur().catch(() => null);
+  if (!rate) return usd;
+  const out = [...usd];
+  for (const r of rows) {
+    if (seen.has(baseName(r.name))) continue;
+    const to = Math.round(r.price_eur * rate * 100) / 100;
+    if (to <= floorUsd) continue;
+    seen.add(baseName(r.name));
+    out.push({ cardId: r.id, name: displayName(r.name), setName: r.set_name, number: r.number, imageUrl: postArtUrl("mtg", r.image_url), variant: "nonfoil", from: to, to, pct: 0, unsettled: true });
+  }
+  return out.sort((a, b) => b.to - a.to || a.cardId.localeCompare(b.cardId)).slice(0, limit);
 }
 
 /**

@@ -104,6 +104,18 @@ export async function fxRateOnDay(currency: string, day: string, memo?: Map<stri
   }
 }
 
+/**
+ * Dollars per euro from the cached ECB rates (10-03): the one rate the
+ * Cardmarket-only Magic cards (Black Lotus, every print: TCGplayer publishes
+ * no price) are shown in dollars at (lib/listing.ts withEurMarket). null when
+ * no rate is on hand; the caller then shows what it showed before.
+ */
+export async function usdPerEur(now = Date.now()): Promise<number | null> {
+  const fx = await getFxRates(now);
+  const eurPerUsd = fx?.rates.EUR;
+  return typeof eurPerUsd === "number" && eurPerUsd > 0 ? 1 / eurPerUsd : null;
+}
+
 export async function getFxRates(now = Date.now()): Promise<FxRates | null> {
   const cached = parse(await getSetting(KEY));
   if (cached && now - cached.fetchedAt < MAX_AGE_MS) return cached;

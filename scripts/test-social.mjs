@@ -520,6 +520,15 @@ await tcg("yg-7", "yugioh", "Red-Eyes Black Dragon", "LOB", "Legend of Blue Eyes
 await tcg("yg-8", "yugioh", "Kuriboh", "MRD", "Metal Raiders", "MRD-071", 150);
 // The dearest tcg_cards rows have no second price source (10-03 first render: "Genex Ally Axel $213,589"): no "most valuable" for those games, whatever the rows say.
 check("no most-valuable list for a game without a price referee (Yu-Gi-Oh, Lorcana, One Piece), however dear its rows", [await SOC.topByPrice("yugioh", A), await SOC.topByPrice("lorcana", A), await SOC.topByPrice("onepiece", A)], [[], [], []]);
+// 10-03: Magic's dearest cards may carry only Cardmarket's EUR price (Black Lotus, every print): they join the most-valuable list in dollars at the cached ECB rate (lib/server/fx.ts usdPerEur), no week claimed.
+await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, price_usd, price_eur, synced_at) VALUES (?, ?, '2ed', 'Unlimited Edition', '233', 'https://cards.scryfall.io/normal/lotus.jpg', NULL, 10000, 0)").run("mtg-lotus", "Black Lotus");
+await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, price_usd, price_eur, synced_at) VALUES (?, ?, 'lea', 'Limited Edition Alpha', '232', 'https://cards.scryfall.io/normal/lotus-a.jpg', NULL, 25000, 0)").run("mtg-lotus-a", "Black Lotus");
+await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, price_usd, price_eur, synced_at) VALUES (?, ?, 'lea', 'Limited Edition Alpha', '999', '', NULL, 30000, 0)").run("mtg-nopic", "No Picture Mox");
+await setSetting("fx_rates", JSON.stringify({ date: A, fetchedAt: Date.now(), rates: { EUR: 0.8 } }));
+const topM = await SOC.topByPrice("mtg", A);
+check("Black Lotus leads Magic's most valuable at its EUR price in dollars (one print per name, a row without a picture never), with no week claimed", [topM[0]?.cardId, topM[0]?.to, topM[0]?.unsettled, topM.some((m) => m.cardId === "mtg-lotus" || m.cardId === "mtg-nopic"), SOC.topCaption("mtg", topM, "").split("\n")[2]], ["mtg-lotus-a", 31250, true, false, "Black Lotus (Limited Edition Alpha #232): $31,250"]);
+await setSetting("fx_rates", "");
+
 
 // Sleepers under $5: their own pool band, the movers' guards, the movers' floor still keeps them out of the gains post.
 await real("sl1-1", "Penny", "1", "sl1", "Sleep Set", wk(2, 2.6), { eur: 2, end: A });      // +30%

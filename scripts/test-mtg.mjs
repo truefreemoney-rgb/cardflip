@@ -15,6 +15,8 @@ import {
   mtgFinishOf,
   pickPrice,
   quotePrice,
+  eurMarketUsd,
+  withEurMarket,
 } from "../src/lib/listing.ts";
 import { displayCardNumber, parseMtgQuery, GAMES } from "../src/lib/games.ts";
 import { makeSealedProduct, sealedProductTypesFor } from "../src/lib/grading.ts";
@@ -96,6 +98,16 @@ check("mtgFinishOf follows the default quote", mtgFinishOf(item), "nonfoil");
 check("mtgFinishOf follows the pick", mtgFinishOf({ ...item, variant: "foil" }), "foil");
 
 console.log("listing");
+// 10-03, Chris: Black Lotus "has to be USD". TCGplayer publishes nothing for it, so Cardmarket's EUR average is shown in
+// dollars at the day's rate, ONLY when the card has no dollar price at all; a card with a TCGplayer price is untouched.
+{
+  const eurOnly = [{ source: "cardmarket", variant: "nonfoil", label: "Nonfoil", currency: "EUR", market: 13760.8, low: null, high: null }];
+  const row = eurMarketUsd(eurOnly, 1.17);
+  check("a Cardmarket-only card gets a dollar row at the rate, same printing, the EUR row kept behind it", [row?.currency, row?.market, row?.variant, row?.source, withEurMarket({ ...bolt, prices: eurOnly }, 1.17).prices.length], ["USD", 16100.14, "nonfoil", "cardmarket", 2]);
+  check("…and it prices the listing: the market price and the suggested asking price are dollars", [pickPrice(withEurMarket({ ...bolt, prices: eurOnly }, 1.17))?.currency, quotePrice(withEurMarket({ ...bolt, prices: eurOnly }, 1.17), "Near Mint", "market")?.base], ["USD", 16100.14]);
+  check("a card with any dollar price is never converted; no rate, no row", [eurMarketUsd([...bolt.prices, ...eurOnly], 1.17), eurMarketUsd(eurOnly, null), withEurMarket(bolt, 1.17) === bolt], [null, null, true]);
+  check("foil-only euros fall back to the foil printing; nonfoil wins when both exist", [eurMarketUsd([{ ...eurOnly[0], variant: "foil", market: 100 }], 2)?.variant, eurMarketUsd([{ ...eurOnly[0], variant: "foil", market: 100 }, eurOnly[0]], 2)?.variant], ["foil", "nonfoil"]);
+}
 const raw = buildListing(bolt, 2.5, "Near Mint", "Nonfoil");
 // The LTR set name is long: the 80-char trim drops the condition and keeps set + number.
 check("long set: title keeps set code + MTG, drops condition", raw.title, "Lightning Bolt The Lord of the Rings: Tales of Middle-earth LTR 187 MTG");

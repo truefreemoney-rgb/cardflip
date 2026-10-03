@@ -18,6 +18,7 @@
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { db } from "@/lib/db";
+import { withEurMarket } from "@/lib/listing";
 import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
@@ -107,6 +108,19 @@ function pricesOf(row: MtgCardRow): CardPrice[] {
 /** Scryfall image URLs carry the size in the path (.../normal/front/...). */
 export function largeImage(url: string): string {
   return url.replace("/normal/", "/large/");
+}
+
+/**
+ * Cards with no dollar price shown in dollars (10-03, lib/listing.ts withEurMarket): Black Lotus and the other
+ * TCGplayer-less printings carry only Cardmarket's EUR average; it is converted at the cached ECB rate. The rate is
+ * read only when a card in the list needs it, and a card with a TCGplayer price is never touched.
+ */
+async function withUsd(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  const needs = (c: PokemonCard) => !c.prices.some((p) => p.currency === "USD" && p.market != null && p.market > 0) && c.prices.some((p) => p.currency === "EUR" && p.market != null && p.market > 0);
+  if (!cards.some(needs)) return cards;
+  const { usdPerEur } = await import("@/lib/server/fx");
+  const rate = await usdPerEur().catch(() => null);
+  return rate ? cards.map((c) => (needs(c) ? withEurMarket(c, rate) : c)) : cards;
 }
 
 function toCard(row: MtgCardRow): PokemonCard {
@@ -305,7 +319,7 @@ export async function mtgCardById(id: string): Promise<PokemonCard[]> {
   const row = (await db
     .prepare(`SELECT ${CARD_COLUMNS} FROM mtg_cards WHERE id = ?`)
     .get(id)) as MtgCardRow | undefined;
-  return row ? [toCard(row)] : [];
+  return row ? withUsd([toCard(row)]) : [];
 }
 
 export async function searchMtgCardsLocal(
@@ -591,7 +605,7 @@ export async function searchMtgCardsLocal(
     .slice(0, limit);
   // rankScore rides along so the scanner can see a near-tie between #1 and
   // #2 and send the photo to the picture tiebreak (vision.ts, 09-10).
-  return ranked.map((x) => ({ ...toCard(x.row), rankScore: x.s }));
+  return withUsd(ranked.map((x) => ({ ...toCard(x.row), rankScore: x.s })));
 }
 
 /** One row per set with a card in the mirror, newest first — for the sealed picker. */
@@ -621,7 +635,7 @@ export async function mtgCardsBySet(setCode: string): Promise<PokemonCard[]> {
         ORDER BY CAST(collector_number AS INTEGER), collector_number`,
     )
     .all(setCode.toLowerCase())) as unknown as MtgCardRow[];
-  return rows.map(toCard);
+  return withUsd(rows.map(toCard));
 }
 
 /** True once scripts/sync-mtg.mjs has populated the mirror. */
