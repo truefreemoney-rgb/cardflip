@@ -78,6 +78,16 @@ await catalog("sv2-14", "Corphish plain", "51"); for (const b of [13, 10, 7, 4, 
 for (const b of [13, 10, 7]) await recordPoint("sv2-14", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 12, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-14", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 49.99, day(b));
 check("a pricey reverse holo never stands in for its cheap plain card", (await topMovers("pokemon", TODAY, { limit: 20 })).some((m) => m.cardId === "sv2-14"), false);
 check("a spike unwinding is not a drop (Fighting Energy $37.49 → $11)", (await topMovers("pokemon", TODAY, { direction: "down", limit: 20 })).some((m) => m.cardId === "sv2-13"), false);
+// 10-03 Lugia 1st Edition: $1,085 for weeks, $164.80 for five days around a week ago, $1,135 since. A dip unwinding, not +589%.
+// (1st Edition, so a $1,000+ price that rarely changes is its normal state for the guard, as the real card's is; the old
+// level ends 18 days back, outside the old price's own week, exactly the shape the week-before-the-week rule misses.)
+await catalog("sv2-15", "Lugia", "9"); for (let b = 70; b >= 18; b -= 2) await recordPoint("sv2-15", "pokemon", "1stEditionHolofoil", "tcgplayer", "USD", 1085, day(b)); for (const b of [8, 7, 6, 5, 4]) await recordPoint("sv2-15", "pokemon", "1stEditionHolofoil", "tcgplayer", "USD", 164.8, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-15", "pokemon", "1stEditionHolofoil", "tcgplayer", "USD", 1134.85, day(b));
+check("a dip unwinding is not a gain (Lugia $164.80 → $1,135 after weeks at $1,085)", (await topMovers("pokemon", TODAY, { direction: "up", limit: 20 })).some((m) => m.cardId === "sv2-15"), false);
+// The same shape ending at a NEW level ($100 → $45 → $70) is still a move: today is nowhere near the old level.
+await catalog("sv2-16", "Real mover", "10"); for (let b = 70; b >= 18; b -= 2) await recordPoint("sv2-16", "pokemon", "normal", "tcgplayer", "USD", 100, day(b)); for (const b of [8, 7, 6, 5, 4]) await recordPoint("sv2-16", "pokemon", "normal", "tcgplayer", "USD", 45, day(b)); for (const b of [2, 1, 0]) await recordPoint("sv2-16", "pokemon", "normal", "tcgplayer", "USD", 70, day(b));
+check("…but a rise to a NEW level after a dip still counts", (await topMovers("pokemon", TODAY, { direction: "up", limit: 20 })).some((m) => m.cardId === "sv2-16"), true);
+// A real riser would join every list below; the checks there pin the older fixture, so it leaves.
+await db.prepare("DELETE FROM price_series WHERE card_id = 'sv2-16'").run(); await db.prepare("DELETE FROM en_cards WHERE id = 'sv2-16'").run();
 check("pct signed", movers.map((m) => Math.round(m.pct)), [50, -50, 40, 30, 20]);
 check("art upgraded to high.webp", movers[0].imageUrl.endsWith("/high.webp"));
 check("catalog fields joined", [movers[0].name, movers[0].number], ["Miraidon ex", "81"]);

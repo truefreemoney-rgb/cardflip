@@ -316,6 +316,18 @@ async function freshSeries(game: GameId, day: string, days: number): Promise<Fre
         if (Math.abs(v - from) / from <= 0.15) fromHeld++;
       }
       fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
+      // A dip being unwound (Lugia 1st Edition, 10-03: $1,085 for months, $164.80 for five days, $1,135 since; the movers
+      // read it as +589%): the old price sits 2x or more off the level that held before it, and today is back at that
+      // level. The mirror of the spike rule: the stretch at `from` is the blip, not the move. Looks back at most 45 days.
+      if (fromSettled) {
+        let i = fromIdx;
+        let prior: number | null = null;
+        for (; i >= Math.max(0, fromIdx - 45); i--) {
+          const v = priceAt(prices, i, CARRY_DAYS);
+          if (v != null && Math.abs(v - from) / from > 0.15) { prior = v; break; }
+        }
+        if (prior != null && Math.abs(to - prior) / prior <= 0.15 && Math.max(from, prior) / Math.min(from, prior) >= 2) fromSettled = false;
+      }
     }
     // A gain that is one unconfirmed day-step out of months of nothing is a thin-market print, not a move (the movers pick reads this; the price itself still passes).
     const upTo = todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1);

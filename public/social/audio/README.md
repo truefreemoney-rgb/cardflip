@@ -4,7 +4,7 @@ Drop royalty-free MP3s in this folder. `scripts/social-video.mjs` mixes one
 into each video, trimmed to length with a fade-out. No files here = silent
 video. Chris 09-30: "randomize the audio to audio we used in previous posts",
 so the folder holds the tracks that have aired (six since 09-30 night, Chris:
-"join them in the rotation"), and each day shuffles
+"join them in the rotation"; five more 10-03), and each day shuffles
 them (seeded by the day, `scripts/lib/audio-plan.mjs`) across the day's three
 videos (the 1pm movers video every site posts, and the 7am and 7pm TikTok
 videos): three tracks, three videos, never the same one twice in a day. With
@@ -30,6 +30,11 @@ it starts mid-phrase.
 | cinematic-soul-dance-upbeat-background-music-success-vibes-511439.mp3 (123 bpm, 1:36, start 17.0s) | https://pixabay.com/music/dance-dance-upbeat-background-music-success-vibes-511439/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
 | cinematic-soul-motivational-upbeat-music-winning-spirit-511443.mp3 (123 bpm, 2:23; drumless gaps early, so the first video opens about 73s in) | https://pixabay.com/music/dance-motivational-upbeat-music-winning-spirit-511443/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
 | prettyjohn1-promo-promo-music_68sec-595667.mp3 (74 bpm, 1:08; one bar per card, ~3.2s, the quickest of the six) | https://pixabay.com/music/corporate-promo-promo-music-68sec-595667/ (Pixabay Content License; Chris picked it 09-30 night, first airs 10-01) |
+| bombinsound-upbeat-future-bass-version-3-so-easy-581623.mp3 (152 bpm, 1:01, opens at about 3.4s; a bar is 1.6s so a card holds ~3.2s) | https://pixabay.com/music/future-bass-upbeat-future-bass-version-3-so-easy-581623/ (Pixabay Content License; Chris picked it 10-03, first airs 10-04) |
+| moodmode-hip-hop-promo-226369.mp3 (122.5 bpm, 0:55, opens at about 10.4s) | https://pixabay.com/music/beats-hip-hop-promo-226369/ (Pixabay Content License; Chris picked it 10-03, first airs 10-04) |
+| delosound-upbeat-music-398339.mp3 (103 bpm, 1:37, opens at about 1.1s) | https://pixabay.com/music/upbeat-upbeat-music-398339/ (Pixabay Content License; Chris picked it 10-03, first airs 10-04) |
+| gr0za-fashion-fashion-music-578841.mp3 (117 bpm, 1:58, opens at about 0.7s) | https://pixabay.com/music/funk-fashion-fashion-music-578841/ (Pixabay Content License; Chris picked it 10-03, first airs 10-04) |
+| tatamusic-pop-upbeat-pop-425328.mp3 (118 bpm, 1:58, opens at about 17.9s) | https://pixabay.com/music/upbeat-pop-upbeat-pop-425328/ (Pixabay Content License; Chris picked it 10-03, first airs 10-04) |
 
 Tried and set aside, never aired (drop the file back in only with Chris's yes):
 
