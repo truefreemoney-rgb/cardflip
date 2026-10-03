@@ -8,6 +8,7 @@
 // A screen holds `hold` BEATs (a BEAT = two bars); reveal / thennow / versus hold two, beat holds one.
 // All five approved 10-03; scripts/social-video.mjs buildAngle() draws them from angleData (the draft's own pick).
 import { outroStep } from "./social-scene.mjs";
+import { lookCss } from "./social-looks.mjs";
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const money = (n) => (n >= 100 ? "$" + Math.round(n).toLocaleString("en-US") : "$" + n.toFixed(2));
@@ -137,7 +138,7 @@ export function angleScene(o) {
   #outro .games .g { font-size:88px; line-height:1.05; }
   #outro .tag { font-size:44px; margin-top:52px; }
   #outro .url { font-size:64px; font-weight:700; margin-top:40px; }
-</style></head><body>
+${lookCss(o.look)}</style></head><body>
 <div id="intro" class="abs">
   <div class="kicker">${esc(intro.kicker)}</div>
   <div class="title display holo-text${intro.title.length > 18 ? " sm" : intro.title.length > 12 ? " md" : ""}">${esc(intro.title)}</div>

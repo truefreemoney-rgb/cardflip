@@ -121,8 +121,14 @@ the new kinds have scores):
    optimize itself"): a per-slot video-vs-picture choice the optimizer draws and scores (video weighted high by default,
    static a minority option it trials), on the sites that take both. Today every slot shares its video, which already
    satisfies "mostly video"; this phase adds the static minority as a measured option. After phase 4.
-4. **Visual templates** (separate ask, Chris 10-03 "bored of the same template"): 3 looks for the scene,
-   rotated by `dayShuffle` with another salt; `classic` stays byte-identical for the CSS-substring pins.
+4. **DONE 10-03 (session 104).** Visual templates: `scripts/lib/social-looks.mjs`, LOOKS = classic / ember / arctic.
+   `lookCss(look)` is appended right before `</style>` in both scenes (`sceneHtml`, `angleScene`; `o.look`); classic
+   appends "" so that scene is byte-identical. ember = maroon field, amber labels, gold title, 18px art radius; arctic =
+   navy field, ice labels, white-to-cyan title, 48px radius with a cyan halo. The green price pop is untouched in every
+   look. `lookFor(dayIndex, slot, forced)`: `dayShuffle(dayIndex ^ 0x5a17, 3)` deals the three looks to 1pm / 7am / 7pm,
+   so a day's three videos never share a look and the order changes daily (another salt than the audio). `--look` forces
+   one for eyeballing; `makeSlot` logs it and returns it. Tests: test-social-tiktok phase 4 block. Frames eyeballed
+   10-03 (beat + intro in all three).
 
 ## Gotchas already found
 - `socialGames()` = ["pokemon"] gates drafting; the new kinds carry their own `game` on a Pokémon-keyed

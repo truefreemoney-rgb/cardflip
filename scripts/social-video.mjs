@@ -25,6 +25,7 @@
 //   --slot morning|midday|evening   one TikTok slot by itself (or a comma list of them).
 //   --kind <kind>                   with --out: one video of that kind by itself, no slot, no register (a look at an
 //                                   angle: guess, thennow, versus, sleepers, top; or set, movers, dips, games).
+//   --look classic|ember|arctic     force one look (lib/social-looks.mjs); the day's rotation otherwise.
 //   --force    with --slot: remake the named slot(s) even when ready (the workflow's tiktok_force), e.g. a registered video that
 //              shows a card the rules now leave out. Refused without --slot, so no run can redraw every ready video. A remake
 //              over an existing row is parked under a NEW blob path (Blob's CDN keeps serving an overwritten path's old bytes
@@ -46,6 +47,7 @@ import path from "node:path";
 import { artDataUri, renderMp4, sceneHtml } from "./lib/social-scene.mjs";
 import { angleScene, beatsOf } from "./lib/social-angles.mjs";
 import { sectionFor, timelineFor, trackIndex } from "./lib/audio-plan.mjs";
+import { LOOKS, lookFor } from "./lib/social-looks.mjs";
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const has = (k) => process.argv.includes(k);
@@ -54,6 +56,9 @@ const REGISTER = has("--register");
 const FORCE = has("--force");
 const PACKAGE = has("--package");
 const ONLY = arg("--slot", "").split(",").filter(Boolean);
+/** --look classic|ember|arctic forces one look (eyeballing a template); the day's rotation otherwise. */
+const FORCED_LOOK = arg("--look", "");
+if (FORCED_LOOK && !LOOKS.includes(FORCED_LOOK)) { console.error(`--look must be one of ${LOOKS.join(", ")}`); process.exit(2); }
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -383,12 +388,15 @@ async function makeSlot(slot, kind, out, strict) {
   const TOTAL = withAudio || gamesOutro ? Math.round((INTRO + BEAT * beats + OUTRO) * 1000) / 1000 : videoSeconds(beats);
   // Every video is laid out inside TikTok's safe box (Chris 10-01, from his phone: the old layouts sat off centre under the search
   // bar with an empty bottom third). The 1pm file every site posts gets it too: Reels and Shorts cover the same edges.
+  // The day's look for this slot (lib/social-looks.mjs, phase 4): classic / ember / arctic, the three handed out per day in a shuffled order.
+  const look = lookFor(dayIndex, slot, FORCED_LOOK);
+  console.log(`look: ${look}`);
   const html = angle
-    ? angleScene({ W, H, logo, intro: built.intro, screens: built.screens, outroGames: built.outro.games, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL })
-    : sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true });
+    ? angleScene({ W, H, logo, intro: built.intro, screens: built.screens, outroGames: built.outro.games, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, look })
+    : sceneHtml({ W, H, logo, intro: built.intro, hook: hookFor(kind, cards), cards, outro: built.outro, INTRO, BEAT, OUTRO, PERIOD, MUSIC: withAudio, TOTAL, safeBottom: true, look });
   const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out, audio: withAudio ? { file: track.file, start: AUDIO_START } : null });
   console.log(`wrote ${out} (${(bytes / 1e6).toFixed(1)} MB, ${TOTAL.toFixed(1)}s)`);
-  return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name };
+  return { kind, bytes, seconds: TOTAL, frozen: built.frozen, audio: track.name, look };
 }
 
 /** Park the MP4 on Blob and register it (lib/server/socialTiktok.ts). */

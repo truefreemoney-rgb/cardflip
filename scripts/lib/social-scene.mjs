@@ -14,6 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { lookCss } from "./social-looks.mjs";
 
 export function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -142,7 +143,7 @@ export function sceneHtml(o) {
   #footer .dot { width:22px; height:22px; border-radius:999px; background:#6366f1; }
   #bar { position:absolute; left:80px; right:80px; bottom:70px; height:8px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
   #bar i { display:block; height:100%; width:0; }
-</style></head><body${o.safeBottom ? ' class="safe"' : ""}>
+${lookCss(o.look)}</style></head><body${o.safeBottom ? ' class="safe"' : ""}>
 <div id="intro" class="abs${o.hook ? " hooked" : ""}">
   ${o.hook ? `<div class="hook">${o.hook.art ? `<img class="hart" src="${o.hook.art}">` : `<div class="hart"></div>`}<div class="hbig display">${esc(o.hook.big)}</div></div>` : ""}
   <div class="kicker">${esc(intro.kicker)}</div>

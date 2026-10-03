@@ -632,6 +632,29 @@ console.log("10-02: every video ends on the all-games card, and the list fits th
 }
 
 
+// ---- 10-03 phase 4: three looks for the scene, rotated by day ----------------------------------------------
+console.log("phase 4: three looks, classic byte-identical, a day hands out all three in a shuffled order");
+{
+  const looks = await import(new URL("./lib/social-looks.mjs", import.meta.url).href);
+  const { dayShuffle } = await import(new URL("./lib/audio-plan.mjs", import.meta.url).href);
+  const angles = await import(new URL("./lib/social-angles.mjs", import.meta.url).href);
+  const base = { W: 1080, H: 1920, logo: "", intro: { kicker: "k", title: "t", sub: "s" }, cards: [{ rank: "No. 1", art: "", name: "Name", meta: "#1", to: 1, pct: { text: "x", cls: "up" } }], outro: {}, INTRO: 2, BEAT: 4, OUTRO: 2, PERIOD: 0.5, MUSIC: true, TOTAL: 8, safeBottom: true };
+  check("the looks are classic, ember and arctic; classic appends nothing, so the scene is byte-identical with or without it", [looks.LOOKS, looks.lookCss("classic"), scene.sceneHtml({ ...base, look: "classic" }) === scene.sceneHtml(base), scene.sceneHtml({ ...base, look: "nonsense" }) === scene.sceneHtml(base)], [["classic", "ember", "arctic"], "", true, true]);
+  const ember = scene.sceneHtml({ ...base, look: "ember" });
+  const arctic = scene.sceneHtml({ ...base, look: "arctic" });
+  check("ember and arctic append their CSS after the base rules (last wins) and before </style>; the base rules are untouched", [ember.includes("/* look: ember */"), arctic.includes("/* look: arctic */"), ember.indexOf("/* look: ember */") > ember.indexOf("#bar i {"), ember.indexOf("/* look: ember */") < ember.indexOf("</style>"), ember.includes(".safe .beat { justify-content:center; padding:230px 80px 360px; }")], [true, true, true, true, true]);
+  check("the price stays the green pop in every look (Chris's standing note): no look restyles .price", [/look: ember[\s\S]*\.price/.test(looks.lookCss("ember")), /\.price/.test(looks.lookCss("arctic"))], [false, false]);
+  const angle = (look) => angles.angleScene({ W: 1080, H: 1920, logo: "", intro: { kicker: "k", title: "t", sub: "s" }, screens: [{ type: "beat", rank: "No. 1", art: "", name: "Name", meta: "m", to: 1, pct: null }], outroGames: ["Pokémon"], INTRO: 2, BEAT: 4, OUTRO: 2, PERIOD: 0.5, MUSIC: true, TOTAL: 8, look });
+  check("the angle scene takes the same looks, classic byte-identical", [angle("classic") === angle(undefined), angle("arctic").includes("/* look: arctic */"), angle("ember").indexOf("/* look: ember */") < angle("ember").indexOf("</style>")], [true, true, true]);
+  const dayIdx = Math.round(Date.parse(FRI) / 86_400_000);
+  const dayLooks = (d) => ["morning", "midday", "evening"].map((s) => looks.lookFor(d, s));
+  check("a day's three videos wear the three looks, one each; another day deals them in another order; the same day the same", [[...dayLooks(dayIdx)].sort(), Array.from({ length: 12 }, (_, i) => dayLooks(dayIdx + i).join(",")).some((x) => x !== dayLooks(dayIdx).join(",")), dayLooks(dayIdx).join(",") === dayLooks(dayIdx).join(",")], [["arctic", "classic", "ember"], true, true]);
+  check("the look does not rotate in step with the audio (another salt): over 30 days the look-vs-track pairing varies", new Set(Array.from({ length: 30 }, (_, i) => `${looks.lookFor(dayIdx + i, "midday")}:${dayShuffle(dayIdx + i, 3)[0]}`)).size > 3, true);
+  check("--look forces one of the three for eyeballing; anything else is the day's", [looks.lookFor(dayIdx, "midday", "ember"), looks.lookFor(dayIdx, "midday", "pink")], ["ember", looks.lookFor(dayIdx, "midday")]);
+  const src = read("scripts/social-video.mjs");
+  check("the render script hands the slot's look to both scenes and refuses an unknown --look", [src.includes("const look = lookFor(dayIndex, slot, FORCED_LOOK);"), (src.match(/MUSIC: withAudio, TOTAL, look \}\)/g) ?? []).length + (src.match(/safeBottom: true, look \}\)/g) ?? []).length, src.includes("if (FORCED_LOOK && !LOOKS.includes(FORCED_LOOK))")], [true, 2, true]);
+}
+
 // ---- 10-03 phase 2: the five content angles as videos ------------------------------------------------------
 console.log("phase 2: the angles are video kinds, frozen like the rest, keyed by the draft's game");
 {
