@@ -44,7 +44,6 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Claude] RUNNER UPGRADE 3 — check the merged result: runner rebases onto main right before opening the PR; the board's Merge button refuses until CI is green on that rebased head (a green PR still broke main after merge, 09-09). ~1 day.
 - [ ] [Claude] RUNNER UPGRADE 7 — the runner cannot see Chris's photos (its cloud box blocks the Vercel Blob host; run #19 read the task from the text alone). Fix: the Run button copies each photo into the repo on a board-assets branch; the runner fetches that branch and reads the file. ~1h.
 - [ ] [Claude] RUNNER UPGRADE 6 — self-review step before the PR: re-read the issue + the diff and answer "does this do what was asked, on a phone, in the site's style". Prompt change. ~30 min.
-- [ ] [Claude] DEAD CODE: delete the vision card-locator left behind by the upload removal (Chris 10-03). lib/server/vision locateCards and anything only it used have no caller since c199c24; remove, npm test + tsc, confirm the scanner still reads on prod. Not customer-visible.
 
 ## Prove on prod — built, not yet seen live
 
@@ -104,6 +103,8 @@ Owner tags: **[Chris]** needs Chris · **[Claude]** Claude can do it alone · **
 - [ ] [Claude] Old yea/nay leftovers from 09-04/06 (landing hero on phones, Watchlist By-set, trial Subscribe-now placements) — all shipped; close when Chris confirms.
 
 ## Completed — finished work, newest first; the live board sweeps every done item here (Live/Completed tabs)
+
+- [x] [Claude] 10-03: DEAD CODE: the vision binder-page card locator (locateCards, LOCATE_SCHEMA, prompt) deleted, 0d6814c; no caller since the upload removal; tsc + eslint + npm test green.
 
 - [x] 10-01 Inventory: Mark as Sold on every draft / ended row (desktop + phone) with a popup asking what it sold for, so the sale lands in the stats; Delete is now a small X. Verify Match opens the big card sheet and the verifying happens in there (One Piece printing pick and Yu-Gi-Oh! foil pick included); the sheet and the row flip to Build Listing with no reload. A printing swap re-quotes the price and resets the "Added At" price. A sale marked by hand takes no eBay fee and no postage off (Earned, the row, the card sheet, the tax report and CSV).
 - [x] 09-29 Magic: the API's new 16-nullable-field cap had been rejecting EVERY Magic scan (400) and Lorcana/One Piece — schemas rewritten under the cap, test pins it (3055c8c). Panel: 2025-set bucket 40/40, adventure 8/8; live tiebreak run 203/205 = 99.0% confirmed; basic lands with no number now match by picture (Plains BRB vs 6ED). Testing API key + $20 workspace cap set by Chris; ~$2.50 spent. Thirteen more special-printing buckets queued.
