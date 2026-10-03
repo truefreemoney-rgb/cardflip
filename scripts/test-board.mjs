@@ -36,6 +36,10 @@ check("trims + keeps content", v.ok && v.sections[0].items[0].text, "Do the thin
 check("rejects non-array", validateBoard({}).ok, false);
 check("rejects empty title", validateBoard([{ id: "a", title: " ", hint: null, items: [] }]).ok, false);
 check("rejects bad owner", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: false, owner: "Bob", text: "x" }] }]).ok, false);
+{
+  const v = validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "b", done: true, owner: "", text: "x" }] }]);
+  check("empty owner tag = no tag (10-03 prod board had two)", v.ok && v.sections[0].items[0].owner, null);
+}
 check("rejects duplicate ids", validateBoard([{ id: "a", title: "T", hint: null, items: [{ id: "a", done: false, owner: null, text: "x" }] }]).ok, false);
 check("rejects bad id chars", validateBoard([{ id: "a b", title: "T", hint: null, items: [] }]).ok, false);
 check("empty hint becomes null", validateBoard([{ id: "a", title: "T", hint: "  ", items: [] }]).sections?.[0].hint, null);

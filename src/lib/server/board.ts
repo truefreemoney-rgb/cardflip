@@ -139,7 +139,10 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
       if (typeof iid !== "string" || !ID_RE.test(iid) || seen.has(iid)) return { ok: false, error: "Bad item id" };
       seen.add(iid);
       if (typeof text !== "string" || text.length > ITEM_TEXT_MAX) return { ok: false, error: `Item text too long (max ${ITEM_TEXT_MAX})` };
-      if (owner != null && (typeof owner !== "string" || !OWNERS.has(owner))) return { ok: false, error: "Bad owner tag" };
+      // "" = no tag (two 09-26 Completed rows were saved that way; the server
+      // log caught the validator rejecting the whole board for it, 10-03).
+      const ownerTag = owner === "" ? null : owner;
+      if (ownerTag != null && (typeof ownerTag !== "string" || !OWNERS.has(ownerTag))) return { ok: false, error: "Bad owner tag" };
       let imgs: string[] | undefined;
       if (images != null) {
         if (!Array.isArray(images) || images.length > MAX_IMAGES) return { ok: false, error: `Too many images (max ${MAX_IMAGES})` };
@@ -151,7 +154,7 @@ export function validateBoard(input: unknown): { ok: true; sections: BoardSectio
       clean.push({
         id: iid,
         done: Boolean(done),
-        owner: (owner as BoardOwner) ?? null,
+        owner: (ownerTag as BoardOwner) ?? null,
         text: text.trim(),
         ...(imgs ? { images: imgs } : {}),
         ...(typeof completedAt === "number" ? { completedAt } : {}),
