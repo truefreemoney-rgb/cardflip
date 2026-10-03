@@ -1,4 +1,4 @@
-﻿# Backlog (checklists)
+# Backlog (checklists)
 
 Written 2026-08-16 from a full project audit; ticks = done that evening. Excludes payment/subscription
 billing (Chris: not yet). Sizes S/M/L. "(deferred)" = Chris chose to park it.
@@ -65,7 +65,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - [x] **Paid signup end-to-end on the LIVE site** — Chris confirmed 09-05 (cdemon account subscribed, 5/500). v1.0.0 tagged.
 - [x] **Stripe public details** — DONE 09-05: iPostal1 virtual mailbox (Chevy Chase MD) entered as business + support address, support@cardflip.io, support URL /help, privacy/terms URLs. iPostal1 business-name add request emailed (their reply Monday); Form 1583 pending a second address document.
 - [x] **Open the admin console on cardflip.io once** — DONE 09-05: Switches + Users load on prod, 7 users, plan dropdowns render. NOTE: Magic switch was ON (public) at the time — Chris to flip off per 09-04 call, or confirm he wants it public.
-- [ ] eBay live-test batch next time you post: non-NM push (no "saved without condition detail"), graded push (cert descriptor), reprice PUT on a drifted listing, one watcher offer, multi-qty partial sale, net estimate→actual after a sale, watchlist dip email.
+- [ ] eBay live-test batch (10-03 LIVE RUN, Arboliva ex LP $2.73, Chris's real eBay): DONE non-NM push = eBay shows 'Lightly played (Excellent)', our SKU as custom label; DONE reprice PUT = $2.73 -> $2.99 on eBay within a minute; DONE end from Inventory = offer withdrawn + ebay_ended_at stamped in 9 s; NOT SEEN ended-on-eBay detection (sync throttled 10 min per user; the card ended on eBay at 9:29 PDT and our row still said listed at 9:31; the daily sweep or the next Inventory load after 10 min catches it). Still open: graded push (cert descriptor), one watcher offer, net estimate→actual after a sale, watchlist dip email.
 - [x] Anthropic auto-reload ON — 09-05 (Chris).
 - [ ] MTG stress test — say when; ~1h pre-flight on my side first.
 - [x] Magic switch OFF 09-05 (Chris). ON 09-10 (Claude, Chris: "make your best calls") after panel 99.0% + 42/42 real phone photos + CI/smoke green.
