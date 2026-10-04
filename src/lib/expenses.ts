@@ -17,6 +17,8 @@ export interface Expense {
   note?: string;
   /** A day it is (or was) billed, YYYY-MM-DD. Recurring rows roll forward from it (nextDue). */
   dueDate?: string;
+  /** The service's billing page (Chris 10-04: "so i can refer to it easily"). http(s) only. */
+  billingUrl?: string;
   /** Chris has checked the amount. Seeded rows start false. */
   confirmed: boolean;
 }
@@ -71,7 +73,31 @@ export function normalizeExpense(raw: unknown): Expense | null {
   const id = typeof r.id === "string" && r.id.trim() ? r.id.trim().slice(0, 40) : name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "row";
   const note = typeof r.note === "string" ? r.note.trim().slice(0, 160) : "";
   const dueDate = typeof r.dueDate === "string" && DATE_RE.test(r.dueDate) ? r.dueDate : "";
-  return { id, name, amountUsd: Math.round(amount * 100) / 100, period, ...(note ? { note } : {}), ...(dueDate ? { dueDate } : {}), confirmed: r.confirmed === true };
+  const billingUrl = cleanUrl(r.billingUrl);
+  return {
+    id,
+    name,
+    amountUsd: Math.round(amount * 100) / 100,
+    period,
+    ...(note ? { note } : {}),
+    ...(dueDate ? { dueDate } : {}),
+    ...(billingUrl ? { billingUrl } : {}),
+    confirmed: r.confirmed === true,
+  };
+}
+
+/** A pasted billing link: trimmed, "https://" added when the scheme is missing, anything but http(s) dropped. */
+export function cleanUrl(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  let s = raw.trim().slice(0, 300);
+  if (!s) return "";
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = `https://${s}`;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 /** What a row costs per month: yearly / 12, one-offs 0. */

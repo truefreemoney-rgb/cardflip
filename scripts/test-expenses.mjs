@@ -24,6 +24,10 @@ check("string amount accepted and rounded", normalizeExpense({ name: "Vercel Pro
 check("bad period → month, confirmed only when true", normalizeExpense({ id: "t", name: "Turso", amountUsd: 5.99, period: "weekly", confirmed: "yes" }).period, "month");
 check("note kept, trimmed", normalizeExpense({ name: "Domain", amountUsd: 35, period: "year", note: "  renewal " }).note, "renewal");
 check("empty note omitted", "note" in normalizeExpense({ name: "Domain", amountUsd: 35, note: "" }), false);
+check("billing url kept", normalizeExpense({ name: "Vercel", amountUsd: 20, billingUrl: " https://vercel.com/account/billing " }).billingUrl, "https://vercel.com/account/billing");
+check("billing url gets https", normalizeExpense({ name: "Vercel", amountUsd: 20, billingUrl: "vercel.com/billing" }).billingUrl, "https://vercel.com/billing");
+check("javascript: url dropped", "billingUrl" in normalizeExpense({ name: "X", amountUsd: 5, billingUrl: "javascript:alert(1)" }), false);
+check("empty billing url omitted", "billingUrl" in normalizeExpense({ name: "X", amountUsd: 5, billingUrl: "" }), false);
 
 console.log("monthly math");
 const rows = [

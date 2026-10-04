@@ -121,6 +121,16 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
               <Field label="Note" className="col-span-2 sm:col-span-4">
                 <input className={input} value={r.note ?? ""} placeholder="What it is for" onChange={(e) => edit(r.id, { note: e.target.value })} />
               </Field>
+              <Field label="Billing page" className="col-span-2 sm:col-span-4">
+                <input
+                  className={input}
+                  type="url"
+                  inputMode="url"
+                  value={r.billingUrl ?? ""}
+                  placeholder="Paste the link to this service's billing page"
+                  onChange={(e) => edit(r.id, { billingUrl: e.target.value })}
+                />
+              </Field>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <button type="button" onClick={() => remove(r.id)} className="text-xs text-zinc-500 hover:text-rose-300">
@@ -152,6 +162,16 @@ export default function Expenses({ expenses: initial }: { expenses: Expense[] })
             {r.period === "year" ? `${due || r.note ? " · " : ""}$${perMonth(r).toFixed(2)} a month` : ""}
           </p>
         </button>
+        {r.billingUrl && (
+          <a
+            href={r.billingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full border border-edge px-2.5 py-1 text-[11px] font-medium text-zinc-300 hover:bg-white/5"
+          >
+            Billing ↗
+          </a>
+        )}
         {!r.confirmed && (
           <button
             type="button"
