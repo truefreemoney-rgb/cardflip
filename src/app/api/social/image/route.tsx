@@ -358,9 +358,10 @@ function CardOfTheDay({ card, label, tall, wide, kicker, then }: { card: Mover; 
             {card.setName} · {card.number}
           </div>
           {then ? (
-            <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginTop: 24, color: MUTED }}>
-              <div style={{ display: "flex", fontSize: wide ? 26 : 32 }}>{thenMonth(card)}</div>
-              <div style={{ display: "flex", fontSize: wide ? 44 : 60, fontWeight: 700, textDecoration: "line-through" }}>{money(card.from)}</div>
+            // The label is the size of its amount (Chris 10-03, the video first and now the picture: a 32px "May" beside a 60px amount "looks goofy").
+            <div style={{ display: "flex", alignItems: "baseline", gap: 18, marginTop: 24 }}>
+              <div style={{ display: "flex", fontSize: wide ? 44 : 60, fontWeight: 600, color: "#a5b4fc", textTransform: "uppercase", letterSpacing: -0.5 }}>{thenMonth(card)}</div>
+              <div style={{ display: "flex", fontSize: wide ? 44 : 60, fontWeight: 700, color: MUTED, textDecoration: "line-through" }}>{money(card.from)}</div>
             </div>
           ) : null}
           <div
@@ -502,7 +503,9 @@ function AllGames({ leads: given, tall, wide }: { leads: GameLead[]; tall: boole
  */
 function Versus({ pair, label, tall, wide }: { pair: Pair; label: string; tall: boolean; wide: boolean }) {
   // Art no wider than its tile: half the content width minus the gap and the tile's padding (story: (1080 − 160 − 32) / 2 − 40 ≈ 404px wide → 560 tall).
-  const artH = wide ? 300 : tall ? 560 : 440;
+  // The square has 952px inside its padding: title + sub (95), the tiles' own ~310 of name, set, price, week and tag, the
+  // verdict (54) and the footer (64) leave ~390 for the art. 440 pushed the footer off the picture (Chris 10-03).
+  const artH = wide ? 300 : tall ? 560 : 370;
   const nameFs = wide ? 26 : tall ? 44 : 32;
   const priceFs = wide ? 44 : tall ? 80 : 56;
   const sides = [pair.a, pair.b];

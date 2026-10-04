@@ -66,6 +66,9 @@ assert.equal(kindOfCaption("Biggest price jumps this week\nPokémon: Cresselia +
 assert.equal(kindOfCaption("The biggest price jumps this week in Pokémon and Magic, and one card from Lorcana"), "games");
 assert.equal(kindOfCaption("Pokémon price drops this week\nDark Charizard -54%"), "dips");
 assert.equal(kindOfCaption("Card of the day: Friend Ball, Skyridge 126. Market price $15.71."), "card");
+// A TikTok caption leads with the link-in-bio line (10-02): the kind is read past it (10-03: every TikTok post was tagged as none of ours).
+assert.equal(kindOfCaption("Scan a card, see what it's worth: cardflip.io (link in bio)\n\nThe biggest price jumps this week in Pokémon and Magic, and one card from Lorcana"), "games");
+assert.equal(kindOfCaption("Scan a card, see what it's worth: cardflip.io (link in bio)\n\nPokémon price gains this week, from CardFlip's own price history."), "movers");
 // The five angles (10-03), long and short forms; "most valuable" alone stays the set spotlight.
 assert.equal(kindOfCaption("Five of the most valuable Pokémon cards priced on CardFlip today, across every set.\n\nCharizard ex (Base Set #4, Holo): $500"), "top");
 assert.equal(kindOfCaption("Five of the most valuable Pokémon cards today, across every set\nCharizard ex $500"), "top");

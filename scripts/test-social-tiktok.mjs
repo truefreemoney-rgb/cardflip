@@ -371,6 +371,17 @@ await T.markTiktokPosted("midday", THU, true);
 check("marking one day's slots does not un-post another's (09-30: marking tomorrow's 7:05am flipped today's back to Share Video)", [(await T.loadPackage(FRI)).rows[0].posted, (await T.loadPackage(THU)).rows.map((r) => r.posted)], [true, [true, true, false]]);
 await T.markTiktokPosted("morning", FRI, false);
 check("Undo clears only that day's mark", [(await T.loadPackage(FRI)).rows[0].posted, (await T.loadPackage(THU)).rows[0].posted], [false, true]);
+// 10-03 (Chris: "shouldn't this be marked as posted since we did it earlier?"): a TikTok post the inbox read finds on the account marks its row
+// itself. The post's words give its kind (past the link-in-bio lead), the registered video of that day and kind gives the slot (tagPost), so the
+// 1pm movers post marks 1pm (this fixture's 7pm is the pre-10-01 "One scanner" caption, which is none of ours by design).
+{
+  const { tagSocialPosts } = await import(at("lib/server/socialPosts.ts"));
+  await db.prepare("INSERT OR REPLACE INTO social_posts (site, post_id, url, text, at, likes, comments, shares, views, first_seen_at, read_at) VALUES ('tiktok', '7700', 'https://www.tiktok.com/@cardflipio/video/7700', ?, ?, 0, 0, 0, 0, ?, ?)").run(rows.midday.caption, `${FRI}T23:40:00Z`, Date.now(), Date.now());
+  await tagSocialPosts();
+  check("a landed TikTok post marks its package row posted (1pm here, whatever hour it was posted), the others stay", [(await db.prepare("SELECT kind, slot, format FROM social_posts WHERE site = 'tiktok' AND post_id = '7700'").get()), (await T.loadPackage(FRI)).rows.map((r) => r.posted)], [{ kind: "movers", slot: "midday", format: "video" }, [false, true, false]]);
+  await T.markTiktokPosted("midday", FRI, false);
+  await db.prepare("DELETE FROM social_posts WHERE site = 'tiktok' AND post_id = '7700'").run();
+}
 check("marking posted is not a failure and is not a post: no failed/alerted rows, no last-post line", [await getSetting(`${SLOT_PREFIX}failed:tiktok:morning`), await getSetting(`${LAST_POST_PREFIX}tiktok`)], [null, null]);
 check("the analytics Social panel counts his marks: newest marked day and how many that day; old per-slot rows and cleared marks are skipped (10-01: TikTok sat on 09-29)", [
   P.tiktokHandPosted([

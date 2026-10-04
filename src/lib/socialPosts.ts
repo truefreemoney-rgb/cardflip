@@ -131,7 +131,8 @@ export interface PostTag {
 
 /** The kind a caption was written for, read off its opening words; null when it is none of the autopilot's formats. */
 export function kindOfCaption(text: string): PostKindTag | null {
-  const s = text.slice(0, 90).toLowerCase();
+  // A TikTok caption opens on the link-in-bio line (10-02, tiktokLead); the kind is in the line after it.
+  const s = text.replace(/^scan a card[^\n]*\n+/i, "").slice(0, 90).toLowerCase();
   // The five angles (10-03) open on their own words; "most valuable" alone is still the set spotlight, so the
   // all-sets list says "across every set" / "in each game" and is read first.
   if (s.includes("across every set") || s.includes("most valuable card in each game")) return "top";

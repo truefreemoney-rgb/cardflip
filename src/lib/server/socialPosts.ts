@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import { socialPulse, type SitePulse } from "./socialPulse.ts";
 import { autoReplyOn, commentsForPosts, orphanComments, countNew, type SocialComment } from "./socialInbox.ts";
 import { likeOwnPosts, type SelfLikeReport } from "./socialSelfLike.ts";
-import { getSetting } from "@/lib/server/settings";
-import { tiktokKey } from "@/lib/socialTiktok";
+import { getSetting, setSetting } from "@/lib/server/settings";
+import { tiktokKey, tiktokPostedKey } from "@/lib/socialTiktok";
+import type { Slot } from "@/lib/server/socialPublish";
 import { easternOf, postKey, SITE_ORDER, tagPost, tally, type PostKindTag, type PostLogRow, type PostTotals, type SlotTag, type StoredPost } from "@/lib/socialPosts";
 
 /**
@@ -120,13 +121,19 @@ export async function tagSocialPosts(): Promise<number> {
       }
     }
   }
+  // A TikTok post that landed on the account marks its package row posted (10-03, Chris: "shouldn't this be marked as
+  // posted since we did it earlier?"): the inbox read is the proof the hand post went out, so the Mark Posted click is spare.
+  const landed = new Set<string>();
   await db.transaction(async (tx) => {
     const set = tx.prepare("UPDATE social_posts SET kind = ?, slot = ?, game = ?, format = ? WHERE site = ? AND post_id = ?");
     for (const p of posts) {
       const tag = tagPost(p, log, videos);
       await set.run(tag.kind ?? "", tag.slot ?? "", tag.game ?? "", tag.format ?? "", p.site, p.postId);
+      const day = p.site === "tiktok" && tag.slot ? easternOf(p.at)?.day : undefined;
+      if (day && videos.some((v) => v.day === day && v.slot === tag.slot && v.kind === tag.kind)) landed.add(tiktokPostedKey(tag.slot as Slot, day));
     }
   });
+  for (const key of landed) if ((await getSetting(key)) !== "1") await setSetting(key, "1");
   return posts.length;
 }
 
