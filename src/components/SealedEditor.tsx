@@ -7,6 +7,7 @@ import { toast } from "@/components/Toaster";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import EbayPostActions from "@/components/EbayPostActions";
+import { useSession } from "@/components/SessionProvider";
 import ListingCopyFields from "@/components/ListingCopyFields";
 import PriceInput from "@/components/PriceInput";
 import {
@@ -43,6 +44,8 @@ interface Props {
  * same list-and-track flow cards get.
  */
 export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
+  // Pricing only (10-04): the price stays (sealed often has no market), the listing bits go.
+  const pricingOnly = Boolean(useSession().user?.pricingOnly);
   const product = item.card;
   const setName = product?.setName ?? "";
   const productType = item.productType ?? "";
@@ -216,17 +219,21 @@ export default function SealedEditor({ item, ebayConnected, onChange }: Props) {
         </div>
       </label>
       {/* A seller on another eBay site sees what the listing will cost in their currency. */}
-      <LocalListingLine cardId={item.serverId} refreshKey={String(price)} usd={price} />
+      {!pricingOnly && (
+        <>
+          <LocalListingLine cardId={item.serverId} refreshKey={String(price)} usd={price} />
 
-      <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
+          <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
 
-      <EbayPostActions
-        item={item}
-        listing={listing}
-        price={price}
-        ebayConnected={ebayConnected}
-        onChange={onChange}
-      />
+          <EbayPostActions
+            item={item}
+            listing={listing}
+            price={price}
+            ebayConnected={ebayConnected}
+            onChange={onChange}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -992,6 +992,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // by default: a handle alone shows nothing.
     "handle TEXT",
     "handle_public INTEGER NOT NULL DEFAULT 0",
+    // Pricing-only mode (10-04, docs/PRICING-ONLY-PLAN.md): 1 hides the eBay
+    // selling UI (scan + price + inventory only). UI switch, never touches listings.
+    "pricing_only INTEGER NOT NULL DEFAULT 0",
     // Admin Active Users (09-30): when the account last opened the app,
     // stamped by /api/auth/me at most once per 10 minutes (users.ts
     // markSeen). NULL = not opened since the column shipped. No index: the

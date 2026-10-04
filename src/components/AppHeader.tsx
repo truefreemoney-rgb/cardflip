@@ -54,8 +54,9 @@ export default function AppHeader() {
               Unlock {SCANS.referral} Free Scans
             </Link>
           )}
-          {user && showEbay && (
-            user.ebayConnected ? (
+          {/* Pricing only (10-04): no eBay chip; a trial keeps its Subscribe pill. */}
+          {user && showEbay && (!user.pricingOnly || user.tier === "trial") && (
+            user.ebayConnected && !user.pricingOnly ? (
               <Link
                 href="/connect-ebay"
                 title="Manage your eBay connection"

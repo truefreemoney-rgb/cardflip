@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { toast } from "@/components/Toaster";
 import Spinner from "@/components/Spinner";
+import { useOptionalSession } from "@/components/SessionProvider";
 import HoloCard from "@/components/HoloCard";
 import { MatchHero } from "@/components/CenteringPhoto";
 import { addToWishlist } from "@/lib/client/wishlistApi";
@@ -99,7 +100,9 @@ export default function CardDetailModal({
   // The pair the sheet leads with: today's market, and the price Build
   // Listing would start a Near Mint copy at (same math, so the two screens agree).
   const marketPrice = tcgPriceOf(card);
-  const ebaySuggested = marketPrice != null ? askingPriceFor(marketPrice, "Near Mint") : null;
+  // Pricing only (10-04): the market price stands alone, no eBay suggested price.
+  const pricingOnly = Boolean(useOptionalSession()?.user?.pricingOnly);
+  const ebaySuggested = marketPrice != null && !pricingOnly ? askingPriceFor(marketPrice, "Near Mint") : null;
   const suggestedNote = marketPrice != null ? askingNoteFor(marketPrice, "Near Mint") : null;
   const pricesLoading = loading && card.prices.length === 0;
 
@@ -185,19 +188,19 @@ export default function CardDetailModal({
                   Watchlist; Inventory's own panel (aside) carries its pair. */}
               {!aside && !sealed && (
                 <div className="mb-3">
-                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+                  <dl className={`grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
                     <div className="bg-black/25 px-3 py-2.5">
                       <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
                       <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
                         {marketPrice != null ? formatMoney(marketPrice) : pricesLoading ? "…" : "—"}
                       </dd>
                     </div>
-                    <div className="bg-black/25 px-3 py-2.5">
+                    {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                       <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">eBay Suggested Price</dt>
                       <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-zinc-200">
                         {ebaySuggested != null ? formatMoney(ebaySuggested) : pricesLoading ? "…" : "—"}
                       </dd>
-                    </div>
+                    </div>}
                   </dl>
                   {ebaySuggested != null && (
                     <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">

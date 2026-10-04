@@ -11,6 +11,7 @@ import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
 import MarketMetricsPanel from "@/components/MarketMetricsPanel";
 import EbayPostActions from "@/components/EbayPostActions";
+import { useSession } from "@/components/SessionProvider";
 import ListingCopyFields from "@/components/ListingCopyFields";
 import PriceInput from "@/components/PriceInput";
 import { updateServerCard } from "@/lib/client/cardsApi";
@@ -252,6 +253,8 @@ function PsaCertVerify({
 const gradedCompsCache = new Map<string, { average: number; count: number } | null>();
 
 export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll, onRemove }: Props) {
+  // Pricing only (10-04): no listing price, listing copy or eBay buttons; market data stays.
+  const pricingOnly = Boolean(useSession().user?.pricingOnly);
   // Condition-change feedback (QA leftover): the price moves silently
   // otherwise, and a seller picking Lightly Played wonders if it took.
   const [conditionNote, setConditionNote] = useState<string | null>(null);
@@ -1317,7 +1320,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </fieldset>
       )}
 
-      {(item.grading ? gradedMarket !== null : Boolean(quickQuote && marketQuote)) && (
+      {!pricingOnly && (item.grading ? gradedMarket !== null : Boolean(quickQuote && marketQuote)) && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-zinc-300">
             {showQuick ? "Listing price" : "Pricing"}{item.grading ? ` — ${gradeLabel(item.grading)} market` : ""}
@@ -1392,6 +1395,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       {/* Copies input removed 09-03 (Chris): one card per listing. item.quantity
           still defaults to 1 everywhere downstream. */}
       <div className="grid grid-cols-1 gap-3">
+        {!pricingOnly && <>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Your price
           <div className="relative">
@@ -1422,6 +1426,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           refreshKey={`${item.priceOverride}|${item.condition}|${item.strategy}|${item.variant}|${item.firstEdition}`}
           usd={item.priceOverride ?? quote?.base ?? null}
         />
+        </>}
         {/* What they paid (09-27): optional, drives profit per card and the year-end report. */}
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           <span>
@@ -1444,11 +1449,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
         </label>
       </div>
 
-      <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />
+      {!pricingOnly && <ListingCopyFields item={item} generated={generated} listing={listing} onChange={onChange} />}
       </>
       )}
 
-      {verified && (
+      {verified && !pricingOnly && (
         <EbayPostActions
           item={item}
           listing={listing}

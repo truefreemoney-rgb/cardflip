@@ -78,6 +78,8 @@ export async function updateProfile(patch: {
   /** Public collection page: the slug (empty string clears it) and the switch. */
   handle?: string;
   handlePublic?: boolean;
+  /** Pricing-only mode switch (Inventory toggle, signup welcome question). */
+  pricingOnly?: boolean;
 }): Promise<SessionUser> {
   const res = await apiFetch("/api/account", {
     method: "PATCH",

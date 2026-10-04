@@ -64,6 +64,8 @@ export interface User {
   /** Public collection page (Tier 2 #10): the /u/<handle> slug and whether the page is open. */
   handle: string | null;
   handlePublic: boolean;
+  /** Pricing-only mode: hides the eBay selling UI (10-04). */
+  pricingOnly: boolean;
   /** Last app open (/api/auth/me heartbeat, 10-minute grain); null = not since 09-30. */
   lastSeenAt: number | null;
   /** Public signup that still owes an email confirmation (lib/server/emailVerify.ts). */
@@ -108,6 +110,7 @@ export interface UserRow {
   bonus_scans: number | null;
   handle: string | null;
   handle_public: number | null;
+  pricing_only: number | null;
   last_seen_at: number | null;
   email_pending: number | null;
   email_verified_at: number | null;
@@ -162,6 +165,7 @@ export function fromRow(row: UserRow): User {
     bonusScans: row.bonus_scans ?? 0,
     handle: row.handle ?? null,
     handlePublic: row.handle_public === 1,
+    pricingOnly: row.pricing_only === 1,
     lastSeenAt: row.last_seen_at ?? null,
     emailPending: row.email_pending === 1,
     emailVerifiedAt: row.email_verified_at ?? null,
@@ -632,6 +636,7 @@ export async function createUser(
     bonusScans: 0,
     handle: null,
     handlePublic: false,
+    pricingOnly: false,
     lastSeenAt: null,
     emailPending,
     emailVerifiedAt: null,
@@ -666,7 +671,7 @@ export async function setUserRole(userId: string, role: Role): Promise<void> {
 /** Account page: rename / change sign-in email. Email is normalised like signup. */
 export async function updateUserProfile(
   userId: string,
-  patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean },
+  patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean; pricingOnly?: boolean },
 ): Promise<void> {
   if (patch.name !== undefined) {
     await db.prepare("UPDATE users SET name = ? WHERE id = ?").run(patch.name.trim(), userId);
@@ -684,6 +689,9 @@ export async function updateUserProfile(
   }
   if (patch.handlePublic !== undefined) {
     await db.prepare("UPDATE users SET handle_public = ? WHERE id = ?").run(patch.handlePublic ? 1 : 0, userId);
+  }
+  if (patch.pricingOnly !== undefined) {
+    await db.prepare("UPDATE users SET pricing_only = ? WHERE id = ?").run(patch.pricingOnly ? 1 : 0, userId);
   }
 }
 
@@ -843,6 +851,8 @@ export interface PublicUser {
   /** Public collection page: the chosen handle and whether /u/<handle> is open. */
   handle: string | null;
   handlePublic: boolean;
+  /** Pricing-only mode: the app hides the eBay selling UI. */
+  pricingOnly: boolean;
   /** Email confirmation wall: true = the app is closed until the emailed code (or link) is used. */
   mustConfirmEmail: boolean;
   /** Signup country (ISO); drives the home-currency price hint. null = legacy/unknown (USD). */
@@ -868,6 +878,7 @@ export function toPublicUser(user: User): PublicUser {
     subEndsAt: isSubscribed(user) ? user.subCancelAt ?? null : null,
     handle: user.handle ?? null,
     handlePublic: Boolean(user.handlePublic),
+    pricingOnly: Boolean(user.pricingOnly),
     mustConfirmEmail: needsEmailConfirm(user),
     homeCountry: user.homeCountry ?? null,
   };

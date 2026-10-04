@@ -13,6 +13,7 @@ import CategoryManager from "@/components/CategoryManager";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
+import PricingModeToggle from "@/components/PricingModeToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
 import { GAME_IDS, readSavedGame, saveGame, parseGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
@@ -454,6 +455,8 @@ function RepriceSheet({
 
 export default function CollectionPage() {
   const { user } = useSession();
+  // Pricing only (10-04): the eBay selling UI is hidden, listings untouched.
+  const pricingOnly = Boolean(user?.pricingOnly);
   const [cards, setCards] = useState<ServerCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -642,12 +645,12 @@ export default function CollectionPage() {
         : ended
           ? `Ended ${card.ebayEndedAt ? formatDate(card.ebayEndedAt) : ""} without a sale. Relist it, or delete the card.`
           : card.verifiedAt
-            ? "Verified, not listed yet."
-            : "Check the match against your photo before listing.";
+            ? pricingOnly ? "Verified." : "Verified, not listed yet."
+            : pricingOnly ? "Check the match against your photo." : "Check the match against your photo before listing.";
     // Why a cheap draft sits above its market (value + fees + postage): only
     // while the price IS the suggested one, not a price the seller typed.
     const lp = livePrices[card.id];
-    const costNote = draft && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
+    const costNote = !pricingOnly && draft && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
     const facts: [string, string][] = [
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
       ["Condition", card.condition],
@@ -696,19 +699,19 @@ export default function CollectionPage() {
             the one sale figure. */}
         <div className="px-4 pb-4 pt-4">
           {!sold && (
-            <dl className="mb-1 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+            <dl className={`mb-1 grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
               <div className="bg-black/25 px-3 py-2.5">
                 <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
                 <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
                   {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
                 </dd>
               </div>
-              <div className="bg-black/25 px-3 py-2.5">
+              {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                 <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</dt>
                 <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-zinc-200">
                   {card.price > 0 ? formatMoney(card.price) : "—"}
                 </dd>
-              </div>
+              </div>}
             </dl>
           )}
           {sold && <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>}
@@ -738,7 +741,7 @@ export default function CollectionPage() {
           {/* A live listing's price control is a real button that says where the
               change lands (Chris 10-03, first live reprice: the text link read as
               a local edit, not "this changes the eBay listing"). */}
-          {live && card.ebayOfferId && (
+          {live && card.ebayOfferId && !pricingOnly && (
             <button
               type="button"
               onClick={() => {
@@ -928,7 +931,7 @@ export default function CollectionPage() {
         <div className="flex flex-col gap-2 p-4">
           {draft && card.kind !== "sealed" && card.verifiedAt && (
             <Link href={href} className={`${primary} bg-brand-500 hover:bg-brand-400`}>
-              Build the Listing →
+              {pricingOnly ? "Edit Card →" : "Build the Listing →"}
             </Link>
           )}
           {/* Verifying happens right here (Chris, 10-01): the photo and the
@@ -1000,17 +1003,17 @@ export default function CollectionPage() {
                 )}
                 {/* A wrong card entirely is fixed where every printing can be browsed. */}
                 <Link href={href} className="text-center text-xs text-brand-300 underline underline-offset-4 hover:text-brand-200">
-                  Not Your Card? Fix It on the Listing Page
+                  Not Your Card? Fix It on the {pricingOnly ? "Card" : "Listing"} Page
                 </Link>
               </div>
             );
           })()}
-          {live && card.ebayListingUrl && (
+          {live && card.ebayListingUrl && !pricingOnly && (
             <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={`${primary} bg-ebay hover:bg-ebay-hover`}>
               View on eBay ↗
             </a>
           )}
-          {ended && (
+          {ended && !pricingOnly && (
             <button
               type="button"
               onClick={() => {
@@ -1022,9 +1025,9 @@ export default function CollectionPage() {
               Relist →
             </button>
           )}
-          {(live || (sold && card.ebayListingUrl) || canDelete) && (
+          {((!pricingOnly && (live || (sold && card.ebayListingUrl))) || canDelete) && (
             <div className="flex gap-2">
-              {live && (
+              {live && !pricingOnly && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1036,7 +1039,7 @@ export default function CollectionPage() {
                   End auction
                 </button>
               )}
-              {sold && card.ebayListingUrl && (
+              {sold && card.ebayListingUrl && !pricingOnly && (
                 <a href={card.ebayListingUrl} target="_blank" rel="noopener noreferrer" className={quiet}>
                   View the Sale on eBay ↗
                 </a>
@@ -1698,9 +1701,14 @@ export default function CollectionPage() {
         <div>
           <h1 className="font-display text-2xl font-semibold text-white">Inventory</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Everything you&apos;ve scanned, and where each card is on its way
-            to sold.
+            {pricingOnly
+              ? "Everything you've scanned, at today's market price."
+              : "Everything you've scanned, and where each card is on its way to sold."}
           </p>
+          {/* Selling · Pricing only (10-04): flipping hides or shows the eBay UI. */}
+          <div className="mt-3">
+            <PricingModeToggle onChange={(next) => next && setFilter((f) => (f === "listed" || f === "ended" ? "all" : f))} />
+          </div>
         </div>
         {gameView === "pokemon" && (
           <div className="flex items-center gap-4">
@@ -1770,7 +1778,7 @@ export default function CollectionPage() {
           ) : (
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs text-zinc-400">
               <span className="whitespace-nowrap">
-                In Play <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
+                {pricingOnly ? "Market Value" : "In Play"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
               <span className="whitespace-nowrap">
                 Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
@@ -1787,12 +1795,21 @@ export default function CollectionPage() {
         <div id="inventory-summary" className={summaryOpen ? "" : "hidden"}>
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
-            <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">In play</p>
+            <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">{pricingOnly ? "In stock" : "In play"}</p>
+            {pricingOnly && (
+              <div className="mt-1.5 min-w-0">
+                <p className="text-[11px] font-medium text-zinc-400">Market Value</p>
+                <p className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                  {liveLoaded ? <Price usd={stats.inPlayMarket} usdClassName="mt-1 text-xs font-normal tracking-normal text-zinc-500" /> : "…"}
+                </p>
+                <p className="text-[11px] leading-snug text-zinc-500">Every Card at Today&apos;s Market Price</p>
+              </div>
+            )}
             {/* Two balances side by side (Chris, 10-02: "show the balance with and without ebay"): what the pile
                 puts in the pocket sold on eBay, and off eBay = the total of the rows, every card at its Market
                 price (Chris, later 10-02: "that should be the total of the rows"). The folded line shows the
                 same rows total. The ledger under them explains the On eBay figure only. */}
-            <div className="mt-1.5 grid grid-cols-2 gap-3">
+            {!pricingOnly && <div className="mt-1.5 grid grid-cols-2 gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
                 <p className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
@@ -1810,19 +1827,19 @@ export default function CollectionPage() {
                 </p>
                 <p className="text-[11px] leading-snug text-zinc-500">Market Prices, No Fees</p>
               </div>
-            </div>
+            </div>}
             {stats.leftOut > 0 && (
               <p className="mt-1 text-xs text-amber-300">
                 {priceFlagLeftOut(stats.leftOut)}
               </p>
             )}
-            <Breakdown
+            {!pricingOnly && <Breakdown
               rows={[
                 ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
                 [`Postage · ${stats.inPlayCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.inPlayCopies * POSTAGE_USD)],
                 ["You Keep on eBay", stats.inPlay],
               ]}
-            />
+            />}
           </div>
           <div className="border-t border-edge/60 p-5 sm:border-t-0">
             {/* The big number is the money that actually reached the seller —
@@ -1846,7 +1863,7 @@ export default function CollectionPage() {
                 <span className="font-display text-base font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
               </p>
             </div>
-            <div className="mt-1.5 grid grid-cols-2 gap-3">
+            {!pricingOnly && <div className="mt-1.5 grid grid-cols-2 gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-zinc-400">On eBay</p>
                 <p className="font-display text-2xl font-semibold tracking-tight text-emerald-400 sm:text-3xl">
@@ -1861,8 +1878,20 @@ export default function CollectionPage() {
                 </p>
                 <p className="text-[11px] leading-snug text-zinc-500">No Fees, No Postage</p>
               </div>
-            </div>
-            {stats.sold.length > 0 ? (
+            </div>}
+            {pricingOnly ? (
+              // No eBay lines: what sold, any fees an older eBay sale carried, what was paid.
+              <Breakdown
+                rows={[
+                  ["Sold for", stats.earned],
+                  ...(stats.earned - stats.net > 0.005
+                    ? ([["Fees and postage", -(stats.earned - stats.net)]] as [string, number][])
+                    : []),
+                  ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
+                ]}
+                muted={stats.sold.length === 0}
+              />
+            ) : stats.sold.length > 0 ? (
               <Breakdown
                 rows={[
                   // With a hand-marked sale in the pile, the sales split by where they sold (those carry no fee or postage).
@@ -1900,12 +1929,12 @@ export default function CollectionPage() {
                 </span>
               </div>
             )}
-            <Link
+            {!pricingOnly && <Link
               href="/app/collection/report"
               className="mt-2 inline-block text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
             >
               Sales Report for Taxes →
-            </Link>
+            </Link>}
           </div>
         </div>
         {/* The pile's value day by day, from our own price series (Chris,
@@ -1913,12 +1942,12 @@ export default function CollectionPage() {
         <InventoryValueChart game={gameView} version={gameCards.length} status={filter} category={category} />
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
           <span className="text-zinc-400">
-            <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> not listed
+            <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> {pricingOnly ? "in stock" : "not listed"}
           </span>
-          <span className="text-zinc-400">
+          {!pricingOnly && <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-sky-300">{stats.listed.length}</span> live
-          </span>
-          {stats.ended.length > 0 && (
+          </span>}
+          {!pricingOnly && stats.ended.length > 0 && (
             <span className="text-zinc-400">
               <span className="font-display text-base font-semibold text-amber-300">{stats.ended.length}</span> ended
             </span>
@@ -2030,7 +2059,7 @@ export default function CollectionPage() {
             aria-label="Sort cards"
             className="h-10 w-[38%] shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9 sm:w-auto"
           >
-            {SORTS.map((s) => (
+            {SORTS.filter((s) => !pricingOnly || s.value !== "listedAge").map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
               </option>
@@ -2040,8 +2069,8 @@ export default function CollectionPage() {
 
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
-            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-black/25 p-1 sm:flex sm:w-max sm:items-center sm:rounded-full">
-            {FILTERS.map((f) => (
+            <div className={`grid gap-1 rounded-2xl bg-black/25 p-1 sm:flex sm:w-max sm:items-center sm:rounded-full ${pricingOnly ? "grid-cols-4" : "grid-cols-3"}`}>
+            {FILTERS.filter((f) => !pricingOnly || (f.value !== "listed" && f.value !== "ended")).map((f) => (
               <button
                 key={f.value}
                 onClick={() => setFilter(f.value)}
@@ -2049,12 +2078,12 @@ export default function CollectionPage() {
                   filter === f.value ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {f.label}
+                {pricingOnly && f.value === "ready" ? "In Stock" : f.label}
               </button>
             ))}
             </div>
           </div>
-          {cards.some((c) => c.status === "listed" && c.ebayListingId) && (
+          {!pricingOnly && cards.some((c) => c.status === "listed" && c.ebayListingId) && (
             <button
               type="button"
               onClick={() => (offerPanel ? setOfferPanel(false) : void openOfferPanel())}
@@ -2574,9 +2603,9 @@ export default function CollectionPage() {
                       href={resumeHref}
                       className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
                     >
-                      Build Listing
+                      {pricingOnly ? "Edit" : "Build Listing"}
                     </Link>
-                  ) : live ? (
+                  ) : pricingOnly ? null : live ? (
                     <div className="flex shrink-0 items-center gap-1.5">
                       {nudges[card.id] && (
                         <button
@@ -2737,7 +2766,7 @@ export default function CollectionPage() {
                         Added {formatDate(card.createdAt)}
                         {card.status === "listed" && card.listedAt && ` · listed ${formatDate(card.listedAt)}`}
                         {sold && card.soldAt && ` · sold ${formatDate(card.soldAt)}`}
-                        {!card.ebayListingUrl && card.ebayOfferId && " · draft on eBay"}
+                        {!pricingOnly && !card.ebayListingUrl && card.ebayOfferId && " · draft on eBay"}
                       </span>
                     </p>
                     {card.matchDoubt && (
@@ -2817,7 +2846,7 @@ export default function CollectionPage() {
                         {/* A live listing's own price sits under it and IS the
                             Change price control: the sheet changes it here AND
                             on eBay (09-04). */}
-                        {liveRow &&
+                        {liveRow && !pricingOnly &&
                           (card.ebayOfferId && repricing !== card.id ? (
                             <button
                               onClick={() => setPriceSheet(card.id)}
@@ -2853,7 +2882,7 @@ export default function CollectionPage() {
                           );
                         })()}
                         {rowFlag && !liveRow && !ended && <p className="mt-0.5 max-w-[15rem] text-[11px] leading-snug"><PriceFlagText /></p>}
-                        {card.status === "listed" && nudges[card.id] && (
+                        {card.status === "listed" && !pricingOnly && nudges[card.id] && (
                           <button
                             onClick={() => void applyReprice(card, nudges[card.id])}
                             disabled={repricing === card.id}
@@ -2898,14 +2927,14 @@ export default function CollectionPage() {
                       href={resumeHrefFor(card)}
                       className={`${primaryBtn} sm:col-start-1 bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}
                     >
-                      Build Listing
+                      {pricingOnly ? "Edit Card" : "Build Listing"}
                     </Link>
                   )}
                   {/* Row states: live → End Auction (flips to Sold on its own
                       from eBay orders); draft / ended → Mark as Sold (a sale
                       made off eBay, Chris 10-01) + the X delete; sold → the
                       record. */}
-                  {liveRow && (
+                  {liveRow && !pricingOnly && (
                     <button
                       onClick={() => void endListing(card)}
                       disabled={ending === card.id}
@@ -2916,12 +2945,12 @@ export default function CollectionPage() {
                       {ending === card.id ? "Ending…" : "End Auction"}
                     </button>
                   )}
-                  {ended && (
+                  {ended && !pricingOnly && (
                     <button onClick={() => void relist(card)} className={`${primaryBtn} sm:col-start-1 bg-brand-500/15 text-brand-300 hover:bg-brand-500/25`}>
                       Relist
                     </button>
                   )}
-                  {card.ebayListingUrl ? (
+                  {pricingOnly ? null : card.ebayListingUrl ? (
                     <a
                       href={card.ebayListingUrl}
                       target="_blank"
@@ -2937,7 +2966,7 @@ export default function CollectionPage() {
                   )}
                   {/* Live rows have no Delete; slot three is a green Live badge
                       instead (Chris, 09-08: "a green Live button somewhere obvious"). */}
-                  {liveRow && (
+                  {liveRow && !pricingOnly && (
                     <span
                       title="Live on eBay — flips to Sold on its own once eBay reports the order"
                       className={`${slotBase} sm:col-start-1 border-emerald-400/40 bg-emerald-400/15 font-semibold text-emerald-300`}

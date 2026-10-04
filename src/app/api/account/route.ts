@@ -83,7 +83,10 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = await requireUser();
     const body = await req.json().catch(() => ({}));
-    const patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean } = {};
+    const patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean; pricingOnly?: boolean } = {};
+
+    // Pricing-only mode (10-04): a UI switch, so no other checks.
+    if (typeof body?.pricingOnly === "boolean") patch.pricingOnly = body.pricingOnly;
 
     // Public collection page (Tier 2 #10): "" clears the handle (and closes
     // the page); a new handle must be free. The switch is separate so the
@@ -174,7 +177,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (patch.name === undefined && patch.email === undefined && patch.handle === undefined && patch.handlePublic === undefined && !emailRoute) {
+    if (patch.name === undefined && patch.email === undefined && patch.handle === undefined && patch.handlePublic === undefined && patch.pricingOnly === undefined && !emailRoute) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
     if (Object.keys(patch).length > 0) await updateUserProfile(user.id, patch);

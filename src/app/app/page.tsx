@@ -1442,7 +1442,8 @@ export default function AppPage() {
                 >
                   Subscribe Now
                 </Link>
-              ) : (
+              ) : user.pricingOnly ? null : (
+                // Pricing only (10-04): no Send to eBay.
                 <button
                   onClick={() => void sendAllToEbay()}
                   disabled={bulkBusy || identified.length === 0}
@@ -1559,14 +1560,16 @@ export default function AppPage() {
                 )
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-sm text-zinc-500">
-                  Select a card to review its listing.
+                  {user.pricingOnly ? "Select a card to see its price." : "Select a card to review its listing."}
                 </div>
               )}
             </section>
           </div>
 
           <p className="text-center text-xs text-zinc-600">
-            {user.ebayConnected
+            {user.pricingOnly
+              ? "Every card you scan is saved to your Inventory at today's market price."
+              : user.ebayConnected
               ? "Drafts post straight to your eBay account. Nothing goes live until you publish."
               : user.role !== "admin" && user.tier === "trial"
               ? "Selling on eBay comes with a plan. Subscribe and every card lists from here."

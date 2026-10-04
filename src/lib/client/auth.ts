@@ -45,6 +45,8 @@ export interface SessionUser {
   /** Public collection page: the /u/<handle> slug and whether it is open. */
   handle?: string | null;
   handlePublic?: boolean;
+  /** Pricing-only mode: hide the eBay selling UI (10-04). */
+  pricingOnly?: boolean;
   /** Email confirmation wall: true = the app is closed until the emailed code (or link) is used. */
   mustConfirmEmail?: boolean;
   /** Walled accounts only (auth/me, verify-email, signup): when the newest code stops working; null = none live. */
