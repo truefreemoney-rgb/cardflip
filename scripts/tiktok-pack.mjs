@@ -65,6 +65,29 @@ for (const [slot, time] of slots) {
   console.log(slot, "ok", buf.length, "bytes");
 }
 if (missing) throw new Error(`${missing} slot(s) not registered for ${day}; the night render has not run`);
+
+// Cover photos (Chris 10-04: "cover photos always need to be the best you can make it", TikTok, Pinterest, any site with
+// one): the videos open from black, so the default cover is a black square. For each MP4 the brightest frame of the
+// first 14 s (sampled every half second: a card with its price on screen, never a fade) is written as "<label> cover.png";
+// TikTok's Edit cover → Upload cover and Pinterest's Pick a cover take it.
+{
+  const { spawnSync } = await import("node:child_process");
+  const ffmpeg = (await import("ffmpeg-static")).default;
+  for (const [label] of caps) {
+    const mp4 = path.join(dir, `${label}.mp4`);
+    let best = { t: 0, lum: -1 };
+    for (let t = 1; t <= 14; t += 0.5) {
+      const r = spawnSync(ffmpeg, ["-v", "error", "-ss", String(t), "-i", mp4, "-frames:v", "1", "-vf", "scale=18:32", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]);
+      if (r.status !== 0 || !r.stdout.length) continue;
+      const lum = r.stdout.reduce((a, b) => a + b, 0) / r.stdout.length;
+      if (lum > best.lum) best = { t, lum };
+    }
+    const png = path.join(dir, `${label} cover.png`);
+    const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-ss", String(best.t), "-i", mp4, "-frames:v", "1", png]);
+    if (r.status !== 0) throw new Error(`${label}: cover frame failed: ${r.stderr.toString().slice(-300)}`);
+    console.log(label, `cover at ${best.t}s (brightness ${Math.round(best.lum)})`);
+  }
+}
 fs.writeFileSync(path.join(dir, "captions.txt"), captions, "utf8");
 
 // Pinterest by hand (Chris 10-03: the app review is taking forever). Same
