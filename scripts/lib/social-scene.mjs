@@ -275,6 +275,8 @@ export async function renderMp4({ html, W, H, fps, total, out, audio }) {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await page.goto(`file://${path.join(work, "scene.html").replace(/\\/g, "/")}`);
   await page.evaluate(() => document.fonts.ready);
+  // A scene with footage frames (scripts/ad-video.mjs) sets window.__ready to a promise that resolves once every frame is decoded.
+  await page.evaluate(() => window.__ready ?? null);
   await page.waitForTimeout(300);
   const frames = Math.round(total * fps);
   console.log(`rendering ${frames} frames at ${fps}fps (${total.toFixed(1)}s)`);
