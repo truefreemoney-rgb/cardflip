@@ -823,7 +823,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
          (SELECT COUNT(*) FROM users WHERE ebay_connected = 1) as connectedUsers,
          (SELECT COUNT(*) FROM cards) as totalCards,
          (SELECT COUNT(*) FROM cards WHERE status = 'ready') as readyCount,
-         (SELECT COUNT(*) FROM cards WHERE status = 'listed') as listedCount,
+         (SELECT COUNT(*) FROM cards WHERE status = 'listed' AND ebay_ended_at IS NULL) as listedCount, -- live only: an ended listing keeps status 'listed' (Relist)
          (SELECT COUNT(*) FROM cards WHERE status = 'sold') as soldCount,
          (SELECT COALESCE(SUM(sold_price), 0) FROM cards WHERE status = 'sold') as grossRevenue,
          (SELECT COALESCE(SUM(sold_fees), 0) FROM cards WHERE status = 'sold' AND sold_fees IS NOT NULL) as actualFees,
