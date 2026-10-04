@@ -351,6 +351,9 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_set ON mtg_cards(set_code);
   -- Twin of the comma-less lowercase name in lib/server/mtgCards.ts.
   CREATE INDEX IF NOT EXISTS idx_mtg_cards_folded ON mtg_cards(REPLACE(LOWER(name), ',', ''));
+  -- The social sleepers pool reads Magic's $1-$5 band dearest first with a cap (social.ts loadFreshSeries): without
+  -- this it joined and sorted the whole band (2.2 s on prod, 10-03 /admin/social). price_usd is an original column.
+  CREATE INDEX IF NOT EXISTS idx_mtg_cards_price ON mtg_cards(price_usd);
 
   -- Local copy of successful card lookups. pokemontcg.io fails often enough
   -- to break scanning outright, so a card seen once stays available even
@@ -1087,9 +1090,6 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
   // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
-  // The social sleepers pool reads Magic's $1–$5 band dearest first (social.ts loadFreshSeries): 2.4 s on prod sorting
-  // the whole band without this (10-03, /admin/social).
-  await client.execute("CREATE INDEX IF NOT EXISTS idx_mtg_cards_price ON mtg_cards(price_usd)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

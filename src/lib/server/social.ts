@@ -46,6 +46,8 @@ const POOL_MIN_USD = MOVER_MIN_PRICE / 2;
  */
 const MTG_POOL_MIN_USD = MOVER_MIN_PRICE / 2;
 const MTG_POOL_CAP = 20000;
+/** A band read (sleepers) wants three cards from the collectible end of $1–$5, not the whole band: the dearest this many (10-03, the band was 13k rows and 2.2 s). */
+const MTG_BAND_CAP = 5000;
 /** The price guard logs a run's skipped cards once per game and day (freshSeries runs several times per run). */
 const guardLogged = new Set<string>();
 const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
@@ -250,7 +252,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
             `SELECT p.card_id, p.variant, p.start_day, p.prices, m.price_eur FROM mtg_cards m
               JOIN price_series p ON p.card_id = m.id AND p.game = 'mtg' AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ?
               WHERE p.variant = 'nonfoil' AND m.price_usd >= ?${band ? " AND m.price_usd < ? ORDER BY m.price_usd DESC" : ""}
-              LIMIT ${MTG_POOL_CAP}`,
+              LIMIT ${band ? MTG_BAND_CAP : MTG_POOL_CAP}`,
           )
           .all(...(band ? [since, poolMin, poolMax] : [since, poolMin]))
       : await db
