@@ -296,8 +296,8 @@ export default function SignupPage() {
           <p className="mt-6 font-display text-lg font-semibold text-white">How will you use it?</p>
           <div className="mt-3 flex flex-col gap-2.5 text-left">
             {([
-              ["sell", "Sell on eBay", "Scan, price, and list cards on eBay in one tap."],
-              ["price", "Just price my cards", "Market prices and inventory value. Great for card shows and vendors."],
+              ["sell", "I sell on eBay", "Scan, price, and list cards on eBay in one tap."],
+              ["price", "I collect", "Market prices and what your cards are worth. Nothing about eBay."],
             ] as const).map(([mode, title, line]) => (
               <button
                 key={mode}

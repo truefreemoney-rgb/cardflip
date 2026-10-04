@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
+import PricingModeToggle from "@/components/PricingModeToggle";
 import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCapture";
 import StagedProgress from "@/components/StagedProgress";
@@ -1383,6 +1384,10 @@ export default function AppPage() {
           <div className="w-full max-w-md">
             <GameToggle game={game} onChange={setGame} block />
           </div>
+          {/* Seller · Collector here too (Chris, 10-05): a collector can drop the eBay bits before the first scan. */}
+          <div data-tour="mode-switch">
+            <PricingModeToggle />
+          </div>
           <Uploader onOpenCamera={openCamera} showcase={showcase} game={game} />
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris), photo uploads, binder pages and the
@@ -1463,6 +1468,10 @@ export default function AppPage() {
               <GameToggle game={game} onChange={setGame} compact />
               <Uploader onOpenCamera={openCamera} variant="compact" />
             </div>
+          </div>
+          {/* Seller · Collector beside the queue too (Chris, 10-05): this is where the eBay buttons live. */}
+          <div className="-mt-1" data-tour="mode-switch">
+            <PricingModeToggle />
           </div>
           {bulkNote && (
             <p role="status" className="-mt-2 px-1 text-xs text-zinc-400">

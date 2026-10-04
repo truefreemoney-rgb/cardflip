@@ -60,6 +60,7 @@ export default function AppHeader() {
               <Link
                 href="/connect-ebay"
                 title="Manage your eBay connection"
+                data-tour="header-ebay"
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/20"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -81,6 +82,7 @@ export default function AppHeader() {
                 href="/connect-ebay"
                 title="Set up eBay"
                 aria-label="Set up eBay"
+                data-tour="header-ebay"
                 className="whitespace-nowrap rounded-full bg-ebay px-2 py-1 text-xs font-semibold text-white transition hover:bg-ebay-hover sm:px-2.5"
               >
                 {/* Phones: "+ eBay" keeps the header one row (Chris 09-30: two rows "looks funky"). */}

@@ -1707,8 +1707,8 @@ export default function CollectionPage() {
               ? "Everything you've scanned, at today's market price."
               : "Everything you've scanned, and where each card is on its way to sold."}
           </p>
-          {/* Selling · Pricing only (10-04): flipping hides or shows the eBay UI. */}
-          <div className="mt-3">
+          {/* Seller · Collector (10-04): flipping hides or shows the eBay UI. */}
+          <div className="mt-3" data-tour="mode-switch">
             <PricingModeToggle onChange={(next) => next && setFilter((f) => (f === "listed" || f === "ended" ? "all" : f))} />
           </div>
         </div>
@@ -1771,6 +1771,7 @@ export default function CollectionPage() {
         <button
           type="button"
           onClick={toggleSummary}
+          data-tour="summary"
           aria-expanded={summaryOpen}
           aria-controls="inventory-summary"
           className={`flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left transition hover:bg-white/[0.03] ${summaryOpen ? "border-b border-edge/60" : ""}`}

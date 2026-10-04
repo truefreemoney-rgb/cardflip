@@ -6,7 +6,8 @@ import { updateProfile } from "@/lib/client/accountApi";
 import { toast } from "@/components/Toaster";
 
 /**
- * Selling · Pricing only (10-04, docs/PRICING-ONLY-PLAN.md). Pricing only
+ * Seller · Collector (10-04, docs/PRICING-ONLY-PLAN.md; renamed 10-05 because
+ * "Pricing only" read like a plan). Collector = pricing only: it
  * hides the eBay selling UI; it never ends or deletes a listing. Flips on
  * tap (the session updates first, the save follows) and flips back if the
  * save fails.
@@ -40,10 +41,10 @@ export default function PricingModeToggle({ onChange }: { onChange?: (pricingOnl
   return (
     <div role="group" aria-label="How you use CardFlip" className="inline-flex items-center gap-1 rounded-full border border-edge bg-black/25 p-1">
       <button type="button" aria-pressed={!pricingOnly} onClick={() => void choose(false)} className={pill(!pricingOnly)}>
-        Selling
+        Seller
       </button>
       <button type="button" aria-pressed={pricingOnly} onClick={() => void choose(true)} className={pill(pricingOnly)}>
-        Pricing only
+        Collector
       </button>
     </div>
   );

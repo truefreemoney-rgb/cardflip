@@ -56,72 +56,113 @@ interface Step {
   round?: boolean;
   title: string;
   body: string;
-  /** Pricing-only accounts (10-04) read this instead: no selling, no eBay. */
-  pricing?: { title: string; body: string };
 }
 
 const CARD_INPUT = 'input[placeholder^="Name or number"]';
 
-const TOUR: Step[] = [
+/**
+ * Two tours (10-04): a pricing-only account never hears about eBay. The
+ * pair is picked by user.pricingOnly, so a replay plays the current mode.
+ */
+const ME: Step = {
+  path: "/app",
+  sel: '[data-tour="help"]',
+  round: true,
+  title: "That's me",
+  body: "I live up here. Tap me for help, tours, moral support.",
+};
+const GAME: Step = {
+  path: "/app",
+  sel: '[aria-label="Card game"]',
+  round: true,
+  title: "Pick a game",
+  body: "Five games, one camera. Pick yours first. I read cards, not minds.",
+};
+const SCAN: Step = {
+  path: "/app",
+  sel: '[data-tour="capture"]',
+  round: true,
+  title: "Scan a Card",
+  body: "Point, tap Capture. I name it and price it. You get the credit.",
+};
+const SWITCH: Step = {
+  path: "/app",
+  sel: '[data-tour="mode-switch"]',
+  title: "Your switch",
+  body: "Seller or Collector. Change it any time. I don't take it personally.",
+};
+const TAP_CARD: Step = {
+  path: "/app/collection",
+  title: "Tap any card",
+  body: "Tap a card for its 90-day price chart, and Mark as Sold when it goes. I'll miss it.",
+};
+const SEARCH: Step = {
+  path: "/app/price-check",
+  sel: CARD_INPUT,
+  title: "Search Cards",
+  body: "Price any card, no scan. For cards you can't hold. I relate.",
+};
+const WATCH: Step = {
+  path: "/app/wishlist",
+  sel: CARD_INPUT,
+  title: "Watchlist",
+  body: "Watch a card, I email you when it dips. I'm up anyway.",
+};
+const BYE: Step = {
+  path: "/app/wishlist",
+  title: "That's the tour",
+  body: "I'm in the header if you need me. Now go scan something.",
+};
+
+const TOUR_SELLING: Step[] = [
+  ME,
+  GAME,
+  SWITCH,
+  SCAN,
   {
     path: "/app",
-    sel: '[data-tour="help"]',
-    round: true,
-    title: "That's me",
-    body: "I live up here. Tap me for help, tours, moral support.",
+    title: "Check, then list",
+    body: "Tap Verify if I got it right. One tap sends it to eBay, photo and price filled in. I always get it right.",
   },
   {
     path: "/app",
-    sel: '[data-tour="capture"]',
+    sel: '[data-tour="header-ebay"]',
     round: true,
-    title: "Scan a Card",
-    body: "Point, tap Capture. I name it and price it. You get the credit.",
-  },
-  {
-    path: "/app",
-    title: "Check, then sell",
-    body: "Tap Verify if I got it right, then Publish. I always get it right.",
-    pricing: { title: "Check the match", body: "Tap Verify if I got it right. Then it's in your Inventory. I always get it right." },
+    title: "Connect eBay",
+    body: "Link eBay up top once and every scan can list. On a trial, Subscribe comes first. I'll wait.",
   },
   {
     path: "/app/collection",
-    sel: '[aria-label="Card game"]',
-    round: true,
-    title: "Inventory",
-    body: "Every card you scan, kept tidy. It's most of my personality.",
+    sel: '[data-tour="summary"]',
+    title: "Your money",
+    body: "What your cards are worth on eBay, and what you keep after fees. I count so you don't have to.",
+  },
+  TAP_CARD,
+  SEARCH,
+  WATCH,
+  BYE,
+];
+
+const TOUR_PRICING: Step[] = [
+  ME,
+  GAME,
+  SWITCH,
+  SCAN,
+  {
+    path: "/app",
+    title: "Check the match",
+    body: "Tap Verify if I got it right. It's saved at today's market price. I always get it right.",
   },
   {
     path: "/app/collection",
-    sel: '[aria-label="Switch view"]',
-    round: true,
-    title: "Image or Text",
-    body: "Art or list. Tap a price to change it, even live. I won't tell eBay.",
-    pricing: { title: "Image or Text", body: "Art or list. Every card at today's market price. I did the math." },
+    sel: '[data-tour="summary"]',
+    title: "Your stack's value",
+    body: "Every card at market, charted daily. Watching it climb is allowed.",
   },
-  {
-    path: "/app/collection",
-    sel: '[aria-label="Sort cards"]',
-    round: true,
-    title: "Sort and filter",
-    body: "Sort and filter. You'll need it. Binders always get big.",
-  },
-  {
-    path: "/app/price-check",
-    sel: CARD_INPUT,
-    title: "Search Cards",
-    body: "Price any card, no scan. For cards you can't hold. I relate.",
-  },
-  {
-    path: "/app/wishlist",
-    sel: CARD_INPUT,
-    title: "Watchlist",
-    body: "Watch a card, I email you when it dips. I'm up anyway.",
-  },
-  {
-    path: "/app/wishlist",
-    title: "That's the tour",
-    body: "I'm in the header if you need me. Now go scan something.",
-  },
+  TAP_CARD,
+  SEARCH,
+  WATCH,
+  BYE,
 ];
 
 const PAD = 6;
@@ -136,12 +177,12 @@ interface Rect {
 
 type Side = "top" | "bottom" | "left" | "right";
 
-function readProgress(): number | null {
+function readProgress(length: number): number | null {
   try {
     const raw = sessionStorage.getItem(PROGRESS_KEY);
     if (raw == null) return null;
     const n = Number(raw);
-    return Number.isInteger(n) && n >= 0 && n < TOUR.length ? n : null;
+    return Number.isInteger(n) && n >= 0 && n < length ? n : null;
   } catch {
     return null;
   }
@@ -168,8 +209,10 @@ export default function TourOverlay() {
   const [step, setStepState] = useState<number | null>(null);
   // Guides (09-04): the help robot's walkthroughs run on this engine with
   // their own steps; they never stamp tour_seen_at or touch the progress key.
-  const [steps, setSteps] = useState<Step[]>(TOUR);
-  const guide = steps !== TOUR;
+  const [guideSteps, setGuideSteps] = useState<Step[] | null>(null);
+  const tour = user?.pricingOnly ? TOUR_PRICING : TOUR_SELLING;
+  const steps = guideSteps ?? tour;
+  const guide = guideSteps !== null;
   // Captured during the first render: the scanner page wipes its query
   // string in a mount effect, which runs before this one.
   const [urlStart] = useState(urlAsksForTour);
@@ -193,7 +236,7 @@ export default function TourOverlay() {
     const onGuide = (e: Event) => {
       const detail = (e as CustomEvent<{ steps: GuideStep[] }>).detail;
       if (!detail?.steps?.length) return;
-      setSteps(detail.steps);
+      setGuideSteps(detail.steps);
       setStepState(0);
       if (detail.steps[0].path !== window.location.pathname) router.push(detail.steps[0].path);
     };
@@ -207,15 +250,15 @@ export default function TourOverlay() {
   // account page or ?tour=1, or progress left over from a navigation/reload.
   useEffect(() => {
     if (!ready || open) return;
-    const here = TOUR.findIndex((s) => s.path === pathname);
-    const resume = readProgress();
+    const here = tour.findIndex((s) => s.path === pathname);
+    const resume = readProgress(tour.length);
     let start: number | null = null;
     if (takeTourReplay() || urlStart) {
       start = here >= 0 ? here : 0;
     } else if (resume != null) {
       // Same page: pick up where it was. Another tour page: the seller
       // navigated on their own — restart from that page. Elsewhere: wait.
-      start = TOUR[resume].path === pathname ? resume : here >= 0 ? here : null;
+      start = tour[resume].path === pathname ? resume : here >= 0 ? here : null;
     } else if (pathname === "/app" && user?.tourSeenAt == null) {
       start = 0;
     }
@@ -223,7 +266,7 @@ export default function TourOverlay() {
     // Let the page paint its anchors first.
     const t = window.setTimeout(() => setStep(start), 400);
     return () => window.clearTimeout(t);
-  }, [ready, open, pathname, user?.tourSeenAt, urlStart, setStep]);
+  }, [ready, open, pathname, user?.tourSeenAt, urlStart, setStep, tour]);
 
   // Between pages (Next just navigated) the card hides until the new page is up.
   const current = open && steps[step] && pathname === steps[step].path ? steps[step] : null;
@@ -299,7 +342,7 @@ export default function TourOverlay() {
   const finish = useCallback(async () => {
     setStep(null);
     if (guide) {
-      setSteps(TOUR);
+      setGuideSteps(null);
       return;
     }
     if (user && user.tourSeenAt == null) {
@@ -328,7 +371,6 @@ export default function TourOverlay() {
   useFocusTrap(panelRef, !!current);
 
   if (!current || step === null) return null;
-  const words = user?.pricingOnly && current.pricing ? current.pricing : current;
 
   const last = step === steps.length - 1;
   const nextLeavesPage = !last && steps[step + 1].path !== current.path;
@@ -371,7 +413,7 @@ export default function TourOverlay() {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${words.title}`}
+        aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${current.title}`}
         tabIndex={-1}
         className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] panel-solid rounded-2xl border p-4 shadow-2xl shadow-black/70 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
@@ -400,8 +442,8 @@ export default function TourOverlay() {
             ✕
           </button>
         </div>
-        <h2 className="font-display mt-2 text-lg font-semibold text-white">{words.title}</h2>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-300">{words.body}</p>
+        <h2 className="font-display mt-2 text-lg font-semibold text-white">{current.title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-300">{current.body}</p>
         <div className="mt-4 flex items-center justify-between gap-3">
           {last ? (
             <span />

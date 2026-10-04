@@ -662,7 +662,7 @@ function AccountSettings({
       )}
 
       <Group label="Selling">
-        {/* Selling · Pricing only (10-04): same switch as Inventory. */}
+        {/* Seller · Collector (10-04): same switch as Inventory. */}
         <Row
           title="How you use CardFlip"
           status={user.pricingOnly ? "Scan and price only. Nothing about eBay shows." : "Scan, price, and list cards on eBay."}
