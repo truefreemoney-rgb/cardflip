@@ -30,7 +30,8 @@ const HEADERS = {
   "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)",
   Accept: "application/json",
 };
-const PAGE_DELAY_MS = 120;
+// Scryfall asks for 2 requests/second on /cards/search (docs read 10-03); 500 ms keeps us under it with our name in the User-Agent.
+const PAGE_DELAY_MS = 500;
 
 const dataDir = path.join(process.cwd(), "data");
 fs.mkdirSync(dataDir, { recursive: true });
