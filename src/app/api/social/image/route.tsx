@@ -30,6 +30,7 @@ import { fallbackArtUrl } from "@/lib/cardArt";
 import { frozenMovers } from "@/lib/server/socialPublish";
 import { parseGame } from "@/lib/games";
 import { todayUtc } from "@/lib/priceSeries";
+import { ogFonts } from "@/lib/server/ogFonts";
 import { ANGLE_KINDS, POST_GAME_NAMES, dayPlan, fanOrder, isAngleKind, jumpsOn, listNames, otherGameNames } from "@/lib/socialPlan";
 
 /**
@@ -128,7 +129,7 @@ export async function GET(req: NextRequest) {
   const game: GameId = parseGame(q.get("game"));
   const sizeKey = (["square", "story", "landscape"] as PostSize[]).find((s) => s === q.get("size")) ?? "square";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("day") ?? "") ? (q.get("day") as string) : undefined;
-  const size = POST_SIZES[sizeKey];
+  const size = { ...POST_SIZES[sizeKey], fonts: await ogFonts() };
   const tall = sizeKey === "story";
   const wide = sizeKey === "landscape";
   const label = POST_GAME_NAMES[game];

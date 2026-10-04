@@ -28,7 +28,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The admin console reads docs/BOARD.md at request time (lib/server/board.ts);
   // make sure the file ships with the serverless function.
-  outputFileTracingIncludes: { "/admin": ["./docs/BOARD.md"] },
+  // The social pictures read their fonts the same way (lib/server/ogFonts.ts).
+  outputFileTracingIncludes: { "/admin": ["./docs/BOARD.md"], "/api/social/image": ["./src/assets/fonts/*"] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
