@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/client/basePath";
+import { useOptionalSession } from "@/components/SessionProvider";
 import type { GameId } from "@/lib/types";
 import { formatMoney } from "@/lib/listing";
 import RangePills, { rangeDays, rangeWindow, type RangeChoice, type RangePreset } from "@/components/RangePills";
@@ -35,6 +36,8 @@ const money = (n: number) => formatMoney(n);
 const dayLabel = (d: string) => new Date(parseDay(d)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 export default function InventoryValueChart({ game, version = 0, status = "all", category = "all", className = "" }: Props) {
+  // Pricing only (10-04): the server sums plain market prices, and the caption says so.
+  const pricingOnly = Boolean(useOptionalSession()?.user?.pricingOnly);
   const [choice, setChoice] = useState<RangeChoice>({ preset: "90d" });
   /** True once the viewer has picked a range: from then on the strip stays up even when a range has too few days to draw. */
   const [picked, setPicked] = useState(false);
@@ -66,7 +69,7 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     return () => {
       alive = false;
     };
-  }, [game, preset, from, to, version, status, category]);
+  }, [game, preset, from, to, version, status, category, pricingOnly]);
 
   const pills = (
     <RangePills
@@ -184,7 +187,7 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
       </div>
       <p className="mt-1 text-xs tabular-nums text-zinc-500">
         {money(geo.first)} → <span className="text-zinc-300">{money(geo.last)}</span>
-        <span className="ml-1">asking, {geo.n} days</span>
+        <span className="ml-1">{pricingOnly ? "market" : "asking"}, {geo.n} days</span>
       </p>
     </div>
   );

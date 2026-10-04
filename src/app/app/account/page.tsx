@@ -586,7 +586,7 @@ function AccountSettings({
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
           <span>Member since {formatDate(user.createdAt)}</span>
-          {overview && (
+          {overview && !user.pricingOnly && (
             <span>
               <Dot on={overview.ebay.connected} />
               {overview.ebay.connected ? "eBay connected" : "eBay not connected"}
@@ -603,10 +603,11 @@ function AccountSettings({
           )}
         </div>
         {d && (
-          <dl className="mt-4 grid grid-cols-4 gap-px overflow-hidden rounded-xl border border-edge bg-edge">
+          <dl className={`mt-4 grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${user.pricingOnly ? "grid-cols-3" : "grid-cols-4"}`}>
             {[
               ["Cards", d.cards],
-              ["Listed", d.listed],
+              // Pricing only (10-04): nothing is listed, so no Listed count.
+              ...(user.pricingOnly ? [] : [["Listed", d.listed]]),
               ["Sold", d.sold],
               ["Watchlist", d.wishlist],
             ].map(([k, v]) => (

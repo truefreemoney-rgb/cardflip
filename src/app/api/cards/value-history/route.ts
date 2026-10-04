@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       category,
       status: status === "ready" || status === "listed" || status === "ended" || status === "sold" || status === "sealed" ? status : undefined,
     };
-    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days, Date.now(), scope) });
+    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days, Date.now(), scope, user.pricingOnly ? "market" : "asking") });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

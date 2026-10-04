@@ -115,7 +115,9 @@ function MoverRow({ card }: { card: Mover }) {
 }
 
 export default function InsightsPage() {
-  const { status } = useSession();
+  const { status, user } = useSession();
+  // Pricing only (10-04): no "Live on eBay" / "Ended" slices unless cards are actually there.
+  const pricingOnly = Boolean(user?.pricingOnly);
   const [game, setGame] = useState<GameId>(() => readSavedGame());
   // The result remembers which game it is for, so switching games shows the
   // skeleton until the new one lands without a synchronous reset.
@@ -244,11 +246,11 @@ export default function InsightsPage() {
                 {(
                   [
                     ["Live on eBay", data.split.live, "bg-emerald-400"],
-                    ["Not Listed", data.split.draft, "bg-brand-400"],
+                    [pricingOnly ? "In Stock" : "Not Listed", data.split.draft, "bg-brand-400"],
                     ["Ended, unsold", data.split.ended, "bg-amber-400"],
                     ["Sold", data.split.sold, "bg-sky-400"],
                   ] as [string, Slice, string][]
-                ).map(([label, s, dot]) => (
+                ).filter(([label, s]) => !pricingOnly || s.count > 0 || (label !== "Live on eBay" && label !== "Ended, unsold")).map(([label, s, dot]) => (
                   <div key={label} className="min-w-0">
                     <dt className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
                       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} /> {label}

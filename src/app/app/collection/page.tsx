@@ -1928,12 +1928,12 @@ export default function CollectionPage() {
                 </span>
               </div>
             )}
-            {!pricingOnly && <Link
+            <Link
               href="/app/collection/report"
               className="mt-2 inline-block text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
             >
               Sales Report for Taxes →
-            </Link>}
+            </Link>
           </div>
         </div>
         {/* The pile's value day by day, from our own price series (Chris,

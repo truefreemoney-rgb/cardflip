@@ -18,7 +18,8 @@ import { etDate } from "@/lib/time";
  * is editable: purchase prices are set on the card in Inventory.
  */
 export default function SalesReportPage() {
-  const { status } = useSession();
+  const { status, user } = useSession();
+  const pricingOnly = Boolean(user?.pricingOnly);
   const [cards, setCards] = useState<ServerCard[] | null>(null);
   const [year, setYear] = useState<number | null>(null);
 
@@ -59,7 +60,7 @@ export default function SalesReportPage() {
           ← Inventory
         </Link>
         <h1 className="mt-1 font-display text-2xl font-semibold text-white">Sales report</h1>
-        <p className="mt-1 text-sm text-zinc-500">Every sale in a year with fees, postage, what you paid and the profit. Eastern time dates.</p>
+        <p className="mt-1 text-sm text-zinc-500">{pricingOnly ? "Every sale in a year with what you paid and the profit." : "Every sale in a year with fees, postage, what you paid and the profit."} Eastern time dates.</p>
       </div>
 
       {/* Year pills + download */}
@@ -92,8 +93,13 @@ export default function SalesReportPage() {
           [
             ["Sales", String(totals.sales)],
             ["Sold for", formatMoney(totals.gross)],
-            [`eBay fees${totals.feesEstimated ? " (some est.)" : ""}`, `−${formatMoney(totals.fees)}`],
-            ["Postage", `−${formatMoney(totals.postage)}`],
+            // Pricing only (10-04): no fee or postage tiles unless an eBay sale carried some.
+            ...(pricingOnly && totals.fees === 0 && totals.postage === 0
+              ? []
+              : ([
+                  [`eBay fees${totals.feesEstimated ? " (some est.)" : ""}`, `−${formatMoney(totals.fees)}`],
+                  ["Postage", `−${formatMoney(totals.postage)}`],
+                ] as [string, string][])),
             ["What you paid", `−${formatMoney(totals.cost)}`],
           ] as [string, string][]
         ).map(([label, value]) => (
@@ -132,7 +138,7 @@ export default function SalesReportPage() {
                     <p className="shrink-0 font-display text-sm font-semibold tabular-nums">{signed(b.profit)}</p>
                   </div>
                   <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
-                    {day(c.soldAt!)} · sold {formatMoney(b.gross)} · {b.byHand ? "marked by hand, no fees or postage" : `fees${b.feesActual ? "" : " est."} ${formatMoney(b.fees)} · postage ${formatMoney(b.postage)}`} ·{" "}
+                    {day(c.soldAt!)} · sold {formatMoney(b.gross)} · {b.byHand ? (pricingOnly ? "marked sold" : "marked by hand, no fees or postage") : `fees${b.feesActual ? "" : " est."} ${formatMoney(b.fees)} · postage ${formatMoney(b.postage)}`} ·{" "}
                     {b.costKnown ? `paid ${formatMoney(b.cost)}` : "no purchase price"}
                   </p>
                 </li>
@@ -143,8 +149,8 @@ export default function SalesReportPage() {
       </div>
 
       <p className="text-xs text-zinc-600">
-        Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale. A sale you marked by hand carries no eBay fee and no postage.
-        Check both against your own records before filing.
+        {!(pricingOnly && totals.fees === 0 && totals.postage === 0) && <>Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale. A sale you marked by hand carries no eBay fee and no postage.{" "}</>}
+        Check {pricingOnly && totals.fees === 0 && totals.postage === 0 ? "these" : "both"} against your own records before filing.
       </p>
     </main>
   );

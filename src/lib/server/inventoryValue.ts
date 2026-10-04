@@ -72,6 +72,9 @@ export async function inventoryValueSeries(
   days: number,
   now = Date.now(),
   scope: ValueScope = {},
+  /** "market" (pricing-only accounts, 10-04): plain market prices, the Inventory
+   *  Market Value box's own sum. "asking": the condition + fee math, as before. */
+  basis: "asking" | "market" = "asking",
 ): Promise<ValuePoint[]> {
   const span = Math.min(MAX_VALUE_DAYS, Math.max(2, Math.floor(days)));
   const categorySql = scope.category === undefined ? "" : scope.category === null ? "AND category IS NULL" : "AND category = ?";
@@ -117,7 +120,7 @@ export async function inventoryValueSeries(
       if (h.until && day > h.until) continue;
       const market = onDay(h.series!, day);
       if (market == null || !(market > 0)) continue;
-      value += askingPriceFor(market, h.condition) * h.qty;
+      value += (basis === "market" ? market : askingPriceFor(market, h.condition)) * h.qty;
     }
     out.push({ day, value: Math.round(value * 100) / 100 });
   }

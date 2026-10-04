@@ -56,6 +56,8 @@ interface Step {
   round?: boolean;
   title: string;
   body: string;
+  /** Pricing-only accounts (10-04) read this instead: no selling, no eBay. */
+  pricing?: { title: string; body: string };
 }
 
 const CARD_INPUT = 'input[placeholder^="Name or number"]';
@@ -79,6 +81,7 @@ const TOUR: Step[] = [
     path: "/app",
     title: "Check, then sell",
     body: "Tap Verify if I got it right, then Publish. I always get it right.",
+    pricing: { title: "Check the match", body: "Tap Verify if I got it right. Then it's in your Inventory. I always get it right." },
   },
   {
     path: "/app/collection",
@@ -93,6 +96,7 @@ const TOUR: Step[] = [
     round: true,
     title: "Image or Text",
     body: "Art or list. Tap a price to change it, even live. I won't tell eBay.",
+    pricing: { title: "Image or Text", body: "Art or list. Every card at today's market price. I did the math." },
   },
   {
     path: "/app/collection",
@@ -324,6 +328,7 @@ export default function TourOverlay() {
   useFocusTrap(panelRef, !!current);
 
   if (!current || step === null) return null;
+  const words = user?.pricingOnly && current.pricing ? current.pricing : current;
 
   const last = step === steps.length - 1;
   const nextLeavesPage = !last && steps[step + 1].path !== current.path;
@@ -366,7 +371,7 @@ export default function TourOverlay() {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${current.title}`}
+        aria-label={`${guide ? "Guide" : "Tutorial"}, step ${step + 1} of ${steps.length}: ${words.title}`}
         tabIndex={-1}
         className={`tour-card absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] panel-solid rounded-2xl border p-4 shadow-2xl shadow-black/70 outline-none sm:inset-x-auto sm:bottom-auto sm:w-[360px] sm:p-5 ${
           panelStyle ? "" : "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
@@ -395,8 +400,8 @@ export default function TourOverlay() {
             ✕
           </button>
         </div>
-        <h2 className="font-display mt-2 text-lg font-semibold text-white">{current.title}</h2>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-300">{current.body}</p>
+        <h2 className="font-display mt-2 text-lg font-semibold text-white">{words.title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-300">{words.body}</p>
         <div className="mt-4 flex items-center justify-between gap-3">
           {last ? (
             <span />
