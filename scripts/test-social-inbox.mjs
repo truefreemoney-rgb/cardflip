@@ -21,10 +21,14 @@ const spam = [
   "Follow me back and I follow you",
   "@a @b @c @d",
   "Selling cheap at https://cardsale.example.shop",
+  "add me on signal for bulk lots",
 ];
 for (const t of spam) assert.equal(classifyComment(t), "spam", `spam: ${t}`);
 
-const questions = ["How accurate is the scan?", "Does this work for Japanese cards", "what set is this from", "Is cardflip.io free to try?", "Can it grade centering?"];
+const questions = [
+  // 10-04 Bluesky: "signal" the word, not the app.
+  "fair, and sales volume matters more than the listed price. a leader with 40 sales a week is a better signal than 3 at a high ask. do you track sold listings?",
+  "How accurate is the scan?","Does this work for Japanese cards", "what set is this from", "Is cardflip.io free to try?", "Can it grade centering?"];
 for (const t of questions) assert.equal(classifyComment(t), "question", `question: ${t}`);
 
 const praise = ["Nice pull!", "🔥🔥🔥", "love this set", "Awesome, congrats", "sick card"];

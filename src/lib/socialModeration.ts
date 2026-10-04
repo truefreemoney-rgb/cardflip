@@ -14,7 +14,9 @@ const OWN_HOSTS = /(^|\.)(cardflip\.io|bsky\.app|x\.com|twitter\.com|facebook\.c
 
 const SPAM_PHRASES: RegExp[] = [
   /\bdm\s+(me|us)\b/i,
-  /\b(whats?app|telegram|signal)\b/i,
+  /\b(whats?app|telegram)\b/i,
+  // "signal" is an everyday word ("a better signal than 3 at a high ask", 10-04 Bluesky question marked spam): the app only with contact words.
+  /\b(add|message|text|contact|reach|find|hit)\s+(me|us)\s+(on|via)\s+signal\b|\bsignal\s+(me|app|number|chat)\b/i,
   /\b(crypto|bitcoin|forex|binary options|nft drop|airdrop)\b/i,
   /\bcheck\s+(out\s+)?my\s+(page|profile|bio|link|shop|store)\b/i,
   /\b(link|shop|store)\s+in\s+(my\s+)?bio\b/i,
