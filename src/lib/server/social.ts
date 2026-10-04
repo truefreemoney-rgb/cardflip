@@ -1517,9 +1517,17 @@ function tagsFor(game: GameId, alsoScans: boolean): string[] {
   return out.slice(0, MAX_TAGS);
 }
 
-/** Today's drafts for a game, in posting order. Empty when the data is thin. */
-export function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost[]> {
-  return withSeriesCache(() => buildDrafts(game, day));
+/** Every kind a day can draft: the four standing posts and the five angles. */
+export const ALL_DRAFT_KINDS: PostKind[] = ["games", "movers", "set", "dips", ...ANGLE_KINDS];
+
+/**
+ * A day's drafts for a game, in posting order. Empty when the data is thin.
+ * `kinds` limits the build to the kinds named (the publisher, the render and
+ * the admin page pass the day's slot kinds: Chris 10-03, "only create what we
+ * are going to use, nothing extra"); omitted = every kind.
+ */
+export function socialDrafts(game: GameId, day = todayUtc(), kinds: readonly PostKind[] = ALL_DRAFT_KINDS): Promise<SocialPost[]> {
+  return withSeriesCache(() => buildDrafts(game, day, kinds));
 }
 
 /**
@@ -1539,8 +1547,15 @@ export async function storeDraftsCache(game: GameId, day: string, drafts: Social
 export function minutesSince(at: number, now = Date.now()): number {
   return Math.max(0, Math.round((now - at) / 60_000));
 }
-export async function cachedSocialDrafts(game: GameId, day: string, opts: { maxAgeMs?: number; fresh?: boolean; now?: number } = {}): Promise<{ drafts: SocialPost[]; at: number; cached: boolean }> {
+export async function cachedSocialDrafts(
+  game: GameId,
+  day: string,
+  opts: { maxAgeMs?: number; fresh?: boolean; now?: number; kinds?: readonly PostKind[]; all?: boolean } = {},
+): Promise<{ drafts: SocialPost[]; at: number; cached: boolean }> {
   const now = opts.now ?? Date.now();
+  // `kinds` = the day's slot kinds (the page passes socialPublish.ts dayKinds). `all` = the spares too (?all=1 on
+  // /admin/social), built on request and never cached: the cache holds what posts.
+  if (opts.all) return { drafts: await socialDrafts(game, day, ALL_DRAFT_KINDS), at: now, cached: false };
   if (!opts.fresh) {
     try {
       const row = JSON.parse((await getSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`)) || "null") as { at?: number; drafts?: SocialPost[] } | null;
@@ -1549,25 +1564,26 @@ export async function cachedSocialDrafts(game: GameId, day: string, opts: { maxA
       /* an unreadable row is rebuilt */
     }
   }
-  const drafts = await socialDrafts(game, day);
+  const drafts = await socialDrafts(game, day, opts.kinds);
   await storeDraftsCache(game, day, drafts, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
   return { drafts, at: now, cached: false };
 }
 
-async function buildDrafts(game: GameId, day: string): Promise<SocialPost[]> {
+async function buildDrafts(game: GameId, day: string, kinds: readonly PostKind[]): Promise<SocialPost[]> {
   // A day plan (lib/socialPlan.ts) can mix Magic into the Pokémon movers,
   // add the all-games picture, and name the other games on Pokémon posts.
   const plan = dayPlan(day);
   const mixed = Boolean(plan.mixedMovers) && game === "pokemon";
   const also = Boolean(plan.alsoScans) && game === "pokemon";
-  // Gainers at 1pm, drops at 7pm: no card appears in both posts on the same day.
+  const want = (k: PostKind) => kinds.includes(k);
+  const none = <T,>(): Promise<T[]> => Promise.resolve([] as T[]);
+  // Gainers at 1pm, drops at 7pm: no card appears in both posts on the same day. Only the kinds asked for are read.
   const [movers, spot, dips, leads] = await Promise.all([
-    mixed ? mixedMovers(day) : recentlyFeatured(game, "movers", day).then((exclude) => topMovers(game, day, { direction: "up", exclude })),
-    setSpotlight(game, day),
-    recentlyFeatured(game, "dips", day).then((exclude) => topMovers(game, day, { direction: "down", exclude })),
-    // The all-games post is the standing 7pm post (and the publisher's first fallback), so it is drafted every day.
-    // From JUMPS_FROM it is each game's biggest weekly jump (a game with none keeps its lead card); before, the lead cards.
-    game === "pokemon" ? (jumpsOn(day) ? gameJumps(day) : gameLeads(day)) : Promise.resolve([] as GameLead[]),
+    !want("movers") ? none<Mover>() : mixed ? mixedMovers(day) : recentlyFeatured(game, "movers", day).then((exclude) => topMovers(game, day, { direction: "up", exclude })),
+    want("set") ? setSpotlight(game, day) : Promise.resolve(null),
+    want("dips") ? recentlyFeatured(game, "dips", day).then((exclude) => topMovers(game, day, { direction: "down", exclude })) : none<Mover>(),
+    // The all-games post: from JUMPS_FROM it is each game's biggest weekly jump (a game with none keeps its lead card); before, the lead cards.
+    want("games") && game === "pokemon" ? (jumpsOn(day) ? gameJumps(day) : gameLeads(day)) : none<GameLead>(),
   ]);
   const posts: SocialPost[] = [];
   if (leads.length >= 3) {
@@ -1654,10 +1670,9 @@ async function buildDrafts(game: GameId, day: string): Promise<SocialPost[]> {
     });
   }
   // The five angles ride the Pokémon loop (the one the publisher runs) and carry their own game: the day's rotation pick,
-  // or the next game with the data (angleData). Nothing posts them until the schedule names them (phase 3): the publisher
-  // only posts a slot's kind and its FALLBACK_KINDS, so today they are drafts on /admin/social, pictures and words ready.
+  // or the next game with the data (angleData). A slot posts one when the schedule names it (phase 3); only those asked for are drawn.
   if (game === "pokemon") {
-    const angles = await Promise.all(ANGLE_KINDS.map((kind) => angleData(kind, day)));
+    const angles = await Promise.all(ANGLE_KINDS.filter(want).map((kind) => angleData(kind, day)));
     for (const a of angles) if (a) posts.push(angleDraft(a, day));
   }
   return posts;

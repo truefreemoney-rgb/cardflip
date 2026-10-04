@@ -69,7 +69,7 @@ export const SCORE_CAP = 4;
 export const FLOOR = 0.25;
 /** A kind posted this many days back (either slot) is not drawn again. */
 export const NO_REPEAT_DAYS = 2;
-/** The 8am job picks this many days out: tomorrow, whose TikTok videos render tonight. */
+/** The evening run picks this many days out: tomorrow, whose videos it then renders in the same pass. */
 export const LEAD_DAYS = 1;
 /**
  * The picture's weight against the video's until the picture has a score of its own (phase 5, Chris 10-03: "mostly

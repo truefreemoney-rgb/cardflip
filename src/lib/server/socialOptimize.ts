@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { addCompletedLine, eastern, slotKind } from "@/lib/server/socialPublish";
 import { addScheduleEntry, loadSchedule } from "@/lib/server/socialSchedule";
-import { LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, step, type DayPicks, type FormatScore, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
+import { GAME_NAME, KIND_NAME, LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, step, type DayPicks, type FormatScore, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
 import { runSocialTags, TAGS_WHY_KEY } from "@/lib/server/socialTags";
 import type { TagPost } from "@/lib/socialTags";
 
@@ -11,8 +11,10 @@ import type { TagPost } from "@/lib/socialTags";
  * The daily social optimization loop, the job (Chris 10-02: "should be
  * daily"; 10-03: the five angles and the game rotate, "the optimizer makes
  * the choices"; the rules are in lib/socialOptimize.ts). Runs once per
- * Eastern day, on the first social-inbox cron ping of the day (8am ET),
- * right after that ping has stored and tagged the posts. It scores each
+ * target day, in the evening as the first step of the night render (Chris
+ * 10-03 night: "run the optimizer, look at the data and create the next
+ * day's post based on the data"); the videos draw from its picks in the
+ * same run. It scores each
  * kind from social_posts, keeps the day's report in settings for
  * /admin/social, and writes TOMORROW's picks for 7am and 7pm (a seeded
  * weighted draw over the eight pool kinds, with each angle's game) as one
@@ -43,10 +45,17 @@ function kindsOn(day: string): { morning: ScoredKind; evening: ScoredKind } {
   return { morning: slotKind("morning", day) as ScoredKind, evening: slotKind("evening", day) as ScoredKind };
 }
 
-/** Run the day's loop if it has not run yet. Returns the report, or null when today's is already done. */
-export async function runSocialOptimize(now = Date.now()): Promise<OptimizeReport | null> {
+/**
+ * Run the loop for a target day if it has not run for that day yet. Returns
+ * the report, or null when that day's picks are already written. The night
+ * render calls it first (scripts/social-video.mjs --package, and the 9:15pm
+ * safety net before it looks at the package), with the day it is about to
+ * render: picks, then videos, in one pass. Without `target` it is tomorrow.
+ */
+export async function runSocialOptimize(now = Date.now(), opts: { target?: string } = {}): Promise<OptimizeReport | null> {
   const { day } = eastern(now);
-  if ((await getSetting(OPT_LAST_KEY)) === day) return null;
+  const target = opts.target ?? dayAfter(day, LEAD_DAYS);
+  if ((await getSetting(OPT_LAST_KEY)) === target) return null;
   // first_seen_at is within hours of the post and is a plain integer (at is text in each platform's own shape); a week of slack past the window.
   const since = now - (MAX_AGE_DAYS + 7) * 86_400_000;
   const rows = (await db
@@ -67,19 +76,23 @@ export async function runSocialOptimize(now = Date.now()): Promise<OptimizeRepor
   }));
 
   await loadSchedule(now);
-  const target = dayAfter(day, LEAD_DAYS);
   const yesterday = kindsOn(dayAfter(target, -1));
   const recent = Array.from({ length: NO_REPEAT_DAYS }, (_, i) => kindsOn(dayAfter(target, -1 - i))).flatMap((k) => [k.morning, k.evening]);
   const off = (await getSetting(OPT_OFF_KEY)) === "1";
   const { report, entry } = step({ posts, now, day: target, off, yesterday, recent });
-  if (entry) await addScheduleEntry(entry, now);
+  if (entry) {
+    await addScheduleEntry(entry, now);
+    // Every change the optimizer makes is on the board's Completed list (Chris 10-03: "I need to be made aware of changes").
+    const pick = (p: DayPicks["morning"]) => `${KIND_NAME[p.kind] ?? p.kind}${p.game ? ` (${GAME_NAME[p.game as keyof typeof GAME_NAME] ?? p.game})` : ""}${p.format === "picture" ? ", picture" : ""}`;
+    if (report.picks) await addCompletedLine(`Social optimizer ${day} — ${target}: 7am ${pick(report.picks.morning)}, 7pm ${pick(report.picks.evening)}`, now);
+  }
 
   // Hashtags: the same once-a-day run, the same Off switch, its own trial (lib/socialTags.ts).
   const tagPosts: TagPost[] = rows.map((r) => ({ site: String(r.site), at: String(r.at ?? ""), text: String(r.text ?? ""), views: n(r.views), likes: n(r.likes), comments: n(r.comments), shares: n(r.shares) }));
   const tagLine = await runSocialTags(tagPosts, now, day, off);
   if (tagLine) await addCompletedLine(tagLine, now);
   await setSetting(OPT_REPORT_KEY, JSON.stringify(report));
-  await setSetting(OPT_LAST_KEY, day);
+  await setSetting(OPT_LAST_KEY, target);
   return report;
 }
 

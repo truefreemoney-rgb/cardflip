@@ -532,9 +532,26 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   const rep2 = await runSocialOptimize(now + 1);
   check("the next run (same day again) draws the same picks: seeded by the day", [rep2.picks, JSON.parse(await getSetting(SCHEDULE_KEY)).length], [rep.picks, 1]);
   check("hashtags: the next run leaves the running trial alone", [JSON.parse(await getSetting(TAGS_KEY)).trial.start, (await getSetting(TAGS_WHY_KEY)).startsWith("Hashtag trial running")], [start, true]);
+  // 10-03 night (Chris): the optimizer runs in the EVENING as the first step of the night render, for the day it is about
+  // to render; once per target day, so the 9:15pm net and the render never pick twice, and a later day picks again.
+  const dayAfterNext = addDays(today, 2);
+  const rep3 = await runSocialOptimize(now, { target: dayAfterNext });
+  check("a target day: the picks are that day's entry, the guard is per target (tomorrow again = no-op, the day after = a run)", [rep3.forDay, JSON.parse(await getSetting(SCHEDULE_KEY)).map((e) => e.from), await getSetting(OPT_LAST_KEY), await runSocialOptimize(now, { target: dayAfterNext }), (await runSocialOptimize(now, { target: tomorrow }))?.forDay], [dayAfterNext, [tomorrow, dayAfterNext], dayAfterNext, null, tomorrow]);
+  const [optLine] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
+  check("every pick leaves a line on the board (Chris: made aware of changes)", optLine.startsWith(`Social optimizer ${today} — ${tomorrow}: 7am `) && optLine.includes(", 7pm "), true);
   await setSetting(SCHEDULE_KEY, "");
   await setSetting(TAGS_KEY, "");
+  await setSetting(OPT_LAST_KEY, "");
   await loadSchedule();
+}
+
+// 10-03 (Chris: "only create what we are going to use, nothing extra"): the drafts build takes the kinds that post.
+{
+  const { socialDrafts, ALL_DRAFT_KINDS } = await import(at("lib/server/social.ts"));
+  const { dayKinds } = await import(at("lib/server/socialPublish.ts"));
+  const only = (await socialDrafts("pokemon", THU, ["set", "movers"])).map((d) => d.kind);
+  const everything = (await socialDrafts("pokemon", THU)).map((d) => d.kind);
+  check("named kinds only; no kinds = every kind; a day's kinds = one per slot, no spares", [only, everything.length > only.length, everything.every((k) => ALL_DRAFT_KINDS.includes(k)), dayKinds(THU)], [["movers", "set"], true, true, ["set", "movers", "games"]]);
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

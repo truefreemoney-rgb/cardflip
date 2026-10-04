@@ -73,8 +73,9 @@ const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish
 const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
 const { parseVideoSpec } = await import(at("lib/socialVideo.ts"));
 const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, sharedVideo, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
-const { slotKind } = await import(at("lib/server/socialPublish.ts"));
+const { slotKind, dayKinds, FALLBACK_KINDS } = await import(at("lib/server/socialPublish.ts"));
 const { getSetting } = await import(at("lib/server/settings.ts"));
+const { runSocialOptimize } = await import(at("lib/server/socialOptimize.ts"));
 // The optimization loop's standing schedule (settings): loaded before planTag / candidateKinds ask what a slot posts.
 await (await import(at("lib/server/socialSchedule.ts"))).ensureSchedule();
 
@@ -449,7 +450,19 @@ if (ONE_KIND) {
   }
 } else {
   const slots = ONLY.length ? TIKTOK_SLOTS.filter((s) => ONLY.includes(s)) : TIKTOK_SLOTS;
-  const drafts = await socialDrafts(game, day);
+  // Picks before videos (Chris 10-03 night): the optimizer scores the posts and writes this day's 7am/7pm kinds first
+  // (once per day; a no-op when the 9:15pm net already ran it), then the videos below draw from those picks.
+  if (REGISTER) {
+    try {
+      const opt = await runSocialOptimize(now, { target: day });
+      console.log(opt ? `optimizer ${opt.day} → ${day}: 7am ${opt.picks?.morning.kind ?? "-"}, 7pm ${opt.picks?.evening.kind ?? "-"} (${opt.why})` : `optimizer: ${day} already picked`);
+    } catch (err) {
+      console.error(`optimizer failed, rendering the plan as it stands: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  // Only the kinds that post are drafted (nothing extra); the fallbacks are drafted only if a slot's own kind cannot be drawn.
+  let drafts = await socialDrafts(game, day, dayKinds(day));
+  let withFallbacks = false;
   console.log(`TikTok videos for ${day}: ${slots.join(", ")}`);
   const madeKinds = [];
   for (const slot of slots) {
@@ -475,20 +488,30 @@ if (ONE_KIND) {
         const o = await readSlot(other, day);
         if (o.state === "ready" && o.spec) used.push(o.spec.kind);
       }
-      const kinds = candidateKinds(slot, day, drafts, used);
-      if (!kinds.length) throw new Error(`no video kind has a draft for the ${slot} slot on ${day}`);
       const out = outFor(slot);
       let made = null;
-      for (const kind of kinds) {
-        console.log(`${slot}: ${kind} (${planTag(slot, day)})`);
-        try {
-          made = await makeSlot(slot, kind, out, true);
-          break;
-        } catch (err) {
-          console.error(`${slot}: ${kind} could not be drawn: ${err instanceof Error ? err.message : err}`);
-          if (kind === kinds[kinds.length - 1]) throw err;
+      // The slot's own kind first; the fallback kinds are drafted only when it cannot be drawn (nothing extra is built).
+      let lastErr = null;
+      for (let attempt = 0; attempt < 2 && !made; attempt++) {
+        // Attempt 0: the day's own kinds. Attempt 1: the fallback kinds, drafted now (once per run) because a slot needed them.
+        if (attempt === 1 && !withFallbacks) {
+          console.log(`${slot}: drafting the fallback kinds`);
+          drafts = [...drafts, ...(await socialDrafts(game, day, FALLBACK_KINDS.filter((k) => !dayKinds(day).includes(k))))];
+          withFallbacks = true;
+        }
+        const kinds = candidateKinds(slot, day, drafts, used).filter((k) => (attempt === 0) === dayKinds(day).includes(k));
+        for (const kind of kinds) {
+          console.log(`${slot}: ${kind} (${planTag(slot, day)})`);
+          try {
+            made = await makeSlot(slot, kind, out, true);
+            break;
+          } catch (err) {
+            lastErr = err;
+            console.error(`${slot}: ${kind} could not be drawn: ${err instanceof Error ? err.message : err}`);
+          }
         }
       }
+      if (!made) throw lastErr ?? new Error(`no video kind has a draft for the ${slot} slot on ${day}`);
       madeKinds.push(made.kind);
       if (REGISTER) await register(slot, made, out, drafts);
     } catch (err) {

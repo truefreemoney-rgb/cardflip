@@ -3,7 +3,7 @@ import SocialOptimizer from "@/components/admin/SocialOptimizer";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
 import TikTokPackage from "@/components/admin/TikTokPackage";
-import { currentVideoFor, eastern, siteStatus, slotAt, slotLabel, slotSchedule, socialGames } from "@/lib/server/socialPublish";
+import { currentVideoFor, dayKinds, eastern, siteStatus, slotAt, slotLabel, slotSchedule, socialGames } from "@/lib/server/socialPublish";
 import { tagsOn } from "@/lib/socialTags";
 import { optimizerStatus } from "@/lib/server/socialOptimize";
 import { GAME_NAME, KIND_NAME } from "@/lib/socialOptimize";
@@ -27,9 +27,9 @@ export const dynamic = "force-dynamic";
  * (lib/socialTiktok.ts): tomorrow's three videos and today's, always the real
  * Eastern days, whatever ?day= the drafts below are showing.
  */
-export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string; fresh?: string }> }) {
+export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string; fresh?: string; all?: string }> }) {
   await requireOwnerPage();
-  const { day: raw, tiktok, pinterest, fresh } = await searchParams;
+  const { day: raw, tiktok, pinterest, fresh, all } = await searchParams;
   // api/social/<site>/callback lands here with ?<site>=connected or ?<site>=error:<why>.
   const notice =
     tiktok === "connected"
@@ -47,10 +47,12 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   await ensureSchedule();
   const games = await socialGames();
   // The drafts come from the last build when it is under 20 minutes old (a build is ~9 s on prod; the publisher
-  // refreshes it at each post time). ?fresh=1 rebuilds now.
+  // refreshes it at each post time). ?fresh=1 rebuilds now. Only the day's three posts are built (Chris 10-03:
+  // "only create what we are going to use, nothing extra"); ?all=1 shows the spares too.
+  const showAll = all === "1";
   const [optimizer, built, sites, waiting, tiktokTomorrow, tiktokToday, crash] = await Promise.all([
     optimizerStatus(),
-    Promise.all(games.map((g) => cachedSocialDrafts(g, day, { fresh: fresh === "1" }))),
+    Promise.all(games.map((g) => cachedSocialDrafts(g, day, { fresh: fresh === "1", kinds: dayKinds(day), all: showAll }))),
     siteStatus(SOCIAL_SITES),
     countNew(),
     loadPackage(addDays(today, 1)),
@@ -77,6 +79,10 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
             What the autopilot posts on {day}. Pictures and words come from our price history; nothing here is typed by hand. Drafts built {builtAgo === 0 ? "just now" : `${builtAgo} min ago`} ·{" "}
             <Link href={`/admin/social?day=${day}&fresh=1`} className="text-brand-200 hover:text-white">
               Rebuild
+            </Link>{" "}
+            ·{" "}
+            <Link href={showAll ? `/admin/social?day=${day}` : `/admin/social?day=${day}&all=1`} className="text-brand-200 hover:text-white">
+              {showAll ? "Only What Posts" : "Show Spares"}
             </Link>
           </p>
         </div>

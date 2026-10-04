@@ -4,8 +4,9 @@ import { useState } from "react";
 
 /**
  * The daily optimization loop's switch on /admin/social (Chris 10-02; 10-03
- * the rotation): on, the 8am job draws tomorrow's 7am and 7pm post kinds (and
- * each angle's game) by score; off, it scores and reports and the schedule
+ * the rotation): on, the evening run (the first step of the night render)
+ * draws tomorrow's 7am and 7pm post kinds (and each angle's game) by score,
+ * then the videos are made from the picks; off, it scores and reports and the schedule
  * stays as it is. Under the switch: tomorrow's picks and each kind's score
  * (1.0 = an average post on its site; "–" = too few posts yet).
  */
@@ -70,7 +71,7 @@ export default function SocialOptimizer({
           disabled={busy}
           role="switch"
           aria-checked={on}
-          title={on ? "The 8am job draws tomorrow's 7am and 7pm posts by score. Press to freeze the schedule." : "The schedule is frozen. Press to let the 8am job draw tomorrow's posts."}
+          title={on ? "The evening run draws tomorrow's 7am and 7pm posts by score, then makes the videos. Press to freeze the schedule." : "The schedule is frozen. Press to let the evening run draw tomorrow's posts."}
           className={`rounded-full border px-3 py-1 ${on ? "border-emerald-400/50 text-emerald-300" : "border-edge text-zinc-400"} disabled:opacity-40`}
         >
           Optimizer {on ? "On" : "Off"}
@@ -80,7 +81,7 @@ export default function SocialOptimizer({
             {forDay}: <span className="text-white">7am {pick(picks.morning)}</span> · <span className="text-white">7pm {pick(picks.evening)}</span>
           </span>
         ) : null}
-        <span className="min-w-0 flex-1 text-zinc-400">{note ?? (why ? `${day}: ${why}` : "First run is at 8am ET.")}</span>
+        <span className="min-w-0 flex-1 text-zinc-400">{note ?? (why ? `${day}: ${why}` : "First run is this evening, before the videos are made.")}</span>
       </div>
       {scores.length ? (
         <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-400">

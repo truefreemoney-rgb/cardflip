@@ -11,8 +11,8 @@ import { ANGLE_GAMES, ANGLE_KINDS, isAngleKind, setStanding, type AngleGame, typ
  *
  * Every async way into those readers calls ensureSchedule() first: the
  * publisher, the TikTok package, the render script, the admin page. An
- * entry is always written two days before it starts (tomorrow's TikTok
- * videos render tonight), so a process holding a copy a few minutes old is
+ * entry is written the evening before it starts, as the first step of the
+ * night render (10-03), so a process holding a copy a few minutes old is
  * never wrong about today.
  */
 export const SCHEDULE_KEY = "social_schedule";

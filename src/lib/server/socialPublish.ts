@@ -104,6 +104,14 @@ export function slotKind(slot: Slot, day: string): PostKind {
   return (slot === "morning" ? plan.morning : slot === "evening" ? plan.evening : undefined) ?? SLOTS[slot].kind;
 }
 /**
+ * The kinds that post on an Eastern day: one per slot, no spares (Chris 10-03:
+ * "only create what we are going to use, nothing extra"). Callers pass this to
+ * socialDrafts so nothing else is drafted. Call ensureSchedule() first.
+ */
+export function dayKinds(day: string): PostKind[] {
+  return [...new Set(SLOT_ORDER.map((s) => slotKind(s, day)))];
+}
+/**
  * When each kind goes live on an Eastern day, for the /admin/social cards
  * (Chris 09-30: "put a time/date on the preview posts"): "Wed, Sep 30 ·
  * 7:05am ET" (the crons fire at :05) and whether that moment has passed.
@@ -524,44 +532,55 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "before the 7am window", posts: [] });
     return report;
   }
-  const rawDrafts = (
-    await Promise.all(
-      (await socialGames()).map(async (g) => {
-        const list = await socialDrafts(g, day);
-        // The build /admin/social shows until its next one (lib/server/social.ts cachedSocialDrafts); a failed write never costs the post.
-        if (!opts.dry) await storeDraftsCache(g, day, list, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
-        return list;
-      }),
-    )
-  ).flat();
+  const games = await socialGames();
+  // Only the kinds that post today are drafted (Chris 10-03: nothing extra); the
+  // fallbacks are drafted only if a slot's own kind cannot be (never skip).
+  const kinds = dayKinds(day);
+  const buildFor = async (list: PostKind[], cache: boolean): Promise<SocialPost[]> =>
+    (
+      await Promise.all(
+        games.map(async (g) => {
+          const built = await socialDrafts(g, day, list);
+          // The build /admin/social shows until its next one (lib/server/social.ts cachedSocialDrafts); a failed write never costs the post.
+          if (cache && !opts.dry) await storeDraftsCache(g, day, built, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
+          return built;
+        }),
+      )
+    ).flat();
   // Text must always match a registered video (09-26: a caption once named
   // "Mysterious Treasures" over Base Set 2 art, because the picture and the
   // video each computed the card list at a different moment). When a video
   // is registered for a draft, rebuild its caption from the EXACT cards the
   // video drew, frozen at render time; a draft with no video is computed
   // fresh, same as always.
-  const all = await Promise.all(
-    rawDrafts.map(async (d) => {
-      const spec = await currentVideoFor(d);
-      return spec?.cards?.length ? applyVideoCards(d, spec.cards, { winner: spec.winner }) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
-    }),
-  );
-  const games = [...new Set(all.map((d) => d.game))];
-  function draftsForKind(kind: PostKind): SocialPost[] {
-    return games.map((g) => all.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
+  const withVideoCards = (list: SocialPost[]): Promise<SocialPost[]> =>
+    Promise.all(
+      list.map(async (d) => {
+        const spec = await currentVideoFor(d);
+        return spec?.cards?.length ? applyVideoCards(d, spec.cards, { winner: spec.winner }) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
+      }),
+    );
+  const all = await withVideoCards(await buildFor(kinds, true));
+  let fallbacks: SocialPost[] | null = null;
+  async function draftsForKind(kind: PostKind): Promise<SocialPost[]> {
+    const from = (list: SocialPost[]) => games.map((g) => list.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
+    if (kinds.includes(kind)) return from(all);
+    fallbacks ??= await withVideoCards(await buildFor(FALLBACK_KINDS.filter((k) => !kinds.includes(k)), false));
+    return from(fallbacks);
   }
   // One draft per game per slot, of that slot's kind; a kind with no draft
   // today falls through FALLBACK_KINDS so the slot still posts (never skip).
-  const plan = due
-    .map((s) => {
-      const own = slotKind(s, day);
-      for (const kind of [own, ...FALLBACK_KINDS.filter((k) => k !== own)]) {
-        const drafts = draftsForKind(kind);
-        if (drafts.length > 0) return { slot: s, kind, drafts };
+  const plan: Array<{ slot: Slot; kind: PostKind; drafts: SocialPost[] }> = [];
+  for (const s of due) {
+    const own = slotKind(s, day);
+    for (const kind of [own, ...FALLBACK_KINDS.filter((k) => k !== own)]) {
+      const drafts = await draftsForKind(kind);
+      if (drafts.length > 0) {
+        plan.push({ slot: s, kind, drafts });
+        break;
       }
-      return { slot: s, kind: own, drafts: [] as SocialPost[] };
-    })
-    .filter((p) => p.drafts.length > 0);
+    }
+  }
   report.drafts = plan.reduce((n, p) => n + p.drafts.length, 0);
   if (report.drafts === 0) {
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "nothing to post", posts: [] });
@@ -659,7 +678,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         for (let i = 1; i < KIND_ROTATION.length; i++) {
           k = nextKindInRotation(k);
           const done = (await getSetting(kindKey(site, k))) === etDay;
-          const cand = draftsForKind(k);
+          const cand = await draftsForKind(k);
           if (!done && cand.length > 0) {
             kind = k;
             drafts = cand;

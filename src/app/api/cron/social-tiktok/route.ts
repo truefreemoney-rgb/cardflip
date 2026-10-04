@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
+import { runSocialOptimize } from "@/lib/server/socialOptimize";
 import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTargetDay } from "@/lib/server/socialTiktok";
 
 /**
@@ -52,6 +53,17 @@ export async function GET(req: NextRequest) {
     const target = day ?? tiktokTargetDay();
     return NextResponse.json({ day: target, mailed: await notifyPackageReady(target) });
   }
-  const report = await packageSafetyNet({ force: q.get("force") === "1", dry: q.get("dry") === "1", day });
+  const dry = q.get("dry") === "1";
+  // Picks before videos (10-03): the optimizer writes the target day's 7am/7pm picks first (once per day; a no-op when the
+  // render already ran it), so a package checked here is judged against the plan it is meant to post, never an older one.
+  const target = day ?? tiktokTargetDay();
+  const optimized = dry
+    ? null
+    : await runSocialOptimize(Date.now(), { target }).catch((err) => {
+        console.warn("social: optimizer failed", err instanceof Error ? err.message : err);
+        return null;
+      });
+  const report = await packageSafetyNet({ force: q.get("force") === "1", dry, day });
+  if (optimized) Object.assign(report, { optimizer: { forDay: optimized.forDay, picks: optimized.picks } });
   return NextResponse.json(report, { status: report.action === "dispatch-failed" ? 502 : 200 });
 }
