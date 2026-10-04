@@ -89,4 +89,5 @@ export const ADMIN_NAV = [
   ["/admin/errors", "Log"],
   ["/admin/support", "Support"],
   ["/admin/system", "System"],
+  ["/admin/drop", "Drop"],
 ] as const;

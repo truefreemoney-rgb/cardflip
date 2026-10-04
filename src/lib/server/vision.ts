@@ -468,10 +468,9 @@ condition issue.`;
  * one retry, then the scan fails fast and the seller shoots again. The
  * second look is skipped when the first read already used the budget.
  */
-export const FIRST_LOOK_TIMEOUT_MS = 14_000;
-export const SECOND_LOOK_TIMEOUT_MS = 8_000;
-export const SECOND_LOOK_BUDGET_MS = 10_000;
 export const TIEBREAK_TIMEOUT_MS = 40_000;
+
+import { SCAN_BUDGET_MS, SECOND_LOOK_MIN_MS, remainingMs, withinBudget, type BudgetClock } from "@/lib/visionBudget";
 
 let client: Anthropic | null = null;
 
@@ -569,14 +568,16 @@ export async function analyzeCardImageWithUsage(
   pocket = false,
   /** Games this seller may scan; a read of one of them under the wrong switch re-reads as it. Omitted = never switch. */
   canSwitchTo?: (detected: GameId) => boolean,
+  /** When the photo arrived (lib/visionBudget.ts): every model call below gets only the time left on this clock. */
+  startedAt = Date.now(),
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
-  const startedAt = Date.now();
-  const first = await firstLook(base64Image, mediaType, languageHint, game, pocket);
+  const clock = { startedAt, budgetMs: SCAN_BUDGET_MS };
+  const first = await firstLook(base64Image, mediaType, languageHint, game, pocket, clock);
   const detected = first.read.detectedGame;
   if (detected && detected !== game && isGameId(detected) && canSwitchTo?.(detected)) {
     // The seller's switch said one game, the card is another: read it again
     // with the right game's instructions (the first read is the wrong schema).
-    const again = await analyzeCardImageWithUsage(base64Image, mediaType, languageHint, detected, pocket);
+    const again = await analyzeCardImageWithUsage(base64Image, mediaType, languageHint, detected, pocket, undefined, startedAt);
     return {
       read: { ...again.read, game: detected, switchedFrom: game },
       usage: addUsage(first.usage, again.usage),
@@ -599,10 +600,10 @@ export async function analyzeCardImageWithUsage(
   }
   const reason = await secondLookReason(first.read, game);
   if (!reason) return first;
-  // A slow first read has used the time the phone allows: the first read stands rather than risk the whole scan.
-  if (Date.now() - startedAt > SECOND_LOOK_BUDGET_MS) return { read: { ...first.read, secondLook: `${reason}:skipped-slow` }, usage: first.usage };
+  // A slow first read has used the clock: the first read stands rather than risk the whole scan.
+  if (remainingMs(clock) < SECOND_LOOK_MIN_MS) return { read: { ...first.read, secondLook: `${reason}:skipped-slow` }, usage: first.usage };
   try {
-    const second = await secondLook(base64Image, game);
+    const second = await secondLook(base64Image, game, clock);
     return {
       read: mergeSecondLook(first.read, second.read, reason, game),
       usage: addUsage(first.usage, second.usage),
@@ -643,8 +644,9 @@ async function firstLook(
   languageHint: ScanLanguage,
   game: GameId,
   pocket = false,
+  clock: BudgetClock = { startedAt: Date.now() },
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
-  const response = await getClient().messages.create({
+  const response = await withinBudget((timeout) => getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
     // backups/ab-vision-0902.json): identification IDENTICAL (name 64/64,
     // number 59/64 on both) at 2.5x cheaper ($0.011 vs $0.028/scan) — the
@@ -699,7 +701,7 @@ async function firstLook(
         ],
       },
     ],
-  }, { timeout: FIRST_LOOK_TIMEOUT_MS, maxRetries: 1 });
+  }, { timeout, maxRetries: 0 }), clock);
 
   if (response.stop_reason === "refusal") {
     throw new Error("Vision request was declined");
@@ -884,13 +886,13 @@ async function bottomStrip(base64Image: string, game: GameId = "pokemon"): Promi
   return { base64: out.toString("base64"), mediaType: "image/jpeg" };
 }
 
-export async function secondLook(base64Image: string, game: GameId): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
+export async function secondLook(base64Image: string, game: GameId, clock: BudgetClock = { startedAt: Date.now() }): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
   const strip = await bottomStrip(base64Image, game);
   const ask =
     game === "onepiece"
       ? "Read the printed details in this crop. The card is a One Piece Card Game card: its key is printed small at the bottom right, like 'OP06-119', 'ST16-004', 'EB02-061' or 'P-088', followed by the rarity (C, UC, R, SR, SEC, L, P, SP). Return the key exactly as cardNumber and its prefix before the dash ('OP06') as setCode. Read every digit from the print itself — foil glare often hides a stroke."
       : `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.`;
-  const response = await getClient().messages.create({
+  const response = await withinBudget((timeout) => getClient().messages.create({
     model: VISION_MODEL,
     max_tokens: 600,
     output_config: { effort: "low", format: { type: "json_schema", schema: SECOND_LOOK_SCHEMA } },
@@ -904,7 +906,7 @@ export async function secondLook(base64Image: string, game: GameId): Promise<{ r
         ],
       },
     ],
-  }, { timeout: SECOND_LOOK_TIMEOUT_MS, maxRetries: 0 });
+  }, { timeout, maxRetries: 0 }), clock);
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error("second look: no readable result");
   const parsed = JSON.parse(text.text) as SecondLookRead;

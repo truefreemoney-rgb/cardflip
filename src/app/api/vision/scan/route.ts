@@ -7,6 +7,7 @@ import {
   isVisionConfigured,
 } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
+import { SCAN_BUDGET_MS, isBudgetError } from "@/lib/visionBudget";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { gameFeaturesFor } from "@/lib/server/settings";
@@ -99,15 +100,23 @@ export async function POST(req: Request) {
         parseGame(body?.game),
         body?.pocket === true,
         (g) => features[g] === true,
+        visionAt,
       );
     } catch (err) {
       await giveBackScans(user, reservation).catch((e) =>
         console.error("scan give-back failed:", e instanceof Error ? e.message : e),
       );
+      // Out of time (lib/visionBudget.ts): the seller shoots again, the scan is given back, the Log page hears about it.
+      if (isBudgetError(err)) {
+        console.warn(`scan: read ran out of time after ${Date.now() - visionAt} ms (budget ${SCAN_BUDGET_MS} ms)`, err instanceof Error ? err.message : err);
+        return NextResponse.json({ status: "error", reason: "timeout" }, { status: 504 });
+      }
       throw err;
     }
     const { read: card, usage: tokens } = scanned;
     const visionMs = Date.now() - visionAt;
+    // A slow day shows on the Log page before anyone notices (Chris 10-04: the scanner must never stall).
+    if (visionMs > 6_000) console.warn(`scan: slow read ${visionMs} ms`, card.secondLook ? `second look: ${card.secondLook}` : "");
     // The token bill is written alongside; a ledger failure must never fail
     // a scan the seller already paid for.
     const [usage] = await Promise.all([

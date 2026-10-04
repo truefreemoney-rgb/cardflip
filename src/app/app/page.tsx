@@ -15,6 +15,8 @@ import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
+/** An item still "scanning" this long is failed by the watchdog, whatever it is waiting on (10-04). */
+const SCAN_WATCHDOG_MS = 20_000;
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
@@ -258,8 +260,12 @@ export default function AppPage() {
     // the stack; an empty write naturally clears it.
   }, []);
 
+  // Items the scan watchdog failed (see pump): later patches for them are dropped.
+  const abandoned = useRef(new Set<string>());
   const patchItem = useCallback(
     (id: string, patch: Partial<ScanItem>) => {
+      // An item the watchdog gave up on keeps its error: a late result must not revive "scanning" or flip it to ready.
+      if (abandoned.current.has(id)) return;
       commit(
         itemsRef.current.map((item) =>
           item.id === id ? { ...item, ...patch } : item,
@@ -359,6 +365,13 @@ export default function AppPage() {
         // workers can never pick the same item.
         if (itemsRef.current.some((i) => i.status === "queued")) void pump();
 
+        // The watchdog (Chris 10-04: "stalling in general is really bad"): whatever the code below is waiting on,
+        // an item still "scanning" at the limit is failed, and anything that lands for it later is ignored.
+        const watchdog = setTimeout(() => {
+          if (itemsRef.current.find((i) => i.id === next.id)?.status !== "scanning") return;
+          patchItem(next.id, { status: "error", error: "Took too long — try again" });
+          abandoned.current.add(next.id);
+        }, SCAN_WATCHDOG_MS);
         try {
           // Vision first, OCR as the fallback. Tesseract misreads CJK badly
           // enough that the lookup needs fuzzy matching to cope; when vision
@@ -500,7 +513,7 @@ export default function AppPage() {
             patchItem(next.id, { visionStatus: vision.status });
             // On-device OCR (several MB of model on a phone) has no clock of its own: a stall here left the item on
             // "Reading the card" for minutes (10-04). Past the limit it is a failed read, and the seller shoots again.
-            const scan = await Promise.race([scanCard(next.file, next.language), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ocr timeout")), 20_000))]);
+            const scan = await Promise.race([scanCard(next.file, next.language), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ocr timeout")), 6_000))]);
             nameCandidates = scan.nameCandidates;
             printed = scan.printed;
           }
@@ -719,6 +732,8 @@ export default function AppPage() {
             status: "error",
             error: "Couldn't read this photo — try a straighter, brighter shot",
           });
+        } finally {
+          clearTimeout(watchdog);
         }
       }
     } finally {

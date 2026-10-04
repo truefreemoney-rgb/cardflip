@@ -98,8 +98,8 @@ export async function scanCardWithVision(
       // A stalled cellular socket left the item "scanning" indefinitely
       // (mobile QA 09-06); the catch below turns the abort into an error
       // outcome so the OCR fallback runs. Guarded: iOS < 16 lacks timeout().
-      // 10-04: the server caps a read at ~28 s (vision.ts time budgets), so 40 s is a dead socket, not a slow read.
-      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(40_000) : undefined,
+      // 10-04: the server answers inside its 8 s read budget (lib/visionBudget.ts), so 12 s is a dead socket, not a slow read.
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(12_000) : undefined,
     });
     const data = await res.json().catch(() => null);
 
