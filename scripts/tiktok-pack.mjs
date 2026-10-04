@@ -70,22 +70,31 @@ if (missing) throw new Error(`${missing} slot(s) not registered for ${day}; the 
 // one): the videos open from black, so the default cover is a black square. For each MP4 the brightest frame of the
 // first 14 s (sampled every half second: a card with its price on screen, never a fade) is written as "<label> cover.png";
 // TikTok's Edit cover → Upload cover and Pinterest's Pick a cover take it.
+// Only STILL frames qualify (10-04: the brightest frame of the 7pm head to head was mid price count-up, $38.97 / $25.17
+// against a caption saying $43.52 / $39.14): a frame counts as still when no pixel of a 90x160 gray sample moves by more
+// than 40 levels 0.4 s later, i.e. the screen is holding with its final numbers. No still frame = the brightest one.
 {
   const { spawnSync } = await import("node:child_process");
   const ffmpeg = (await import("ffmpeg-static")).default;
   for (const [label] of caps) {
     const mp4 = path.join(dir, `${label}.mp4`);
-    let best = { t: 0, lum: -1 };
+    const grab = (t) => {
+      const r = spawnSync(ffmpeg, ["-v", "error", "-ss", String(t), "-i", mp4, "-frames:v", "1", "-vf", "scale=90:160", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]);
+      return r.status === 0 && r.stdout.length ? r.stdout : null;
+    };
+    let best = { t: 0, lum: -1, still: false };
     for (let t = 1; t <= 14; t += 0.5) {
-      const r = spawnSync(ffmpeg, ["-v", "error", "-ss", String(t), "-i", mp4, "-frames:v", "1", "-vf", "scale=18:32", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]);
-      if (r.status !== 0 || !r.stdout.length) continue;
-      const lum = r.stdout.reduce((a, b) => a + b, 0) / r.stdout.length;
-      if (lum > best.lum) best = { t, lum };
+      const a = grab(t);
+      if (!a) continue;
+      const b = grab(t + 0.4);
+      const still = !!b && a.every((x, i) => Math.abs(x - b[i]) <= 40);
+      const lum = a.reduce((s, x) => s + x, 0) / a.length;
+      if ((still && !best.still) || (still === best.still && lum > best.lum)) best = { t, lum, still };
     }
     const png = path.join(dir, `${label} cover.png`);
     const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-ss", String(best.t), "-i", mp4, "-frames:v", "1", png]);
     if (r.status !== 0) throw new Error(`${label}: cover frame failed: ${r.stderr.toString().slice(-300)}`);
-    console.log(label, `cover at ${best.t}s (brightness ${Math.round(best.lum)})`);
+    console.log(label, `cover at ${best.t}s (brightness ${Math.round(best.lum)}${best.still ? ", still" : ", NO STILL FRAME, check it"})`);
   }
 }
 fs.writeFileSync(path.join(dir, "captions.txt"), captions, "utf8");
