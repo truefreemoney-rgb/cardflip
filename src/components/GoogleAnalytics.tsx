@@ -17,6 +17,12 @@ import { visitorCountry } from "@/lib/client/geo";
  * cookie, so cached pages stay cached. The choice lives in cf_consent.
  */
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+/**
+ * TikTok Pixel (10-04, the first paid ad test). Rides on the same consent
+ * gate and the same /admin exclusion as GA4; absent until the id exists on
+ * Vercel. Conversion events are sent through lib/client/pixel.ts.
+ */
+const TIKTOK_PIXEL_ID = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID;
 const CONSENT_COOKIE = "cf_consent";
 const CONSENT_COUNTRIES = new Set(["GB", "IE"]);
 
@@ -36,7 +42,7 @@ export default function GoogleAnalytics() {
   const [mode, setMode] = useState<"load" | "ask" | "off" | null>(null);
 
   useEffect(() => {
-    if (!GA_ID) return;
+    if (!GA_ID && !TIKTOK_PIXEL_ID) return;
     let alive = true;
     (async () => {
       const prior = readConsent();
@@ -50,7 +56,7 @@ export default function GoogleAnalytics() {
     };
   }, []);
 
-  if (!GA_ID || !pathname || pathname.startsWith("/admin")) return null;
+  if ((!GA_ID && !TIKTOK_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
 
   if (mode === "ask") {
     return (
@@ -61,7 +67,7 @@ export default function GoogleAnalytics() {
       >
         <div className="mx-auto flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-center">
           <p className="flex-1 text-xs text-zinc-300">
-            CardFlip uses Google Analytics cookies to see which pages people use.{" "}
+            CardFlip uses analytics cookies to see which pages people use and whether our ads work.{" "}
             <a href="/privacy" className="text-brand-300 underline">Privacy</a>
           </p>
           <div className="flex gap-2">
@@ -94,13 +100,22 @@ export default function GoogleAnalytics() {
   if (mode !== "load") return null;
   return (
     <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-        strategy="afterInteractive"
-      />
-      <Script id="ga4-init" strategy="afterInteractive">
-        {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
-      </Script>
+      {GA_ID && (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4-init" strategy="afterInteractive">
+            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
+          </Script>
+        </>
+      )}
+      {TIKTOK_PIXEL_ID && (
+        <Script id="tiktok-pixel" strategy="afterInteractive">
+          {`!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var s=document.createElement("script");s.type="text/javascript",s.async=!0,s.src=r+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(s,a)};ttq.load('${TIKTOK_PIXEL_ID}');ttq.page();}(window,document,'ttq');`}
+        </Script>
+      )}
     </>
   );
 }

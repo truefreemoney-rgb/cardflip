@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import { fetchAccount } from "@/lib/client/accountApi";
 import { ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import { paymentCredited } from "@/lib/scanCopy";
+import { pixelTrack } from "@/lib/client/pixel";
 
 /**
  * Where Stripe Checkout lands a new subscriber (Chris, 09-25: dropping them
@@ -56,6 +57,7 @@ export default function SubscribedPage() {
       if (o && ok) {
         setReady((o.quota ?? o.user.scans)?.remaining ?? null);
         setPhase("confirmed");
+        pixelTrack(kind === "pack" ? "CompletePayment" : "Subscribe");
         void refresh();
         return true;
       }

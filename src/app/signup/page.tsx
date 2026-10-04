@@ -10,6 +10,7 @@ import Spinner from "@/components/Spinner";
 import OnboardingSteps, { CONFIRM_STEPS } from "@/components/OnboardingSteps";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
+import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
 import { mergeUser } from "@/lib/client/emailConfirm";
 import { readReferralCode } from "@/components/RefCapture";
@@ -91,6 +92,7 @@ export default function SignupPage() {
     try {
       const result = await signup(name.trim(), email.trim(), password, readReferralCode(), readTouch());
       const user = result.user;
+      pixelTrack("CompleteRegistration");
       // Stay on this page and slide straight into the next step: the code
       // (email confirmation on) or the welcome step.
       setFirstName(user.name.split(" ")[0]);
