@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
+import PricingModeToggle from "@/components/PricingModeToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import { toast } from "@/components/Toaster";
@@ -660,7 +661,13 @@ function AccountSettings({
       )}
 
       <Group label="Selling">
+        {/* Selling · Pricing only (10-04): same switch as Inventory. */}
         <Row
+          title="How you use CardFlip"
+          status={user.pricingOnly ? "Scan and price only. Nothing about eBay shows." : "Scan, price, and list cards on eBay."}
+          action={<PricingModeToggle />}
+        />
+        {!user.pricingOnly && <Row
           title="eBay"
           status={
             overview ? (
@@ -697,7 +704,7 @@ function AccountSettings({
               </Link>
             ) : undefined
           }
-        />
+        />}
         <PlanSection
           user={overview?.user ?? user}
           quota={overview?.quota}

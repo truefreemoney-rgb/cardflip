@@ -12,6 +12,7 @@ import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
 import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
+import { updateProfile } from "@/lib/client/accountApi";
 import { mergeUser } from "@/lib/client/emailConfirm";
 import { readReferralCode } from "@/components/RefCapture";
 import { readTouch } from "@/components/AttributionCapture";
@@ -125,6 +126,21 @@ export default function SignupPage() {
   // free scans spent. Without it (confirmation off) the screen is what it
   // always was, the full trial from the pricing constant.
   const scansLeft = confirmFlow ? (account?.trialScansLeft ?? 0) : PRICING.trial.scans;
+
+  // The welcome question (10-04, docs/PRICING-ONLY-PLAN.md): asked once, here.
+  // Either answer saves the mode and moves on; a failed save still moves on
+  // (the switch lives in Inventory and Account).
+  const [choosing, setChoosing] = useState<"sell" | "price" | null>(null);
+  async function chooseMode(mode: "sell" | "price") {
+    if (choosing) return;
+    setChoosing(mode);
+    try {
+      await updateProfile({ pricingOnly: mode === "price" });
+    } catch {
+      // Moving on anyway: the choice can be made again from Inventory.
+    }
+    router.push(scansLeft > 0 ? "/app" : "/pricing");
+  }
 
   return (
     <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
@@ -277,36 +293,38 @@ export default function SignupPage() {
             </p>
           )}
 
-          {scansLeft > 0 ? (
-            <>
+          <p className="mt-6 font-display text-lg font-semibold text-white">How will you use it?</p>
+          <div className="mt-3 flex flex-col gap-2.5 text-left">
+            {([
+              ["sell", "Sell on eBay", "Scan, price, and list cards on eBay in one tap."],
+              ["price", "Just price my cards", "Market prices and inventory value. Great for card shows and vendors."],
+            ] as const).map(([mode, title, line]) => (
               <button
-                onClick={() => router.push("/app")}
-                className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
+                key={mode}
+                type="button"
+                disabled={choosing !== null}
+                onClick={() => void chooseMode(mode)}
+                className="flex items-center gap-3 rounded-2xl border border-edge bg-surface-1 px-4 py-3.5 text-left transition hover:border-brand-400 hover:bg-brand-500/10 disabled:opacity-60"
               >
-                Start Scanning · {scansLeft} Free
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-semibold text-white">{title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-zinc-400">{line}</span>
+                </span>
+                {choosing === mode ? <Spinner className="h-4 w-4 shrink-0" /> : <span aria-hidden className="shrink-0 text-brand-300">→</span>}
               </button>
-              <button
-                onClick={() => router.push("/pricing")}
-                className="mt-3 w-full rounded-full border border-edge px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-surface-2"
-              >
-                Subscribe Now
-              </button>
-            </>
-          ) : (
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-zinc-500">You can change this any time from Account or Inventory.</p>
+
+          {scansLeft > 0 && (
             <button
+              type="button"
               onClick={() => router.push("/pricing")}
-              className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
+              className="mt-5 text-sm font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline"
             >
-              Pick a Plan
+              Or Subscribe Now
             </button>
           )}
-
-          <p className="mt-5 text-xs text-zinc-500">
-            Selling on eBay?{" "}
-            <Link href="/connect-ebay" className="font-medium text-brand-300 transition hover:text-brand-200">
-              Connect eBay
-            </Link>
-          </p>
         </div>
       )}
 

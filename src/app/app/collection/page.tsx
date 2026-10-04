@@ -721,7 +721,7 @@ export default function CollectionPage() {
                 {formatMoney(priceValue)}
               </span>
             )}
-            {sold && card.soldPrice != null && (() => {
+            {sold && card.soldPrice != null && !pricingOnly && (() => {
               const b = saleBreakdown(card)!;
               // With a purchase price on file the caption is the real profit;
               // without one it is the take-home after fees and postage.
@@ -1694,6 +1694,8 @@ export default function CollectionPage() {
   }
 
   if (!user) return <PageSkeleton />;
+  // Pricing only: sale prices minus what was paid, no fees or postage.
+  const shownProfit = pricingOnly ? stats.earned - stats.cost : stats.profit;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
@@ -1781,7 +1783,7 @@ export default function CollectionPage() {
                 {pricingOnly ? "Market Value" : "In Play"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
               <span className="whitespace-nowrap">
-                Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
+                Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
               </span>
             </span>
           )}
@@ -1860,7 +1862,7 @@ export default function CollectionPage() {
                   </>
                 )}
                 Total{" "}
-                <span className="font-display text-base font-semibold tabular-nums text-emerald-400">{formatMoney(stats.net)}</span>
+                <span className="font-display text-base font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
               </p>
             </div>
             {!pricingOnly && <div className="mt-1.5 grid grid-cols-2 gap-3">
@@ -1880,13 +1882,10 @@ export default function CollectionPage() {
               </div>
             </div>}
             {pricingOnly ? (
-              // No eBay lines: what sold, any fees an older eBay sale carried, what was paid.
+              // No eBay lines and no fees (Chris 10-04): what sold, and what was paid.
               <Breakdown
                 rows={[
                   ["Sold for", stats.earned],
-                  ...(stats.earned - stats.net > 0.005
-                    ? ([["Fees and postage", -(stats.earned - stats.net)]] as [string, number][])
-                    : []),
                   ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
                 ]}
                 muted={stats.sold.length === 0}
@@ -1924,8 +1923,8 @@ export default function CollectionPage() {
                     <span className="ml-1 text-xs text-zinc-500">({stats.soldCopies - stats.costKnown} sale{stats.soldCopies - stats.costKnown === 1 ? "" : "s"} with no purchase price)</span>
                   )}
                 </span>
-                <span className={`shrink-0 font-display font-semibold tabular-nums ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {stats.profit < 0 ? "−" : ""}{formatMoney(Math.abs(stats.profit))}
+                <span className={`shrink-0 font-display font-semibold tabular-nums ${shownProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {shownProfit < 0 ? "−" : ""}{formatMoney(Math.abs(shownProfit))}
                 </span>
               </div>
             )}
@@ -2830,7 +2829,7 @@ export default function CollectionPage() {
                           title={`${card.soldByHand ? "Marked sold by hand: no eBay fee or postage" : card.soldFees != null ? `eBay fees ${formatMoney(card.soldFees)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
                           className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
                         >
-                          {card.soldByHand ? "no fees · edit" : `you keep ${formatMoney(netAfterFees(card.soldPrice, card.soldFees))}`}
+                          {card.soldByHand || pricingOnly ? "edit" : `you keep ${formatMoney(netAfterFees(card.soldPrice, card.soldFees))}`}
                         </button>
                       </>
                     ) : (
