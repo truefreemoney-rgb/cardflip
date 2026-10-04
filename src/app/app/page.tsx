@@ -498,7 +498,9 @@ export default function AppPage() {
             }
           } else {
             patchItem(next.id, { visionStatus: vision.status });
-            const scan = await scanCard(next.file, next.language);
+            // On-device OCR (several MB of model on a phone) has no clock of its own: a stall here left the item on
+            // "Reading the card" for minutes (10-04). Past the limit it is a failed read, and the seller shoots again.
+            const scan = await Promise.race([scanCard(next.file, next.language), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ocr timeout")), 20_000))]);
             nameCandidates = scan.nameCandidates;
             printed = scan.printed;
           }

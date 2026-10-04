@@ -460,6 +460,19 @@ not a scratch and a sleeve is not damage; when the photo cannot settle it, say
 so with a null rather than defaulting to Near Mint. Foil treatment is not a
 condition issue.`;
 
+/**
+ * Time budgets (10-04: a scan sat on "Reading the card" for over a minute; the
+ * first read plus its second look took 29.3 s on the server, the phone gives
+ * up at 40 s and falls to on-device OCR). Normal reads take ~3 s (p95 5 s,
+ * scan_usage read.ms), so a call still running at 14 s is a stalled request:
+ * one retry, then the scan fails fast and the seller shoots again. The
+ * second look is skipped when the first read already used the budget.
+ */
+export const FIRST_LOOK_TIMEOUT_MS = 14_000;
+export const SECOND_LOOK_TIMEOUT_MS = 8_000;
+export const SECOND_LOOK_BUDGET_MS = 10_000;
+export const TIEBREAK_TIMEOUT_MS = 40_000;
+
 let client: Anthropic | null = null;
 
 function getClient(): Anthropic {
@@ -557,6 +570,7 @@ export async function analyzeCardImageWithUsage(
   /** Games this seller may scan; a read of one of them under the wrong switch re-reads as it. Omitted = never switch. */
   canSwitchTo?: (detected: GameId) => boolean,
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
+  const startedAt = Date.now();
   const first = await firstLook(base64Image, mediaType, languageHint, game, pocket);
   const detected = first.read.detectedGame;
   if (detected && detected !== game && isGameId(detected) && canSwitchTo?.(detected)) {
@@ -585,6 +599,8 @@ export async function analyzeCardImageWithUsage(
   }
   const reason = await secondLookReason(first.read, game);
   if (!reason) return first;
+  // A slow first read has used the time the phone allows: the first read stands rather than risk the whole scan.
+  if (Date.now() - startedAt > SECOND_LOOK_BUDGET_MS) return { read: { ...first.read, secondLook: `${reason}:skipped-slow` }, usage: first.usage };
   try {
     const second = await secondLook(base64Image, game);
     return {
@@ -683,7 +699,7 @@ async function firstLook(
         ],
       },
     ],
-  });
+  }, { timeout: FIRST_LOOK_TIMEOUT_MS, maxRetries: 1 });
 
   if (response.stop_reason === "refusal") {
     throw new Error("Vision request was declined");
@@ -888,7 +904,7 @@ export async function secondLook(base64Image: string, game: GameId): Promise<{ r
         ],
       },
     ],
-  });
+  }, { timeout: SECOND_LOOK_TIMEOUT_MS, maxRetries: 0 });
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error("second look: no readable result");
   const parsed = JSON.parse(text.text) as SecondLookRead;
@@ -1113,7 +1129,7 @@ export async function tiebreakByPicture(
         ],
       },
     ],
-  });
+  }, { timeout: TIEBREAK_TIMEOUT_MS, maxRetries: 1 });
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error(`tiebreak: no readable result (stop_reason ${response.stop_reason})`);
   const parsed = JSON.parse(text.text) as { pick: TiebreakResult["pick"]; confidence: number; reason: string };

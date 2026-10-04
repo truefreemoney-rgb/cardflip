@@ -35,6 +35,9 @@ function outOfScans(user: User, usage: ScanQuota) {
   return NextResponse.json({ error: outOfScansMessage(user, usage), quota: true, usage }, { status: 402 });
 }
 
+/** The read is capped inside (lib/server/vision.ts time budgets, ~28 s worst case); the function limit sits above it. */
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   try {
     // Stage clock (10-02): the read stores how long the gates and the vision
