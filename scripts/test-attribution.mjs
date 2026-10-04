@@ -212,7 +212,7 @@ console.log("captions are never touched: every site's text keeps the plain cardf
   const dd = { id: "pokemon-set-2026-10-01", kind: "set", game: "pokemon", day: "2026-10-01", caption: "c cardflip.io", shortCaption: "s cardflip.io", hashtags: ["A", "B"] };
   check("fitText is exactly what it was", fitText(dd, 300), "c cardflip.io\n\n#A #B");
   const src = (p) => readFileSync(repo(`src/${p}`), "utf8");
-  check("the TikTok package opens with the lead line and its tags are capped at TIKTOK_MAX_TAGS (seven since 10-02)", /tiktokLead\(fitText\(\{ \.\.\.applied, hashtags: tiktokTags\(applied\.hashtags\) \}, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS\)/.test(src("lib/server/socialTiktok.ts")), true);
+  check("the TikTok package opens with the lead line and its tags are capped at TIKTOK_MAX_TAGS (seven since 10-02)", /tiktokLead\(fitText\(\{ \.\.\.applied, hashtags: tiktokTags\(applied\.hashtags, [^)]*\) \}, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS\)/.test(src("lib/server/socialTiktok.ts")), true);
 }
 
 console.log("wiring (a browser is not run here)");
