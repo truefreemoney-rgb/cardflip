@@ -1,396 +1,326 @@
-// The CardFlip ad (Chris 10-04: "the video has to be more of an advertisement
-// ... really sell the product and get the user curious and excited to visit
-// our website and scan cards"). A 1080x1920 HTML scene stepped frame by
-// frame by headless Chromium and stitched by ffmpeg, like the social videos
-// (scripts/lib/social-scene.mjs renderMp4), but its own scene: a hook card
-// with its price, the scanner at work, the verified card page, the one-tap
-// eBay listing, the five games, and the call to action.
+// The CardFlip ads (10-04, after Chris rejected v1/v2: "make it make sense and
+// flow together properly ... put in real features"). Three cuts of ONE story
+// from his real iPhone screen recording of a Samurott scan, storyboarded first
+// (memory feedback-ad-video-quality) and run side by side in one TikTok ad
+// group so TikTok rotates them:
 //
-// Two ways to show the scanner:
-//   --footage <mp4>   REAL footage: Chris's iPhone screen recording of a scan
-//                     (10-04, via /admin/drop). Three slices are cut out of it
-//                     (the scan, the verified card page, the listing page), the
-//                     Safari chrome cropped off, and shown inside a phone frame.
-//                     The home screen, the category typing and the ending are
-//                     dropped. Edit SLICES below to re-cut.
-//   (no footage)      a mock scanner drawn from live cards (the first version).
-// The hook card and the "live" prices are fetched from cardflip.io's own
-// search at render time, so the ad can never show a number the site would not.
+//   --cut A  The walkthrough (~21 s): question → capture → Found → the price
+//            lifts off the footage → "Yes, this is my card" → condition and
+//            price history → the listing, ending on Publish → five real
+//            features with crops of the real UI.
+//   --cut B  The reveal (~15 s): full-bleed footage, giant type, opens at the
+//            climax ($52.64 slams in over the Found flash), rewinds to the
+//            four-second scan, lands on the listing, closes on the dimmed
+//            listing with the logo.
+//   --cut C  Got cards to sell? (~18 s): text block on top, phone running off
+//            the bottom, opens on the FINISHED listing, the scan as the
+//            explanation, condition, the written listing, Publish, the binder.
+//
+// A 1080x1920 HTML scene stepped frame by frame by headless Chromium and
+// stitched by ffmpeg (scripts/lib/social-scene.mjs renderMp4). Every phone
+// screen is a frame of the recording: slices are cut with ffmpeg, the iOS
+// status bar cropped off (y 124), app slices 1600 tall so the Publish button
+// (y 1615-1705 in the recording) stays in frame, scanner slices padded 64 px
+// black to the same height. Nothing is mocked.
 //
 //   node --experimental-strip-types --no-warnings --conditions=react-server \
 //     --import ./scripts/lib/register-next-stubs.mjs scripts/ad-video.mjs \
-//     [--footage chris.mp4] [--out x.mp4] [--fps 24] [--silent]
+//     --footage chris.mp4 --cut A [--out x.mp4] [--fps 24] [--silent]
 //
-// Audio: public/social/audio/moodmode-hip-hop-promo-226369.mp3 (Pixabay Content
-// License, Chris picked it 10-03), 122.5 bpm, the groove from 10.4 s; the
-// cut is a whole number of beats and every pop lands on one.
+// Music (Pixabay Content License, public/social/audio): A cinematic-soul
+// 511436, B hip-hop promo 226369 (122.5 bpm, groove from 10.4 s), C pop
+// upbeat 425328. One track per cut so the three never feel like one ad.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { artDataUri, esc, renderMp4 } from "./lib/social-scene.mjs";
+import { esc, renderMp4 } from "./lib/social-scene.mjs";
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const has = (k) => process.argv.includes(k);
-const OUT = arg("--out", path.join(process.env.USERPROFILE ?? process.env.HOME ?? ".", "Downloads", `cardflip-ad-${new Date().toISOString().slice(0, 10)}.mp4`));
+const CUT = String(arg("--cut", "A")).toUpperCase();
+if (!"ABC".includes(CUT) || CUT.length !== 1) throw new Error(`--cut must be A, B or C (got ${CUT})`);
+const OUT = arg("--out", path.join(process.env.USERPROFILE ?? process.env.HOME ?? ".", "Downloads", `cardflip-ad-${new Date().toISOString().slice(0, 10)}-${CUT}.mp4`));
 const FPS = Number(arg("--fps", 24));
 const FOOTAGE = arg("--footage", "");
+if (!FOOTAGE || !fs.existsSync(FOOTAGE)) throw new Error(`--footage <mp4> is required (got ${FOOTAGE || "nothing"})`);
 const W = 1080, H = 1920;
-const ORIGIN = arg("--origin", "https://cardflip.io");
 
-/** The cards the ad reads, by the site's own ids: the hook, the first scan, then one per game (mock mode). */
-const PICKS = {
-  hook: { id: "swsh7-215", game: "pokemon" }, // Umbreon VMAX alt art, Evolving Skies: the card everyone has heard of
-  scan: { id: "base1-4", game: "pokemon" }, // Charizard, Base Set 4/102
-  fast: [
-    { id: "ygo-21792-1st", game: "yugioh" }, // Blue-Eyes White Dragon, LOB-001 1st Edition
-    { id: "crd_be9f1031cbc84de7a5a4a388a036857a", game: "lorcana" }, // Elsa - Ice Maker, Challenge promo
-    { id: "OP01-120_p1", game: "onepiece" }, // Shanks, Romance Dawn parallel
-  ],
+/** The recording's content box: the iOS status bar (124 px) cropped off; scanner frames end at 1660, app frames run to 1724 (Publish button). */
+const SRC_W = 886;
+const CROPS = {
+  scan: "crop=886:1536:0:124,pad=886:1600:0:0:black", // scanner (Safari bar from 1680 stays out)
+  app: "crop=886:1600:0:124", // the CardFlip app pages (Safari collapsed)
 };
-const GAME_NAME = { pokemon: "Pokémon", mtg: "Magic", yugioh: "Yu-Gi-Oh", onepiece: "One Piece", lorcana: "Lorcana" };
+const FRAME_H = 1600;
+const PHONE_W = 720, PHONE_H = Math.round((PHONE_W * FRAME_H) / SRC_W); // 720 x 1300
+const BLEED_W = 1080;
 
 /**
- * The slices of the screen recording (seconds into the file) and what the
- * headline says over each. `switchAt` = the footage second the headline
- * changes (the scan: "Point your camera." until the card is found).
+ * One scene = one slice of the recording + what is drawn over it.
+ *   from/len  seconds of the recording; speed plays it faster/slower;
+ *   dur       = len / speed, the scene's screen time (closing scenes have no slice)
+ *   look      phone | bleed | top (C: text block on top, phone lower)
+ *   head/sub  the headline; headAt = scene second the head switches to head2
  */
-const SLICES = [
-  { key: "scan", from: 4.8, beats: 10, head: "Point your camera.", head2: "Get the price.", switchAt: 9.0 },
-  { key: "card", from: 30.5, beats: 4, head: "Every price is live." },
-  { key: "ebay", from: 38.0, beats: 6, head: "Sell it in one tap." },
-];
-/** The phone's content box in the recording: the iOS status bar (124 px) and Safari's bars (from 1660) cropped off. */
-const CROP = { w: 886, h: 1536, x: 0, y: 124 };
-const FRAME_W = 720;
-
-async function card(p) {
-  const r = await fetch(`${ORIGIN}/api/search-card?id=${encodeURIComponent(p.id)}&game=${p.game}`, { headers: { "User-Agent": "CardFlip ad render" } });
-  if (!r.ok) throw new Error(`${p.id}: search ${r.status}`);
-  const c = (await r.json()).cards?.[0];
-  if (!c) throw new Error(`${p.id}: not found`);
-  const usd = (c.prices ?? []).find((x) => x.currency === "USD" && typeof x.market === "number");
-  if (!usd) throw new Error(`${p.id}: no USD market price`);
-  const art = await artDataUri(c.imageLarge || c.imageSmall);
-  if (!art) throw new Error(`${p.id}: art did not load`);
-  const name = String(c.name).replace(/ - .*$/, "");
-  return { id: c.id, game: p.game, name, set: c.setName, number: c.number, price: usd.market, art, label: usd.label ?? "Market price" };
-}
-
-const money = (n) => (n >= 100 ? "$" + Math.round(n).toLocaleString("en-US") : "$" + n.toFixed(2));
-
-console.log("fetching the cards from", ORIGIN);
-const hook = await card(PICKS.hook);
-const scan = FOOTAGE ? null : await card(PICKS.scan);
-const fast = [];
-if (!FOOTAGE) for (const p of PICKS.fast) fast.push(await card(p));
-for (const c of [hook, scan, ...fast].filter(Boolean)) console.log(`  ${GAME_NAME[c.game]}: ${c.name} · ${c.set} · ${c.number} = ${money(c.price)}`);
-const logo = "data:image/png;base64," + fs.readFileSync(new URL("../public/brand/cardflip-logo.png", import.meta.url)).toString("base64");
-
-// Timing in BEATS of the track (122.5 bpm). Mock: hook 5, scan 8, fast 10, ebay 7, cta 10. Footage: hook 5, the slices, games 4, cta 11.
-const BPM = 122.5, P = 60 / BPM;
-const SEC = FOOTAGE
-  ? { hook: 5, ...Object.fromEntries(SLICES.map((s) => [s.key, s.beats])), games: 4, cta: 11 }
-  : { hook: 5, scan: 8, fast: 10, ebay: 7, cta: 10 };
-const ORDER = Object.keys(SEC);
-const T0 = {};
+const CUTS = {
+  A: {
+    audio: { file: "cinematic-soul-upbeat-success-happy-corporate-music-511436.mp3", start: 0.0 },
+    scenes: [
+      { key: "open", crop: "scan", from: 4.3, len: 3.0, speed: 1, look: "phone", head: "What's this card worth?", intro: true },
+      { key: "cap", crop: "scan", from: 7.3, len: 2.1, speed: 1, look: "phone", head: "What's this card worth?", sub: "Tap Capture.", cont: true },
+      { key: "found", crop: "scan", from: 9.4, len: 1.8, speed: 1, look: "phone", head: "Found.", sub: "Samurott · White Flare 107/086 · Holofoil", cont: true },
+      { key: "price", crop: "scan", from: 10.0, len: 1.8, speed: 0.7, look: "phone", head: "Live market price.", sub: "Not a guess. Today's price.", cont: true, pricePop: true },
+      { key: "mine", crop: "app", from: 27.2, len: 4.2, speed: 1.5, look: "phone", head: "Your card. Your photo.", sub: "“Yes, this is my card.”", priceLand: true },
+      { key: "chart", crop: "app", from: 31.4, len: 4.6, speed: 1.4, look: "phone", head: "Condition from the photo.", sub: "Price history, 90 days.", cont: true },
+      { key: "list", crop: "app", from: 36.0, len: 4.2, speed: 1.3, look: "phone", head: "Sell it in one tap.", sub: "Listing written. Photo included.", cont: true, publish: true },
+      { key: "close", dur: 6.0, look: "closeA" },
+    ],
+  },
+  B: {
+    audio: { file: "moodmode-hip-hop-promo-226369.mp3", start: 10.4 },
+    scenes: [
+      { key: "slam", crop: "scan", from: 9.4, len: 2.2, speed: 1, look: "bleed", head: "This card is worth", slam: "$52.64" },
+      { key: "rewind", crop: "scan", from: 4.3, len: 2.0, speed: 1, look: "bleed", head: "Took <em>four seconds</em> to find out.", whip: true },
+      { key: "tap", crop: "scan", from: 6.3, len: 3.0, speed: 1, look: "bleed", head: "Point. <em>Tap.</em>", foot: "Reading the card…", footSub: "the app does the rest", cont: true },
+      { key: "exact", crop: "scan", from: 9.3, len: 2.4, speed: 1, look: "bleed", head: "Exact card. <em>Exact printing.</em>", foot: "Live market price", footSub: "Samurott · White Flare 107/086 · Holofoil", cont: true },
+      { key: "ebay", crop: "app", from: 36.4, len: 3.8, speed: 1.5, look: "bleed", bleedY: -700, head: "One tap later<br>it's <em>on eBay.</em>", foot: "Photo included.", footSub: "title, description and price written for you", publish: true },
+      { key: "close", crop: "app", from: 40.0, len: 0.6, speed: 0.2, look: "closeB", bleedY: -700 },
+    ],
+  },
+  C: {
+    audio: { file: "tatamusic-pop-upbeat-pop-425328.mp3", start: 0.0 },
+    scenes: [
+      { key: "hook", crop: "app", from: 39.2, len: 1.0, speed: 0.34, look: "top", head: "Got cards to sell?", sub: "This eBay listing took <em>one tap.</em>", tag: "LIVE ON EBAY", intro: true },
+      { key: "scan", crop: "scan", from: 4.3, len: 6.8, speed: 2, look: "top", head: "Here's the tap.", sub: "Point your camera at the card." },
+      { key: "graded", crop: "app", from: 29.8, len: 4.0, speed: 1.3, look: "top", head: "Graded by the photo.", sub: "Near Mint. Corners, edges, surface checked. <em>$52.64</em> market, live." },
+      { key: "written", crop: "app", from: 35.4, len: 3.6, speed: 1.2, look: "top", head: "Listing written for you.", sub: "Title, description, price, photo. <em>You just press Publish.</em>", cont: true },
+      { key: "publish", crop: "app", from: 39.0, len: 1.2, speed: 0.5, look: "top", head: "Publish.", sub: "Live on your eBay account in seconds.", cont: true, publish: true, phoneTop: 520 },
+      { key: "binder", crop: "app", from: 25.0, len: 1.5, speed: 0.5, look: "top", head: "Your whole binder, priced.", sub: "Every card. Live market prices. Sell any of them in one tap.", url: true, phoneTop: 840 },
+    ],
+  },
+};
+const cut = CUTS[CUT];
+for (const s of cut.scenes) s.dur = s.dur ?? s.len / s.speed;
+const FADE = 0.35; // crossfade between scenes
 let acc = 0;
-for (const k of ORDER) { T0[k] = acc; acc += SEC[k]; }
-const TOTAL_BEATS = acc;
-const TOTAL = TOTAL_BEATS * P;
+for (const s of cut.scenes) { s.start = acc; acc += s.dur; }
+const TOTAL = Math.round(acc * FPS) / FPS;
 
-// Footage frames: each slice cut to its beat count, cropped, 24 fps JPEGs the scene shows one per frame.
-let framesDir = null;
+// Cut every slice to JPEG frames: the phone cuts at 720 wide, the full-bleed cuts at 1080.
+const ffmpeg = (await import("ffmpeg-static")).default;
+const framesDir = fs.mkdtempSync(path.join(os.tmpdir(), "cardflip-ad-frames-"));
 const frames = {};
-if (FOOTAGE) {
-  if (!fs.existsSync(FOOTAGE)) throw new Error(`footage missing: ${FOOTAGE}`);
-  const ffmpeg = (await import("ffmpeg-static")).default;
-  framesDir = fs.mkdtempSync(path.join(os.tmpdir(), "cardflip-ad-frames-"));
-  for (const s of SLICES) {
-    const dur = s.beats * P;
-    const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-ss", s.from.toFixed(3), "-t", dur.toFixed(3), "-i", FOOTAGE, "-vf", `crop=${CROP.w}:${CROP.h}:${CROP.x}:${CROP.y},scale=${FRAME_W}:-2,fps=${FPS}`, "-q:v", "3", path.join(framesDir, `${s.key}-%04d.jpg`)]);
-    if (r.status !== 0) throw new Error(`ffmpeg cut ${s.key}: ${r.stderr.toString().slice(-400)}`);
-    frames[s.key] = fs.readdirSync(framesDir).filter((f) => f.startsWith(`${s.key}-`)).sort();
-    console.log(`  footage ${s.key}: ${frames[s.key].length} frames from ${s.from}s (${dur.toFixed(1)}s)`);
+for (const s of cut.scenes) {
+  if (!s.crop) continue;
+  const w = s.look === "bleed" || s.look === "closeB" ? BLEED_W : PHONE_W;
+  const vf = `${CROPS[s.crop]},setpts=PTS/${s.speed},scale=${w}:-2,fps=${FPS}`;
+  const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-ss", s.from.toFixed(3), "-t", s.len.toFixed(3), "-i", FOOTAGE, "-vf", vf, "-q:v", "3", path.join(framesDir, `${s.key}-%04d.jpg`)]);
+  if (r.status !== 0) throw new Error(`ffmpeg cut ${s.key}: ${r.stderr.toString().slice(-400)}`);
+  frames[s.key] = fs.readdirSync(framesDir).filter((f) => f.startsWith(`${s.key}-`)).sort();
+  if (!frames[s.key].length) throw new Error(`no frames for ${s.key}`);
+  console.log(`  ${s.key}: ${frames[s.key].length} frames, ${s.from}s +${s.len}s at ${s.speed}x → ${s.dur.toFixed(1)}s`);
+}
+// Stills for the A closing rows (real UI crops): the moment, in seconds of the recording.
+const stills = {};
+if (CUT === "A") {
+  for (const [k, at] of Object.entries({ verified: 32.0, chart: 34.2, publish: 39.6, pills: 10.2, ledger: 25.3 })) {
+    const crop = k === "pills" ? CROPS.scan : CROPS.app;
+    const out = path.join(framesDir, `still-${k}.jpg`);
+    const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-ss", at.toFixed(3), "-i", FOOTAGE, "-frames:v", "1", "-vf", crop, "-q:v", "2", out]);
+    if (r.status !== 0) throw new Error(`ffmpeg still ${k}: ${r.stderr.toString().slice(-400)}`);
+    stills[k] = out;
   }
 }
-const frameUrl = (f) => `file://${path.join(framesDir, f).replace(/\\/g, "/")}`;
-const FRAME_H = Math.round((FRAME_W * CROP.h) / CROP.w);
+const fileUrl = (f) => `file://${f.replace(/\\/g, "/")}`;
+const frameUrl = (f) => fileUrl(path.join(framesDir, f));
+const logo = "data:image/png;base64," + fs.readFileSync(new URL("../public/brand/cardflip-logo.png", import.meta.url)).toString("base64");
 
-const phoneFootage = (s) => `<div class="abs scr real-scr" id="${s.key}">
-  <div class="headline display${s.key === "scan" ? "" : " sm"}"><span class="h1">${esc(s.head)}</span>${s.head2 ? `<span class="h2" style="display:none">${esc(s.head2)}</span>` : ""}</div>
-  <div class="phone real"><div class="glow"></div><div class="screen">
-    ${frames[s.key].map((f, i) => `<img class="ff" data-i="${i}" src="${frameUrl(f)}" style="display:${i === 0 ? "block" : "none"}">`).join("")}
-  </div></div>
-</div>`;
+const framesHtml = (s) => frames[s.key].map((f, i) => `<img class="ff" data-i="${i}" src="${frameUrl(f)}" style="display:${i === 0 ? "block" : "none"}">`).join("");
+
+function sceneHtml(s) {
+  const head = s.head ? `<div class="head display"><span class="h1">${s.head}</span>${s.sub ? `<small>${s.sub}</small>` : ""}</div>` : "";
+  switch (s.look) {
+    case "phone":
+      return `<div class="scene phone-look" id="${s.key}">${head}
+        <div class="phone"><div class="screen">${framesHtml(s)}</div></div>
+        ${s.publish ? `<div class="pulse"></div>` : ""}</div>`;
+    case "bleed":
+      return `<div class="scene b" id="${s.key}">
+        <div class="bleedwrap" style="top:${s.bleedY ?? -120}px">${framesHtml(s)}</div><div class="shade"></div>
+        <div class="big display">${s.head}</div>
+        ${s.slam ? `<div class="slam display">${s.slam}</div>` : ""}
+        ${s.foot ? `<div class="bottom display">${s.foot}<small>${s.footSub ?? ""}</small></div>` : ""}
+        ${s.publish ? `<div class="pulse" style="left:100px; width:880px; top:${Math.round(1491 * (BLEED_W / SRC_W) + (s.bleedY ?? -120)) - 8}px; height:120px; border-radius:70px"></div>` : ""}</div>`;
+    case "closeB":
+      return `<div class="scene b" id="${s.key}">
+        <div class="bleedwrap dim" style="top:${s.bleedY ?? -120}px">${framesHtml(s)}</div><div class="shade deep"></div>
+        <img class="logo" src="${logo}" alt="CardFlip">
+        <div class="big display center">Live on eBay.<br>From one scan.</div>
+        <div class="bottom display center">cardflip.io<small>Pokémon · Magic · Lorcana · One Piece · Yu-Gi-Oh!<br>Free to try. Works in your browser.</small></div></div>`;
+    case "top":
+      return `<div class="scene c" id="${s.key}">
+        <div class="top display"><span class="h1">${s.head}</span><small>${s.sub ?? ""}</small></div>
+        ${s.tag ? `<div class="tag">${s.tag}</div>` : ""}
+        ${s.url ? `<div class="top display url"><span class="h1">cardflip.io</span><small>Free trial · works in your browser</small></div>` : ""}
+        <div class="phone" style="top:${s.phoneTop ?? 640}px"><div class="screen">${framesHtml(s)}</div></div>
+        ${s.publish ? `<div class="pulse" style="top:${(s.phoneTop ?? 640) + 1215}px"></div>` : ""}</div>`;
+    case "closeA": {
+      const row = (k, txt, sub, style) => `<div class="row"><div class="crop"><img src="${fileUrl(stills[k])}" style="${style}"></div><div class="txt">${txt}<span>${sub}</span></div></div>`;
+      return `<div class="scene" id="${s.key}">
+        <img class="logo" src="${logo}" alt="CardFlip">
+        <div class="close-h display">Scan it. Price it. Sell it.</div>
+        <div class="rows">
+          ${row("verified", "Exact printing and condition", "read from your camera", "width:400px; left:-10px; top:-316px")}
+          ${row("chart", "Live market price", "with 90 days of history", "width:301px; left:40px; top:-270px")}
+          ${row("publish", "One tap to a live eBay listing", "photo and description filled in", "width:460px; left:-40px; top:-722px")}
+          ${row("pills", "Five games, one scanner", "Pokémon · Magic · Lorcana · One Piece · Yu-Gi-Oh!", "width:381px; left:0; top:-533px")}
+          ${row("ledger", "Your binder's value, always current", "every card, every price, live", "width:381px; left:0; top:-101px")}
+        </div>
+        <div class="url display">cardflip.io<small>Free trial · works in your browser</small></div></div>`;
+    }
+    default:
+      throw new Error(`look ${s.look}`);
+  }
+}
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { margin:0; box-sizing:border-box; }
+  * { box-sizing:border-box; margin:0; }
   html, body { width:${W}px; height:${H}px; overflow:hidden; background:#07080d; }
-  body { font-family:"Geist", system-ui, sans-serif; color:#fff; position:relative;
-    background: radial-gradient(70% 50% at 50% 0%, rgba(99,102,241,.42), transparent 70%),
-                radial-gradient(50% 40% at 100% 100%, rgba(240,171,252,.2), transparent 70%), #07080d; }
+  body { font-family:"Geist", system-ui, sans-serif; color:#fff; position:relative; }
   .display { font-family:"Bricolage Grotesque", "Geist", sans-serif; font-weight:800; letter-spacing:-0.025em; }
-  .abs { position:absolute; left:0; top:0; width:100%; height:100%; }
-  .scr { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:240px 110px 340px; text-align:center; }
-  .muted { color:rgba(255,255,255,.66); }
-  .holo-text { background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f0abfc,#fcd34d); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .green { background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
-    -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 0 18px rgba(74,222,128,.45)); }
-  .kicker { font-size:36px; font-weight:600; color:#a5b4fc; text-transform:uppercase; letter-spacing:.18em; }
-  .title { font-size:96px; line-height:1.02; margin-top:18px; }
-  .sub { font-size:40px; margin-top:22px; line-height:1.3; }
-  .cardwrap { position:relative; width:620px; height:866px; border-radius:30px; overflow:hidden; background:#1c1d27;
-    box-shadow:0 50px 140px rgba(0,0,0,.65), 0 0 0 2px rgba(255,255,255,.14); }
-  .cardwrap img { width:100%; height:100%; object-fit:cover; display:block; }
-  .shine { position:absolute; inset:0; mix-blend-mode:screen; opacity:.55; pointer-events:none;
-    background:linear-gradient(115deg, transparent 30%, rgba(125,211,252,.35) 42%, rgba(240,171,252,.55) 50%, rgba(252,211,77,.35) 58%, transparent 70%); background-size:250% 250%; }
-  #hook .price { font-size:184px; line-height:1; margin-top:30px; font-variant-numeric:tabular-nums; }
-  #hook .who { font-size:40px; margin-top:14px; }
-  .phone { position:relative; width:640px; border-radius:62px; border:2px solid rgba(255,255,255,.16); background:#0b0d13; padding:14px;
-    box-shadow:0 60px 160px rgba(0,0,0,.7); }
-  .phone .glow { position:absolute; inset:-120px -90px; z-index:-1;
-    background:radial-gradient(ellipse at 50% 45%, rgba(167,139,250,.5), rgba(125,211,252,.25) 38%, rgba(240,171,252,.12) 56%, transparent 72%); }
-  .screen { border-radius:50px; background:rgba(0,0,0,.72); overflow:hidden; padding:26px 26px 30px; }
-  .scr.real-scr { padding:190px 60px 290px; }
-  .real-scr .headline { font-size:80px; margin-bottom:34px; }
-  .real-scr .headline.sm { font-size:68px; }
-  .phone.real { width:${FRAME_W + 28}px; border-radius:54px; }
-  .phone.real .screen { border-radius:42px; }
-  .phone.real .screen { padding:0; width:${FRAME_W}px; height:${FRAME_H}px; background:#000; }
-  .phone.real .screen img { width:${FRAME_W}px; height:${FRAME_H}px; display:block; }
-  .bar { display:flex; justify-content:space-between; align-items:center; font-size:24px; color:#a1a1aa; padding:4px 6px; }
-  .bar .st { display:flex; align-items:center; gap:10px; font-weight:600; color:#6ee7b7; }
-  .bar .dot { width:14px; height:14px; border-radius:99px; background:#34d399; }
-  .view { position:relative; margin-top:18px; aspect-ratio:5/7; border-radius:26px; overflow:hidden; background:rgba(0,0,0,.4); }
-  .view img { width:100%; height:100%; object-fit:cover; display:block; }
-  .br { position:absolute; width:58px; height:58px; border-color:rgba(125,211,252,.9); border-style:solid; border-width:0; }
-  .br.tl { left:14px; top:14px; border-left-width:5px; border-top-width:5px; border-top-left-radius:14px; }
-  .br.tr { right:14px; top:14px; border-right-width:5px; border-top-width:5px; border-top-right-radius:14px; }
-  .br.bl { left:14px; bottom:14px; border-left-width:5px; border-bottom-width:5px; border-bottom-left-radius:14px; }
-  .br.brr { right:14px; bottom:14px; border-right-width:5px; border-bottom-width:5px; border-bottom-right-radius:14px; }
-  .line { position:absolute; left:0; right:0; height:6px; background:linear-gradient(90deg, transparent, #7dd3fc 20%, #f0abfc 50%, #7dd3fc 80%, transparent);
-    box-shadow:0 0 30px rgba(125,211,252,.9); opacity:0; }
-  .flash { position:absolute; inset:0; background:rgba(74,222,128,.35); opacity:0; }
-  .found { margin-top:18px; border-radius:22px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); padding:20px 22px; text-align:left; }
-  .found .row { display:flex; justify-content:space-between; font-size:20px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#6ee7b7; }
-  .found .row span:last-child { color:#71717a; font-weight:500; letter-spacing:0; text-transform:none; }
-  .found .nm { font-size:40px; font-weight:700; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .found .meta { font-size:22px; color:#a1a1aa; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .found .pr { display:flex; align-items:baseline; gap:14px; margin-top:12px; }
-  .found .pr b { font-size:56px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .found .pr span { font-size:20px; color:#71717a; }
-  .headline { font-size:84px; line-height:1.02; margin-bottom:46px; }
-  .headline.sm { font-size:70px; }
-  .games { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; margin-bottom:38px; }
-  .games .g { font-size:30px; font-weight:600; padding:12px 26px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:rgba(255,255,255,.7); }
-  .games .g.on { color:#fff; border-color:rgba(167,139,250,.9); background:rgba(99,102,241,.35); box-shadow:0 0 30px rgba(99,102,241,.5); }
-  #games .games { margin:0; gap:18px; }
-  #games .games .g { font-size:44px; padding:20px 40px; }
-  #games .headline { margin-bottom:60px; }
-  #games .sub { margin-top:60px; }
-  .listing { margin-top:18px; border-radius:22px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); padding:22px; text-align:left; display:flex; gap:20px; align-items:center; }
-  .listing img { width:120px; height:168px; border-radius:12px; object-fit:cover; }
-  .listing .t { font-size:28px; font-weight:700; line-height:1.15; }
-  .listing .p { font-size:40px; font-weight:800; margin-top:8px; font-variant-numeric:tabular-nums; }
-  .listing .s { font-size:20px; color:#a1a1aa; margin-top:4px; }
-  .btn { margin-top:22px; border-radius:18px; background:#6d5dfc; color:#fff; font-size:34px; font-weight:700; padding:26px; text-align:center; position:relative; overflow:hidden; }
-  .btn.done { background:#16a34a; }
-  .ebay { display:inline-flex; align-items:center; gap:8px; font-size:28px; font-weight:800; letter-spacing:-.02em; }
-  .ebay i { font-style:normal; } .ebay .e1{color:#e53238} .ebay .e2{color:#0064d2} .ebay .e3{color:#f5af02} .ebay .e4{color:#86b817}
-  #cta img { width:600px; }
-  #cta .big { font-size:118px; line-height:1; margin-top:54px; }
-  #cta .url { font-size:76px; font-weight:800; margin-top:38px; }
-  #cta .chips { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; margin-top:54px; }
-  #cta .chips span { font-size:30px; font-weight:600; padding:16px 30px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); }
+  .scene { position:absolute; left:0; top:0; width:100%; height:100%; display:none; overflow:hidden; background:
+     radial-gradient(900px 600px at 50% -10%, rgba(124,58,237,.35), transparent 60%),
+     radial-gradient(700px 500px at 50% 110%, rgba(56,189,248,.18), transparent 60%), #07080d; }
+  em { font-style:normal; }
+  .head { position:absolute; left:70px; right:70px; top:120px; font-size:92px; line-height:1.02; }
+  .head small { display:block; font-family:"Geist", sans-serif; font-weight:500; font-size:40px; color:#b4b9cc; margin-top:22px; letter-spacing:0; line-height:1.3; }
+  .phone { position:absolute; left:166px; top:420px; width:748px; height:1328px; border-radius:62px; background:#0b0d13; border:2px solid rgba(255,255,255,.16); padding:14px; box-shadow:0 60px 120px rgba(0,0,0,.6); transform-origin:left top; }
+  .phone .screen { width:${PHONE_W}px; height:${PHONE_H}px; border-radius:48px; overflow:hidden; background:#000; }
+  .phone .screen img { width:${PHONE_W}px; height:${PHONE_H}px; display:block; }
+  .pulse { position:absolute; left:166px; top:1635px; width:748px; height:94px; border-radius:60px; opacity:0; box-shadow:0 0 0 10px rgba(14,165,233,.35), 0 0 60px rgba(14,165,233,.6); pointer-events:none; }
+  .flyprice { position:absolute; left:0; top:0; display:none; font-family:"Bricolage Grotesque", sans-serif; font-weight:800; line-height:1; letter-spacing:-0.03em; color:#4ade80; filter:drop-shadow(0 0 28px rgba(74,222,128,.45)); font-variant-numeric:tabular-nums; transform-origin:left top; white-space:nowrap; z-index:50; }
+  .logo { position:absolute; left:50%; top:110px; transform:translateX(-50%); width:520px; }
+  .close-h { position:absolute; left:70px; right:70px; top:330px; text-align:center; font-size:84px; line-height:1.02; }
+  .rows { position:absolute; left:70px; right:70px; top:500px; display:flex; flex-direction:column; gap:22px; }
+  .row { display:flex; align-items:center; gap:30px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:30px; padding:16px; height:184px; }
+  .row .crop { width:380px; height:150px; border-radius:20px; overflow:hidden; position:relative; flex:none; background:#13141c; }
+  .row .crop img { position:absolute; display:block; }
+  .row .txt { font-size:40px; line-height:1.18; font-weight:600; }
+  .row .txt span { display:block; font-weight:400; font-size:30px; color:#b4b9cc; margin-top:8px; }
+  .url { position:absolute; left:0; right:0; bottom:96px; text-align:center; font-size:110px; letter-spacing:-0.03em; }
+  .url small { display:block; font-family:"Geist", sans-serif; font-weight:500; font-size:38px; color:#b4b9cc; letter-spacing:0; margin-top:12px; }
+
+  /* B */
+  .b .bleedwrap { position:absolute; left:0; width:${BLEED_W}px; transform-origin:center center; }
+  .b .bleedwrap img { width:${BLEED_W}px; display:block; }
+  .b .bleedwrap.dim { filter:brightness(.55); }
+  .b .shade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(7,8,13,.85) 0%, rgba(7,8,13,.1) 35%, rgba(7,8,13,.1) 65%, rgba(7,8,13,.9) 100%); }
+  .b .shade.deep { background:linear-gradient(180deg, rgba(7,8,13,.92) 0%, rgba(7,8,13,.35) 45%, rgba(7,8,13,.35) 70%, rgba(7,8,13,.95) 100%); }
+  .b .big { position:absolute; left:60px; right:60px; top:150px; font-size:128px; line-height:.98; letter-spacing:-0.035em; text-shadow:0 10px 40px rgba(0,0,0,.6); }
+  .b .big em { color:#c4b5fd; }
+  .b .big.center { top:330px; text-align:center; font-size:112px; }
+  .b .slam { position:absolute; left:0; right:0; top:800px; text-align:center; font-size:300px; line-height:1; letter-spacing:-0.05em; color:#fff; -webkit-text-stroke:3px #a78bfa; text-shadow:0 0 80px rgba(167,139,250,.8); font-variant-numeric:tabular-nums; transform-origin:center center; }
+  .b .bottom { position:absolute; left:60px; right:60px; bottom:150px; font-size:96px; line-height:1; letter-spacing:-0.03em; text-shadow:0 10px 40px rgba(0,0,0,.6); }
+  .b .bottom.center { text-align:center; bottom:130px; }
+  .b .bottom small { display:block; font-family:"Geist", sans-serif; font-weight:500; font-size:40px; color:#d6d9e4; margin-top:18px; letter-spacing:0; line-height:1.3; }
+  .b .logo { top:150px; width:560px; }
+  .b .whip { position:absolute; inset:0; background:#fff; opacity:0; }
+
+  /* C */
+  .c { background: radial-gradient(900px 700px at 50% 0%, rgba(14,165,233,.28), transparent 60%), #07080d; }
+  .c .top { position:absolute; left:70px; right:70px; top:140px; font-size:104px; line-height:1; letter-spacing:-0.03em; }
+  .c .top small { display:block; font-family:"Geist", sans-serif; font-weight:500; font-size:42px; color:#b4b9cc; margin-top:26px; letter-spacing:0; line-height:1.3; }
+  .c .top em { color:#7dd3fc; }
+  .c .top.url { top:500px; bottom:auto; text-align:left; font-size:120px; color:#7dd3fc; }
+  .c .top.url small { color:#fff; }
+  .c .tag { position:absolute; left:70px; top:520px; background:#0ea5e9; color:#fff; font-weight:700; font-size:36px; padding:16px 30px; border-radius:99px; transform-origin:left center; }
 </style></head><body>
-
-<div class="abs scr" id="hook">
-  <div class="kicker">What is this card worth?</div>
-  <div class="cardwrap" style="margin-top:34px"><img src="${hook.art}"><div class="shine"></div></div>
-  <div class="price display green" data-to="${hook.price}">${money(hook.price)}</div>
-  <div class="who muted">${esc(hook.name)} · ${esc(hook.set)} · ${esc(hook.number)}</div>
-</div>
-
-${FOOTAGE ? SLICES.map(phoneFootage).join("\n") : `
-<div class="abs scr" id="scan">
-  <div class="headline display"><span class="h1">Point your camera.</span><span class="h2" style="display:none">Get the price.</span></div>
-  <div class="phone"><div class="glow"></div><div class="screen">
-    <div class="bar"><span>1 card · <b class="tot">—</b></span><span class="st"><span class="dot"></span><span class="stt">Reading</span></span></div>
-    <div class="view"><img src="${scan.art}"><div class="br tl"></div><div class="br tr"></div><div class="br bl"></div><div class="br brr"></div><div class="line"></div><div class="flash"></div></div>
-    <div class="found">
-      <div class="row"><span>Found</span><span>Near Mint</span></div>
-      <div class="nm">${esc(scan.name)}</div>
-      <div class="meta">${esc(scan.set)} · ${esc(scan.number)}</div>
-      <div class="pr"><b class="holo-text pv" data-to="${scan.price}">$0.00</b><span>${esc(scan.label)}, right now</span></div>
-    </div>
-  </div></div>
-</div>
-
-<div class="abs scr" id="fast">
-  <div class="headline display sm">Five games. One scanner.</div>
-  <div class="games">${["pokemon", "mtg", "yugioh", "onepiece", "lorcana"].map((g) => `<span class="g" data-g="${g}">${GAME_NAME[g]}</span>`).join("")}</div>
-  <div class="phone"><div class="glow"></div><div class="screen">
-    <div class="bar"><span>Scan</span><span class="st"><span class="dot"></span><span class="stt">Match</span></span></div>
-    ${fast.map((c, i) => `<div class="fc" data-i="${i}">
-      <div class="view"><img src="${c.art}"><div class="br tl"></div><div class="br tr"></div><div class="br bl"></div><div class="br brr"></div><div class="flash"></div></div>
-      <div class="found">
-        <div class="row"><span>Found</span><span>${GAME_NAME[c.game]}</span></div>
-        <div class="nm">${esc(c.name)}</div>
-        <div class="meta">${esc(c.set)} · ${esc(c.number)}</div>
-        <div class="pr"><b class="holo-text pv" data-to="${c.price}">${money(c.price)}</b><span>${esc(c.label)}</span></div>
-      </div>
-    </div>`).join("")}
-  </div></div>
-</div>
-
-<div class="abs scr" id="ebay">
-  <div class="headline display">Sell it in one tap.</div>
-  <div class="phone"><div class="glow"></div><div class="screen">
-    <div class="bar"><span>Listing</span><span class="ebay"><i class="e1">e</i><i class="e2">b</i><i class="e3">a</i><i class="e4">y</i></span></div>
-    <div class="listing"><img src="${scan.art}"><div><div class="t">${esc(scan.name)} ${esc(scan.number)} · ${esc(scan.set)} · Holo</div><div class="p">${money(scan.price)}</div><div class="s">Your photo · title · price · done</div></div></div>
-    <div class="btn"><span class="bt">List it</span></div>
-  </div></div>
-  <div class="sub muted" style="margin-top:40px">Photo, title and price filled in for you.</div>
-</div>`}
-
-${FOOTAGE ? `<div class="abs scr" id="games">
-  <div class="headline display">Five games.<br>One scanner.</div>
-  <div class="games">${["pokemon", "mtg", "yugioh", "onepiece", "lorcana"].map((g) => `<span class="g" data-g="${g}">${GAME_NAME[g]}</span>`).join("")}</div>
-  <div class="sub muted">Every card, read from your camera.</div>
-</div>` : ""}
-
-<div class="abs scr" id="cta">
-  <img src="${logo}" alt="CardFlip">
-  <div class="big display">Scan your first card free.</div>
-  <div class="url holo-text display">cardflip.io</div>
-  <div class="chips"><span>No app to install</span><span>Works in Safari and Chrome</span><span>Every price is live</span></div>
-</div>
-
+${cut.scenes.map(sceneHtml).join("\n")}
+<div class="flyprice" id="flyprice">$52.64</div>
+<div class="whip" id="whip" style="position:absolute; inset:0; background:#fff; opacity:0; display:none; z-index:60"></div>
 <script>
-  const P=${P}, FPS=${FPS}, TOTAL=${TOTAL}, FOOTAGE=${FOOTAGE ? "true" : "false"};
-  const T0=${JSON.stringify(T0)}, SEC=${JSON.stringify(SEC)};
-  const SLICES=${JSON.stringify(SLICES.map((s) => ({ key: s.key, from: s.from, switchAt: s.switchAt ?? null })))};
+  const CUT=${JSON.stringify(CUT)}, FPS=${FPS}, FADE=${FADE}, TOTAL=${TOTAL};
+  const SCENES=${JSON.stringify(cut.scenes.map((s) => ({ key: s.key, start: s.start, dur: s.dur, look: s.look, intro: !!s.intro, cont: !!s.cont, pricePop: !!s.pricePop, priceLand: !!s.priceLand, publish: !!s.publish, slam: !!s.slam, whip: !!s.whip, tag: !!s.tag, url: !!s.url, speed: s.speed ?? 1, nframes: s.crop ? 1 : 0 })))};
   const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
   const easeOut=(x)=>1-Math.pow(1-x,3);
   const easeInOut=(x)=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
-  const money=(n)=>n>=100?"$"+Math.round(n).toLocaleString("en-US"):"$"+n.toFixed(2);
+  const back=(x)=>{ const c=1.70158, d=c+1; return 1+d*Math.pow(x-1,3)+c*Math.pow(x-1,2); };
+  const pop=(b)=> b>=0 ? Math.exp(-b*7) : 0;
   const $=(s,r=document)=>r.querySelector(s);
-  function fadeIn(el, b, d=.9, dy=40){ if(!el) return; const p=easeOut(clamp(b/d)); el.style.opacity=p; el.style.transform="translateY("+((1-p)*dy)+"px)"; }
-  function show(el,on){ el.style.display = on ? "" : "none"; }
-  function pop(b){ return b>=0 ? Math.exp(-b*7) : 0; }
-  const scr = {}; for (const k of Object.keys(SEC)) scr[k] = document.getElementById(k);
-  // Every footage frame decoded before the first screenshot (renderMp4 awaits this).
-  window.__ready = Promise.all([...document.querySelectorAll("img.ff")].map((i) => i.decode().catch(() => {})));
+  function fadeIn(el, t, d=.6, dy=30){ if(!el) return; const p=easeOut(clamp(t/d)); el.style.opacity=p; el.style.transform="translateY("+((1-p)*dy)+"px)"; }
+  const el={}; for (const s of SCENES) el[s.key]=document.getElementById(s.key);
+  window.__ready = Promise.all([...document.querySelectorAll("img")].map((i) => i.decode().catch(() => {})));
+  const fly=$("#flyprice"), whip=$("#whip");
+
+  // Where the $52.64 sits on the scanner's green bar inside the phone screen (frame coords 886x1600 → screen 720x1300 → page).
+  const BAR = { x: 166+14+762*(${PHONE_W}/${SRC_W}), y: 420+14+1232*(${PHONE_W}/${SRC_W}), size: 30 };
+
   window.render = function(t){
-    const beat = t/P;
-    const pulse = Math.exp(-((beat % 1))*7);
-    for (const k of Object.keys(scr)) {
-      const lb = beat - T0[k]; const on = lb>=0 && lb<SEC[k];
-      show(scr[k], on);
+    fly.style.display="none"; whip.style.display="none";
+    for (let i=0;i<SCENES.length;i++) {
+      const s=SCENES[i], lt=t-s.start, root=el[s.key];
+      const last = i===SCENES.length-1;
+      const on = lt>=0 && (last || lt < s.dur + FADE);
+      root.style.display = on ? "block" : "none";
       if (!on) continue;
-      scr[k].style.opacity = 1 - clamp((lb-(SEC[k]-.3))/.3);
-      const slice = SLICES.find((s) => s.key === k);
-      if (slice) {
-        // Real footage: the frame for this moment, the phone easing in, the headline switching when the card is found.
-        const ph=$(".phone",scr[k]); const ap=easeOut(clamp(lb/.7));
-        ph.style.opacity=ap; ph.style.transform="translateY("+((1-ap)*120)+"px) scale("+(0.95+.05*ap)+")";
-        const imgs=scr[k].querySelectorAll("img.ff"); const idx=Math.min(imgs.length-1, Math.max(0, Math.floor(lb*P*FPS)));
-        imgs.forEach((im,i)=>{ im.style.display = i===idx ? "block" : "none"; });
-        const h1=$(".h1",scr[k]), h2=$(".h2",scr[k]);
-        const second = slice.switchAt != null && (slice.from + lb*P) >= slice.switchAt;
-        if (h2) { h1.style.display = second ? "none" : "inline"; h2.style.display = second ? "inline" : "none"; }
-        const sb = second ? (slice.from + lb*P - slice.switchAt)/P : lb;
-        fadeIn(second ? h2 : h1, sb, .6, 30);
-        if (second) { const p=pop(sb); (h2).style.transform += " scale("+(1+.06*p)+")"; }
-        continue;
+      // Crossfade: each scene fades in over FADE; the one before stays under it until then.
+      root.style.opacity = s.cont ? 1 : easeOut(clamp(lt/FADE));
+      if (last) root.style.opacity = easeOut(clamp(lt/FADE));
+      // Footage frame for this moment.
+      const imgs=root.querySelectorAll("img.ff");
+      if (imgs.length) { const idx=Math.min(imgs.length-1, Math.max(0, Math.floor(lt*FPS))); imgs.forEach((im,j)=>{ im.style.display = j===idx ? "block" : "none"; }); }
+      // Headline: fades in fresh unless the scene continues the previous one with the same words.
+      const head = $(".head, .big, .top:not(.url)", root);
+      if (head && s.look!=="closeB") { if (s.cont && head.dataset.same==="1") { head.style.opacity=1; head.style.transform=""; } else fadeIn(head, lt, .6, 30); }
+      const sub = head && head.querySelector("small"); if (sub && !s.cont) fadeIn(sub, lt-.35, .6, 20);
+      const foot = $(".bottom", root); if (foot && s.look!=="closeB") fadeIn(foot, lt-.5, .6, 24);
+      // The phone eases in on the first scene only; after that it never moves.
+      const ph = $(".phone", root);
+      if (ph) {
+        if (s.intro) { const ap=easeOut(clamp(lt/.8)); ph.style.opacity=ap; ph.style.transform="translateY("+((1-ap)*120)+"px) scale("+(0.95+.05*ap)+")"; }
+        else if (s.pricePop) { const p=easeInOut(clamp((lt-.2)/.9)); ph.style.transform="translate("+(-120*p)+"px, "+(50*p)+"px) scale("+(1-.18*p)+")"; }
+        else { ph.style.opacity=1; ph.style.transform=""; }
       }
-      if (k==="hook") {
-        fadeIn($(".kicker",scr.hook), 1);
-        const cw=$(".cardwrap",scr.hook); const ap=easeOut(clamp(lb/.6));
-        cw.style.opacity=ap; cw.style.transform="scale("+(0.9+.1*ap+.012*pulse)+") rotate("+((1-ap)*-4)+"deg)";
-        $(".shine",scr.hook).style.backgroundPosition=((1-clamp(lb/4))*100)+"% "+((1-clamp(lb/4))*100)+"%";
-        const pr=$(".price",scr.hook); const pb=lb-2;
-        pr.style.opacity=clamp(pb/.15);
-        pr.style.transform="scale("+(1+.14*pop(pb))+")";
-        pr.style.backgroundPosition=((1-clamp(pb/1.2))*100)+"% 0";
-        pr.style.filter="drop-shadow(0 0 "+(18+44*pop(pb))+"px rgba(74,222,128,"+(.45+.5*pop(pb))+")) brightness("+(1+.35*pop(pb))+")";
-        fadeIn($(".who",scr.hook), pb-.3, .6, 20);
+      // A: the price lifts off the green bar, grows beside the phone, then shrinks and dissolves into the card page.
+      if (s.pricePop) {
+        const p=easeInOut(clamp((lt-.2)/.9));
+        const x = BAR.x + (548-BAR.x)*p, y = BAR.y + (1020-BAR.y)*p, size = BAR.size + (118-BAR.size)*p;
+        fly.style.display="block"; fly.style.left=x+"px"; fly.style.top=y+"px"; fly.style.fontSize=size+"px"; fly.style.opacity=1;
+        fly.style.transform="scale("+(1+.08*pop(lt-1.1))+")";
       }
-      if (k==="games") {
-        fadeIn($(".headline",scr.games), lb, .6, 30);
-        scr.games.querySelectorAll(".games .g").forEach((g,i)=>{ const gb=lb-.4-i*.4; fadeIn(g, gb, .35, 24); const on=gb>=0; g.classList.toggle("on", on); if(on) g.style.transform += " scale("+(1+.12*pop(gb))+")"; });
-        fadeIn($(".sub",scr.games), lb-2.6, .6, 20);
+      if (s.priceLand) {
+        const p=easeInOut(clamp(lt/.8));
+        if (p<1) { fly.style.display="block"; fly.style.left=(548+(640-548)*p)+"px"; fly.style.top=(1020+(1500-1020)*p)+"px"; fly.style.fontSize=(118-(118-34)*p)+"px"; fly.style.opacity=1-p; }
       }
-      if (k==="scan") {
-        const ph=$(".phone",scr.scan); const ap=easeOut(clamp(lb/.8));
-        ph.style.opacity=ap; ph.style.transform="translateY("+((1-ap)*140)+"px) scale("+(0.94+.06*ap)+")";
-        const h1=$(".h1",scr.scan), h2=$(".h2",scr.scan);
-        const reading = lb<4;
-        h1.style.display = reading ? "inline" : "none"; h2.style.display = reading ? "none" : "inline";
-        fadeIn(reading?h1:h2, reading?lb:lb-4, .6, 30);
-        const line=$(".line",scr.scan); const sw=(lb%2)/2;
-        line.style.opacity = reading ? 1 : 0; line.style.top=(sw*100)+"%";
-        $(".flash",scr.scan).style.opacity = lb>=4 ? .9*pop(lb-4) : 0;
-        $(".stt",scr.scan).textContent = reading ? "Reading" : "Match";
-        $(".dot",scr.scan).style.background = reading ? "#f0abfc" : "#34d399";
-        $(".dot",scr.scan).style.transform="scale("+(1+.5*pulse)+")";
-        const f=$(".found",scr.scan); fadeIn(f, lb-4, .5, 30);
-        const pv=$(".pv",scr.scan); const to=Number(pv.dataset.to); const pp=easeInOut(clamp((lb-4.2)/2));
-        pv.textContent=money(to*pp); $(".tot",scr.scan).textContent = lb>=4.2 ? money(to*pp) : "—";
-        const pb=lb-6.2; pv.style.display="inline-block"; pv.style.transform="scale("+(1+.16*pop(pb))+")";
-        pv.style.filter="drop-shadow(0 0 "+(30*pop(pb))+"px rgba(167,139,250,"+(.9*pop(pb))+"))";
-      }
-      if (k==="fast") {
-        fadeIn($(".headline",scr.fast), lb, .6, 30);
-        const ph=$(".phone",scr.fast); const ap=easeOut(clamp(lb/.6)); ph.style.opacity=ap; ph.style.transform="scale("+(0.96+.04*ap)+")";
-        const starts=[0,3,6], lens=[3,3,4];
-        const cards=scr.fast.querySelectorAll(".fc");
-        const lit=new Set(["Pokémon"]);
-        cards.forEach((el,i)=>{
-          const cb=lb-starts[i]; const on=cb>=0 && cb<lens[i];
-          show(el,on); if(!on) return;
-          lit.add(el.querySelector(".row span:last-child").textContent);
-          const v=el.querySelector(".view"); const vp=easeOut(clamp(cb/.35));
-          v.style.transform="scale("+(0.9+.1*vp)+")"; v.style.opacity=vp;
-          el.querySelector(".flash").style.opacity=.9*pop(cb-.5);
-          const f=el.querySelector(".found"); fadeIn(f, cb-.5, .4, 24);
-          const pv=el.querySelector(".pv"); const pb=cb-1;
-          pv.style.display="inline-block"; pv.style.transform="scale("+(1+.16*pop(pb))+")";
-          pv.style.filter="drop-shadow(0 0 "+(30*pop(pb))+"px rgba(167,139,250,"+(.9*pop(pb))+"))";
-        });
-        scr.fast.querySelectorAll(".games .g").forEach((g)=>{
-          const name=g.textContent; const on = lit.has(name) || (name==="Magic" && lb>=8);
-          g.classList.toggle("on", on);
-          g.style.transform = on ? "scale("+(1+.06*pulse)+")" : "";
-        });
-      }
-      if (k==="ebay" && !FOOTAGE) {
-        fadeIn($(".headline",scr.ebay), lb, .6, 30);
-        const ph=$(".phone",scr.ebay); const ap=easeOut(clamp(lb/.7)); ph.style.opacity=ap; ph.style.transform="translateY("+((1-ap)*80)+"px)";
-        fadeIn($(".listing",scr.ebay), lb-.6, .6, 24);
-        const btn=$(".btn",scr.ebay); fadeIn(btn, lb-1.2, .5, 16);
-        const tap = lb>=3;
-        btn.classList.toggle("done", tap);
-        $(".bt",scr.ebay).textContent = tap ? "Listed ✓" : "List it";
-        fadeIn($(".sub",scr.ebay), lb-3.6, .6, 20);
-      }
-      if (k==="cta") {
-        fadeIn($("img",scr.cta), lb, .8, 30);
-        fadeIn($(".big",scr.cta), lb-.8, .8, 40);
-        const u=$(".url",scr.cta); fadeIn(u, lb-2, .8, 30); u.style.transform += " scale("+(1+.1*pop(lb-2.6)+.02*pulse)+")";
-        scr.cta.querySelectorAll(".chips span").forEach((c,i)=>fadeIn(c, lb-3.6-i*.6, .6, 20));
+      // Publish: the button glows in the last second of the scene.
+      const pulse=$(".pulse", root); if (pulse) pulse.style.opacity = clamp((lt-(s.dur-1.1))/.4) * (0.75+.25*Math.sin(t*9));
+      // B: the number slams in; the rewind whips.
+      if (s.slam) { const sl=$(".slam", root); const p=clamp((lt-.25)/.45); sl.style.opacity=p>0?1:0; sl.style.transform="rotate(-6deg) scale("+(p<1 ? 3-2*back(p) : 1+.03*Math.sin(t*6))+")"; }
+      if (s.whip && lt<.25) { whip.style.display="block"; whip.style.opacity=.9*(1-lt/.25); }
+      if (s.look==="bleed" || s.look==="closeB") { const bw=$(".bleedwrap", root); bw.style.transform="scale("+(1+.04*clamp(lt/s.dur))+")"; }
+      if (s.look==="closeB") { fadeIn($(".logo",root), lt, .7, 30); fadeIn($(".big",root), lt-.4, .7, 30); fadeIn($(".bottom",root), lt-.9, .7, 24); }
+      // C: the tag pops; the url block on the last scene.
+      if (s.tag) { const tg=$(".tag", root); const p=clamp((lt-.7)/.4); tg.style.opacity=p; tg.style.transform="scale("+(p<1?back(p):1)+")"; }
+      if (s.url) { fadeIn($(".top.url", root), lt-.8, .7, 30); }
+      // A closing: rows slide in one by one.
+      if (s.look==="closeA") {
+        fadeIn($(".logo",root), lt, .7, 30); fadeIn($(".close-h",root), lt-.4, .7, 30);
+        root.querySelectorAll(".row").forEach((r,j)=>fadeIn(r, lt-1.0-j*.35, .5, 40));
+        const u=$(".url",root); fadeIn(u, lt-3.0, .7, 30);
       }
     }
   };
+  // Scenes that keep the previous headline word for word do not re-animate it.
+  (function(){ let prev=null; for (const s of SCENES) { const h=$(".head, .big, .top:not(.url)", el[s.key]); const txt=h? h.querySelector(".h1")?.textContent ?? h.textContent : ""; if (h && s.cont && prev===txt) h.dataset.same="1"; prev=txt; } })();
 </script></body></html>`;
 
-const audio = has("--silent") ? null : { file: path.resolve("public/social/audio/moodmode-hip-hop-promo-226369.mp3"), start: 10.4 };
+const audio = has("--silent") ? null : { file: path.resolve("public/social/audio", cut.audio.file), start: cut.audio.start };
 if (audio && !fs.existsSync(audio.file)) throw new Error(`audio missing: ${audio.file}`);
-console.log(`rendering ${TOTAL.toFixed(1)}s (${TOTAL_BEATS} beats at ${BPM} bpm) → ${OUT}`);
+console.log(`cut ${CUT}: rendering ${TOTAL.toFixed(1)}s → ${OUT}`);
 const bytes = await renderMp4({ html, W, H, fps: FPS, total: TOTAL, out: OUT, audio });
-if (framesDir) fs.rmSync(framesDir, { recursive: true, force: true });
+fs.rmSync(framesDir, { recursive: true, force: true });
 console.log(`wrote ${OUT} (${(bytes / 1e6).toFixed(1)} MB)`);
