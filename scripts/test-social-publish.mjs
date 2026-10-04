@@ -118,6 +118,17 @@ const logged = async (site) => (await db.prepare("SELECT url, day, slot, kind FR
 check("the landed post is logged as what it went out as", await logged("bsky"), [`https://bsky/1 ${THU} morning set`]);
 // Phase 5: the log also says the post's game and format (this fake site takes no video, so the picture went).
 check("…with its game and format", (await db.prepare("SELECT game, format FROM social_post_log WHERE site = 'bsky'").all()).map((l) => `${l.game} ${l.format}`), ["pokemon picture"]);
+// 10-03 (/admin/social "loads so damn slow"): the publisher's build is cached for the page; the page reads it when under 20 minutes old, rebuilds when stale or asked to.
+{
+  const { cachedSocialDrafts, DRAFTS_CACHE_MAX_AGE_MS } = await import(at("lib/server/social.ts"));
+  const row = JSON.parse(await getSetting(`social_drafts:pokemon:${THU}`));
+  check("the publisher stored its build for the page", [row.drafts.map((d) => d.kind).includes("set"), typeof row.at], [true, "number"]);
+  await setSetting(`social_drafts:pokemon:${THU}`, JSON.stringify({ at: Date.now(), drafts: [{ id: "marker", kind: "set", game: "pokemon", day: THU }] }));
+  const fromCache = await cachedSocialDrafts("pokemon", THU);
+  const stale = await cachedSocialDrafts("pokemon", THU, { now: Date.now() + DRAFTS_CACHE_MAX_AGE_MS + 1 });
+  const forced = await cachedSocialDrafts("pokemon", THU, { fresh: true });
+  check("fresh cache = served as is; stale or ?fresh=1 = rebuilt and stored again", [fromCache.cached, fromCache.drafts[0].id, stale.cached, stale.drafts[0].id !== "marker", forced.cached, JSON.parse(await getSetting(`social_drafts:pokemon:${THU}`)).drafts[0].id !== "marker"], [true, "marker", false, true, false, true]);
+}
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
 check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);

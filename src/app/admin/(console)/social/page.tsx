@@ -12,7 +12,7 @@ import { SOCIAL_SITES } from "@/lib/server/socialSites";
 import { loadPackage } from "@/lib/server/socialTiktok";
 import { tiktokHandle } from "@/lib/server/sites/tiktok";
 import { requireOwnerPage } from "@/lib/server/adminPage";
-import { socialDrafts } from "@/lib/server/social";
+import { cachedSocialDrafts, minutesSince } from "@/lib/server/social";
 import { countNew } from "@/lib/server/socialInbox";
 import { recentPublishCrash } from "@/lib/server/socialCrash";
 import { addDays } from "@/lib/priceSeries";
@@ -27,9 +27,9 @@ export const dynamic = "force-dynamic";
  * (lib/socialTiktok.ts): tomorrow's three videos and today's, always the real
  * Eastern days, whatever ?day= the drafts below are showing.
  */
-export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string }> }) {
+export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ day?: string; tiktok?: string; pinterest?: string; fresh?: string }> }) {
   await requireOwnerPage();
-  const { day: raw, tiktok, pinterest } = await searchParams;
+  const { day: raw, tiktok, pinterest, fresh } = await searchParams;
   // api/social/<site>/callback lands here with ?<site>=connected or ?<site>=error:<why>.
   const notice =
     tiktok === "connected"
@@ -46,9 +46,11 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
   await ensureSchedule();
   const games = await socialGames();
-  const [optimizer, perGame, sites, waiting, tiktokTomorrow, tiktokToday, crash] = await Promise.all([
+  // The drafts come from the last build when it is under 20 minutes old (a build is ~9 s on prod; the publisher
+  // refreshes it at each post time). ?fresh=1 rebuilds now.
+  const [optimizer, built, sites, waiting, tiktokTomorrow, tiktokToday, crash] = await Promise.all([
     optimizerStatus(),
-    Promise.all(games.map((g) => socialDrafts(g, day))),
+    Promise.all(games.map((g) => cachedSocialDrafts(g, day, { fresh: fresh === "1" }))),
     siteStatus(SOCIAL_SITES),
     countNew(),
     loadPackage(addDays(today, 1)),
@@ -56,19 +58,27 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
     recentPublishCrash(),
   ]);
   // The tags each draft will actually carry: the standing swaps and a running hashtag trial (lib/socialTags.ts), as the publisher applies them.
-  const drafts = perGame.flat().map((d) => ({ ...d, hashtags: tagsOn(d.hashtags, d.day) }));
+  const drafts = built.flatMap((b) => b.drafts).map((d) => ({ ...d, hashtags: tagsOn(d.hashtags, d.day) }));
+  const builtAgo = minutesSince(Math.min(...built.map((b) => b.at)));
   // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts (one made under an older plan does not go out, so it is not shown).
   const videos: Record<string, string> = {};
-  for (const d of drafts) {
-    const v = await currentVideoFor(d);
-    if (v) videos[d.id] = v.url;
-  }
+  await Promise.all(
+    drafts.map(async (d) => {
+      const v = await currentVideoFor(d);
+      if (v) videos[d.id] = v.url;
+    }),
+  );
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold text-white">Social</h1>
-          <p className="text-sm text-zinc-400">What the autopilot posts on {day}. Pictures and words come from our price history; nothing here is typed by hand.</p>
+          <p className="text-sm text-zinc-400">
+            What the autopilot posts on {day}. Pictures and words come from our price history; nothing here is typed by hand. Drafts built {builtAgo === 0 ? "just now" : `${builtAgo} min ago`} ·{" "}
+            <Link href={`/admin/social?day=${day}&fresh=1`} className="text-brand-200 hover:text-white">
+              Rebuild
+            </Link>
+          </p>
         </div>
         <nav className="flex gap-2 text-sm">
           <Link href="/admin/social/posts" className="rounded-full border border-brand-400/60 px-3 py-1 text-brand-200 hover:text-white">

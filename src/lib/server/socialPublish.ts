@@ -22,6 +22,7 @@ import {
   isJump,
   setCaption,
   setShortCaption,
+  storeDraftsCache,
   type FeaturedKind,
   type GameLead,
   type Mover,
@@ -523,7 +524,16 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "before the 7am window", posts: [] });
     return report;
   }
-  const rawDrafts = (await Promise.all((await socialGames()).map((g) => socialDrafts(g, day)))).flat();
+  const rawDrafts = (
+    await Promise.all(
+      (await socialGames()).map(async (g) => {
+        const list = await socialDrafts(g, day);
+        // The build /admin/social shows until its next one (lib/server/social.ts cachedSocialDrafts); a failed write never costs the post.
+        if (!opts.dry) await storeDraftsCache(g, day, list, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
+        return list;
+      }),
+    )
+  ).flat();
   // Text must always match a registered video (09-26: a caption once named
   // "Mysterious Treasures" over Base Set 2 art, because the picture and the
   // video each computed the card list at a different moment). When a video

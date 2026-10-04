@@ -1520,6 +1520,38 @@ export function socialDrafts(game: GameId, day = todayUtc()): Promise<SocialPost
   return withSeriesCache(() => buildDrafts(game, day));
 }
 
+/**
+ * The drafts cache (10-03, Chris: "/admin/social loads so damn slow"): a
+ * build is ~9 s and ~100 queries on prod (two pool reads of 30k series rows,
+ * the five angles trying their games), so the page reads the last build from
+ * settings when it is under `maxAgeMs` old, and the publisher writes its
+ * own build there at 7:05, 1:05 and 7:05 (it builds anyway). The publisher
+ * itself never reads the cache: it posts prices as of the minute.
+ */
+const DRAFTS_CACHE_PREFIX = "social_drafts:";
+export const DRAFTS_CACHE_MAX_AGE_MS = 20 * 60_000;
+export async function storeDraftsCache(game: GameId, day: string, drafts: SocialPost[], now = Date.now()): Promise<void> {
+  await setSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`, JSON.stringify({ at: now, drafts }));
+}
+/** Whole minutes since a timestamp, for the page's "built N min ago". */
+export function minutesSince(at: number, now = Date.now()): number {
+  return Math.max(0, Math.round((now - at) / 60_000));
+}
+export async function cachedSocialDrafts(game: GameId, day: string, opts: { maxAgeMs?: number; fresh?: boolean; now?: number } = {}): Promise<{ drafts: SocialPost[]; at: number; cached: boolean }> {
+  const now = opts.now ?? Date.now();
+  if (!opts.fresh) {
+    try {
+      const row = JSON.parse((await getSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`)) || "null") as { at?: number; drafts?: SocialPost[] } | null;
+      if (row && typeof row.at === "number" && Array.isArray(row.drafts) && now - row.at <= (opts.maxAgeMs ?? DRAFTS_CACHE_MAX_AGE_MS)) return { drafts: row.drafts, at: row.at, cached: true };
+    } catch {
+      /* an unreadable row is rebuilt */
+    }
+  }
+  const drafts = await socialDrafts(game, day);
+  await storeDraftsCache(game, day, drafts, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
+  return { drafts, at: now, cached: false };
+}
+
 async function buildDrafts(game: GameId, day: string): Promise<SocialPost[]> {
   // A day plan (lib/socialPlan.ts) can mix Magic into the Pokémon movers,
   // add the all-games picture, and name the other games on Pokémon posts.

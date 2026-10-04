@@ -1087,6 +1087,9 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
   // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
+  // The social sleepers pool reads Magic's $1–$5 band dearest first (social.ts loadFreshSeries): 2.4 s on prod sorting
+  // the whole band without this (10-03, /admin/social).
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_mtg_cards_price ON mtg_cards(price_usd)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",
