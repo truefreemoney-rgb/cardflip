@@ -7,7 +7,7 @@ import { setSetting } from "@/lib/server/settings";
 
 /**
  * Owner-only data for /admin/social/posts.
- *   GET  ?site=&waiting=1&before=<iso>&limit=  → PostsPage (database only, cheap)
+ *   GET  ?site=&waiting=1&commented=1&before=<iso>&limit=  → PostsPage (database only, cheap)
  *   POST { action: "refresh" }                  → reads every site live (counts + comments), then returns the first page
  * Comment actions stay on /api/admin/social/inbox.
  */
@@ -19,7 +19,7 @@ function query(req: NextRequest) {
   const site = p.get("site")?.trim() || null;
   const before = p.get("before")?.trim() || null;
   const limit = Number(p.get("limit") ?? 40);
-  return { site, before, waiting: p.get("waiting") === "1", limit: Number.isFinite(limit) ? limit : 40 };
+  return { site, before, waiting: p.get("waiting") === "1", commented: p.get("commented") === "1", limit: Number.isFinite(limit) ? limit : 40 };
 }
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
     throw err;
   }
-  const body = (await req.json().catch(() => null)) as { action?: string; site?: string | null; waiting?: boolean; on?: boolean } | null;
+  const body = (await req.json().catch(() => null)) as { action?: string; site?: string | null; waiting?: boolean; commented?: boolean; on?: boolean } | null;
   if (body?.action === "autoReply") {
     await setSetting(AUTO_REPLY_KEY, body.on === false ? "0" : "1");
     return NextResponse.json({ autoReply: body.on !== false });
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const started = Date.now();
   // Counts and comments in parallel: the two never touch the same rows.
   const [pulse, sweep] = await Promise.all([refreshSocialPosts(), sweepSocialInbox()]);
-  const page = await listSocialPosts({ site: body.site ?? null, waiting: Boolean(body.waiting) });
+  const page = await listSocialPosts({ site: body.site ?? null, waiting: Boolean(body.waiting), commented: Boolean(body.commented) });
   const errors = [...pulse.sites.filter((s) => s.error).map((s) => `${s.label}: ${s.error}`), ...sweep.sites.filter((s) => s.error).map((s) => `${s.label} comments: ${s.error}`)];
   return NextResponse.json({
     ...page,

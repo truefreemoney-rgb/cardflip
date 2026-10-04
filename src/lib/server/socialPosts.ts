@@ -142,6 +142,8 @@ export interface PostsQuery {
   site?: string | null;
   /** Only posts with a comment waiting on Chris. */
   waiting?: boolean;
+  /** Only posts with any comment we hold (Chris 10-04: "look at all comments specifically"). */
+  commented?: boolean;
   /** Page on: posts strictly older than this ISO timestamp. */
   before?: string | null;
   limit?: number;
@@ -160,6 +162,8 @@ export interface PostsPage {
   perSite: Record<string, number>;
   /** Comments waiting on Chris, everywhere. */
   waiting: number;
+  /** Comments we hold, everywhere (the Comments chip). */
+  held: number;
   hasMore: boolean;
   /** Newest read across sites (ms), or null before the first refresh. */
   readAt: number | null;
@@ -205,6 +209,7 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
     where.push("p.at < ?");
     args.push(q.before);
   }
+  if (q.commented) where.push("EXISTS (SELECT 1 FROM social_comments c WHERE c.site = p.site AND c.post_id = p.post_id)");
   if (q.waiting) where.push("EXISTS (SELECT 1 FROM social_comments c WHERE c.site = p.site AND c.post_id = p.post_id AND c.status = 'new')");
   const filter = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const rows = (await db
@@ -218,7 +223,7 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
   const hasMore = rows.length > limit;
   const posts = rows.slice(0, limit).map(rowToPost);
   const siteArgs = q.site ? [q.site] : [];
-  const [comments, orphans, reads, sums, perSiteRows, waiting, autoReply] = await Promise.all([
+  const [comments, orphans, reads, sums, perSiteRows, waiting, autoReply, heldRow] = await Promise.all([
     commentsForPosts(posts.filter((p) => p.held > 0).map((p) => postKey(p.site, p.postId))),
     q.before ? Promise.resolve([] as SocialComment[]) : orphanComments(),
     db.prepare("SELECT * FROM social_pulse_reads").all() as Promise<Record<string, unknown>[]>,
@@ -226,6 +231,7 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
     db.prepare("SELECT site, COUNT(*) AS n FROM social_posts GROUP BY site").all() as Promise<Record<string, unknown>[]>,
     countNew(),
     autoReplyOn(),
+    db.prepare("SELECT COUNT(*) AS n FROM social_comments").get() as Promise<Record<string, unknown> | undefined>,
   ]);
   const sites: SiteRead[] = reads
     .map((r) => ({
@@ -242,5 +248,5 @@ export async function listSocialPosts(q: PostsQuery = {}): Promise<PostsPage> {
   const n = (v: unknown): number | null => (v == null ? null : Number(v));
   const totals = tally(sums.map((r) => ({ likes: n(r.likes), comments: n(r.comments), shares: n(r.shares), views: n(r.views) })));
   const readAt = sites.reduce<number | null>((acc, s) => (acc == null || s.readAt > acc ? s.readAt : acc), null);
-  return { posts, comments, orphans, sites, totals, perSite, waiting, hasMore, readAt, autoReply };
+  return { posts, comments, orphans, sites, totals, perSite, waiting, held: Number(heldRow?.n ?? 0), hasMore, readAt, autoReply };
 }

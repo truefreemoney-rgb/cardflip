@@ -18,7 +18,8 @@ import SocialCommentCard, { HandledComment } from "./SocialCommentCard";
 
 const FACE: Record<string, string> = { like: "👍", love: "❤️", care: "🤗", haha: "😆", wow: "😮", sad: "😢", angry: "😡" };
 
-type Filters = { site: string | null; waiting: boolean };
+// commented = only posts with comments, each opened (Chris 10-04: "a button so i can look at all comments specifically").
+type Filters = { site: string | null; waiting: boolean; commented: boolean };
 
 const plural = (v: number | null, word: string) => `${count(v)} ${word}${v === 1 ? "" : "s"}`;
 
@@ -112,7 +113,7 @@ function PostRow({ post, comments, open, onToggle, onDone }: { post: StoredPost;
 
 export default function SocialPosts({ initial }: { initial: PostsPage }) {
   const [data, setData] = useState<PostsPage>(initial);
-  const [filters, setFilters] = useState<Filters>({ site: null, waiting: false });
+  const [filters, setFilters] = useState<Filters>({ site: null, waiting: false, commented: false });
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState<"refresh" | "more" | "filter" | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
     const p = new URLSearchParams();
     if (f.site) p.set("site", f.site);
     if (f.waiting) p.set("waiting", "1");
+    if (f.commented) p.set("commented", "1");
     if (before) p.set("before", before);
     return p.toString();
   }
@@ -160,7 +162,7 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
       const res = await fetch("/api/admin/social/posts", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "refresh", site: filters.site, waiting: filters.waiting }),
+        body: JSON.stringify({ action: "refresh", site: filters.site, waiting: filters.waiting, commented: filters.commented }),
       });
       const page = (await res.json()) as PostsPage & { refresh?: { posts: number; added: number; hidden: number; replied: number; errors: string[] }; error?: string };
       if (!res.ok) throw new Error(page.error ?? `HTTP ${res.status}`);
@@ -242,6 +244,9 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
           </Chip>
         ))}
         <span className="mx-1 hidden h-4 w-px bg-edge sm:block" />
+        <Chip active={filters.commented} onClick={() => setFilter({ commented: !filters.commented })}>
+          Comments{data.held > 0 ? <span className="ml-1 text-xs">{data.held}</span> : null}
+        </Chip>
         <Chip active={filters.waiting} onClick={() => setFilter({ waiting: !filters.waiting })}>
           Needs You{data.waiting > 0 ? <span className="ml-1 text-xs">{data.waiting}</span> : null}
         </Chip>
@@ -296,13 +301,15 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
 
       {data.posts.length === 0 ? (
         <p className="rounded-2xl border border-edge bg-white/[0.02] p-4 text-sm text-zinc-500">
-          {data.readAt ? "No posts match." : "Nothing stored yet. Press Refresh to read every site."}
+          {filters.commented ? "No comments yet." : data.readAt ? "No posts match." : "Nothing stored yet. Press Refresh to read every site."}
         </p>
       ) : (
         <div className={`space-y-2 ${busy === "filter" ? "opacity-60" : ""}`}>
           {data.posts.map((p) => {
             const key = postKey(p.site, p.postId);
-            return <PostRow key={key} post={p} comments={byPost.get(key) ?? []} open={open.has(key)} onToggle={() => toggle(key)} onDone={done} />;
+            // The Comments view opens every row; a tap there closes one (the set holds the exceptions).
+            const isOpen = filters.commented !== open.has(key);
+            return <PostRow key={key} post={p} comments={byPost.get(key) ?? []} open={isOpen} onToggle={() => toggle(key)} onDone={done} />;
           })}
         </div>
       )}
