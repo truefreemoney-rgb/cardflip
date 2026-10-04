@@ -13,7 +13,10 @@ const j = JSON.parse(fs.readFileSync(new URL("../.env.migration.json", import.me
 const db = createClient({ url: j.dbUrl, authToken: j.dbToken });
 const dir = path.join(os.homedir(), "Downloads", `CardFlip TikTok ${day.slice(5)}`);
 fs.mkdirSync(dir, { recursive: true });
-const slots = [["morning", "1 - 7am Set Spotlight"], ["midday", "2 - 1pm Biggest Movers"], ["evening", "3 - 7pm Biggest Jumps"]];
+// The file name says what the video is (10-04: the optimizer rotates the 7am and 7pm kinds, so the name follows the row's kind).
+const slots = [["morning", "1 - 7am"], ["midday", "2 - 1pm"], ["evening", "3 - 7pm"]];
+const KIND_LABEL = { set: "Set Spotlight", movers: "Biggest Movers", games: "Biggest Jumps", dips: "Price Drops", guess: "Guess the Price", thennow: "Then vs Now", versus: "Head to Head", sleepers: "Sleepers Under $5", top: "Most Valuable" };
+const ANGLES = ["guess", "thennow", "versus", "sleepers", "top"];
 
 // The caption prints a price as $12.34 under $100 and $123 (rounded) from $100 up.
 const money = (n) => (n >= 100 ? "$" + Math.round(n).toLocaleString("en-US") : "$" + n.toFixed(2));
@@ -25,7 +28,8 @@ function assertPrices(label, v, cap) {
   for (const c of rows) {
     const now = c.price ?? c.to; // leads carry price, set/movers cards carry from -> to
     const want = [now, v.kind === "movers" ? c.from : null].filter((x) => typeof x === "number").map(money);
-    const line = cap.split("\n").find((l) => l.includes(c.name) && l.includes(money(now)));
+    // An angle caption (head to head, then vs now, …) names the cards in one sentence and the prices in another.
+    const line = ANGLES.includes(v.kind) ? (cap.includes(c.name) ? cap : null) : cap.split("\n").find((l) => l.includes(c.name) && l.includes(money(now)));
     if (!line || !want.every((w) => line.includes(w))) bad.push(`${c.name} ${want.join(" -> ")}`);
   }
   if (bad.length) throw new Error(`${label}: caption prices do not match the frozen video:\n  ${bad.join("\n  ")}`);
@@ -35,19 +39,26 @@ function assertPrices(label, v, cap) {
 let captions = "";
 const caps = [];
 let missing = 0;
-for (const [slot, label] of slots) {
+for (const [slot, time] of slots) {
   const r = await db.execute({ sql: "SELECT value FROM settings WHERE key = ?", args: [`social_tiktok:${slot}:${day}`] });
   if (!r.rows[0]) { console.log(slot, "MISSING"); missing++; continue; }
   const v = JSON.parse(r.rows[0].value);
+  const label = `${time} ${KIND_LABEL[v.kind] ?? v.kind}`;
   if (!/^https:\/\/mlwovvakovcpakbr\.public\.blob\.vercel-storage\.com\//.test(v.url)) throw new Error("not our Blob store: " + slot);
   const buf = Buffer.from(await (await fetch(v.url)).arrayBuffer());
   if (buf.length !== v.bytes) throw new Error(`${label}: downloaded ${buf.length} bytes, row says ${v.bytes}`);
   fs.writeFileSync(path.join(dir, `${label}.mp4`), buf);
   let cap = v.caption ?? v.text ?? "";
   // Chris 10-03: every TikTok carries seven tags. A caption rendered before 64e8015 (five tags) gets the reach tags here.
+  // A non-Pokémon video rendered before the per-game reach tags (10-04) carries #Pokemon #PokemonCommunity: dropped here.
+  const vg = v.game ?? "pokemon";
+  if (vg !== "pokemon" && !/#PokemonTCG/.test(cap)) cap = cap.replace(/\s#Pokemon(Community)?(?=\s|$)/g, "").trimEnd();
   const have = (cap.match(/(?:^|\s)#[A-Za-z]\w*/g) ?? []).map((t) => t.trim());
-  // Same order as tiktokTags: the general tags first, then the reach tags.
-  for (const t of ["#TCG", "#TradingCards", "#CardCollector", "#Pokemon", "#PokemonCommunity"]) if (have.length < 7 && !have.includes(t)) { cap = cap.trimEnd() + " " + t; have.push(t); }
+  // Same order as tiktokTags: the general tags first, then the reach tags OF THE VIDEO'S GAME (10-04: a Yu-Gi-Oh head
+  // to head once got #Pokemon topped on). Reach tags are confirmed from TikTok's own suggestion list at post time.
+  const REACH = { pokemon: ["#Pokemon", "#PokemonCommunity"], yugioh: ["#YuGiOhCards", "#YugiohCommunity"], mtg: ["#MagicTheGathering", "#MTGCommunity"], lorcana: ["#Lorcana", "#LorcanaTCG"], onepiece: ["#OnePieceCardGame", "#OnePieceTCG"] };
+  const game = v.game ?? (/#PokemonTCG/.test(cap) ? "pokemon" : /#Yugioh/i.test(cap) ? "yugioh" : /#MTG\b/.test(cap) ? "mtg" : "mixed");
+  for (const t of ["#TCG", "#TradingCards", "#CardCollector", ...(REACH[game] ?? ["#CardCollecting", "#TCGCommunity"])]) if (have.length < 7 && !have.includes(t)) { cap = cap.trimEnd() + " " + t; have.push(t); }
   assertPrices(label, v, cap);
   captions += `===== ${label} =====\n${cap}\n\n`;
   caps.push([label, cap]);

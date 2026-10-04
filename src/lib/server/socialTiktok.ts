@@ -109,7 +109,7 @@ export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: L
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
   return {
     title: applied.title,
-    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags) }, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
+    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags, applied.mixed ? "mixed" : applied.game) }, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
   };
 }
 
@@ -151,10 +151,18 @@ export const TIKTOK_MAX_TAGS = 7;
  * game tags + #TCG #TradingCards already make seven).
  */
 export const TIKTOK_REACH_TAGS = ["Pokemon", "PokemonCommunity"];
+/** The reach tags of each game (10-04: a Yu-Gi-Oh head to head went out with #Pokemon topped on). A mixed post gets none. */
+export const TIKTOK_REACH_BY_GAME: Partial<Record<GameId | "mixed", string[]>> = {
+  pokemon: TIKTOK_REACH_TAGS,
+  yugioh: ["YuGiOhCards", "YugiohCommunity"],
+  mtg: ["MagicTheGathering", "MTGCommunity"],
+  lorcana: ["Lorcana", "LorcanaTCG"],
+  onepiece: ["OnePieceCardGame", "OnePieceTCG"],
+};
 
-export function tiktokTags(tags: readonly string[]): string[] {
+export function tiktokTags(tags: readonly string[], game: GameId | "mixed" = "pokemon"): string[] {
   const out: string[] = [];
-  for (const t of [...tags, ...GENERAL_TAGS, ...TIKTOK_REACH_TAGS]) if (!out.includes(t)) out.push(t);
+  for (const t of [...tags, ...GENERAL_TAGS, ...(TIKTOK_REACH_BY_GAME[game] ?? [])]) if (!out.includes(t)) out.push(t);
   return out.slice(0, TIKTOK_MAX_TAGS);
 }
 
