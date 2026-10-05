@@ -11,6 +11,7 @@ import {
   PER_AUTHOR_DAILY_CAP,
   PER_THREAD_CAP,
   replyPlan,
+  promisesFollowUp,
   replyProblem,
   type CommentKind,
 } from "@/lib/socialModeration";
@@ -487,8 +488,12 @@ async function replyCapReason(site: string, postId: string, authorId: string | n
 /* ---------- drafting ---------- */
 
 let client: Anthropic | null = null;
-const DRAFT_SYSTEM = `You write short replies for CardFlip's social accounts (cardflip.io: scan a trading card with your phone, see what it is worth, sell it on eBay in one tap). You are answering a comment on one of our posts. Rules: one or two sentences, friendly and plain, no hashtags, no emoji unless the comment used them, no prices or claims that are not in the post text, never promise shipping, refunds, or deals, never argue. If the comment asks how to use CardFlip, say it is at cardflip.io and the first scans are free. If the comment is just praise, one short line back; dry and a little playful is welcome, no exclamation marks, no hype. If the comment names CardFlip without asking anything, answer what they seem to want in one line. If it is a question you cannot answer from the post, say you will check and point them to cardflip.io/help. Output only the reply text.`;
+const DRAFT_SYSTEM = `You write short replies for CardFlip's social accounts (cardflip.io: scan a trading card with your phone, see what it is worth, sell it on eBay in one tap). You are answering a comment on one of our posts. Rules: one or two sentences, friendly and plain, no hashtags, no emoji unless the comment used them, no prices or claims that are not in the post text, never promise shipping, refunds, or deals, never argue. If the comment asks how to use CardFlip, say it is at cardflip.io and the first scans are free. If the comment is just praise, one short line back; dry and a little playful is welcome, no exclamation marks, no hype. If the comment names CardFlip without asking anything, answer what they seem to want in one line. If you cannot answer the question yourself in this reply, from the post or plain trading-card knowledge, output exactly SKIP: never say you will check, look into it, get back to them or follow up, and never send them to a page instead of an answer. Either answer it or output SKIP. Output only the reply text.`;
 
+/** The model's way of saying it has no answer: nothing is sent and nothing waits for Chris. */
+const NO_ANSWER = "SKIP";
+
+/** The reply text; "" when the robot has no real answer (say nothing); null when drafting failed. */
 export async function draftReply(c: { site: string; postText: string; text: string; kind: CommentKind }): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   try {
@@ -500,7 +505,10 @@ export async function draftReply(c: { site: string; postText: string; text: stri
       messages: [{ role: "user", content: `Site: ${SITE_LABEL[c.site] ?? c.site} (max ${fitReply(c.site, "x".repeat(2000)).length} characters)\nOur post:\n${c.postText.slice(0, 600)}\n\nTheir comment (${c.kind}):\n${c.text.slice(0, 600)}` }],
     });
     const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
-    return text ? fitReply(c.site, text) : null;
+    // No answer, or one that defers anyway: "" = nothing to say (Chris 10-04: "either answer the question or dont").
+    // null stays "the draft failed", which still waits for Chris.
+    if (!text || text.replace(/[^A-Z]/g, "") === NO_ANSWER || promisesFollowUp(text)) return "";
+    return fitReply(c.site, text);
   } catch (err) {
     console.warn("social inbox: draft failed", err instanceof Error ? err.message : err);
     return null;
@@ -677,7 +685,10 @@ export async function sweepSocialInbox(now = Date.now()): Promise<SweepReport> {
             const cap = auto ? await replyCapReason(f.site, f.postId, f.authorId, now) : null;
             draft = await draftReply({ site: f.site, postText: f.postText, text: f.text, kind });
             const problem = draft ? replyProblem(draft, f.postText, f.site) : "no draft";
-            if (cap) hold(cap);
+            if (draft === "") {
+              // The robot had no real answer: stored under its post, nothing said, nothing held (Chris 10-04).
+              row.meta.noAnswer = true;
+            } else if (cap) hold(cap);
             else if (auto && problem) hold(`the reply ${problem}`);
             else if (draft && auto) {
               try {

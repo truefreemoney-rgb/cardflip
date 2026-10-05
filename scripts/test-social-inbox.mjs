@@ -73,6 +73,12 @@ assert.equal(replyProblem("It is at $412 in our data, scan yours at cardflip.io"
 assert.match(replyProblem("Should fetch $500 easy", post, "x"), /\$500/);
 assert.match(replyProblem("We guarantee the price", post, "x"), /guarantee/);
 assert.match(replyProblem("Free shipping on us", post, "x"), /shipping/);
+// Chris 10-04: answer it or say nothing, never put it off.
+assert.match(replyProblem("Good question, we'll check on how we handle low-volume cards and get back to you at cardflip.io/help.", post, "bluesky"), /follow-up/);
+assert.match(replyProblem("We will look into it", post, "x"), /follow-up/);
+assert.match(replyProblem("Let us follow up on that", post, "x"), /follow-up/);
+assert.equal(replyProblem("Our prices come from TCGplayer's market price, built from recent sales.", post, "x"), null);
+assert.equal(replyProblem("Most fade once more copies get listed.", post, "x"), null);
 assert.match(replyProblem("see https://othersite.com/deal", post, "x"), /links to/);
 assert.equal(replyProblem("Both scan fine at cardflip.io/help", post, "bluesky"), null);
 assert.match(replyProblem("Nice pull!", post, "x"), /exclamation/);

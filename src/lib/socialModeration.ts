@@ -130,6 +130,19 @@ export function isStale(at: string, now = Date.now()): boolean {
 }
 
 const PROMISE_WORDS = /\b(guarantee[sd]?|always|never fails?|refund(s|ed)?|shipping|ship(s|ped)?|discount(s|ed)?|deal(s)?|coupon(s)?|promo(s|tion)?|free money|100%)\b/i;
+/**
+ * A reply that puts the answer off instead of giving it (Chris 10-04, after
+ * "we'll check ... and get back to you at cardflip.io/help" went out: "either
+ * answer the question or dont"). Nobody follows these up, so they are never sent.
+ */
+const FOLLOW_UP =
+  /\b(we|i)('ll| will| are going to|'re going to)\s+(check|look|dig|find out|get back|follow up|circle back|update|let you know|keep you posted|confirm|ask)\b|\b(get|getting) back to you\b|\b(let us |let me )?follow(ing)? up\b|\bcircle back\b|\bkeep you posted\b|\blook(ing)? into (it|this|that)\b/i;
+
+/** True when the reply defers instead of answering. */
+export function promisesFollowUp(reply: string): boolean {
+  return FOLLOW_UP.test(reply);
+}
+
 const OWN_LINK = /^(https?:\/\/)?(www\.)?cardflip\.io(\/\S*)?$/i;
 
 /**
@@ -151,6 +164,7 @@ export function replyProblem(reply: string, postText: string, site: string): str
   for (const link of r.match(/https?:\/\/\S+|\b[\w-]+\.(com|io|net|org|app|gg|shop)\b\S*/gi) ?? []) {
     if (!OWN_LINK.test(link.replace(/[).,!?]+$/, ""))) return `links to ${link}`;
   }
+  if (promisesFollowUp(r)) return "puts the answer off (promises a follow-up)";
   const promise = r.match(PROMISE_WORDS);
   if (promise) return `says "${promise[0]}"`;
   if (/[!]{1}/.test(r)) return "exclamation mark";
