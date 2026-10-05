@@ -21,7 +21,7 @@ process.once("exit", () => {
   try { rmSync(work, { recursive: true, force: true }); } catch { /* libsql may still hold the file on Windows */ }
 });
 
-const { planTcgRefresh, onePieceNameVariant } = await import("../src/lib/server/tcgPriceRefresh.ts");
+const { planTcgRefresh, onePieceNameVariant, matchLorcanaProducts } = await import("../src/lib/server/tcgPriceRefresh.ts");
 const { upsertSeriesRows, readSeriesMap } = await import("../src/lib/server/priceBulkWrite.ts");
 const { getPriceHistory } = await import("../src/lib/server/priceHistory.ts");
 
@@ -105,4 +105,19 @@ const history = await getPriceHistory("crd_elsa");
 const normal = history.find((s) => s.variant === "normal");
 check("getPriceHistory sees two daily points for Elsa normal",
   normal?.points.map((p) => [p.date ?? p.day, p.price]), [["2026-09-30", 2.5], ["2026-10-01", 2.75]]);
+// 10-05: Lorcast leaves promos unpriced; TCGplayer fills them only on name AND number.
+check("Lorcana promo gaps fill from TCGplayer on name + number, never name alone",
+  matchLorcanaProducts(
+    [
+      { id: "d23_iago", name: "Iago", subtitle: "Out of Reach", number: "8" },
+      { id: "cc_tink", name: "Tinker Bell", subtitle: "Giant Fairy", number: "6" },
+      { id: "fc_tink", name: "Tinker Bell", subtitle: "\"Giant Fairy\"", number: "18" },
+    ],
+    [
+      { name: "Iago - Out of Reach", number: "8", prices: { Foil: 45.18 } },
+      { name: "Tinker Bell - Giant Fairy", number: "6", prices: { Normal: 75.16 } },
+      { name: "Tinker Bell - Giant Fairy (Foil)", number: "14", prices: { Foil: 120 } },
+    ],
+  ),
+  [{ id: "d23_iago", usd: null, foil: 45.18 }, { id: "cc_tink", usd: 75.16, foil: null }]);
 console.log(`\ntcg prices: ${passed} checks pass`);

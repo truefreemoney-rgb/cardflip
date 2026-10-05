@@ -108,6 +108,97 @@ async function lorcanaPoints(): Promise<{ points: TcgPoint[]; failed: number }> 
   return { points, failed };
 }
 
+const foldLorcana = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\([^)]*\)/g, "").replace(/["“”]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+export interface LorcanaProduct {
+  name: string;
+  number: string;
+  /** TCGplayer subtype → market price ("Normal", "Foil", "Cold Foil"). */
+  prices: Record<string, number>;
+}
+
+/**
+ * Pure: Lorcana cards Lorcast leaves unpriced (promos: D23, Curator's
+ * Collection, Promo Sets, PD1 — 163 cards on 10-05) → TCGplayer's price, when
+ * exactly one TCGplayer product has the same "Name - Subtitle" AND the same
+ * collector number. Promos reuse names with different art, so a name alone
+ * never decides. Exported for scripts/test-tcg-prices.mjs.
+ */
+export function matchLorcanaProducts(
+  cards: { id: string; name: string; subtitle: string | null; number: string }[],
+  products: LorcanaProduct[],
+): TcgPoint[] {
+  const bare = (n: string) => n.trim().toLowerCase().replace(/^0+(?=\w)/, "");
+  const byKey = new Map<string, LorcanaProduct[]>();
+  for (const p of products) {
+    const k = `${foldLorcana(p.name)}#${bare(p.number)}`;
+    byKey.set(k, [...(byKey.get(k) ?? []), p]);
+  }
+  const out: TcgPoint[] = [];
+  for (const c of cards) {
+    const hits = byKey.get(`${foldLorcana(`${c.name} ${c.subtitle ?? ""}`)}#${bare(c.number)}`) ?? [];
+    if (hits.length !== 1) continue;
+    const pr = hits[0].prices;
+    const usd = num(pr["Normal"]);
+    const foil = num(pr["Foil"] ?? pr["Cold Foil"] ?? pr["Holofoil"]);
+    if (usd != null || foil != null) out.push({ id: c.id, usd, foil });
+  }
+  return out;
+}
+
+/** TCGplayer's Lorcana catalogue (tcgcsv category 71), every group's priced products. */
+async function lorcanaTcgplayerProducts(): Promise<LorcanaProduct[]> {
+  const API = "https://tcgcsv.com/tcgplayer/71";
+  const groups = listOf<{ groupId: number }>(await getJson(`${API}/groups`));
+  const out: LorcanaProduct[] = [];
+  const queue = [...groups];
+  const worker = async () => {
+    for (let g = queue.shift(); g; g = queue.shift()) {
+      try {
+        const products = listOf<{ productId: number; name?: string; extendedData?: { name: string; value: string }[] }>(await getJson(`${API}/${g.groupId}/products`));
+        const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown }>(await getJson(`${API}/${g.groupId}/prices`));
+        const byProduct = new Map<number, Record<string, number>>();
+        for (const p of prices) {
+          const v = num(p.marketPrice);
+          if (v == null) continue;
+          byProduct.set(p.productId, { ...(byProduct.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: v });
+        }
+        for (const p of products) {
+          const priced = byProduct.get(p.productId);
+          const number = (p.extendedData?.find((e) => e.name === "Number")?.value ?? "").split("/")[0];
+          if (priced && p.name && number) out.push({ name: p.name, number, prices: priced });
+        }
+      } catch (err) {
+        console.warn(`lorcana tcgplayer group ${g.groupId}:`, err instanceof Error ? err.message : err);
+      }
+      await sleep(60);
+    }
+  };
+  await Promise.all([1, 2, 3, 4].map(worker));
+  return out;
+}
+
+/** Lorcast's points plus TCGplayer's for the cards Lorcast prices at nothing (10-05). */
+async function lorcanaPointsWithFill(): Promise<{ points: TcgPoint[]; failed: number }> {
+  const base = await lorcanaPoints();
+  try {
+    const priced = new Set(base.points.filter((p) => p.usd != null || p.foil != null).map((p) => p.id));
+    const rows = (await db
+      .prepare("SELECT id, name, subtitle, collector_number AS number FROM tcg_cards WHERE game = 'lorcana'")
+      .all()) as { id: string; name: string; subtitle: string | null; number: string }[];
+    const gaps = rows.filter((r) => !priced.has(r.id));
+    if (gaps.length) {
+      const fill = matchLorcanaProducts(gaps, await lorcanaTcgplayerProducts());
+      const have = new Set(fill.map((p) => p.id));
+      base.points = [...base.points.filter((p) => !have.has(p.id)), ...fill];
+    }
+  } catch (err) {
+    console.warn("lorcana tcgplayer fill:", err instanceof Error ? err.message : err);
+  }
+  return base;
+}
+
 async function onePiecePoints(): Promise<{ points: TcgPoint[]; failed: number }> {
   const API = "https://optcgapi.com/api";
   const points: TcgPoint[] = [];
@@ -275,7 +366,7 @@ export function planTcgRefresh(
 }
 
 export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
-  const { points, failed } = game === "lorcana" ? await lorcanaPoints() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
+  const { points, failed } = game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
   // A source that answered nothing at all must not look like "no prices".
   if (points.length === 0) throw new Error(`${game}: no prices fetched (${failed} source calls failed)`);
   const mirror = await mirrorIds(game);
