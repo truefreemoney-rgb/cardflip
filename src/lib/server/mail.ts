@@ -1,6 +1,6 @@
 import "server-only";
 import nodemailer from "nodemailer";
-import { FROZEN_SENTENCE, PRICE, PRICING, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICING, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import type { Digest } from "@/lib/server/digest";
 import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 
@@ -362,21 +362,18 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
 export async function sendSignupWelcomeEmail(to: string, firstName: string, trialLeft: number = PRICING.trial.scans): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
-  const scanUrl = `${site}/app`;
-  const pricingUrl = `${site}/pricing`;
   const first = firstName.replace(/[\r\n]+/g, " ").trim();
   const hi = first ? `Welcome to CardFlip, ${first}.` : "Welcome to CardFlip.";
+  // One button, Start Scanning, for everyone, and no plan prices (10-05, Chris: "Pick a Plan" reads as money).
+  const scanUrl = `${site}/app?scan=1`;
   const free = trialLeft > 0;
   const freeLine = `Your first ${trialLeft} scan${trialLeft === 1 ? " is" : "s are"} free. `;
   const how = "Point your phone camera at a card and CardFlip names it, prices it, and drafts the eBay listing";
-  const plans = `A ${PRICE.pack} Scan Pack of ${SCANS.pack} scans, or ${SCANS.standard} scans a month for ${PRICE.standard}`;
   const text = [
     hi,
     "",
     free ? `${freeLine}${how}:` : `${how}:`,
-    free ? scanUrl : pricingUrl,
-    "",
-    `${free ? "Want more?" : "To start scanning, pick one."} ${plans}: ${pricingUrl}`,
+    scanUrl,
     "",
     "Questions? Tap Help in the app.",
     "",
@@ -385,8 +382,7 @@ export async function sendSignupWelcomeEmail(to: string, firstName: string, tria
   const html = `
     <p>${esc(hi)}</p>
     <p>${free ? freeLine : ""}${how}.</p>
-    <p><a href="${free ? scanUrl : pricingUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">${free ? "Scan Your First Card" : "Pick a Plan"}</a></p>
-    <p style="color:#666;font-size:13px">${free ? "Want more?" : "To start scanning, pick one."} <a href="${pricingUrl}">${plans}</a>.</p>
+    <p><a href="${scanUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Start Scanning</a></p>
     <p style="color:#666;font-size:13px">Questions? Tap Help in the app.</p>
     <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
   await transport().sendMail({
