@@ -58,6 +58,7 @@ const SET_ALIASES: Record<string, string> = {
   "scarlet and violet energies": "scarlet and violet energy",
   "mega evolution energies": "mega evolution energy",
   "classic collection": "celebrations classic collection",
+  "30th celebration classic collection": "30th classic collection",
   "shiny vault": "hidden fates shiny vault",
   "radiant collection": "generations radiant collection",
   "mcdonald s 25th anniversary promos": "mcdonald s collection 2021",
@@ -105,14 +106,21 @@ export function matchGroupsToSets(groups: TcgGroup[], sets: MirrorSet[]): Map<nu
   // Pass 1: abbreviations (exact, case-insensitive); among sets sharing the
   // code, the one whose name matches wins, else the closest release date
   // (within 60 days if both are known).
-  for (const g of groups) {
+  // Name hits claim first: a subset can share its parent's code and date (30th
+  // Celebration and its Classic Collection are both "30C", 10-05), and in
+  // groups order the subset could take the parent's set by date alone.
+  const pass1 = groups.map((g) => {
     const list = g.abbreviation ? byCode.get(g.abbreviation.toUpperCase()) : undefined;
-    if (!list?.length) continue;
     const gName = normalizeSetName(g.name);
-    const ranked = list
+    const ranked = (list ?? [])
       .map((s) => ({ s, gap: daysBetween(g.publishedOn, s.released), nameHit: normalizeSetName(s.name) === gName }))
       .filter((c) => c.gap === null || c.gap <= 60)
       .sort((a, b) => Number(b.nameHit) - Number(a.nameHit) || (a.gap ?? 1e9) - (b.gap ?? 1e9));
+    return { g, ranked };
+  });
+  for (const { g, ranked } of pass1) if (ranked[0]?.nameHit) claim(g, ranked[0].s);
+  for (const { g, ranked } of pass1) {
+    if (out.has(g.groupId)) continue;
     for (const c of ranked) if (claim(g, c.s)) break;
   }
   // Pass 2: names.
@@ -136,6 +144,69 @@ export function productNumber(product: { extendedData?: { name: string; value: s
   if (!raw) return null;
   const left = raw.split("/")[0].trim();
   return left.replace(/^0+(?=\d)/, "").toLowerCase() || null;
+}
+
+export interface TcgProduct {
+  productId: number;
+  name?: string;
+  extendedData?: { name: string; value: string }[];
+}
+
+export interface MirrorCard {
+  id: string;
+  number: string;
+  name: string;
+}
+
+/** "Darkrai & Cresselia Legend (Top)" / "Pikachu - 036/128" / "Genesect EX (Team Plasma)" → bare card name. */
+export function productCardName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+-\s+[a-z]*\d+\/\S+\s*$/, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * A group's products → our cards. Normally by collector number within the
+ * set. A reprint subset (Classic Collections, 10-05) prints each card's
+ * ORIGINAL number ("Charizard 4/102", "Darkrai & Cresselia Legend (Top)
+ * 99/102"), so when number matches mostly disagree on the name, match by name instead: a name must be
+ * unique in the set, or a LEGEND's Top/Bottom halves take the lower/higher
+ * number. Anything ambiguous stays unmapped (no price beats a wrong price).
+ */
+export function mapProductsToCards(products: TcgProduct[], cards: MirrorCard[]): Map<number, string> {
+  const byNumber = new Map(cards.map((c) => [c.number.replace(/^0+(?=\d)/, "").toLowerCase(), c]));
+  const first = (name: string) => productCardName(name).split(" ")[0];
+  const byNum = new Map<number, string>();
+  let agree = 0;
+  for (const p of products) {
+    const card = byNumber.get(productNumber(p) ?? "");
+    if (!card) continue;
+    byNum.set(p.productId, card.id);
+    if (p.name && first(p.name) === first(card.name)) agree++;
+  }
+  // Numbers line up with names = an ordinary set. Mostly disagreeing = the numbers are the originals'.
+  if (byNum.size > 0 && agree * 2 >= byNum.size) return byNum;
+  const out = new Map<number, string>();
+  const byName = new Map<string, MirrorCard[]>();
+  for (const c of [...cards].sort((a, b) => a.number.localeCompare(b.number, "en", { numeric: true }))) {
+    const key = productCardName(c.name);
+    byName.set(key, [...(byName.get(key) ?? []), c]);
+  }
+  const claimed = new Set<string>();
+  for (const p of products) {
+    if (!p.name || !productNumber(p)) continue;
+    const list = byName.get(productCardName(p.name));
+    const half = /\(top\)/i.test(p.name) ? 0 : /\(bottom\)/i.test(p.name) ? 1 : null;
+    const card = half === null ? (list?.length === 1 ? list[0] : undefined) : list?.length === 2 ? list[half] : undefined;
+    if (!card || claimed.has(card.id)) continue;
+    claimed.add(card.id);
+    out.set(p.productId, card.id);
+  }
+  return out;
 }
 
 /**

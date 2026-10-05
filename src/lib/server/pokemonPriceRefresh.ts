@@ -1,7 +1,17 @@
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
-import { tcgplayerProductPattern, tcgplayerVariantKey, type PatternVariant } from "@/lib/tcgcsv";
+import {
+  mapProductsToCards,
+  matchGroupsToSets,
+  tcgplayerProductPattern,
+  tcgplayerVariantKey,
+  type MirrorCard,
+  type MirrorSet,
+  type PatternVariant,
+  type TcgGroup,
+  type TcgProduct,
+} from "@/lib/tcgcsv";
 import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
 
 /**
@@ -33,7 +43,54 @@ export async function hasTcgplayerMap(): Promise<boolean> {
   return Boolean(row);
 }
 
+/**
+ * New sets map themselves (10-05): the productId → card map was only ever
+ * built by scripts/backfill-tcgcsv.mjs run by hand, so the 30th Celebration
+ * sets (and the 2021 Classic Collection) sat priceless. Each run maps up to
+ * `max` TCGplayer groups that match a mirror set with no mapped card yet.
+ * Best-effort: a failure here never stops the price run.
+ */
+export async function mapNewPokemonGroups(max = 8): Promise<{ groups: number; products: number }> {
+  const res = await fetch("https://tcgcsv.com/tcgplayer/3/groups", { headers: HEADERS });
+  if (!res.ok) throw new Error(`groups HTTP ${res.status}`);
+  const groups = ((await res.json()) as { results?: TcgGroup[] }).results ?? [];
+  const sets = (await db
+    .prepare("SELECT set_name AS name, MAX(set_code) AS code, MIN(set_release_date) AS released FROM en_cards GROUP BY set_name")
+    .all()) as MirrorSet[];
+  const mappedGroups = new Set(
+    ((await db.prepare("SELECT DISTINCT group_id FROM tcgplayer_products WHERE game = 'pokemon'").all()) as { group_id: number }[]).map((r) => r.group_id),
+  );
+  const mappedSets = new Set(
+    ((await db
+      .prepare("SELECT DISTINCT e.set_name FROM tcgplayer_products t JOIN en_cards e ON e.id = t.card_id WHERE t.game = 'pokemon'")
+      .all()) as { set_name: string }[]).map((r) => r.set_name),
+  );
+  const todo = [...matchGroupsToSets(groups, sets)].filter(([gid, set]) => !mappedGroups.has(gid) && !mappedSets.has(set)).slice(0, max);
+  let products = 0;
+  for (const [gid, setName] of todo) {
+    const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });
+    if (!pres.ok) continue;
+    const list = ((await pres.json()) as { results?: TcgProduct[] }).results ?? [];
+    const cards = (await db.prepare("SELECT id, local_id AS number, name FROM en_cards WHERE set_name = ?").all(setName)) as MirrorCard[];
+    const map = [...mapProductsToCards(list, cards)];
+    if (map.length) {
+      await db
+        .prepare(`INSERT OR IGNORE INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES ${map.map(() => "(?, ?, ?, 'pokemon')").join(", ")}`)
+        .run(...map.flatMap(([pid, cardId]) => [pid, gid, cardId]));
+    }
+    console.log(`tcgcsv map: group ${gid} → ${setName}: ${map.length} of ${list.length} products`);
+    products += map.length;
+    await new Promise((r) => setTimeout(r, PAUSE_MS));
+  }
+  return { groups: todo.length, products };
+}
+
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
+  try {
+    await mapNewPokemonGroups();
+  } catch (err) {
+    console.warn("tcgcsv map new groups:", err instanceof Error ? err.message : err);
+  }
   const groups = ((await db.prepare("SELECT DISTINCT group_id FROM tcgplayer_products WHERE game = 'pokemon'").all()) as { group_id: number }[])
     .map((r) => r.group_id);
   const productToCard = new Map<number, string>();

@@ -18,7 +18,7 @@ import {
   todayUtc,
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
-import { matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
+import { mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -84,6 +84,37 @@ check("Poké Ball with accent and hyphen", tcgplayerProductPattern("Heatmor (Pok
 check("Master Ball Pattern product", tcgplayerProductPattern("Snivy (Master Ball Pattern)"), "masterBallPattern");
 check("plain product is not a pattern", tcgplayerProductPattern("Harlequin - 083/086"), null);
 check("null name", tcgplayerProductPattern(null), null);
+
+// 10-05: the 30th Celebration sets sat priceless. Subset shares the parent code + date; Classic Collection prints original numbers.
+{
+  const sets = [
+    { name: "30th Celebration", code: "30C", released: "2026-09-16" },
+    { name: "30th Classic Collection", code: "", released: "2026-09-16" },
+  ];
+  const groups = [
+    { groupId: 2, name: "ME: 30th Celebration Classic Collection", abbreviation: "30C", publishedOn: "2026-09-16T00:00:00" },
+    { groupId: 1, name: "ME: 30th Celebration", abbreviation: "30C", publishedOn: "2026-09-16T00:00:00" },
+  ];
+  const m = matchGroupsToSets(groups, sets);
+  check("subset sharing the code does not take the parent set", [m.get(1), m.get(2)], ["30th Celebration", "30th Classic Collection"]);
+  const num = (v) => [{ name: "Number", value: v }];
+  const cards = [
+    { id: "c-001", number: "001", name: "Charizard" },
+    { id: "c-004", number: "004", name: "Genesect EX" },
+    { id: "c-019", number: "019", name: "Darkrai & Cresselia LEGEND" },
+    { id: "c-020", number: "020", name: "Darkrai & Cresselia LEGEND" },
+  ];
+  const products = [
+    { productId: 10, name: "Charizard", extendedData: num("4/102") },
+    { productId: 11, name: "Genesect EX (Team Plasma)", extendedData: num("11/101") },
+    { productId: 12, name: "Darkrai & Cresselia Legend (Bottom)", extendedData: num("100/102") },
+    { productId: 13, name: "Darkrai & Cresselia Legend (Top)", extendedData: num("99/102") },
+    { productId: 14, name: "Lugia", extendedData: num("149/147") },
+  ];
+  check("reprint subset maps by name, LEGEND halves by order", Object.fromEntries(mapProductsToCards(products, cards)), { 10: "c-001", 11: "c-004", 12: "c-020", 13: "c-019" });
+  const plain = [{ productId: 20, name: "Pikachu - 036/128", extendedData: num("036/128") }, { productId: 21, name: "Booster Pack" }];
+  check("a normal set still maps by number", Object.fromEntries(mapProductsToCards(plain, [{ id: "p-036", number: "036", name: "Pikachu" }])), { 20: "p-036" });
+}
 
 console.log(failures === 0 ? "\nAll price-history checks passed" : `\n${failures} price-history check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

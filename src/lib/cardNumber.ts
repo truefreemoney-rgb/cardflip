@@ -102,7 +102,8 @@ export function isSecretRareNumber(
   number: string,
   setTotal: number | null,
 ): boolean {
-  if (setTotal === null) return false;
+  // 0 = TCGdex printed no count (30th Classic Collection, 10-05): unknown, not "everything is secret".
+  if (setTotal === null || !(setTotal > 0)) return false;
   const value = numericValue(number);
   return value !== null && value > setTotal;
 }
