@@ -7,7 +7,7 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
-import { inAppBrowserName, inAppCameraMessage } from "@/lib/client/inAppBrowser";
+import { inAppBrowserName, inAppCameraMessage, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -249,7 +249,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // Inside TikTok / Instagram / Facebook (10-05, Chris's iPhone in TikTok): their browser forces live video into its own
   // fullscreen player and the viewfinder froze, so there the scanner opens the phone's own camera instead. The input's
   // capture="environment" opens the camera itself, not the photo library: every photo is still one taken now (10-03 rule).
-  const [nativeCam] = useState(() => inAppBrowserName() !== null);
+  // Also switched on the moment the live video gets pulled into a fullscreen player (webkitbeginfullscreen below), so an
+  // app browser that names itself nowhere still lands here.
+  const [nativeCam, setNativeCam] = useState(() => inAppBrowserName() !== null || isIosWebView());
   const photoInput = useRef<HTMLInputElement>(null);
   // No file-picker escape hatch when the camera won't open (10-03): a photo
   // from the gallery is an upload, and eBay rejects listings that reuse
@@ -343,6 +345,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         streamRef.current = stream;
         const video = videoRef.current;
         if (video) {
+          // An app browser that forces inline video fullscreen (TikTok's, 10-05): leave the player, drop the stream and
+          // use the phone's own camera instead.
+          video.addEventListener(
+            "webkitbeginfullscreen",
+            () => {
+              (video as HTMLVideoElement & { webkitExitFullscreen?: () => void }).webkitExitFullscreen?.();
+              stream?.getTracks().forEach((track) => track.stop());
+              setNativeCam(true);
+            },
+            { once: true },
+          );
           video.srcObject = stream;
           await video.play();
         }
@@ -770,7 +783,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             />
           )}
           {/* The live hint sits in the dimmed band above the guide, never on the card. */}
-          {ready && guide && hint && !blurNote && (
+          {ready && guide && hint && !blurNote && !nativeCam && (
             <p
               role="status"
               className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-amber-400/40 bg-black/80 px-3 py-1 text-xs font-semibold text-amber-200"
@@ -785,7 +798,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               is most of what separates a good scan from a bad one. Placed by
               guideGeometry so it clears the button column. The huge
               box-shadow dims everything outside the guide. */}
-          {ready && guide && (
+          {ready && guide && !nativeCam && (
             <div
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
               aria-hidden

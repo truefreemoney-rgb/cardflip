@@ -26,6 +26,15 @@ export function inAppBrowserName(ua: string = typeof navigator === "undefined" ?
   return null;
 }
 
+/**
+ * An app's own browser on an iPhone that does not name itself (10-05: TikTok's DM link browser still played the live
+ * camera fullscreen after the name check shipped). Safari, Chrome, Firefox and Edge on iOS all carry "Safari/" in the
+ * user agent; a bare app web view does not.
+ */
+export function isIosWebView(ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent): boolean {
+  return /\b(iPhone|iPad|iPod)\b/.test(ua) && !/\bSafari\//.test(ua);
+}
+
 /** The camera-blocked message for an in-app browser. */
 export function inAppCameraMessage(app: string): string {
   return `${app}'s built-in browser didn't let CardFlip use the camera. Tap ⋯ at the top of the screen, choose Open in browser, then tap Scan again.`;
