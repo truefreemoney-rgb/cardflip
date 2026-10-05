@@ -7,10 +7,22 @@
  * test TikTok's from a phone without a live ad). When the camera fails there,
  * the scanner says how to reopen the page in the phone's own browser.
  */
+// 10-05: TikTok's browser forced the live camera into its own fullscreen player (Chris's iPhone), so every app below
+// gets the phone's own camera instead (CameraCapture). Same tokens as lib/attribution.ts IN_APP_SOURCES, plus Snapchat
+// and LinkedIn. Threads is tested before Instagram (its browser says Barcelona), Instagram before Facebook (it carries FB tokens).
+const IN_APP: [RegExp, string][] = [
+  [/\bBarcelona\b/, "Threads"],
+  [/musical_ly|BytedanceWebview|\bTikTok\b|\btrill_/i, "TikTok"],
+  [/\bInstagram\b/i, "Instagram"],
+  [/\b(FBAN|FBAV|FB_IAB|FBIOS)\b/, "Facebook"],
+  [/\bPinterest\b/i, "Pinterest"],
+  [/\bTwitter(Android|\b)/, "X"],
+  [/\bSnapchat\b/i, "Snapchat"],
+  [/\bLinkedInApp\b/i, "LinkedIn"],
+];
+
 export function inAppBrowserName(ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent): string | null {
-  if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return "TikTok";
-  if (/Instagram/i.test(ua)) return "Instagram";
-  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+  for (const [re, name] of IN_APP) if (re.test(ua)) return name;
   return null;
 }
 
