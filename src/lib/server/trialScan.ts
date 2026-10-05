@@ -11,8 +11,22 @@ import { db } from "@/lib/db";
 export const TRIAL_TRIES = 3;
 const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Chris's test networks (Vercel env TRIAL_TEST_IP_HASHES, comma list of hashIp values; kept out of the repo because the hash of an IPv4 is reversible). */
+const TEST_TRIES = 5;
+const TEST_WINDOW_MS = 24 * 60 * 60 * 1000;
+function isTestNetwork(ipHash: string | null): boolean {
+  if (!ipHash) return false;
+  return (process.env.TRIAL_TEST_IP_HASHES ?? "").split(",").map((s) => s.trim()).includes(ipHash);
+}
+
 /** True when this device or network has used its tries. */
 export async function trialScanUsedUp(deviceId: string, ipHash: string | null, now = Date.now()): Promise<boolean> {
+  if (isTestNetwork(ipHash)) {
+    const n = (await db
+      .prepare("SELECT COUNT(*) AS n FROM trial_scans WHERE ip_hash = ? AND at > ?")
+      .get(ipHash, now - TEST_WINDOW_MS)) as { n: number } | undefined;
+    return Number(n?.n ?? 0) >= TEST_TRIES + TRIAL_TRIES;
+  }
   const since = now - WINDOW_MS;
   const byDevice = (await db
     .prepare("SELECT COUNT(*) AS n FROM trial_scans WHERE device_id = ? AND at > ?")
