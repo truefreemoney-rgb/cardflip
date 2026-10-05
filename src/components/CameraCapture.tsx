@@ -7,6 +7,7 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
+import { inAppBrowserName, inAppCameraMessage } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -341,8 +342,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // reappear until the site permission is reset.
         const denied = err instanceof DOMException && err.name === "NotAllowedError";
         const missing = err instanceof DOMException && err.name === "NotFoundError";
+        // Inside TikTok / Instagram / Facebook the fix is leaving their browser, not a site setting (10-04).
+        const inApp = inAppBrowserName();
         setError(
-          denied
+          inApp && !missing
+            ? inAppCameraMessage(inApp)
+            : denied
             ? "Camera access is blocked for this site. Turn it on in your browser's site settings (the icon by the address bar), then try again. Every listing needs a photo you take here, so there is no photo upload."
             : missing
               ? "No camera found on this device. CardFlip scans from a live camera only, so open cardflip.io on your phone."
