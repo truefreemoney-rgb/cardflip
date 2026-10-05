@@ -115,7 +115,9 @@ export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: L
 
 /** The sign-off line the shared captions end with (social.ts SIGN_OFF), moved to the top on TikTok. */
 const SIGN_OFF = "Scan a card, see what it's worth. cardflip.io";
-export const TIKTOK_LEAD = "Scan a card, see what it's worth: cardflip.io (link in bio)";
+// 10-05: no clickable bio link yet (personal account, under 1,000 followers), so "link in bio" read as broken; the
+// address is typed. The video's last frame shows it big (social-scene.mjs #outro .url).
+export const TIKTOK_LEAD = "Scan a card, see what it's worth: type cardflip.io in your browser";
 
 /**
  * TikTok never links a URL in a caption and shows about one line before

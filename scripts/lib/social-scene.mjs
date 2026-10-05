@@ -88,8 +88,9 @@ export function sceneHtml(o) {
      tabs), the bottom ~360px (caption, account, sound, nav) and, from mid-height down, the right ~170px (the action rail).
      Every screen is centred in y 230..1560 and its text stays inside x 170..910. */
   .safe #intro, .safe #outro { padding:230px 90px 360px; }
-  .safe .beat { justify-content:center; padding:230px 80px 360px; }
-  .safe .beat .art { width:560px; height:780px; margin-top:26px; }
+  /* 10-05: the profile grid crops to 3:4 (y 240..1680), so the rank label clears 300 and the art gave up 60px. */
+  .safe .beat { justify-content:center; padding:300px 80px 360px; }
+  .safe .beat .art { width:517px; height:720px; margin-top:26px; }
   .safe .beat .name { margin-top:44px; max-width:740px; }
   .safe .beat .name.long { font-size:52px; }
   .safe .beat .meta { max-width:740px; }
@@ -134,7 +135,7 @@ export function sceneHtml(o) {
   #outro { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 90px; text-align:center; }
   #outro img { width:560px; }
   #outro .line { font-size:56px; margin-top:60px; line-height:1.2; }
-  #outro .url { font-size:64px; font-weight:700; margin-top:40px; }
+  #outro .url { font-size:104px; font-weight:700; margin-top:40px; }
   #outro .now { font-size:40px; font-weight:600; color:#a5b4fc; letter-spacing:.18em; text-transform:uppercase; margin-top:64px; }
   #outro .games { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:30px; }
   #outro .games .g { font-size:88px; line-height:1.05; }

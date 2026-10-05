@@ -84,7 +84,8 @@ export function angleScene(o) {
   .green { background:linear-gradient(100deg,#22c55e 0%,#4ade80 30%,#d9f99d 48%,#4ade80 66%,#16a34a 100%); background-size:260% 100%;
     -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 0 18px rgba(74,222,128,.45)); }
   /* TikTok safe box: everything centred in y 230..1560, text inside x 170..910. */
-  #intro, #outro, .scr { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:230px 80px 360px; text-align:center; }
+  /* 10-05: 300px on top keeps the kicker inside the profile grid's 3:4 crop (y 240..1680). */
+  #intro, #outro, .scr { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:300px 80px 360px; text-align:center; }
   .kicker { font-size:38px; font-weight:600; color:#a5b4fc; text-transform:uppercase; letter-spacing:.18em; }
   #intro .title { font-size:120px; line-height:1; margin-top:28px; }
   #intro .title.md { font-size:96px; line-height:1.02; }
@@ -139,7 +140,7 @@ export function angleScene(o) {
   #outro .games { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:30px; }
   #outro .games .g { font-size:88px; line-height:1.05; }
   #outro .tag { font-size:44px; margin-top:52px; }
-  #outro .url { font-size:64px; font-weight:700; margin-top:40px; }
+  #outro .url { font-size:104px; font-weight:700; margin-top:40px; }
 ${lookCss(o.look)}</style></head><body>
 <div id="intro" class="abs">
   <div class="kicker">${esc(intro.kicker)}</div>
