@@ -348,7 +348,7 @@ export default function PriceCheckPage() {
                 imageUrl={entry.imageUrl ?? ""}
                 name={entry.cardName}
                 subtitle={`${entry.setName} · ${entry.cardNumber}${entry.language !== "en" ? ` · ${entry.language === "ja" ? "Japanese" : "Chinese"}` : ""}`}
-                price={entry.flag ? null : entry.representativePrice}
+                price={entry.flag ? null : (entry.currentPrice ?? entry.representativePrice)}
                 priceNote={formatDate(entry.checkedAt)}
                 flagged={Boolean(entry.flag)}
                 sparkCardId={entry.cardId}
@@ -409,7 +409,7 @@ export default function PriceCheckPage() {
                       <span className="block max-w-[11rem] text-xs font-medium leading-snug"><PriceFlagText /></span>
                     ) : (
                       <span className="block font-display font-medium text-emerald-400">
-                        {formatMoney(entry.representativePrice)}
+                        {formatMoney(entry.currentPrice ?? entry.representativePrice)}
                       </span>
                     )}
                     <span className="block text-[11px] text-zinc-600">

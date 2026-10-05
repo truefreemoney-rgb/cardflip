@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
-import { latestUsdPrice } from "@/lib/server/priceHistory";
+import { latestUsdByVariant, latestUsdPrice, variantRank } from "@/lib/server/priceHistory";
 import { marketPriceFlagged, storedPriceFlags } from "@/lib/server/priceTrustSite";
 import type { PriceFlag } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
@@ -16,6 +16,8 @@ export interface PriceCheckEntry {
   cardNumber: string;
   language: ScanLanguage;
   representativePrice: number | null;
+  /** Set when reading: today's market for the same printing (10-05, Chris: the saved number should move with the price). */
+  currentPrice?: number | null;
   prices: PokemonCard["prices"];
   /**
    * Set when reading: the price guard (priceTrustSite) flags the number this
@@ -223,6 +225,20 @@ export async function listPriceChecks(userId: string, limit = 100): Promise<Pric
     });
   } catch (err) {
     console.warn("price checks: price guard unavailable", err);
+  }
+  // Today's market, same printing as the saved number (the variant whose saved market it was), else the usual default printing.
+  try {
+    const ids = [...new Set(entries.filter((e) => e.cardId && e.language === "en").map((e) => e.cardId as string))];
+    const latest = ids.length ? await latestUsdByVariant(ids) : new Map<string, Map<string, number>>();
+    for (const e of entries) {
+      const byVariant = e.cardId ? latest.get(e.cardId) : undefined;
+      if (!byVariant || e.flag) continue;
+      const saved = e.prices.find((p) => p.currency === "USD" && p.market != null && p.market === e.representativePrice)?.variant;
+      const variant = saved && byVariant.has(saved) ? saved : [...byVariant.keys()].sort((a, b) => variantRank(a) - variantRank(b))[0];
+      e.currentPrice = byVariant.get(variant) ?? null;
+    }
+  } catch (err) {
+    console.warn("price checks: current prices unavailable", err);
   }
   return entries;
 }

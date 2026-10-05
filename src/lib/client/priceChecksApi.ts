@@ -12,6 +12,8 @@ export interface PriceCheckEntry {
   cardNumber: string;
   language: ScanLanguage;
   representativePrice: number | null;
+  /** Today's market for the same printing, when the server has one (10-05). */
+  currentPrice?: number | null;
   prices: PokemonCard["prices"];
   /** The price guard flags the number this lookup saved (set on read): show the note, not the number. */
   flag?: PriceFlag;
