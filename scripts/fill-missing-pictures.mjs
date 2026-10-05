@@ -25,6 +25,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
+import { guardedFetch } from "./lib/scryfall-guard.mjs";
 
 const root = process.cwd();
 const prodFlag = process.argv.includes("--prod");
@@ -41,7 +42,7 @@ const log = [];
 
 async function imageOk(url) {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const res = await guardedFetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return false;
     const type = res.headers.get("content-type") ?? "";
     const buf = Buffer.from(await res.arrayBuffer());

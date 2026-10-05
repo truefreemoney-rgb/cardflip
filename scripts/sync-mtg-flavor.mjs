@@ -11,6 +11,7 @@
 // column through scripts/push-mtg-cues.mjs like the other printing cues.
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
+import { scryfallFetch } from "./lib/scryfall-guard.mjs";
 
 const API = "https://api.scryfall.com";
 const HEADERS = {
@@ -24,7 +25,7 @@ const db = new DatabaseSync(process.env.CARDFLIP_DB_PATH ?? path.join(process.cw
 try { db.exec("ALTER TABLE mtg_cards ADD COLUMN flavor_name TEXT NOT NULL DEFAULT ''"); } catch { /* present */ }
 
 async function getJson(url, attempt = 1) {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await scryfallFetch(url, { headers: HEADERS });
   if (res.status === 429 || res.status >= 500) {
     if (attempt >= 6) throw new Error(`${url} → ${res.status} after ${attempt} tries`);
     await sleep(2000 * attempt);

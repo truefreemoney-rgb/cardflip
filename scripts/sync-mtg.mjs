@@ -22,6 +22,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import { decodePrices, encodePrices, setDay, todayUtc } from "../src/lib/priceSeries.ts";
+import { scryfallFetch } from "./lib/scryfall-guard.mjs";
 
 const lang = process.argv[2] ?? "en";
 const API = "https://api.scryfall.com";
@@ -101,7 +102,7 @@ for (const column of [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function getJson(url, attempt = 1) {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await scryfallFetch(url, { headers: HEADERS });
   if (res.status === 429 || res.status >= 500) {
     if (attempt >= 6) throw new Error(`${url} → ${res.status} after ${attempt} tries`);
     const wait = 1000 * attempt;

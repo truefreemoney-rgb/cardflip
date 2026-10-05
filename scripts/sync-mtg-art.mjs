@@ -17,6 +17,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import { createClient } from "@libsql/client";
+import { scryfallFetch } from "./lib/scryfall-guard.mjs";
 
 const API = "https://api.scryfall.com";
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
@@ -26,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const num = (v) => (v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
 async function getJson(url, attempt = 1) {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await scryfallFetch(url, { headers: HEADERS });
   if (res.status === 429 || res.status >= 500) {
     if (attempt >= 6) throw new Error(`${url} → ${res.status} after ${attempt} tries`);
     await sleep(1000 * attempt);

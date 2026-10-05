@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { scryfallFetch } from "./lib/scryfall-guard.mjs";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { dHash } = await import(at("lib/server/artHash.ts"));
@@ -43,7 +44,7 @@ let n = 0;
 let failed = 0;
 for (const r of rows) {
   try {
-    const res = await fetch(r.image_url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "image/jpeg" }, signal: AbortSignal.timeout(20_000) });
+    const res = await scryfallFetch(r.image_url, { headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "image/jpeg" }, signal: AbortSignal.timeout(20_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const hash = await dHash(Buffer.from(await res.arrayBuffer()));
     update.run(hash, r.id);

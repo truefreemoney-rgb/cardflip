@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
+import { guardedFetch } from "./lib/scryfall-guard.mjs";
 
 const arg = (name, fallback) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback);
 const game = arg("--game", "yugioh");
@@ -39,15 +40,15 @@ const LIMIT = Number(arg("--limit", 0)) || Infinity;
 async function status(url) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      let res = await fetch(url, { method: "HEAD", headers: HEADERS, signal: AbortSignal.timeout(15000) });
-      if (res.status === 405 || res.status === 501) res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(15000) });
+      let res = await guardedFetch(url, { method: "HEAD", headers: HEADERS, signal: AbortSignal.timeout(15000) });
+      if (res.status === 405 || res.status === 501) res = await guardedFetch(url, { headers: HEADERS, signal: AbortSignal.timeout(15000) });
       if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); continue; }
       const type = res.headers.get("content-type") ?? "";
       // optcgapi serves TCGplayer's "image not available" drawing (an SVG, 31 KB)
       // as image/jpeg under a .jpg name: a small answer is opened and looked at.
       const size = Number(res.headers.get("content-length") ?? 0);
       if (res.ok && type.startsWith("image/") && game === "onepiece" && size > 0 && size < 40000) {
-        const body = Buffer.from(await (await fetch(url, { signal: AbortSignal.timeout(15000) })).arrayBuffer());
+        const body = Buffer.from(await (await guardedFetch(url, { signal: AbortSignal.timeout(15000) })).arrayBuffer());
         if (body.subarray(0, 1).toString("latin1") === "<") return "placeholder";
       }
       return res.ok && type.startsWith("image/") ? 200 : res.status === 200 ? `200 ${type}` : res.status;
