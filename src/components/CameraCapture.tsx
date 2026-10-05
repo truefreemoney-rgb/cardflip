@@ -23,7 +23,6 @@ import {
   HINT_TEXT,
   findCardQuad,
   frameLight,
-  frameMotion,
   growQuad,
   pickHint,
   shouldStraighten,
@@ -406,7 +405,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    let prev: Uint8Array | null = null;
     let last: Hint | null = null;
     let streak = 0;
     const id = window.setInterval(() => {
@@ -424,11 +422,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         return;
       }
       const gray = toGray(data, w * h);
-      const motion = prev && prev.length === gray.length ? frameMotion(prev, gray) : null;
-      prev = gray;
       const light = frameLight(data, w, h);
       // The card-size check only when nothing more pressing is wrong.
-      const next = pickHint(light, motion, null) ?? pickHint(light, motion, findCardQuad(gray, w, h)?.area ?? null);
+      // No live "Hold still" (10-04, Chris's phone: a hand-held phone over a binder page never reads as still,
+      // so it stuck on). Shake is handled at the tap: the sharpest of the burst, then the blur gate.
+      const next = pickHint(light, null, null) ?? pickHint(light, null, findCardQuad(gray, w, h)?.area ?? null);
       if (next === last) streak++;
       else {
         last = next;
