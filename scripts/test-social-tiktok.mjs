@@ -487,7 +487,7 @@ console.log("the phone card, the layout, the frozen picture");
   // Chris 10-01, from his phone: the stack sat under the search bar with an empty bottom third, the cold-open number lay across the card, the progress bar struck through the caption.
   const css = html(true);
   check("the safe box: cards, intro and outro centred between the top bar and the caption; the footer and progress bar are not drawn", [
-    css.includes(".safe .beat { justify-content:center; padding:230px 80px 360px; }"),
+    css.includes(".safe .beat { justify-content:center; padding:300px 80px 360px; }"),
     css.includes(".safe #intro, .safe #outro { padding:230px 90px 360px; }"),
     css.includes(".safe #intro.hooked { justify-content:center; padding:230px 90px 360px; }"),
     css.includes(".safe #footer, .safe #bar { display:none; }"),
