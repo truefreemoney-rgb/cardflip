@@ -7,7 +7,7 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
-import { inAppBrowserName, inAppCameraMessage, isIosWebView } from "@/lib/client/inAppBrowser";
+import { inAppBrowserName, inAppCameraMessage, isIosWebView, openInBrowserUrl, phoneBrowserName } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -253,6 +253,14 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // app browser that names itself nowhere still lands here.
   const [nativeCam, setNativeCam] = useState(() => inAppBrowserName() !== null || isIosWebView());
   const photoInput = useRef<HTMLInputElement>(null);
+  // The way out of the app's browser to the live scanner (10-05): built after mount, the URL needs window.
+  const [escape, setEscape] = useState<{ url: string; browser: string } | null>(null);
+  useEffect(() => {
+    if (!nativeCam) return;
+    const url = openInBrowserUrl(window.location.href);
+    const t = window.setTimeout(() => url && setEscape({ url, browser: phoneBrowserName() }), 0);
+    return () => window.clearTimeout(t);
+  }, [nativeCam]);
   // No file-picker escape hatch when the camera won't open (10-03): a photo
   // from the gallery is an upload, and eBay rejects listings that reuse
   // pictures. The message says how to turn the camera back on instead.
@@ -759,8 +767,23 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                   <circle cx="12" cy="13" r="3.5" />
                 </svg>
               </span>
-              <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
-              <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
+              {escape ? (
+                <>
+                  <p className="max-w-xs text-base font-semibold text-white">Scan live in {escape.browser}</p>
+                  <a
+                    href={escape.url}
+                    className="w-full max-w-xs rounded-full bg-white px-5 py-3 text-base font-semibold text-zinc-900 shadow-lg"
+                  >
+                    Open in {escape.browser}
+                  </a>
+                  <p className="max-w-xs text-sm text-zinc-400">Or tap the button below to take a photo of one card here.</p>
+                </>
+              ) : (
+                <>
+                  <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
+                  <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
+                </>
+              )}
               <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={(e) => void onNativePhoto(e)} className="hidden" />
             </div>
           ) : (
