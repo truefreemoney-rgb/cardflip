@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
   poweredByHeader: false,
+  // Dev only: 127.0.0.1 is a second cookie jar beside localhost, for seeing a
+  // signed-out page (the /scan landing) while the pane stays signed in.
+  allowedDevOrigins: ["127.0.0.1"],
   // The admin console reads docs/BOARD.md at request time (lib/server/board.ts);
   // make sure the file ships with the serverless function.
   // The social pictures read their fonts the same way (lib/server/ogFonts.ts).

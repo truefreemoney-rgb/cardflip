@@ -76,6 +76,35 @@ export async function tiebreakCard(file: File, game: GameId, ids: string[]): Pro
   }
 }
 
+export type TrialScanStatus = "done" | "used" | "busy" | "error";
+
+/**
+ * The ad landing page's free scan (/api/vision/trial, no account). Hands back
+ * the downscaled photo too, so the card can be saved with it after signup.
+ * Never throws.
+ */
+export async function trialScanWithVision(
+  file: File,
+  game: GameId,
+): Promise<{ status: TrialScanStatus; read: VisionCardRead | null; photo: string | null }> {
+  try {
+    const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
+    if (!base64) return { status: "error", read: null, photo: null };
+    const res = await fetch(apiPath("/api/vision/trial"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: base64, mediaType, game }),
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(15_000) : undefined,
+    });
+    const data = await res.json().catch(() => null);
+    const status: TrialScanStatus =
+      data?.status === "used" ? "used" : data?.status === "busy" || res.status === 429 ? "busy" : res.ok && data?.card ? "done" : "error";
+    return { status, read: status === "done" ? data.card : null, photo: `data:${mediaType};base64,${base64}` };
+  } catch {
+    return { status: "error", read: null, photo: null };
+  }
+}
+
 /**
  * Never throws — a vision failure means the scanner falls back to OCR rather
  * than losing the card.

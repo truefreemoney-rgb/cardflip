@@ -742,6 +742,16 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_signup_log_ip ON signup_log (ip_hash);
   CREATE INDEX IF NOT EXISTS idx_signup_log_device ON signup_log (device_id);
+  -- The ad landing page's free scan with no account (10-05, /scan,
+  -- lib/server/trialScan.ts): one row per paid read, capped per device
+  -- (cf_dev) and per ip_hash so a refresh is not a second free scan.
+  CREATE TABLE IF NOT EXISTS trial_scans (
+    device_id TEXT NOT NULL,
+    ip_hash TEXT,
+    at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_trial_scans_device ON trial_scans (device_id, at);
+  CREATE INDEX IF NOT EXISTS idx_trial_scans_ip ON trial_scans (ip_hash, at);
   -- "Tell me when CardFlip opens in my country" (Chris 09-30, /unavailable).
   -- country is x-vercel-ip-country, never client-sent; one row per email.
   CREATE TABLE IF NOT EXISTS waitlist (

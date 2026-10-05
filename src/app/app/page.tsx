@@ -40,6 +40,7 @@ import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/eba
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
 import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
+import { claimPendingScan } from "@/lib/client/trialScan";
 import { foilChoices } from "@/lib/yugioh";
 import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
 import { CONDITIONS } from "@/lib/listing";
@@ -159,6 +160,15 @@ const RESUME_STAGE_MS = [900, 2000] as const;
 export default function AppPage() {
   const router = useRouter();
   const { user, refresh, patchUser } = useSession();
+
+  // The card scanned on the ad landing page before signup (/scan, 10-05) lands in Inventory now.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    void claimPendingScan().then((name) => {
+      if (name) toast(`${name} is saved in your Inventory`);
+    });
+  }, [userId]);
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
