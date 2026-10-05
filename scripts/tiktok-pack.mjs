@@ -49,14 +49,14 @@ for (const [slot, time] of slots) {
   if (buf.length !== v.bytes) throw new Error(`${label}: downloaded ${buf.length} bytes, row says ${v.bytes}`);
   // No music in the pack (10-05): from 10-04 every TikTok carrying our uploaded track sat at 0-2 views while the same
   // video with no audio got views, so the pack's MP4 is video only and Chris adds a sound from TikTok's library at post time.
-  const withMusic = path.join(os.tmpdir(), `cardflip-pack-${slot}.mp4`);
+  // Only TikTok goes silent (Chris 10-05): Pinterest gets the same video WITH our rotating music, so the pack keeps both.
+  const withMusic = path.join(dir, `${label} - Pinterest (music).mp4`);
   fs.writeFileSync(withMusic, buf);
   {
     const { spawnSync } = await import("node:child_process");
     const ffmpeg = (await import("ffmpeg-static")).default;
-    const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-i", withMusic, "-an", "-c:v", "copy", path.join(dir, `${label}.mp4`)]);
+    const r = spawnSync(ffmpeg, ["-v", "error", "-y", "-i", withMusic, "-an", "-c:v", "copy", path.join(dir, `${label} - TikTok (no music).mp4`)]);
     if (r.status !== 0) throw new Error(`${label}: could not strip the music: ${r.stderr.toString().slice(-300)}`);
-    fs.rmSync(withMusic, { force: true });
   }
   let cap = v.caption ?? v.text ?? "";
   // Chris 10-03: every TikTok carries seven tags. A caption rendered before 64e8015 (five tags) gets the reach tags here.
@@ -107,7 +107,7 @@ if (missing) throw new Error(`${missing} slot(s) not registered for ${day}; the 
     console.log(label, `cover at ${best.t}s (brightness ${Math.round(best.lum)}${best.still ? ", still" : ", NO STILL FRAME, check it"})`);
   }
 }
-fs.writeFileSync(path.join(dir, "captions.txt"), "These videos have NO music: add a sound from TikTok's library (Add sound / Sounds) before posting.\n\n" + captions, "utf8");
+fs.writeFileSync(path.join(dir, "captions.txt"), "TikTok: post the \"TikTok (no music)\" MP4 and add a sound from TikTok's library (Sounds). Pinterest: post the \"Pinterest (music)\" MP4.\n\n" + captions, "utf8");
 
 // Pinterest by hand (Chris 10-03: the app review is taking forever). Same
 // three MP4s as video Pins; a Pin = title (first caption line, <=100) +
