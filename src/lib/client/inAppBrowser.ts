@@ -35,13 +35,3 @@ export function isIosWebView(ua: string = typeof navigator === "undefined" ? "" 
   return /\b(iPhone|iPad|iPod)\b/.test(ua) && !/\bSafari\//.test(ua);
 }
 
-/** The camera-blocked message for an in-app browser. */
-export function inAppCameraMessage(app: string): string {
-  return `${app}'s built-in browser didn't let CardFlip use the camera. Tap ⋯ at the top of the screen, choose Open in browser, then tap Scan again.`;
-}
-
-
-/** "Safari" or "Chrome": the phone's own browser. */
-export function phoneBrowserName(ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
-  return /\bAndroid\b/.test(ua) ? "Chrome" : "Safari";
-}

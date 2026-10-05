@@ -8,7 +8,7 @@ import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { mirrorPossible, startCameraMirror } from "@/lib/client/cameraMirror";
-import { inAppBrowserName, inAppCameraMessage, isIosWebView, phoneBrowserName } from "@/lib/client/inAppBrowser";
+import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -270,24 +270,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const mirrorRef = useRef<HTMLCanvasElement>(null);
   const lastFrameAt = useRef(0);
   const photoInput = useRef<HTMLInputElement>(null);
-  // The way out of the app's browser to the live scanner (10-05): TikTok swallowed the x-safari link (Chris tapped,
-  // nothing), so it's copy the link, paste it in Safari / Chrome. Built after mount, the URL needs window.
-  const [escape, setEscape] = useState<{ url: string; browser: string } | null>(null);
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!nativeCam || !appBrowser) return;
-    const t = window.setTimeout(() => setEscape({ url: window.location.href, browser: phoneBrowserName() }), 0);
-    return () => window.clearTimeout(t);
-  }, [nativeCam, appBrowser]);
-  const copyLink = async () => {
-    if (!escape) return;
-    try {
-      await navigator.clipboard.writeText(escape.url);
-      setCopied(true);
-    } catch {
-      window.prompt("Copy this link, then paste it in " + escape.browser, escape.url);
-    }
-  };
+  // No "open in Safari" anything (10-05, Chris: asking the user to leave the app "looks like our product is shit").
+  // TikTok swallowed the x-safari link anyway. The phone camera is the whole fallback.
   // No file-picker escape hatch when the camera won't open (10-03): a photo
   // from the gallery is an upload, and eBay rejects listings that reuse
   // pictures. The message says how to turn the camera back on instead.
@@ -435,14 +419,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // reappear until the site permission is reset.
         const denied = err instanceof DOMException && err.name === "NotAllowedError";
         const missing = err instanceof DOMException && err.name === "NotFoundError";
-        // Inside TikTok / Instagram / Facebook the fix is leaving their browser, not a site setting (10-04).
-        const inApp = inAppBrowserName();
         // An app browser whose live camera won't open still has the phone's own camera (10-05).
         if (appBrowser) return setNativeCam(true);
         setError(
-          inApp && !missing
-            ? inAppCameraMessage(inApp)
-            : denied
+          denied
             ? "Camera access is blocked for this site. Turn it on in your browser's site settings (the icon by the address bar), then try again. Every listing needs a photo you take here, so there is no photo upload."
             : missing
               ? "No camera found on this device. CardFlip scans from a live camera only, so open cardflip.io on your phone."
@@ -820,24 +800,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                   <circle cx="12" cy="13" r="3.5" />
                 </svg>
               </span>
-              {escape ? (
-                <>
-                  <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
-                  <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
-                  <button
-                    type="button"
-                    onClick={() => void copyLink()}
-                    className="w-full max-w-xs rounded-full border border-white/25 px-5 py-2.5 text-sm font-semibold text-white"
-                  >
-                    {copied ? `Copied. Open ${escape.browser} and paste it` : `Live scanner: copy link for ${escape.browser}`}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
-                  <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
-                </>
-              )}
+              <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
+              <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
               <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={(e) => void onNativePhoto(e)} className="hidden" />
             </div>
           ) : mirror ? (
