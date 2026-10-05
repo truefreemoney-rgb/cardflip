@@ -16,6 +16,7 @@ import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { getSetting } from "@/lib/server/settings";
 import { inboxKey, isDisposableEmail } from "@/lib/server/signupGuard";
+import { isTestNetwork } from "@/lib/server/trialScan";
 import {
   TRIAL_SCANS,
   findUserByEmail,
@@ -432,12 +433,15 @@ export async function markEmailConfirmed(
   const verified = opts.verified !== false;
   const now = opts.now ?? Date.now();
   const bound = typeof opts.email === "string";
+  // Chris's test network keeps its trial at confirm too, same as at signup (signupGuard.repeatSignup, 10-05).
+  const signedUpFrom = await db.prepare("SELECT ip_hash FROM signup_log WHERE user_id = ? LIMIT 1").get<{ ip_hash: string | null }>(userId);
+  const testNetwork = isTestNetwork(signedUpFrom?.ip_hash ?? null);
   const res = await db
     .prepare(
       `UPDATE users SET
          email_pending = 0,
          email_verified_at = CASE WHEN ? = 1 THEN COALESCE(email_verified_at, ?) ELSE email_verified_at END,
-         trial_scans_used = CASE WHEN
+         trial_scans_used = CASE WHEN ? = 1 THEN trial_scans_used WHEN
              EXISTS (SELECT 1 FROM signup_log me
                        JOIN signup_log o ON o.device_id = me.device_id AND o.user_id <> me.user_id
                        LEFT JOIN users ou ON ou.id = o.user_id
@@ -453,7 +457,7 @@ export async function markEmailConfirmed(
            THEN MAX(trial_scans_used, ?) ELSE trial_scans_used END
        WHERE id = ? AND email_pending = 1${bound ? " AND email = ?" : ""}`,
     )
-    .run(verified ? 1 : 0, now, TRIAL_SCANS, userId, ...(bound ? [normalize(opts.email!)] : []));
+    .run(verified ? 1 : 0, now, testNetwork ? 1 : 0, TRIAL_SCANS, userId, ...(bound ? [normalize(opts.email!)] : []));
   if (res.changes < 1) return { changed: false };
   // Mail already in inboxes: the account is in either way, so a button tapped
   // late says "already confirmed" (the app agrees), never "expired" with a
