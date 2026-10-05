@@ -40,19 +40,8 @@ export function inAppCameraMessage(app: string): string {
   return `${app}'s built-in browser didn't let CardFlip use the camera. Tap ⋯ at the top of the screen, choose Open in browser, then tap Scan again.`;
 }
 
-/**
- * A link that leaves the app's browser for the phone's own (10-05, Chris: "we need them to get off tiktoks browser").
- * iOS 17+ opens x-safari-https:// in Safari; Android opens an intent:// link in Chrome. Null on anything else. Whether
- * an app lets the link through is up to the app, so the phone camera stays on the page as the fallback.
- */
-export function openInBrowserUrl(href: string, ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent): string | null {
-  const u = new URL(href);
-  if (/\b(iPhone|iPad|iPod)\b/.test(ua)) return `x-safari-${u.protocol.replace(":", "")}://${u.host}${u.pathname}${u.search}`;
-  if (/\bAndroid\b/.test(ua)) return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(href)};end`;
-  return null;
-}
 
-/** "Safari" or "Chrome": the browser openInBrowserUrl opens. */
+/** "Safari" or "Chrome": the phone's own browser. */
 export function phoneBrowserName(ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
   return /\bAndroid\b/.test(ua) ? "Chrome" : "Safari";
 }

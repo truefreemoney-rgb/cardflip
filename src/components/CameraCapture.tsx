@@ -7,7 +7,8 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
-import { inAppBrowserName, inAppCameraMessage, isIosWebView, openInBrowserUrl, phoneBrowserName } from "@/lib/client/inAppBrowser";
+import { mirrorPossible, startCameraMirror } from "@/lib/client/cameraMirror";
+import { inAppBrowserName, inAppCameraMessage, isIosWebView, phoneBrowserName } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -181,12 +182,17 @@ interface GuideRect {
  * letterboxing is accounted for, so a pillarboxed phone stream maps 1:1.
  * Null until the element is laid out and the stream has a size.
  */
+/** The live picture: the <video>, or the canvas the worker paints in TikTok's iPhone browser (10-05). */
+type LiveSource = HTMLVideoElement | HTMLCanvasElement;
+const srcW = (el: LiveSource) => (el instanceof HTMLVideoElement ? el.videoWidth : el.width);
+const srcH = (el: LiveSource) => (el instanceof HTMLVideoElement ? el.videoHeight : el.height);
+
 function guideGeometry(
-  video: HTMLVideoElement,
+  video: LiveSource,
   mode: CaptureMode = "card",
 ): { display: GuideRect; video: GuideRect } | null {
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
+  const vw = srcW(video);
+  const vh = srcH(video);
   const ew = video.clientWidth;
   const eh = video.clientHeight;
   if (!vw || !vh || !ew || !eh) return null;
@@ -212,11 +218,11 @@ function guideGeometry(
 }
 
 /** Guide in video px, falling back to the centered 82% rect if not laid out. */
-function guideInVideo(video: HTMLVideoElement, mode: CaptureMode = "card"): GuideRect {
+function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect {
   const g = guideGeometry(video, mode);
   if (g) return g.video;
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
+  const vw = srcW(video);
+  const vh = srcH(video);
   const h = vh * GUIDE_HEIGHT[mode];
   const w = Math.min(vw, h * GUIDE_RATIO[mode]);
   return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
@@ -251,16 +257,37 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // capture="environment" opens the camera itself, not the photo library: every photo is still one taken now (10-03 rule).
   // Also switched on the moment the live video gets pulled into a fullscreen player (webkitbeginfullscreen below), so an
   // app browser that names itself nowhere still lands here.
-  const [nativeCam, setNativeCam] = useState(() => inAppBrowserName() !== null || isIosWebView());
+  // 10-05 later: on an iPhone the app browser first gets the MIRROR (cameraMirror.ts: frames painted on a canvas by a
+  // worker, no <video> for the app to hijack); only when that fails does it land on the phone camera. Android app
+  // browsers try the plain live video first. ?mirror=1 forces the mirror in any browser, for testing.
+  const [appBrowser] = useState(() => inAppBrowserName() !== null || isIosWebView());
+  const [mirror] = useState(
+    () =>
+      mirrorPossible() &&
+      ((appBrowser && /(iPhone|iPad|iPod)/.test(navigator.userAgent)) || new URLSearchParams(window.location.search).get("mirror") === "1"),
+  );
+  const [nativeCam, setNativeCam] = useState(() => appBrowser && !mirror && !/Android/.test(navigator.userAgent));
+  const mirrorRef = useRef<HTMLCanvasElement>(null);
+  const lastFrameAt = useRef(0);
   const photoInput = useRef<HTMLInputElement>(null);
-  // The way out of the app's browser to the live scanner (10-05): built after mount, the URL needs window.
+  // The way out of the app's browser to the live scanner (10-05): TikTok swallowed the x-safari link (Chris tapped,
+  // nothing), so it's copy the link, paste it in Safari / Chrome. Built after mount, the URL needs window.
   const [escape, setEscape] = useState<{ url: string; browser: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
-    if (!nativeCam) return;
-    const url = openInBrowserUrl(window.location.href);
-    const t = window.setTimeout(() => url && setEscape({ url, browser: phoneBrowserName() }), 0);
+    if (!nativeCam || !appBrowser) return;
+    const t = window.setTimeout(() => setEscape({ url: window.location.href, browser: phoneBrowserName() }), 0);
     return () => window.clearTimeout(t);
-  }, [nativeCam]);
+  }, [nativeCam, appBrowser]);
+  const copyLink = async () => {
+    if (!escape) return;
+    try {
+      await navigator.clipboard.writeText(escape.url);
+      setCopied(true);
+    } catch {
+      window.prompt("Copy this link, then paste it in " + escape.browser, escape.url);
+    }
+  };
   // No file-picker escape hatch when the camera won't open (10-03): a photo
   // from the gallery is an upload, and eBay rejects listings that reuse
   // pictures. The message says how to turn the camera back on instead.
@@ -298,7 +325,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const [focusRing, setFocusRing] = useState<{ x: number; y: number; key: number } | null>(null);
 
   useEffect(() => {
-    const video = videoRef.current;
+    const video = (mirror ? mirrorRef.current : videoRef.current);
     if (!video || !ready) return;
     const measure = () => setGuide(guideGeometry(video, mode)?.display ?? null);
     measure();
@@ -312,11 +339,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       video.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
     };
-  }, [ready, mode]);
+  }, [ready, mode, mirror]);
 
   useEffect(() => {
     if (nativeCam) return;
     let cancelled = false;
+    let stopMirror: (() => void) | null = null;
 
     (async () => {
       try {
@@ -347,6 +375,24 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
 
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        if (mirror) {
+          const canvas = mirrorRef.current;
+          if (!canvas) throw new DOMException("no canvas", "NotReadableError");
+          canvas.width = 0;
+          canvas.height = 0;
+          try {
+            const m = await startCameraMirror(stream, canvas, () => (lastFrameAt.current = Date.now()));
+            if (cancelled) return m.stop();
+            stopMirror = m.stop;
+          } catch {
+            stream.getTracks().forEach((track) => track.stop());
+            if (!cancelled) setNativeCam(true);
+            return;
+          }
+          setReady(true);
           return;
         }
 
@@ -391,6 +437,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         const missing = err instanceof DOMException && err.name === "NotFoundError";
         // Inside TikTok / Instagram / Facebook the fix is leaving their browser, not a site setting (10-04).
         const inApp = inAppBrowserName();
+        // An app browser whose live camera won't open still has the phone's own camera (10-05).
+        if (appBrowser) return setNativeCam(true);
         setError(
           inApp && !missing
             ? inAppCameraMessage(inApp)
@@ -405,9 +453,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
 
     return () => {
       cancelled = true;
+      stopMirror?.();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [retryKey, nativeCam]);
+  }, [retryKey, nativeCam, mirror, appBrowser]);
 
   // iOS ends the MediaStream when the PWA is backgrounded or the phone locks;
   // the <video> then sits frozen/black until the sheet is closed and reopened
@@ -416,8 +465,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      const track = streamRef.current?.getVideoTracks()[0];
-      if (track && track.readyState === "live") return;
+      if (mirror) {
+        if (Date.now() - lastFrameAt.current < 1500) return;
+      } else {
+        const track = streamRef.current?.getVideoTracks()[0];
+        if (track && track.readyState === "live") return;
+      }
       setReady(false);
       setTorch("unavailable");
       setRetryKey((k) => k + 1);
@@ -428,7 +481,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onVisible);
     };
-  }, []);
+  }, [mirror]);
 
   // Plain function (10-03): the React Compiler lint refused the useCallback here.
   const toggleTorch = async () => {
@@ -452,7 +505,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // A hint shows after two samples agree, so it doesn't flicker. Thresholds
   // come from 123 real prod photos (scripts/calibrate-photo-quality.mjs).
   useEffect(() => {
-    const video = videoRef.current;
+    const video = (mirror ? mirrorRef.current : videoRef.current);
     if (!video || !ready) return;
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d", { willReadFrequently: true });
@@ -460,7 +513,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     let last: Hint | null = null;
     let streak = 0;
     const id = window.setInterval(() => {
-      if (document.visibilityState !== "visible" || busy.current || video.videoWidth === 0) return;
+      if (document.visibilityState !== "visible" || busy.current || srcW(video) === 0) return;
       const g = guideInVideo(video, mode);
       const w = 120;
       const h = Math.max(40, Math.round((w * g.h) / g.w));
@@ -487,7 +540,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       if (streak === 2) setHint(next);
     }, 350);
     return () => window.clearInterval(id);
-  }, [ready, mode]);
+  }, [ready, mode, mirror]);
 
   // Tap the picture to focus there (Android); the ring shows only when the camera took it.
   const tapToFocus = (e: React.PointerEvent<HTMLVideoElement>) => {
@@ -514,9 +567,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   };
 
   const capture = useCallback(async () => {
-    const video = videoRef.current;
+    const video = (mirror ? mirrorRef.current : videoRef.current);
     // videoWidth is 0 until the stream delivers its first frame.
-    if (!video || video.videoWidth === 0 || busy.current) return;
+    if (!video || srcW(video) === 0 || busy.current) return;
     busy.current = true;
     try {
 
@@ -527,8 +580,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     // Same guide geometry as the viewfinder (guideInVideo), 1:1 — no margin. There was a 5% one so a card nosing
     // past a bracket kept its edge; it read as the photo coming out ~10%
     // farther than what was framed (Chris, 09-03: "make it 10% closer").
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+    const vw = srcW(video);
+    const vh = srcH(video);
     const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video, mode);
     const pad = 0;
     const sx = Math.max(0, gx - pad);
@@ -553,7 +606,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           resolve();
         };
         setTimeout(finish, 90);
-        (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback?.(finish);
+        (video as LiveSource & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback?.(finish);
       });
 
     // Burst (10-04): a few frames over about a tenth of a second, the sharpest
@@ -601,7 +654,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     } finally {
       busy.current = false;
     }
-  }, [onCapture, mode]);
+  }, [onCapture, mode, mirror]);
 
   // The phone's own camera (in-app browsers): the photo is flattened to the card when one is found, then sent like a capture.
   const onNativePhoto = useCallback(
@@ -769,14 +822,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               </span>
               {escape ? (
                 <>
-                  <p className="max-w-xs text-base font-semibold text-white">Scan live in {escape.browser}</p>
-                  <a
-                    href={escape.url}
-                    className="w-full max-w-xs rounded-full bg-white px-5 py-3 text-base font-semibold text-zinc-900 shadow-lg"
+                  <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
+                  <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
+                  <button
+                    type="button"
+                    onClick={() => void copyLink()}
+                    className="w-full max-w-xs rounded-full border border-white/25 px-5 py-2.5 text-sm font-semibold text-white"
                   >
-                    Open in {escape.browser}
-                  </a>
-                  <p className="max-w-xs text-sm text-zinc-400">Or tap the button below to take a photo of one card here.</p>
+                    {copied ? `Copied. Open ${escape.browser} and paste it` : `Live scanner: copy link for ${escape.browser}`}
+                  </button>
                 </>
               ) : (
                 <>
@@ -786,6 +840,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               )}
               <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={(e) => void onNativePhoto(e)} className="hidden" />
             </div>
+          ) : mirror ? (
+            <canvas ref={mirrorRef} className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64" />
           ) : (
             // playsInline keeps iOS from hijacking the stream into a fullscreen player, which would hide the capture button.
             <video
