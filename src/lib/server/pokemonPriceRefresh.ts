@@ -77,10 +77,22 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
   // Plus sets out in the last 60 days, mapped or not: TCGplayer adds products after release and the
   // matcher learns names (Palkia LV.X, 10-05), so a young set's gaps get another look each run.
   const recent = new Set(sets.filter((s) => s.released && Date.now() - Date.parse(s.released) < 60 * 86_400_000).map((s) => s.name));
+  // Sets with cards no product reaches yet: their group gets a weekly second look, after the new ones
+  // (TCGplayer adds promos to a group for years: 29 Mega Evolution promos sat unmapped, 10-05).
+  const reached = new Set(
+    ((await db.prepare("SELECT card_id FROM tcgplayer_products WHERE game = 'pokemon'").all()) as { card_id: string }[]).map((r) => r.card_id),
+  );
+  const gappy = new Set(
+    ((await db.prepare("SELECT id, set_name FROM en_cards WHERE id NOT LIKE '%-1st'").all()) as { id: string; set_name: string }[])
+      .filter((r) => !reached.has(r.id))
+      .map((r) => r.set_name),
+  );
   const matched = matchGroupsToSets(groups, sets);
   const todo: { gid: number; halves: { set: string; tag: string }[] }[] = [];
+  const recheck: typeof todo = [];
   for (const [gid, set] of matched) {
     if (recent.has(set) || (!mappedGroups.has(gid) && !mappedSets.has(set) && fresh(gid))) todo.push({ gid, halves: [{ set, tag: "" }] });
+    else if (gappy.has(set) && fresh(gid)) recheck.push({ gid, halves: [{ set, tag: "" }] });
   }
   // Trainer Kits: one TCGplayer group, two mirror decks (10-05).
   const setNames = sets.map((s) => s.name);
@@ -88,10 +100,15 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
     if (matched.has(g.groupId) || mappedGroups.has(g.groupId) || !fresh(g.groupId)) continue;
     const halves = kitHalves(g.name, setNames);
     if (halves && !halves.some((h) => mappedSets.has(h.set))) todo.push({ gid: g.groupId, halves });
+    // "Generations: Radiant Collection" is its own TCGplayer group; TCGdex files the RC cards
+    // inside the main set (g1-RC9), which is already mapped, so it needs its own look (10-05).
+    const rc = /^(.+?):\s*radiant collection$/i.exec(g.name.trim());
+    const parent = rc ? sets.find((s) => s.name.toLowerCase() === rc[1].trim().toLowerCase()) : undefined;
+    if (parent) todo.push({ gid: g.groupId, halves: [{ set: parent.name, tag: "" }] });
   }
   let products = 0;
   let done = 0;
-  for (const { gid, halves } of todo.slice(0, max)) {
+  for (const { gid, halves } of [...todo, ...recheck].slice(0, max)) {
     const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });
     if (!pres.ok) continue;
     const list = ((await pres.json()) as { results?: TcgProduct[] }).results ?? [];
@@ -101,7 +118,8 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
         cards: (await db.prepare("SELECT id, local_id AS number, name FROM en_cards WHERE set_name = ?").all(h.set)) as MirrorCard[],
       })),
     );
-    const map = [...(halves.length > 1 ? mapKitProducts(list, decks) : mapProductsToCards(list, decks[0].cards))];
+    // Only cards no product reaches yet: a second product on a priced card would race it for the price.
+    const map = [...(halves.length > 1 ? mapKitProducts(list, decks) : mapProductsToCards(list, decks[0].cards))].filter(([, id]) => !reached.has(id));
     if (map.length) {
       await db
         .prepare(`INSERT OR IGNORE INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES ${map.map(() => "(?, ?, ?, 'pokemon')").join(", ")}`)
@@ -115,6 +133,59 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
   }
   if (done) await setSetting(TRIED_KEY, JSON.stringify(tried));
   return { groups: done, products };
+}
+
+const TCGDEX_TRIED_KEY = "tcgdex_price_tried";
+
+/**
+ * Cards no TCGplayer product reaches (nor a twin of one): TCGdex's card
+ * endpoint, pricing.tcgplayer.<variant>.marketPrice. Up to `max` a run; a
+ * card TCGdex can't price waits 7 days before it's asked again.
+ */
+async function tcgdexFill(
+  day: string,
+  existingSeries: Map<string, { startDay: string; prices: string }>,
+  touched: Set<string>,
+  reached: Set<string>,
+  twinsOf: Map<string, string[]>,
+  max = 250,
+): Promise<SeriesUpsert[]> {
+  const tried = JSON.parse((await getSetting(TCGDEX_TRIED_KEY)) ?? "{}") as Record<string, string>;
+  const due = (id: string) => !tried[id] || Date.parse(day) - Date.parse(tried[id]) >= 7 * 86_400_000;
+  const ids = ((await db.prepare("SELECT id FROM en_cards WHERE id NOT LIKE '%-1st'").all()) as { id: string }[])
+    .map((r) => r.id)
+    .filter((id) => !reached.has(id) && !(twinsOf.get(id) ?? []).some((t) => reached.has(t)) && due(id))
+    .slice(0, max);
+  const out: SeriesUpsert[] = [];
+  const queue = [...ids];
+  const worker = async () => {
+    for (let id = queue.shift(); id; id = queue.shift()) {
+      try {
+        const res = await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`, { headers: HEADERS, signal: AbortSignal.timeout(15_000) });
+        const card = res.ok ? ((await res.json()) as { pricing?: { tcgplayer?: Record<string, unknown> } }) : null;
+        let priced = false;
+        for (const [k, v] of Object.entries(card?.pricing?.tcgplayer ?? {})) {
+          const price = (v as { marketPrice?: unknown } | null)?.marketPrice;
+          if (typeof price !== "number" || !(price > 0) || /1st/i.test(k)) continue;
+          const variant = k.replace(/-(\w)/g, (_, c: string) => c.toUpperCase()); // "reverse-holofoil" → "reverseHolofoil"
+          const key = `${id}|${variant}`;
+          if (touched.has(key)) continue;
+          const existing = existingSeries.get(key);
+          if (!existing && price < MIN_TRACKED_USD) continue;
+          const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+          out.push({ cardId: id, game: "pokemon", variant, source: "tcgplayer", currency: "USD", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
+          touched.add(key);
+          priced = true;
+        }
+        if (!priced) tried[id] = day;
+      } catch {
+        tried[id] = day;
+      }
+    }
+  };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  if (ids.length) await setSetting(TCGDEX_TRIED_KEY, JSON.stringify(tried));
+  return out;
 }
 
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
@@ -150,6 +221,18 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   const twins = new Set(
     ((await db.prepare("SELECT id FROM en_cards WHERE id LIKE '%-1st'").all()) as { id: string }[]).map((r) => r.id),
   );
+
+  // Same set, number and name under two catalog ids → each gets the other's price.
+  // (1st Edition twins are their own printing and price; never copied.)
+  const twinsOf = new Map<string, string[]>();
+  const sameCard = new Map<string, string[]>();
+  for (const r of (await db.prepare("SELECT id, set_name, local_id, name FROM en_cards WHERE id NOT LIKE '%-1st'").all()) as {
+    id: string; set_name: string; local_id: string; name: string;
+  }[]) {
+    const k = `${r.set_name}|${r.local_id}|${r.name}`;
+    sameCard.set(k, [...(sameCard.get(k) ?? []), r.id]);
+  }
+  for (const ids of sameCard.values()) if (ids.length > 1) for (const id of ids) twinsOf.set(id, ids.filter((x) => x !== id));
 
   // Sealed product (booster boxes, ETBs, tins): the same /prices response
   // carries them; their points are collected here and written after the
@@ -204,21 +287,36 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         if (!seen) patternCardVariants.set(cardId, (seen = new Set()));
         seen.add(variant);
       }
-      const key = `${cardId}|${variant}`;
-      if (touched.has(key)) continue;
-      const existing = existingSeries.get(key);
-      if (!existing && price < MIN_TRACKED_USD) continue;
-      const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
-      upserts.push({
-        cardId, game: "pokemon", variant, source: "tcgplayer", currency: "USD",
-        startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
-      });
-      touched.add(key);
+      // The card and any catalog twin that no product reaches (TCGdex lists the SWSH Trainer
+      // Galleries twice, swsh10tg-TG04 and swsh10.5tg-TG04: 99 copies sat priceless, 10-05).
+      for (const id of [cardId, ...(twinsOf.get(cardId) ?? []).filter((t) => !cardProducts.has(t))]) {
+        const key = `${id}|${variant}`;
+        if (touched.has(key)) continue;
+        const existing = existingSeries.get(key);
+        if (!existing && price < MIN_TRACKED_USD) continue;
+        const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
+        upserts.push({
+          cardId: id, game: "pokemon", variant, source: "tcgplayer", currency: "USD",
+          startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
+        });
+        touched.add(key);
+      }
     }
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
   const sealedUpserts = sealedSeriesUpserts("pokemon", day, sealedPrices, sealedMap, existingSeries);
   await upsertSeriesRows([...upserts, ...sealedUpserts]);
+  // Last resort, TCGdex: our catalog's own source carries TCGplayer's market price per card id (the
+  // Unseen Forces Unown Collection and a few promos no TCGplayer group lines up with, 10-05). After the
+  // main write, so a slow TCGdex can never cost the day's prices.
+  let tcgdexSeries = 0;
+  try {
+    const fill = await tcgdexFill(day, existingSeries, touched, new Set(cardProducts.keys()), twinsOf);
+    await upsertSeriesRows(fill);
+    tcgdexSeries = fill.length;
+  } catch (err) {
+    console.warn("tcgdex price fill:", err instanceof Error ? err.message : err);
+  }
   // Drop the series a pattern product wrote under the wrong key before the
   // pattern was understood (the "holofoil" row on an uncommon trainer).
   for (const [cardId, seen] of patternCardVariants) {
@@ -231,5 +329,5 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         .run(cardId, variant);
     }
   }
-  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length, sealedSeries: sealedUpserts.length, day };
+  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day };
 }
