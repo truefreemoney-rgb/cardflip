@@ -28,7 +28,7 @@ export default function ScanLandingPage() {
           <h1 className="font-display text-4xl font-bold leading-[1.05] text-white">
             What&apos;s your card <span className="holo-text">worth?</span>
           </h1>
-          <p className="mt-3 text-base text-zinc-400">Point your phone at it. CardFlip names it and shows today&apos;s market price.</p>
+          <p className="mt-3 text-base text-zinc-400">Scan it or type its name. Today&apos;s market price in seconds.</p>
         </div>
         <TrialScanner />
         <p className="text-center text-xs text-zinc-600">Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh!</p>

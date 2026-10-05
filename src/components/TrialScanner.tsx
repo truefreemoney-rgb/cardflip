@@ -29,6 +29,15 @@ type Phase =
   | { kind: "miss"; message: string }
   | { kind: "used" };
 
+/** One-tap names under the search (10-05, Chris): ad visitors rarely have a card in hand. */
+const TRY: Record<GameId, string[]> = {
+  pokemon: ["Charizard", "Pikachu", "Umbreon", "Mewtwo"],
+  mtg: ["Black Lotus", "Sol Ring", "Lightning Bolt", "Counterspell"],
+  lorcana: ["Elsa", "Mickey Mouse", "Stitch", "Maleficent"],
+  onepiece: ["Luffy", "Zoro", "Shanks", "Nami"],
+  yugioh: ["Blue-Eyes White Dragon", "Dark Magician", "Exodia", "Kuriboh"],
+};
+
 const CTA =
   "flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-brand-400";
 
@@ -91,11 +100,24 @@ export default function TrialScanner() {
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
-    if (!query.trim()) return;
+    await runSearch(query);
+  }
+
+  /** Priced cards first, repeats dropped; an example chip leads with the dearest printings (the hook). */
+  async function runSearch(q: string, dearestFirst = false) {
+    if (!q.trim()) return;
     setSearching(true);
     step("searched");
-    const found = await searchTyped(query, game, "en", { limit: 6, exact: false }).catch(() => []);
-    setResults(found ?? []);
+    const found = (await searchTyped(q, game, "en", { limit: 24, exact: false }).catch(() => [])) ?? [];
+    const seen = new Set<string>();
+    const ranked = found
+      .map((card, i) => ({ card, i, p: trialPrice(card) }))
+      .filter(({ card }) => {
+        const key = `${card.setName}|${card.number}`;
+        return !seen.has(key) && !!seen.add(key);
+      })
+      .sort((a, b) => (a.p == null ? 1 : 0) - (b.p == null ? 1 : 0) || (dearestFirst ? (b.p ?? 0) - (a.p ?? 0) : a.i - b.i));
+    setResults(ranked.slice(0, 6).map(({ card }) => card));
     setSearching(false);
   }
 
@@ -131,6 +153,11 @@ export default function TrialScanner() {
               )}
             </div>
           </div>
+          {!found.scanned && (
+            <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
+              Scan Your Own Cards Free
+            </Link>
+          )}
           {found.scanned && (
             <>
               <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
@@ -167,60 +194,75 @@ export default function TrialScanner() {
               {phase.message}
             </p>
           )}
+          <form onSubmit={search} className="flex flex-col gap-2">
+            <p className="flex items-center gap-3 text-xs text-zinc-500 before:flex-1 before:border-t before:border-edge after:flex-1 after:border-t after:border-edge">or type a name</p>
+            <div className="flex gap-2">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Try ${TRY[game][0]}`}
+                className="min-w-0 flex-1 rounded-full border border-edge bg-black/40 px-4 py-2.5 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm"
+              />
+              <button type="submit" disabled={searching} className="rounded-full border border-edge-strong px-4 text-sm font-semibold text-white transition hover:bg-surface-2 disabled:opacity-60">
+                {searching ? "…" : "Price It"}
+              </button>
+            </div>
+            {!results && (
+              <div className="flex flex-wrap gap-2">
+                {TRY[game].map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    disabled={searching}
+                    onClick={() => {
+                      setQuery(name);
+                      void runSearch(name, true);
+                    }}
+                    className="rounded-full border border-edge bg-surface-1 px-3 py-1.5 text-sm text-white transition hover:bg-surface-2 disabled:opacity-60"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {results && results.length === 0 && <p className="text-sm text-zinc-500">Nothing found. Try the name as printed.</p>}
+            {results && results.length > 0 && (
+              <ul className="flex flex-col divide-y divide-edge/60 overflow-hidden rounded-2xl border border-edge bg-surface-1">
+                {results.map((card) => {
+                  const p = trialPrice(card);
+                  return (
+                    <li key={card.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          step("price");
+                          setResults(null);
+                          setPhase({ kind: "found", card, scanned: false });
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2"
+                      >
+                        <CardImage src={card.imageSmall} alt="" className="w-10 shrink-0 rounded" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-white">{card.englishName || card.name}</span>
+                          <span className="block truncate text-xs text-zinc-500">
+                            {card.setName} · #{card.number}
+                          </span>
+                        </span>
+                        <span className="font-display text-sm font-semibold tabular-nums text-white">{p != null ? formatMoney(p) : "—"}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </form>
           <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
           {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
           <Link href="/signup?from=scan" onClick={() => step("signup")} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
             Skip and get {SCANS.trial} free scans
           </Link>
         </>
-      )}
-
-      {!found?.scanned && (
-        <form onSubmit={search} className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-zinc-300">No camera? Search by name</p>
-          <div className="flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={game === "pokemon" ? "Charizard 4/102" : `Any ${GAMES[game].label} card`}
-              className="min-w-0 flex-1 rounded-full border border-edge bg-black/40 px-4 py-2.5 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400 sm:text-sm"
-            />
-            <button type="submit" disabled={searching} className="rounded-full border border-edge-strong px-4 text-sm font-semibold text-white transition hover:bg-surface-2 disabled:opacity-60">
-              {searching ? "…" : "Search"}
-            </button>
-          </div>
-          {results && results.length === 0 && <p className="text-sm text-zinc-500">Nothing found. Try the name as printed.</p>}
-          {results && results.length > 0 && (
-            <ul className="flex flex-col divide-y divide-edge/60 overflow-hidden rounded-2xl border border-edge bg-surface-1">
-              {results.map((card) => {
-                const p = trialPrice(card);
-                return (
-                  <li key={card.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        step("price");
-                        setResults(null);
-                        setPhase({ kind: "found", card, scanned: false });
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2"
-                    >
-                      <CardImage src={card.imageSmall} alt="" className="w-10 shrink-0 rounded" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-white">{card.englishName || card.name}</span>
-                        <span className="block truncate text-xs text-zinc-500">
-                          {card.setName} · #{card.number}
-                        </span>
-                      </span>
-                      <span className="font-display text-sm font-semibold tabular-nums text-white">{p != null ? formatMoney(p) : "—"}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </form>
       )}
 
       {cameraOpen && <CameraCapture game={game} onGameChange={setGame} onCapture={(f) => void onCapture(f)} onClose={() => setCameraOpen(false)} />}
