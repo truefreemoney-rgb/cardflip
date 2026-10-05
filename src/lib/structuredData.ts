@@ -1,7 +1,6 @@
 import { SITE_URL } from "@/lib/siteUrl";
 import type { HelpArticle } from "@/lib/helpArticles";
 import { PRICING } from "@/lib/pricing";
-import { cardPath, factsParagraph, gameTitle, shareImage, type CardView } from "@/lib/cardPages";
 
 /**
  * The schema.org graphs the public pages carry (components/JsonLd.tsx).
@@ -90,24 +89,9 @@ export function faqGraph(articles: HelpArticle[]) {
   };
 }
 
-/**
- * A card page: a minimal Product (name, picture, the game as brand, the URL key as sku) and nothing that claims a sale.
- * NO offers, NO ratings: this is a price reference, not a merchant listing, and an Offer would promise a product we do not sell.
- */
-export function cardGraph(v: CardView) {
-  const f = v.facts;
-  const image = shareImage(f);
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: [f.name, f.number, f.setName, ...f.tags].filter(Boolean).join(" "),
-    description: factsParagraph(f),
-    sku: f.key,
-    brand: { "@type": "Brand", name: gameTitle(f.game) },
-    url: `${SITE_URL}${cardPath(f.game, f.setSlug, f.name, f.key)}`,
-    ...(image ? { image } : {}),
-  };
-}
+// Card pages carry NO Product graph (10-05, Search Console "Either offers, review, or aggregateRating should be specified"
+// on every card page): Google requires one of the three on a Product, an Offer would promise a card we do not sell, and
+// a Product without one is a critical error that earns nothing. Card pages keep the breadcrumb graph only.
 
 /** The crumbs a sub-page sits under. */
 export function breadcrumbGraph(items: { name: string; path: string }[]) {

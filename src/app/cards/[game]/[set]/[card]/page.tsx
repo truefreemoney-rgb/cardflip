@@ -26,7 +26,7 @@ import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGa
 import { conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { priceStaleNote } from "@/lib/priceFlag";
-import { breadcrumbGraph, cardGraph } from "@/lib/structuredData";
+import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
 import type { GameId } from "@/lib/types";
 
@@ -246,7 +246,6 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
           { name: f.setName, path: setPath(game, f.setSlug) },
         ])}
       />
-      <JsonLd data={cardGraph(page)} />
       <MarketingNav />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
         <Crumbs items={[{ name: "Card Prices", href: "/cards" }, { name, href: gamePath(game) }, { name: f.setName, href: setPath(game, f.setSlug) }, { name: f.name }]} />

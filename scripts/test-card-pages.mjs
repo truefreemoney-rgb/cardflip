@@ -210,7 +210,8 @@ check("facts paragraph states only catalog facts", cp.factsParagraph(facts), "Ch
 check("Yu-Gi-Oh! tags", cp.printingTags("yugioh", { id: "ygo-1-1st", rarity: "Ultra Rare", variant: null }), ["Ultra Rare", "1st Edition"]);
 check("Pok\u00e9mon 1st-Edition twin is excluded nowhere: its key is valid", cp.parseCardKey("pokemon", "base1-4-1st"), "base1-4-1st");
 check("exclusions", [cp.cardExclusion("pokemon", "sealed-x", true, "i"), cp.cardExclusion("pokemon", "base1-4", false, "i"), cp.cardExclusion("pokemon", "base1-4", true, ""), cp.cardExclusion("pokemon", "base1-4", true, "i")], ["bad-key", "orphan", "no-image", null]);
-check("card JSON-LD: a Product with no offers and no ratings", sd.cardGraph(v5), (g) => g["@type"] === "Product" && g.sku === "base1-4" && !("offers" in g) && !("aggregateRating" in g) && g.image === facts.image);
+// 10-05: Search Console flagged the offer-less Product as critical on every card page; card pages carry breadcrumbs only.
+check("card pages carry no Product JSON-LD (Google needs offers/review/rating; we sell nothing)", "cardGraph" in sd, false);
 
 // --- 5. sitemaps -----------------------------------------------------------------
 
