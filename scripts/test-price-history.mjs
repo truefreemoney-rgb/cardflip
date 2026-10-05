@@ -18,7 +18,7 @@ import {
   todayUtc,
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
-import { mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
+import { kitHalves, mapKitProducts, mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -116,6 +116,36 @@ check("null name", tcgplayerProductPattern(null), null);
   check("reprint subset maps by name, LEGEND halves by order", Object.fromEntries(mapProductsToCards(products, cards)), { 10: "c-001", 11: "c-004", 12: "c-020", 13: "c-019", 15: "c-022" });
   const plain = [{ productId: 20, name: "Pikachu - 036/128", extendedData: num("036/128") }, { productId: 21, name: "Booster Pack" }];
   check("a normal set still maps by number", Object.fromEntries(mapProductsToCards(plain, [{ id: "p-036", number: "036", name: "Pikachu" }])), { 20: "p-036" });
+}
+
+// 10-05 price-gap sweep: kits split in two, prerelease stamps in a promo group, McDonald's / POP names and dates.
+{
+  const num = (v) => [{ name: "Number", value: v }];
+  const halves = kitHalves("XY Trainer Kit: Sylveon & Noivern", ["XY trainer Kit (Sylveon)", "XY trainer Kit (Noivern)", "XY trainer Kit (Latias)"]);
+  check("kit group finds both decks", halves?.map((h) => h.tag), ["sylveon", "noivern"]);
+  const decks = [
+    { tag: "sylveon", cards: [{ id: "s2", number: "2", name: "Fairy Energy" }, { id: "s4", number: "4", name: "Switch" }] },
+    { tag: "noivern", cards: [{ id: "n2", number: "2", name: "Gourgeist" }, { id: "n4", number: "4", name: "Bunnelby" }, { id: "n29", number: "29", name: "Switch" }] },
+  ];
+  const kit = mapKitProducts([
+    { productId: 1, name: "Fairy Energy (#2)", extendedData: num("2/30") },
+    { productId: 2, name: "Gourgeist", extendedData: num("2/30") },
+    { productId: 3, name: "Switch (Sylveon)", extendedData: num("4/30") },
+    { productId: 4, name: "Switch (Noivern)", extendedData: num("4/30") },
+  ], decks);
+  check("kit products need number AND name; a named deck wins", Object.fromEntries(kit), { 1: "s2", 2: "n2", 3: "s4", 4: "n29" });
+  const promos = mapProductsToCards([
+    { productId: 1, name: "Pikachu Delta - 035", extendedData: num("035") },
+    { productId: 2, name: "Ivysaur - 35/100 (Prerelease)", extendedData: num("35/100") },
+    { productId: 3, name: "Kyogre ex - 037", extendedData: num("037") },
+    { productId: 4, name: "Dark Ivysaur - 6 [Winner]", extendedData: num("006/009") },
+  ], [{ id: "p35", number: "35", name: "Pikachu δ" }, { id: "p37", number: "37", name: "Kyogre ex" }, { id: "p6", number: "6", name: "Dark Ivysaur" }]);
+  check("prerelease stamps and [Winner] copies never take a promo number", Object.fromEntries(promos), { 1: "p35", 3: "p37" });
+  const m = matchGroupsToSets(
+    [{ groupId: 1, name: "McDonald's Promos 2014", abbreviation: "M14", publishedOn: "2014-05-23T00:00:00" }, { groupId: 2, name: "POP Series 5", abbreviation: "POP", publishedOn: "2026-10-05T00:00:00" }],
+    [{ name: "McDonald's Collection 2014", code: "", released: "2014-05-23" }, { name: "POP Series 5", code: "", released: "2007-03-01" }],
+  );
+  check("McDonald's alias + an exact name beats a bad date", [m.get(1), m.get(2)], ["McDonald's Collection 2014", "POP Series 5"]);
 }
 
 console.log(failures === 0 ? "\nAll price-history checks passed" : `\n${failures} price-history check(s) failed`);

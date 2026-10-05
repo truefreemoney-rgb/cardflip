@@ -34,6 +34,9 @@ export function normalizeSetName(name: string): string {
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+  // "McDonald's Promos 2014" is TCGdex's "McDonald's Collection 2014" (10-05: every year unpriced).
+  const mcd = /^mcdonald s promos (\d{4})$/.exec(n);
+  if (mcd) return `mcdonald s collection ${mcd[1]}`;
   return SET_ALIASES[n] ?? n;
 }
 
@@ -60,6 +63,7 @@ const SET_ALIASES: Record<string, string> = {
   "classic collection": "celebrations classic collection",
   "30th celebration classic collection": "30th classic collection",
   "shiny vault": "hidden fates shiny vault",
+  "best of promos": "best of game",
   "radiant collection": "generations radiant collection",
   "mcdonald s 25th anniversary promos": "mcdonald s collection 2021",
   "sm trainer kit lycanroc and alolan raichu": "sm trainer kit lycanroc",
@@ -114,7 +118,7 @@ export function matchGroupsToSets(groups: TcgGroup[], sets: MirrorSet[]): Map<nu
     const gName = normalizeSetName(g.name);
     const ranked = (list ?? [])
       .map((s) => ({ s, gap: daysBetween(g.publishedOn, s.released), nameHit: normalizeSetName(s.name) === gName }))
-      .filter((c) => c.gap === null || c.gap <= 60)
+      .filter((c) => c.nameHit || c.gap === null || c.gap <= 60)
       .sort((a, b) => Number(b.nameHit) - Number(a.nameHit) || (a.gap ?? 1e9) - (b.gap ?? 1e9));
     return { g, ranked };
   });
@@ -131,7 +135,8 @@ export function matchGroupsToSets(groups: TcgGroup[], sets: MirrorSet[]): Map<nu
     const dated = candidates
       .map((s) => ({ s, gap: daysBetween(g.publishedOn, s.released) }))
       // Names already agree; dates only guard against reprints years apart.
-      .filter((c) => c.gap === null || c.gap <= 120)
+      // One candidate: the date can't pick a wrong one (TCGplayer dated POP Series 1-9 2026-10-05, 10-05).
+      .filter((c) => candidates.length === 1 || c.gap === null || c.gap <= 120)
       .sort((a, b) => (a.gap ?? 1e9) - (b.gap ?? 1e9));
     for (const c of dated) if (claim(g, c.s)) break;
   }
@@ -161,9 +166,13 @@ export interface MirrorCard {
 /** "Darkrai & Cresselia Legend (Top)" / "Pikachu - 036/128" / "Genesect EX (Team Plasma)" → bare card name. */
 export function productCardName(name: string): string {
   return name
+    .replace(/δ/g, " delta ") // TCGdex "δ Rainbow Energy" = TCGplayer "Delta Rainbow Energy"
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // "Pokémon Catcher" = "Pokemon Catcher"
     .toLowerCase()
-    .replace(/\s+-\s+[a-z]*\d+\/\S+\s*$/, "")
-    .replace(/\([^)]*\)/g, "")
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, "")
+    // "Pikachu - 036/128", "Dark Ivysaur - 6", "Articuno ex - 032 (e-League)"
+    .replace(/\s+-\s+[a-z]*\d+(\/\S+)?\s*$/, "")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -177,19 +186,23 @@ export function productCardName(name: string): string {
  * unique in the set, or a LEGEND's Top/Bottom halves take the lower/higher
  * number. Anything ambiguous stays unmapped (no price beats a wrong price).
  */
-export function mapProductsToCards(products: TcgProduct[], cards: MirrorCard[]): Map<number, string> {
+export function mapProductsToCards(all: TcgProduct[], cards: MirrorCard[]): Map<number, string> {
+  // "[Winner]" / "[Staff]" stamps are their own dearer printings we don't catalogue: never priced as the plain card.
+  const products = all.filter((p) => !/\[[^\]]*\]/.test(p.name ?? ""));
   const byNumber = new Map(cards.map((c) => [c.number.replace(/^0+(?=\d)/, "").toLowerCase(), c]));
-  const first = (name: string) => productCardName(name).split(" ")[0];
+  const first = (name: string) => productCardName(name).replace(/^basic /, "").split(" ")[0];
   const byNum = new Map<number, string>();
-  let agree = 0;
+  let tried = 0;
   for (const p of products) {
     const card = byNumber.get(productNumber(p) ?? "");
     if (!card) continue;
-    byNum.set(p.productId, card.id);
-    if (p.name && first(p.name) === first(card.name)) agree++;
+    tried++;
+    // Each product must agree on the name too: a promo group also holds other sets' Prerelease
+    // stamps under THEIR numbers ("Ivysaur 35/100" is not Nintendo promo #35 Pikachu δ, 10-05).
+    if (!p.name || first(p.name) === first(card.name)) byNum.set(p.productId, card.id);
   }
   // Numbers line up with names = an ordinary set. Mostly disagreeing = the numbers are the originals'.
-  if (byNum.size > 0 && agree * 2 >= byNum.size) return byNum;
+  if (byNum.size > 0 && byNum.size * 2 >= tried) return byNum;
   const out = new Map<number, string>();
   const byName = new Map<string, MirrorCard[]>();
   for (const c of [...cards].sort((a, b) => a.number.localeCompare(b.number, "en", { numeric: true }))) {
@@ -198,12 +211,70 @@ export function mapProductsToCards(products: TcgProduct[], cards: MirrorCard[]):
   }
   const claimed = new Set<string>();
   for (const p of products) {
-    if (!p.name || !productNumber(p)) continue;
+    if (!p.name) continue;
     // TCGplayer spells out what TCGdex leaves off or prints as a glyph: "Palkia LV.X" (ours Palkia), "Umbreon Star" (ours Umbreon ☆).
     const key = productCardName(p.name);
     const list = byName.get(key) ?? byName.get(key.replace(/ (lv x|star)$/, ""));
     const half = /\(top\)/i.test(p.name) ? 0 : /\(bottom\)/i.test(p.name) ? 1 : null;
     const card = half === null ? (list?.length === 1 ? list[0] : undefined) : list?.length === 2 ? list[half] : undefined;
+    // Two products reading as one name ("Bulbasaur" and "Bulbasaur (Blue Border)"): neither is sure.
+    if (half === null && products.filter((q) => q.name && productCardName(q.name) === key).length > 1) continue;
+    if (!card || claimed.has(card.id)) continue;
+    claimed.add(card.id);
+    out.set(p.productId, card.id);
+  }
+  return out;
+}
+
+/**
+ * TCGplayer sells a Trainer Kit's two decks as ONE group ("XY Trainer Kit:
+ * Sylveon & Noivern", both decks numbered 1-30); TCGdex has a set per deck
+ * ("XY trainer Kit (Sylveon)"). The mirror sets for a kit group with each
+ * deck's tag, or null when the group isn't a kit we hold.
+ */
+export function kitHalves(groupName: string, setNames: string[]): { set: string; tag: string }[] | null {
+  const m = /^(\w+) trainer kit(?: (\d))?: (.+?) & (.+)$/i.exec(groupName.trim());
+  if (!m) return null;
+  const era = m[1].toLowerCase() === "hgss" ? "hs" : m[1].toLowerCase();
+  const kitNo = m[2] && m[2] !== "1" ? m[2] : "";
+  const tags = [m[3], m[4]].map((t) => t.trim().toLowerCase());
+  const out: { set: string; tag: string }[] = [];
+  for (const name of setNames) {
+    const s = /^(\w+) trainer kit(?: (\d))? \((.+)\)$/i.exec(name.trim());
+    if (!s || s[1].toLowerCase() !== era || (s[2] ?? "") !== kitNo) continue;
+    const tag = s[3].trim().toLowerCase();
+    if (tags.includes(tag)) out.push({ set: name, tag });
+  }
+  return out.length ? out : null;
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A kit group's products → the two decks' cards. A number alone is ambiguous
+ * (#2 is Fairy Energy in Sylveon's deck, Gourgeist in Noivern's), so a
+ * product maps only when its number AND first name word agree with exactly
+ * one card. A product naming its deck ("Switch (Noivern)", "Furfrou (#16 -
+ * Sylveon)") looks only in that deck, falling back to a name unique there
+ * (TCGplayer files Noivern's Switch as #4, ours #29).
+ */
+export function mapKitProducts(products: TcgProduct[], halves: { tag: string; cards: MirrorCard[] }[]): Map<number, string> {
+  const out = new Map<number, string>();
+  const claimed = new Set<string>();
+  const bare = (n: string) => n.replace(/^0+(?=\d)/, "").toLowerCase();
+  const first = (n: string) => productCardName(n).split(" ")[0];
+  for (const p of products) {
+    if (!p.name) continue;
+    const name = p.name;
+    const named = halves.filter((h) => new RegExp(`[(-]\\s*${escapeRe(h.tag)}\\s*\\)`, "i").test(name));
+    const pool = (named.length === 1 ? named : halves).flatMap((h) => h.cards);
+    const num = productNumber(p);
+    const byNum = pool.filter((c) => num !== null && bare(c.number) === num && first(c.name) === first(name));
+    let card = byNum.length === 1 ? byNum[0] : undefined;
+    if (!card && named.length === 1) {
+      const same = pool.filter((c) => productCardName(c.name) === productCardName(name));
+      if (same.length === 1) card = same[0];
+    }
     if (!card || claimed.has(card.id)) continue;
     claimed.add(card.id);
     out.set(p.productId, card.id);

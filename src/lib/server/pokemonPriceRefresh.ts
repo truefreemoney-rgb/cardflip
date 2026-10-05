@@ -1,7 +1,10 @@
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
+import { getSetting, setSetting } from "@/lib/server/settings";
 import {
+  kitHalves,
+  mapKitProducts,
   mapProductsToCards,
   matchGroupsToSets,
   tcgplayerProductPattern,
@@ -26,6 +29,7 @@ import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)" };
 const MIN_TRACKED_USD = 0.05;
 const PAUSE_MS = 80;
+const TRIED_KEY = "tcgcsv_map_tried";
 
 // Schema (tcgplayer_products) lives in lib/db.ts behind the adapter's schema gate.
 
@@ -47,10 +51,11 @@ export async function hasTcgplayerMap(): Promise<boolean> {
  * New sets map themselves (10-05): the productId → card map was only ever
  * built by scripts/backfill-tcgcsv.mjs run by hand, so the 30th Celebration
  * sets (and the 2021 Classic Collection) sat priceless. Each run maps up to
- * `max` TCGplayer groups that match a mirror set with no mapped card yet.
+ * `max` TCGplayer groups that match a mirror set with no mapped card yet
+ * (Trainer Kits: one group, two decks).
  * Best-effort: a failure here never stops the price run.
  */
-export async function mapNewPokemonGroups(max = 8): Promise<{ groups: number; products: number }> {
+export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; products: number }> {
   const res = await fetch("https://tcgcsv.com/tcgplayer/3/groups", { headers: HEADERS });
   if (!res.ok) throw new Error(`groups HTTP ${res.status}`);
   const groups = ((await res.json()) as { results?: TcgGroup[] }).results ?? [];
@@ -65,29 +70,51 @@ export async function mapNewPokemonGroups(max = 8): Promise<{ groups: number; pr
       .prepare("SELECT DISTINCT e.set_name FROM tcgplayer_products t JOIN en_cards e ON e.id = t.card_id WHERE t.game = 'pokemon'")
       .all()) as { set_name: string }[]).map((r) => r.set_name),
   );
+  // Groups looked at in the last 7 days and left as they were: not refetched daily (they'd starve new sets of the slots).
+  const tried = JSON.parse((await getSetting(TRIED_KEY)) ?? "{}") as Record<string, string>;
+  const today = todayUtc();
+  const fresh = (gid: number) => !tried[gid] || Date.parse(today) - Date.parse(tried[gid]) >= 7 * 86_400_000;
   // Plus sets out in the last 60 days, mapped or not: TCGplayer adds products after release and the
   // matcher learns names (Palkia LV.X, 10-05), so a young set's gaps get another look each run.
   const recent = new Set(sets.filter((s) => s.released && Date.now() - Date.parse(s.released) < 60 * 86_400_000).map((s) => s.name));
-  const todo = [...matchGroupsToSets(groups, sets)]
-    .filter(([gid, set]) => recent.has(set) || (!mappedGroups.has(gid) && !mappedSets.has(set)))
-    .slice(0, max);
+  const matched = matchGroupsToSets(groups, sets);
+  const todo: { gid: number; halves: { set: string; tag: string }[] }[] = [];
+  for (const [gid, set] of matched) {
+    if (recent.has(set) || (!mappedGroups.has(gid) && !mappedSets.has(set) && fresh(gid))) todo.push({ gid, halves: [{ set, tag: "" }] });
+  }
+  // Trainer Kits: one TCGplayer group, two mirror decks (10-05).
+  const setNames = sets.map((s) => s.name);
+  for (const g of groups) {
+    if (matched.has(g.groupId) || mappedGroups.has(g.groupId) || !fresh(g.groupId)) continue;
+    const halves = kitHalves(g.name, setNames);
+    if (halves && !halves.some((h) => mappedSets.has(h.set))) todo.push({ gid: g.groupId, halves });
+  }
   let products = 0;
-  for (const [gid, setName] of todo) {
+  let done = 0;
+  for (const { gid, halves } of todo.slice(0, max)) {
     const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });
     if (!pres.ok) continue;
     const list = ((await pres.json()) as { results?: TcgProduct[] }).results ?? [];
-    const cards = (await db.prepare("SELECT id, local_id AS number, name FROM en_cards WHERE set_name = ?").all(setName)) as MirrorCard[];
-    const map = [...mapProductsToCards(list, cards)];
+    const decks = await Promise.all(
+      halves.map(async (h) => ({
+        tag: h.tag,
+        cards: (await db.prepare("SELECT id, local_id AS number, name FROM en_cards WHERE set_name = ?").all(h.set)) as MirrorCard[],
+      })),
+    );
+    const map = [...(halves.length > 1 ? mapKitProducts(list, decks) : mapProductsToCards(list, decks[0].cards))];
     if (map.length) {
       await db
         .prepare(`INSERT OR IGNORE INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES ${map.map(() => "(?, ?, ?, 'pokemon')").join(", ")}`)
         .run(...map.flatMap(([pid, cardId]) => [pid, gid, cardId]));
     }
-    console.log(`tcgcsv map: group ${gid} → ${setName}: ${map.length} of ${list.length} products`);
+    console.log(`tcgcsv map: group ${gid} → ${halves.map((h) => h.set).join(" + ")}: ${map.length} of ${list.length} products`);
+    tried[gid] = today;
     products += map.length;
+    done++;
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
-  return { groups: todo.length, products };
+  if (done) await setSetting(TRIED_KEY, JSON.stringify(tried));
+  return { groups: done, products };
 }
 
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
