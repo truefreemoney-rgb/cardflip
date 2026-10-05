@@ -156,6 +156,10 @@ export default function TrialScanner() {
             </p>
           )}
           <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
+          {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
+          <Link href="/signup?from=scan" className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
+            Skip and get {SCANS.trial} free scans
+          </Link>
         </>
       )}
 
