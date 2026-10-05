@@ -90,7 +90,12 @@ const upsert = db.prepare(`
     -- Never let an empty value overwrite a recovered one: image URLs and set
     -- codes come partly from pokemontcg.io, which fails ~half its requests.
     -- A sync run where it was down must not wipe what an earlier run found.
+    -- TCGdex lacks low.webp for a few cards (10-05: 7) whose high.webp loads;
+    -- those rows were repointed to high.webp (or pokemontcg.io when neither
+    -- loads, dc1-1), so don't put the dead low back.
     image_url = CASE WHEN excluded.image_url != ''
+                      AND ${table}.image_url != REPLACE(excluded.image_url, '/low.webp', '/high.webp')
+                      AND ${table}.image_url NOT LIKE 'https://images.pokemontcg.io/%'
                      THEN excluded.image_url ELSE ${table}.image_url END,
     set_card_count_official = excluded.set_card_count_official,
     set_card_count_total = excluded.set_card_count_total,
