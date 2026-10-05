@@ -32,6 +32,11 @@ type Phase =
 const CTA =
   "flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-brand-400";
 
+/** Funnel step for the ad test (10-05): rides the visit counter as /scan/<step>, one row per visitor per day. */
+function step(name: "camera" | "searched" | "price" | "miss" | "signup") {
+  fetch("/api/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: `/scan/${name}` }), keepalive: true }).catch(() => {});
+}
+
 function readDone(): boolean {
   try {
     return localStorage.getItem(TRIAL_DONE_KEY) === "1";
@@ -66,10 +71,12 @@ export default function TrialScanner() {
     setCameraOpen(false);
     setPhase({ kind: "reading" });
     const scan = await trialScanWithVision(file, game);
+    if (scan.status !== "done" || !scan.read) step("miss");
     if (scan.status === "used") return setPhase({ kind: "used" });
     if (scan.status === "busy") return setPhase({ kind: "miss", message: "The free scanner is busy right now. Sign up and scan in the app" });
     if (scan.status !== "done" || !scan.read) return setPhase({ kind: "miss", message: "Couldn't read that photo. Try again, card flat and in the frame" });
     const match = await matchTrialRead(scan.read, game);
+    if (!match.card) step("miss");
     if (!match.card) return setPhase({ kind: "miss", message: match.error ?? "No match for that one" });
     const g = scan.read.game ?? game;
     savePendingScan(match.card, g, scan.photo);
@@ -78,6 +85,7 @@ export default function TrialScanner() {
     } catch {
       // The server still counts the tries.
     }
+    step("price");
     setPhase({ kind: "found", card: match.card, scanned: true });
   }
 
@@ -85,6 +93,7 @@ export default function TrialScanner() {
     e.preventDefault();
     if (!query.trim()) return;
     setSearching(true);
+    step("searched");
     const found = await searchTyped(query, game, "en", { limit: 6, exact: false }).catch(() => []);
     setResults(found ?? []);
     setSearching(false);
@@ -124,7 +133,7 @@ export default function TrialScanner() {
           </div>
           {found.scanned && (
             <>
-              <Link href="/signup?from=scan" className={`${CTA} mt-4`}>
+              <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
                 Save It + {SCANS.trial} Free Scans
               </Link>
               <p className="mt-2 text-center text-xs text-zinc-500">It goes straight into your Inventory. No card needed.</p>
@@ -136,14 +145,17 @@ export default function TrialScanner() {
         <section className="rounded-3xl border border-edge bg-surface-1 p-5 text-center">
           <p className="font-display text-lg font-semibold text-white">Your free scan is used</p>
           <p className="mt-1 text-sm text-zinc-400">Sign up for {SCANS.trial} more, free. No card needed.</p>
-          <Link href="/signup?from=scan" className={`${CTA} mt-4`}>
+          <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
             Get {SCANS.trial} Free Scans
           </Link>
         </section>
       ) : (
         <>
           <GameToggle game={game} onChange={setGame} block />
-          <button type="button" onClick={() => setCameraOpen(true)} disabled={phase.kind === "reading"} className={`${CTA} py-4 text-lg disabled:opacity-60`}>
+          <button type="button" onClick={() => {
+              step("camera");
+              setCameraOpen(true);
+            }} disabled={phase.kind === "reading"} className={`${CTA} py-4 text-lg disabled:opacity-60`}>
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
               <circle cx="12" cy="13" r="3.5" />
@@ -157,7 +169,7 @@ export default function TrialScanner() {
           )}
           <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
           {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
-          <Link href="/signup?from=scan" className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
+          <Link href="/signup?from=scan" onClick={() => step("signup")} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
             Skip and get {SCANS.trial} free scans
           </Link>
         </>
@@ -187,6 +199,7 @@ export default function TrialScanner() {
                     <button
                       type="button"
                       onClick={() => {
+                        step("price");
                         setResults(null);
                         setPhase({ kind: "found", card, scanned: false });
                         window.scrollTo({ top: 0, behavior: "smooth" });
