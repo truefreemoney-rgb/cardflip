@@ -65,7 +65,12 @@ export async function mapNewPokemonGroups(max = 8): Promise<{ groups: number; pr
       .prepare("SELECT DISTINCT e.set_name FROM tcgplayer_products t JOIN en_cards e ON e.id = t.card_id WHERE t.game = 'pokemon'")
       .all()) as { set_name: string }[]).map((r) => r.set_name),
   );
-  const todo = [...matchGroupsToSets(groups, sets)].filter(([gid, set]) => !mappedGroups.has(gid) && !mappedSets.has(set)).slice(0, max);
+  // Plus sets out in the last 60 days, mapped or not: TCGplayer adds products after release and the
+  // matcher learns names (Palkia LV.X, 10-05), so a young set's gaps get another look each run.
+  const recent = new Set(sets.filter((s) => s.released && Date.now() - Date.parse(s.released) < 60 * 86_400_000).map((s) => s.name));
+  const todo = [...matchGroupsToSets(groups, sets)]
+    .filter(([gid, set]) => recent.has(set) || (!mappedGroups.has(gid) && !mappedSets.has(set)))
+    .slice(0, max);
   let products = 0;
   for (const [gid, setName] of todo) {
     const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });

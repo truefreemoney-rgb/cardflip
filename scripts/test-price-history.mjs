@@ -103,6 +103,7 @@ check("null name", tcgplayerProductPattern(null), null);
     { id: "c-004", number: "004", name: "Genesect EX" },
     { id: "c-019", number: "019", name: "Darkrai & Cresselia LEGEND" },
     { id: "c-020", number: "020", name: "Darkrai & Cresselia LEGEND" },
+    { id: "c-022", number: "022", name: "Palkia" },
   ];
   const products = [
     { productId: 10, name: "Charizard", extendedData: num("4/102") },
@@ -110,8 +111,9 @@ check("null name", tcgplayerProductPattern(null), null);
     { productId: 12, name: "Darkrai & Cresselia Legend (Bottom)", extendedData: num("100/102") },
     { productId: 13, name: "Darkrai & Cresselia Legend (Top)", extendedData: num("99/102") },
     { productId: 14, name: "Lugia", extendedData: num("149/147") },
+    { productId: 15, name: "Palkia LV.X", extendedData: num("106/106") },
   ];
-  check("reprint subset maps by name, LEGEND halves by order", Object.fromEntries(mapProductsToCards(products, cards)), { 10: "c-001", 11: "c-004", 12: "c-020", 13: "c-019" });
+  check("reprint subset maps by name, LEGEND halves by order", Object.fromEntries(mapProductsToCards(products, cards)), { 10: "c-001", 11: "c-004", 12: "c-020", 13: "c-019", 15: "c-022" });
   const plain = [{ productId: 20, name: "Pikachu - 036/128", extendedData: num("036/128") }, { productId: 21, name: "Booster Pack" }];
   check("a normal set still maps by number", Object.fromEntries(mapProductsToCards(plain, [{ id: "p-036", number: "036", name: "Pikachu" }])), { 20: "p-036" });
 }

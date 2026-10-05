@@ -199,7 +199,9 @@ export function mapProductsToCards(products: TcgProduct[], cards: MirrorCard[]):
   const claimed = new Set<string>();
   for (const p of products) {
     if (!p.name || !productNumber(p)) continue;
-    const list = byName.get(productCardName(p.name));
+    // TCGplayer spells out what TCGdex leaves off or prints as a glyph: "Palkia LV.X" (ours Palkia), "Umbreon Star" (ours Umbreon ☆).
+    const key = productCardName(p.name);
+    const list = byName.get(key) ?? byName.get(key.replace(/ (lv x|star)$/, ""));
     const half = /\(top\)/i.test(p.name) ? 0 : /\(bottom\)/i.test(p.name) ? 1 : null;
     const card = half === null ? (list?.length === 1 ? list[0] : undefined) : list?.length === 2 ? list[half] : undefined;
     if (!card || claimed.has(card.id)) continue;
