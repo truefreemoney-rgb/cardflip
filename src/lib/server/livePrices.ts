@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { askingPriceFor } from "@/lib/listing";
+import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
 import { heldTrust } from "@/lib/server/priceTrustSite";
@@ -106,7 +106,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       // it cannot stay: it would show as the card's price and pre-fill the editor.
       const blank = row.status === "ready" && row.price_locked !== 1 && row.price > 0;
       if (blank) moves.push({ id: row.id, price: 0 });
-      out.push({ cardId: row.id, market: Math.round(market * 100) / 100, suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, marketThen: null, flag });
+      out.push({ cardId: row.id, market: marketForCondition(market, row.condition), suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, marketThen: null, flag });
       continue;
     }
     const suggested = askingPriceFor(market, row.condition);
@@ -132,12 +132,12 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     const stale = trust.stale(row);
     out.push({
       cardId: row.id,
-      market: Math.round(market * 100) / 100,
+      market: marketForCondition(market, row.condition),
       suggested,
       previous: row.price,
       applied,
       scanned,
-      marketThen: then != null && then > 0 ? Math.round(then * 100) / 100 : null,
+      marketThen: then != null && then > 0 ? marketForCondition(then, row.condition) : null,
       ...(stale ? { stale } : {}),
     });
   }

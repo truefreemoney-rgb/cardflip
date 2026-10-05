@@ -600,6 +600,15 @@ console.log("\nThe chart's current-day point rebases the quote:");
 }
 
 {
+  // Chris 10-04: "if i change to lightly played, it should reflect on the price" — the market shown follows the condition.
+  const { marketForCondition } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
+  check("market, Near Mint = the market", marketForCondition(52.64, "Near Mint"), 52.64);
+  check("market, Lightly Played = 85%", marketForCondition(52.64, "Lightly Played"), 44.74);
+  check("market, Damaged = 40%", marketForCondition(52.64, "Damaged"), 21.06);
+  check("market, graded slab stays as given", marketForCondition(52.64, "PSA 10"), 52.64);
+}
+
+{
   const { belowFloor, listingFloor, floorRefusal } = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
   console.log("break-even rule (Chris, 09-08: never lose money; the $1.79 minimum went 09-30)");
   // (0.30 + 0.75) / 0.8675 = 1.2104 → rounded up to the cent.

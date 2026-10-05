@@ -210,6 +210,17 @@ export const CONDITION_MULTIPLIER: Record<Condition, number> = {
 
 export const CONDITIONS = Object.keys(CONDITION_MULTIPLIER) as Condition[];
 
+/**
+ * The market price for this copy's condition (Chris 10-04: "condition should
+ * effect ebay and market price"): the Near Mint market through the same
+ * multiplier the asking price uses, to the cent. Unknown conditions (a graded
+ * "PSA 10") stay at the market as given.
+ */
+export function marketForCondition(market: number, condition: string): number {
+  const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
+  return Math.round(market * mult * 100) / 100;
+}
+
 /** Undercut market to move stock quickly — the whole point of the product. */
 const STRATEGY_MULTIPLIER: Record<PriceStrategy, number> = {
   quick: 0.88,

@@ -44,7 +44,7 @@ import LocalListingLine from "@/components/LocalListingLine";
 import { priceFloorFor, useLocalMarket } from "@/lib/client/localMarket";
 import { toLocal } from "@/lib/localPricing";
 import { formatLocalAmount, marketplaceByEbayId, marketplaceLabel } from "@/lib/marketplaces";
-import { askingNoteFor, ebaySoldSearchUrl, formatMoney, isFirstEditionCard } from "@/lib/listing";
+import { CONDITIONS, askingNoteFor, ebaySoldSearchUrl, formatMoney, isFirstEditionCard } from "@/lib/listing";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
@@ -651,9 +651,13 @@ export default function CollectionPage() {
     // while the price IS the suggested one, not a price the seller typed.
     const lp = livePrices[card.id];
     const costNote = !pricingOnly && draft && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition) : null;
+    // Condition is a tap away on any card still in hand (Chris 10-04, both modes); a live listing changes on eBay's
+    // side, a sale is the record, and a graded slab ("PSA 10") keeps its own path in the editor.
+    const conditionEditable = !sold && !live && !ended && (CONDITIONS as string[]).includes(card.condition);
     const facts: [string, string][] = [
       ...(card.rarity ? ([["Rarity", card.rarity]] as [string, string][]) : []),
-      ["Condition", card.condition],
+      // Editable condition gets its own full-width row below (a 3-column cell cut "Lightly Played" to "Light…" on a phone).
+      ...(conditionEditable ? [] : ([["Condition", card.condition]] as [string, string][])),
       ["Copies", String(card.quantity || 1)],
       ["Added", formatDate(card.createdAt)],
       ...(card.listedAt ? ([["Listed", formatDate(card.listedAt)]] as [string, string][]) : []),
@@ -810,6 +814,26 @@ export default function CollectionPage() {
             right. They were 3-col cells and the text got cut off on phones
             (Chris, 09-28: "too bunched up"). */}
         <dl className="divide-y divide-edge border-b border-edge">
+          {/* Condition (10-04): moves the market and eBay prices with it (lib/listing.ts marketForCondition). */}
+          {conditionEditable && (
+            <div className={rowCls}>
+              <dt className={rowLabel}>Condition</dt>
+              <dd className={rowValue}>
+                <select
+                  aria-label="Condition"
+                  value={card.condition}
+                  onChange={(e) => void changeCondition(card, e.target.value)}
+                  className="cursor-pointer rounded-md border border-edge bg-black/30 py-1 pl-2 pr-1 text-base font-medium text-brand-200 outline-none transition hover:border-edge-strong focus:border-brand-400 sm:text-sm"
+                >
+                  {CONDITIONS.map((c) => (
+                    <option key={c} value={c} className="bg-surface-1 text-white">
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </dd>
+            </div>
+          )}
           {/* What you paid (09-27): tap to type it; it feeds profit and the year-end report. */}
           <div className={rowCls}>
             <dt className={rowLabel}>You paid</dt>
@@ -1276,6 +1300,16 @@ export default function CollectionPage() {
       // The banner lives at the top of a long page — repeat it where the eye is.
       toast(`Couldn't save the change to ${card.cardName}`, "err");
     }
+  }
+
+  /** Condition from the card popup (10-04): saved, then the live prices re-read so the suggested eBay price follows it. */
+  async function changeCondition(card: ServerCard, condition: string) {
+    if (condition === card.condition) return;
+    await applyPatch(card, { condition });
+    const fresh = (await fetchLivePrices()).find((p) => p.cardId === card.id);
+    if (!fresh) return;
+    setLive((prev) => ({ ...prev, [card.id]: fresh }));
+    if (fresh.applied) patchCard(card.id, { price: fresh.suggested, priceLocked: false });
   }
 
   function confirmSold(card: ServerCard, value: string) {

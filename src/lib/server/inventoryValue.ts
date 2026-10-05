@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { askingPriceFor } from "@/lib/listing";
+import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
@@ -120,7 +120,7 @@ export async function inventoryValueSeries(
       if (h.until && day > h.until) continue;
       const market = onDay(h.series!, day);
       if (market == null || !(market > 0)) continue;
-      value += (basis === "market" ? market : askingPriceFor(market, h.condition)) * h.qty;
+      value += (basis === "market" ? marketForCondition(market, h.condition) : askingPriceFor(market, h.condition)) * h.qty;
     }
     out.push({ day, value: Math.round(value * 100) / 100 });
   }
