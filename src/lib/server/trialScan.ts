@@ -14,7 +14,7 @@ const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /** Chris's test networks (Vercel env TRIAL_TEST_IP_HASHES, comma list of hashIp values; kept out of the repo because the hash of an IPv4 is reversible). */
 const TEST_TRIES = 5;
 const TEST_WINDOW_MS = 24 * 60 * 60 * 1000;
-function isTestNetwork(ipHash: string | null): boolean {
+export function isTestNetwork(ipHash: string | null): boolean {
   if (!ipHash) return false;
   return (process.env.TRIAL_TEST_IP_HASHES ?? "").split(",").map((s) => s.trim()).includes(ipHash);
 }

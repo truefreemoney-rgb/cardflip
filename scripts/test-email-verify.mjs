@@ -422,9 +422,9 @@ check("link: a bogus token peeks expired and POSTs 400", [(await (await confirmR
 
 // F. Change Email
 console.log("F. Change Email");
-const f1 = await signUp("typo@gmial.com");
-const typoCode = codeFor("typo@gmial.com");
-const typoTok = tokenFor("typo@gmial.com");
+const f1 = await signUp("typo@gmial.net");
+const typoCode = codeFor("typo@gmial.net");
+const typoTok = tokenFor("typo@gmial.net");
 asUser(f1.token);
 const refusals = [
   ["a@x.com,b@y.com", 400, "invalid_email"],
@@ -439,12 +439,12 @@ for (const [email, status, error] of refusals) {
   const r = await post(resend, { email });
   check(`Change Email: ${email} → ${status} ${error}`, [r.status, r.body.error], [status, error]);
 }
-check("Change Email: the refusals wrote and mailed nothing", [(await rowById(f1.user.id)).email, codeFor("typo@gmial.com")], ["typo@gmial.com", typoCode]);
+check("Change Email: the refusals wrote and mailed nothing", [(await rowById(f1.user.id)).email, codeFor("typo@gmial.net")], ["typo@gmial.net", typoCode]);
 await clearLimits();
 const fix = await post(resend, { email: "  Fixed.Address@Example.com " });
 check("Change Email: a good address → 200 sent, normalised", [fix.status, fix.body.sent, fix.body.user.email, fix.body.user.mustConfirmEmail], [200, true, "fixed.address@example.com", true]);
 check("Change Email: saved at once, and the code went to the new address", [(await rowById(f1.user.id)).email, /^\d{6}$/.test(codeFor("fixed.address@example.com") ?? "")], ["fixed.address@example.com", true]);
-check("Change Email: the typo's rows are dead, only the new address is live", (await vrows(f1.user.id)).map((r) => [r.email, r.dead_at != null]), [["typo@gmial.com", true], ["fixed.address@example.com", false]]);
+check("Change Email: the typo's rows are dead, only the new address is live", (await vrows(f1.user.id)).map((r) => [r.email, r.dead_at != null]), [["typo@gmial.net", true], ["fixed.address@example.com", false]]);
 check("Change Email: the typo's code no longer confirms", (await post(verify, { code: typoCode })).body.error, "wrong_code");
 asUser(null);
 const typoPost = await confirmRoute.POST(jpost({ t: typoTok }));
@@ -454,8 +454,8 @@ check("Change Email: the wall reads the new address", (await (await verify.GET()
 await clearLimits();
 const beforeNew = codeFor("fixed.address@example.com");
 await post(resend, {});
-check("Change Email: Send a New Code goes to the corrected address, not the typo", [codeFor("fixed.address@example.com") !== beforeNew, codeFor("typo@gmial.com")], [true, typoCode]);
-const typoLogin = await login.POST(jpost({ email: "typo@gmial.com", password: "hunter22" }));
+check("Change Email: Send a New Code goes to the corrected address, not the typo", [codeFor("fixed.address@example.com") !== beforeNew, codeFor("typo@gmial.net")], [true, typoCode]);
+const typoLogin = await login.POST(jpost({ email: "typo@gmial.net", password: "hunter22" }));
 const fixLogin = await login.POST(jpost({ email: "FIXED.address@EXAMPLE.com", password: "hunter22" }));
 check("Change Email: login works with the corrected address in any case, not the typo", [typoLogin.status, fixLogin.status], [401, 200]);
 check("Change Email: the new code lets them in", (await post(verify, { code: codeFor("fixed.address@example.com") })).body.user.appAccess, true);

@@ -24,6 +24,7 @@ import {
   deviceIdFrom,
   hashIp,
   inboxKey,
+  emailDomainTypo,
   isDisposableEmail,
   newDeviceId,
   recordSignup,
@@ -91,6 +92,11 @@ export async function POST(req: Request) {
 
   if (isDisposableEmail(email)) {
     return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });
+  }
+  // A mistyped domain never gets the confirm link (10-05: a test signup went to gmail.con).
+  const fix = emailDomainTypo(email);
+  if (fix) {
+    return NextResponse.json({ error: `Check your email. Did you mean ${fix}?` }, { status: 400 });
   }
 
   const existing = await findUserByEmail(email);

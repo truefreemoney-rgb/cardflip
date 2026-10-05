@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Touch } from "@/lib/attribution";
 import { TRIAL_SCANS } from "@/lib/server/users";
+import { isTestNetwork } from "@/lib/server/trialScan";
 
 /**
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
@@ -38,6 +39,20 @@ export const DISPOSABLE_DOMAINS = new Set([
 ]);
 
 /** True for a throwaway inbox domain, including its subdomains. */
+/** The likely intended address when the domain is a common slip (gmail.con, gmial.com, yahoo.co), else null. */
+const DOMAIN_FIXES: Record<string, string> = {
+  "gmail.con": "gmail.com", "gmail.co": "gmail.com", "gmail.cm": "gmail.com", "gmail.om": "gmail.com", "gmial.com": "gmail.com",
+  "gmai.com": "gmail.com", "gmal.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com", "gmail.comm": "gmail.com",
+  "yahoo.con": "yahoo.com", "yahoo.co": "yahoo.com", "yaho.com": "yahoo.com", "hotmail.con": "hotmail.com", "hotmal.com": "hotmail.com",
+  "hotmail.co": "hotmail.com", "outlook.con": "outlook.com", "outlook.co": "outlook.com", "icloud.con": "icloud.com", "icloud.co": "icloud.com",
+  "iclod.com": "icloud.com", "aol.con": "aol.com",
+};
+export function emailDomainTypo(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  const fixed = at > 0 ? DOMAIN_FIXES[email.slice(at + 1).toLowerCase()] : undefined;
+  return fixed ? `${email.slice(0, at)}@${fixed}` : null;
+}
+
 export function isDisposableEmail(email: string): boolean {
   const domain = email.trim().toLowerCase().split("@").pop() ?? "";
   const parts = domain.split(".");
@@ -87,6 +102,8 @@ export async function repeatSignup(
   deviceId: string | null,
   inbox: string | null = null,
 ): Promise<"same-device" | "same-ip" | "same-inbox" | null> {
+  // Chris's test network (TRIAL_TEST_IP_HASHES, 10-05): every test signup starts on the free trial, like a new visitor.
+  if (isTestNetwork(ipHash)) return null;
   const counts = (column: "device_id" | "ip_hash" | "inbox_key") =>
     `SELECT 1 FROM signup_log s LEFT JOIN users u ON u.id = s.user_id
       WHERE s.${column} = ? AND (u.id IS NULL OR u.email_pending = 0) LIMIT 1`;
