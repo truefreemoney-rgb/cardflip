@@ -563,7 +563,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const all = await withVideoCards(await buildFor(kinds, true));
   let fallbacks: SocialPost[] | null = null;
   async function draftsForKind(kind: PostKind): Promise<SocialPost[]> {
-    const from = (list: SocialPost[]) => games.map((g) => list.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
+    // An angle draft carries the game the optimizer picked (guess@mtg, versus@yugioh); the per-game filter dropped it and
+    // the slot fell back to "games" every time (10-04 evening, 10-05 morning). Angles keep their own game.
+    const from = (list: SocialPost[]) =>
+      isAngleKind(kind)
+        ? list.filter((d) => d.kind === kind).slice(0, 1)
+        : games.map((g) => list.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
     if (kinds.includes(kind)) return from(all);
     fallbacks ??= await withVideoCards(await buildFor(FALLBACK_KINDS.filter((k) => !kinds.includes(k)), false));
     return from(fallbacks);
@@ -576,6 +581,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const kind of [own, ...FALLBACK_KINDS.filter((k) => k !== own)]) {
       const drafts = await draftsForKind(kind);
       if (drafts.length > 0) {
+        if (kind !== own) console.warn(`social: ${s} ${day} planned ${own} had no draft, posting ${kind} instead`);
         plan.push({ slot: s, kind, drafts });
         break;
       }
