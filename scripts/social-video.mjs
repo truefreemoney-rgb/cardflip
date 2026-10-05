@@ -320,10 +320,13 @@ async function buildAngle(kind, strict) {
   if (kind === "versus") {
     const p = a.pair;
     const side = (m) => { const c = shown.find((s) => s.cardId === m.cardId); return { art: c.art, name: c.name, meta: metaOf(c), to: c.to, pct: angleMove(c, true) }; };
+    // Cold open (10-04: the 7pm Head to Head TikTok sat under 10 views): no title slide, the two cards are on frame 0 and
+    // the old intro kicker rides above the question.
     return {
       ...base,
+      cold: true,
       intro: { kicker: p.setName ? `${who} · ${p.setName}` : `${who} · head to head`, title: "Head to head", sub: p.byPrice ? "Two cards. Which is worth more?" : "Two cards, one week. Which one moved?" },
-      screens: [{ type: "versus", a: side(p.a), b: side(p.b), win: p.winner, ask: p.byPrice ? "Which is worth more?" : "Which would you hold?", verdict: versusVerdict(p) }],
+      screens: [{ type: "versus", label: p.setName ? `${who} · ${p.setName}` : `${who} · head to head`, a: side(p.a), b: side(p.b), win: p.winner, ask: p.byPrice ? "Which is worth more?" : "Which would you hold?", verdict: versusVerdict(p) }],
     };
   }
   // sleepers / top: counted down, the best last (No. 1); a mixed list labels each card with its game instead.
@@ -386,7 +389,9 @@ async function makeSlot(slot, kind, out, strict) {
     if (gamesOutro) OUTRO = 5;
     withAudio = false;
   }
-  const TOTAL = withAudio || gamesOutro ? Math.round((INTRO + BEAT * beats + OUTRO) * 1000) / 1000 : videoSeconds(beats);
+  // A cold open drops the intro bar; the audio starts a bar later so the cards still land on the music the plan picked.
+  if (built.cold) { if (withAudio) AUDIO_START += INTRO; INTRO = 0; }
+  const TOTAL = withAudio || gamesOutro || built.cold ?Math.round((INTRO + BEAT * beats + OUTRO) * 1000) / 1000 : videoSeconds(beats);
   // Every video is laid out inside TikTok's safe box (Chris 10-01, from his phone: the old layouts sat off centre under the search
   // bar with an empty bottom third). The 1pm file every site posts gets it too: Reels and Shorts cover the same edges.
   // The day's look for this slot (lib/social-looks.mjs, phase 4): classic / ember / arctic, the three handed out per day in a shuffled order.

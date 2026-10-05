@@ -41,6 +41,7 @@ function screenHtml(s, i) {
   ${pctLine(s.pct)}
 </div>`;
   if (s.type === "versus") return `<div class="abs scr versus" id="${id}" data-type="versus" data-win="${s.win}">
+  ${s.label ? `<div class="label">${esc(s.label)}</div>` : ""}
   <div class="kicker" data-ask="${esc(s.ask ?? "Which would you hold?")}" data-answer="${esc(s.verdict)}">${esc(s.ask ?? "Which would you hold?")}</div>
   <div class="pair">${[s.a, s.b].map((c, k) => `<div class="side side${k}">
     <div class="wintag display">Winner</div>
@@ -132,6 +133,7 @@ export function angleScene(o) {
   .versus .kicker.answer { color:#4ade80; text-transform:none; letter-spacing:0; font-weight:700; }
   .versus .wintag { font-size:30px; letter-spacing:.14em; text-transform:uppercase; color:#0a0b11; background:#4ade80; border-radius:999px; padding:10px 28px; margin-bottom:16px; opacity:0; }
   .versus .side .art { margin-top:0; }
+  .versus .label { font-size:32px; font-weight:600; color:#a5b4fc; text-transform:uppercase; letter-spacing:.14em; margin-bottom:10px; max-width:760px; }
   #outro img { width:560px; }
   #outro .now { font-size:40px; font-weight:600; color:#a5b4fc; letter-spacing:.18em; text-transform:uppercase; margin-top:64px; }
   #outro .games { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:30px; }
@@ -156,6 +158,7 @@ ${screens.map(screenHtml).join("\n")}
   const INTRO=${o.INTRO}, BEAT=${o.BEAT}, OUTRO=${o.OUTRO}, TOTAL=${o.TOTAL}, P=${P}, MUSIC=${o.MUSIC ? "true" : "false"};
   const STARTS=${JSON.stringify(starts)}, HOLDS=${JSON.stringify(screens.map((s) => HOLD[s.type]))};
   const Q=${outroStep(P, o.OUTRO)};
+  const COLD=P*2+.6; // enough lead that the art, names, meta, question and VS are all in at t=0
   const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
   const easeOut=(x)=>1-Math.pow(1-x,3);
   const easeInOut=(x)=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
@@ -196,15 +199,18 @@ ${screens.map(screenHtml).join("\n")}
       if(!on) continue;
       el.style.opacity = 1-clamp((lt-(len-.2))/.2);
       const type=el.dataset.type;
-      fadeIn(el.querySelector(".kicker, .rank"), lt, .3);
+      // No title slide (INTRO 0, the head to head since 10-04): the first screen is already landed on frame 0, the hook.
+      const la = i===0 && INTRO===0 ? lt+COLD : lt;
+      fadeIn(el.querySelector(".kicker, .rank"), la, .3);
       if(type==="versus"){
         // First BEAT: both cards with their prices and the question. Second BEAT: the week's move under each on the
         // downbeat, then the loser dims, the winner gets its tag and the question becomes the verdict (Chris 10-03: "a little confusing").
         const revealAt = BEAT + P;
+        fadeIn(el.querySelector(".label"), la, .3);
         el.querySelectorAll(".side").forEach((side,k)=>{
-          slam(side.querySelector(".art"), lt-k*P*.5, pulse);
-          fadeIn(side.querySelector(".name"), lt-P*.8-k*P*.3, .35);
-          fadeIn(side.querySelector(".meta"), lt-P*.95-k*P*.3, .35);
+          slam(side.querySelector(".art"), la-k*P*.5, pulse);
+          fadeIn(side.querySelector(".name"), la-P*.8-k*P*.3, .35);
+          fadeIn(side.querySelector(".meta"), la-P*.95-k*P*.3, .35);
           priceAt(side.querySelector(".price"), lt, P*1.5+k*P*.3);
           const pct=side.querySelector(".pct");
           fadeIn(pct, lt-revealAt, .3, 20);
@@ -220,7 +226,7 @@ ${screens.map(screenHtml).join("\n")}
         kick.classList.toggle("answer", answering);
         kick.textContent = answering ? kick.dataset.answer : kick.dataset.ask;
         if(answering) fadeIn(kick, lt-(revealAt+P), .35, 10);
-        const vs=el.querySelector(".vs"); vs.style.opacity=easeOut(clamp((lt-P*1.2)/.3));
+        const vs=el.querySelector(".vs"); vs.style.opacity=easeOut(clamp((la-P*1.2)/.3));
         vs.style.transform="translate(-50%,-50%) scale("+(1+.1*pulse)+")";
         continue;
       }
