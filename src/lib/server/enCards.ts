@@ -217,6 +217,25 @@ function stripCodePrefix(number: string, code: string | null): string {
   return number.replace(new RegExp(`^${escaped}[\\s-]*(?=\\S)`, "i"), "");
 }
 
+/**
+ * Every distinct folded card name, read once per instance per 6 hours: the
+ * word-inside-a-name match for typed searches filters it in memory and then
+ * reads the hits through idx_en_cards_folded, instead of a LIKE '%x%' walk
+ * per search (that walk emptied the Turso read quota on 09-06).
+ */
+let namesCache: { at: number; names: Promise<string[]> } | null = null;
+function foldedNames(): Promise<string[]> {
+  if (!namesCache || Date.now() - namesCache.at > 6 * 3600_000) {
+    const names = db
+      .prepare(`SELECT DISTINCT ${FOLDED_NAME} AS n FROM en_cards`)
+      .all()
+      .then((rows) => (rows as { n: string }[]).map((r) => r.n));
+    names.catch(() => (namesCache = null));
+    namesCache = { at: Date.now(), names };
+  }
+  return namesCache.names;
+}
+
 export async function searchEnglishCardsLocal(
   name: string,
   printed: PrintedNumber | null,
@@ -224,6 +243,8 @@ export async function searchEnglishCardsLocal(
   art: ArtStyle = null,
   /** Vision's read of the 1st Edition stamp: true lifts the twin, else the unlimited card. */
   firstEdition: boolean | null = null,
+  /** A person typed it: also match a later word in the name ("cresselia" → "darkrai & cresselia legend"). */
+  typed = false,
 ): Promise<LocalSearchResult> {
   const needle = normalizeName(name);
 
@@ -262,6 +283,17 @@ export async function searchEnglishCardsLocal(
       )
       .all(n, `${n}\uffff`)) as unknown as EnCardRow[];
     rows = rows.concat(found.filter((r) => !rows.some((have) => have.id === r.id)));
+  }
+
+  if (typed && needle.length >= 3) {
+    const names = (await foldedNames()).filter((n) => !n.startsWith(needle) && n.includes(` ${needle}`)).slice(0, 30);
+    if (names.length) {
+      const inner = (await db
+        .prepare(`SELECT ${CARD_COLUMNS} FROM en_cards WHERE ${FOLDED_NAME} IN (${names.map(() => "?").join(",")}) ORDER BY set_release_date DESC LIMIT 200`)
+        .all(...names)) as unknown as EnCardRow[];
+      const have = new Set(rows.map((r) => r.id));
+      rows = rows.concat(inner.filter((r) => !have.has(r.id)));
+    }
   }
 
   // Substring fallback (the full walk) only when the cheap tiers can't settle

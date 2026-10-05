@@ -98,9 +98,10 @@ async function searchMirror(
   limit: number,
   art: ArtStyle,
   firstEdition: boolean | null,
+  typed = false,
 ) {
-  const local = await searchEnglishCardsLocal(mirrorName, printed, limit, art, firstEdition);
-  return local.cards.length > 0 || mirrorName === name ? local : searchEnglishCardsLocal(name, printed, limit, art, firstEdition);
+  const local = await searchEnglishCardsLocal(mirrorName, printed, limit, art, firstEdition, typed);
+  return local.cards.length > 0 || mirrorName === name ? local : searchEnglishCardsLocal(name, printed, limit, art, firstEdition, typed);
 }
 
 /** Background refresh of a stale English cache row — never blocks a response. */
@@ -112,9 +113,10 @@ async function refreshEnglishCache(
   limit: number,
   art: ArtStyle,
   name: string,
+  typed = false,
 ): Promise<void> {
   try {
-    const local = await searchMirror(cacheName, name, printed, limit, art, null);
+    const local = await searchMirror(cacheName, name, printed, limit, art, null, typed);
     if (local.cards.length === 0) return;
     const cards = await enrichWithPricing(local.cards, local.releaseDates);
     if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
@@ -327,6 +329,8 @@ export async function GET(req: NextRequest) {
   // kept ("Unown [O]" and "Unown O" are two cards and must not share a row).
   const mirrorName = (req.nextUrl.searchParams.get("name") ?? "").replace(/[‘’‛′`´]/g, "'").replace(/\s+/g, " ").trim().slice(0, 120);
   const cacheName = lang === "en" ? mirrorName : name;
+  // A typed search also matches a word inside the name ("Cresselia" → Darkrai & Cresselia LEGEND, 10-05); scans don't.
+  const typed = req.nextUrl.searchParams.get("typed") === "1";
 
   // Two cards can share a name and number and differ only in set total, so the
   // whole printed fraction goes into the cache key. The limit goes in too when
@@ -337,6 +341,7 @@ export async function GET(req: NextRequest) {
     limit === DEFAULT_LIMIT ? "" : `#${limit}`,
     art ? `@${art}` : "",
     firstEdition === true ? "!1st" : "",
+    typed ? "~typed" : "",
     // The set clues change the order only when they are all there is, so
     // only then do they key the cache (a name-only answer must not serve them).
     setClues ? `~${[setName ?? "", copyrightYear ?? "", setCode ?? "", setTotal ?? ""].join("|").toLowerCase()}` : "",
@@ -364,7 +369,7 @@ export async function GET(req: NextRequest) {
   if (lang === "en") {
     const stale = await getCachedCards(lang, cacheName, cacheNumber, true);
     if (stale) {
-      after(() => refreshEnglishCache(lang, cacheName, cacheNumber, printed, limit, art, name));
+      after(() => refreshEnglishCache(lang, cacheName, cacheNumber, printed, limit, art, name, typed));
       return NextResponse.json({ cards: await flagged(stale.cards), matchedOn, cached: true, stale: true });
     }
   }
@@ -380,7 +385,7 @@ export async function GET(req: NextRequest) {
     // outage can no longer fail a scan. Prices are layered on afterwards and
     // are allowed to fail on their own.
     if (await hasEnglishMirror()) {
-      const local = await searchMirror(mirrorName, name, printed, limit, art, firstEdition);
+      const local = await searchMirror(mirrorName, name, printed, limit, art, firstEdition, typed);
       if (local.cards.length > 0) {
         // enrichWithPricing never rejects (it returns the cards unpriced on
         // upstream failure), so racing it against the budget is safe.
