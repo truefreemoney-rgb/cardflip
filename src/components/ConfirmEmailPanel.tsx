@@ -2,9 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import { logout, type SessionUser } from "@/lib/client/auth";
+import type { SessionUser } from "@/lib/client/auth";
 import { pushPendingScan } from "@/lib/client/trialScan";
 import {
   CODE_LENGTH,
@@ -91,7 +90,6 @@ export default function ConfirmEmailPanel({
   /** change: "Use a Different Email", the way out of a mistyped new address. */
   onCancel?: () => void;
 }) {
-  const router = useRouter();
   const inputId = useId();
   const emailId = useId();
   const codeRef = useRef<HTMLInputElement>(null);
@@ -333,11 +331,6 @@ export default function ConfirmEmailPanel({
     };
   }, [mode]);
 
-  function leave() {
-    const go = () => router.replace("/login");
-    void logout().then(go, go);
-  }
-
   const sendName = linkOnly ? "Send a new link" : "Send a New Code";
   const sendLabel = cooling ? `${sendName} (${cooldownLeft}s)` : sendName;
   const canResend = !noLiveCode && !refused;
@@ -522,25 +515,8 @@ export default function ConfirmEmailPanel({
                 {sendLabel}
               </button>
             )}
-            {mode !== "change" && !changing && (
-              <button
-                type="button"
-                className={QUIET}
-                onClick={() => {
-                  setChanging(true);
-                  setNewEmail(address);
-                  setMessage(null);
-                }}
-                disabled={busy !== null}
-              >
-                Change Email
-              </button>
-            )}
-            {standalone && (
-              <button type="button" className={QUIET} onClick={leave}>
-                Log Out
-              </button>
-            )}
+            {/* No Change Email / Log Out here (10-05, Chris): one job on this screen, open the email. A bounced
+                address still gets its fix-the-address form above. */}
             {mode === "change" && onCancel && (
               // The way out of a mistyped new address: the box goes away and the
               // form comes back. The code already sent stays good for its hour
