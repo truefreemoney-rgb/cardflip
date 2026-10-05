@@ -69,6 +69,26 @@ function bandSharpness(canvas: HTMLCanvasElement): number {
  * edge found for sure, or it already fills the guide (most shots, 10-04: 1 of
  * 123 prod photos qualified).
  */
+/** A photo from the phone's own camera as a canvas no bigger than 2000 px on its long edge (the browser applies the rotation). */
+async function photoCanvas(file: File): Promise<HTMLCanvasElement | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    c.getContext("2d", { willReadFrequently: true })?.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function straighten(crop: HTMLCanvasElement): HTMLCanvasElement | null {
   try {
     const sw = 240;
@@ -226,6 +246,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
+  // Inside TikTok / Instagram / Facebook (10-05, Chris's iPhone in TikTok): their browser forces live video into its own
+  // fullscreen player and the viewfinder froze, so there the scanner opens the phone's own camera instead. The input's
+  // capture="environment" opens the camera itself, not the photo library: every photo is still one taken now (10-03 rule).
+  const [nativeCam] = useState(() => inAppBrowserName() !== null);
+  const photoInput = useRef<HTMLInputElement>(null);
   // No file-picker escape hatch when the camera won't open (10-03): a photo
   // from the gallery is an upload, and eBay rejects listings that reuse
   // pictures. The message says how to turn the camera back on instead.
@@ -280,6 +305,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   }, [ready, mode]);
 
   useEffect(() => {
+    if (nativeCam) return;
     let cancelled = false;
 
     (async () => {
@@ -360,7 +386,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       cancelled = true;
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [retryKey]);
+  }, [retryKey, nativeCam]);
 
   // iOS ends the MediaStream when the PWA is backgrounded or the phone locks;
   // the <video> then sits frozen/black until the sheet is closed and reopened
@@ -556,6 +582,32 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     }
   }, [onCapture, mode]);
 
+  // The phone's own camera (in-app browsers): the photo is flattened to the card when one is found, then sent like a capture.
+  const onNativePhoto = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const picked = e.target.files?.[0];
+      e.target.value = "";
+      if (!picked) return;
+      const canvas = await photoCanvas(picked);
+      const photo = canvas ? (straighten(canvas) ?? canvas) : null;
+      photo?.toBlob(
+        (blob) => {
+          if (!blob) return;
+          onCapture(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }));
+          setCaptured((count) => count + 1);
+          fxCapture();
+        },
+        "image/jpeg",
+        0.92,
+      );
+      if (!photo) {
+        setBlurNote("Couldn't read that photo — tap again");
+        setTimeout(() => setBlurNote(null), 2500);
+      }
+    },
+    [onCapture],
+  );
+
   const bracket = "border-brand-400";
   // Sweep while the last capture is still identifying; off once a match is
   // showing, so the chip gets the eye.
@@ -686,16 +738,29 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:rounded-2xl">
-          {/* playsInline keeps iOS from hijacking the stream into a
-              fullscreen player, which would hide the capture button. */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            onPointerDown={tapToFocus}
-            className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64"
-          />
+          {nativeCam ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center sm:min-h-64">
+              <span className="flex h-[7.5rem] w-[5.4rem] items-center justify-center rounded-xl border-3 border-dashed border-brand-400/70" aria-hidden>
+                <svg viewBox="0 0 24 24" className="h-9 w-9 text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                </svg>
+              </span>
+              <p className="max-w-xs text-base font-semibold text-white">Tap the button below. Your camera opens.</p>
+              <p className="max-w-xs text-sm text-zinc-400">Take a photo of one card, close up so it fills the picture, then tap Use Photo.</p>
+              <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={(e) => void onNativePhoto(e)} className="hidden" />
+            </div>
+          ) : (
+            // playsInline keeps iOS from hijacking the stream into a fullscreen player, which would hide the capture button.
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              onPointerDown={tapToFocus}
+              className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64"
+            />
+          )}
           {focusRing && (
             <span
               key={focusRing.key}
@@ -757,7 +822,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           {flash && (
             <div className="absolute inset-0 bg-white/70" aria-hidden />
           )}
-          {!ready && !error && (
+          {!ready && !error && !nativeCam && (
             <p className="absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
               Starting camera…
             </p>
@@ -802,7 +867,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             </p>
           ) : lastScan ? (
             <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} verify={verify} />
-          ) : (
+          ) : nativeCam ? null : (
             <p className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
               <span className="block text-xs text-zinc-500">Keep going for a whole stack.</span>
@@ -825,8 +890,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             now, and the small tray button here opens the session sheet. */}
         <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
-            onClick={capture}
-            disabled={!ready}
+            onClick={nativeCam ? () => photoInput.current?.click() : capture}
+            disabled={!ready && !nativeCam}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-10"
           >
             {game ? `Capture ${GAMES[game].label} Card` : "Capture Card"}
