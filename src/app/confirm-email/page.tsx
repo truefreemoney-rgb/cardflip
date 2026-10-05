@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import { fetchCurrentUser } from "@/lib/client/auth";
@@ -12,13 +12,13 @@ import { VerifyError, confirmLink, peekConfirmLink, type LinkState } from "@/lib
  * The Confirm Email button in the mail lands here (/confirm-email?t=...).
  *
  * Opening the page only LOOKS at the link (a mail scanner's prefetch does the
- * same, so it must not confirm anything); the button does the confirming. It
- * never signs anyone in: mail opens links in Safari, which has its own cookie
- * jar apart from the installed app, so an installed app that is waiting on the
- * code notices the confirmation on its own. Once there is an answer the page
- * asks who is signed in HERE, and labels its one button Open CardFlip (a
- * session) or Log In (none), so nobody is told to "open" an app that bounces
- * them to a login.
+ * same, so it must not confirm anything); the button does the confirming.
+ * A fresh confirmation signs this browser in (10-05: the POST sets the session
+ * cookie) and goes straight to /app, where the card scanned before signup is
+ * waiting; an installed app still waiting on the original tab notices the
+ * confirmation on its own. A link that was already used signs nobody in, so
+ * once there is an answer the page asks who is signed in HERE, and labels its
+ * one button Open CardFlip (a session) or Log In (none).
  */
 
 type View =
@@ -32,6 +32,7 @@ type View =
 const CARD = "foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]";
 
 function ConfirmEmail() {
+  const router = useRouter();
   const token = useSearchParams().get("t") ?? "";
   const [view, setView] = useState<View>(token ? { kind: "checking" } : { kind: "state", state: "expired", email: null });
   const [busy, setBusy] = useState(false);
@@ -45,7 +46,11 @@ function ConfirmEmail() {
     let cancelled = false;
     peekConfirmLink(token)
       .then((peek) => {
-        if (!cancelled) setView({ kind: "state", state: peek.state, email: peek.email });
+        if (cancelled) return;
+        setView({ kind: "state", state: peek.state, email: peek.email });
+        // No button to tap (10-05): a valid link confirms as the page opens. The GET peek above stays side-effect free
+        // for mail scanners that fetch without running scripts.
+        if (peek.state === "valid" || peek.state === "confirmed") void confirm();
       })
       .catch((err) => {
         if (!cancelled) setView({ kind: "trouble", message: err instanceof Error ? err.message : "We couldn't check this link. Try again." });
@@ -53,6 +58,7 @@ function ConfirmEmail() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- confirm() runs once per peek, not per render
   }, [token, attempt]);
 
   // Whatever the answer turned out to be, the button underneath depends on
@@ -78,6 +84,13 @@ function ConfirmEmail() {
     setError(null);
     try {
       const out = await confirmLink(token);
+      if (out.signedIn) {
+        // Signed in by the confirmation itself (10-05, Chris: no more taps): a beat of "Email confirmed", then the open scanner.
+        setView({ kind: "done", email: out.email });
+        setSignedIn(true);
+        window.setTimeout(() => router.replace("/app?scan=1"), 1200);
+        return;
+      }
       setView({ kind: "done", email: out.email });
     } catch (err) {
       if (err instanceof VerifyError && (err.code === "replaced" || err.code === "expired")) {
@@ -87,9 +100,8 @@ function ConfirmEmail() {
       } else {
         setError(err instanceof Error ? err.message : "That link didn't work. Try again.");
       }
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   const primary =
@@ -137,11 +149,19 @@ function ConfirmEmail() {
     heading = "Email confirmed";
     content = (
       <>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-          {view.email ? <>{view.email} is confirmed. </> : null}
-          If you signed up in the CardFlip app on your home screen, open it from there.
-        </p>
-        {next}
+        {signedIn ? (
+          <p className="mt-6 flex items-center justify-center gap-2 text-sm text-zinc-300">
+            <Spinner className="h-4 w-4" /> Opening your scanner…
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              {view.email ? <>{view.email} is confirmed. </> : null}
+              If you signed up in the CardFlip app on your home screen, open it from there.
+            </p>
+            {next}
+          </>
+        )}
       </>
     );
   } else if (view.kind === "taken") {
@@ -163,7 +183,7 @@ function ConfirmEmail() {
         </p>
         <button type="button" onClick={() => void confirm()} disabled={busy} className={primary}>
           {busy && <Spinner className="h-4 w-4" />}
-          {busy ? "Confirming…" : "Confirm Email"}
+          {busy ? "Confirming…" : "Confirm and open CardFlip"}
         </button>
       </>
     );
@@ -187,7 +207,7 @@ function ConfirmEmail() {
     heading = "This link has expired";
     content = (
       <>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-300">Open CardFlip and tap Send a New Code.</p>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-300">Open CardFlip and tap Send a new link.</p>
         {next}
       </>
     );

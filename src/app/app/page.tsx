@@ -206,7 +206,13 @@ export default function AppPage() {
   }, []);
   // Lives here rather than in Uploader: the first capture swaps the page from
   // the hero layout to the queue layout, and the viewfinder must survive that.
-  const [cameraOpen, setCameraOpen] = useState(false);
+  // ?scan=1 (10-05): the email confirm link lands here signed in, with the scanner already open.
+  const [cameraOpen, setCameraOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("scan") === "1",
+  );
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("scan") === "1") window.history.replaceState(null, "", "/app");
+  }, []);
   // Category new cards are filed under (Chris, 09-04): asked when the camera
   // opens, remembered per browser, rides on every createServerCard.
   // Per-account: the saved value is keyed by user id, so it reads null until

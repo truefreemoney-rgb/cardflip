@@ -232,7 +232,10 @@ answer([429, { error: "Too many requests — try again in 30s", retryAfterSecond
 await rejects(() => ec.peekConfirmLink("t"), (e) => assert.equal(e.message, "Wait 30 seconds, then try again."));
 
 answer([200, { ok: true, state: "confirmed", already: false, email: "s***@example.com" }]);
-assert.deepEqual(await ec.confirmLink("abc"), { already: false, email: "s***@example.com" });
+assert.deepEqual(await ec.confirmLink("abc"), { already: false, email: "s***@example.com", signedIn: false });
+// (10-05) a fresh confirmation signs the browser in; the page then goes straight to /app.
+answer([200, { ok: true, state: "confirmed", already: false, email: "s***@example.com", signedIn: true }]);
+assert.equal((await ec.confirmLink("abc")).signedIn, true, "signedIn is read from the answer");
 assert.deepEqual(bodyOf(), { t: "abc" });
 answer([200, { ok: true, state: "confirmed", already: true, email: "s***@example.com" }]);
 assert.equal((await ec.confirmLink("abc")).already, true);
@@ -377,5 +380,15 @@ assert.equal((await import(new URL("../src/lib/pageMeta.ts", import.meta.url).hr
 // Opening the page must only peek: confirmLink (the POST) is called from the button handler alone.
 assert.equal((linkPage.match(/confirmLink\(/g) ?? []).length, 1, "exactly one caller of the POST");
 assert.match(linkPage, /async function confirm\(\)[\s\S]*?confirmLink\(token\)/);
+
+// (10-05) link-only signup/wall: no code box outside change mode, the button says what it does, and a fresh confirmation goes to /app.
+assert.match(panel, /const linkOnly = mode !== "change"/, "signup and wall are link-only");
+assert.match(panel, /showCodeForm = canResend && !linkOnly/, "the code box is the email change's alone");
+assert.match(panel, /We sent a link to[\s\S]*Open it and tap Confirm\./, "the link-only line");
+assert.match(panel, /Send a new link/, "resend is Send a new link");
+assert.match(linkPage, /Confirm and open CardFlip/, "the page button");
+assert.match(linkPage, /out\.signedIn[\s\S]*router\.replace\("\/app\?scan=1"\)/, "a signed-in confirmation goes straight to the open scanner");
+assert.match(linkPage, /peek\.state === "valid" \|\| peek\.state === "confirmed"\) void confirm\(\)/, "the link confirms as the page opens, no tap");
+assert.match(panel, /pushPendingScan/, "the waiting scan is parked on the server when the screen comes up");
 
 console.log("email confirm UI: ok");

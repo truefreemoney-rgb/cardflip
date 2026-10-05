@@ -48,7 +48,11 @@ import {
  * different target address kills the older rows. A confirmed or replaced row
  * is kept, so an old link can say "already confirmed" instead of "expired".
  * The emailed link is GET peek, then POST confirm (mail scanners prefetch
- * GETs) and never touches a session.
+ * GETs). Signup and wall mails carry the link only (10-05: ad visitors sign up
+ * in TikTok's in-app browser, where the camera cannot run, so confirming has to
+ * move them to a real browser): the POST that freshly lifts a wall also signs
+ * that browser in (the route does it, from consumeLink's userId). A link that
+ * was already used signs nobody in. Email-change mails keep the typed code.
  *
  * A proof is for one inbox. Every door that vouches for an address (code,
  * link, reset link) lifts the wall only while that is still the address on the
@@ -337,7 +341,7 @@ export async function afterResponse(work: () => Promise<void>): Promise<void> {
 }
 
 /** Mail (or, in dev echo, log) one code. Never throws; the result says what happened. */
-export async function deliverConfirmCode(to: string, code: string, url: string): Promise<SendResult> {
+export async function deliverConfirmCode(to: string, code: string, url: string, linkOnly = false): Promise<SendResult> {
   if (!isValidEmail(to)) return { ok: false, kind: "recipient", err: new Error("Not a single valid email address") };
   if (emailConfirmDevEcho()) {
     console.log(`[email-confirm] to=${to} code=${code} link=${url}`);
@@ -353,16 +357,17 @@ export async function deliverConfirmCode(to: string, code: string, url: string):
   } catch {
     // The counter is a guard, not a gate: a broken counter never stops a code.
   }
-  return sendBounded(() => sendConfirmEmail(to, code, url));
+  return sendBounded(() => sendConfirmEmail(to, code, url, linkOnly));
 }
 
 /** Issue a row and mail it. The row exists even when the mail fails, so a late arrival still works. */
 export async function issueAndDeliver(
   user: Pick<User, "id">,
   to: string,
+  opts: { linkOnly?: boolean } = {},
 ): Promise<{ issued: IssuedVerification; send: SendResult }> {
   const issued = await issueEmailVerification(user, to);
-  return { issued, send: await deliverConfirmCode(issued.email, issued.code, issued.url) };
+  return { issued, send: await deliverConfirmCode(issued.email, issued.code, issued.url, opts.linkOnly === true) };
 }
 
 /**
@@ -588,6 +593,8 @@ export async function confirmWithCode(userId: string, code: string, now = Date.n
 
 export type LinkState = "valid" | "confirmed" | "replaced" | "expired";
 
+const LINK_SIGNIN_GRACE_MS = 15 * 60 * 1000;
+
 async function linkRow(token: string): Promise<VRow | undefined> {
   return db.prepare("SELECT * FROM email_verifications WHERE link_hash = ?").get<VRow>(hashLink(token));
 }
@@ -607,15 +614,26 @@ export async function peekLink(token: string, now = Date.now()): Promise<{ state
 }
 
 export type LinkResult =
-  | { state: "confirmed"; already: boolean; email: string }
+  /** userId: whose link it is; `signIn` is true only when this tap freshly lifted a signup wall. */
+  | { state: "confirmed"; already: boolean; email: string; userId: string; signIn: boolean }
   | { state: "replaced" | "expired" | "taken" | "stale" };
 
-/** Use a link (the POST behind the Confirm Email button). Never touches a session. */
+/**
+ * Use a link (the POST behind the Confirm button). Touches no session itself:
+ * it says whether this tap freshly lifted a wall (`signIn`) and the route
+ * signs the browser in. A used link (`already`) never signs in, or the mail
+ * would be a reusable login.
+ */
 export async function consumeLink(token: string, now = Date.now()): Promise<LinkResult> {
   const row = await linkRow(token);
   const state = stateOf(row, now);
   if (!row) return { state: "expired" };
-  if (state === "confirmed") return { state: "confirmed", already: true, email: maskEmail(row.email) };
+  // A mail scanner that runs scripts can confirm first (10-05: the page now confirms as it opens), so a reopen within
+  // LINK_SIGNIN_GRACE_MS still signs in; after that a used link is never a login.
+  if (state === "confirmed") {
+    const fresh = now - Number(row.confirmed_at) < LINK_SIGNIN_GRACE_MS;
+    return { state: "confirmed", already: true, email: maskEmail(row.email), userId: row.user_id, signIn: fresh };
+  }
   if (state !== "valid") return { state };
   const used = await db
     .prepare("UPDATE email_verifications SET confirmed_at = ? WHERE link_hash = ? AND confirmed_at IS NULL AND dead_at IS NULL AND expires_at > ?")
@@ -623,10 +641,13 @@ export async function consumeLink(token: string, now = Date.now()): Promise<Link
   if (used.changes < 1) {
     // Lost a race with another tap or a code: say what the row is now.
     const again = stateOf(await linkRow(token), now);
-    return again === "confirmed" ? { state: "confirmed", already: true, email: maskEmail(row.email) } : { state: again === "valid" ? "expired" : again };
+    return again === "confirmed" ? { state: "confirmed", already: true, email: maskEmail(row.email), userId: row.user_id, signIn: false } : { state: again === "valid" ? "expired" : again };
   }
   const out = await applyRow(row.user_id, row);
-  return out.status === "confirmed" ? { state: "confirmed", already: false, email: maskEmail(row.email) } : { state: out.status };
+  // Only a link that just lifted a signup wall signs in; an email-change link on an established account does not.
+  return out.status === "confirmed"
+    ? { state: "confirmed", already: false, email: maskEmail(row.email), userId: row.user_id, signIn: out.wasPending }
+    : { state: out.status };
 }
 
 // --- address changes ----------------------------------------------------------
@@ -720,7 +741,7 @@ export type WalledSend =
 export async function sendWalledCode(user: User, to: string): Promise<WalledSend> {
   const problem = await changePendingEmail(user, to);
   if (problem) return { kind: "problem", problem };
-  const { issued, send } = await issueAndDeliver(user, to);
+  const { issued, send } = await issueAndDeliver(user, to, { linkOnly: true });
   if (send.ok) return { kind: "sent", expiresAt: issued.expiresAt };
   return { kind: (await settleFailedSend(user, send, issued)) === "kept" ? "refused" : "released" };
 }
@@ -794,7 +815,7 @@ export interface SignupConfirmation {
  */
 export async function startSignupConfirmation(user: User): Promise<SignupConfirmation> {
   try {
-    const { issued, send } = await issueAndDeliver(user, user.email);
+    const { issued, send } = await issueAndDeliver(user, user.email, { linkOnly: true });
     if (send.ok) return { user, emailSent: true, problem: null, expiresAt: issued.expiresAt };
     if ((await settleFailedSend(user, send, issued)) === "kept") return { user, emailSent: false, problem: "recipient", expiresAt: null };
   } catch (err) {

@@ -102,12 +102,40 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
 
 /**
  * The email-confirmation mail (emailVerify.ts): a 6-digit code to type in the
- * app, plus a button that confirms the same request from any browser. Nothing
+ * app, plus a button that confirms the same request from any browser. With
+ * `linkOnly` (signup and wall sends, 10-05) there is no code at all: one button. Nothing
  * a user typed goes in it (no name, no subject), so it can be sent to an
  * address nobody has proven yet without carrying anyone's words to a stranger.
  */
-export async function sendConfirmEmail(to: string, code: string, url: string): Promise<void> {
+export async function sendConfirmEmail(to: string, code: string, url: string, linkOnly = false): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  if (linkOnly) {
+    // Signup and wall (10-05): no code, one button. Ad visitors sign up inside
+    // TikTok's browser, where the camera cannot run; tapping this link opens a
+    // normal browser, which is the point.
+    const linkText = [
+      "Tap the link to confirm your email and open CardFlip:",
+      url,
+      "",
+      "The link works for 1 hour. If you didn't sign up for CardFlip, ignore this email.",
+      "",
+      "— CardFlip · support@cardflip.io",
+    ].join("\n");
+    const linkHtml = `
+    <p>Tap the button to confirm your email and open CardFlip.</p>
+    <p><a href="${esc(url)}" style="display:inline-block;padding:16px 28px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:700;font-size:18px">Confirm and open CardFlip</a></p>
+    <p style="color:#666;font-size:13px">If the button doesn't work, paste this into your browser:<br><a href="${esc(url)}">${esc(url)}</a></p>
+    <p style="color:#666;font-size:13px">The link works for 1 hour. If you didn't sign up for CardFlip, ignore this email.</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+    await transport().sendMail({
+      from: fromAddress(),
+      to,
+      subject: "Confirm your CardFlip email",
+      text: linkText,
+      html: linkHtml,
+    });
+    return;
+  }
   const text = [
     `Your CardFlip code is ${code}`,
     "",

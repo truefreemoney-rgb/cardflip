@@ -758,6 +758,7 @@ export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) 
       "DELETE FROM password_resets WHERE user_id = ?",
       "DELETE FROM email_verifications WHERE user_id = ?",
       "DELETE FROM login_codes WHERE user_id = ?",
+      "DELETE FROM pending_scans WHERE user_id = ?",
       "DELETE FROM categories WHERE user_id = ?",
       // A signup that never confirmed could not scan, so deleting it must not
       // burn the device's free trial (typo the address, delete, sign up again).

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import { logout, type SessionUser } from "@/lib/client/auth";
+import { pushPendingScan } from "@/lib/client/trialScan";
 import {
   CODE_LENGTH,
   CODE_TTL_MS,
@@ -23,8 +24,11 @@ import {
  * The one email-confirmation screen: signup step 2, the wall in /app, and the
  * code box under an account-page email change.
  *
- *   signup / wall  the account is walled; the panel shows where the code went,
- *                  takes it, and can send a new one, change the address or log out
+ *   signup / wall  the account is walled; LINK ONLY (10-05): the panel says where
+ *                  the link went, has no code box, and can send a new link, change
+ *                  the address or log out. Ad visitors sign up inside TikTok's
+ *                  browser, so tapping the link in their mail app is what moves
+ *                  them to a real one, signed in (POST /api/auth/confirm-email).
  *   change         an established account moved its email; the code goes to the
  *                  NEW address and users.email switches only when it is typed
  *
@@ -33,7 +37,7 @@ import {
  * through onUser / onConfirmed and decides what to do (the wall calls refresh(),
  * signup moves to its last step, the account page merges it into the session).
  *
- * The code box takes any paste ("482 913", "Code: 482913"), so it has no
+ * (change mode only) The code box takes any paste ("482 913", "Code: 482913"), so it has no
  * maxLength and strips non-digits itself, and it submits on the sixth digit.
  * The Confirm Email button stays for anyone who wants to tap it. autoFocus is a
  * convenience, not a promise: iOS only raises the keyboard from a tap.
@@ -127,6 +131,9 @@ export default function ConfirmEmailPanel({
   const cooldownLeft = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
   const changeCooling = changeGapUntil > now;
   const changeGapLeft = Math.max(0, Math.ceil((changeGapUntil - now) / 1000));
+  // Signup and wall confirm by link only; the code box is the email change's.
+  const linkOnly = mode !== "change";
+  const noun = linkOnly ? "link" : "code";
   const noLiveCode = dead || expiresAt === null || expiresAt <= now;
 
   // Wake the clock only when something on screen changes with it: each second
@@ -214,7 +221,7 @@ export default function ConfirmEmailPanel({
       setRefused(false);
       setChanging(false);
       setCode("");
-      setMessage({ kind: "ok", text: to ? `Code sent to ${where}.` : auto ? "Your last code ran out, so we sent a new one." : "New code sent." });
+      setMessage({ kind: "ok", text: to ? `${linkOnly ? "Link" : "Code"} sent to ${where}.` : auto ? `Your last ${noun} ran out, so we sent a new one.` : `New ${noun} sent.` });
       latest.current.onUser?.(out.user);
     } catch (err) {
       if (err instanceof VerifyError && err.code === "signed_out") {
@@ -259,6 +266,14 @@ export default function ConfirmEmailPanel({
     // Runs for the state at mount; sendCode reads current state itself.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The card scanned on /scan before signup follows the person to the browser
+  // the link opens in (10-05): park it on the server as soon as this screen is
+  // up (signup right after the account is made, the wall on a later visit).
+  // Never throws, and does nothing when there is no waiting card.
+  useEffect(() => {
+    if (mode !== "change") void pushPendingScan();
+  }, [mode]);
 
   // --- notice being let in from elsewhere -------------------------------------
 
@@ -323,8 +338,10 @@ export default function ConfirmEmailPanel({
     void logout().then(go, go);
   }
 
-  const sendLabel = cooling ? `Send a New Code (${cooldownLeft}s)` : "Send a New Code";
-  const showCodeForm = !noLiveCode && !refused;
+  const sendName = linkOnly ? "Send a new link" : "Send a New Code";
+  const sendLabel = cooling ? `${sendName} (${cooldownLeft}s)` : sendName;
+  const canResend = !noLiveCode && !refused;
+  const showCodeForm = canResend && !linkOnly;
   const Heading = heading;
   const standalone = mode !== "change" && !compact;
   const helpLink = !standalone ? null : (
@@ -337,13 +354,21 @@ export default function ConfirmEmailPanel({
   if (refused) {
     body = (
       <>
-        We couldn&apos;t send a code to <strong className="break-words font-semibold text-zinc-200">{address}</strong>. Fix the address and we&apos;ll send a new one.
+        We couldn&apos;t send {linkOnly ? "a link" : "a code"} to <strong className="break-words font-semibold text-zinc-200">{address}</strong>. Fix the address and we&apos;ll send a new one.
       </>
     );
   } else if (noLiveCode) {
     body = (
       <>
-        Tap Send a New Code and we&apos;ll email a fresh 6-digit code to <strong className="break-words font-semibold text-zinc-200">{address}</strong>.
+        {linkOnly ? (
+          <>
+            Tap Send a new link and we&apos;ll email a fresh link to <strong className="break-words font-semibold text-zinc-200">{address}</strong>.
+          </>
+        ) : (
+          <>
+            Tap Send a New Code and we&apos;ll email a fresh 6-digit code to <strong className="break-words font-semibold text-zinc-200">{address}</strong>.
+          </>
+        )}
       </>
     );
   } else if (mode === "change") {
@@ -355,7 +380,7 @@ export default function ConfirmEmailPanel({
   } else {
     body = (
       <>
-        We sent a 6-digit code to <strong className="break-words font-semibold text-zinc-200">{address}</strong>.
+        We sent a link to <strong className="break-words font-semibold text-zinc-200">{address}</strong>. Open it and tap Confirm.
       </>
     );
   }
@@ -431,6 +456,7 @@ export default function ConfirmEmailPanel({
           {showCodeForm && (
             <p className="mt-3 text-xs text-zinc-500">The code works for 1 hour. You can also tap the button in the email.</p>
           )}
+          {canResend && linkOnly && <p className="mt-3 text-xs text-zinc-500">The link works for 1 hour. Check your spam folder too.</p>}
 
           {noLiveCode && !refused && (
             <button
@@ -479,7 +505,7 @@ export default function ConfirmEmailPanel({
                   className="flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
                 >
                   {busy === "change" && <Spinner className="h-4 w-4" />}
-                  {busy === "change" ? "Sending…" : changeCooling ? `Send Code (${changeGapLeft}s)` : "Send Code"}
+                  {busy === "change" ? "Sending…" : changeCooling ? `${linkOnly ? "Send Link" : "Send Code"} (${changeGapLeft}s)` : linkOnly ? "Send Link" : "Send Code"}
                 </button>
                 {!refused && (
                   <button type="button" className={QUIET} onClick={() => setChanging(false)} disabled={busy !== null}>
@@ -491,7 +517,7 @@ export default function ConfirmEmailPanel({
           )}
 
           <div className={`mt-3 flex flex-wrap items-center gap-x-5 gap-y-0 text-sm ${mode === "change" ? "" : "justify-center"}`}>
-            {showCodeForm && (
+            {canResend && (
               <button type="button" className={QUIET} onClick={() => void sendCode()} disabled={busy !== null || cooling}>
                 {sendLabel}
               </button>

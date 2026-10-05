@@ -21,7 +21,7 @@ export const CODE_LENGTH = 6;
 
 /** Shown when a request never reached the server (offline, timeout). */
 export const NETWORK_MESSAGE = "We couldn't reach CardFlip. Check your connection and try again.";
-export const SEND_FAILED_MESSAGE = "We couldn't send the email. Tap Send a New Code.";
+export const SEND_FAILED_MESSAGE = "We couldn't send the email. Tap Send a new link.";
 export const SIGNED_OUT_MESSAGE = "You're signed out. Log in to continue.";
 /** The mail server refused the address: the person's typo to fix. */
 export const REFUSED_MESSAGE = "That address didn't accept our email. Check it and try again.";
@@ -106,6 +106,7 @@ interface VerifyBody {
   state?: string;
   email?: string | null;
   already?: boolean;
+  signedIn?: boolean;
 }
 
 async function send(path: string, init?: RequestInit): Promise<{ res: Response; data: VerifyBody }> {
@@ -217,13 +218,14 @@ export async function peekConfirmLink(token: string): Promise<{ state: LinkState
 }
 
 /**
- * Use the link (the button on /confirm-email). Never signs anyone in. Throws
+ * Use the link (the button on /confirm-email). A fresh signup confirmation also
+ * signs this browser in (signedIn, 10-05); a used link never does. Throws
  * VerifyError whose code is replaced, expired, email_taken, slow_down or invalid.
  */
-export async function confirmLink(token: string): Promise<{ already: boolean; email: string | null }> {
+export async function confirmLink(token: string): Promise<{ already: boolean; email: string | null; signedIn: boolean }> {
   const { res, data } = await post("/api/auth/confirm-email", { t: token });
   if (!res.ok || !data.ok) throw refusal(res, data, "That link didn't work. Try again.");
-  return { already: Boolean(data.already), email: data.email ?? null };
+  return { already: Boolean(data.already), email: data.email ?? null, signedIn: Boolean(data.signedIn) };
 }
 
 // --- the account page --------------------------------------------------------

@@ -752,6 +752,16 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_trial_scans_device ON trial_scans (device_id, at);
   CREATE INDEX IF NOT EXISTS idx_trial_scans_ip ON trial_scans (ip_hash, at);
+  -- The card scanned on /scan before signup, held on the server so it follows
+  -- the visitor out of TikTok's in-app browser into the one the confirm link
+  -- opens (10-05, /api/trial/pending). One per account; photo is a capped
+  -- data URL; deleted once the card lands in Inventory.
+  CREATE TABLE IF NOT EXISTS pending_scans (
+    user_id TEXT PRIMARY KEY,
+    input TEXT NOT NULL,
+    photo TEXT,
+    at INTEGER NOT NULL
+  );
   -- "Tell me when CardFlip opens in my country" (Chris 09-30, /unavailable).
   -- country is x-vercel-ip-country, never client-sent; one row per email.
   CREATE TABLE IF NOT EXISTS waitlist (
