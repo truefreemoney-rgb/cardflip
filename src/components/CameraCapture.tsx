@@ -18,6 +18,86 @@ import {
   laplacianVariance,
   rgbaToGray,
 } from "@/lib/sharpness";
+import {
+  CARD_ASPECT,
+  HINT_TEXT,
+  findCardQuad,
+  frameLight,
+  frameMotion,
+  growQuad,
+  pickHint,
+  shouldStraighten,
+  toGray,
+  warpQuad,
+  type Hint,
+} from "@/lib/photoQuality";
+
+/** Frames taken per tap; the sharpest one is sent (10-04: a shaky hand loses the collector number first). */
+const BURST = 4;
+
+/** The blur score of a guide crop, at the calibration geometry (see lib/sharpness.ts). Infinity when it can't be read. */
+function bandSharpness(canvas: HTMLCanvasElement): number {
+  const bw = SHARPNESS_SAMPLE_WIDTH;
+  const bh = Math.max(3, Math.round((bw * (canvas.height * SHARPNESS_BAND.h)) / (canvas.width * SHARPNESS_BAND.w)));
+  const band = document.createElement("canvas");
+  band.width = bw;
+  band.height = bh;
+  const ctx = band.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return Infinity;
+  ctx.drawImage(
+    canvas,
+    canvas.width * SHARPNESS_BAND.x,
+    canvas.height * SHARPNESS_BAND.y,
+    canvas.width * SHARPNESS_BAND.w,
+    canvas.height * SHARPNESS_BAND.h,
+    0,
+    0,
+    bw,
+    bh,
+  );
+  try {
+    const px = ctx.getImageData(0, 0, bw, bh).data;
+    return laplacianVariance(rgbaToGray(px, bw * bh), bw, bh);
+  } catch {
+    return Infinity;
+  }
+}
+
+/**
+ * A card sitting small or turned in the guide, flattened to fill the photo
+ * (lib/photoQuality.ts findCardQuad). Null = send the crop as taken: no card
+ * edge found for sure, or it already fills the guide (most shots, 10-04: 1 of
+ * 123 prod photos qualified).
+ */
+function straighten(crop: HTMLCanvasElement): HTMLCanvasElement | null {
+  try {
+    const sw = 240;
+    const sh = Math.max(40, Math.round((crop.height * sw) / crop.width));
+    const small = document.createElement("canvas");
+    small.width = sw;
+    small.height = sh;
+    const sctx = small.getContext("2d", { willReadFrequently: true });
+    if (!sctx) return null;
+    sctx.drawImage(crop, 0, 0, sw, sh);
+    const quad = findCardQuad(toGray(sctx.getImageData(0, 0, sw, sh).data, sw * sh), sw, sh);
+    if (!shouldStraighten(quad)) return null;
+    const s = crop.width / sw;
+    const corners = growQuad(quad.corners.map((p) => ({ x: p.x * s, y: p.y * s })) as typeof quad.corners, 0.015);
+    const cctx = crop.getContext("2d", { willReadFrequently: true });
+    if (!cctx) return null;
+    const full = cctx.getImageData(0, 0, crop.width, crop.height);
+    const outH = crop.height;
+    const outW = Math.round(outH * CARD_ASPECT);
+    const px = warpQuad(full.data, crop.width, crop.height, corners, outW, outH);
+    const out = document.createElement("canvas");
+    out.width = outW;
+    out.height = outH;
+    out.getContext("2d")?.putImageData(new ImageData(new Uint8ClampedArray(px), outW, outH), 0, 0);
+    return out;
+  } catch {
+    return null;
+  }
+}
 
 interface Props {
   /** Which game the next shot is read as — named on the Capture button (09-29). */
@@ -174,6 +254,13 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // Where the guide is drawn, in the video element's box. Measured, not
   // CSS-sized, so the sampler and the crop read exactly what's on screen.
   const [guide, setGuide] = useState<GuideRect | null>(null);
+  // Live photo hint above the guide (10-04): too dark, glare, hold still, move closer. Advisory, never a gate.
+  const [hint, setHint] = useState<Hint | null>(null);
+  // A capture (the burst) is running: no second tap, and the hint sampler rests.
+  const busy = useRef(false);
+  // Android: the camera takes focus points (tap-to-focus); iPhones don't expose focus to web pages.
+  const canFocus = useRef(false);
+  const [focusRing, setFocusRing] = useState<{ x: number; y: number; key: number } | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -242,6 +329,13 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           | (MediaTrackCapabilities & { torch?: boolean })
           | undefined;
         if (capabilities?.torch) setTorch("off");
+        // Keep refocusing as the card moves (Android Chrome); a phone that
+        // can't is left on its own default. Best effort, never an error.
+        const focusModes = (capabilities as { focusMode?: string[] } | undefined)?.focusMode ?? [];
+        if (focusModes.includes("continuous")) {
+          canFocus.current = true;
+          track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {});
+        }
       } catch (err) {
         // NotAllowedError = the user (or a site setting) blocked the camera —
         // "allow it in the prompt" is wrong advice there, the prompt won't
@@ -303,10 +397,78 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     }
   };
 
-  const capture = useCallback(() => {
+  // Live hints (10-04): a small, cheap look at the guide a few times a second.
+  // A hint shows after two samples agree, so it doesn't flicker. Thresholds
+  // come from 123 real prod photos (scripts/calibrate-photo-quality.mjs).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !ready) return;
+    const c = document.createElement("canvas");
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+    let prev: Uint8Array | null = null;
+    let last: Hint | null = null;
+    let streak = 0;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || busy.current || video.videoWidth === 0) return;
+      const g = guideInVideo(video, mode);
+      const w = 120;
+      const h = Math.max(40, Math.round((w * g.h) / g.w));
+      c.width = w;
+      c.height = h;
+      ctx.drawImage(video, g.x, g.y, g.w, g.h, 0, 0, w, h);
+      let data: Uint8ClampedArray;
+      try {
+        data = ctx.getImageData(0, 0, w, h).data;
+      } catch {
+        return;
+      }
+      const gray = toGray(data, w * h);
+      const motion = prev && prev.length === gray.length ? frameMotion(prev, gray) : null;
+      prev = gray;
+      const light = frameLight(data, w, h);
+      // The card-size check only when nothing more pressing is wrong.
+      const next = pickHint(light, motion, null) ?? pickHint(light, motion, findCardQuad(gray, w, h)?.area ?? null);
+      if (next === last) streak++;
+      else {
+        last = next;
+        streak = 1;
+      }
+      if (streak === 2) setHint(next);
+    }, 350);
+    return () => window.clearInterval(id);
+  }, [ready, mode]);
+
+  // Tap the picture to focus there (Android); the ring shows only when the camera took it.
+  const tapToFocus = (e: React.PointerEvent<HTMLVideoElement>) => {
+    const video = videoRef.current;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!video || !track || !canFocus.current || !video.videoWidth) return;
+    const r = video.getBoundingClientRect();
+    const scale = Math.min(r.width / video.videoWidth, r.height / video.videoHeight);
+    const dx = (r.width - video.videoWidth * scale) / 2;
+    const dy = (r.height - video.videoHeight * scale) / 2;
+    const nx = (e.clientX - r.left - dx) / (video.videoWidth * scale);
+    const ny = (e.clientY - r.top - dy) / (video.videoHeight * scale);
+    if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+    const at = { x: e.clientX - r.left, y: e.clientY - r.top, key: Date.now() };
+    track
+      .applyConstraints({ advanced: [{ pointsOfInterest: [{ x: nx, y: ny }], focusMode: "single-shot" } as MediaTrackConstraintSet] })
+      .then(() => {
+        setFocusRing(at);
+        setTimeout(() => setFocusRing((f) => (f?.key === at.key ? null : f)), 700);
+        // Back to following the card a moment later.
+        setTimeout(() => track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {}), 2500);
+      })
+      .catch(() => {});
+  };
+
+  const capture = useCallback(async () => {
     const video = videoRef.current;
     // videoWidth is 0 until the stream delivers its first frame.
-    if (!video || video.videoWidth === 0) return;
+    if (!video || video.videoWidth === 0 || busy.current) return;
+    busy.current = true;
+    try {
 
     // Crop to the guide, not the whole sensor frame. The viewfinder dims
     // everything outside the card-shaped guide, so the seller frames the card
@@ -324,39 +486,39 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     const sw = Math.min(vw - sx, gw + pad * 2);
     const sh = Math.min(vh - sy, gh + pad * 2);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(sw);
-    canvas.height = Math.round(sh);
-    canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const grab = () => {
+      const c = document.createElement("canvas");
+      c.width = Math.round(sw);
+      c.height = Math.round(sh);
+      c.getContext("2d", { willReadFrequently: true })?.drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      return c;
+    };
+    // The next new video frame, or 90 ms, whichever comes first (Safari < 15.4 has no frame callback).
+    const nextFrame = () =>
+      new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          resolve();
+        };
+        setTimeout(finish, 90);
+        (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback?.(finish);
+      });
 
-    // Score the attack-text band at the calibration geometry (see
-    // lib/sharpness.ts) straight off the capture canvas.
-    const score = (() => {
-      const bw = SHARPNESS_SAMPLE_WIDTH;
-      const bh = Math.max(3, Math.round((bw * (sh * SHARPNESS_BAND.h)) / (sw * SHARPNESS_BAND.w)));
-      const band = document.createElement("canvas");
-      band.width = bw;
-      band.height = bh;
-      const ctx = band.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return Infinity;
-      ctx.drawImage(
-        canvas,
-        canvas.width * SHARPNESS_BAND.x,
-        canvas.height * SHARPNESS_BAND.y,
-        canvas.width * SHARPNESS_BAND.w,
-        canvas.height * SHARPNESS_BAND.h,
-        0,
-        0,
-        bw,
-        bh,
-      );
-      try {
-        const px = ctx.getImageData(0, 0, bw, bh).data;
-        return laplacianVariance(rgbaToGray(px, bw * bh), bw, bh);
-      } catch {
-        return Infinity;
+    // Burst (10-04): a few frames over about a tenth of a second, the sharpest
+    // one wins, scored on the attack-text band at the calibration geometry.
+    let canvas = grab();
+    let score = bandSharpness(canvas);
+    for (let i = 1; i < BURST; i++) {
+      await nextFrame();
+      const c = grab();
+      const s = bandSharpness(c);
+      if (s > score) {
+        canvas = c;
+        score = s;
       }
-    })();
+    }
     const now = Date.now();
     if (!isSharpEnough(score) && now - lastBlurRejectAt.current > 8000) {
       lastBlurRejectAt.current = now;
@@ -364,8 +526,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       setTimeout(() => setBlurNote(null), 2500);
       return;
     }
+    // A card small or turned in the guide is flattened to fill the photo.
+    const photo = straighten(canvas) ?? canvas;
 
-    canvas.toBlob(
+    photo.toBlob(
       (blob) => {
         if (!blob) {
           // Safari under memory pressure hands back null; the tap did nothing
@@ -384,6 +548,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       "image/jpeg",
       0.92,
     );
+    } finally {
+      busy.current = false;
+    }
   }, [onCapture, mode]);
 
   const bracket = "border-brand-400";
@@ -523,8 +690,27 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             autoPlay
             playsInline
             muted
+            onPointerDown={tapToFocus}
             className="h-full w-full object-contain sm:h-auto sm:max-h-[60dvh] sm:min-h-64"
           />
+          {focusRing && (
+            <span
+              key={focusRing.key}
+              aria-hidden
+              className="pointer-events-none absolute h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/90"
+              style={{ left: focusRing.x, top: focusRing.y }}
+            />
+          )}
+          {/* The live hint sits in the dimmed band above the guide, never on the card. */}
+          {ready && guide && hint && !blurNote && (
+            <p
+              role="status"
+              className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-amber-400/40 bg-black/80 px-3 py-1 text-xs font-semibold text-amber-200"
+              style={{ top: guide.y >= 32 ? guide.y / 2 : guide.y + 18 }}
+            >
+              {HINT_TEXT[hint]}
+            </p>
+          )}
 
           {/* Card-shaped framing guide: real cards are 63×88mm, and a guide
               at that ratio nudges the photo toward filling the frame, which
