@@ -14,7 +14,8 @@ import {
 import Price from "@/components/Price";
 import { fetchLocalAsk, useLocalMarket, type ServerLocalAsk } from "@/lib/client/localMarket";
 import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/listing";
-import { marketplaceLabel } from "@/lib/marketplaces";
+import { PRICE } from "@/lib/pricing";
+import { formatLocalAmount, marketplaceLabel, US_MARKETPLACE } from "@/lib/marketplaces";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 
 interface Props {
@@ -87,6 +88,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       setConfirmAsk(null);
     };
   }, [modal, local, item.serverId, item.strategy]);
+  // The seller's own eBay site (US unless a local market applies) and the default policy CardFlip makes on first publish.
+  const siteMp = local?.mp ?? US_MARKETPLACE;
+  const policyCost = siteMp.shipping.policyCost;
+  const defaultShipping = policyCost ? formatLocalAmount(siteMp, Number(policyCost)) : null;
   const canPost = ebayConnected && Boolean(item.serverId) && Boolean(item.card);
   const pushed = Boolean(item.ebayOfferId);
   // Locked until the seller has verified the match (the server refuses too).
@@ -269,7 +274,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             // Trial sellers see one thing here (Chris, 09-06): Subscribe now,
             // leading to the three plans. Connect-eBay comes after.
             <Link href="/pricing" className={ebayButton + " text-center"}>
-              Subscribe Now
+              Scan Pack or Plan to Sell
             </Link>
           ) : canPost && !verified ? (
             <button
@@ -301,7 +306,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
       <p className="-mt-3 text-[11px] text-zinc-600">
         {trialOnly
-          ? "Selling on eBay comes with a plan. Subscribe and every ready card publishes from right here, photo included."
+          ? `Selling on eBay comes with a Scan Pack (${PRICE.pack}) or a plan. Get one and every ready card publishes from right here, photo included.`
           : item.ebayDraftUrl
           ? "The draft is in My eBay › Drafts — finish and publish it there, or publish from here. Publishing means eBay's selling fees apply."
           : canPost
@@ -346,7 +351,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
           )}
           {failure.code === "needs_policies" && (
             <a
-              href="https://www.ebay.com/sh/settings/business-policies"
+              href={`https://www.${siteMp.domain}/sh/settings/business-policies`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1 inline-block underline underline-offset-4"
@@ -444,6 +449,10 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                   This publishes a real listing that buyers can purchase right away, and
                   eBay&apos;s selling fees apply. You can end it later on eBay.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  {defaultShipping ? `Buyer pays ${defaultShipping} flat shipping. ` : ""}
+                  Returns: 30 days, buyer pays return postage. If your eBay account has no policies yet, we set these up for you.
                 </p>
                 <div className="mt-5 flex gap-2">
                   <button onClick={() => setModal(null)} className={quietButton}>

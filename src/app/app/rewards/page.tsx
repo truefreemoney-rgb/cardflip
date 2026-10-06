@@ -18,7 +18,7 @@ const BONUS = PRICING.referral.scans;
 
 const STEPS: { n: string; title: string; body: string }[] = [
   { n: "1", title: "Send your link", body: "Text it, post it, hand it to the guy at the card shop. Anyone who signs up through it is yours." },
-  { n: "2", title: "They try it free", body: "Five scans, no card. They point the camera at a card and it prices itself. Most people get it by scan three." },
+  { n: "2", title: "They try it free", body: `${SCANS.trial} scans, no card. They point the camera at a card and it prices itself. Most people get it by scan three.` },
   { n: "3", title: `They subscribe, you get ${BONUS}`, body: `The moment their first payment lands, ${BONUS} scans land in your account. Every friend, every time, no cap.` },
 ];
 
@@ -63,7 +63,7 @@ export default function RewardsPage() {
   async function share() {
     if (!info) return;
     try {
-      await navigator.share({ title: "CardFlip", text: "Scan a card, price it, list it on eBay. Five free scans:", url: info.url });
+      await navigator.share({ title: "CardFlip", text: `Scan a card, price it, list it on eBay. ${SCANS.trial} free scans:`, url: info.url });
     } catch {
       // Dismissed.
     }
@@ -175,7 +175,7 @@ export default function RewardsPage() {
       <section className="rounded-2xl border border-edge bg-surface-1 p-5">
         <p className="text-sm font-medium text-white">The math</p>
         <p className="mt-1 text-sm text-zinc-400">
-          A Scan Pack is {SCANS.pack} scans for {PRICE.pack}. One friend is a free pack. Ten friends is a thousand scans. The scans
+          A Scan Pack is {SCANS.pack} scans for {PRICE.pack}. One friend is a free pack. Ten friends is {(BONUS * 10).toLocaleString("en-US")} scans. The scans
           stack, they wait behind your plan scans, and they never expire.
         </p>
       </section>

@@ -23,7 +23,7 @@ import PriceHistoryChart, { type Series } from "@/components/PriceHistoryChart";
 import { loadTrustData, withPriceFlags } from "@/lib/server/priceTrustSite";
 import { CHART_MIN_POINTS } from "@/lib/cardPages";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, EBAY_FLAT_FEE_STEP_USD, POSTAGE_USD, ebayFlatFee, netAfterFees } from "@/lib/fees";
+import { COST_COVERED_MAX_USD, COST_TAPER_END_USD, EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, EBAY_FLAT_FEE_STEP_USD, POSTAGE_USD, ebayFlatFee, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -61,7 +61,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Where do the prices come from?",
-    a: "The market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $5 are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth. From $5 to $10 part of those costs is added, less as the price goes up.",
+    a: `The market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Cards under $${COST_COVERED_MAX_USD} are priced at their value plus eBay's cut and postage, so a cheap card still pays you what it's worth. From $${COST_COVERED_MAX_USD} to $${COST_TAPER_END_USD} part of those costs is added, less as the price goes up.`,
   },
   {
     q: "Do I need my own eBay account?",

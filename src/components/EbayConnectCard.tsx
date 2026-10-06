@@ -10,15 +10,17 @@ import {
 } from "@/lib/client/ebayApi";
 import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 import { fetchCurrentUser } from "@/lib/client/auth";
+import { PRICE } from "@/lib/pricing";
 
 /**
  * Plain-English mirror of USER_SCOPES in lib/server/ebayAuth.ts — the consent
  * screen asks for exactly these, so keep the two lists in step.
  */
 const PERMISSIONS = [
-  "Create draft listings under your eBay account (they show in My eBay › Drafts)",
-  "Publish a listing from CardFlip when you choose to",
+  "Create listings under your eBay account",
+  "Publish a listing from CardFlip only when you press Publish",
   "Read your shipping, payment and return policies so listings are complete",
+  "Set up basic shipping, payment and returns policies for you on your first publish, if your account has none",
   "See your eBay username so we can show which account is linked",
   "See your orders so sold cards are marked sold here automatically",
   "See the fees eBay charged on your sales so profit figures are exact",
@@ -69,13 +71,20 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
   const pathname = usePathname();
   const [status, setStatus] = useState<EbayLinkStatus | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [expiryNear, setExpiryNear] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
   const outcomeKey = search.get("connected") ? "connected" : search.get("error");
   const outcome = outcomeKey ? OUTCOMES[outcomeKey] : null;
 
   useEffect(() => {
-    fetchEbayStatus().then(setStatus);
+    fetchEbayStatus().then((s) => {
+      setStatus(s);
+      setExpiryNear(
+        typeof s?.refreshExpiresAt === "number" &&
+          s.refreshExpiresAt - Date.now() < 30 * 24 * 60 * 60 * 1000,
+      );
+    });
   }, []);
 
   async function handleDisconnect() {
@@ -123,20 +132,21 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
       ? `Connected as ${status.ebayUsername}`
       : "eBay account connected";
     body =
-      "CardFlip can now create draft listings under your eBay account. You review and publish every listing yourself on eBay — nothing goes live without you.";
+      "CardFlip can now create and publish listings on your eBay account. Nothing goes live until you press Publish.";
   } else if (canConnect) {
     title = `Connect your eBay account${who}`;
     body =
-      "You'll sign in on eBay's own site — we never see your eBay password. Then every card you scan can become a draft listing under your account.";
+      "You'll sign in on eBay's own site — we never see your eBay password. Then every card you scan can become a listing on your account. Nothing goes live until you press Publish.";
   } else if (trialOnly) {
     title = "Subscribe to Sell on eBay";
-    body =
-      "Selling on eBay comes with a plan. Subscribe, then connect your eBay account here and every card you scan can become a listing under it.";
+    body = `Selling on eBay comes with a Scan Pack (${PRICE.pack}) or a plan. Get one, then connect your eBay account here.`;
   } else {
-    title = `eBay connection is on its way${who}`;
+    title = `eBay isn't available right now${who}`;
     body =
-      "CardFlip is completing eBay's API onboarding. Until the direct connection is live, every listing opens on eBay pre-filled and you post it from your own account — you stay in full control, and we never see your eBay password.";
+      "We can't link eBay at the moment. Please try again later. We never see your eBay password.";
   }
+  // eBay's link lasts about 18 months; warn in the last 30 days.
+  const expiresSoon = connected && expiryNear;
 
   return (
     <div className="foil-edge relative w-full max-w-md rounded-2xl p-8 text-center shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
@@ -178,7 +188,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
               ? "On eBay you'll approve exactly:"
               : trialOnly
                 ? "After you subscribe, you'll connect eBay and approve exactly:"
-                : "When the connection goes live, you'll approve exactly:"}
+                : "When eBay is available, you'll approve exactly:"}
           </p>
           <ul className="mt-2 space-y-2 text-left">
             {PERMISSIONS.map((permission) => (
@@ -215,8 +225,17 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
           onClick={() => router.push("/pricing")}
           className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
-          Subscribe Now
+          See Plans and Scan Pack
         </button>
+      )}
+
+      {expiresSoon && (
+        <div role="status" className="mt-5 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <p>Your eBay link expires soon.</p>
+          <a href={EBAY_CONNECT_PATH} className="mt-1 inline-block font-semibold underline underline-offset-4">
+            Reconnect
+          </a>
+        </div>
       )}
 
       {connected && (
