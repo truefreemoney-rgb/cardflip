@@ -14,6 +14,8 @@ export interface VisionScanOutcome {
   usage: ScanUsage | null;
   /** The server's message on a quota (402) refusal. */
   error: string | null;
+  /** The server's 504 (its read budget ran out): the OCR fallback would only add a slow second miss. */
+  timedOut?: boolean;
 }
 
 /**
@@ -67,7 +69,7 @@ export async function tiebreakCard(file: File, game: GameId, ids: string[]): Pro
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: base64, mediaType, game, ids }),
-      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(5_000) : undefined,
     });
     const data = await res.json().catch(() => null);
     return res.ok && typeof data?.id === "string" ? data.id : null;
@@ -150,6 +152,7 @@ export async function scanCardWithVision(
         read: null,
         usage: null,
         error: null,
+        ...(res.status === 504 && data?.reason === "timeout" ? { timedOut: true } : {}),
       };
     }
     return {

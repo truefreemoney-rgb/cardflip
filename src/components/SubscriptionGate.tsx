@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { canUseApp } from "@/lib/client/auth";
@@ -28,6 +29,11 @@ const OPEN_PATHS = ["/app/account", "/app/help", "/app/collection"];
 export default function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const { user, status, setUser, refresh } = useSession();
   const pathname = usePathname();
+  // The scanner page that was usable when it opened stays up if the last scan spends the last free one (402 mid-session):
+  // the paywall used to replace it and wipe the queue. Its own banner says scans ran out; the paywall shows on the next visit.
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const usable = status === "ready" && !!user && canUseApp(user);
+  if (scannerOpen !== (pathname === "/app" && (usable || scannerOpen))) setScannerOpen(!scannerOpen);
   if (status !== "ready" || !user) return <>{children}</>;
   if (user.role === "admin" || OPEN_PATHS.some((p) => pathname.startsWith(p))) return <>{children}</>;
   if (user.mustConfirmEmail) {
@@ -51,6 +57,9 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
       </main>
     );
   }
-  if (canUseApp(user)) return <>{children}</>;
+  if (canUseApp(user)) {
+    return <>{children}</>;
+  }
+  if (scannerOpen && pathname === "/app") return <>{children}</>;
   return <Paywall />;
 }

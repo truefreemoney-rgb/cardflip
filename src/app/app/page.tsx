@@ -526,6 +526,10 @@ export default function AppPage() {
                 if (code && !code.startsWith("A")) printed = { ...printed, setCode: `A${code}` };
               }
             }
+          } else if (vision.timedOut) {
+            // The server ran out of its read budget: OCR would add a slow second miss (14 s) and the wrong advice.
+            patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Took too long — tap Capture again" });
+            continue;
           } else {
             patchItem(next.id, { visionStatus: vision.status });
             // On-device OCR (several MB of model on a phone) has no clock of its own: a stall here left the item on
@@ -704,8 +708,15 @@ export default function AppPage() {
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.
+            // The watchdog gave up on it, or the seller removed it meanwhile: no ghost row in Inventory.
+            if (abandoned.current.has(next.id) || !itemsRef.current.some((i) => i.id === next.id)) continue;
             const server = (await createServerCard(input)) ?? (await createServerCard(input));
-            if (server) {
+            if (server && (abandoned.current.has(next.id) || !itemsRef.current.some((i) => i.id === next.id))) {
+              // Abandoned or removed while the row was being created: delete the orphan.
+              void deleteServerCard(server.id);
+            } else if (!server) {
+              patchItem(next.id, { status: "error", error: "Couldn't save — tap Scan again" });
+            } else {
               patchItem(next.id, { serverId: server.id });
               // Verified before the row existed (fast tap): sync it now.
               const cur = itemsRef.current.find((i) => i.id === next.id);
@@ -1268,6 +1279,7 @@ export default function AppPage() {
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
       queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
+      quotaNote={quotaNote}
       onCapture={onCameraCapture}
       onClose={closeCamera}
       onOpen={(id) => {
@@ -1551,6 +1563,8 @@ export default function AppPage() {
                     item={selected}
                     ebayConnected={user.ebayConnected}
                     onChange={(patch) => {
+                      // Re-queue (Scan again) or a picked card revives a row the watchdog gave up on.
+                      if (patch.status === "queued" || patch.card) abandoned.current.delete(selected.id);
                       patchItem(selected.id, patch);
                       // A different catalog card (candidate pick, name
                       // search, 1st Edition ↔ unlimited swap) is a different

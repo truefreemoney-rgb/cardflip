@@ -140,6 +140,8 @@ interface Props {
   queue?: ScanItem[];
   /** Remove one scan from the queue (the × on the result chip and in the session sheet). */
   onRemove?: (id: string) => void;
+  /** The out-of-scans message while it applies (the page banner is hidden behind this modal). */
+  quotaNote?: string | null;
   onCapture: (file: File) => void;
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
@@ -243,7 +245,7 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onCapture, onClose, onOpen }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
@@ -551,6 +553,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     // videoWidth is 0 until the stream delivers its first frame.
     if (!video || srcW(video) === 0 || busy.current) return;
     busy.current = true;
+    // Held until toBlob answers (+ cooldown): releasing at once let a double tap start a second capture, two charged scans for one card.
+    let handedOff = false;
     try {
 
     // Crop to the guide, not the whole sensor frame. The viewfinder dims
@@ -619,8 +623,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           // and said nothing (mobile QA 09-06).
           setBlurNote("Couldn't capture that frame — tap again");
           setTimeout(() => setBlurNote(null), 2500);
+          setTimeout(() => { busy.current = false; }, 600);
           return;
         }
+        setTimeout(() => { busy.current = false; }, 600);
         const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
         onCapture(file);
         setCaptured((count) => count + 1);
@@ -631,8 +637,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       "image/jpeg",
       0.92,
     );
+    handedOff = true;
     } finally {
-      busy.current = false;
+      if (!handedOff) busy.current = false;
     }
   }, [onCapture, mode, mirror]);
 
@@ -646,7 +653,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       const photo = canvas ? (straighten(canvas) ?? canvas) : null;
       photo?.toBlob(
         (blob) => {
-          if (!blob) return;
+          if (!blob) {
+            setBlurNote("Couldn't capture that frame — tap again");
+            setTimeout(() => setBlurNote(null), 2500);
+            return;
+          }
           onCapture(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }));
           setCaptured((count) => count + 1);
           fxCapture();
@@ -913,6 +924,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         {/* The result chip lives under the viewfinder, not over the guide —
             on a phone the guide is most of the frame and a chip on it hid
             the card. Until the first scan the slot carries the how-to. */}
+        {quotaNote && (
+          <p role="alert" className="shrink-0 px-3 pb-2 text-center text-xs font-semibold text-red-300 sm:px-0">
+            {quotaNote} Cards now scan by on-device OCR.
+          </p>
+        )}
         <div className="flex min-h-[4.25rem] shrink-0 items-center px-3 sm:px-0">
           {blurNote ? (
             <p
