@@ -3,6 +3,13 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-06 behind the scenes (audit section F)
+- [ ] 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
+- [ ] TikTok Ads Manager still records ViewContent / ClickButton from /scan after the pixel moved to load after first paint (events queue up to 15 s).
+- [ ] Vercel logs: any "?key=" warning means something still sends the cron secret in the URL; once none for a week, drop ?key= support.
+- [ ] First Sunday digest after this still sends (prod mail env must be set; not checked).
+- [ ] Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
+
 ## 10-06 look and feel (audit section E)
 - [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
 - [ ] Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.

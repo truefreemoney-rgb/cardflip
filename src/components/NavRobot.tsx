@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import RobotBuddy, { type RobotPose } from "@/components/RobotBuddy";
-import HelpPanel from "@/components/HelpPanel";
+import HelpPanel from "@/components/HelpPanelLazy";
 
 /**
  * The robot's home: a Help button in the app header (Chris, 09-04: "your AI

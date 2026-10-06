@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import CameraCapture from "@/components/CameraCapture";
+import CameraCapture from "@/components/CameraCaptureLazy";
 import ArtImg from "@/components/ArtImg";
 import CardImage from "@/components/CardImage";
 import GameToggle from "@/components/GameToggle";

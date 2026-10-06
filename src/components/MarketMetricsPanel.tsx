@@ -17,7 +17,8 @@ import type {
   EbaySoldStatus,
   PokemonCard,
 } from "@/lib/types";
-import PriceHistoryChart, { cardTrend, useLastRecordedPrice } from "@/components/PriceHistoryChart";
+import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
+import { cardTrend, useLastRecordedPrice } from "@/lib/client/priceHistoryData";
 import { etDate } from "@/lib/time";
 import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
 

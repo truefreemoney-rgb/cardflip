@@ -14,8 +14,7 @@ import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
 import { updateProfile } from "@/lib/client/accountApi";
 import { mergeUser } from "@/lib/client/emailConfirm";
-import { readReferralCode } from "@/components/RefCapture";
-import { readTouch } from "@/components/AttributionCapture";
+import { readReferralCode, readTouch } from "@/components/AttributionCapture";
 import { PRICING, SCANS } from "@/lib/pricing";
 import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
 

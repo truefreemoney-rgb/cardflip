@@ -28,7 +28,7 @@ import { GRADED_LOCKED, GRADING_COMPANIES, gradeLabel, gradesFor } from "@/lib/g
 import { LOW_CONFIDENCE } from "@/lib/types";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
-import { useLastRecordedPrice } from "@/components/PriceHistoryChart";
+import { useLastRecordedPrice } from "@/lib/client/priceHistoryData";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import type {
   Condition,

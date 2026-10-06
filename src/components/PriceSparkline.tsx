@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatMoney } from "@/lib/listing";
-import { loadSeries, pickSeries, type Series } from "@/components/PriceHistoryChart";
+import { loadSeries, pickSeries, type Series } from "@/lib/client/priceHistoryData";
 import type { Currency } from "@/lib/types";
 
 /**

@@ -21,9 +21,43 @@ function ttq(): Ttq | null {
   return t && typeof t.track === "function" ? t : null;
 }
 
+// The pixel mounts after first paint (DeferredAnalytics, up to ~2 s): an event
+// fired before then waits here instead of being dropped. Given up after 15 s
+// (no id, consent refused), so nothing piles up.
+const pending: [string, Record<string, unknown> | undefined][] = [];
+let waiting = false;
+
+function flushWhenReady() {
+  if (waiting) return;
+  waiting = true;
+  const started = Date.now();
+  const timer = window.setInterval(() => {
+    const t = ttq();
+    if (t) {
+      for (const [e, p] of pending.splice(0)) {
+        try {
+          t.track(e, p);
+        } catch {
+          // Measurement never breaks the page.
+        }
+      }
+    }
+    if (t || Date.now() - started > 15_000) {
+      window.clearInterval(timer);
+      pending.length = 0;
+      waiting = false;
+    }
+  }, 250);
+}
+
 export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment" | "ViewContent" | "ClickButton", props?: Record<string, unknown>) {
   try {
-    ttq()?.track(event, props);
+    const t = ttq();
+    if (t) t.track(event, props);
+    else if (typeof window !== "undefined") {
+      pending.push([event, props]);
+      flushWhenReady();
+    }
   } catch {
     // Measurement never breaks the page.
   }

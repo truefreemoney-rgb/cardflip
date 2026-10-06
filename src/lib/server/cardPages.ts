@@ -31,7 +31,7 @@ import {
   type SetEntry,
 } from "@/lib/cardPages";
 import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
-import type { Series } from "@/components/PriceHistoryChart";
+import type { Series } from "@/lib/client/priceHistoryData";
 import type { GameId } from "@/lib/types";
 
 /**

@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { lastRecordedPoint } from "@/components/PriceHistoryChart";
+import { lastRecordedPoint } from "@/lib/client/priceHistoryData";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
 import PricingModeToggle from "@/components/PricingModeToggle";
 import type { ShowcaseCard } from "@/components/Uploader";
-import CameraCapture from "@/components/CameraCapture";
+import CameraCapture from "@/components/CameraCaptureLazy";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
 import CardEditor from "@/components/CardEditor";

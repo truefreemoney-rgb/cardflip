@@ -13,7 +13,8 @@ import { addToWishlist } from "@/lib/client/wishlistApi";
 import { askingNoteFor, askingPriceFor, ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices, tcgPriceOf } from "@/lib/listing";
 import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
-import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
+import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
+import { cardTrend } from "@/lib/client/priceHistoryData";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 

@@ -3,7 +3,8 @@
 import { displayCardNumber } from "@/lib/games";
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
-import PriceHistoryChart, { cardTrend } from "@/components/PriceHistoryChart";
+import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
+import { cardTrend } from "@/lib/client/priceHistoryData";
 import Sheet from "@/components/Sheet";
 import { formatMoney, pickPrice } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
