@@ -309,7 +309,9 @@ for (const f of cardFiles) {
   const src = readFileSync(f, "utf8");
   // loading/error/not-found are UI files, not routes: they carry no route config.
   const routeFile = !/\/(loading|error|not-found)\.tsx$/.test(rel);
-  if (routeFile) check(`${rel}: revalidate = 172800`, /export const revalidate = 172800;/.test(src), true);
+  // The movers page is the one shorter policy: a week's risers and fallers go stale faster than a set list (6 h).
+  const every = rel.endsWith("/movers/page.tsx") ? 21600 : 172800;
+  if (routeFile) check(`${rel}: revalidate = ${every}`, new RegExp(`export const revalidate = ${every};`).test(src), true);
   if (routeFile && rel.includes("[")) check(`${rel}: nothing prerendered at build`, /export const generateStaticParams = async \(\) => \[\];/.test(src), true);
   check(`${rel}: no cookies(), headers() or next/image`, /cookies\(|headers\(|next\/image|force-dynamic/.test(src), false);
 }

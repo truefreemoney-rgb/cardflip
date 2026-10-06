@@ -14,6 +14,7 @@ import { askingNoteFor, askingPriceFor, ebaySoldSearchUrl, formatMoney, pickPric
 import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
 import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
+import PriceConfidenceLive from "@/components/PriceConfidenceLive";
 import { cardTrend } from "@/lib/client/priceHistoryData";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -195,6 +196,7 @@ export default function CardDetailModal({
                       <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
                         {marketPrice != null ? formatMoney(marketPrice) : pricesLoading ? "…" : "—"}
                       </dd>
+                      {marketPrice != null && <PriceConfidenceLive cardId={card.id} variant={pickPrice(card)?.variant ?? null} className="mt-1" />}
                     </div>
                     {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                       <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">eBay Suggested Price</dt>

@@ -536,6 +536,37 @@ export async function setStanding(game: GameId, set: SetEntry, key: string): Pro
   return { rank: at + 1, priced: s.order.length, median: s.median };
 }
 
+/** A card next to this one in its set, for the "← #3 Venusaur" link: just enough to build the URL and the label. */
+export interface Neighbor {
+  key: string;
+  name: string;
+  /** The catalog collector number as stored ("3", "TG01", "LOB-001"). */
+  number: string;
+}
+
+/**
+ * The cards before and after this one in the set's collector-number order (numbers compared as numbers, so 9 comes before
+ * 10). One list per set a day (the same one read as the other card-page lists); cards that have no page are not in it.
+ * Empty on any failure: the links just do not show.
+ */
+export async function setNeighbors(game: GameId, set: SetEntry, key: string): Promise<{ prev: Neighbor | null; next: Neighbor | null }> {
+  const none = { prev: null, next: null };
+  try {
+    const order = await cachedList(`seo:setorder:v1:${game}:${set.key}`, TOP_TTL_MS, async () => {
+      const rows = await setCatalog(game, set);
+      return rows
+        .map((r) => ({ key: r.key, name: factsOf(game, r, "").name, number: r.number }))
+        .sort((a, b) => a.number.localeCompare(b.number, "en", { numeric: true }) || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+    });
+    const at = order.findIndex((c) => c.key === key);
+    if (at < 0) return none;
+    return { prev: order[at - 1] ?? null, next: order[at + 1] ?? null };
+  } catch (err) {
+    console.warn(`card pages: could not read the card order of ${game} set ${set.key}`, err);
+    return none;
+  }
+}
+
 /** Catalog rows that share this card's name in other sets (Pokémon reprints, Magic reprints, Yu-Gi-Oh! alternate sets). At most 40 rows before the guard. */
 function sameNameRows(game: GameId, name: string, notKey: string) {
   // The page name of a tcg_cards row is "name - subtitle"; the lookup is by the bare name column, so sister printings with another subtitle (One Piece parallels) are found too.
@@ -630,4 +661,16 @@ export async function gameTopTiles(game: GameId): Promise<Tile[]> {
     }
     return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, TOP_TILES);
   });
+}
+
+/** Where a catalog id's public page lives and what a list shows for it (the movers page). Ids with no page are left out. */
+export async function pageTilesByIds(game: GameId, ids: string[]): Promise<Map<string, Tile>> {
+  const out = new Map<string, Tile>();
+  if (ids.length === 0) return out;
+  const index = await setIndex(game);
+  for (const r of await catalogByIds(game, ids)) {
+    const f = factsOf(game, r, "");
+    out.set(r.id, { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: null, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+  }
+  return out;
 }

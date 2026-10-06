@@ -4,6 +4,7 @@ import { helpArticles } from "@/lib/helpArticles";
 import { todayUtc } from "@/lib/priceSeries";
 import { SITEMAP_CHUNK, indexFloorUsd, cardPath, gamePath, indexDecision, parseCardKey, setPath, slugify, variantPrices } from "@/lib/cardPages";
 import { judgeSeries, loadTrustData } from "@/lib/server/priceTrustSite";
+import { hasMovers } from "@/lib/server/moversPage";
 import { staticEntries } from "@/lib/sitemapPages";
 import { sitemapChildren, type SitemapChild, type SitemapEntry } from "@/lib/sitemapXml";
 import { cachedList } from "@/lib/server/listCache";
@@ -141,6 +142,7 @@ export async function pagesSitemapEntries(): Promise<SitemapEntry[]> {
     }
     if (index.sets.length === 0) continue;
     entries.push({ path: gamePath(game) });
+    if (hasMovers(game)) entries.push({ path: `${gamePath(game)}/movers` });
     for (const s of index.sets) {
       const slug = index.slugOf.get(s.key);
       if (slug && s.qualifying > 0) entries.push({ path: setPath(game, slug) });

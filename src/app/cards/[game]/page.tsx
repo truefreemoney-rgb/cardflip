@@ -8,6 +8,7 @@ import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import CatalogSearch from "@/components/CatalogSearch";
 import { gamePath, gameTitle, indexFloorUsd, setPath } from "@/lib/cardPages";
+import { hasMovers } from "@/lib/server/moversPage";
 import { gameTopTiles, publicCardGame, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
@@ -73,6 +74,12 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           history. Sets list cards from {formatMoney(indexFloorUsd(game))} up; a price that looks wrong is not shown.
         </p>
         <CatalogSearch game={game} />
+        {hasMovers(game) && (
+          <Link href={`${gamePath(game)}/movers`} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-edge bg-surface-1 px-4 py-3 transition hover:border-edge-strong">
+            <span className="text-sm font-medium text-white">Price Movers: Biggest Risers and Fallers</span>
+            <span className="shrink-0 text-xs text-zinc-400">7 and 30 days →</span>
+          </Link>
+        )}
 
         {top.length > 0 && (
           <section className="mt-8">

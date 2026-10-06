@@ -8,12 +8,14 @@ import JsonLd from "@/components/JsonLd";
 import ArtImg from "@/components/ArtImg";
 import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
+import PriceConfidenceBadge from "@/components/PriceConfidenceBadge";
 import { Crumbs, PriceCell, ScanCta, StickyPriceBar, TileGrid } from "@/components/CardPagesUi";
 import {
   canonicalRedirect,
   cardHeading,
   cardMetadata,
   factsParagraph,
+  cardPath,
   gamePath,
   gameTitle,
   gameFromSlug,
@@ -23,9 +25,10 @@ import {
   setPath,
   type CardFacts,
 } from "@/lib/cardPages";
-import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setStanding, setTopTiles, type CardPage, type Tile } from "@/lib/server/cardPages";
+import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setNeighbors, setStanding, setTopTiles, type CardPage, type Neighbor, type Tile } from "@/lib/server/cardPages";
 import { conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
+import { dayIndex } from "@/lib/priceSeries";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
@@ -45,7 +48,7 @@ import type { GameId } from "@/lib/types";
 export const revalidate = 172800;
 export const generateStaticParams = async () => [];
 
-type Loaded = { kind: "redirect"; to: string } | { kind: "card"; page: CardPage; strip: Tile[]; setName: string; standing: SetStanding | null; printings: Tile[] };
+type Loaded = { kind: "redirect"; to: string } | { kind: "card"; page: CardPage; strip: Tile[]; setName: string; standing: SetStanding | null; printings: Tile[]; neighbors: { prev: Neighbor | null; next: Neighbor | null } };
 
 /** One read shared by generateMetadata and the page; null = 404. */
 const load = cache(async (gameSlug: string, setSlug: string, segment: string): Promise<Loaded | null> => {
@@ -66,13 +69,14 @@ const load = cache(async (gameSlug: string, setSlug: string, segment: string): P
   const index = await setIndex(game);
   const set = index.bySlug.get(f.setSlug);
   // The three daily-cached lists (set strip, set rank, other printings) are read together; each fails to empty on its own.
-  const [top, standing, printings] = await Promise.all([
+  const [top, standing, printings, neighbors] = await Promise.all([
     set ? setTopTiles(game, set, f.setSlug) : Promise.resolve([] as Tile[]),
     set && page.headline ? setStanding(game, set, f.key) : Promise.resolve(null),
     otherPrintings(game, f),
+    set ? setNeighbors(game, set, f.key) : Promise.resolve({ prev: null, next: null }),
   ]);
   const strip = top.filter((t) => t.key !== f.key).slice(0, STRIP_TILES);
-  return { kind: "card", page, strip, setName: f.setName, standing, printings };
+  return { kind: "card", page, strip, setName: f.setName, standing, printings, neighbors };
 });
 
 export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set]/[card]">): Promise<Metadata> {
@@ -100,6 +104,13 @@ function PriceTable({ page }: { page: CardPage }) {
   );
 }
 
+/** Recorded days behind the headline price: the chart series when there is one, else the days since tracking began (0 for a converted figure with no history). */
+function historyDays(page: CardPage): number {
+  if (page.chart?.[0]) return page.chart[0].points.length;
+  if (page.trackingSince && page.headline) return Math.max(0, dayIndex(page.trackingSince, page.headline.day)) + 1;
+  return 0;
+}
+
 function PriceBlock({ page }: { page: CardPage }) {
   const { headline, prices } = page;
   if (headline) {
@@ -110,6 +121,8 @@ function PriceBlock({ page }: { page: CardPage }) {
         </p>
         <p className="font-display text-4xl font-bold tabular-nums text-emerald-300 sm:text-5xl">{formatMoney(headline.price)}</p>
         <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}. Recorded daily by CardFlip.</p>
+        {/* How much history stands behind the number (audit G1): only facts we hold, never a sales count. */}
+        <PriceConfidenceBadge days={historyDays(page)} staleDays={headline.stale?.days ?? null} className="mt-1.5" />
         {/* The value has stood 45+ days (10-02): the number stands, this says how old it is. */}
         {headline.stale && <p className="mt-0.5 text-sm text-zinc-400">{priceStaleNote(headline.stale.days)}.</p>}
         {page.changes.length > 0 && (
@@ -230,7 +243,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const l = await load(gameSlug, setSlug, card);
   if (!l) notFound();
   if (l.kind === "redirect") permanentRedirect(l.to);
-  const { page, strip, standing, printings } = l;
+  const { page, strip, standing, printings, neighbors } = l;
   const f = page.facts;
   const game: GameId = f.game;
   const name = gameTitle(game);
@@ -337,6 +350,23 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
               </Link>
             </p>
           </section>
+        )}
+        {/* Previous / next card in the set by collector number (audit G17). */}
+        {(neighbors.prev || neighbors.next) && (
+          <nav aria-label="Neighbouring cards" className="mt-8 flex items-center justify-between gap-4 border-t border-edge pt-4 text-sm">
+            {neighbors.prev ? (
+              <Link href={cardPath(game, f.setSlug, neighbors.prev.name, neighbors.prev.key)} className="min-w-0 truncate text-brand-300 transition hover:text-brand-200">
+                ← #{neighbors.prev.number} {neighbors.prev.name}
+              </Link>
+            ) : (
+              <span />
+            )}
+            {neighbors.next && (
+              <Link href={cardPath(game, f.setSlug, neighbors.next.name, neighbors.next.key)} className="min-w-0 truncate text-right text-brand-300 transition hover:text-brand-200">
+                #{neighbors.next.number} {neighbors.next.name} →
+              </Link>
+            )}
+          </nav>
         )}
       </main>
       <Footer />

@@ -89,6 +89,21 @@ function niceStep(range: number, target = 4): number {
   return step * mag;
 }
 
+/** Latest price within 5% of the 90-day high or low (needs 20+ recorded days in the window and a real spread); null otherwise. */
+function nearExtreme(points: { day: string; price: number }[], factor: number): { kind: "high" | "low"; at: "At" | "Near"; price: number } | null {
+  if (points.length === 0) return null;
+  const newest = parseDay(points[points.length - 1].day);
+  const win = points.filter((p) => parseDay(p.day) > newest - 90 * dayMs && p.price > 0);
+  if (win.length < 20) return null;
+  const prices = win.map((p) => p.price * factor);
+  const price = prices[prices.length - 1];
+  const hi = Math.max(...prices), lo = Math.min(...prices);
+  if (hi < lo * 1.1) return null; // flat: "near the high" and "near the low" would both be true
+  if (price >= hi * 0.95) return { kind: "high", at: price >= hi ? "At" : "Near", price: hi };
+  if (price <= lo * 1.05) return { kind: "low", at: price <= lo ? "At" : "Near", price: lo };
+  return null;
+}
+
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 export default function PriceHistoryChart({ cardId, initialSeries, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
@@ -256,6 +271,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   const label = compact ? "text-[10px]" : "text-[11px]";
   const hovered = hover !== null && geo ? geo.pts[hover] : null;
   const rangeLabel = rangeShort(range);
+  // "Near its 90-day high / low" (audit G4): from the last 90 recorded days of the whole series, whatever range is picked, and only with enough days to mean something.
+  const nearNote = useMemo(() => (series && !flagged ? nearExtreme(series.points, factor) : null), [series, flagged, factor]);
 
   // Trend strip (Cardmarket averages) — direction over the last month.
   const trendPct =
@@ -303,6 +320,11 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           {/* The latest value has stood 45+ days (10-02): the number stands, this says how old it is. */}
           {last && !flagged && !hovered && series?.stale && (
             <p className={`${label} mt-0.5 text-zinc-400`}>{priceStaleNote(series.stale.days)}</p>
+          )}
+          {last && !hovered && nearNote && (
+            <p className={`${label} mt-0.5 font-medium text-zinc-300`}>
+              {nearNote.at} its 90-day {nearNote.kind} ({formatMoney(nearNote.price, currency)})
+            </p>
           )}
         </div>
         {/* The one date changer (Chris 10-02): Dates, 24h, 7 days, 30 days, 90 days. */}
