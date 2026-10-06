@@ -16,6 +16,15 @@ export interface VisionScanOutcome {
   error: string | null;
   /** The server's 504 (its read budget ran out): the OCR fallback would only add a slow second miss. */
   timedOut?: boolean;
+  /** A 429: the burst limiter or the daily budget. Seconds is the server's Retry-After when it sent one. */
+  rateLimited?: { seconds: number | null; daily: boolean };
+}
+
+/** The plain-words line for a 429 (burst limit, daily budget). */
+export function rateLimitMessage(r: { seconds: number | null; daily: boolean }): string {
+  if (r.daily) return "Daily limit reached — try again tomorrow";
+  if (r.seconds != null && r.seconds > 0 && r.seconds <= 120) return `Too many scans at once — wait ${r.seconds} seconds, then tap Capture again`;
+  return "Too many scans at once — wait a few seconds, then tap Capture again";
 }
 
 /**
@@ -147,8 +156,16 @@ export async function scanCardWithVision(
           error: typeof data?.error === "string" ? data.error : null,
         };
       }
+      if (res.status === 429) {
+        const header = Number(res.headers.get("Retry-After"));
+        const body = Number(data?.retryAfterSeconds);
+        const seconds = Number.isFinite(header) && header > 0 ? header : Number.isFinite(body) && body > 0 ? body : null;
+        // A wait of 10+ minutes (or the budget wording) is the daily cap, not a burst.
+        const daily = (seconds != null && seconds >= 600) || (typeof data?.error === "string" && /budget|tomorrow|daily/i.test(data.error));
+        return { status: "error", read: null, usage: null, error: null, rateLimited: { seconds, daily } };
+      }
       return {
-        status: data?.status === "unconfigured" ? "unconfigured" : "error",
+        status: data?.status === "unconfigured"? "unconfigured" : "error",
         read: null,
         usage: null,
         error: null,

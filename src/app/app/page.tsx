@@ -38,7 +38,7 @@ import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
+import { rateLimitMessage, scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { claimPendingScan } from "@/lib/client/trialScan";
 import { foilChoices } from "@/lib/yugioh";
@@ -526,6 +526,10 @@ export default function AppPage() {
                 if (code && !code.startsWith("A")) printed = { ...printed, setCode: `A${code}` };
               }
             }
+          } else if (vision.rateLimited) {
+            // 429: the server refused before reading. OCR would only hide that, so say what happened.
+            patchItem(next.id, { visionStatus: vision.status, status: "error", error: rateLimitMessage(vision.rateLimited) });
+            continue;
           } else if (vision.timedOut) {
             // The server ran out of its read budget: OCR would add a slow second miss (14 s) and the wrong advice.
             patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Took too long — tap Capture again" });
@@ -544,6 +548,7 @@ export default function AppPage() {
           // would have matched, so a failed lookup moves on to the next name
           // and only counts as an outage if every one of them failed.
           let lookupErrors = 0;
+          let searchLimited = false;
 
           // Substring hits are not a reason to stop: three stray letters of
           // OCR debris can "match" two dozen unrelated cards (a foil Mewtwo
@@ -562,8 +567,9 @@ export default function AppPage() {
                 matches = found;
                 break;
               }
-            } catch {
+            } catch (err) {
               lookupErrors++;
+              if (String(err).includes("(429)")) searchLimited = true;
             }
           }
 
@@ -578,8 +584,9 @@ export default function AppPage() {
           if (matches.length === 0 && printed && numbersIdentify) {
             try {
               matches = await searchCards("", printed, language, undefined, next.game, null, false, vision.read?.firstEdition ?? null, cues);
-            } catch {
+            } catch (err) {
               lookupErrors++;
+              if (String(err).includes("(429)")) searchLimited = true;
             }
           }
 
@@ -607,7 +614,7 @@ export default function AppPage() {
               status: "review",
               candidates: [],
               card: null,
-              error: "Card lookup is down right now — search by name to retry",
+              error: searchLimited ? "Too many lookups at once — wait a few seconds, then tap Scan again" : "Card lookup is down right now — search by name to retry",
             });
           } else if (matches.length === 0) {
             patchItem(next.id, {
@@ -1280,6 +1287,43 @@ export default function AppPage() {
       queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
       quotaNote={quotaNote}
+      onSwap={(id, card, candidates) => {
+        const cur = itemsRef.current.find((i) => i.id === id);
+        if (!cur?.card || cur.card.id === card.id) return;
+        abandoned.current.delete(id);
+        patchItem(id, {
+          card,
+          candidates: [card, ...candidates.filter((c) => c.id !== card.id)],
+          status: "ready",
+          verifiedAt: null,
+          matchDoubt: `corrected from ${cur.card.englishName || cur.card.name} (${cur.card.setName})`.slice(0, 80),
+          priceOverride: null,
+          variant: null,
+          firstEdition: isFirstEditionCard(card),
+          grading: null,
+          error: null,
+          currentPoint: undefined,
+          ebay: null,
+          ebayStatus: "idle",
+          ebaySold: null,
+          ebaySoldStatus: "unavailable",
+        });
+        if (cur.serverId) {
+          void updateServerCard(cur.serverId, {
+            cardName: card.englishName || card.name,
+            setName: card.setName,
+            cardNumber: card.number,
+            imageUrl: card.imageSmall,
+            catalogCardId: card.id || null,
+            rarity: card.rarity ?? null,
+            firstEdition: isFirstEditionCard(card),
+          });
+        }
+      }}
+      onVerifyMany={(ids) => {
+        const at = Date.now();
+        for (const id of ids) patchItem(id, { verifiedAt: at, status: "ready", error: null, matchDoubt: null });
+      }}
       onCapture={onCameraCapture}
       onClose={closeCamera}
       onOpen={(id) => {

@@ -10,9 +10,11 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { mirrorPossible, startCameraMirror } from "@/lib/client/cameraMirror";
 import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
+import CandidatePicker from "@/components/CandidatePicker";
+import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
-import type { ScanItem } from "@/lib/types";
+import type { PokemonCard, ScanItem } from "@/lib/types";
 import {
   SHARPNESS_BAND,
   SHARPNESS_SAMPLE_WIDTH,
@@ -146,6 +148,10 @@ interface Props {
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
   onOpen?: (id: string) => void;
+  /** "Not this card?": swap the item to a card the seller picked. No new scan is spent. */
+  onSwap?: (id: string, card: PokemonCard, candidates: PokemonCard[]) => void;
+  /** "Confirm all" in the session sheet: verify these scans in one go. */
+  onVerifyMany?: (ids: string[]) => void;
 }
 
 export type CaptureMode = "card" | "page";
@@ -245,7 +251,8 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onVerifyMany }: Props) {
+  const [picking, setPicking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
@@ -938,7 +945,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} verify={verify} />
           ) : nativeCam ? null : (
             <p className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -986,8 +993,28 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           )}
         </div>
       </div>
+      {picking && lastScan?.card && onPick && (
+        <CandidatePicker
+          item={lastScan}
+          onPick={(c, list) => {
+            setPicking(false);
+            onPick(lastScan.id, c, list);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
       {sheetOpen && verify && (
-        <SessionSheet items={waiting} total={verify.value} onRemove={onRemove} onClose={() => setTrayOpen(false)} onVerifyAll={onClose} />
+        <VerifyAllSheet
+          items={waiting}
+          total={verify.value}
+          onConfirm={(ids) => {
+            onVerifyMany?.(ids);
+          }}
+          onOpen={onOpen}
+          onRemove={onRemove}
+          onClose={() => setTrayOpen(false)}
+          onReview={onClose}
+        />
       )}
     </div>
   );
@@ -1000,108 +1027,6 @@ export function verifyLabel(count: number, value: number): string {
   return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
 }
 
-/** Thumbnail, name, set · number, price and a remove × — one scan in the session sheet. */
-function SessionRow({ item, onRemove }: { item: ScanItem; onRemove?: (id: string) => void }) {
-  const card = item.card;
-  const market = headlinePrice(item);
-  return (
-    <li className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2 p-2">
-      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/40">
-        {card?.imageSmall && <CardImage src={card.imageSmall} alt="" className="h-full w-full" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">{card?.name ?? "Not identified"}</p>
-        {card && (
-          <p className="truncate text-xs text-zinc-400">
-            {card.setName}
-            {card.number ? ` · #${card.number}` : ""}
-          </p>
-        )}
-      </div>
-      <p className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{market > 0 ? formatMoney(market) : "—"}</p>
-      {onRemove && (
-        <button
-          type="button"
-          onClick={() => onRemove(item.id)}
-          aria-label={`Remove ${card?.name ?? "this scan"}`}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
-        >
-          ×
-        </button>
-      )}
-    </li>
-  );
-}
-
-/**
- * The session sheet (Chris 10-02): every scan waiting to verify, with a × on
- * each, and Verify All at the bottom, which leaves the camera for the queue.
- * Stacks over the scanner (z-60), closes on the backdrop or Escape.
- */
-function SessionSheet({
-  items,
-  total,
-  onRemove,
-  onClose,
-  onVerifyAll,
-}: {
-  items: ScanItem[];
-  total: number;
-  onRemove?: (id: string) => void;
-  onClose: () => void;
-  onVerifyAll: () => void;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/90 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scans waiting to verify"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className="panel-solid animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-display text-lg font-semibold text-white">Scans waiting to verify</p>
-            <p className="mt-0.5 text-sm text-zinc-400 tabular-nums">
-              {items.length} {items.length === 1 ? "scan" : "scans"}
-              {total > 0 ? ` · ${formatMoney(total)}` : ""}
-            </p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white">
-            ×
-          </button>
-        </div>
-        <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          {items.map((item) => (
-            <SessionRow key={item.id} item={item} onRemove={onRemove} />
-          ))}
-        </ul>
-        <button
-          type="button"
-          onClick={onVerifyAll}
-          className="mt-4 w-full shrink-0 rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
-        >
-          Verify All
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /**
  * The live result strip under the viewfinder for the most recent capture — a
  * glass chip that fades up in its own row (never over the guide): icon,
@@ -1111,11 +1036,12 @@ interface ToastProps {
   item: ScanItem;
   onOpen?: (id: string) => void;
   onRemove?: (id: string) => void;
+  onSwap?: () => void;
   /** The chip button's numbers: scans waiting and their market total. */
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1149,7 +1075,7 @@ function ScanToast({ item, onOpen, onRemove, verify }: ToastProps) {
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} verify={verify} />;
 }
 
 /**
@@ -1226,7 +1152,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
   const card = item.card!;
   // Hold the number until the chart point is fetched (undefined = not yet):
   // it can move the market to today's figure, and the number is revealed
@@ -1306,15 +1232,28 @@ function RevealChip({ item, onOpen, onRemove, verify }: ToastProps) {
           waiting and carries their total ("5 Scans Waiting To Verify · $23.40"),
           the label shortens once the numbers get long, and the words truncate
           before the money ever would. */}
+      {(onOpen || onSwap) && (
+        <div className="flex w-full items-center gap-2">
       {onOpen && (
         <button
           type="button"
           onClick={() => onOpen(item.id)}
-          className="flex w-full items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
         >
           <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value) : "Verify Your Scan"}</span>
           {verify && verify.value > 0 && <span className="shrink-0 tabular-nums">{formatMoney(verify.value)}</span>}
         </button>
+      )}
+      {onSwap && (
+        <button
+          type="button"
+          onClick={onSwap}
+          className="shrink-0 rounded-full border border-edge px-3 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+        >
+          Not this card?
+        </button>
+      )}
+    </div>
       )}
     </div>
   );
