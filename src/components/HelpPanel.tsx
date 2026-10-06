@@ -58,6 +58,8 @@ interface TicketDetail extends Ticket {
 type View = "chat" | "ticket" | "tickets" | "detail";
 
 const OPENER = "Ask me anything about CardFlip. Scans, prices, eBay, billing. I read the manual so you don't have to.";
+/** Collector mode (pricing only) never sees eBay anywhere, the robot's opener included. */
+const OPENER_COLLECTOR = "Ask me anything about CardFlip. Scans, prices, your collection, billing. I read the manual so you don't have to.";
 
 /** Empty-chat starters (Chris, 09-04: solve 99% the easiest way — nobody should have to type). */
 const STARTERS = [
@@ -66,6 +68,14 @@ const STARTERS = [
   "How do I change a listed price?",
   "Where do the prices come from?",
   "How do I get emailed when a card dips?",
+  "What does my plan include?",
+];
+const STARTERS_COLLECTOR = [
+  "Where do the prices come from?",
+  "How is my collection value worked out?",
+  "How do I get emailed when a card dips?",
+  "How do I add cards to my watchlist?",
+  "Tips for a better scan?",
   "What does my plan include?",
 ];
 
@@ -107,7 +117,9 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   // Waiting on the emailed code: the server sends this account no support mail
   // (that address is unproven), so replies live in the Support Tickets tab only
   // and the copy must not promise an email.
-  const emailPending = Boolean(useOptionalSession()?.user?.mustConfirmEmail);
+  const sessionUser = useOptionalSession()?.user;
+  const emailPending = Boolean(sessionUser?.mustConfirmEmail);
+  const collector = Boolean(sessionUser?.pricingOnly);
   const [messages, setMessages] = useState<Msg[] | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -547,7 +559,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
       )}
 
       <div ref={listRef} className={`flex-1 space-y-2.5 px-4 py-3 ${sheet ? "overflow-y-auto" : ""} ${view === "chat" ? "" : "hidden"}`}>
-        <Bubble role="assistant">{OPENER}</Bubble>
+        <Bubble role="assistant">{collector ? OPENER_COLLECTOR : OPENER}</Bubble>
         {messages === null && (
           <p className="text-center text-[11px] text-zinc-600">
             <Spinner className="mr-1 inline h-3 w-3" /> remembering…
@@ -565,7 +577,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
               <span aria-hidden className="text-amber-300/70">→</span>
             </button>
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {STARTERS.map((q) => (
+              {(collector ? STARTERS_COLLECTOR : STARTERS).map((q) => (
                 <button
                   key={q}
                   onClick={() => ask(q)}

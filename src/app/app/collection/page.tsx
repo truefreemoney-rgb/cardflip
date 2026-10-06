@@ -23,7 +23,6 @@ import PriceInput from "@/components/PriceInput";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { useSession } from "@/components/SessionProvider";
 import {
-  deleteServerCard,
   deleteServerCards,
   fetchCategories,
   fetchLivePrices,
@@ -107,7 +106,11 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
 // Sorts a seller actually reaches for: the money cards, what's been sitting
 // live the longest, and what just sold. Applied client-side over the loaded
 // ledger; "newest" matches the server's own order.
-type SortKey = "newest" | "price" | "rarity" | "listedAge" | "soldRecent";
+type SortKey = "newest" | "price" | "rarity" | "name" | "set" | "listedAge" | "soldRecent";
+/** Extra narrowing chips (10-06): same card in 2+ rows, or nothing to show for a price. */
+type QuickFilter = "all" | "dupes" | "noprice";
+/** Cards drawn per page — 1,000+ cards would otherwise build thousands of DOM nodes. */
+const PAGE_SIZE = 60;
 
 /**
  * Rarity rank for sorting, rarest first. Pokémon tiers as TCGplayer /
@@ -135,6 +138,8 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "price", label: "Price high → low" },
   { value: "rarity", label: "Rarity" },
+  { value: "name", label: "Name A–Z" },
+  { value: "set", label: "Set" },
   { value: "listedAge", label: "Longest listed" },
   { value: "soldRecent", label: "Recently sold" },
 ];
@@ -485,6 +490,10 @@ export default function CollectionPage() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [quick, setQuick] = useState<QuickFilter>("all");
+  // Bulk Set condition / Set price: which little form is open, and its value.
+  const [bulkForm, setBulkForm] = useState<{ kind: "condition" | "price"; value: string } | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   // "Mark sold" asks what it actually went for (prefilled with the asking
   // price) instead of silently recording the ask — the Earned tiles are only
   // as honest as this number. Also reused to correct a sold row's price.
@@ -1085,7 +1094,7 @@ export default function CollectionPage() {
                   type="button"
                   onClick={() => {
                     setDetail(null);
-                    void remove(card);
+                    remove(card);
                   }}
                   className="inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
                 >
@@ -1140,7 +1149,6 @@ export default function CollectionPage() {
   // Mass delete: ticked row ids. Listed rows can't be ticked — they're live
   // on eBay and deleting the ledger row wouldn't end the listing.
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   // Offers to watchers: the panel lists eBay-eligible listings; every send is
   // one explicit click + confirm — offers email real buyers, nothing auto-fires.
   const [offerPanel, setOfferPanel] = useState(false);
@@ -1159,6 +1167,9 @@ export default function CollectionPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   const hadCards = useRef(false);
+  const pendingDeletes = useRef(new Map<number, { entries: { card: ServerCard; index: number }[]; timer: ReturnType<typeof setTimeout> }>());
+  const pendingDeleteSeq = useRef(0);
+  const pendingDeleteIds = useRef(new Set<string>());
   const [saleNote, setSaleNote] = useState<string | null>(null);
   useEffect(() => {
     if (!userId) return;
@@ -1171,7 +1182,7 @@ export default function CollectionPage() {
         // "No cards yet" on a bad connection.
         if (list) {
           hadCards.current = list.length > 0;
-          setCards(list);
+          setCards(pendingDeleteIds.current.size > 0 ? list.filter((c) => !pendingDeleteIds.current.has(c.id)) : list);
         } else if (!hadCards.current) setLoadFailed(true);
         else setSyncError("Couldn't load your cards — check your connection and try again.");
       })
@@ -1427,25 +1438,71 @@ export default function CollectionPage() {
     toast(`${card.cardName} — auction ended`);
   }
 
-  async function remove(card: ServerCard) {
-    // Deleting is the one action here with no undo — say so once.
-    const label = card.status === "sold" ? "this sold record" : "this card";
-    if (!(await confirmAction({ message: `Remove ${label} (${card.cardName}) from your collection? This can't be undone.`, confirmLabel: "Remove" }))) return;
-    const index = cards.findIndex((c) => c.id === card.id);
-    setSyncError(null);
-    setCards((prev) => prev.filter((c) => c.id !== card.id));
-    const ok = await deleteServerCard(card.id);
-    if (!ok) {
-      setCards((prev) => {
-        const next = prev.filter((c) => c.id !== card.id);
-        next.splice(Math.min(index, next.length), 0, card);
-        return next;
-      });
-      setSyncError(`Couldn't remove ${card.cardName} — check your connection and try again.`);
-      toast(`Couldn't remove ${card.cardName}`, "err");
-      return;
+  // Delete with Undo: the row leaves the list at once, but the server delete
+  // waits out the toast. Undo just puts the rows back (nothing to restore on
+  // the server); leaving the page flushes whatever is still waiting.
+  async function finalizeDelete(batch: number) {
+    const pending = pendingDeletes.current.get(batch);
+    if (!pending) return;
+    pendingDeletes.current.delete(batch);
+    clearTimeout(pending.timer);
+    const ids = pending.entries.map((e) => e.card.id);
+    const result = await deleteServerCards(ids);
+    for (const id of ids) pendingDeleteIds.current.delete(id);
+    if (!result) {
+      // Don't guess: show what the server really has.
+      const list = await fetchServerCards();
+      if (list) setCards(list.filter((c) => !pendingDeleteIds.current.has(c.id)));
+      setSyncError("Couldn't confirm the delete — check your connection. The list shows what is really there.");
+      toast("Couldn't confirm the delete", "err");
     }
-    toast(`${card.cardName} removed`);
+  }
+  useEffect(() => {
+    const pending = pendingDeletes.current;
+    const flush = () => {
+      for (const batch of [...pending.keys()]) void finalizeDelete(batch);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+  function queueRemove(list: ServerCard[], text: string) {
+    const entries = list
+      .map((card) => ({ card, index: cards.findIndex((c) => c.id === card.id) }))
+      .filter((e) => e.index >= 0)
+      .sort((x, y) => x.index - y.index);
+    if (entries.length === 0) return;
+    const ids = new Set(entries.map((e) => e.card.id));
+    const batch = ++pendingDeleteSeq.current;
+    setSyncError(null);
+    for (const id of ids) pendingDeleteIds.current.add(id);
+    setCards((prev) => prev.filter((c) => !ids.has(c.id)));
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((id) => !ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    pendingDeletes.current.set(batch, { entries, timer: setTimeout(() => void finalizeDelete(batch), 5500) });
+    toast(text, "info", {
+      label: "Undo",
+      onClick: () => {
+        const pending = pendingDeletes.current.get(batch);
+        if (!pending) return;
+        pendingDeletes.current.delete(batch);
+        clearTimeout(pending.timer);
+        for (const e of pending.entries) pendingDeleteIds.current.delete(e.card.id);
+        setCards((prev) => {
+          const next = prev.filter((c) => !ids.has(c.id));
+          for (const e of pending.entries) next.splice(Math.min(e.index, next.length), 0, e.card);
+          return next;
+        });
+      },
+    });
+  }
+
+  function remove(card: ServerCard) {
+    queueRemove([card], `${card.cardName} removed`);
   }
 
   // Pokémon and Magic are separate sections (Chris, 09-03: "when I upload
@@ -1558,6 +1615,7 @@ export default function CollectionPage() {
     filter !== "all" ? FILTERS.find((f) => f.value === filter)?.label : null,
     category === "none" ? "Uncategorized" : category !== "all" ? category : null,
     query.trim() ? `"${query.trim()}"` : null,
+    quick === "dupes" ? "Duplicates" : quick === "noprice" ? "Missing price" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -1652,52 +1710,46 @@ export default function CollectionPage() {
   }, [scopeCards, leftOutKey, marketById]);
 
 
-  async function removeSelected() {
+  function removeSelected() {
     // Same rule as the row's Delete button: live listings end first, sold
     // rows are the record, ended auctions and drafts go.
-    const ids = [...selected].filter((id) => {
-      const card = cards.find((c) => c.id === id);
-      return card && (card.status !== "listed" || isEnded(card)) && card.status !== "sold";
-    });
-    const skipped = selected.size - ids.length;
+    const picked = cards.filter((c) => selected.has(c.id));
+    const gone = picked.filter((card) => (card.status !== "listed" || isEnded(card)) && card.status !== "sold");
+    const skipped = picked.length - gone.length;
     const skippedNote = skipped > 0 ? ` ${skipped} live or sold ${skipped === 1 ? "card was" : "cards were"} left in place.` : "";
-    if (ids.length === 0) {
+    if (gone.length === 0) {
       toast("Live and sold cards can't be deleted here.", "err");
       return;
     }
-    if (!(await confirmAction({ message: `Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.${skippedNote}`, confirmLabel: `Delete ${ids.length}` }))) return;
-    setBulkDeleting(true);
-    setSyncError(null);
-    setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
-    // One request for the lot (09-09): 88 parallel deletes once lost every
-    // reply while the server had removed the rows. If this one fails, ask the
-    // server what is really there instead of guessing from memory.
-    const result = await deleteServerCards(ids);
-    if (!result) {
-      const list = await fetchServerCards();
-      if (list) setCards(list);
-      setSyncError("Couldn't confirm the delete — check your connection. The list shows what is really there.");
-      toast("Couldn't confirm the delete", "err");
-    } else {
-      toast(`${result.removed} card${result.removed === 1 ? "" : "s"} removed.${skippedNote}`);
-    }
-    setSelected(new Set());
-    setBulkDeleting(false);
+    queueRemove(gone, `${gone.length} card${gone.length === 1 ? "" : "s"} removed.${skippedNote}`);
   }
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    // Sorts by the number the row shows: the sale price, else the Market price, else the row's own.
+    const shownPrice = (c: ServerCard) => c.soldPrice ?? marketById[c.id] ?? c.price;
+    // Same card = same game, set, number and name; sold rows are history, not copies.
+    const cardKey = (c: ServerCard) => [c.game ?? "pokemon", c.setName, c.cardNumber, c.cardName].join("|").toLowerCase();
+    let dupeKeys: Set<string> | null = null;
+    if (quick === "dupes") {
+      const seen = new Map<string, number>();
+      for (const c of gameCards) if (c.status !== "sold") seen.set(cardKey(c), (seen.get(cardKey(c)) ?? 0) + 1);
+      dupeKeys = new Set([...seen].filter(([, n]) => n > 1).map(([k]) => k));
+    }
     const shown = scopeCards.filter((card) => {
+      if (dupeKeys && (card.status === "sold" || !dupeKeys.has(cardKey(card)))) return false;
+      if (quick === "noprice" && shownPrice(card) > 0) return false;
       if (!needle) return true;
       return (
         card.cardName.toLowerCase().includes(needle) ||
         card.setName.toLowerCase().includes(needle) ||
-        card.cardNumber.toLowerCase().includes(needle)
+        card.cardNumber.toLowerCase().includes(needle) ||
+        (card.rarity ?? "").toLowerCase().includes(needle) ||
+        card.condition.toLowerCase().includes(needle) ||
+        (card.category ?? "").toLowerCase().includes(needle)
       );
     });
     if (sort === "newest") return shown; // the server's own order
-    // Sorts by the number the row shows: the sale price, else the Market price, else the row's own.
-    const shownPrice = (c: ServerCard) => c.soldPrice ?? marketById[c.id] ?? c.price;
     return [...shown].sort((a, b) => {
       if (sort === "price") {
         // Row total like the money tiles: price x copies (a sold row is one sale).
@@ -1707,6 +1759,11 @@ export default function CollectionPage() {
       if (sort === "rarity") {
         const byRarity = rarityRank(a.rarity) - rarityRank(b.rarity);
         return byRarity !== 0 ? byRarity : shownPrice(b) - shownPrice(a);
+      }
+      if (sort === "name") return a.cardName.localeCompare(b.cardName, undefined, { sensitivity: "base", numeric: true });
+      if (sort === "set") {
+        const bySet = a.setName.localeCompare(b.setName, undefined, { sensitivity: "base", numeric: true });
+        return bySet !== 0 ? bySet : a.cardNumber.localeCompare(b.cardNumber, undefined, { numeric: true });
       }
       if (sort === "listedAge") {
         // Live listings first, oldest listing at the top — "what's been
@@ -1724,7 +1781,13 @@ export default function CollectionPage() {
       if (aSold !== bSold) return aSold ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
-  }, [scopeCards, query, sort, marketById]);
+  }, [scopeCards, gameCards, query, sort, quick, marketById]);
+
+  // 60 at a time. The count resets to 60 whenever the list is re-narrowed
+  // (state adjusted during render, no effect, so there is no flash of a long list).
+  const limitKey = [gameView, filter, category, query, sort, quick].join("|");
+  const [limit, setLimit] = useState({ key: limitKey, n: PAGE_SIZE });
+  const limitN = limit.key === limitKey ? limit.n : PAGE_SIZE;
 
   // Shift+click fills the run between the last box clicked and this one
   // (Chris, 09-03), the way a mail client does. The anchor is the last box
@@ -1773,16 +1836,14 @@ export default function CollectionPage() {
             <PricingModeToggle onChange={(next) => next && setFilter((f) => (f === "listed" || f === "ended" ? "all" : f))} />
           </div>
         </div>
-        {gameView === "pokemon" && (
-          <div className="flex items-center gap-4">
-            <Link href="/app/collection/sets" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
-              Set Completion →
-            </Link>
+        <div className="flex items-center gap-4">
+          <Link href={`/app/collection/sets?game=${gameView}`} className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
+            Set Completion →
+          </Link>
             <Link href="/app/collection/insights" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
               Insights →
             </Link>
-          </div>
-        )}
+        </div>
       </div>
       {/* Its own full-width row, counts inside the pills: the compact corner
           switch was invisible on a phone (Chris, 09-06: "inventory needs a
@@ -2143,6 +2204,21 @@ export default function CollectionPage() {
               </button>
             ))}
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {([["dupes", "Duplicates"], ["noprice", "Missing price"]] as [QuickFilter, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={quick === value}
+                  onClick={() => setQuick(quick === value ? "all" : value)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    quick === value ? "border-brand-400 bg-brand-500/15 text-white" : "border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           {!pricingOnly && cards.some((c) => c.status === "listed" && c.ebayListingId) && (
             <button
@@ -2378,7 +2454,7 @@ export default function CollectionPage() {
               aria-label="Select all shown cards"
             />
             Select all
-            <span className="text-xs text-zinc-600">· {visible.length} shown</span>
+            <span className="text-xs text-zinc-600">· {visible.length} {visible.length === 1 ? "card" : "cards"}{visible.length > limitN ? `, showing ${limitN}` : ""}</span>
           </label>
           {selected.size > 0 && (() => {
             const selCards = cards.filter((c) => selected.has(c.id));
@@ -2393,6 +2469,64 @@ export default function CollectionPage() {
               await Promise.all(targets.map((c) => applyPatch(c, patch(c))));
               setSelected(new Set());
               toast(note);
+            }
+            // Set condition / Set price: only not-listed rows (live listings
+            // and sold records stay as they are). One write at a time, so a big
+            // selection doesn't hammer the server; skipped rows are counted.
+            const editable = selCards.filter((c) => c.status === "ready");
+            const skippedEdit = selCards.length - editable.length;
+            async function applyBulkForm() {
+              if (!bulkForm || bulkBusy) return;
+              const isCondition = bulkForm.kind === "condition";
+              const price = Math.round((parseFloat(bulkForm.value) || 0) * 100) / 100;
+              if (!isCondition && price <= 0) {
+                toast("Type a price above $0.", "err");
+                return;
+              }
+              const targets = editable.filter((c) => (isCondition ? c.condition !== bulkForm.value : Math.abs(c.price - price) >= 0.005));
+              const skipNote = skippedEdit > 0 ? ` ${skippedEdit} live or sold ${skippedEdit === 1 ? "card was" : "cards were"} skipped.` : "";
+              if (targets.length === 0) {
+                toast(`Nothing to change.${skipNote}`, "info");
+                setBulkForm(null);
+                return;
+              }
+              setBulkBusy(true);
+              setSyncError(null);
+              let done = 0;
+              let failed = 0;
+              const touched = new Set<string>();
+              for (const c of targets) {
+                let ok: boolean;
+                if (isCondition) {
+                  ok = await updateServerCard(c.id, { condition: bulkForm.value });
+                  if (ok) patchCard(c.id, { condition: bulkForm.value });
+                } else if (c.ebayOfferId) {
+                  ok = (await repriceCard(c.id, price)).ok;
+                  if (ok) patchCard(c.id, { price, priceLocked: true });
+                } else {
+                  ok = await updateServerCard(c.id, { price, priceLocked: true });
+                  if (ok) patchCard(c.id, { price, priceLocked: true });
+                }
+                if (ok) {
+                  done++;
+                  touched.add(c.id);
+                } else failed++;
+              }
+              if (isCondition && touched.size > 0) {
+                // Suggested prices follow the condition — one re-read for the lot.
+                const fresh = (await fetchLivePrices()).filter((lp) => touched.has(lp.cardId));
+                setLive((prev) => ({ ...prev, ...Object.fromEntries(fresh.map((lp) => [lp.cardId, lp])) }));
+                for (const lp of fresh) if (lp.applied) patchCard(lp.cardId, { price: lp.suggested, priceLocked: false });
+              }
+              setBulkBusy(false);
+              setBulkForm(null);
+              if (failed > 0) {
+                setSyncError(`Couldn't save ${failed} of ${targets.length} cards — check your connection and try again.`);
+                toast(`${done} updated, ${failed} failed.${skipNote}`, "err");
+              } else {
+                toast(`${done} card${done === 1 ? "" : "s"} set to ${isCondition ? bulkForm.value : formatMoney(price)}.${skipNote}`);
+                setSelected(new Set());
+              }
             }
             return (
               <>
@@ -2429,6 +2563,22 @@ export default function CollectionPage() {
                 <button onClick={() => setMoveSheet(true)} className={bulkBtn}>
                   Move to category ({selCards.length})
                 </button>
+                <button
+                  onClick={() => setBulkForm(bulkForm?.kind === "condition" ? null : { kind: "condition", value: "Near Mint" })}
+                  aria-expanded={bulkForm?.kind === "condition"}
+                  className={bulkBtn}
+                >
+                  Set condition
+                </button>
+                {!pricingOnly && (
+                  <button
+                    onClick={() => setBulkForm(bulkForm?.kind === "price" ? null : { kind: "price", value: "" })}
+                    aria-expanded={bulkForm?.kind === "price"}
+                    className={bulkBtn}
+                  >
+                    Set price
+                  </button>
+                )}
                 {revertable.length > 0 && (
                   <button
                     onClick={() =>
@@ -2444,12 +2594,12 @@ export default function CollectionPage() {
                   </button>
                 )}
                 <button
-                  onClick={() => void removeSelected()}
-                  disabled={bulkDeleting || deletable.length === 0}
+                  onClick={removeSelected}
+                  disabled={deletable.length === 0}
                   title={deletable.length === 0 ? "Live listings can't be deleted — unlist them first" : undefined}
                   className="rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
                 >
-                  {bulkDeleting ? "Removing…" : `Delete ${deletable.length} card${deletable.length === 1 ? "" : "s"}`}
+                  {`Delete ${deletable.length} card${deletable.length === 1 ? "" : "s"}`}
                 </button>
                 <button
                   onClick={() => setSelected(new Set())}
@@ -2457,6 +2607,57 @@ export default function CollectionPage() {
                 >
                   Clear
                 </button>
+                {bulkForm && (
+                  <div className="flex basis-full flex-wrap items-center gap-2 rounded-xl border border-edge bg-surface-1 p-2.5">
+                    {bulkForm.kind === "condition" ? (
+                      <select
+                        value={bulkForm.value}
+                        onChange={(e) => setBulkForm({ kind: "condition", value: e.target.value })}
+                        aria-label="Condition for the selected cards"
+                        className="h-9 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-200 focus:border-brand-400 focus:outline-none"
+                      >
+                        {CONDITIONS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <label className="flex items-center gap-1.5 text-sm text-zinc-300">
+                        $
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0.01}
+                          step="0.01"
+                          value={bulkForm.value}
+                          onChange={(e) => setBulkForm({ kind: "price", value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void applyBulkForm();
+                          }}
+                          placeholder="0.00"
+                          aria-label="Asking price for the selected cards"
+                          className="h-9 w-28 rounded-lg border border-edge bg-black/40 px-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
+                        />
+                      </label>
+                    )}
+                    <button
+                      onClick={() => void applyBulkForm()}
+                      disabled={bulkBusy || editable.length === 0}
+                      className="h-9 rounded-full bg-brand-500 px-4 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
+                    >
+                      {bulkBusy ? "Saving…" : `Apply to ${editable.length}`}
+                    </button>
+                    <button onClick={() => setBulkForm(null)} disabled={bulkBusy} className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300">
+                      Cancel
+                    </button>
+                    {skippedEdit > 0 && (
+                      <p className="basis-full text-xs text-zinc-500">
+                        {skippedEdit} live or sold {skippedEdit === 1 ? "card" : "cards"} will be skipped.
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             );
           })()}
@@ -2530,8 +2731,9 @@ export default function CollectionPage() {
            primary action — a draft opens in the editor, a live listing opens
            the reprice sheet. Select and Delete reveal on hover / show on
            touch, like the watchlist tiles. */
+        <div className="flex flex-col gap-4">
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-          {visible.map((card) => {
+          {visible.slice(0, limitN).map((card) => {
             const live = isLive(card);
             const ended = isEnded(card);
             const sold = card.status === "sold";
@@ -2732,10 +2934,23 @@ export default function CollectionPage() {
             );
           })}
         </ul>
+            {visible.length > limitN && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setLimit({ key: limitKey, n: limitN + PAGE_SIZE })}
+                  className="rounded-full border border-edge px-5 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
+                >
+                  Show more ({visible.length - limitN} left)
+                </button>
+              </div>
+            )}
+        </div>
       ) : (
+        <div className="flex flex-col gap-4">
         <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
           <ul className="divide-y divide-white/5">
-            {visible.map((card) => {
+            {visible.slice(0, limitN).map((card) => {
               // Text row makeover (Chris, 09-07: "the inventory page on mobile
               // is an absolute mess"). One shape everywhere: art + name block
               // with the price pinned top-right, then ONE action row — the
@@ -3101,6 +3316,18 @@ export default function CollectionPage() {
               );
             })}
           </ul>
+        </div>
+            {visible.length > limitN && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setLimit({ key: limitKey, n: limitN + PAGE_SIZE })}
+                  className="rounded-full border border-edge px-5 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
+                >
+                  Show more ({visible.length - limitN} left)
+                </button>
+              </div>
+            )}
         </div>
       )}
 
