@@ -112,10 +112,18 @@ export class EbayUnreachableError extends Error {
 /** Non-2xx from the token endpoint, with the status so the caller can tell a dead grant from an outage. */
 class EbayTokenRequestError extends Error {
   status: number;
+  /** eBay's OAuth `error` code from the JSON body ("invalid_grant", "invalid_client", ...), if readable. */
+  code: string | null;
   constructor(status: number, detail: string) {
     super(`eBay token request failed (${status}): ${detail.slice(0, 300)}`);
     this.name = "EbayTokenRequestError";
     this.status = status;
+    let code: string | null = null;
+    try {
+      const parsed = JSON.parse(detail) as { error?: unknown };
+      if (typeof parsed.error === "string") code = parsed.error;
+    } catch { /* not JSON */ }
+    this.code = code;
   }
 }
 
@@ -165,6 +173,10 @@ interface TokenRow {
  * set, otherwise derived from the client secret — which is always present when
  * OAuth is configured, so no extra secret is needed to turn this on. A stolen
  * DB file alone then can't be used to act as any seller.
+ *
+ * ROTATION RISK: without EBAY_TOKEN_KEY the key follows EBAY_CLIENT_SECRET, so rotating the eBay
+ * secret makes every stored token unreadable (all sellers must reconnect). Do not change this
+ * derivation; set EBAY_TOKEN_KEY to the CURRENT secret before rotating.
  */
 function encryptionKey(): Buffer {
   const material = process.env.EBAY_TOKEN_KEY ?? config().clientSecret;
@@ -518,8 +530,12 @@ export async function getUserAccessToken(userId: string): Promise<string | null>
     // missing token does. Outages propagate as EbayUnreachableError.
     if (err instanceof EbayTokenRequestError && (err.status === 400 || err.status === 401)) {
       console.error(`eBay refresh rejected for ${userId}:`, err.message);
-      await dropDeadLink(userId);
-      throw new EbayNotConnectedError();
+      // Only a truly dead refresh token (invalid_grant) may delete the link. invalid_client /
+      // invalid_scope / unreadable bodies are OUR config or a blip: keep the link, soft-fail.
+      if (err.code === "invalid_grant") {
+        await dropDeadLink(userId);
+        throw new EbayNotConnectedError();
+      }
     }
     throw err;
   }

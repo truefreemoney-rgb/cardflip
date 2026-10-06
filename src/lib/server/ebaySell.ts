@@ -747,10 +747,57 @@ async function retryingAvailabilityLag<T>(step: string, fn: () => Promise<T>): P
   }
 }
 
+/** The live listing id of an offer per eBay, or null if it isn't published (or can't be read). */
+async function liveListingId(token: string, offerPath: string, mp: Marketplace): Promise<string | null> {
+  try {
+    const o = (await ebayFetch(token, "GET", offerPath, undefined, undefined, mp)) as
+      | { status?: string; listing?: { listingId?: string } }
+      | null;
+    return String(o?.status ?? "").toUpperCase() === "PUBLISHED" ? (o?.listing?.listingId ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+const PUBLISH_CLAIM_STALE_MS = 2 * 60 * 1000;
+
+/** Two simultaneous publishes of one card must not both run: claim a short-lived in-DB lock (price_history_meta). */
+async function claimPublish(cardId: string): Promise<boolean> {
+  const key = `ebay_publishing:${cardId}`;
+  const now = Date.now();
+  const ins = await db
+    .prepare("INSERT OR IGNORE INTO price_history_meta (key, value) VALUES (?, ?)")
+    .run(key, String(now));
+  if (ins.changes) return true;
+  // Held by someone else: take it over only if that holder died (stale claim).
+  const take = await db
+    .prepare("UPDATE price_history_meta SET value = ? WHERE key = ? AND CAST(value AS INTEGER) < ?")
+    .run(String(now), key, now - PUBLISH_CLAIM_STALE_MS);
+  return Boolean(take.changes);
+}
+
 export async function publishDraft(
   userId: string,
   cardId: string,
   opts: PublishOptions = {},
+): Promise<PublishResult> {
+  if (!(await claimPublish(cardId))) {
+    throw new EbaySellError("This card is already being published -- give it a moment.", 409);
+  }
+  try {
+    return await publishDraftLocked(userId, cardId, opts);
+  } finally {
+    await db
+      .prepare("DELETE FROM price_history_meta WHERE key = ?")
+      .run(`ebay_publishing:${cardId}`)
+      .catch(() => {});
+  }
+}
+
+async function publishDraftLocked(
+  userId: string,
+  cardId: string,
+  opts: PublishOptions,
 ): Promise<PublishResult> {
   const card = await getCardForUser(cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
@@ -833,7 +880,11 @@ export async function publishDraft(
     }
     throw err;
   }
-  if (current) {
+  // A retry after a publish that went live on eBay but never reached our row: adopt eBay's listing id.
+  const alreadyLive = current && String(current.status ?? "").toUpperCase() === "PUBLISHED"
+    ? ((current.listing as { listingId?: string } | undefined)?.listingId ?? null)
+    : null;
+  if (current && !alreadyLive) {
     // updateOffer replaces the offer; send it back whole with the two things
     // filled in, minus the fields eBay forbids re-sending.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -853,16 +904,38 @@ export async function publishDraft(
   }
 
   const publishPath = `/sell/inventory/v1/offer/${encodeURIComponent(card.ebayOfferId)}/publish`;
-  const json = (await retryingAvailabilityLag("publish", () => ebayFetch(token, "POST", publishPath, undefined, undefined, mp))) as { listingId?: string; warnings?: EbayApiError[] } | null;
+  let json: { listingId?: string; warnings?: EbayApiError[] } | null;
+  if (alreadyLive) {
+    json = { listingId: alreadyLive };
+  } else {
+    try {
+      json = (await retryingAvailabilityLag("publish", () => ebayFetch(token, "POST", publishPath, undefined, undefined, mp))) as { listingId?: string; warnings?: EbayApiError[] } | null;
+    } catch (err) {
+      // The offer may already be live (an earlier publish whose reply or DB write was lost): ask eBay
+      // and adopt its listing id rather than leaving the row unmarked and every retry erroring.
+      const live = err instanceof EbaySellError ? await liveListingId(token, offerPath, mp) : null;
+      if (!live) throw err;
+      json = { listingId: live };
+    }
+  }
   if (!json?.listingId) throw new EbaySellError("eBay published no listing id", 502);
 
   const now = Date.now();
-  await setCardEbayListing(card.id, userId, {
+  const listingFields = {
     sku: skuForCard(card.id),
     offerId: card.ebayOfferId,
     listingId: json.listingId,
     publishedAt: now,
-  });
+  };
+  try {
+    await setCardEbayListing(card.id, userId, listingFields);
+  } catch (err) {
+    // Live on eBay but the write failed: one retry with the id eBay itself reports, so the row isn't left unmarked.
+    console.error("eBay publish: DB write after publish failed, retrying:", err);
+    const live = (await liveListingId(token, offerPath, mp)) ?? json.listingId;
+    json = { ...json, listingId: live };
+    await setCardEbayListing(card.id, userId, { ...listingFields, listingId: live });
+  }
   // The ledger figure for a local listing follows list_price_local at today's rate (a push-time figure can have
   // been rewritten by the live refresh while the draft sat there); list_price_local itself is never touched here.
   if (isLocalMarketplace(mp) && card.listPriceLocal != null) {
@@ -880,12 +953,13 @@ export async function publishDraft(
       console.warn("eBay publish: could not refresh the USD ledger price:", err instanceof Error ? err.message : err);
     }
   }
+  const listingId = json.listingId as string;
   const saved = await updateCard(card.id, userId, { status: "listed", listedAt: now });
 
   return {
     card: saved ?? card,
-    listingId: json.listingId,
-    listingUrl: ebayListingUrl(json.listingId, mp),
+    listingId,
+    listingUrl: ebayListingUrl(listingId, mp),
     warnings: (json.warnings ?? [])
       .map((w) => w.longMessage || w.message || "")
       .filter(Boolean),

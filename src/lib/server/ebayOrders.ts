@@ -23,6 +23,8 @@ import { toUsd } from "@/lib/localPricing";
 const THROTTLE_MS = 10 * 60 * 1000;
 const WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_PAGES = 3;
+// After a failed pass, wait this long (not the full throttle) before asking eBay again.
+const FAIL_BACKOFF_MS = 5 * 60 * 1000;
 
 export interface SalesSyncResult {
   /** Cards flipped listed → sold in this pass. */
@@ -70,6 +72,14 @@ async function recordSyncAt(userId: string, at: number): Promise<void> {
   );
 }
 
+async function releaseClaim(orderId: string, lineKey: string): Promise<void> {
+  try {
+    await db.prepare("DELETE FROM ebay_sold_lines WHERE order_id = ? AND line_key = ?").run(orderId, lineKey);
+  } catch (err) {
+    console.error("eBay sold-line claim release failed:", err);
+  }
+}
+
 export async function syncEbaySales(userId: string, force = false): Promise<SalesSyncResult> {
   const listed = (await db
     .prepare(
@@ -84,7 +94,11 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
   if (!force && now - (await lastSyncAt(userId)) < THROTTLE_MS) return { sold: [], skipped: "throttled" };
 
   const token = await tokenOrSkip(userId);
-  if (token === "not_connected" || token === "error") return { sold: [], skipped: token };
+  if (token === "not_connected") return { sold: [], skipped: token };
+  if (token === "error") {
+    await recordSyncAt(userId, now - THROTTLE_MS + FAIL_BACKOFF_MS).catch(() => {});
+    return { sold: [], skipped: token };
+  }
 
   const byListingId = new Map(listed.filter((c) => c.ebay_listing_id).map((c) => [c.ebay_listing_id!, c.id]));
   const bySku = new Map(listed.filter((c) => c.ebay_sku).map((c) => [c.ebay_sku!, c.id]));
@@ -136,17 +150,27 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
             soldLocal = { price: soldPrice, currency };
             soldPrice = toUsd(soldPrice, rate);
           }
+          // Claim the line FIRST (INSERT OR IGNORE): a concurrent pass that loses the race sees 0 changes
+          // and skips, so a sale is never recorded twice. Released below if recording fails.
+          const claim = await db
+            .prepare("INSERT OR IGNORE INTO ebay_sold_lines (order_id, line_key, applied_at) VALUES (?, ?, ?)")
+            .run(order.orderId ?? "", lineKey, now);
+          if (!claim.changes) continue;
           // Quantity-aware: a partial sale splits off a sold row and leaves
           // the listing live with the rest, so the card stays matchable for
           // later orders in this same window.
-          const result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt, {
-            orderId: order.orderId ?? null,
-            lineItemId: line.lineItemId ?? null,
-          }, soldLocal);
+          let result: Awaited<ReturnType<typeof recordCopiesSold>> = null;
+          try {
+            result = await recordCopiesSold(cardId, userId, line.quantity ?? 1, soldPrice, soldAt, {
+              orderId: order.orderId ?? null,
+              lineItemId: line.lineItemId ?? null,
+            }, soldLocal);
+          } catch (err) {
+            await releaseClaim(order.orderId ?? "", lineKey);
+            throw err;
+          }
+          if (!result) await releaseClaim(order.orderId ?? "", lineKey);
           if (result) {
-            await db
-              .prepare("INSERT OR IGNORE INTO ebay_sold_lines (order_id, line_key, applied_at) VALUES (?, ?, ?)")
-              .run(order.orderId ?? "", lineKey, now);
             sold.push(result.sold);
             if (!result.remaining) {
               byListingId.delete(line.legacyItemId ?? "");
@@ -159,6 +183,8 @@ export async function syncEbaySales(userId: string, force = false): Promise<Sale
       path = data?.next ? data.next.replace(/^https?:\/\/[^/]+/, "") : null;
     }
   } catch (err) {
+    // Failures back off too (same throttle key), so a broken token/scope doesn't re-hit eBay every page load.
+    await recordSyncAt(userId, now - THROTTLE_MS + FAIL_BACKOFF_MS).catch(() => {});
     if (err instanceof EbaySellError && err.status === 403) {
       // Token predates the fulfillment scope — only a reconnect can widen it.
       return { sold, skipped: "no_scope" };

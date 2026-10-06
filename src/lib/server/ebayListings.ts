@@ -25,6 +25,8 @@ import { marketplaceByEbayId } from "@/lib/marketplaces";
 // at most MAX_CHECKS_PER_PASS, so a minute is cheap against eBay's daily call cap.
 const THROTTLE_MS = 60 * 1000;
 const MAX_CHECKS_PER_PASS = 25;
+// After a failed pass, wait this long (not the full throttle) before asking eBay again.
+const FAIL_BACKOFF_MS = 5 * 60 * 1000;
 
 export interface EndedSyncResult {
   /** Cards stamped ended-on-eBay in this pass. */
@@ -53,6 +55,20 @@ async function recordSyncAt(userId: string, at: number): Promise<void> {
   );
 }
 
+async function checkedTimes(ids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (ids.length <= MAX_CHECKS_PER_PASS) return out; // everything fits in one pass: no rotation needed
+  const rows = (await db
+    .prepare("SELECT key, value FROM price_history_meta WHERE key LIKE 'ebay_ended_check:%'")
+    .all()) as { key: string; value: string }[];
+  const want = new Set(ids);
+  for (const r of rows) {
+    const id = r.key.slice("ebay_ended_check:".length);
+    if (want.has(id)) out.set(id, Number(r.value) || 0);
+  }
+  return out;
+}
+
 /** Is this offer's listing no longer live, per eBay? */
 function listingEnded(offer: EbayOffer): boolean {
   // getOffer's listing.listingStatus is the authority: ACTIVE means live,
@@ -79,8 +95,15 @@ export async function syncEndedEbayListings(userId: string, force = false): Prom
   if (!force && now - (await lastSyncAt(userId)) < THROTTLE_MS) return { ended: [], skipped: "throttled" };
 
   const token = await tokenOrSkip(userId);
-  if (token === "not_connected" || token === "error") return { ended: [], skipped: token };
+  if (token === "not_connected") return { ended: [], skipped: token };
+  if (token === "error") {
+    await recordSyncAt(userId, now - THROTTLE_MS + FAIL_BACKOFF_MS).catch(() => {});
+    return { ended: [], skipped: token };
+  }
 
+  // Rotate: oldest-checked first, so a ledger over MAX_CHECKS_PER_PASS gets every listing looked at in turn.
+  const checkedAt = await checkedTimes(listed.map((c) => c.id));
+  listed.sort((a, b) => (checkedAt.get(a.id) ?? 0) - (checkedAt.get(b.id) ?? 0));
   const ended: CardRecord[] = [];
   try {
     // One GET per live listing; bounded so a huge ledger can't stall a page
@@ -104,6 +127,9 @@ export async function syncEndedEbayListings(userId: string, force = false): Prom
           throw err;
         }
       }
+      await db
+        .prepare("INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)")
+        .run(`ebay_ended_check:${card.id}`, String(now));
       if (offer === null || listingEnded(offer)) {
         const updated = await setCardListingEnded(card.id, userId, now);
         if (updated) ended.push(updated);
@@ -111,6 +137,7 @@ export async function syncEndedEbayListings(userId: string, force = false): Prom
     }
   } catch (err) {
     console.error("eBay ended-listing sync failed:", err);
+    await recordSyncAt(userId, now - THROTTLE_MS + FAIL_BACKOFF_MS).catch(() => {});
     return { ended, skipped: "error" };
   }
 
