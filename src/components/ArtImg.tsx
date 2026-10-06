@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useArtSrc } from "@/lib/client/useArtSrc";
 
 /**
@@ -28,6 +29,8 @@ export default function ArtImg({
   priority?: boolean;
 }) {
   const art = useArtSrc(src);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const loaded = loadedSrc === art.src;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -38,7 +41,11 @@ export default function ArtImg({
       loading={priority ? "eager" : loading}
       {...(priority ? { fetchPriority: "high" as const } : {})}
       decoding="async"
-      className={className}
+      ref={(el) => {
+        if (el && el.complete && el.naturalWidth > 0) setLoadedSrc(art.src);
+      }}
+      className={loaded ? className : `${className ?? ""} skeleton`}
+      onLoad={() => setLoadedSrc(art.src)}
       onError={art.onError}
     />
   );

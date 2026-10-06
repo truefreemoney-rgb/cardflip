@@ -30,6 +30,13 @@
   --color-edge: var(--edge);
   --color-edge-strong: var(--edge-strong);
 
+  /* Contrast floor (audit E2). Tailwind's zinc-500/600 fail WCAG AA on the
+     #0a0b11 ground (4.07:1 / 2.54:1). Lifted here once instead of editing
+     ~800 call sites; 400 (#a1a1aa, 7.67:1) stays brighter so the hierarchy
+     holds. Ratios on #0a0b11: 500 -> 5.17:1, 600 -> 3.73:1. */
+  --color-zinc-500: #82828c;
+  --color-zinc-600: #6b6b75;
+
   --color-brand-300: #a5b4fc;
   --color-brand-400: #818cf8;
   --color-brand-500: #6366f1;

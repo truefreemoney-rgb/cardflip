@@ -43,6 +43,7 @@ export default function CardImage({ src, alt, className = "" }: Props) {
     }, 1500 * (retry + 1));
     return () => window.clearTimeout(t);
   }, [pendingRetry, retry, src]);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const effectiveSrc = fallback ?? (retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src);
 
   if (!src || failedSrc === src) {
@@ -75,7 +76,11 @@ export default function CardImage({ src, alt, className = "" }: Props) {
       alt={alt}
       loading="lazy"
       decoding="async"
-      className={className}
+      ref={(el) => {
+        if (el && el.complete && el.naturalWidth > 0) setLoadedSrc(effectiveSrc);
+      }}
+      className={loadedSrc === effectiveSrc ? className : `${className} skeleton`}
+      onLoad={() => setLoadedSrc(effectiveSrc)}
       onError={() => {
         if (fallback) setFailedSrc(src);
         else if (fallbackArtUrl(src)) setFallbackFor(src);
