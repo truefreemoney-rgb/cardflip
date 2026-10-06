@@ -24,6 +24,15 @@ const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 /** Ring-buffer size — "a few hundred" lines is enough to read a bad day. */
 const MAX_ROWS = 500;
 
+/** The ring buffer may overshoot MAX_ROWS by up to ten minutes of writes. */
+const PRUNE_EVERY_MS = 10 * 60 * 1000;
+let lastPrune = 0;
+
+/** Tests only: make the next write prune again. */
+export function _resetErrorLogPrune(): void {
+  lastPrune = 0;
+}
+
 export type LogLevel = "error" | "warn";
 
 export interface ErrorEvent {
@@ -50,12 +59,18 @@ export async function reportServerError(
     await db.prepare(
       "INSERT INTO error_events (id, at, source, level, message, stack, digest) VALUES (?, ?, ?, ?, ?, ?, ?)",
     ).run(randomUUID(), now, source.slice(0, 200), level, message.slice(0, 1000), stack, digest ?? null);
-    // One statement: age cutoff + row cap together.
-    await db
-      .prepare(
-        "DELETE FROM error_events WHERE at < ? OR id NOT IN (SELECT id FROM error_events ORDER BY at DESC LIMIT ?)",
-      )
-      .run(now - RETENTION_MS, MAX_ROWS);
+    // Pruned at most once per PRUNE_EVERY_MS per process: a log storm used to
+    // run the prune (a ~500-row read on Turso) after every single warning.
+    if (now - lastPrune >= PRUNE_EVERY_MS) {
+      lastPrune = now;
+      // One statement: age cutoff + row cap together, both off idx_error_events_at
+      // (the cap is "older than the MAX_ROWS-th newest row"; ties are kept).
+      await db
+        .prepare(
+          "DELETE FROM error_events WHERE at < ? OR at < (SELECT at FROM error_events ORDER BY at DESC LIMIT 1 OFFSET ?)",
+        )
+        .run(now - RETENTION_MS, MAX_ROWS - 1);
+    }
   } catch {
     // Last resort only — the original error is already being handled upstream.
   }

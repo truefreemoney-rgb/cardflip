@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, emailGate, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { ensureStripeCustomer, isSubscribed } from "@/lib/server/users";
 import { checkoutCurrency } from "@/lib/pricing";
 import { createCheckoutSession, createCustomer, createPackCheckoutSession, packConfigured, proConfigured, stripeConfigured } from "@/lib/server/stripe";
@@ -11,7 +12,7 @@ import { createCheckoutSession, createCustomer, createPackCheckoutSession, packC
  * subscribed or not (a subscriber's pack scans are spent after the month).
  */
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`billing:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`billing:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();

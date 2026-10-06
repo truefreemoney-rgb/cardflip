@@ -21,7 +21,7 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { reportServerError, listRecentErrors, errorCount24h, errorGroups24h, captureConsole } = await import(
+const { reportServerError, listRecentErrors, errorCount24h, errorGroups24h, captureConsole, _resetErrorLogPrune } = await import(
   at("lib/server/errorLog.ts")
 );
 const { db } = await import(at("lib/db.ts"));
@@ -85,6 +85,7 @@ const insert = db.prepare(
   "INSERT INTO error_events (id, at, source, level, message, stack, digest) VALUES (?, ?, ?, 'warn', 'filler', NULL, NULL)",
 );
 for (let i = 0; i < 520; i++) await insert.run(`fill-${i}`, now - 1000 - i, "filler");
+_resetErrorLogPrune(); // the prune is throttled to once per 10 min per process
 await reportServerError("api/last", new Error("newest"));
 const total = await db.prepare("SELECT COUNT(*) AS n FROM error_events").get();
 check("table is capped at 500 rows after a write", total.n, 500);

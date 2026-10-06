@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { countPushSubscriptions, isPushConfigured, removePushSubscription, savePushSubscription, sendPushToUser, vapidPublicKey } from "@/lib/server/push";
 
 /**
@@ -26,7 +27,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`push:sub:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`push:sub:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
@@ -57,7 +58,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const limited = limitOrRespond(`push:test:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondAsync(`push:test:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   try {
     const user = await requireUser();
