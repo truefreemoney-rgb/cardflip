@@ -20,6 +20,12 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] First Sunday digest after this still sends (prod mail env must be set; not checked).
 - [ ] Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
 
+## 10-06 TCGdex price referee (56bb80f)
+- [ ] After the 10-07 nightly run: tcgdex-cm rows exist (~200 Pokemon cards).
+- [ ] Cresselia LV.X (dp4-103) card page shows $61-ish with no "looks off" note.
+- [ ] Rayquaza col1-20 still shows the "looks off" note, not $1,013.
+- [ ] A card page chart shows no extra EUR line from the new source.
+
 ## 10-06 look and feel (audit section E)
 - [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
 - [ ] Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
