@@ -5,7 +5,8 @@ import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { PRICE_TRUST, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
-import { addDays, dayIndex, decodePrices, todayUtc, toPoints } from "@/lib/priceSeries";
+import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
+import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import {
   CHART_MIN_POINTS,
   FRESH_DAYS,
@@ -365,7 +366,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
   const line = series.find((s) => s.variant === headline.variant);
-  const points = line ? toPoints(line) : [];
+  const points = line ? cleanSeriesPoints(line) : []; // junk blips out (lib/priceOutliers.ts): chart, high/low and change words all read these
   const changes: string[] = [];
   for (const days of [30, 90]) {
     const c = changeOver(points, days);

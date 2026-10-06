@@ -364,8 +364,8 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
       }
       fromSettled = fromHeld >= Math.min(HELD_DAYS, seen);
       // A dip being unwound (Lugia 1st Edition, 10-03: $1,085 for months, $164.80 for five days, $1,135 since; the movers
-      // read it as +589%): the old price sits 2x or more off the level that held before it, and today is back at that
-      // level. The mirror of the spike rule: the stretch at `from` is the blip, not the move. Looks back at most 45 days.
+      // read it as +589%): the old price sits well off the level that held before it, and today is back at that
+      // level (1.5x or more, see below). The mirror of the spike rule: the stretch at `from` is the blip, not the move. Looks back at most 45 days.
       if (fromSettled) {
         let i = fromIdx;
         let prior: number | null = null;
@@ -373,7 +373,8 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
           const v = priceAt(prices, i, CARRY_DAYS);
           if (v != null && Math.abs(v - from) / from > 0.15) { prior = v; break; }
         }
-        if (prior != null && Math.abs(to - prior) / prior <= 0.15 && Math.max(from, prior) / Math.min(from, prior) >= 2) fromSettled = false;
+        // 1.5x, not 2x (10-06): Tyranitar Aquapolis $111.63 → $56.09 for five days → $113.30 is 1.99x and read as +102%.
+        if (prior != null && Math.abs(to - prior) / prior <= 0.15 && Math.max(from, prior) / Math.min(from, prior) >= 1.5) fromSettled = false;
       }
     }
     // A gain that is one unconfirmed day-step out of months of nothing is a thin-market print, not a move (the movers pick reads this; the price itself still passes).

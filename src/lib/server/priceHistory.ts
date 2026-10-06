@@ -4,7 +4,8 @@ import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 import { searchEnglishCardsLocal, enrichWithPricing, hasEnglishMirror } from "@/lib/server/enCards";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
-import { decodePrices, encodePrices, setDay, toPoints, todayUtc } from "@/lib/priceSeries";
+import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
+import { cleanSeriesPoints } from "@/lib/priceOutliers";
 
 export { summarize, todayUtc };
 export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHistoryStats";
@@ -96,7 +97,7 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
     source: r.source,
     currency: r.currency,
     game: r.game,
-    points: toPoints({ startDay: r.start_day, prices: decodePrices(r.prices) }),
+    points: cleanSeriesPoints({ startDay: r.start_day, prices: decodePrices(r.prices) }),
   }));
 }
 

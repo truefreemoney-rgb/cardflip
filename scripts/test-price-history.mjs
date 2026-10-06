@@ -18,6 +18,7 @@ import {
   todayUtc,
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
+import { countOutliers, dropOutliers } from "../src/lib/priceOutliers.ts";
 import { kitHalves, mapKitProducts, mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;

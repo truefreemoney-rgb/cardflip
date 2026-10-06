@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
-import { addDays, dayIndex, toPoints, type HistoryPoint } from "@/lib/priceSeries";
+import { addDays, dayIndex, type HistoryPoint } from "@/lib/priceSeries";
+import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { etDate } from "@/lib/time";
 import { clipDescription, pageMetadata } from "@/lib/seo";
@@ -324,7 +325,7 @@ export function changeWords(pct: number, days: number): string {
 export const priceDayLabel = (day: string): string => etDate(`${day}T12:00:00Z`);
 
 /** Chart points of a series row (oldest first). */
-export const seriesPoints = (s: { startDay: string; prices: (number | null)[] }): HistoryPoint[] => toPoints(s);
+export const seriesPoints = (s: { startDay: string; prices: (number | null)[] }): HistoryPoint[] => cleanSeriesPoints(s);
 
 // ---------------------------------------------------------------------------
 // What a card page says about a card
