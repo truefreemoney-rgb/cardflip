@@ -4,7 +4,7 @@ import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server
 import type { TcgGame } from "@/lib/server/tcgCards";
 import { onePieceDonKey, parseOnePieceDon } from "@/lib/onepiece";
 import { CARDMARKET_GAME, CONVERTED_SOURCE, fetchPriceGuide, guideUsd } from "@/lib/server/cardmarket";
-import { CARDTRADER_SOURCE, cardtraderYugiohPrices } from "@/lib/server/cardtrader";
+import { CARDTRADER_SOURCE, cardtraderLorcanaPrices, cardtraderYugiohPrices, type CtLorcanaRow } from "@/lib/server/cardtrader";
 import cardmarketYugioh from "@/data/cardmarket-yugioh.json" with { type: "json" };
 import cardmarketLorcana from "@/data/cardmarket-lorcana.json" with { type: "json" };
 
@@ -33,17 +33,27 @@ export function cardmarketPoints(
 }
 
 /**
- * Yu-Gi-Oh!: CardTrader's cheapest Near Mint listing for cards TCGplayer gave
+ * Yu-Gi-Oh! and Lorcana (plain + foil): CardTrader's cheapest Near Mint listing for cards TCGplayer gave
  * no price today (lib/server/cardtrader.ts). The gap rows are the mirror's
  * unpriced ones plus the ones CardTrader priced before, so those keep moving.
  * Skipped without CARDTRADER_TOKEN. Never throws.
  */
-async function withCardtrader(game: TcgGame, base: { points: TcgPoint[]; failed: number }): Promise<{ points: TcgPoint[]; failed: number }> {
+async function withCardtrader(game: TcgGame, day: string, base: { points: TcgPoint[]; failed: number }): Promise<{ points: TcgPoint[]; failed: number }> {
   const token = process.env.CARDTRADER_TOKEN?.trim();
-  if (game !== "yugioh" || !token) return base;
+  if ((game !== "yugioh" && game !== "lorcana") || !token) return base;
   try {
     const priced = new Set(base.points.filter((p) => p.usd != null || p.foil != null).map((p) => p.id));
     const before = new Set([...(await readSeriesMap(game, CARDTRADER_SOURCE)).keys()].map((k) => k.split("|")[0]));
+    if (game === "lorcana") {
+      const rows = ((await db
+        .prepare("SELECT id, name, subtitle, set_code AS setCode, collector_number AS number, price_usd, price_usd_foil FROM tcg_cards WHERE game = 'lorcana' AND set_release_date <= ?")
+        .all(day)) as (CtLorcanaRow & { price_usd: number | null; price_usd_foil: number | null })[])
+        .filter((r) => !priced.has(r.id) && ((r.price_usd == null && r.price_usd_foil == null) || before.has(r.id)));
+      if (!rows.length) return base;
+      const rate = await (await import("@/lib/server/fx")).usdPerEur().catch(() => null);
+      const fill = (await cardtraderLorcanaPrices(rows, token, rate)).map((p): TcgPoint => ({ id: p.id, usd: p.usd, foil: p.foil, source: CARDTRADER_SOURCE }));
+      return { ...base, points: [...base.points, ...fill] };
+    }
     const rows = ((await db
       .prepare("SELECT id, name, collector_number AS number, rarity, price_usd, price_usd_foil FROM tcg_cards WHERE game = 'yugioh'")
       .all()) as { id: string; name: string; number: string; rarity: string | null; price_usd: number | null; price_usd_foil: number | null }[])
@@ -441,7 +451,7 @@ export function planTcgRefresh(
 
 export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
   // Order: TCGplayer, then CardTrader (Yu-Gi-Oh), then Cardmarket for whatever is still unpriced.
-  const { points, failed } = await withCardmarket(game, await withCardtrader(game, game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints()));
+  const { points, failed } = await withCardmarket(game, await withCardtrader(game, day, game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints()));
   // A source that answered nothing at all must not look like "no prices".
   if (points.length === 0) throw new Error(`${game}: no prices fetched (${failed} source calls failed)`);
   const mirror = await mirrorIds(game);

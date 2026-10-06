@@ -85,6 +85,68 @@ async function ct<T>(path: string, token: string): Promise<T> {
   return (await r.json()) as T;
 }
 
+const LORCANA_GAME_ID = 18;
+/** Our Lorcana set codes → CardTrader expansion codes (10-06 dry run). The caller only passes released sets, so 14+ fill from launch day. */
+const LORCANA_EXPANSIONS: Record<string, string> = { P1: "promos", cp: "lcp", C2: "lcp", P2: "p2", P3: "p3", P4: "p4", D23: "d23", "11": "lor11", "14": "lor14", "15": "lor15", CC1: "cc", PD1: "pd1" };
+
+export interface CtLorcanaRow {
+  id: string;
+  name: string;
+  subtitle: string | null;
+  setCode: string;
+  number: string;
+}
+
+/** Pure: Lorcana row → its one blueprint ("Kronk - Laid Back", number "020"), or null. */
+export function matchLorcanaBlueprint(row: CtLorcanaRow, blueprints: CtBlueprint[]): CtBlueprint | null {
+  const want = norm(row.subtitle ? `${row.name} - ${row.subtitle}` : row.name);
+  const cand = blueprints.filter((b) => numberOf(b.fixed_properties?.collector_number) === numberOf(row.number) && norm(b.name) === want);
+  return cand.length === 1 ? cand[0] : null;
+}
+
+/** Pure: Lorcana listings → cheapest NM English plain and foil, same lone-$50 guard. */
+export function lorcanaListingUsd(listings: CtListing[], usdPerEur: number | null): { usd: number | null; foil: number | null } {
+  const pick = (foil: boolean) =>
+    listingUsd(
+      listings.filter((l) => {
+        const p = (l.properties_hash ?? {}) as Record<string, unknown>;
+        return (p.lorcana_language ?? "en") === "en" && !!p.lorcana_foil === foil;
+      }),
+      false,
+      usdPerEur,
+    );
+  return { usd: pick(false), foil: pick(true) };
+}
+
+/** Live: Lorcana gap rows → plain/foil prices for the ones CardTrader lists. */
+export async function cardtraderLorcanaPrices(rows: CtLorcanaRow[], token: string, usdPerEur: number | null): Promise<{ id: string; usd: number | null; foil: number | null }[]> {
+  const expansions = (await ct<{ id: number; game_id: number; code: string }[]>("/expansions", token)).filter((e) => e.game_id === LORCANA_GAME_ID);
+  const byCode = new Map(expansions.map((e) => [e.code.toLowerCase(), e.id]));
+  const groups = new Map<number, CtLorcanaRow[]>();
+  for (const r of rows) {
+    const code = LORCANA_EXPANSIONS[r.setCode];
+    const id = code ? byCode.get(code) : undefined;
+    if (id != null) groups.set(id, [...(groups.get(id) ?? []), r]);
+  }
+  const out: { id: string; usd: number | null; foil: number | null }[] = [];
+  for (const [expansionId, list] of groups) {
+    try {
+      const blueprints = await ct<CtBlueprint[]>(`/blueprints/export?expansion_id=${expansionId}`, token);
+      const market = await ct<Record<string, CtListing[]>>(`/marketplace/products?expansion_id=${expansionId}`, token);
+      for (const r of list) {
+        const b = matchLorcanaBlueprint(r, blueprints);
+        if (!b) continue;
+        const p = lorcanaListingUsd(market[String(b.id)] ?? [], usdPerEur);
+        if (p.usd != null || p.foil != null) out.push({ id: r.id, ...p });
+      }
+    } catch (err) {
+      console.warn(`cardtrader lorcana expansion ${expansionId}:`, err instanceof Error ? err.message : err);
+    }
+    await new Promise((res) => setTimeout(res, 120));
+  }
+  return out;
+}
+
 /** Live: gap rows → { id, usd } for the ones CardTrader prices. Two calls per expansion, ~120 ms apart. */
 export async function cardtraderYugiohPrices(rows: CtGapRow[], token: string, usdPerEur: number | null): Promise<{ id: string; usd: number }[]> {
   const expansions = (await ct<{ id: number; game_id: number; code: string }[]>("/expansions", token)).filter((e) => e.game_id === YUGIOH_GAME_ID);

@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 
-const { matchBlueprint, listingUsd, expansionCodeOf } = await import("../src/lib/server/cardtrader.ts");
+const { matchBlueprint, listingUsd, expansionCodeOf, matchLorcanaBlueprint, lorcanaListingUsd } = await import("../src/lib/server/cardtrader.ts");
 
 assert.equal(expansionCodeOf("DCR-EN016"), "dcr");
 assert.equal(expansionCodeOf("SJC-EN002"), "sjcs");
@@ -32,6 +32,15 @@ assert.equal(listingUsd([l(634167)], false, 1.1), null);
 assert.equal(listingUsd([l(2000)], false, 1.1), 20);
 assert.equal(listingUsd([{ price_cents: 1000, price_currency: "EUR", properties_hash: { condition: "Mint" } }], false, 1.1), 11);
 assert.equal(listingUsd([], false, 1.1), null);
+
+// Lorcana (10-06): "Kronk - Laid Back" #020 matches our Kronk / Laid Back #20;
+// plain and foil are priced apart; other languages never count.
+const kronk = { id: 325479, name: "Kronk - Laid Back", fixed_properties: { collector_number: "020" } };
+assert.equal(matchLorcanaBlueprint({ id: "x", name: "Kronk", subtitle: "Laid Back", setCode: "P2", number: "20" }, [kronk])?.id, 325479);
+assert.equal(matchLorcanaBlueprint({ id: "x", name: "Kronk", subtitle: "Other", setCode: "P2", number: "20" }, [kronk]), null);
+const lc = (cents, foil, lang = "en") => ({ price_cents: cents, price_currency: "USD", properties_hash: { condition: "Near Mint", lorcana_foil: foil, lorcana_language: lang } });
+assert.deepEqual(lorcanaListingUsd([lc(300, false), lc(900, true), lc(700, true), lc(100, true, "it")], 1.1), { usd: 3, foil: 7 });
+assert.deepEqual(lorcanaListingUsd([lc(6000, true)], 1.1), { usd: null, foil: null });
 
 console.log("cardtrader: all assertions passed");
 process.exit(0);
