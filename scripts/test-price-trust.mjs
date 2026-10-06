@@ -44,7 +44,7 @@ check("Rayquaza with only its sibling: the reverse holo is a third of it", verdi
 check("Deoxys col1-SL1: a round $500 for 87 days is a listing", verdict(DEOXYS), [false, "flat 87d"]);
 check("Pikachu promo basep-1 holofoil $499.99 vs Cardmarket EUR 18.44 (24.6x)", verdict(PIKACHU_PROMO, { refEur: 18.44, siblings: [40.91, 90.46] }), [false, "cardmarket 24.6x"]);
 check("the same promo without Cardmarket: 5.5x its own 1st-edition holo", verdict(PIKACHU_PROMO.slice(-9), { siblings: [40.91, 90.46] }), [false, "sibling 5.5x"]);
-check("Eevee, McDonald's 2019 #12: $25.92 vs EUR 3.71, one priced day", verdict([25.92], { refEur: 3.71 }), [false, "cardmarket 6.4x"]);
+check("Eevee, McDonald's 2019 #12: $25.92 vs EUR 3.71, one priced day", verdict([25.92], { refEur: 3.71 }), [false, "thin, cardmarket 6.4x"]);
 
 console.log("real expensive cards that must survive");
 check("Base Set Charizard $944 (Cardmarket agrees, 0.2x)", judge(CHARIZARD_BASE, { refEur: 4184.6 }).ok);
@@ -57,13 +57,22 @@ check("Steel Legend hgss4-94 $561, no Cardmarket: one 1.26x step is not a spike"
 
 console.log("test 1: the second source decides when it is there");
 check("under $10 nothing is checked", verdict([9, 9, 9], { refEur: 0.5 }), [true, ""]);
-check("5x fails even for a liquid card", judge(liquid(60), { refEur: 10 }).ok, false); // 60 / 11 = 5.45x
+check("5x alone no longer fails a liquid card (10-06: Europe runs cheaper on old US holos)", judge(liquid(60), { refEur: 10 }).ok); // 60 / 11 = 5.45x
 check("just under 5x is inconclusive, not a fail (from $100)", judge(liquid(117.3), { refEur: 24 }).ok); // 117.3 / 26.4 = 4.4x
-check("under $100 the fail line is 4x: no soft sign runs there to back up a gap", [judge(liquid(50), { refEur: 10 }).ok, judge(liquid(50), { refEur: 12.5 }).ok], [false, true]); // 4.5x, 3.6x
+check("under $100 a 3-10x gap needs another sign: liquid passes, 10x+ fails, thin fails", [judge(liquid(50), { refEur: 10 }).ok, judge(liquid(50), { refEur: 12.5 }).ok, judge(liquid(50), { refEur: 4.5 }).ok, verdict([...Array(29).fill(49), 50], { refEur: 10 })[0]], [true, true, false, false]); // 4.5x, 3.6x, 10.1x, thin 4.5x
 check("under 3x agrees and stops: flat, round and $500 no longer matter", judge(Array(90).fill(500), { refEur: 200 }).ok); // 500 / 220 = 2.3x
 check("a EUR 0.02 second-source price is a glitch, not a referee", judge(liquid(30), { refEur: 0.02 }).ok);
 check("a 3-5x gap alone never fails ($152.90, liquid)", judge(liquid(152.9), { refEur: 35 }).ok); // 150 / 38.5 = 3.9x
 check("a 3-5x gap next to one sign does ($150, thin)", verdict([...Array(29).fill(148), 150], { refEur: 35 })[0], false);
+console.log("10-06: a Cardmarket gap is one soft sign, never a verdict below 10x");
+const CRESSELIA = [...liquid(17, 120).slice(0, 120).map((v, i) => (i % 9 === 0 ? 17.65 : 16.8 + (i % 4) * 0.1)), 17.23]; // dp4-2 holofoil: steady 140 days
+check("Cresselia dp4-2 $17.23 vs EUR 2.85 (5.5x), steady series: ok", judge(CRESSELIA, { refEur: 2.85 }).ok);
+const CRESSELIA_LVX = [...Array(60).fill(44.72), 48.54, 48.54, 54.83, 57.86, 57.86, 61.39, 61.39, 61.39, 61.39, 61.39, 61.39].map((v, i) => v + (i % 5) * 0.2).concat(61.39);
+check("Cresselia LV.X dp4-103 $61.39 vs EUR 11.30 (5x), steady: ok", judge(CRESSELIA_LVX, { refEur: 11.3 }).ok);
+check("a thin series with a 5x gap still flags ($17, flat 25 days)", verdict([...liquid(17, 30), ...Array(25).fill(17)], { refEur: 2.85 })[0], false);
+check("a 3-day-old series with a 5x gap still flags", verdict([17.1, 17.2, 17.23], { refEur: 2.85 })[0], false);
+check("a 12x gap on a steady series still fails, hard", [judge(liquid(60), { refEur: 4.5 }).ok, judge(liquid(60), { refEur: 4.5 }).hard], [false, true]); // 60 / 4.95 = 12.1x
+check("a 12x gap at $250 on a steady series still fails, hard", [judge(liquid(250), { refEur: 19 }).ok, judge(liquid(250), { refEur: 19 }).hard], [false, true]); // 250 / 20.9 = 12.0x
 check("$500+ does not need the gap: one sign is enough", judge([...Array(29).fill(597), 600]).ok, false);
 
 console.log("test 2: a spike that never came back (>= $50)");
@@ -91,7 +100,7 @@ check("Deoxys: stale, not wrong (hard false, 87 days)", [judge(DEOXYS).hard, jud
 const CHARIZARD_PLASMA = [...liquid(1100, 30), ...Array(128).fill(1150)];
 check("Charizard bw8-136 $1,150 flat 128d, Cardmarket 3.5x: shown with the note", judge(CHARIZARD_PLASMA, { refEur: 302.44 }), { ok: false, hard: false, stale: 128, reason: "flat 128d, cardmarket 3.5x" });
 check("... the soft signs (round $1,150, thin) do not pile on top of stale", judge(CHARIZARD_PLASMA).hard, false);
-check("... but a 5x Cardmarket gap still hides it (test 1 runs first)", judge(CHARIZARD_PLASMA, { refEur: 200 }).hard, true);
+check("... a 5x Cardmarket gap no longer hides it by itself (note stays), 12x still does", [judge(CHARIZARD_PLASMA, { refEur: 200 }).stale, judge(CHARIZARD_PLASMA, { refEur: 80 }).hard], [128, true]);
 check("... and a spike that never came back still hides it (test 2 runs first)", [judge(RAYQUAZA).hard, judge(RAYQUAZA).stale], [true, undefined]);
 check("... and a 3x sibling still hides it (test 3 runs first)", judge(CHARIZARD_PLASMA, { siblings: [300] }).hard, true);
 check("the stale note is for a CURRENT price only: as an OLD price flat is still wrong", judge(flat(121, 45), { old: true }), { ok: false, hard: true, reason: "flat 45d" });
@@ -122,7 +131,7 @@ console.log("10-01 review: below $100 a 3-5x Cardmarket gap is not free");
 check("bw11-RC7 Pikachu $97.72 vs EUR 23.56 (3.8x), 3 priced days in 27: unverifiable", verdict([97.11, ...Array(21).fill(null), 97.56, null, null, null, 97.72], { refEur: 23.56 }), [false, "thin, cardmarket 3.8x"]);
 check("2019sm-6 Pikachu $36.82 vs EUR 8.64 (3.9x), 4 priced days", verdict([36.5, 36.6, 36.7, 36.82], { refEur: 8.64 })[0], false);
 check("a soft failure says so (hard = false): the site can show 'unverified'", judge([36.5, 36.6, 36.7, 36.82], { refEur: 8.64 }).hard, false);
-check("Rayquaza GX sm7-109 $37.59 vs EUR 7.52 (4.5x): over the 4x line, evidence it is wrong", [judge(liquid(37.59), { refEur: 7.52 }).ok, judge(liquid(37.59), { refEur: 7.52 }).hard], [false, true]);
+check("Rayquaza GX sm7-109 $37.59 vs EUR 7.52 (4.5x), liquid: a gap alone is one sign, not enough", judge(liquid(37.59), { refEur: 7.52 }).ok);
 check("a liquid $60 at 3.6x still passes (the gap alone never fails)", judge(liquid(60), { refEur: 15 }).ok);
 check("a 3.6x gap next to a flat 21+ days fails at $40", verdict([...liquid(40, 30), ...Array(22).fill(40)], { refEur: 10 })[0], false);
 
@@ -192,7 +201,7 @@ check("$1,013.27 is not round", isRoundPrice(1013.27), false);
 check("$500 and $499.99 and $999.95 are", [isRoundPrice(500), isRoundPrice(499.99), isRoundPrice(999.95)], [true, true, true]);
 check("$749.98, $1,249.94 (x4.94) and $2,500.99 are not", [isRoundPrice(749.98), isRoundPrice(1249.94), isRoundPrice(2500.99)], [false, false, false]);
 check("under $100 never round", isRoundPrice(99.99), false);
-check("thresholds are the calibrated ones", [PRICE_TRUST.refFail, PRICE_TRUST.refFailLow, PRICE_TRUST.refClear, PRICE_TRUST.spikeRise, PRICE_TRUST.spikeHold, PRICE_TRUST.siblingFail, PRICE_TRUST.stuckDays, PRICE_TRUST.staleOldDays, PRICE_TRUST.softNeed, PRICE_TRUST.softNeedBig], [5, 4, 3, 3, 3, 3, 45, 30, 2, 1]);
+check("thresholds are the calibrated ones", [PRICE_TRUST.refExtreme, PRICE_TRUST.refClear, PRICE_TRUST.spikeRise, PRICE_TRUST.spikeHold, PRICE_TRUST.siblingFail, PRICE_TRUST.stuckDays, PRICE_TRUST.staleOldDays, PRICE_TRUST.softNeed, PRICE_TRUST.softNeedBig], [10, 3, 3, 3, 3, 45, 30, 2, 1]);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

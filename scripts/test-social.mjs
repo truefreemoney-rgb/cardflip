@@ -317,8 +317,8 @@ check("the all-games picture / stage: Magic rows pass the same referee", [stage.
 const { mtgShowcase } = await import(at("lib/server/mtgCards.ts"));
 await mtg("mtg-8", "Sol Ring", 400, 30);   // 12x
 await mtg("mtg-9", "Sol Ring", 60, 50);    // agrees
-await mtg("mtg-10", "Lightning Bolt", 45, 12); // 3.4x: under the 4x line, kept
-await mtg("mtg-11", "Lightning Bolt", 70, 12); // 5.3x: junk
+await mtg("mtg-10", "Lightning Bolt", 45, 12); // 3.4x: a gap under 10x is one soft sign only, kept
+await mtg("mtg-11", "Lightning Bolt", 70, 5.5); // 11.6x: junk
 const shelf = new Map((await mtgShowcase(12)).map((c) => [c.name, c.prices.find((p) => p.source === "tcgplayer")?.market]));
 check("the landing showcase takes the dearest printing Cardmarket does not call junk", [shelf.get("Sol Ring"), shelf.get("Lightning Bolt")], [60, 45]);
 

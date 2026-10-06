@@ -49,6 +49,11 @@ const DEOXYS = expand([[174.15, 10], [180, 2], [240, 14], [500, 9], [310, 14], [
 
 console.log("Pokemon: the rule as the site reads it");
 check("Rayquaza $1,013 vs Cardmarket EUR 45: flagged, proved wrong", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)], { cmEur: 45.13 })), [true, "cardmarket 20.4x"]);
+// 10-06: a Cardmarket gap below 10x is one soft sign, never a verdict on a solid US series (Great Encounters, Cardmarket 'average' = the wrong figure for the printing).
+check("Cresselia dp4-2 $17.23 vs EUR 2.85 (5.5x), steady 140 days: shown", verdict(data("pokemon", [ser("holofoil", liquid(17.23, 139)), ser("reverseHolofoil", liquid(18.7, 139))], { cmEur: 2.85, released: "2008-02-13" })), null);
+check("Cresselia LV.X dp4-103 $61.39 vs EUR 11.30 (4.9x), steady: shown", verdict(data("pokemon", [ser("holofoil", liquid(61.39, 139))], { cmEur: 11.3, released: "2008-02-13" })), null);
+check("a thin 3-priced-day series with a 5x gap still flags (soft)", verdict(data("pokemon", [ser("holofoil", [17.1, 17.2, 17.23])], { cmEur: 2.85 })), [false, "thin, cardmarket 5.5x"]);
+check("a steady $60 at 12x still flags, hard", verdict(data("pokemon", [ser("holofoil", liquid(60, 139))], { cmEur: 4.5 }))?.[0], true);
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
 check("Deoxys: a round $500 for 87 days is stale, not hidden", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), null);
@@ -91,10 +96,10 @@ console.log("held variant and siblings");
 
 console.log("Magic: the finish's own Cardmarket price is the referee");
 {
-  const d = data("mtg", [ser("nonfoil", liquid(150)), ser("foil", liquid(150))], { eur: { nonfoil: 120, foil: 20 } });
+  const d = data("mtg", [ser("nonfoil", liquid(150)), ser("foil", liquid(150))], { eur: { nonfoil: 120, foil: 12 } });
   check("nonfoil $150 vs EUR 120 agrees", verdict(d, { variant: "nonfoil" }), null);
-  check("foil $150 vs foil EUR 20 is 6.8x: flagged", verdict(d, { variant: "foil" }), [true, "cardmarket 6.8x"]);
-  check("etched reads the foil EUR too", verdict(data("mtg", [ser("etched", liquid(150))], { eur: { nonfoil: 120, foil: 20 } }), { variant: "etched" })?.[0], true);
+  check("foil $150 vs foil EUR 12 is 11.4x: flagged", verdict(d, { variant: "foil" }), [true, "cardmarket 11.4x"]);
+  check("etched reads the foil EUR too", verdict(data("mtg", [ser("etched", liquid(150))], { eur: { nonfoil: 120, foil: 12 } }), { variant: "etched" })?.[0], true);
   check("no Cardmarket price: a liquid Magic card is fine", verdict(data("mtg", [ser("nonfoil", liquid(150))])), null);
   check("Magic vintage: a flat round $10,000 pre-2010 print is what it looks like", verdict(data("mtg", [ser("nonfoil", Array(40).fill(10000))], { released: "1993-08-05" })), null);
 }

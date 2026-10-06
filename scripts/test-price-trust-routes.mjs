@@ -48,7 +48,7 @@ const TODAY = todayUtc();
 
 // --- catalog ------------------------------------------------------------------
 await db.prepare(`INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, image_url, price_usd, price_usd_foil, price_eur, price_eur_foil, synced_at)
-                  VALUES ('mtg-junk', 'Junk Bolt', 'tst', 'Test Set', '1', '2020-01-01', 'https://img/x/normal/front/a.jpg', 150, 150, 120, 20, 0)`).run();
+                  VALUES ('mtg-junk', 'Junk Bolt', 'tst', 'Test Set', '1', '2020-01-01', 'https://img/x/normal/front/a.jpg', 150, 150, 120, 12, 0)`).run();
 await db.prepare(`INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, image_url, price_usd, price_eur, synced_at)
                   VALUES ('mtg-fine', 'Fine Bolt', 'tst', 'Test Set', '2', '2020-01-01', 'https://img/x/normal/front/b.jpg', 150, 120, 0)`).run();
 await recordSeries(recordPoint, addDays, TODAY, "mtg-junk", "mtg", "nonfoil", liquidPrices(150));
@@ -82,7 +82,7 @@ console.log("/api/search-card (Magic by id)");
   const junk = await get(searchCard, "/api/search-card?id=mtg-junk&game=mtg");
   const prices = junk.body.cards[0].prices;
   const row = (variant, source = "tcgplayer") => prices.find((p) => p.variant === variant && p.source === source);
-  check("the foil TCGplayer row is flagged (its foil Cardmarket price is EUR 20)", row("foil").untrusted, { hard: true, reason: "cardmarket 6.8x" });
+  check("the foil TCGplayer row is flagged (its foil Cardmarket price is EUR 12)", row("foil").untrusted, { hard: true, reason: "cardmarket 11.4x" });
   check("the nonfoil row of the same card is not", row("nonfoil").untrusted === undefined);
   check("the Cardmarket EUR rows carry no flag", [row("foil", "cardmarket").untrusted, row("nonfoil", "cardmarket").untrusted], [undefined, undefined]);
   check("the market number is still in the payload (the page decides not to present it)", row("foil").market, 150);

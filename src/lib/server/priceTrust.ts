@@ -16,11 +16,13 @@
  * slightly smaller pool is always fine; a junk price is not.
  *
  * Order of tests, first hit decides:
- *  1. Cross-source referee (any price >= $10): TCG >= 5x Cardmarket -> no
- *     (>= 4x under $100, where the soft signs below do not run). TCG < 3x ->
- *     yes, stop (two sources agree, thin / flat / round no longer matter).
- *     Between is inconclusive: real vintage and thin-market fluff both live
- *     there, so it only ever counts as one extra soft sign (test 6).
+ *  1. Cross-source referee (any price >= $10): TCG >= 10x Cardmarket -> no
+ *     (since 10-06; it was 5x / 4x under $100, which hid Cresselia at $17 on
+ *     a 5.4x gap with 140 steady days). TCG < 3x -> yes, stop (two sources
+ *     agree, thin / flat / round no longer matter). Between 3x and 10x is
+ *     inconclusive: Europe runs cheaper on old US holos and Cardmarket can be
+ *     the wrong printing, so it only ever counts as one extra soft sign
+ *     (test 6, and the under-$100 line below), never a verdict alone.
  *  2. A spike that never came back (>= $50): a one-step rise >= 3x and the
  *     price is still >= 3x the level before it (the higher of the 7- and
  *     30-point medians, so a short glitch-low that recovers is not a spike).
@@ -43,7 +45,7 @@
  *     Edition Charizard looks like, and a modern $900 card that trades twice
  *     a month is not (it stays "unverified"). A Cardmarket gap adds one sign,
  *     but only next to another sign, and then nothing is excused.
- * Under $100 only tests 1-3 apply, plus one more: a 3-4x Cardmarket gap next
+ * Under $100 only tests 1-3 apply, plus one more: a 3-10x Cardmarket gap next
  * to a thin or unverifiable series (a $98 Pikachu at 3.8x with 3 priced days).
  *
  * `old` judges a price that is printed as the OLD side of a move ("$662 ->
@@ -62,11 +64,13 @@ export const PRICE_TRUST = {
   refMaxAgeDays: 45,
   /** Referee applies from here up. */
   refMinUsd: 10,
-  /** TCG >= this x Cardmarket: not ok. */
-  refFail: 5,
-  /** The same under gradedMinUsd, where no soft sign runs to back up an inconclusive gap. */
-  refFailLow: 4,
-  /** TCG < this x Cardmarket: ok, stop. Between the two is inconclusive. */
+  /**
+   * TCG >= this x Cardmarket: not ok on its own (10-06). Europe genuinely runs 3-5x cheaper on old US holos (Cresselia
+   * Great Encounters: $17.23 steady 140 days against EUR 2.85), and a Cardmarket figure can simply be the wrong printing's
+   * (Cresselia LV.X EUR 11.30 against $61.39), so a gap below this is only ONE soft sign, never a verdict by itself.
+   */
+  refExtreme: 10,
+  /** TCG < this x Cardmarket: ok, stop. From here up to refExtreme is one soft sign (tests 1 and 6). */
   refClear: 3,
   /** Tests 2 and 3 apply from here up. */
   spikeMinUsd: 50,
@@ -146,7 +150,7 @@ export const STEP_JUMP = {
 } as const;
 
 /** Magic's referee in SQL (mtg_cards has Scryfall's Cardmarket price on the row): the same numbers as test 1. */
-export const MTG_REFEREE_SQL = `(price_eur IS NULL OR price_eur < ${PRICE_TRUST.refMinEur} OR price_usd < CASE WHEN price_usd < ${PRICE_TRUST.gradedMinUsd} THEN ${PRICE_TRUST.refFailLow} ELSE ${PRICE_TRUST.refFail} END * ${PRICE_TRUST.eurToUsd} * price_eur)`;
+export const MTG_REFEREE_SQL = `(price_eur IS NULL OR price_eur < ${PRICE_TRUST.refMinEur} OR price_usd < ${PRICE_TRUST.refExtreme} * ${PRICE_TRUST.eurToUsd} * price_eur)`;
 
 export interface PriceTrustInput {
   /** The latest price being printed (USD): the price of THIS series, so the price shown is the price tested. */
@@ -329,7 +333,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, vintage =
   let refRatio: number | null = null;
   if (refEur != null && refEur >= T.refMinEur) {
     refRatio = to / (refEur * T.eurToUsd);
-    if (refRatio >= (to >= T.gradedMinUsd ? T.refFail : T.refFailLow)) return wrong(`cardmarket ${x(refRatio)}`);
+    if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`);
     if (refRatio < T.refClear) return { ok: true, reason: `cardmarket ${x(refRatio)} agrees`, agrees: true };
   }
 
@@ -352,7 +356,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, vintage =
 
   const thin = f.k30 <= T.thinChanges || f.runDays >= T.thinFlatDays;
   if (to < T.gradedMinUsd) {
-    // Only a 3-4x gap gets here; it counts as one sign, next to one more (thin or unverifiable) it is enough.
+    // Only a 3-10x gap gets here; it counts as one sign, next to one more (thin or unverifiable) it is enough.
     if (refRatio != null && (thin || f.n < T.minPricedDays)) {
       return { ok: false, hard: false, reason: [thin ? "thin" : `${f.n} priced days`, `cardmarket ${x(refRatio)}`].join(", ") };
     }
@@ -361,7 +365,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, vintage =
   // 5. A fresh doubling nobody confirmed (a second source that agreed already returned above).
   if (f.doubled > 0) return wrong(`doubled ${x(f.doubled)} in the last ${T.doubleWindow} priced days`);
   // 6. Graded evidence. From $500 thin and round are a vintage print's ordinary state (a 1st Edition Charizard is one flat, round $10,000), so they are no sign there,
-  // unless a second source disagrees (a 3-5x Cardmarket gap): then nothing excuses them.
+  // unless a second source disagrees (a 3-10x Cardmarket gap): then nothing excuses them.
   const signs: string[] = [];
   if (!(vintage && !old && to >= T.softOneMinUsd && refRatio == null)) {
     if (thin) signs.push("thin");
@@ -370,7 +374,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, vintage =
   if (sibRatio != null && sibRatio >= T.siblingSoft) signs.push(`sibling ${x(sibRatio)}`);
   if (f.softSpike) signs.push("spike");
   if (f.n < T.minPricedDays) signs.push(`${f.n} priced days`);
-  // A 3-5x gap is one more sign, never a sign on its own.
+  // A 3-10x gap is one more sign, never a sign on its own.
   const gap = refRatio != null ? [`cardmarket ${x(refRatio)}`] : [];
   const fail = signs.length >= (to >= T.softOneMinUsd ? T.softNeedBig : T.softNeed);
   if (fail || (signs.length >= 1 && signs.length + gap.length >= T.softNeed)) {
