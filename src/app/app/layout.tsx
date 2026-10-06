@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SessionProvider from "@/components/SessionProvider";
 import AppHeader from "@/components/AppHeader";
+import BottomTabBar from "@/components/BottomTabBar";
 import SubscriptionGate from "@/components/SubscriptionGate";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
@@ -20,6 +21,9 @@ export const metadata = PRIVATE_META.app;
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
+      {/* --bottom-nav-h = the phone tab bar's height (unset from md up). The footer pads by it;
+          Toaster and any bottom-fixed element should offset by var(--bottom-nav-h, 0px). */}
+      <div className="max-md:[--bottom-nav-h:calc(3.5rem+env(safe-area-inset-bottom))]">
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
         <AppHeader />
         <SubscriptionGate>{children}</SubscriptionGate>
@@ -27,7 +31,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <PendingWatch />
       </div>
       <Toaster />
-      <footer className="border-t border-white/5 px-6 py-4 text-center text-[11px] text-zinc-600">
+      <BottomTabBar />
+      <footer className="border-t border-white/5 px-6 pt-4 pb-[calc(1rem+var(--bottom-nav-h,0px))] text-center text-[11px] text-zinc-600">
         <nav className="inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <Link href="/terms" className="transition hover:text-zinc-300">
             Terms
@@ -44,6 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span>{NOT_AFFILIATED}</span>
         </nav>
       </footer>
+      </div>
     </SessionProvider>
   );
 }

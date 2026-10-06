@@ -130,7 +130,8 @@ export default function AppHeader() {
         <div className="flex items-center gap-2">
           <Logo size="sm" href={logoHref} />
         </div>
-        <div className="flex items-center gap-1 sm:hidden">{personalStrip}</div>
+        {/* The before: layers grow every pill/button here to a >= 44px hit area without changing its look. */}
+        <div className="flex items-center gap-1 [&_a]:relative [&_button]:relative [&_a]:before:absolute [&_button]:before:absolute [&_a]:before:-inset-x-1 [&_button]:before:-inset-x-1 [&_a]:before:-inset-y-3 [&_button]:before:-inset-y-3 [&_a]:before:content-[''] [&_button]:before:content-[''] sm:hidden">{personalStrip}</div>
         <AppTabs />
         <div aria-hidden className="hidden sm:block xl:hidden" />
         <div className="hidden items-center gap-4 justify-self-end xl:flex">{personalStrip}</div>
