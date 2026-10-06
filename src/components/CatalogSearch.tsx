@@ -113,7 +113,7 @@ export default function CatalogSearch({
   const label = fixedGame ? `Search ${gameTitle(fixedGame)} cards` : "Search cards";
 
   return (
-    <div ref={wrap} className={`relative w-full ${variant === "page" ? "mt-5 max-w-xl" : ""}`}>
+    <div ref={wrap} className={`relative z-40 w-full ${variant === "page" ? "mt-5 max-w-xl" : ""}`}>
       <form
         role="search"
         onSubmit={(e) => {
@@ -160,7 +160,7 @@ export default function CatalogSearch({
       </form>
 
       {showPanel && (
-        <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-[70dvh] overflow-y-auto rounded-2xl border border-edge-strong bg-surface-1 shadow-2xl shadow-black/60">
+        <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-[70dvh] overflow-y-auto rounded-2xl border border-edge-strong panel-solid shadow-2xl shadow-black/60">
           {busy ? (
             <p className="px-4 py-3 text-sm text-zinc-400">Searching...</p>
           ) : failed ? (
