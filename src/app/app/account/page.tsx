@@ -1,5 +1,6 @@
 "use client";
 
+import { REFERRALS_ON } from "@/lib/referrals";
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -712,9 +713,11 @@ function AccountSettings({
           billingReturn={billingReturn}
           billingPhase={billingPhase}
         />
-        <div id="invite" className="scroll-mt-24">
-          <InviteRow subscribed={subscribed} />
-        </div>
+        {REFERRALS_ON && (
+          <div id="invite" className="scroll-mt-24">
+            <InviteRow subscribed={subscribed} />
+          </div>
+        )}
       </Group>
 
       <Group label="Security">

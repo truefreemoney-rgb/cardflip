@@ -599,8 +599,10 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   const mid = await findUserById(friend.id);
   check("checkout whose credit throws: 500, the user is still not subscribed, nobody was rewarded", [bad.status, mid.subStatus, (await findUserById(referrer.id)).bonusScans, await planScans(friend.id)], [500, null, 0, 0]);
   const ok = await send(checkoutEvent);
-  const REWARD = (await import(at("lib/server/referrals.ts"))).REFERRAL_BONUS_SCANS;
-  check("the retry redoes everything: subscribed, scans credited once, referral reward paid once",
+  // Invite a friend is switched off (lib/referrals.ts, 10-06): no reward while it is.
+  const { REFERRALS_ON } = await import(at("lib/referrals.ts"));
+  const REWARD = REFERRALS_ON ? (await import(at("lib/server/referrals.ts"))).REFERRAL_BONUS_SCANS : 0;
+  check("the retry redoes everything: subscribed, scans credited once, referral reward paid once (when on)",
     [ok.status, (await findUserById(friend.id)).subStatus, await planScans(friend.id), (await findUserById(referrer.id)).bonusScans], [200, "active", STD, REWARD]);
 }
 

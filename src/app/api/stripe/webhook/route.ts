@@ -1,3 +1,4 @@
+import { REFERRALS_ON } from "@/lib/referrals";
 import { NextRequest, NextResponse } from "next/server";
 import { markNoSeedOwed } from "@/lib/server/scanCredits";
 import { creditCheckoutInvoice, creditPaidInvoice, handleChargeRefunded, handleDisputeCreated } from "@/lib/server/billingCredits";
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
         if (!isSubscribed(user) && isSubscribed({ subStatus: sub.status })) {
           // Invite a friend: the person who sent them gets their bonus on the
           // same edge (once; the referred row is stamped). Never 500s the hook.
-          try {
+          if (REFERRALS_ON) try {
             const rewarded = await rewardReferrerIfDue(user, Date.now(), typeof obj.amount_total === "number" ? obj.amount_total : null);
             if (rewarded) console.info(`stripe: referral bonus credited for ${user.email}`);
           } catch (err) {

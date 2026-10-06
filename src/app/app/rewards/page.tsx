@@ -1,5 +1,7 @@
 "use client";
 
+import { redirect } from "next/navigation";
+import { REFERRALS_ON } from "@/lib/referrals";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
@@ -23,6 +25,11 @@ const STEPS: { n: string; title: string; body: string }[] = [
 ];
 
 export default function RewardsPage() {
+  if (!REFERRALS_ON) redirect("/app/account");
+  return <RewardsInner />;
+}
+
+function RewardsInner() {
   const { user, status } = useSession();
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [copied, setCopied] = useState(false);

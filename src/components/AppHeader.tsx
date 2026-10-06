@@ -1,5 +1,6 @@
 "use client";
 
+import { REFERRALS_ON } from "@/lib/referrals";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
@@ -41,7 +42,7 @@ export default function AppHeader() {
           {user && !user.mustConfirmEmail && <ScanCounter user={user} />}
           {/* Invite a friend (09-06): subscribers and the owner. A pill, not a
               banner — enticing, not loud (Chris: "dont go crazy"). */}
-          {user && (user.tier === "subscribed" || user.tier === "owner") && (
+          {REFERRALS_ON && user && (user.tier === "subscribed" || user.tier === "owner") && (
             <Link
               href="/app/rewards"
               title={`Invite a friend — when they subscribe, you get ${SCANS.referral} bonus scans`}
