@@ -44,7 +44,7 @@ const CTA =
   "flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-brand-400";
 
 /** Funnel step for the ad test (10-05): rides the visit counter as /scan/<step>, one row per visitor per day. */
-function step(name: "camera" | "searched" | "price" | "miss" | "signup") {
+function step(name: "camera" | "searched" | "price" | "miss" | "signup" | "stay10" | "tap") {
   fetch("/api/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: `/scan/${name}` }), keepalive: true }).catch(() => {});
 }
 
@@ -122,6 +122,30 @@ export default function TrialScanner({
   const [searching, setSearching] = useState(false);
   // False until localStorage has been read: the camera button waits for it so "used" visitors never see it flash.
   const [checked, setChecked] = useState(false);
+
+  // Zero-taps question (10-06: 106 ad visitors, not one camera/search/price row): did they leave at once, or stay
+  // and find nothing they could press? "stay10" = page visible 10 s; "tap" = any touch or click on the page.
+  useEffect(() => {
+    let shown = 0;
+    let sent = false;
+    const tick = window.setInterval(() => {
+      if (document.visibilityState === "visible") shown++;
+      if (shown >= 10 && !sent) {
+        sent = true;
+        step("stay10");
+        window.clearInterval(tick);
+      }
+    }, 1000);
+    const onTap = () => {
+      step("tap");
+      window.removeEventListener("pointerdown", onTap, true);
+    };
+    window.addEventListener("pointerdown", onTap, true);
+    return () => {
+      window.clearInterval(tick);
+      window.removeEventListener("pointerdown", onTap, true);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
