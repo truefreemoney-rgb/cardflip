@@ -32,7 +32,14 @@ export function Crumbs({ items }: { items: { name: string; href?: string }[] }) 
 }
 
 /** The one ask on these pages. */
-export function ScanCta({ label = "Scan Yours Free", className = "" }: { label?: string; className?: string }) {
+export function ScanCta({ label = "Scan Yours Free", className = "", secondary = false }: { label?: string; className?: string; secondary?: boolean }) {
+  if (secondary) {
+    return (
+      <Link href="/signup" className={`inline-block rounded-full px-6 py-3 text-center text-sm font-semibold text-brand-300 transition hover:bg-white/5 hover:text-brand-200 ${className}`}>
+        {label}
+      </Link>
+    );
+  }
   return (
     <Link
       href="/signup"

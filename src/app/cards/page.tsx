@@ -3,6 +3,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta } from "@/components/CardPagesUi";
+import CatalogSearch from "@/components/CatalogSearch";
 import { gamePath, gameTitle, indexFloorUsd } from "@/lib/cardPages";
 import { publicCardGames, setIndex } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
@@ -48,6 +49,7 @@ export default async function CardsHubPage() {
           What trading cards sell for, by game and set. Each page shows the market price for the exact printing, how it has moved, and the
           price history CardFlip has recorded. Prices are checked daily, and a price that looks wrong is not shown. Each game lists cards from a small price floor up.
         </p>
+        <CatalogSearch games={games} />
 
         {tiles.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-edge bg-surface-1 px-4 py-10 text-center text-sm text-zinc-400">Card prices are not available right now.</p>

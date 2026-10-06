@@ -53,6 +53,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Coming back after the free scan: "Your <card> is worth $X".
 - [ ] Miss / busy panels show the sign-up link.
 - [ ] /scan?game=magic opens the scanner on Magic.
+- [ ] /scan logged out on a phone: example card (picture, name, set, price, "Example") under "135,000+ cards"; switches with the game; gone once a price shows.
 - [ ] Ad signup (from /scan) skips "How will you use it?", lands in the scanner as Seller.
 - [ ] Organic signup still gets the question.
 - [ ] Admin funnel shows ad-page signups as landing /scan.

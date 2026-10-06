@@ -6,6 +6,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import ArtImg from "@/components/ArtImg";
+import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import { Crumbs, PriceCell, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import {
@@ -190,10 +191,10 @@ function SellStory({ f, page }: { f: CardFacts; page: CardPage }) {
         <Stat label="You Keep" value={formatMoney(m.net)} strong />
       </div>
       <p className="mt-4 text-sm leading-relaxed text-zinc-400">{words.detail}</p>
-      {/* The condition ladder (SEO 10-02): the eBay Suggested Price for each condition, the scanner's own numbers. */}
+      {/* The condition ladder (SEO 10-02): an ESTIMATE per condition: a fixed percentage of the market price (the scanner's own formula), not sold prices. */}
       {ladder.length > 0 && (
         <dl className="mt-4 divide-y divide-edge rounded-xl border border-edge bg-black/20 text-sm">
-          <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">eBay Suggested Price by condition</div>
+          <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Estimated price by condition</div>
           {ladder.map((step) => (
             <div key={step.condition} className="flex items-baseline justify-between gap-3 px-3 py-2">
               <dt className="text-zinc-300">{step.condition}</dt>
@@ -270,8 +271,9 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
             {rank && <p className="mt-3 text-sm leading-relaxed text-zinc-300">{rank}</p>}
             {page.prices.length > 1 && <PriceTable page={page} />}
 
-            <div className="mt-6">
-              <ScanCta />
+            <div className="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              <WatchPrice game={game} id={f.id} />
+              <ScanCta secondary />
             </div>
           </div>
         </div>

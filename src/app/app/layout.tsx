@@ -4,6 +4,7 @@ import AppHeader from "@/components/AppHeader";
 import SubscriptionGate from "@/components/SubscriptionGate";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
+import { PendingWatch } from "@/components/WatchPrice";
 import { NOT_AFFILIATED } from "@/lib/games";
 import { PRIVATE_META } from "@/lib/pageMeta";
 
@@ -23,6 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppHeader />
         <SubscriptionGate>{children}</SubscriptionGate>
         <TourOverlay />
+        <PendingWatch />
       </div>
       <Toaster />
       <footer className="border-t border-white/5 px-6 py-4 text-center text-[11px] text-zinc-600">

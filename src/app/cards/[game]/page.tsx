@@ -6,6 +6,7 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
+import CatalogSearch from "@/components/CatalogSearch";
 import { gamePath, gameTitle, indexFloorUsd, setPath } from "@/lib/cardPages";
 import { gameTopTiles, publicCardGame, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
 import { formatMoney } from "@/lib/listing";
@@ -71,6 +72,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           Market prices for {name} cards, by set. Each card page has the price for the exact printing, how it has moved and the recorded
           history. Sets list cards from {formatMoney(indexFloorUsd(game))} up; a price that looks wrong is not shown.
         </p>
+        <CatalogSearch game={game} />
 
         {top.length > 0 && (
           <section className="mt-8">

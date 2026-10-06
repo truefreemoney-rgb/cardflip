@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import CatalogSearch from "@/components/CatalogSearch";
+import { gameFromSlug } from "@/lib/cardPages";
 import Logo from "@/components/Logo";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
 
@@ -28,6 +31,10 @@ import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
  */
 export default function MarketingNav() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [searching, setSearching] = useState(false);
+  // On /cards/{game}/... the search stays inside that game.
+  const pathname = usePathname() ?? "";
+  const pageGame = pathname.startsWith("/cards/") ? gameFromSlug(pathname.split("/")[2] ?? "") : null;
 
   useEffect(() => {
     let alive = true;
@@ -58,6 +65,17 @@ export default function MarketingNav() {
           <Link href="/cards" className={`${link} hidden sm:inline-block`}>
             Card Prices
           </Link>
+          <button
+            type="button"
+            onClick={() => setSearching((v) => !v)}
+            aria-label={searching ? "Close card search" : "Search cards"}
+            aria-expanded={searching}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              {searching ? <path d="M6 6l12 12M18 6L6 18" /> : <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>}
+            </svg>
+          </button>
           <Link href="/pricing" className={link}>
             Pricing
           </Link>
@@ -97,6 +115,11 @@ export default function MarketingNav() {
           )}
         </div>
       </nav>
+      {searching && (
+        <div className="mx-auto w-full max-w-6xl px-4 pb-2 sm:px-6">
+          <CatalogSearch variant="nav" game={pageGame ?? undefined} autoFocus onNavigate={() => setSearching(false)} />
+        </div>
+      )}
     </header>
   );
 }
