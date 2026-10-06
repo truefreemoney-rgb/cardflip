@@ -25,8 +25,9 @@ export async function catalogSize(): Promise<number> {
   if (cached && now - cached.at < TTL_MS) return cached.total;
   // Module memo is per lambda; the card_cache row is shared across them, so a
   // cold start no longer walks four catalog tables (~115k rows, outage 09-06).
-  const { total } = await cachedList("catalog:size:v1", TTL_MS, async () => ({
-    total: (await count("en_cards")) + (await count("jp_cards")) + (await count("zh_cards")) + (await count("mtg_cards")),
+  // v2 (10-06): tcg_cards too (Lorcana, One Piece, Yu-Gi-Oh!), so this and the live stats strip agree.
+  const { total } = await cachedList("catalog:size:v2", TTL_MS, async () => ({
+    total: (await count("en_cards")) + (await count("jp_cards")) + (await count("zh_cards")) + (await count("mtg_cards")) + (await count("tcg_cards")),
   }));
   cached = { total, at: now };
   return total;

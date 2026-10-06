@@ -26,6 +26,8 @@ import { CHART_MIN_POINTS } from "@/lib/cardPages";
 import { buildListing, formatMoney, plausiblePrices, quotePrice } from "@/lib/listing";
 import { COST_COVERED_MAX_USD, COST_TAPER_END_USD, EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, EBAY_FLAT_FEE_STEP_USD, POSTAGE_USD, ebayFlatFee, netAfterFees } from "@/lib/fees";
 import type { GameId, PokemonCard } from "@/lib/types";
+import LiveStatsStrip from "@/components/LiveStatsStrip";
+import { liveStats } from "@/lib/server/liveStats";
 
 /**
  * The landing page (makeover 09-04, Chris: "the first thing prospecting
@@ -162,7 +164,7 @@ export default async function Home() {
   // "include the new games"). Admin-only games stay off the landing page.
   const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
   const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
-  const [featuredLive, showcaseMirror, catalogLabel, stages] = await Promise.all([
+  const [featuredLive, showcaseMirror, catalogLabel, stages, stats] = await Promise.all([
     getFeaturedCard(),
     // The wall recipe (lib/wallMix.ts): 4 Pokémon, 2 Magic, 2 other games, each printing picked for its history.
     wallCards(games),
@@ -170,6 +172,7 @@ export default async function Home() {
     // One real, priced card per game for the games strip; a game whose
     // mirror has nothing to show is skipped (data honesty, DESIGN.md).
     Promise.all(games.map(async (g) => ({ game: g, card: (await getGameStageCards(g).catch(() => ({ cards: [] as StageCard[] }))).cards.find((c) => c.lead) ?? null }))),
+    liveStats(),
   ]);
   const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
   // No mirrors here (fresh dev DB): the old upstream showcase, so the page still has a wall to show.
@@ -277,6 +280,7 @@ export default async function Home() {
                 640 and 1023px (iPhone landscape, iPad) the phone sits centered
                 below the copy, so left-aligned copy read as lopsided. */}
             <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+              <LiveStatsStrip stats={stats} className="text-left" />
               <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
                 {games.map((g) => (g === "pokemon" ? "Pokémon TCG" : GAMES[g].label)).join(" · ")}
               </div>

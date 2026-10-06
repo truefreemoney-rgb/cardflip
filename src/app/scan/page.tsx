@@ -7,6 +7,8 @@ import { GAME_IDS, isGameId } from "@/lib/games";
 import { getGameStageCards } from "@/lib/server/stageCards";
 import type { ScanExample } from "@/components/TrialScanner";
 import type { GameId } from "@/lib/types";
+import LiveStatsStrip from "@/components/LiveStatsStrip";
+import { liveStats } from "@/lib/server/liveStats";
 
 /**
  * The ad landing page (10-05): the TikTok ads point here, not at the home
@@ -35,6 +37,7 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const initialGame = gameParam(Array.isArray(sp.game) ? sp.game[0] : sp.game);
   const label = await catalogSizeLabel().catch(() => "Every printing");
+  const stats = await liveStats();
   // One real example card per game: the lead of the home page's stage reel (cached 6 h, guarded, $15-$300). None found = none shown.
   const examples: Partial<Record<GameId, ScanExample>> = {};
   await Promise.all(
@@ -52,6 +55,7 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
         </Link>
       </header>
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-5 px-4 pb-10 pt-6">
+        <LiveStatsStrip stats={stats} />
         <div className="text-center">
           <h1 className="font-display text-4xl font-bold leading-[1.05] text-white">
             What&apos;s your card <span className="holo-text">worth?</span>
