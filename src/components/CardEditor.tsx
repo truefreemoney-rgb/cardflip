@@ -9,6 +9,7 @@ import { MatchHero } from "@/components/CenteringPhoto";
 import ListedPanel from "@/components/ListedPanel";
 import SoldPanel from "@/components/SoldPanel";
 import CardImage from "@/components/CardImage";
+import MissingCardReport from "@/components/MissingCardReport";
 import MarketMetricsPanel from "@/components/MarketMetricsPanel";
 import EbayPostActions from "@/components/EbayPostActions";
 import { useSession } from "@/components/SessionProvider";
@@ -483,6 +484,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           {/* "Use a different photo" (a file picker) went 10-03 with every upload: a new shot comes from the camera. */}
         </div>
         {manualSearch}
+        <MissingCardReport
+          game={item.game ?? "pokemon"}
+          typed={term}
+          read={item.vision ? { name: item.vision.englishName || item.vision.name, setName: item.vision.setName, number: item.vision.cardNumber } : null}
+        />
       </div>
     );
   }

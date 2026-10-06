@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Spinner from "@/components/Spinner";
 import CardImage from "@/components/CardImage";
+import MissingCardReport from "@/components/MissingCardReport";
 import { searchTyped } from "@/lib/cards";
 import { gradeLabel, parseGradeQuery } from "@/lib/grading";
 import { GAMES, displayCardNumber } from "@/lib/games";
@@ -38,11 +39,14 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
   // what grade a click on the existing results applies.
   const [resultsGrading, setResultsGrading] = useState<GradedInfo | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // True only after a search that ran and matched nothing (not a bad query or an outage).
+  const [searchedEmpty, setSearchedEmpty] = useState(false);
 
   async function handleSearch() {
     if (!query.trim() || searching) return;
     setSearching(true);
     setError(null);
+    setSearchedEmpty(false);
     try {
       // Grade first: left in, "PSA 10" reads as a collector number.
       const { rest, grading } = parseGradeQuery(query);
@@ -55,7 +59,10 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
       setResults(found);
       setResultsGrading(grading);
       setAddedIds(new Set());
-      if (found.length === 0) setError("No cards matched that search.");
+      if (found.length === 0) {
+        setError("No cards matched that search.");
+        setSearchedEmpty(true);
+      }
     } catch {
       setError("Search failed — check your connection.");
     } finally {
@@ -90,6 +97,7 @@ export default function ScannerSearch({ language, game = "pokemon", onPick }: Pr
       </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
+      {searchedEmpty && <MissingCardReport game={game} typed={query} />}
 
       {resultsGrading && results.length > 0 && (
         <p className="text-xs text-brand-300">

@@ -3,6 +3,16 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-06 new features (audit section G)
+- [ ] Phone: Share on a found card opens the share sheet with the picture (iPhone + Android); falls back to a download elsewhere.
+- [ ] Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
+- [ ] Camera tips line shows the first 3 opens, "Got It" hides it for good.
+- [ ] Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
+- [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
+- [ ] Airplane mode on the phone inside the app shows the No Signal page; push still works after the worker update.
+- [ ] Home-screen icon long-press shows Scan and Inventory shortcuts (Android; iOS ignores them).
+- [ ] /cards/pokemon/movers and /cards/magic/movers listed in pages.xml after the sitemap cache turns over.
+
 ## 10-06 behind the scenes (audit section F)
 - [ ] 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
 - [ ] TikTok Ads Manager still records ViewContent / ClickButton from /scan after the pixel moved to load after first paint (events queue up to 15 s).

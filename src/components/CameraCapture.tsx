@@ -13,6 +13,7 @@ import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
+import { pricierSibling } from "@/lib/variantWarning";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { PokemonCard, ScanItem } from "@/lib/types";
 import {
@@ -236,6 +237,9 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
   return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
 }
 
+const TIPS_KEY = "cf-camera-tips-opens";
+const TIPS_MAX_OPENS = 3;
+
 /**
  * Live camera capture, so a stack of cards can be scanned without ever
  * leaving the page.
@@ -285,6 +289,29 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // from the gallery is an upload, and eBay rejects listings that reuse
   // pictures. The message says how to turn the camera back on instead.
   const [ready, setReady] = useState(false);
+  // Camera tips (audit G12): shown the first few times the camera opens on this device, until dismissed.
+  const [tipsOn, setTipsOn] = useState(() => {
+    try {
+      return (Number(localStorage.getItem(TIPS_KEY) ?? "0") || 0) < TIPS_MAX_OPENS;
+    } catch {
+      return false; // storage blocked: skip the tips rather than nag on every open
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(TIPS_KEY, String((Number(localStorage.getItem(TIPS_KEY) ?? "0") || 0) + 1));
+    } catch {
+      // nothing to remember it with
+    }
+  }, []);
+  function dismissTips() {
+    setTipsOn(false);
+    try {
+      localStorage.setItem(TIPS_KEY, String(TIPS_MAX_OPENS));
+    } catch {
+      // nothing to remember it with
+    }
+  }
   const [captured, setCaptured] = useState(0);
   const [flash, setFlash] = useState(false);
   // Blur gate (09-03): a soft frame is refused once with a nudge instead of
@@ -945,12 +972,21 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} verify={verify} />
           ) : nativeCam ? null : (
-            <p className="w-full text-center text-sm leading-snug text-zinc-400">
+            <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
-              <span className="block text-xs text-zinc-500">Keep going for a whole stack.</span>
-            </p>
+              {tipsOn ? (
+                <span className="mt-1 flex items-center justify-center gap-2 text-xs text-brand-200">
+                  <span>Lay It Flat · No Glare · Sleeves OK, No Slabs</span>
+                  <button type="button" onClick={dismissTips} aria-label="Hide camera tips" className="rounded-full border border-edge px-2 py-0.5 text-[11px] text-zinc-300 hover:border-edge-strong">
+                    Got It
+                  </button>
+                </span>
+              ) : (
+                <span className="block text-xs text-zinc-500">Keep going for a whole stack.</span>
+              )}
+            </div>
           )}
         </div>
 
@@ -1037,11 +1073,13 @@ interface ToastProps {
   onOpen?: (id: string) => void;
   onRemove?: (id: string) => void;
   onSwap?: () => void;
+  /** One-tap switch to a candidate the variant warning named. */
+  onPickSibling?: (card: PokemonCard) => void;
   /** The chip button's numbers: scans waiting and their market total. */
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1075,7 +1113,7 @@ function ScanToast({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} verify={verify} />;
 }
 
 /**
@@ -1152,8 +1190,10 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: ToastProps) {
   const card = item.card!;
+  // A look-alike printing worth much more (Special Illustration vs regular): say so, never switch by itself.
+  const sibling = onPickSibling ? pricierSibling(item) : null;
   // Hold the number until the chart point is fetched (undefined = not yet):
   // it can move the market to today's figure, and the number is revealed
   // once, never corrected a beat later. eBay comps no longer feed this number
@@ -1227,6 +1267,20 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
         )}
       </div>
     </div>
+      {sibling && onPickSibling && (
+        <div role="status" className="flex w-full items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-amber-200">
+            <span className="font-semibold">Check the art:</span> the {sibling.card.rarity || "other"} version is worth {formatMoney(sibling.extra)} more.
+          </p>
+          <button
+            type="button"
+            onClick={() => onPickSibling(sibling.card)}
+            className="shrink-0 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-300"
+          >
+            Switch
+          </button>
+        </div>
+      )}
       {/* The next step lives on the result (Chris, 09-04): one button, names
           the outcome. Keeps scanning if ignored. 10-02: it counts the scans
           waiting and carries their total ("5 Scans Waiting To Verify · $23.40"),
