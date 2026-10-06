@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
-import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
+import { readSeriesMap, upsertSeriesRows, type SeriesKeyed, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { CONVERTED_SOURCE, cardmarketUsd } from "@/lib/server/cardmarket";
+import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import {
   kitHalves,
   mapKitProducts,
@@ -216,6 +217,72 @@ async function tcgdexFill(
   return out;
 }
 
+/** Default printing first, as the price guard picks it (priceTrustLoad). */
+const REF_VARIANTS = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
+const refRank = (variant: string) => REF_VARIANTS.indexOf(variant) + 1 || 99;
+
+/**
+ * Pure: the cards whose pokemontcg.io Cardmarket average disagrees with the
+ * US price (>= refClear on a $10+ default printing), plus every card that
+ * already has a TCGdex reading, so it stays fresh. Disputed first, then the rest.
+ */
+export function refereeCandidates(
+  tcg: Map<string, { prices: string }>,
+  cm: Map<string, { prices: string }>,
+  alt: Map<string, { prices: string }>,
+): string[] {
+  const best = new Map<string, { variant: string; usd: number }>();
+  for (const [key, s] of tcg) {
+    const bar = key.indexOf("|");
+    const id = key.slice(0, bar);
+    const variant = key.slice(bar + 1);
+    const usd = lastPriced(decodePrices(s.prices));
+    if (usd == null) continue;
+    const cur = best.get(id);
+    if (!cur || refRank(variant) < refRank(cur.variant)) best.set(id, { variant, usd });
+  }
+  const disputed: string[] = [];
+  for (const [id, { usd }] of best) {
+    if (usd < PRICE_TRUST.refMinUsd) continue;
+    const eur = cm.get(`${id}|average`);
+    const ref = eur ? lastPriced(decodePrices(eur.prices)) : null;
+    if (ref != null && ref >= PRICE_TRUST.refMinEur && usd / (ref * PRICE_TRUST.eurToUsd) >= PRICE_TRUST.refClear) disputed.push(id);
+  }
+  const seen = new Set(disputed);
+  const keep = [...alt.keys()].map((k) => k.slice(0, k.indexOf("|"))).filter((id) => !seen.has(id));
+  return [...disputed, ...keep];
+}
+
+/**
+ * TCGdex's Cardmarket `avg` (EUR) for the disputed cards (refereeCandidates),
+ * stored as REF_ALT_SOURCE so the price guard has a second reading (10-06:
+ * pokemontcg.io's average was another printing's on 97 of 185 disputed cards).
+ * The plain `avg` only: TCGdex's "-holo" fields are Cardmarket's reverse holo,
+ * and its trend/avg30 carry spikes (Cresselia GE: avg EUR 4.32, avg7 EUR 513).
+ */
+async function tcgdexReferee(day: string, tcg: Map<string, SeriesKeyed>, max = 600): Promise<SeriesUpsert[]> {
+  const [cm, alt] = await Promise.all([readSeriesMap("pokemon", "cardmarket"), readSeriesMap("pokemon", REF_ALT_SOURCE)]);
+  const queue = refereeCandidates(tcg, cm, alt).filter((id) => alt.get(`${id}|average`)?.updatedDay !== day).slice(0, max);
+  const out: SeriesUpsert[] = [];
+  const worker = async () => {
+    for (let id = queue.shift(); id; id = queue.shift()) {
+      try {
+        const res = await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`, { headers: HEADERS, signal: AbortSignal.timeout(15_000) });
+        const card = res.ok ? ((await res.json()) as { pricing?: { cardmarket?: { avg?: unknown } | null } }) : null;
+        const avg = card?.pricing?.cardmarket?.avg;
+        if (typeof avg !== "number" || !(avg >= PRICE_TRUST.refMinEur)) continue;
+        const existing = alt.get(`${id}|average`);
+        const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, avg);
+        out.push({ cardId: id, game: "pokemon", variant: "average", source: REF_ALT_SOURCE, currency: "EUR", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
+      } catch {
+        // one card's miss waits for tomorrow
+      }
+    }
+  };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  return out;
+}
+
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
   try {
     await mapNewPokemonGroups();
@@ -344,6 +411,11 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     tcgdexSeries = fill.length;
   } catch (err) {
     console.warn("tcgdex price fill:", err instanceof Error ? err.message : err);
+  }
+  try {
+    await upsertSeriesRows(await tcgdexReferee(day, existingSeries));
+  } catch (err) {
+    console.warn("tcgdex referee:", err instanceof Error ? err.message : err);
   }
   // Drop the series a pattern product wrote under the wrong key before the
   // pattern was understood (the "holofoil" row on an uncommon trainer).

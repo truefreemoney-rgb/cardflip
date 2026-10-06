@@ -54,6 +54,18 @@ check("Cresselia dp4-2 $17.23 vs EUR 2.85 (5.5x), steady 140 days: shown", verdi
 check("Cresselia LV.X dp4-103 $61.39 vs EUR 11.30 (4.9x), steady: shown", verdict(data("pokemon", [ser("holofoil", liquid(61.39, 139))], { cmEur: 11.3, released: "2008-02-13" })), null);
 check("a thin 3-priced-day series with a 5x gap still flags (soft)", verdict(data("pokemon", [ser("holofoil", [17.1, 17.2, 17.23])], { cmEur: 2.85 })), [false, "thin, cardmarket 5.5x"]);
 check("a steady $60 at 12x still flags, hard", verdict(data("pokemon", [ser("holofoil", liquid(60, 139))], { cmEur: 4.5 }))?.[0], true);
+// 10-06: TCGdex's Cardmarket avg (cmEurAlt) is a second reading; the one nearer the price referees.
+check("a thin 5x gap clears when TCGdex's reading agrees (LV.X EUR 49.70)", verdict(data("pokemon", [ser("holofoil", [61.1, 61.2, 61.39])], { cmEur: 11.3, cmEurAlt: 49.7 })), null);
+check("... a junk TCGdex reading never opens a gap the old one cleared", verdict(data("pokemon", [ser("holofoil", liquid(36.21, 139))], { cmEur: 30, cmEurAlt: 426.5 })), null);
+check("... and both readings far off still flag, hard", verdict(data("pokemon", [ser("holofoil", liquid(60, 139))], { cmEur: 4.5, cmEurAlt: 3 }))?.[0], true);
+check("... and an agreeing TCGdex reading never vouches: the $1,013 Rayquaza spike stays hidden (TCGdex EUR 2,216)", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)], { cmEur: 45.13, cmEurAlt: 2216.42 }))?.[0], true);
+{
+  const { refereeCandidates } = await import(at("lib/server/pokemonPriceRefresh.ts"));
+  const s = (v) => ({ prices: encodePrices([v]) });
+  const tcg = new Map([["a|holofoil", s(61.39)], ["a|reverseHolofoil", s(5)], ["b|holofoil", s(20)], ["c|normal", s(8)], ["d|holofoil", s(40)]]);
+  const cm = new Map([["a|average", s(11.3)], ["b|average", s(15)], ["c|average", s(1)], ["d|average", s(2)]]);
+  check("referee candidates: disputed $10+ default printings, then cards already holding a reading", refereeCandidates(tcg, cm, new Map([["b|average", s(18)], ["d|average", s(30)]])), ["a", "d", "b"]);
+}
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
 check("Deoxys: a round $500 for 87 days is stale, not hidden", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), null);
@@ -65,6 +77,7 @@ check("the note wording: months from two months, weeks under", [priceStaleNote(1
 const CHARIZARD_PLASMA = [...liquid(1100, 30), ...Array(128).fill(1150)];
 check("Charizard bw8-136: shown", verdict(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), null);
 check("... with the 128-day note", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), { days: 128 });
+check("... nor clears a stale note (Charizard bw8-136, TCGdex EUR 378.97)", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, cmEurAlt: 378.97, released: "2013-02-06" })), { days: 128 });
 check("a liquid $300 card is fine", verdict(data("pokemon", [ser("holofoil", liquid(300))])), null);
 check("a $12 card is never looked at", verdict(data("pokemon", [ser("normal", [12, 12, 12])], { cmEur: 0.5 })), null);
 check("soft signs only come back as unverified (hard false)", verdict(data("pokemon", [ser("holofoil", liquid(499.99, 8))])), [false, "round, 9 priced days"]);

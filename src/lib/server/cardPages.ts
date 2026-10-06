@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { cachedList } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
-import { PRICE_TRUST, lastPriced } from "@/lib/server/priceTrust";
+import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
@@ -316,6 +316,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   const cmSince = addDays(today, -PRICE_TRUST.refMaxAgeDays);
   const series: TrustSeries[] = [];
   let cmEur: number | null = null;
+  let cmEurAlt: number | null = null;
   let convertedUsd: number | null = null;
   let convertedLabel = "Cardmarket (converted from €)";
   for (const r of rows) {
@@ -328,11 +329,13 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       }
     } else if (r.source === "cardmarket" && r.variant === "average") {
       if (r.updated_day >= cmSince) cmEur = lastPriced(prices);
+    } else if (r.source === REF_ALT_SOURCE && r.variant === "average") {
+      if (r.updated_day >= cmSince) cmEurAlt = lastPriced(prices);
     } else if (r.source === "tcgplayer" && r.currency === "USD" && prices.some((p) => p != null)) {
       series.push({ variant: r.variant, startDay: r.start_day, prices });
     }
   }
-  const data: TrustData = { game: facts.game, series, cmEur, eur: rec.eur, released: rec.released };
+  const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released };
 
   let inputs: SeriesInput[];
   try {

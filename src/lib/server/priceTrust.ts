@@ -161,6 +161,8 @@ export interface PriceTrustInput {
   siblings?: readonly number[];
   /** A fresh second-source price in EUR (Pokémon: Cardmarket average; Magic: Scryfall price_eur). Under EUR 1 it is ignored. */
   refEur?: number | null;
+  /** Pokémon: TCGdex's Cardmarket avg (EUR, REF_ALT_SOURCE). Can only take a refEur gap away, never vouch or open one. */
+  refAltEur?: number | null;
   /** The print is vintage (isVintage): thin and round are its normal state, not signs. */
   vintage?: boolean;
   /** The price is printed as the OLD side of a move (or another past reading): judged strictest, see the header. */
@@ -268,6 +270,25 @@ export function lastPriced(prices: readonly (number | null)[]): number | null {
   return null;
 }
 
+/**
+ * Pokémon's second Cardmarket reading (10-06): TCGdex's `avg`, kept for cards
+ * whose pokemontcg.io average disagrees with the US price (source below,
+ * variant "average", EUR). Either reading can be another printing's figure
+ * (Cresselia LV.X: pokemontcg.io EUR 11.30, TCGdex EUR 49.70, US $61.39), and
+ * either can be junk (Skyridge EUR 426 next to $36), so the one nearer the US
+ * price referees: a second reading can only clear a gap, never open one.
+ */
+export const REF_ALT_SOURCE = "tcgdex-cm";
+
+/** The usable reading (EUR, >= refMinEur) nearest `toUsd` in ratio, or null. */
+export function nearestRef(toUsd: number | null, refs: readonly (number | null | undefined)[]): number | null {
+  const usable = refs.filter((r): r is number => r != null && r >= PRICE_TRUST.refMinEur);
+  if (usable.length === 0) return null;
+  if (toUsd == null || !(toUsd > 0)) return usable[0];
+  const off = (r: number) => Math.abs(Math.log(toUsd / (r * PRICE_TRUST.eurToUsd)));
+  return usable.reduce((a, b) => (off(b) < off(a) ? b : a));
+}
+
 const x = (n: number) => `${n.toFixed(1)}x`;
 
 export interface StepJumpInput {
@@ -322,19 +343,26 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
 
 
 /** ok = the price may be printed; reason says why not (or, when a second source vouched, that it did). */
-export function priceTrust({ to, prices, siblings = [], refEur = null, vintage = false, old = false }: PriceTrustInput): PriceTrust {
+export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false }: PriceTrustInput): PriceTrust {
   const T = PRICE_TRUST;
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
   if (to < T.refMinUsd) return { ok: true, reason: "" };
   const wrong = (reason: string): PriceTrust => ({ ok: false, hard: true, reason });
 
-  // 1. Cross-source referee.
+  // 1. Cross-source referee. The second reading speaks only when nearer than the first, and then it never vouches:
+  // a junk TCGdex EUR 2,216 must not wave through the $1,013 Rayquaza spike, so an agreeing second reading only
+  // takes the gap away and the series tests below still run.
   let refRatio: number | null = null;
-  if (refEur != null && refEur >= T.refMinEur) {
-    refRatio = to / (refEur * T.eurToUsd);
+  const primary = refEur != null && refEur >= T.refMinEur ? refEur : null;
+  const ref = primary == null ? null : nearestRef(to, [primary, refAltEur]);
+  if (ref != null) {
+    refRatio = to / (ref * T.eurToUsd);
     if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`);
-    if (refRatio < T.refClear) return { ok: true, reason: `cardmarket ${x(refRatio)} agrees`, agrees: true };
+    if (refRatio < T.refClear) {
+      if (ref === primary) return { ok: true, reason: `cardmarket ${x(refRatio)} agrees`, agrees: true };
+      refRatio = null;
+    }
   }
 
   const f = features(prices, to);

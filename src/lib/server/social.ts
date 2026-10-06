@@ -2,7 +2,7 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { PRICE_TRUST, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
+import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
@@ -140,6 +140,8 @@ interface SeriesRow {
   prices: string;
   /** Pokémon: the card's fresh Cardmarket 'average' series (EUR), null when it has none or it is stale. */
   cm_prices?: string | null;
+  /** Pokémon: TCGdex's Cardmarket avg series (REF_ALT_SOURCE), fresh, or null. */
+  alt_prices?: string | null;
   /** Magic: Scryfall's Cardmarket price (EUR) from mtg_cards. */
   price_eur?: number | null;
   /** Pokémon: the set's release date (priceTrust vintage). */
@@ -267,10 +269,11 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
             // (an eBay PSA 10 row sat in the pool at rank 99), catalog cards
             // only, and the card's fresh Cardmarket average rides along as the
             // price guard's second source (one PK lookup per row, no extra query).
-            `SELECT p.card_id, p.variant, p.start_day, p.prices, c.prices AS cm_prices, e.set_release_date AS released
+            `SELECT p.card_id, p.variant, p.start_day, p.prices, c.prices AS cm_prices, t.prices AS alt_prices, e.set_release_date AS released
                FROM price_series p
                JOIN en_cards e ON e.id = p.card_id
                LEFT JOIN price_series c ON c.card_id = p.card_id AND c.variant = 'average' AND c.source = 'cardmarket' AND c.updated_day >= ?
+               LEFT JOIN price_series t ON t.card_id = p.card_id AND t.variant = 'average' AND t.source = '${REF_ALT_SOURCE}' AND t.updated_day >= ?
               WHERE p.game = ? AND p.currency = 'USD' AND p.source = 'tcgplayer' AND p.updated_day >= ?
                 AND p.card_id IN (
                   SELECT card_id FROM price_series
@@ -279,11 +282,11 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
                              COALESCE(json_extract(prices, '$[#-${days + 1}]'), 0)) >= ?${band ? " AND COALESCE(json_extract(prices, '$[#-1]'), json_extract(prices, '$[#-2]'), 0) < ?" : ""})
               LIMIT ${ROW_CAP}`,
           )
-          .all(...(band ? [cmSince, game, since, game, since, poolMin, poolMax] : [cmSince, game, since, game, since, poolMin]))
+          .all(...(band ? [cmSince, cmSince, game, since, game, since, poolMin, poolMax] : [cmSince, cmSince, game, since, game, since, poolMin]))
   ) as unknown as SeriesRow[];
   if (!band && rows.length >= (game === "mtg" ? MTG_POOL_CAP : ROW_CAP)) console.warn(`social: ${game} series pool hit its cap (${rows.length}); posts may miss cards`);
   // One entry per card: its series (so the preferred variant speaks for it and the rest are its siblings) and the second-source price.
-  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; refPrices: (number | null)[] | null; released: string }>();
+  const cards = new Map<string, { series: { variant: string; prices: (number | null)[]; todayIdx: number; to: number }[]; refEur: number | null; refAlt: number | null; refPrices: (number | null)[] | null; released: string }>();
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     const todayIdx = dayDiff(r.start_day, day);
@@ -292,7 +295,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
     let card = cards.get(r.card_id);
     if (!card) {
       const refEur = game === "mtg" ? (r.price_eur ?? null) : r.cm_prices ? lastPriced(decodePrices(r.cm_prices)) : null;
-      cards.set(r.card_id, (card = { series: [], refEur, refPrices: game !== "mtg" && r.cm_prices ? decodePrices(r.cm_prices) : null, released: r.released ?? "" }));
+      cards.set(r.card_id, (card = { series: [], refEur, refAlt: game !== "mtg" && r.alt_prices ? lastPriced(decodePrices(r.alt_prices)) : null, refPrices: game !== "mtg" && r.cm_prices ? decodePrices(r.cm_prices) : null, released: r.released ?? "" }));
     }
     card.series.push({ variant: r.variant, prices, todayIdx, to });
   }
@@ -310,6 +313,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
       prices: todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1),
       siblings: others.map((s) => s.to),
       refEur: card.refEur,
+      refAltEur: card.refAlt,
       vintage,
     });
     if (!trust.ok) {
@@ -326,6 +330,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
         prices: prices.slice(0, todayIdx - back + 1),
         siblings: others.flatMap((s) => (s.todayIdx - back >= 0 ? [priceAt(s.prices, s.todayIdx - back, CARRY_DAYS)] : [])).filter((v): v is number => v != null),
         refEur: card.refEur,
+        refAltEur: card.refAlt,
         vintage,
         old: true,
       }).ok;

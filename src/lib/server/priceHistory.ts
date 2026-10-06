@@ -87,10 +87,10 @@ export async function recordPrices(cards: PokemonCard[], day = todayUtc()): Prom
   });
 }
 
-/** Every series we hold for a card, oldest point first. */
+/** Every series we hold for a card, oldest point first. Not the TCGdex referee reading (priceTrust REF_ALT_SOURCE): it judges prices, it is not a chart line. */
 export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> {
   const rows = (await db
-    .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ?")
+    .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ? AND source <> 'tcgdex-cm'")
     .all(cardId)) as unknown as { variant: string; source: string; currency: string; game: string; start_day: string; prices: string }[];
   return rows.map((r) => ({
     variant: r.variant,

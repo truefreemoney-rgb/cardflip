@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { pickPrice } from "@/lib/listing";
-import { PRICE_TRUST, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
+import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
@@ -60,6 +60,8 @@ export interface TrustData {
   series: TrustSeries[];
   /** Pokemon: the latest fresh Cardmarket average (EUR), or null. */
   cmEur: number | null;
+  /** Pokemon: TCGdex's Cardmarket avg (EUR) when fresh (REF_ALT_SOURCE): only ever takes a cmEur gap away (priceTrust). */
+  cmEurAlt?: number | null;
   /** Magic: Scryfall's Cardmarket prices on the mirror row (EUR), per finish. */
   eur: { nonfoil: number | null; foil: number | null } | null;
   /** The set's release date ("" = unknown), for the vintage exception. */
@@ -150,7 +152,8 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   // Pokemon: the one Cardmarket average belongs to the default printing (or to a card the price table has no series for at all).
   const cmSpeaks = data.game === "pokemon" && (s ? s === def : data.series.length === 0);
   const refEur = data.game === "mtg" ? (variant === "foil" || variant === "etched" ? (data.eur?.foil ?? null) : (data.eur?.nonfoil ?? null)) : cmSpeaks ? data.cmEur : null;
-  const verdict = priceTrust({ to, prices, siblings, refEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
+  const refAltEur = cmSpeaks ? (data.cmEurAlt ?? null) : null;
+  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
   if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
@@ -200,7 +203,7 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
     .prepare(
       `SELECT card_id, variant, source, start_day, prices FROM price_series
         WHERE game = ? AND card_id IN (${marks})
-          AND ((source = 'tcgplayer' AND currency = 'USD') OR (source = 'cardmarket' AND variant = 'average' AND updated_day >= ?))`,
+          AND ((source = 'tcgplayer' AND currency = 'USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant = 'average' AND updated_day >= ?))`,
     )
     .all(game, ...chunk, cmSince) as unknown as Promise<SeriesRow[]>;
   const metaQ =
@@ -219,13 +222,14 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
   const built = new Map<string, TrustData>();
   for (const id of chunk) {
     const m = meta.get(id);
-    built.set(id, { game, series: [], cmEur: null, eur: m?.eur ?? null, released: m?.released ?? "" });
+    built.set(id, { game, series: [], cmEur: null, cmEurAlt: null, eur: m?.eur ?? null, released: m?.released ?? "" });
   }
   for (const r of rows) {
     const d = built.get(r.card_id);
     if (!d) continue;
     const prices = decodePrices(r.prices);
     if (r.source === "cardmarket") d.cmEur = lastPriced(prices);
+    else if (r.source === REF_ALT_SOURCE) d.cmEurAlt = lastPriced(prices);
     else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
   }
   const at = Date.now();
