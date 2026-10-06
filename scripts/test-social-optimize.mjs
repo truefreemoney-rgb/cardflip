@@ -1,18 +1,19 @@
 /**
  * The daily social optimization loop's rules (lib/socialOptimize.ts), phase 3
- * of docs/SOCIAL-ANGLES-PLAN.md: a weighted daily rotation over the eight
- * pool kinds for 7am and 7pm. Run: npm run test:socialoptimize
+ * of docs/SOCIAL-ANGLES-PLAN.md: a deterministic fair rotation over all nine
+ * kinds for 7am, 1pm and 7pm. Run: npm run test:socialoptimize
  *
  * Pins: only posts 2 to 28 days old count; each post is scored against its
  * own site's average, so a site with huge view counts cannot swamp the
  * rest; a site with no views is scored on engagement; one runaway post is
  * capped; a kind with too few posts or days gets no opinion and the mean
- * weight; the draw is seeded by the day (deterministic); never the same kind
- * twice in a day, never yesterday's kind in the same slot, never a kind from
- * the last two days; 1pm is never touched; off writes nothing.
+ * weight; the kind choice is deterministic (least-used first, then score-weighted
+ * shares); never the same kind twice in a day, never yesterday's kind in the same
+ * slot, never a kind from the last two days; 1pm rotates too (always video);
+ * off writes nothing.
  */
 import assert from "node:assert/strict";
-import { FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, NO_REPEAT_DAYS, PICTURE_PRIOR, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
+import { FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, NO_REPEAT_DAYS, PICTURE_PRIOR, USAGE_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
 import { ANGLE_GAMES, angleCycle } from "../src/lib/socialPlan.ts";
 
 const NOW = Date.parse("2026-10-20T16:00:00Z"); // noon Eastern
@@ -25,7 +26,8 @@ const score = (r, k) => r.scores.find((s) => s.kind === k).score;
 
 // ---- Scoring ----
 assert.deepEqual(SCORED_KINDS, ["set", "movers", "games", "dips", "guess", "thennow", "versus", "sleepers", "top"]);
-assert.deepEqual(POOL_KINDS, SCORED_KINDS.filter((k) => k !== "movers"), "1pm is the movers video, never in the draw");
+assert.deepEqual(POOL_KINDS, SCORED_KINDS, "1pm joined the rotation: every kind is in the pool");
+assert.ok(USAGE_DAYS === 14);
 
 // Every kind the same: every score is 1.0 (an average post).
 let r = scoreKinds([...run("set", 10), ...run("movers", 10), ...run("games", 10), ...run("dips", 10)], NOW);
@@ -83,33 +85,76 @@ w = weights(scoreKinds([...run("set", 1), ...run("games", 100), ...run("dips", 1
 assert.ok(w.set >= 0.2 && w.set < w.games / 3, `floored at a quarter of the mean score, got ${w.set}`);
 assert.deepEqual(Object.values(weights([])), POOL_KINDS.map(() => 1), "no numbers at all: every kind weighs the same");
 
-// ---- The draw (rotate) ----
+// ---- The pick (rotate): deterministic, least-used first, then score-weighted shares ----
 const none = () => scoreKinds([], NOW).scores;
-const base = { scores: none(), yesterday: { morning: "set", evening: "games" }, recent: ["set", "games"] };
+const yday = { morning: "set", midday: "movers", evening: "games" };
+const base = { scores: none(), yesterday: yday, recent: ["set", "movers", "games"] };
 let p = rotate({ ...base, day: "2026-10-21" });
-assert.deepEqual(p, rotate({ ...base, day: "2026-10-21" }), "seeded by the day: the same day draws the same");
-assert.notEqual(p.morning.kind, p.evening.kind, "never the same kind in both slots");
-assert.ok(!["set", "games"].includes(p.morning.kind) && !["set", "games"].includes(p.evening.kind), "never a kind from the last two days");
-// Over a month of days every pool kind gets aired, and different days differ.
-const month = Array.from({ length: 30 }, (_, i) => rotate({ ...base, day: `2026-11-${String(i + 1).padStart(2, "0")}` }));
-assert.equal(new Set(month.flatMap((d) => [d.morning.kind, d.evening.kind])).size, POOL_KINDS.length - 2, "every kind outside the recent two is aired in a month");
-assert.ok(new Set(month.map((d) => `${d.morning.kind}/${d.evening.kind}`)).size > 10, "the days differ");
-// Weight tells: a kind scoring far above the rest is drawn far more often.
-const strong = scoreKinds([...run("set", 1), ...run("games", 1), ...run("dips", 1), ...run("top", 40)], NOW).scores;
-const draws = Array.from({ length: 60 }, (_, i) => rotate({ scores: strong, yesterday: { morning: "set", evening: "games" }, recent: [], day: `2027-01-${String((i % 28) + 1).padStart(2, "0")}${i >= 28 ? "" : ""}` }));
-const topDays = draws.filter((d) => d.morning.kind === "top" || d.evening.kind === "top").length;
-assert.ok(topDays >= 40, `most valuable should be drawn most days, got ${topDays} of 60`);
-// Yesterday's kind in the same slot is passed over, but may take the other slot.
-const ys = Array.from({ length: 40 }, (_, i) => rotate({ scores: none(), yesterday: { morning: "dips", evening: "top" }, recent: [], day: `2027-02-${String((i % 28) + 1).padStart(2, "0")}` }));
-assert.ok(ys.every((d) => d.morning.kind !== "dips" && d.evening.kind !== "top"));
-assert.ok(ys.some((d) => d.evening.kind === "dips" || d.morning.kind === "top"), "the other slot is open to it");
-// When the rules leave nothing, they relax in turn: a two-kind pool, both recent, still posts.
-p = rotate({ scores: none(), yesterday: { morning: "set", evening: "games" }, recent: ["set", "games"], pool: ["set", "games"], day: "2026-10-21" });
-assert.deepEqual([p.morning.kind, p.evening.kind].sort(), ["games", "set"]);
-assert.deepEqual([p.morning.kind, p.evening.kind], ["games", "set"], "…and not in yesterday's slots");
+assert.deepEqual(p, rotate({ ...base, day: "2026-10-21" }), "deterministic: the same input gives the same picks");
+const kindsOf = (d) => [d.morning.kind, d.midday.kind, d.evening.kind];
+assert.equal(new Set(kindsOf(p)).size, 3, "never the same kind twice in a day");
+assert.ok(kindsOf(p).every((k) => !["set", "movers", "games"].includes(k)), "never a kind from the last two days");
+assert.equal(p.midday.format, "video", "1pm is always the video");
+// The owner's complaint (10-06): movers 4, games 4, set/dips/sleepers/top 1, guess/versus/thennow 0. The never-used kinds come first, in some order.
+const usedBefore = { movers: 4, games: 4, set: 1, dips: 1, sleepers: 1, top: 1 };
+for (const day of ["2026-10-07", "2026-10-08", "2026-10-09", "2026-11-15"]) {
+  p = rotate({ scores: none(), yesterday: { morning: "movers", midday: "games", evening: "set" }, recent: [], used: usedBefore, day });
+  assert.deepEqual(kindsOf(p).sort(), ["guess", "thennow", "versus"], `the three unused styles take the three slots (${day})`);
+}
+// Fair over time with no scores at all: feed each day's picks back as usage, two days no-repeat; after 30 days every kind has aired and no kind leads another by more than two.
+{
+  const count = Object.fromEntries(SCORED_KINDS.map((k) => [k, 0]));
+  let yesterday = yday;
+  let recent = [];
+  for (let i = 0; i < 30; i++) {
+    const d = rotate({ scores: none(), yesterday, recent: recent.flat().slice(-6), used: { ...count }, day: `2026-11-${String(i + 1).padStart(2, "0")}` });
+    const ks = kindsOf(d);
+    for (const k of ks) count[k]++;
+    yesterday = { morning: d.morning.kind, midday: d.midday.kind, evening: d.evening.kind };
+    recent.push(ks);
+    recent = recent.slice(-2);
+  }
+  const counts = Object.values(count);
+  assert.equal(counts.reduce((a, b) => a + b, 0), 90);
+  assert.ok(Math.min(...counts) >= 9 && Math.max(...counts) - Math.min(...counts) <= 2, `fair rotation over 30 days, got ${JSON.stringify(count)}`);
+}
+// Exploitation (the caller's no-repeat list is left empty here: with nine kinds, three a day and NO_REPEAT_DAYS 2, only three kinds are ever eligible and the rotation is a plain round robin whatever the scores): with every kind scored, a kind scoring 3x airs about 3x as often (its target share), a floor-weak kind still airs, and the order is deterministic.
+const scoredAll = scoreKinds(SCORED_KINDS.flatMap((k) => run(k, k === "top" ? 4 : k === "dips" ? 0.05 : 1)), NOW).scores;
+assert.ok(scoredAll.every((s) => s.score != null));
+const noRules = { scores: scoredAll, yesterday: { morning: "set", midday: "set", evening: "set" }, recent: [] };
+p = rotate({ ...noRules, day: "2026-12-01" });
+assert.equal(p.morning.kind, "top", "all scored, nothing used: the best-scoring kind is furthest behind its share");
+assert.deepEqual(p, rotate({ ...noRules, day: "2026-12-01" }), "deterministic");
+p = rotate({ ...noRules, used: { top: 10 }, day: "2026-12-01" });
+assert.ok(!kindsOf(p).includes("top"), "a kind already over its share waits");
+p = rotate({ ...noRules, used: { top: 1, sleepers: 1, versus: 1, guess: 1, thennow: 1, games: 1, movers: 1, set: 1, dips: 1 }, day: "2026-12-01" });
+assert.equal(p.morning.kind, "top", "level usage: the higher-scored kind is the one furthest behind its share");
+{
+  const count = Object.fromEntries(SCORED_KINDS.map((k) => [k, 0]));
+  let yesterday = { morning: "set", midday: "set", evening: "set" };
+  let recent = [];
+  for (let i = 0; i < 90; i++) {
+    const d = rotate({ scores: scoredAll, yesterday, recent: [], used: { ...count }, day: `2027-01-${String((i % 28) + 1).padStart(2, "0")}` });
+    const ks = kindsOf(d);
+    for (const k of ks) count[k]++;
+    yesterday = { morning: d.morning.kind, midday: d.midday.kind, evening: d.evening.kind };
+    recent.push(ks);
+    recent = recent.slice(-2);
+  }
+  const others = SCORED_KINDS.filter((k) => k !== "top" && k !== "dips");
+  assert.ok(others.every((k) => count.top > count[k]), `the 3x kind airs most, got ${JSON.stringify(count)}`);
+  assert.ok(count.dips >= 3 && count.dips < Math.min(...others.map((k) => count[k])), `the floor-weak kind airs seldom, never never, got ${JSON.stringify(count)}`);
+}
+// Yesterday's kind in the same slot is passed over, but may take another slot.
+const ys = Array.from({ length: 40 }, (_, i) => rotate({ scores: none(), yesterday: { morning: "dips", midday: "movers", evening: "top" }, recent: [], day: `2027-02-${String((i % 28) + 1).padStart(2, "0")}` }));
+assert.ok(ys.every((d) => d.morning.kind !== "dips" && d.midday.kind !== "movers" && d.evening.kind !== "top"));
+// When the rules leave nothing, they relax in turn: a two-kind pool, both recent, still posts all three slots.
+p = rotate({ scores: none(), yesterday: { morning: "set", midday: "movers", evening: "games" }, recent: ["set", "games"], pool: ["set", "games"], day: "2026-10-21" });
+assert.deepEqual([p.morning.kind, p.midday.kind], ["games", "set"], "…and not in yesterday's slots");
+assert.ok(["set", "games"].includes(p.evening.kind));
 // Each angle carries its game: the day's cycle pick; the originals carry none.
 p = rotate({ ...base, day: "2026-10-21", pool: ["guess", "versus", "dips"] });
-for (const slot of ["morning", "evening"]) {
+for (const slot of ["morning", "midday", "evening"]) {
   const k = p[slot].kind;
   assert.equal(p[slot].game, k === "dips" ? null : angleCycle(k, "2026-10-21")[0]);
 }
@@ -140,11 +185,12 @@ assert.deepEqual(sk.formats.map((f) => [f.format, f.posts, f.score]), [["video",
 sk = scoreKinds([...run("set", 10).map((p) => ({ ...p, format: "video" })), ...run("games", 10).map((p) => ({ ...p, format: p.site === "bs" ? "picture" : "video" }))], NOW);
 assert.deepEqual(sk.formats.map((f) => f.posts), [6, 6]);
 // The draw: with no score the picture takes about a fifth of the open slots and never both slots on one day.
-const noRepeat = { scores: none(), yesterday: { morning: "set", evening: "games" }, recent: [] };
+const noRepeat = { scores: none(), yesterday: { morning: "set", midday: "movers", evening: "games" }, recent: [] };
 const fmtDays = Array.from({ length: 100 }, (_, i) => rotate({ ...noRepeat, day: `2027-${String(4 + Math.floor(i / 28)).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}` }));
 const pictures = fmtDays.flatMap((d) => [d.morning.format, d.evening.format]).filter((f) => f === "picture").length;
 assert.ok(pictures >= 15 && pictures <= 50, `about a fifth of 200 slots, got ${pictures}`);
 assert.ok(fmtDays.every((d) => !(d.morning.format === "picture" && d.evening.format === "picture")), "never both");
+assert.ok(fmtDays.every((d) => d.midday.format === "video"), "1pm is never the picture");
 // A picture that scores well is drawn more; one that scores badly, less.
 const good = [{ format: "video", posts: 20, score: 0.8 }, { format: "picture", posts: 20, score: 2.4 }];
 const goodDays = Array.from({ length: 60 }, (_, i) => rotate({ ...noRepeat, formats: good, day: `2027-05-${String((i % 28) + 1).padStart(2, "0")}` }));
@@ -154,16 +200,18 @@ assert.deepEqual(formatWeights([{ format: "video", posts: 20, score: 1.5 }, { fo
 // ---- One day of the loop (step) ----
 assert.ok(LEAD_DAYS === 1 && NO_REPEAT_DAYS === 2);
 const posts = [...run("set", 6), ...run("movers", 10), ...run("games", 10), ...run("dips", 14)];
-let s = step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: { morning: "set", evening: "games" }, recent: ["set", "games", "dips", "set"] });
+let s = step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: yday, recent: ["set", "games", "dips", "set"] });
 assert.equal(s.report.day, "2026-10-20");
 assert.equal(s.report.forDay, "2026-10-21");
-assert.ok(s.entry && s.entry.from === "2026-10-21" && s.entry.morning === s.report.picks.morning.kind && s.entry.evening === s.report.picks.evening.kind);
-assert.ok(!["set", "games", "dips"].includes(s.entry.morning) && !["set", "games", "dips"].includes(s.entry.evening), "the last two days' kinds sit out");
+assert.ok(s.entry && s.entry.from === "2026-10-21" && s.entry.morning === s.report.picks.morning.kind && s.entry.midday === s.report.picks.midday.kind && s.entry.evening === s.report.picks.evening.kind);
+assert.equal(s.entry.middayGame, s.report.picks.midday.game ?? undefined, "the entry carries the 1pm angle's game");
+assert.equal(s.entry.middayFormat, undefined);
+assert.ok(![s.entry.morning, s.entry.midday, s.entry.evening].some((k) => ["set", "games", "dips"].includes(k)), "the last two days' kinds sit out");
 assert.equal(s.entry.morningGame, s.report.picks.morning.game ?? undefined, "the entry carries the angle's game");
-assert.match(s.report.why, /^2026-10-21: .+ at 7am, .+ at 7pm, drawn by score \(never a kind from the last 2 days\)\. Scores \(1\.0 = an average post on its site\): set spotlight 0\.\d+, all-games jumps 1(\.\d+)?, price drops 1\.\d+, guess the price – \(0 of 10 posts\)/);
-assert.match(s.report.why, /A kind with no score yet is weighted at the average \([\d.]+\) until it has 10 posts over 5 days\. Video 1 vs picture 0\.2 \(the picture's own score needs 10 posts on sites that post both; it has 0\)\.$/);
+assert.match(s.report.why, /^2026-10-21: .+ at 7am, .+ at 1pm, .+ at 7pm\. Never-scored styles first \(least-used\), then each style gets slots in proportion to its score; the pick is the one furthest behind its share \(never a kind from the last 2 days\)\. Scores \(1\.0 = an average post on its site\): set spotlight 0\.\d+, weekly gains \d+(\.\d+)?, all-games jumps 1(\.\d+)?, price drops 1\.\d+, guess the price – \(0 of 10 posts\)/);
+assert.match(s.report.why, /A kind with no score yet airs first \(least-used\) until it has 10 posts over 5 days\. Video 1 vs picture 0\.2 \(the picture's own score needs 10 posts on sites that post both; it has 0\)\.$/);
 // The entry carries "picture" only when drawn (absent = video), and the sentence says so.
-const pic = Array.from({ length: 60 }, (_, i) => step({ posts, now: NOW, day: `2027-06-${String((i % 28) + 1).padStart(2, "0")}`, off: false, yesterday: { morning: "set", evening: "games" }, recent: [] })).find((x) => x.report.picks.morning.format === "picture" || x.report.picks.evening.format === "picture");
+const pic = Array.from({ length: 60 }, (_, i) => step({ posts, now: NOW, day: `2027-06-${String((i % 28) + 1).padStart(2, "0")}`, off: false, yesterday: yday, recent: [] })).find((x) => x.report.picks.morning.format === "picture" || x.report.picks.evening.format === "picture");
 assert.ok(pic, "some day draws a picture");
 const picSlot = pic.report.picks.morning.format === "picture" ? "morning" : "evening";
 assert.equal(pic.entry[`${picSlot}Format`], "picture");
@@ -173,10 +221,10 @@ assert.equal(s.entry.morningFormat === undefined || s.entry.morningFormat === "p
 assert.equal(s.report.counted, 48);
 assert.equal(Object.keys(s.report.weights).length, POOL_KINDS.length);
 // Switched off: the same numbers, nothing written, the sentence says what stays.
-s = step({ posts, now: NOW, day: "2026-10-21", off: true, yesterday: { morning: "set", evening: "games" }, recent: ["set", "games"] });
+s = step({ posts, now: NOW, day: "2026-10-21", off: true, yesterday: yday, recent: ["set", "games"] });
 assert.deepEqual([s.entry, s.report.picks], [null, null]);
-assert.match(s.report.why, /^Switched off: the schedule stays as it stands \(set spotlight at 7am, all-games jumps at 7pm\)\. Scores/);
+assert.match(s.report.why, /^Switched off: the schedule stays as it stands \(set spotlight at 7am, weekly gains at 1pm, all-games jumps at 7pm\)\. Scores/);
 // Deterministic: the same day and numbers give the same entry.
-assert.deepEqual(step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: { morning: "set", evening: "games" }, recent: [] }).entry, step({ posts, now: NOW + 1000, day: "2026-10-21", off: false, yesterday: { morning: "set", evening: "games" }, recent: [] }).entry);
+assert.deepEqual(step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: yday, recent: [] }).entry, step({ posts, now: NOW + 1000, day: "2026-10-21", off: false, yesterday: yday, recent: [] }).entry);
 
 console.log("test-social-optimize: ok");

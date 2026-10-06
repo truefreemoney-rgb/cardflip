@@ -101,7 +101,7 @@ function Draft({ draft, video, goesLive }: { draft: DraftView; video?: string; g
     <article className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 p-4">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <GoesLive at={goesLive} video={draft.kind === "movers"} />
+          <GoesLive at={goesLive} video={goesLive?.slot === "midday"} />
           <h2 className="font-semibold text-white">{draft.title}</h2>
           <p className="text-xs text-zinc-500">
             {draft.kind === "games" || draft.mixed ? "Every game" : POST_GAME_NAMES[draft.game]} · {KIND_SUB[draft.kind]} · {draft.day}

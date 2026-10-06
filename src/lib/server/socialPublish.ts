@@ -101,7 +101,7 @@ export const SLOT_ORDER: Slot[] = ["morning", "midday", "evening"];
 /** The kind a slot posts on an Eastern day: SLOTS, unless that day's plan (lib/socialPlan.ts) says otherwise. */
 export function slotKind(slot: Slot, day: string): PostKind {
   const plan = dayPlan(day);
-  return (slot === "morning" ? plan.morning : slot === "evening" ? plan.evening : undefined) ?? SLOTS[slot].kind;
+  return (slot === "morning" ? plan.morning : slot === "evening" ? plan.evening : plan.midday) ?? SLOTS[slot].kind;
 }
 /**
  * The kinds that post on an Eastern day: one per slot, no spares (Chris 10-03:

@@ -6,10 +6,10 @@
  * scripts/test-social-optimize.mjs. The job that feeds it and acts on it is
  * lib/server/socialOptimize.ts.
  *
- * Nine kinds exist; 1pm is always the movers video (the shared file every
- * site posts and the best-measured post). The two open slots, 7am and 7pm,
- * are a WEIGHTED DAILY ROTATION over the other eight (phase 3, replacing the
- * one-bench trial of 10-02):
+ * Nine kinds exist and all three slots (7am, 1pm, 7pm) rotate over all of them
+ * (10-06, Chris: "4 for big movers and 4 for all games isnt proper rotation",
+ * then "random draw? thats not how an optimizer works"): no randomness in the
+ * kind choice. 1pm is always the video (the shared file every site posts).
  *
  * Scoring (scoreKinds):
  * - Posts 2 to 28 days old only: views keep growing for two days, and a
@@ -22,12 +22,16 @@
  *   SCORE_CAP times its site's average.
  * - A kind needs MIN_POSTS posts over MIN_DAYS days or there is no opinion.
  *
- * The draw (rotate), seeded by the day so every reader agrees:
- * - Weight = the kind's score. A kind with no opinion yet gets the mean of
- *   the known scores (an optimistic prior: every new kind gets aired and
- *   earns numbers). A kind scoring under FLOOR of the mean is weighted at
- *   FLOOR of it: a weak kind airs seldom, never never.
- * - Never the same kind in both slots, never the kind that sat in that slot
+ * The pick (rotate), deterministic so every reader agrees:
+ * - Exploration first: a kind with no score yet comes before every scored one,
+ *   the least-used (slots posted in the last USAGE_DAYS days, plus the day's
+ *   earlier picks) first; ties by a fixed kind order rotated by a day hash.
+ * - Then exploitation: each kind's target share of the slots is its weight
+ *   over the pool's (weights(): its score, never under FLOOR of the mean, so a
+ *   weak kind airs seldom, never never); the pick is the candidate furthest
+ *   behind its share (target minus actual share of the slots used), ties by
+ *   higher score, then the fixed order. A kind scoring 2x airs about 2x as often.
+ * - Never the same kind twice in a day, never the kind that sat in that slot
  *   yesterday, never a kind posted in the last NO_REPEAT_DAYS days; each rule
  *   is relaxed in turn when it would leave nothing.
  * - Game per angle kind: one strict cycle over the games that have data for
@@ -41,11 +45,11 @@ import { easternOf } from "./socialPosts.ts";
 import { ANGLE_GAMES, angleCycle, isAngleKind, type AngleGame, type PostFormat, type StandingEntry } from "./socialPlan.ts";
 
 export type ScoredKind = "set" | "movers" | "games" | "dips" | "guess" | "thennow" | "versus" | "sleepers" | "top";
-export type OpenSlot = "morning" | "evening";
+export type OpenSlot = "morning" | "midday" | "evening";
 export const SCORED_KINDS: ScoredKind[] = ["set", "movers", "games", "dips", "guess", "thennow", "versus", "sleepers", "top"];
-/** The kinds the two open slots draw from (1pm is the movers video, never in the draw). */
-export const POOL_KINDS: ScoredKind[] = SCORED_KINDS.filter((k) => k !== "movers");
-export const OPEN_SLOTS: OpenSlot[] = ["morning", "evening"];
+/** The kinds the three slots pick from: every kind (1pm joined the rotation 10-06). */
+export const POOL_KINDS: ScoredKind[] = [...SCORED_KINDS];
+export const OPEN_SLOTS: OpenSlot[] = ["morning", "midday", "evening"];
 export const KIND_NAME: Record<ScoredKind, string> = {
   set: "set spotlight",
   movers: "weekly gains",
@@ -57,7 +61,7 @@ export const KIND_NAME: Record<ScoredKind, string> = {
   sleepers: "sleepers under $5",
   top: "most valuable",
 };
-export const SLOT_NAME: Record<OpenSlot, string> = { morning: "7am", evening: "7pm" };
+export const SLOT_NAME: Record<OpenSlot, string> = { morning: "7am", midday: "1pm", evening: "7pm" };
 export const GAME_NAME: Record<AngleGame, string> = { pokemon: "Pokémon", mtg: "Magic", lorcana: "Lorcana", onepiece: "One Piece", yugioh: "Yu-Gi-Oh", mixed: "all games" };
 
 export const MIN_AGE_DAYS = 2;
@@ -69,12 +73,14 @@ export const SCORE_CAP = 4;
 export const FLOOR = 0.25;
 /** A kind posted this many days back (either slot) is not drawn again. */
 export const NO_REPEAT_DAYS = 2;
+/** The days of posts the fair rotation counts (10-06): how many slots each kind actually posted in this window. */
+export const USAGE_DAYS = 14;
 /** The evening run picks this many days out: tomorrow, whose videos it then renders in the same pass. */
 export const LEAD_DAYS = 1;
 /**
  * The picture's weight against the video's until the picture has a score of its own (phase 5, Chris 10-03: "mostly
  * videos … occasional static images, put it in the optimizer and let it optimize itself"): one open slot in five or so
- * is the picture, never both slots on one day, and 1pm is always the video.
+ * is the picture, never both 7am and 7pm on one day, and 1pm is always the video.
  */
 export const PICTURE_PRIOR = 0.2;
 
@@ -217,6 +223,8 @@ export interface RotateInput {
   formats?: FormatScore[];
   /** The kinds that sat in each slot the day before. */
   yesterday: Record<OpenSlot, ScoredKind>;
+  /** How many slots each kind posted in the last USAGE_DAYS days (social_post_log); a kind absent = 0. */
+  used?: Partial<Record<ScoredKind, number>>;
   /** Every kind posted in the last NO_REPEAT_DAYS days, any slot. */
   recent: ScoredKind[];
   /** The kinds in the draw; POOL_KINDS unless the caller knows better. */
@@ -267,7 +275,20 @@ export function formatWeights(formats: FormatScore[] = []): Record<PostFormat, n
   return { video: round2(Math.max(video, 0.01)), picture: round2(Math.max(picture ?? video * PICTURE_PRIOR, 0.01)) };
 }
 
-/** The day's picks for the two open slots: a seeded weighted draw under the no-repeat rules, each relaxed in turn when it leaves nothing. */
+/** A stable small integer from a day string (no randomness: the same day always gives the same number). */
+function dayHash(day: string): number {
+  let h = 0;
+  for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/**
+ * The day's picks for the three slots (10-06, deterministic: no random draw for the kind). Under the no-repeat rules (each
+ * relaxed in turn when it leaves nothing): a kind with no score yet comes first, the least-used first; once every
+ * candidate is scored, the one furthest behind its target share of the slots (its weight over the pool's, against its
+ * actual share of the slots used) wins, ties by higher score, then a fixed kind order rotated by the day. Only the
+ * picture-or-video and game choices still draw (seeded).
+ */
 export function rotate(input: RotateInput): DayPicks {
   const pool = input.pool?.length ? input.pool : POOL_KINDS;
   const w = weights(input.scores, pool);
@@ -275,14 +296,29 @@ export function rotate(input: RotateInput): DayPicks {
   const chosen: ScoredKind[] = [];
   const picks = {} as DayPicks;
   let pictureDrawn = false;
+  const offset = dayHash(input.day) % SCORED_KINDS.length;
+  const orderOf = (k: ScoredKind) => (SCORED_KINDS.indexOf(k) - offset + SCORED_KINDS.length) % SCORED_KINDS.length;
+  const scoreOfKind = (k: ScoredKind) => input.scores.find((s) => s.kind === k)?.score ?? null;
+  const countOf = (k: ScoredKind) => (input.used?.[k] ?? 0) + chosen.filter((c) => c === k).length;
   for (const slot of OPEN_SLOTS) {
     const rules: Array<(k: ScoredKind) => boolean> = [(k) => !chosen.includes(k), (k) => k !== input.yesterday[slot], (k) => !input.recent.includes(k)];
     let cands: ScoredKind[] = [];
     for (let n = rules.length; n >= 0 && cands.length === 0; n--) cands = pool.filter((k) => rules.slice(0, n).every((r) => r(k)));
-    const kind = draw(cands, w, seeded(input.day, slot));
+    const unscored = cands.filter((k) => scoreOfKind(k) == null);
+    let kind: ScoredKind;
+    if (unscored.length) {
+      // Exploration: every unscored kind airs before any scored one gets a repeat; the least-used first.
+      kind = [...unscored].sort((a, b) => countOf(a) - countOf(b) || orderOf(a) - orderOf(b))[0];
+    } else {
+      // Exploitation: the kind furthest behind its score-weighted share.
+      const wsum = pool.reduce((n, k) => n + (w[k] ?? 0), 0) || 1;
+      const total = pool.reduce((n, k) => n + countOf(k), 0);
+      const deficit = (k: ScoredKind) => (w[k] ?? 0) / wsum - (total ? countOf(k) / total : 0);
+      kind = [...cands].sort((a, b) => deficit(b) - deficit(a) || (scoreOfKind(b) ?? 0) - (scoreOfKind(a) ?? 0) || orderOf(a) - orderOf(b))[0];
+    }
     chosen.push(kind);
-    // The format: never the picture in both slots on one day (the picture is the occasional post, the video the rule).
-    const format: PostFormat = pictureDrawn ? "video" : (draw(["video", "picture"] as unknown as ScoredKind[], fw, seeded(input.day, `${slot}:format`)) as unknown as PostFormat);
+    // The format: 1pm is always the video (the file every site posts); never the picture in both 7am and 7pm on one day.
+    const format: PostFormat = slot === "midday" || pictureDrawn ? "video" : (draw(["video", "picture"] as unknown as ScoredKind[], fw, seeded(input.day, `${slot}:format`)) as unknown as PostFormat);
     if (format === "picture") pictureDrawn = true;
     picks[slot] = { kind, game: gameFor(kind, input.day, input.games), format };
   }
@@ -323,7 +359,7 @@ function scoreLine(scores: KindScore[], w: Record<string, number>, formats: Form
     return `${KIND_NAME[k]} ${s?.score != null ? s.score : `– (${s?.posts ?? 0} of ${MIN_POSTS} posts)`}`;
   });
   const unknown = POOL_KINDS.filter((k) => scores.find((x) => x.kind === k)?.score == null);
-  const prior = unknown.length ? ` A kind with no score yet is weighted at the average (${w[unknown[0]]}) until it has ${MIN_POSTS} posts over ${MIN_DAYS} days.` : "";
+  const prior = unknown.length ? ` A kind with no score yet airs first (least-used) until it has ${MIN_POSTS} posts over ${MIN_DAYS} days.` : "";
   const fw = formatWeights(formats);
   const pic = formats.find((f) => f.format === "picture");
   const fmt = ` Video ${fw.video} vs picture ${fw.picture}${pic?.score == null ? ` (the picture's own score needs ${MIN_POSTS} posts on sites that post both; it has ${pic?.posts ?? 0})` : ""}.`;
@@ -331,21 +367,23 @@ function scoreLine(scores: KindScore[], w: Record<string, number>, formats: Form
 }
 
 /** One day of the loop: the scores, and the picks for `day` (today + LEAD_DAYS). */
-export function step(input: { posts: ScoredPost[]; now: number; day: string; off: boolean; yesterday: Record<OpenSlot, ScoredKind>; recent: ScoredKind[]; pool?: ScoredKind[] }): LoopStep {
+export function step(input: { posts: ScoredPost[]; now: number; day: string; off: boolean; yesterday: Record<OpenSlot, ScoredKind>; recent: ScoredKind[]; used?: Partial<Record<ScoredKind, number>>; pool?: ScoredKind[] }): LoopStep {
   const today = easternOf(input.now)?.day ?? "";
   const { counted, scores, games, formats } = scoreKinds(input.posts, input.now);
   const w = weights(scores, input.pool?.length ? input.pool : POOL_KINDS);
   const base = { day: today, forDay: input.day, counted, scores, games, formats, weights: w };
   if (input.off) {
-    const stay = `${KIND_NAME[input.yesterday.morning]} at 7am, ${KIND_NAME[input.yesterday.evening]} at 7pm`;
+    const stay = `${KIND_NAME[input.yesterday.morning]} at 7am, ${KIND_NAME[input.yesterday.midday]} at 1pm, ${KIND_NAME[input.yesterday.evening]} at 7pm`;
     return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w, formats)}` }, entry: null };
   }
-  const picks = rotate({ day: input.day, scores, games, formats, yesterday: input.yesterday, recent: input.recent, pool: input.pool });
-  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.evening)} at 7pm, drawn by score (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w, formats)}`;
+  const picks = rotate({ day: input.day, scores, games, formats, yesterday: input.yesterday, recent: input.recent, used: input.used, pool: input.pool });
+  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.midday)} at 1pm, ${describePick(picks.evening)} at 7pm. Never-scored styles first (least-used), then each style gets slots in proportion to its score; the pick is the one furthest behind its share (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w, formats)}`;
   const entry: StandingEntry = {
     from: input.day,
     morning: picks.morning.kind,
+    midday: picks.midday.kind,
     evening: picks.evening.kind,
+    ...(picks.midday.game ? { middayGame: picks.midday.game } : {}),
     ...(picks.morning.game ? { morningGame: picks.morning.game } : {}),
     ...(picks.evening.game ? { eveningGame: picks.evening.game } : {}),
     ...(picks.morning.format === "picture" ? { morningFormat: "picture" as const } : {}),

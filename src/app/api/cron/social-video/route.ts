@@ -12,7 +12,7 @@ import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
  * both DST hours). Since 09-30 the night render (lib/socialTiktok.ts,
  * /api/cron/social-tiktok) makes tomorrow's 1pm video the evening before, so
  * this is the second line: it only has work when that render did not land.
- * If today's video (the video slot's kind, movers) is
+ * If today's video (the video slot's kind that day: the plan's, since 10-06 not always movers) is
  * already registered AND was made under the day plan in force now it says so
  * and stops. If not (missing, or made before a plan pushed since: the night
  * render draws it hours ahead, so "a row exists" no longer means "it is

@@ -19,8 +19,8 @@ export const SCHEDULE_KEY = "social_schedule";
 /** Entries kept: a month of daily picks (phase 3 writes one a day; the optimizer's no-repeat rule reads the last two). */
 const KEEP = 30;
 const TTL_MS = 5 * 60_000;
-/** The kinds an open slot may post: the four originals and the five angles (never movers: 1pm is the shared video). */
-const OPEN_KINDS = ["set", "games", "dips", ...ANGLE_KINDS];
+/** The kinds a slot may post: the four originals (movers too since 10-06: 1pm joined the rotation) and the five angles. */
+const OPEN_KINDS = ["set", "movers", "games", "dips", ...ANGLE_KINDS];
 const GAMES = ["pokemon", "mtg", "lorcana", "onepiece", "yugioh", "mixed"];
 
 export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
@@ -38,6 +38,8 @@ export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
         const evening = kind(e.evening);
         const morningGame = game(morning, e.morningGame);
         const eveningGame = game(evening, e.eveningGame);
+        const midday = kind(e.midday);
+        const middayGame = game(midday, e.middayGame);
         // Only "picture" is worth storing: absent means video.
         const format = (v: unknown) => (v === "picture" ? ("picture" as const) : undefined);
         const morningFormat = format(e.morningFormat);
@@ -48,6 +50,8 @@ export function parseSchedule(raw: string | null | undefined): StandingEntry[] {
           ...(evening ? { evening } : {}),
           ...(morningGame ? { morningGame } : {}),
           ...(eveningGame ? { eveningGame } : {}),
+          ...(midday ? { midday } : {}),
+          ...(middayGame ? { middayGame } : {}),
           ...(morningFormat ? { morningFormat } : {}),
           ...(eveningFormat ? { eveningFormat } : {}),
         };

@@ -1,6 +1,6 @@
 import "server-only";
 import { addDays } from "@/lib/priceSeries";
-import { GENERAL_TAGS } from "@/lib/socialPlan";
+import { GENERAL_TAGS, angleGameOrder, isAngleKind } from "@/lib/socialPlan";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
@@ -168,9 +168,19 @@ export function tiktokTags(tags: readonly string[], game: GameId | "mixed" = "po
   return out.slice(0, TIKTOK_MAX_TAGS);
 }
 
-/** The movers row the other sites post at 1:05pm (settings social_video:pokemon:movers:<day>), if the render has made it. Raw: made under any plan. */
-export async function sharedMovers(day: string): Promise<VideoSpec | null> {
-  return videoFor({ game: TIKTOK_GAME, kind: SLOTS.midday.kind, day });
+/**
+ * The row the other sites post at 1:05pm (settings social_video:<game>:<the day's planned 1pm kind>:<day>), if the render has made it.
+ * Raw: made under any plan. 10-06: 1pm joined the kind rotation, so the kind is the plan's (slotKind), not always movers; an angle's
+ * row sits under the game it ran for (its plan game first, then the cycle's order, a mixed angle under Pokémon).
+ */
+export async function sharedMidday(day: string): Promise<VideoSpec | null> {
+  const kind = slotKind("midday", day);
+  const games: GameId[] = isAngleKind(kind) ? [...new Set(angleGameOrder(kind, day).map((g): GameId => (g === "mixed" ? TIKTOK_GAME : g)))] : [TIKTOK_GAME];
+  for (const g of games) {
+    const spec = await videoFor({ game: g, kind, day });
+    if (spec) return spec;
+  }
+  return null;
 }
 
 /**
@@ -183,14 +193,14 @@ export async function sharedVideo(slot: Slot, day: string, game: GameId = TIKTOK
 }
 
 /**
- * The 1pm movers video as the sites will find it: present and made under the
+ * The 1pm video (the day's planned kind) as the sites will find it: present and made under the
  * plan in force now (ready), present but made under one that has since changed
  * (stale: a plan pushed after the night render must not be answered by "it
  * exists", or the 10:30 pings and the 12:40 net both leave the old video to go
  * out at 1:05pm, 09-30 review), or not there (missing).
  */
 export async function middayVideo(day: string): Promise<{ spec: VideoSpec | null; state: PackageState }> {
-  const spec = await sharedMovers(day);
+  const spec = await sharedMidday(day);
   if (!spec) return { spec: null, state: "missing" };
   return { spec, state: spec.plan && spec.plan !== planTag("midday", day) ? "stale" : "ready" };
 }

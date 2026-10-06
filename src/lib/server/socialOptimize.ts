@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { addCompletedLine, eastern, slotKind } from "@/lib/server/socialPublish";
 import { addScheduleEntry, loadSchedule } from "@/lib/server/socialSchedule";
-import { GAME_NAME, KIND_NAME, LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, step, type DayPicks, type FormatScore, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
+import { GAME_NAME, KIND_NAME, LEAD_DAYS, MAX_AGE_DAYS, NO_REPEAT_DAYS, SCORED_KINDS, USAGE_DAYS, step, type DayPicks, type FormatScore, type KindScore, type OptimizeReport, type ScoredKind, type ScoredPost } from "@/lib/socialOptimize";
 import { runSocialTags, TAGS_WHY_KEY } from "@/lib/server/socialTags";
 import type { TagPost } from "@/lib/socialTags";
 
@@ -16,8 +16,8 @@ import type { TagPost } from "@/lib/socialTags";
  * day's post based on the data"); the videos draw from its picks in the
  * same run. It scores each
  * kind from social_posts, keeps the day's report in settings for
- * /admin/social, and writes TOMORROW's picks for 7am and 7pm (a seeded
- * weighted draw over the eight pool kinds, with each angle's game) as one
+ * /admin/social, and writes TOMORROW's picks for 7am, 1pm and 7pm (a
+ * deterministic fair rotation over all nine kinds, with each angle's game) as one
  * standing schedule entry (lib/server/socialSchedule.ts): tomorrow's TikTok
  * videos render tonight from it. The Off switch on /admin/social
  * (OPT_OFF_KEY) writes nothing, so the entry in force stays.
@@ -40,9 +40,9 @@ function dayAfter(day: string, n: number): string {
   return new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** What the two open slots post on a day, as the schedule stands (standing entries, one-off day plans, SLOTS). */
-function kindsOn(day: string): { morning: ScoredKind; evening: ScoredKind } {
-  return { morning: slotKind("morning", day) as ScoredKind, evening: slotKind("evening", day) as ScoredKind };
+/** What the three slots post on a day, as the schedule stands (standing entries, one-off day plans, SLOTS). */
+function kindsOn(day: string): { morning: ScoredKind; midday: ScoredKind; evening: ScoredKind } {
+  return { morning: slotKind("morning", day) as ScoredKind, midday: slotKind("midday", day) as ScoredKind, evening: slotKind("evening", day) as ScoredKind };
 }
 
 /**
@@ -77,14 +77,18 @@ export async function runSocialOptimize(now = Date.now(), opts: { target?: strin
 
   await loadSchedule(now);
   const yesterday = kindsOn(dayAfter(target, -1));
-  const recent = Array.from({ length: NO_REPEAT_DAYS }, (_, i) => kindsOn(dayAfter(target, -1 - i))).flatMap((k) => [k.morning, k.evening]);
+  const recent = Array.from({ length: NO_REPEAT_DAYS }, (_, i) => kindsOn(dayAfter(target, -1 - i))).flatMap((k) => [k.morning, k.midday, k.evening]);
   const off = (await getSetting(OPT_OFF_KEY)) === "1";
-  const { report, entry } = step({ posts, now, day: target, off, yesterday, recent });
+  // The fair rotation (10-06): how many slots each kind actually posted in the last USAGE_DAYS days (one count per day+slot, whatever the site count).
+  const usedRows = (await db.prepare("SELECT DISTINCT day, slot, kind FROM social_post_log WHERE day >= ?").all(dayAfter(target, -USAGE_DAYS))) as Record<string, unknown>[];
+  const used: Partial<Record<ScoredKind, number>> = {};
+  for (const r of usedRows) if ((SCORED_KINDS as string[]).includes(String(r.kind))) used[r.kind as ScoredKind] = (used[r.kind as ScoredKind] ?? 0) + 1;
+  const { report, entry } = step({ posts, now, day: target, off, yesterday, recent, used });
   if (entry) {
     await addScheduleEntry(entry, now);
     // Every change the optimizer makes is on the board's Completed list (Chris 10-03: "I need to be made aware of changes").
     const pick = (p: DayPicks["morning"]) => `${KIND_NAME[p.kind] ?? p.kind}${p.game ? ` (${GAME_NAME[p.game as keyof typeof GAME_NAME] ?? p.game})` : ""}${p.format === "picture" ? ", picture" : ""}`;
-    if (report.picks) await addCompletedLine(`Social optimizer ${day} — ${target}: 7am ${pick(report.picks.morning)}, 7pm ${pick(report.picks.evening)}`, now);
+    if (report.picks) await addCompletedLine(`Social optimizer ${day} — ${target}: 7am ${pick(report.picks.morning)}, 1pm ${pick(report.picks.midday)}, 7pm ${pick(report.picks.evening)}`, now);
   }
 
   // Hashtags: the same once-a-day run, the same Off switch, its own trial (lib/socialTags.ts).

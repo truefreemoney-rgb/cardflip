@@ -68,13 +68,11 @@ const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord, isAngleKi
 // doesn't list all games we scan"). It used to be the mixed-movers video only; the rest ended on a Pokémon-era line.
 const ALL_GAMES_OUTRO = { games: POST_GAME_ORDER.map((g) => POST_GAME_NAMES[g]) };
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
-const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoKey, videoSeconds } = await import(at("lib/socialVideo.ts"));
-const { eastern, SLOTS, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
+const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoSeconds } = await import(at("lib/socialVideo.ts"));
+const { eastern, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
-const { parseVideoSpec } = await import(at("lib/socialVideo.ts"));
-const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMovers, sharedVideo, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
+const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMidday, sharedVideo, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
 const { slotKind, dayKinds, FALLBACK_KINDS } = await import(at("lib/server/socialPublish.ts"));
-const { getSetting } = await import(at("lib/server/settings.ts"));
 const { runSocialOptimize } = await import(at("lib/server/socialOptimize.ts"));
 // The optimization loop's standing schedule (settings): loaded before planTag / candidateKinds ask what a slot posts.
 await (await import(at("lib/server/socialSchedule.ts"))).ensureSchedule();
@@ -91,10 +89,10 @@ if (PACKAGE && !arg("--day")) {
   const { hour } = eastern(now);
   if (hour >= 7 && hour < minHour) { console.log(`${hour}:00 ET is before the ${minHour}:00 ET render window, nothing to do`); process.exit(0); }
 }
-// The legacy (no-mode) render is the 1pm movers video, keyed by the video slot's kind.
-const KIND = SLOTS[VIDEO_SLOT].kind;
+// The legacy (no-mode) render is the 1pm video, keyed by the kind the plan puts in the video slot that day (10-06: 1pm rotates with the rest, movers only when planned).
+const KIND = slotKind(VIDEO_SLOT, day);
 if (!PACKAGE && !ONLY.length && has("--skip-if-done")) {
-  const row = parseVideoSpec(await getSetting(videoKey(game, KIND, day)));
+  const row = await sharedMidday(day);
   // A row from before rows carried a plan counts as current; one made under another plan is remade.
   if (row && (!row.plan || row.plan === planTag("midday", day))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
   if (row) console.log(`the registered video for ${day} was made under "${row.plan}", the plan now is "${planTag("midday", day)}": remaking it`);
@@ -444,7 +442,7 @@ if (ONE_KIND) {
     process.exit(1);
   }
 } else if (!PACKAGE && !ONLY.length) {
-  // The 1pm movers video, exactly as it has always been made (a thin movers list is an error, not a fallback).
+  // The 1pm video, exactly as it has always been made (a thin list for the planned kind is an error, not a fallback).
   try {
     const drafts = REGISTER ? await socialDrafts(game, day) : [];
     const made = await makeSlot("midday", KIND, outFor("midday"), false);
@@ -460,7 +458,7 @@ if (ONE_KIND) {
   if (REGISTER) {
     try {
       const opt = await runSocialOptimize(now, { target: day });
-      console.log(opt ? `optimizer ${opt.day} → ${day}: 7am ${opt.picks?.morning.kind ?? "-"}, 7pm ${opt.picks?.evening.kind ?? "-"} (${opt.why})` : `optimizer: ${day} already picked`);
+      console.log(opt ? `optimizer ${opt.day} → ${day}: 7am ${opt.picks?.morning.kind ?? "-"}, 1pm ${opt.picks?.midday.kind ?? "-"}, 7pm ${opt.picks?.evening.kind ?? "-"} (${opt.why})` : `optimizer: ${day} already picked`);
     } catch (err) {
       console.error(`optimizer failed, rendering the plan as it stands: ${err instanceof Error ? err.message : err}`);
     }
@@ -476,11 +474,11 @@ if (ONE_KIND) {
       if (!FORCE && st.state === "ready") { console.log(`${slot}: already made for the current plan, skipping`); continue; }
       // The 1pm file may already exist (the morning render made it, or an earlier night): reuse it, do not draw it twice.
       if (!FORCE && slot === "midday" && st.state === "missing" && REGISTER) {
-        const shared = await sharedMovers(day);
-        const draft = drafts.find((d) => d.kind === KIND);
+        const shared = await sharedMidday(day);
+        const draft = drafts.find((d) => d.kind === slotKind("midday", day));
         if (shared && draft && (!shared.plan || shared.plan === planTag("midday", day))) {
-          const r = await registerTiktokVideo({ slot, day, kind: KIND, url: shared.url, bytes: shared.bytes, seconds: shared.seconds, width: shared.width, height: shared.height, draft, cards: shared.cards });
-          console.log(`midday: the movers video is already registered, added its TikTok row (${r.spec.caption.length} chars)`);
+          const r = await registerTiktokVideo({ slot, day, kind: draft.kind, url: shared.url, bytes: shared.bytes, seconds: shared.seconds, width: shared.width, height: shared.height, draft, cards: shared.cards, leads: shared.leads, winner: shared.winner });
+          console.log(`midday: the ${draft.kind} video is already registered, added its TikTok row (${r.spec.caption.length} chars)`);
           continue;
         }
       }

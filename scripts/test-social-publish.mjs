@@ -490,6 +490,13 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   await loadSchedule();
   const stored = JSON.parse(await getSetting(SCHEDULE_KEY));
   check("the row stores the game, and a game is dropped when it does not fit the kind", [stored.find((e) => e.from === "2026-11-25").morningGame, (await (async () => { await setSetting(SCHEDULE_KEY, JSON.stringify([{ from: "2026-11-26", morning: "set", morningGame: "mtg", evening: "thennow", eveningGame: "yugioh" }])); return loadSchedule(); })())[0]], ["mtg", { from: "2026-11-26", morning: "set", evening: "thennow" }]);
+  // 10-06: 1pm joined the rotation: the entry keeps the midday kind (movers included) and its game, slotKind and the plan tag read it, a game that does not fit is dropped.
+  await setSetting(SCHEDULE_KEY, JSON.stringify([{ from: "2026-11-27", midday: "versus", middayGame: "lorcana" }, { from: "2026-11-28", midday: "movers", middayGame: "mtg" }, { from: "2026-11-29", midday: "thennow", middayGame: "yugioh" }]));
+  const midEntries = await loadSchedule();
+  check("a midday entry: kind and game kept, movers allowed at 1pm, a game outside the kind's list dropped", midEntries.map((e) => [e.midday, e.middayGame]), [["versus", "lorcana"], ["movers", undefined], ["thennow", undefined]]);
+  check("slotKind and planTag read the planned 1pm kind and its game; the other slots keep their own", [kindOn("midday", "2026-11-27"), tagOn("midday", "2026-11-27"), kindOn("midday", "2026-11-28"), kindOn("morning", "2026-11-27"), kindOn("evening", "2026-11-27")], ["versus", "versus@lorcana", "movers", "set", "games"]);
+  await setSetting(SCHEDULE_KEY, "");
+  await loadSchedule();
   await setSetting(SCHEDULE_KEY, "{not json");
   await loadSchedule();
   check("an unreadable schedule row = the standing schedule, never a crash", [kindOn("morning", "2026-11-10"), kindOn("evening", "2026-11-10")], ["set", "games"]);
@@ -509,15 +516,30 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   const tomorrow = addDays(today, 1);
   await setSetting(OPT_OFF_KEY, "1");
   let rep = await runSocialOptimize(now);
-  check("switched off: it scores and says so, and writes nothing (tomorrow stays the standing mix)", [rep.picks, rep.why.startsWith("Switched off: the schedule stays as it stands (set spotlight at 7am, all-games jumps at 7pm)."), kindOn("morning", tomorrow), kindOn("evening", tomorrow), rep.scores.find((s) => s.kind === "dips").score > rep.scores.find((s) => s.kind === "set").score], [null, true, "set", "games", true]);
+  check("switched off: it scores and says so, and writes nothing (tomorrow stays the standing mix)", [rep.picks, rep.why.startsWith("Switched off: the schedule stays as it stands (set spotlight at 7am, weekly gains at 1pm, all-games jumps at 7pm)."), kindOn("morning", tomorrow), kindOn("evening", tomorrow), rep.scores.find((s) => s.kind === "dips").score > rep.scores.find((s) => s.kind === "set").score], [null, true, "set", "games", true]);
   const st = await optimizerStatus();
   check("the page shows the switch, the scores and what the job last said", [st.on, st.day, st.picks, st.scores.length, st.forDay], [false, today, null, 9, tomorrow]);
   check("once per Eastern day", await runSocialOptimize(now), null);
   await setSetting(OPT_OFF_KEY, "");
   await setSetting(OPT_LAST_KEY, "");
+  // 10-06 fair rotation: what the last 14 days actually posted (social_post_log, one count per day+slot whatever the site count) is what the pick balances.
+  const logIns = db.prepare("INSERT INTO social_post_log (site, url, day, slot, kind, at) VALUES (?, ?, ?, ?, ?, ?)");
+  let logN = 0;
+  for (const [kind, slot, days] of [["movers", "midday", [3, 4, 5, 6]], ["games", "evening", [3, 4, 5, 6]], ["set", "morning", [7]], ["dips", "morning", [8]], ["sleepers", "morning", [9]], ["top", "evening", [10]]]) {
+    for (const d of days) for (const site of ["usedtest1", "usedtest2"]) await logIns.run(site, `https://${site}/${logN++}`, addDays(today, -d), slot, kind, now);
+  }
+  rep = await runSocialOptimize(now);
+  check("fair rotation: from the post log (movers 4, games 4, set/dips/sleepers/top 1), the never-posted styles take the three slots", [rep.picks.morning.kind, rep.picks.midday.kind, rep.picks.evening.kind].sort(), ["guess", "thennow", "versus"]);
+  await db.prepare("DELETE FROM social_post_log WHERE site LIKE 'usedtest%'").run();
+  await setSetting(SCHEDULE_KEY, "");
+  const tagsMod = await import(at("lib/server/socialTags.ts"));
+  for (const k of [tagsMod.TAGS_KEY, tagsMod.TAGS_CHANGED_KEY, tagsMod.TAGS_FAILED_KEY, tagsMod.TAGS_WHY_KEY]) await setSetting(k, ""); // the extra run above started the hashtag trial; the real run below starts it again
+  await setSetting(OPT_LAST_KEY, "");
   rep = await runSocialOptimize(now);
   const stored2 = JSON.parse(await getSetting(SCHEDULE_KEY));
-  check("switched on: tomorrow's picks are written as one entry; today is untouched; 1pm stays the movers video", [rep.forDay, stored2.length, stored2[0].from, stored2[0].morning, stored2[0].evening, kindOn("morning", tomorrow), kindOn("evening", tomorrow), kindOn("midday", tomorrow), kindOn("morning", today), kindOn("evening", today)], [tomorrow, 1, tomorrow, rep.picks.morning.kind, rep.picks.evening.kind, rep.picks.morning.kind, rep.picks.evening.kind, "movers", "set", "games"]);
+  check("switched on: tomorrow's picks are written as one entry; today is untouched; 1pm is in the rotation too", [rep.forDay, stored2.length, stored2[0].from, stored2[0].morning, stored2[0].midday, stored2[0].evening, kindOn("morning", tomorrow), kindOn("evening", tomorrow), kindOn("midday", tomorrow), kindOn("morning", today), kindOn("evening", today)], [tomorrow, 1, tomorrow, rep.picks.morning.kind, rep.picks.midday.kind, rep.picks.evening.kind, rep.picks.morning.kind, rep.picks.evening.kind, rep.picks.midday.kind, "set", "games"]);
+  check("the 1pm pick is always the video and never a kind from the last two days", [rep.picks.midday.format, ["set", "games"].includes(rep.picks.midday.kind), new Set([rep.picks.morning.kind, rep.picks.midday.kind, rep.picks.evening.kind]).size], ["video", false, 3]);
+  check("the 1pm angle game rides the entry and the plan tag like the others", [isAngleKind(rep.picks.midday.kind) ? stored2[0].middayGame === rep.picks.midday.game && tagOn("midday", tomorrow).startsWith(`${rep.picks.midday.kind}@${rep.picks.midday.game}`) : tagOn("midday", tomorrow).startsWith(rep.picks.midday.kind)], [true]);
   check("the picks skip the kinds that posted today and yesterday (set, games) and never repeat each other", [["set", "games"].includes(rep.picks.morning.kind), ["set", "games"].includes(rep.picks.evening.kind), rep.picks.morning.kind === rep.picks.evening.kind], [false, false, false]);
   check("an angle pick carries its game into the entry and the plan tag", [isAngleKind(rep.picks.morning.kind) ? stored2[0].morningGame === rep.picks.morning.game && tagOn("morning", tomorrow).startsWith(`${rep.picks.morning.kind}@${rep.picks.morning.game}`) : stored2[0].morningGame === undefined], [true]);
   check("the page shows tomorrow's picks", [(await optimizerStatus()).picks, (await optimizerStatus()).forDay], [rep.picks, tomorrow]);
@@ -538,7 +560,7 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   const rep3 = await runSocialOptimize(now, { target: dayAfterNext });
   check("a target day: the picks are that day's entry, the guard is per target (tomorrow again = no-op, the day after = a run)", [rep3.forDay, JSON.parse(await getSetting(SCHEDULE_KEY)).map((e) => e.from), await getSetting(OPT_LAST_KEY), await runSocialOptimize(now, { target: dayAfterNext }), (await runSocialOptimize(now, { target: tomorrow }))?.forDay], [dayAfterNext, [tomorrow, dayAfterNext], dayAfterNext, null, tomorrow]);
   const [optLine] = ((await loadBoard()).sections.find(isCompletedSection)?.items ?? []).map((i) => i.text ?? "");
-  check("every pick leaves a line on the board (Chris: made aware of changes)", optLine.startsWith(`Social optimizer ${today} — ${tomorrow}: 7am `) && optLine.includes(", 7pm "), true);
+  check("every pick leaves a line on the board (Chris: made aware of changes)", optLine.startsWith(`Social optimizer ${today} — ${tomorrow}: 7am `) && optLine.includes(", 1pm ") && optLine.includes(", 7pm "), true);
   await setSetting(SCHEDULE_KEY, "");
   await setSetting(TAGS_KEY, "");
   await setSetting(OPT_LAST_KEY, "");

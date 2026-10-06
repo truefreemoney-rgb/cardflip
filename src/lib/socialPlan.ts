@@ -17,6 +17,9 @@ export interface DayPlan {
   /** The game the 7am angle runs for (phase 3: the optimizer's pick; angleGameOrder puts it first). */
   morningGame?: AngleGame;
   eveningGame?: AngleGame;
+  /** The 1pm slot posts this kind instead of SLOTS.midday (10-06, Chris: all styles rotate across all three slots; 1pm is always the video). */
+  midday?: PostKind;
+  middayGame?: AngleGame;
   /** The slot posts its picture instead of its video on the sites that take both (phase 5; absent = video). */
   morningFormat?: PostFormat;
   eveningFormat?: PostFormat;
@@ -60,6 +63,9 @@ export interface StandingEntry {
   /** The game an angle kind in that slot runs for (phase 3, the daily rotation). */
   morningGame?: AngleGame;
   eveningGame?: AngleGame;
+  /** 1pm (10-06): the kind and its game; always the video, so no format. */
+  midday?: PostKind;
+  middayGame?: AngleGame;
   /** video (the default when absent) or picture (phase 5: the optimizer's occasional static post). */
   morningFormat?: PostFormat;
   eveningFormat?: PostFormat;
@@ -88,6 +94,8 @@ export function dayPlan(day: string | undefined): DayPlan {
     ...(s.evening ? { evening: s.evening } : {}),
     ...(s.morning && s.morningGame ? { morningGame: s.morningGame } : {}),
     ...(s.evening && s.eveningGame ? { eveningGame: s.eveningGame } : {}),
+    ...(s.midday ? { midday: s.midday } : {}),
+    ...(s.midday && s.middayGame ? { middayGame: s.middayGame } : {}),
     ...(s.morningFormat ? { morningFormat: s.morningFormat } : {}),
     ...(s.eveningFormat ? { eveningFormat: s.eveningFormat } : {}),
     ...DAY_PLANS[day],
@@ -281,7 +289,7 @@ export function angleCycle(kind: AngleKind, day: string): AngleGame[] {
 export function angleGameOrder(kind: AngleKind, day: string): AngleGame[] {
   const list = angleCycle(kind, day);
   const p = dayPlan(day);
-  const planned = p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : undefined;
+  const planned = p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : p.midday === kind ? p.middayGame : undefined;
   if (!planned || !list.includes(planned)) return list;
   return [planned, ...list.filter((g) => g !== planned)];
 }
@@ -289,7 +297,7 @@ export function angleGameOrder(kind: AngleKind, day: string): AngleGame[] {
 /** The plan's game for a kind on a day, when the schedule names it for a slot (planTag reads it). */
 export function plannedGame(kind: PostKind, day: string): AngleGame | undefined {
   const p = dayPlan(day);
-  return p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : undefined;
+  return p.morning === kind ? p.morningGame : p.evening === kind ? p.eveningGame : p.midday === kind ? p.middayGame : undefined;
 }
 
 /** The pool's order for one cycle; the first of a cycle never repeats the last of the one before it. */
