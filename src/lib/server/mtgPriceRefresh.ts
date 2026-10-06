@@ -2,6 +2,7 @@ import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
+import { readMtgGapRows, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import {
   readMtgCardPrices,
@@ -56,6 +57,8 @@ export interface RefreshResult {
   mirrorChanged?: number;
   /** Series today's run had already written (a resumed run skips them). */
   seriesSkipped?: number;
+  /** Rows Scryfall left without a dollar price that took TCGplayer's. */
+  tcgplayerFilled?: number;
 }
 
 /**
@@ -134,6 +137,25 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // Only printings we carry get written (the mirror's id set), and only the
   // ones whose prices moved; series already written today are skipped.
   const [mirror, existingSeries] = await Promise.all([readMtgCardPrices(), readSeriesMap("mtg", "tcgplayer")]);
+  // Printings Scryfall leaves without a dollar price (Art Series, Alpha/Beta,
+  // Summer Magic…) take TCGplayer's (10-05). A failure only skips the fill.
+  let tcgplayerFilled = 0;
+  try {
+    const gaps = pending.filter((c) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null);
+    if (gaps.length) {
+      const { fills } = await tcgplayerFills(await readMtgGapRows(gaps.map((g) => g.id)));
+      const byId = new Map(pending.map((c) => [c.id, c]));
+      for (const f of fills) {
+        const row = byId.get(f.id);
+        if (!row) continue;
+        row.usd = f.usd;
+        row.foil = f.foil;
+        tcgplayerFilled++;
+      }
+    }
+  } catch (err) {
+    console.warn("mtg tcgplayer fill:", err instanceof Error ? err.message : err);
+  }
   const plan = planMtgWrites(pending, mirror, existingSeries, day);
   await updateMtgPriceColumns(plan.mirrorRows);
   await upsertSeriesRows(plan.upserts);
@@ -144,5 +166,6 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
     day,
     mirrorChanged: plan.mirrorRows.length,
     seriesSkipped: plan.seriesSkipped,
+    tcgplayerFilled,
   };
 }
