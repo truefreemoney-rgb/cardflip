@@ -12,7 +12,7 @@ export const PLAN = {
   price: <PlanPrice plan="standard" />,
   scans: PRICING.standard.scans,
   lines: [
-    `${SCANS.standard} card scans a month, camera or photos`,
+    `${SCANS.standard} card scans a month, by camera`,
     "Card reading with condition and 1st Edition detection",
     "Live market price for the exact printing and variant",
     "eBay listings written, published and repriced from CardFlip",
@@ -25,7 +25,7 @@ export const PRO = {
   price: <PlanPrice plan="pro" />,
   scans: PRICING.pro.scans,
   lines: [
-    `${SCANS.pro} card scans a month, camera or photos`,
+    `${SCANS.pro} card scans a month, by camera`,
     "Everything in CardFlip",
     "Built for a few hundred cards a week",
     "Same live pricing, same eBay publishing",
@@ -39,7 +39,7 @@ export const PACK = {
   price: <PlanPrice plan="pack" />,
   scans: PRICING.pack.scans,
   lines: [
-    `${SCANS.pack} card scans, camera or photos`,
+    `${SCANS.pack} card scans, by camera`,
     "One-time payment, no subscription",
     "Scans never expire",
     "Everything in CardFlip while you have scans left",
@@ -51,7 +51,7 @@ export const PACK = {
 export const TRIAL = {
   scans: PRICING.trial.scans,
   lines: [
-    `${SCANS.trial} card scans, camera or photos`,
+    `${SCANS.trial} card scans, by camera`,
     "Live pricing for the exact printing",
     "Inventory and watchlist",
     "No card on file",

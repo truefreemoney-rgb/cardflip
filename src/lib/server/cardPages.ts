@@ -403,6 +403,8 @@ export interface SetCard {
   flagged: boolean;
   /** A price too high for the history behind it (lib/cardPages.ts isUnverified): never listed or featured. */
   unverified: boolean;
+  /** Price unmoved 45+ days (the guard's stale note): shown on its own page, never ranked or featured. */
+  stale?: boolean;
 }
 
 /** The columns every list read selects, per catalog table, shaped as a CatalogRow. */
@@ -466,7 +468,7 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     if (prices.length === 0) continue;
     const head = headlinePrice(prices);
     const f = factsOf(game, r, "");
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false });
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}) });
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }
@@ -495,8 +497,8 @@ async function cachedTiles(key: string, build: () => Promise<Tile[]>): Promise<T
 
 /** The most valuable cards of one set the guard believes, for the strip on a card page. Built once a day per set. */
 export async function setTopTiles(game: GameId, set: SetEntry, setSlug: string): Promise<Tile[]> {
-  return cachedTiles(`seo:settop:v1:${game}:${set.key}`, async () => {
-    const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified).slice(0, STRIP_TILES + 1);
+  return cachedTiles(`seo:settop:v2:${game}:${set.key}`, async () => {
+    const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified && !c.stale).slice(0, STRIP_TILES + 1);
     return cards.map((c) => ({ ...c, setSlug, setName: set.name }));
   });
 }
@@ -513,8 +515,8 @@ interface SetStandings {
 
 async function setStandings(game: GameId, set: SetEntry): Promise<SetStandings> {
   try {
-    return await cachedList(`seo:setrank:v1:${game}:${set.key}`, TOP_TTL_MS, async () => {
-      const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified);
+    return await cachedList(`seo:setrank:v2:${game}:${set.key}`, TOP_TTL_MS, async () => {
+      const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified && !c.stale);
       const prices = cards.map((c) => c.price as number).sort((a, b) => a - b);
       const mid = prices.length >> 1;
       const median = prices.length === 0 ? 0 : prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
@@ -561,7 +563,7 @@ export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "
       const today = todayUtc();
       const prices = variantPrices(game, data.series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) })), today);
       const head = headlinePrice(prices);
-      if (!head || head.price < indexFloorUsd(game) || isUnverified(head)) continue;
+      if (!head || head.price < indexFloorUsd(game) || isUnverified(head) || head.stale) continue;
       const setSlug = index.slugOf.get(r.set_key);
       if (!setSlug) continue;
       const fx = factsOf(game, r, setSlug);
@@ -609,7 +611,7 @@ async function topCandidates(game: GameId, limit: number): Promise<{ id: string;
  * prices are exactly where the junk is) and kept only when it has a fresh, believed price. Built once a day.
  */
 export async function gameTopTiles(game: GameId): Promise<Tile[]> {
-  return cachedTiles(`seo:top:v1:${game}`, async () => {
+  return cachedTiles(`seo:top:v2:${game}`, async () => {
     const candidates = await topCandidates(game, TOP_TILES * 10);
     if (candidates.length === 0) return [];
     const index = await setIndex(game);
@@ -622,7 +624,7 @@ export async function gameTopTiles(game: GameId): Promise<Tile[]> {
       const data = trust.get(r.id);
       if (!data) continue;
       const head = headlinePrice(variantPrices(game, data.series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) })), today));
-      if (!head || isUnverified(head)) continue;
+      if (!head || isUnverified(head) || head.stale) continue;
       const f = factsOf(game, r, "");
       out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
     }

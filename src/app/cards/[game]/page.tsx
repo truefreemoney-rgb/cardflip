@@ -12,6 +12,7 @@ import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
+import { todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -90,7 +91,12 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-white">{s.name}</span>
-                    {s.release && <span className="text-xs text-zinc-500">{etDate(`${s.release}T12:00:00Z`, "", { month: "short", year: "numeric" })}</span>}
+                    {s.release && (
+                      <span className="text-xs text-zinc-500">
+                        {s.release > todayUtc() ? "Preorder · out " : ""}
+                        {etDate(`${s.release}T12:00:00Z`, "", { month: "short", year: "numeric" })}
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-zinc-400">{s.qualifying.toLocaleString("en-US")}</span>
                 </Link>

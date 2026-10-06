@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 import PlanCard, { PLAN } from "@/components/PlanCard";
 import PlanPrice from "@/components/PlanPrice";
 import { FROZEN_SENTENCE, PRICE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
-import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, POSTAGE_USD } from "@/lib/fees";
+import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10, EBAY_FLAT_FEE_STEP_USD, POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbGraph, siteGraph } from "@/lib/structuredData";
@@ -104,7 +104,7 @@ export default function PricingPage() {
             <div>
               <h2 className="font-display text-2xl font-semibold text-white">The only other fees are eBay&apos;s.</h2>
               <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
-                CardFlip doesn&apos;t take a cut. Every suggested price already accounts for eBay&apos;s {feePct} final value fee, the {formatMoney(EBAY_FLAT_FEE)} per-order charge ({formatMoney(EBAY_FLAT_FEE_OVER_10)} over ) and {formatMoney(POSTAGE_USD)} postage, so a cheap card never lists at a loss and you can see what you&apos;ll keep before you post.
+                CardFlip doesn&apos;t take a cut. Every suggested price already accounts for eBay&apos;s {feePct} final value fee, the {formatMoney(EBAY_FLAT_FEE)} per-order charge ({formatMoney(EBAY_FLAT_FEE_OVER_10)} over {formatMoney(EBAY_FLAT_FEE_STEP_USD)}) and {formatMoney(POSTAGE_USD)} postage, so a cheap card never lists at a loss and you can see what you&apos;ll keep before you post.
               </p>
             </div>
             <dl className="grid grid-cols-3 gap-2 text-center sm:w-72">

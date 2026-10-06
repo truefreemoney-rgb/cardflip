@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
+import { todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -84,7 +85,7 @@ export default async function SetPage({ params }: PageProps<"/cards/[game]/[set]
         </h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           Market prices for {name} cards from {set.name}
-          {set.release ? `, released ${etDate(`${set.release}T12:00:00Z`)}` : ""}. Cards priced {formatMoney(indexFloorUsd(game))} and up, most valuable first. A price
+          {set.release ? `, ${set.release > todayUtc() ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > todayUtc() ? " (preorder prices)" : ""}` : ""}. Cards priced {formatMoney(indexFloorUsd(game))} and up, most valuable first. A price
           that looks wrong is not shown.
         </p>
 

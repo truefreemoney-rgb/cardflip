@@ -372,7 +372,7 @@ check("rank words: a set with one priced card says nothing", cs.rankWords("Chari
 const storyPageSrc = read("src/app/cards/[game]/[set]/[card]/page.tsx");
 check("the card page prints the sell line, the range and the scan angle", [/sellWords\(/.test(storyPageSrc), /rangeWords\(/.test(storyPageSrc), /scanWords\(/.test(storyPageSrc)], [true, true, true]);
 check("the card page prints the ladder, the rank and the other printings", [/conditionLadder\(/.test(storyPageSrc), /rankWords\(/.test(storyPageSrc), /otherPrintings\(/.test(storyPageSrc)], [true, true, true]);
-check("other printings and the set rank leave out flagged and unverified prices", [/isUnverified\(head\)\) continue/.test(serverSrc), /!c\.unverified\);\s*const prices = cards/.test(serverSrc)], [true, true]);
+check("other printings and the set rank leave out flagged and unverified prices", [/isUnverified\(head\) \|\| head\.stale\) continue/.test(serverSrc), /!c\.unverified && !c\.stale\);\s*const prices = cards/.test(serverSrc)], [true, true]);
 check("the range's ends go through the guard's old-side check", /old: \{ back, value: end\.price \}/.test(serverSrc), true);
 
 // 10-03: a Magic card with no dollar series (Black Lotus) prints Cardmarket's figure in dollars at the ECB rate, with no chart and no indexing on it.

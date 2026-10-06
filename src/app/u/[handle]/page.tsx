@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
+import ArtImg from "@/components/ArtImg";
 import { publicCollection } from "@/lib/server/publicCollection";
 import { normalizeHandle } from "@/lib/handle";
 import { formatMoney } from "@/lib/listing";
@@ -65,8 +66,7 @@ export default async function PublicCollectionPage({ params }: Params) {
               <li key={card.id} className="flex flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1">
                 <div className="relative aspect-[5/7] bg-black/30">
                   {card.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={card.imageUrl} alt={card.name} className="h-full w-full object-cover" loading="lazy" />
+                    <ArtImg src={card.imageUrl} alt={card.name} className="h-full w-full object-cover" loading="lazy" />
                   ) : null}
                   {card.ebayUrl && (
                     <span className="absolute left-2 top-2 rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">For sale</span>

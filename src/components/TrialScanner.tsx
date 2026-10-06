@@ -62,6 +62,8 @@ export default function TrialScanner() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PokemonCard[] | null>(null);
   const [searching, setSearching] = useState(false);
+  // False until localStorage has been read: the camera button waits for it so "used" visitors never see it flash.
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -69,7 +71,10 @@ export default function TrialScanner() {
       .then((u) => alive && u && setSignedIn(true))
       .catch(() => {});
     // After hydration (the server renders the start screen), off the effect body.
-    const t = window.setTimeout(() => readDone() && setPhase({ kind: "used" }), 0);
+    const t = window.setTimeout(() => {
+      if (readDone()) setPhase({ kind: "used" });
+      setChecked(true);
+    }, 0);
     return () => {
       alive = false;
       window.clearTimeout(t);
@@ -179,6 +184,9 @@ export default function TrialScanner() {
       ) : (
         <>
           <GameToggle game={game} onChange={setGame} block />
+          {!checked ? (
+            <div aria-hidden className="h-[60px] w-full animate-pulse rounded-full bg-surface-1" />
+          ) : (
           <button type="button" onClick={() => {
               step("camera");
               setCameraOpen(true);
@@ -189,6 +197,7 @@ export default function TrialScanner() {
             </svg>
             {phase.kind === "reading" ? "Reading Your Card…" : phase.kind === "miss" ? "Try Again" : `Scan a ${GAMES[game].label} Card`}
           </button>
+          )}
           {phase.kind === "miss" && (
             <p role="alert" className="-mt-1 text-center text-sm text-amber-300">
               {phase.message}
