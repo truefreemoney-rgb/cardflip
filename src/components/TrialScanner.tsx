@@ -11,6 +11,7 @@ import { TRIAL_DONE_KEY, matchTrialRead, savePendingScan, trialPrice } from "@/l
 import { searchTyped } from "@/lib/cards";
 import { formatMoney } from "@/lib/listing";
 import { GAMES } from "@/lib/games";
+import { pixelTrack } from "@/lib/client/pixel";
 import { SCANS } from "@/lib/pricing";
 import type { GameId, PokemonCard } from "@/lib/types";
 
@@ -25,7 +26,7 @@ import type { GameId, PokemonCard } from "@/lib/types";
 type Phase =
   | { kind: "start" }
   | { kind: "reading" }
-  | { kind: "found"; card: PokemonCard; scanned: boolean }
+  | { kind: "found"; card: PokemonCard; scanned: boolean; photo: string | null }
   | { kind: "miss"; message: string }
   | { kind: "used" };
 
@@ -46,6 +47,41 @@ function step(name: "camera" | "searched" | "price" | "miss" | "signup") {
   fetch("/api/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: `/scan/${name}` }), keepalive: true }).catch(() => {});
 }
 
+/** The last priced card, kept here so the "used" screen can name it (the pending-scan key is cleared at signup). */
+const LAST_KEY = "cardflip.trialLast";
+interface LastResult {
+  name: string;
+  price: number;
+}
+
+function readLast(): LastResult | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_KEY) ?? "null") as LastResult | null;
+    return v && typeof v.name === "string" && typeof v.price === "number" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A signup tap: funnel step + the ad pixel (no personal data). */
+function signupTap() {
+  step("signup");
+  pixelTrack("ClickButton");
+}
+
+/** A price is on screen: remember it for the "used" screen and tell the ad pixel once. */
+function priceShown(card: PokemonCard) {
+  step("price");
+  pixelTrack("ViewContent", { content_type: "product" });
+  const p = trialPrice(card);
+  if (p == null) return;
+  try {
+    localStorage.setItem(LAST_KEY, JSON.stringify({ name: card.englishName || card.name, price: p } satisfies LastResult));
+  } catch {
+    // Not kept; the used screen falls back to the generic text.
+  }
+}
+
 function readDone(): boolean {
   try {
     return localStorage.getItem(TRIAL_DONE_KEY) === "1";
@@ -54,8 +90,9 @@ function readDone(): boolean {
   }
 }
 
-export default function TrialScanner() {
-  const [game, setGame] = useState<GameId>("pokemon");
+export default function TrialScanner({ initialGame = "pokemon" }: { initialGame?: GameId }) {
+  const [game, setGame] = useState<GameId>(initialGame);
+  const [last, setLast] = useState<LastResult | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "start" });
   const [cameraOpen, setCameraOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -72,7 +109,10 @@ export default function TrialScanner() {
       .catch(() => {});
     // After hydration (the server renders the start screen), off the effect body.
     const t = window.setTimeout(() => {
-      if (readDone()) setPhase({ kind: "used" });
+      if (readDone()) {
+        setPhase({ kind: "used" });
+        setLast(readLast());
+      }
       setChecked(true);
     }, 0);
     return () => {
@@ -99,8 +139,8 @@ export default function TrialScanner() {
     } catch {
       // The server still counts the tries.
     }
-    step("price");
-    setPhase({ kind: "found", card: match.card, scanned: true });
+    priceShown(match.card);
+    setPhase({ kind: "found", card: match.card, scanned: true, photo: scan.photo });
   }
 
   async function search(e: React.FormEvent) {
@@ -138,7 +178,7 @@ export default function TrialScanner() {
   const price = found ? trialPrice(found.card) : null;
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className={`flex w-full flex-col gap-4 ${found ? "pb-24 md:pb-0" : ""}`}>
       {found ? (
         <section className="foil-edge rounded-3xl p-4 [--foil-fill:#0d0f18]">
           <div className="flex gap-4">
@@ -150,7 +190,13 @@ export default function TrialScanner() {
               </p>
               {price != null ? (
                 <>
-                  <p className="holo-text font-display mt-3 text-4xl font-bold tabular-nums">{formatMoney(price)}</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <p className="holo-text font-display text-4xl font-bold tabular-nums">{formatMoney(price)}</p>
+                    {found.photo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={found.photo} alt="Your photo" className="h-14 w-10 shrink-0 rounded-md border border-edge-strong object-cover" />
+                    )}
+                  </div>
                   <p className="text-xs text-zinc-500">Market price today, Near Mint</p>
                 </>
               ) : (
@@ -159,13 +205,13 @@ export default function TrialScanner() {
             </div>
           </div>
           {!found.scanned && (
-            <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
+            <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
               Scan Your Own Cards Free
             </Link>
           )}
           {found.scanned && (
             <>
-              <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
+              <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
                 Save It + {SCANS.trial} Free Scans
               </Link>
               <p className="mt-2 text-center text-xs text-zinc-500">It goes straight into your Inventory. No card needed.</p>
@@ -173,11 +219,30 @@ export default function TrialScanner() {
           )}
         </section>
       ) : null}
+      {found && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-edge-strong bg-surface-1/95 px-4 pt-2.5 backdrop-blur md:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <p className="mb-2 text-center text-sm font-semibold text-white">Your card is waiting. Create an account to keep it.</p>
+          <Link href="/signup?from=scan" onClick={signupTap} className={CTA}>
+            {found.scanned ? "Save It Free" : "Scan Your Own Cards Free"}
+          </Link>
+        </div>
+      )}
       {found?.scanned ? null : phase.kind === "used" ? (
         <section className="rounded-3xl border border-edge bg-surface-1 p-5 text-center">
-          <p className="font-display text-lg font-semibold text-white">Your free scan is used</p>
-          <p className="mt-1 text-sm text-zinc-400">Sign up for {SCANS.trial} more, free. No card needed.</p>
-          <Link href="/signup?from=scan" onClick={() => step("signup")} className={`${CTA} mt-4`}>
+          {last ? (
+            <>
+              <p className="font-display text-lg font-semibold text-white">
+                Your {last.name} is worth <span className="holo-text">{formatMoney(last.price)}</span>
+              </p>
+              <p className="mt-1 text-sm text-zinc-400">Sign up to keep it and get {SCANS.trial} more scans, free.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-display text-lg font-semibold text-white">Your free scan is used</p>
+              <p className="mt-1 text-sm text-zinc-400">Sign up for {SCANS.trial} more, free. No card needed.</p>
+            </>
+          )}
+          <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
             Get {SCANS.trial} Free Scans
           </Link>
         </section>
@@ -202,6 +267,11 @@ export default function TrialScanner() {
             <p role="alert" className="-mt-1 text-center text-sm text-amber-300">
               {phase.message}
             </p>
+          )}
+          {phase.kind === "miss" && (
+            <Link href="/signup?from=scan" onClick={signupTap} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
+              Sign up free: {SCANS.trial} scans in the app
+            </Link>
           )}
           <form onSubmit={search} className="flex flex-col gap-2">
             <p className="flex items-center gap-3 text-xs text-zinc-500 before:flex-1 before:border-t before:border-edge after:flex-1 after:border-t after:border-edge">or type a name</p>
@@ -244,9 +314,9 @@ export default function TrialScanner() {
                       <button
                         type="button"
                         onClick={() => {
-                          step("price");
+                          priceShown(card);
                           setResults(null);
-                          setPhase({ kind: "found", card, scanned: false });
+                          setPhase({ kind: "found", card, scanned: false, photo: null });
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                         className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2"
@@ -268,7 +338,7 @@ export default function TrialScanner() {
           </form>
           <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
           {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
-          <Link href="/signup?from=scan" onClick={() => step("signup")} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
+          <Link href="/signup?from=scan" onClick={signupTap} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
             Skip and get {SCANS.trial} free scans
           </Link>
         </>

@@ -219,7 +219,7 @@ console.log("wiring (a browser is not run here)");
 {
   const src = (p) => readFileSync(repo(`src/${p}`), "utf8");
   check("the root layout mounts AttributionCapture beside RefCapture", /<RefCapture \/>\s*<AttributionCapture \/>/.test(src("app/layout.tsx")), true);
-  check("the signup page sends the touch it kept", src("app/signup/page.tsx").includes("readReferralCode(), readTouch()"), true);
+  check("the signup page sends the touch it kept", src("app/signup/page.tsx").includes("readReferralCode(), touch)") && src("app/signup/page.tsx").includes("readTouch()"), true);
   check("signup() puts the touch in the request body", /\.\.\.\(touch \? \{ touch \} : \{\}\)/.test(src("lib/client/auth.ts")), true);
   check("the first visit ping carries the tag (and only the first)", [src("components/VisitPing.tsx").includes("first: true"), src("components/VisitPing.tsx").includes("utm_source")], [true, true]);
   check("the capture stores localStorage only: no cookie, nothing third-party", [/document\.cookie/.test(src("components/AttributionCapture.tsx")), /fetch\(|sendBeacon|https?:\/\//.test(src("components/AttributionCapture.tsx"))], [false, false]);

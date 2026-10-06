@@ -49,7 +49,7 @@ const billing = [
   },
   {
     q: "Do I need my own eBay account?",
-    a: "Yes. You connect it once during signup, or later from your Account page.",
+    a: "Only if you want to sell. Collectors can just scan and price. To sell, connect it once from your Account page.",
   },
   {
     q: "What's the difference between CardFlip and Pro?",

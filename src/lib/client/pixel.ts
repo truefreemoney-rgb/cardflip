@@ -10,6 +10,8 @@
  *   CompleteRegistration = an account was created
  *   Subscribe            = a plan was paid for
  *   CompletePayment      = a one-time Scan Pack was paid for
+ *   ViewContent          = /scan showed a price
+ *   ClickButton          = a signup button was tapped on /scan
  */
 type Ttq = { track: (event: string, props?: Record<string, unknown>) => void };
 
@@ -19,7 +21,7 @@ function ttq(): Ttq | null {
   return t && typeof t.track === "function" ? t : null;
 }
 
-export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment", props?: Record<string, unknown>) {
+export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment" | "ViewContent" | "ClickButton", props?: Record<string, unknown>) {
   try {
     ttq()?.track(event, props);
   } catch {

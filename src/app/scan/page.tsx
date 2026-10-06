@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import TrialScanner from "@/components/TrialScanner";
+import { catalogSizeLabel } from "@/lib/server/catalogStats";
+import { isGameId } from "@/lib/games";
+import type { GameId } from "@/lib/types";
 
 /**
  * The ad landing page (10-05): the TikTok ads point here, not at the home
@@ -14,7 +17,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function ScanLandingPage() {
+const STEPS = [
+  { n: "1", t: "Scan", d: "Snap your card" },
+  { n: "2", t: "Price", d: "See its value" },
+  { n: "3", t: "Save", d: "Keep it free" },
+];
+
+/** /scan?game=magic (or mtg, pokemon, yugioh, lorcana, onepiece); anything else keeps the default. */
+function gameParam(v: string | undefined): GameId {
+  const k = (v ?? "").toLowerCase();
+  return k === "magic" ? "mtg" : isGameId(k) ? k : "pokemon";
+}
+
+export default async function ScanLandingPage({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
+  const sp = await searchParams;
+  const initialGame = gameParam(Array.isArray(sp.game) ? sp.game[0] : sp.game);
+  const label = await catalogSizeLabel().catch(() => "Every printing");
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-md items-center justify-between px-4 pt-4">
@@ -30,7 +48,17 @@ export default function ScanLandingPage() {
           </h1>
           <p className="mt-3 text-base text-zinc-400">Scan it or type its name. Today&apos;s market price in seconds.</p>
         </div>
-        <TrialScanner />
+        <TrialScanner initialGame={initialGame} />
+        <ol className="grid w-full grid-cols-3 gap-2">
+          {STEPS.map((s) => (
+            <li key={s.n} className="rounded-2xl border border-edge bg-surface-1 px-2 py-3 text-center">
+              <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">{s.n}</span>
+              <p className="mt-1 font-display text-base font-semibold text-white">{s.t}</p>
+              <p className="text-xs text-zinc-400">{s.d}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="text-center text-sm font-semibold text-zinc-300">{label.endsWith("+") ? `${label} cards with live prices` : "Live prices on every printing"}</p>
         <p className="text-center text-xs text-zinc-600">Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh!</p>
       </main>
     </div>

@@ -48,6 +48,10 @@ export default function SignupPage() {
   }, [error]);
 
   const [firstName, setFirstName] = useState("");
+  // Ad-page signups (/scan -> /signup?from=scan): no mode question, straight to the scanner.
+  const [fromScan] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "scan",
+  );
 
   // `?step=welcome` (or the old `?step=ebay`) + a live session = the account
   // already exists; resume on step 2 instead of asking them to sign up again.
@@ -84,14 +88,19 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) return setError("Enter your name.");
+    if (!name.trim()) return setError("Enter your first name.");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
     const pwProblem = passwordProblem(password);
     if (pwProblem) return setError(pwProblem);
 
     setSubmitting(true);
     try {
-      const result = await signup(name.trim(), email.trim(), password, readReferralCode(), readTouch());
+      // from=scan marks the ad page: it becomes the landing so the admin funnel can tell these apart.
+      const stored = readTouch();
+      const touch = fromScan
+        ? { s: "direct", m: "", c: "", refHost: "", t: Date.now(), ...stored, landing: "/scan" }
+        : stored;
+      const result = await signup(name.trim(), email.trim(), password, readReferralCode(), touch);
       const user = result.user;
       pixelTrack("CompleteRegistration");
       // Stay on this page and slide straight into the next step: the code
@@ -107,7 +116,7 @@ export default function SignupPage() {
       }
       // Mark the step in the URL so a refresh lands on step 2, not on an
       // empty account form.
-      window.history.replaceState(null, "", "/signup?step=welcome");
+      window.history.replaceState(null, "", fromScan ? "/signup?step=welcome&from=scan" : "/signup?step=welcome");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed.");
       setSubmitting(false);
@@ -139,8 +148,13 @@ export default function SignupPage() {
     } catch {
       // Moving on anyway: the choice can be made again from Inventory.
     }
-    router.push(scansLeft > 0 ? "/app" : "/pricing");
+    router.push(scansLeft > 0 ? (fromScan ? "/app?scan=1" : "/app") : "/pricing");
   }
+  // Came from the ad page: Seller (the normal mode) by default, no question.
+  useEffect(() => {
+    if (fromScan && phase === "ebay" && account) queueMicrotask(() => void chooseMode("sell"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromScan, phase, account]);
 
   return (
     <div className="hero-mesh grain relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
@@ -164,19 +178,19 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="name" className="text-sm font-medium text-zinc-300">
-                Full name
+                First name
               </label>
               <input
                 id="name"
                 name="name"
                 type="text"
-                autoComplete="name"
+                autoComplete="given-name"
                 autoFocus
                 enterKeyHint="next"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={FIELD}
-                placeholder="Ash Ketchum"
+                placeholder="Ash"
               />
             </div>
 

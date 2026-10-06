@@ -65,7 +65,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Do I need my own eBay account?",
-    a: "Yes. You connect it once. CardFlip writes the listing and publishes it under your account, so payouts and buyer messages come straight to you. Change the price in CardFlip and the live listing updates in place.",
+    a: "Only if you want to sell. Collectors can just scan and price. To sell, you connect it once. CardFlip writes the listing and publishes it under your account, so payouts and buyer messages come straight to you. Change the price in CardFlip and the live listing updates in place.",
   },
   {
     q: "Does it work on my phone?",
