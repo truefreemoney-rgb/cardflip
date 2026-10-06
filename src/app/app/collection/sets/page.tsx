@@ -2,23 +2,36 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ArtImg from "@/components/ArtImg";
+import GameToggle from "@/components/GameToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { fetchWishlist } from "@/lib/client/wishlistApi";
+import { GAMES, isGameId, readSavedGame, saveGame } from "@/lib/games";
 import { formatMoney } from "@/lib/listing";
+import type { GameId } from "@/lib/types";
 
 /**
  * Set completion (09-27): every set you own a card from, how far along it
  * is, what finishing it costs today, and the cheapest cards to get there.
  * Tap a set for the full missing list; Watch puts a card on the watchlist.
+ * Every game (10-06): ?game=mtg opens that game, else the game the Inventory
+ * and scanner remember (cardflip.game); the toggle switches and remembers.
  */
+
+function startGame(): GameId {
+  if (typeof window === "undefined") return "pokemon";
+  const q = new URLSearchParams(window.location.search).get("game");
+  return isGameId(q) ? q : readSavedGame();
+}
 
 interface MissingCard {
   id: string;
   name: string;
   number: string;
+  label: string;
   imageUrl: string;
   price: number | null;
 }
@@ -39,7 +52,9 @@ interface SetProgress {
 
 export default function SetCompletionPage() {
   const { status } = useSession();
-  const [sets, setSets] = useState<SetProgress[] | null>(null);
+  const [game, setGame] = useState<GameId>(startGame);
+  const [setsBy, setSetsBy] = useState<Partial<Record<GameId, SetProgress[]>>>({});
+  const sets = setsBy[game] ?? null;
   const [open, setOpen] = useState<string | null>(null);
   const [full, setFull] = useState<Record<string, MissingCard[] | "loading">>({});
   const [watched, setWatched] = useState<Set<string>>(new Set());
@@ -49,13 +64,13 @@ export default function SetCompletionPage() {
   useEffect(() => {
     if (status !== "ready") return;
     let live = true;
-    void fetch(apiPath("/api/cards/sets"), { cache: "no-store" })
+    void fetch(apiPath(`/api/cards/sets?game=${game}`), { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
         return r.json();
       })
       .then((j) => {
-        if (live) setSets(j.sets ?? []);
+        if (live) setSetsBy((m) => ({ ...m, [game]: j.sets ?? [] }));
       })
       .catch(() => {
         if (live) setFailed(true);
@@ -63,7 +78,15 @@ export default function SetCompletionPage() {
     return () => {
       live = false;
     };
-  }, [status, tick]);
+  }, [status, tick, game]);
+
+  function switchGame(next: GameId) {
+    if (next === game) return;
+    saveGame(next);
+    setGame(next);
+    setOpen(null);
+    setFailed(false);
+  }
 
   // Cards already on the watchlist show as watched. Best effort: if it
   // fails the buttons just read "Watch".
@@ -81,18 +104,19 @@ export default function SetCompletionPage() {
   }, [status]);
 
   async function showAll(setId: string) {
-    if (full[setId]) return;
-    setFull((f) => ({ ...f, [setId]: "loading" }));
+    const key = `${game}:${setId}`;
+    if (full[key]) return;
+    setFull((f) => ({ ...f, [key]: "loading" }));
     try {
-      const r = await fetch(apiPath(`/api/cards/sets?set=${encodeURIComponent(setId)}`), { cache: "no-store" });
+      const r = await fetch(apiPath(`/api/cards/sets?game=${game}&set=${encodeURIComponent(setId)}`), { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const j = await r.json();
-      setFull((f) => ({ ...f, [setId]: j.missing ?? [] }));
+      setFull((f) => ({ ...f, [key]: j.missing ?? [] }));
     } catch {
       // Drop the entry (don't cache []) so Show all can be tapped again.
       setFull((f) => {
         const next = { ...f };
-        delete next[setId];
+        delete next[key];
         return next;
       });
       toast("Couldn't load the missing list — try again", "err");
@@ -113,10 +137,12 @@ export default function SetCompletionPage() {
             number: card.number,
             rarity: null,
             imageSmall: card.imageUrl,
-            imageLarge: card.imageUrl.replace("/low.webp", "/high.webp"),
+            // Only Pokémon art has a /high.webp twin; the other games keep their one picture.
+            imageLarge: game === "pokemon" ? card.imageUrl.replace("/low.webp", "/high.webp") : card.imageUrl,
             prices: [],
             englishName: null,
-            setTotal: set.printed,
+            game,
+            setTotal: game === "pokemon" ? set.printed : null,
             setCode: null,
             isSecretRare: false,
           },
@@ -132,7 +158,7 @@ export default function SetCompletionPage() {
     }
   }
 
-  if (failed && !sets) {
+  if (failed && !sets && status === "ready") {
     return (
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center gap-3 px-4 py-16 text-center">
         <h1 className="font-display text-xl font-semibold text-white">Couldn&apos;t load your sets</h1>
@@ -150,22 +176,18 @@ export default function SetCompletionPage() {
       </main>
     );
   }
-  if (status !== "ready" || !sets) return <PageSkeleton />;
+  if (status !== "ready") return <PageSkeleton />;
 
   const Card = ({ set, card }: { set: SetProgress; card: MissingCard }) => (
     <li className="flex items-center gap-3 py-2">
       {card.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={card.imageUrl} alt="" className="h-12 w-9 shrink-0 rounded object-cover" loading="lazy" />
+        <ArtImg src={card.imageUrl} alt="" width={36} height={48} className="h-12 w-9 shrink-0 rounded object-cover" loading="lazy" />
       ) : (
         <span className="h-12 w-9 shrink-0 rounded bg-black/30" />
       )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm text-zinc-100">{card.name}</div>
-        <div className="text-xs text-zinc-500">
-          #{card.number}
-          {set.printed ? `/${set.printed}` : ""}
-        </div>
+        <div className="truncate text-xs text-zinc-500">{card.label}</div>
       </div>
       <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-white">{card.price != null ? formatMoney(card.price) : "—"}</span>
       <button
@@ -189,15 +211,20 @@ export default function SetCompletionPage() {
         <p className="mt-1 text-sm text-zinc-500">Every set you own a card from, what finishing it costs at today&apos;s prices, and the cheapest cards to get there.</p>
       </div>
 
-      {sets.length === 0 ? (
+      <GameToggle game={game} onChange={switchGame} block />
+
+      {!sets ? (
+        <div className="rounded-2xl border border-edge bg-surface-1 px-4 py-8 text-center text-sm text-zinc-500">Loading your {GAMES[game].label} sets…</div>
+      ) : sets.length === 0 ? (
         <div className="rounded-2xl border border-edge bg-surface-1 px-4 py-8 text-center text-sm text-zinc-400">
-          Scan a Pokémon card and its set shows up here.
+          <div className="font-semibold text-zinc-200">No {GAMES[game].label} sets started yet</div>
+          <div className="mt-1">Scan a {GAMES[game].label} card and its set shows up here.</div>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
           {sets.map((set) => {
             const isOpen = open === set.setId;
-            const all = full[set.setId];
+            const all = full[`${game}:${set.setId}`];
             const list = all && all !== "loading" ? all : set.cheapest;
             const done = set.missing === 0;
             return (

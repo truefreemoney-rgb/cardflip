@@ -72,5 +72,22 @@ check("full missing list in printed order with prices", (await missingInSet(u.id
 const nobody = await createUser("Nobody", "nobody@example.com", "hunter22", "user");
 check("no cards → no sets", await setCompletion(nobody.id), []);
 
+// Other games (10-06): Magic keyed by set_code with collector numbers like "123a", One Piece by "code|name" with OP01-001 codes.
+{
+  const mtg = db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, image_url, lang, synced_at) VALUES (?, ?, 'ltr', 'Lord of the Rings', ?, '2023-06-23', 'x.jpg', 'en', 0)");
+  for (const [id, n, num] of [["m1", "Frodo", "9"], ["m2", "Sam", "10"], ["m3", "Sam alt", "10a"], ["m4", "Gollum", "123a"]]) await mtg.run(id, n, num);
+  const tcg = db.prepare("INSERT INTO tcg_cards (id, game, name, subtitle, set_code, set_name, collector_number, set_total, image_url, synced_at) VALUES (?, 'onepiece', ?, '', 'OP01', 'Romance Dawn', ?, 121, 'y.png', 0)");
+  for (const [id, n, num] of [["op1", "Zoro", "OP01-025"], ["op2", "Luffy", "OP01-003"], ["op3", "Nami", "OP01-016"]]) await tcg.run(id, n, num);
+  await createCard(u.id, { cardName: "Frodo", setName: "x", cardNumber: "9", imageUrl: "", condition: "NM", price: 1, catalogCardId: "m1", game: "mtg" });
+  await createCard(u.id, { cardName: "Luffy", setName: "x", cardNumber: "3", imageUrl: "", condition: "NM", price: 1, catalogCardId: "op2", game: "onepiece" });
+  const m = await setCompletion(u.id, "mtg");
+  check("magic: own 1 of 4 in the ltr set", m.map((x) => [x.setId, x.owned, x.total]), [["ltr", 1, 4]]);
+  check("magic missing in numeric order, 123a last", (await missingInSet(u.id, "ltr", "mtg")).map((c) => c.number), ["10", "10a", "123a"]);
+  const op = await setCompletion(u.id, "onepiece");
+  check("one piece: own 1 of 3", op.map((x) => [x.setId, x.owned, x.total]), [["OP01|Romance Dawn", 1, 3]]);
+  check("one piece missing in code order", (await missingInSet(u.id, "OP01|Romance Dawn", "onepiece")).map((c) => c.number), ["OP01-016", "OP01-025"]);
+  check("games stay apart", (await setCompletion(u.id, "lorcana")).length, 0);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
