@@ -103,8 +103,11 @@ export default function TrialScanner({
   initialGame = "pokemon",
   examples = {},
   footer = null,
+  initialSignedIn = false,
 }: {
   initialGame?: GameId;
+  /** The server already knows (session cookie): a signed-in visitor gets the "Open the Scanner" screen from the first frame, no flash of the trial (10-06). */
+  initialSignedIn?: boolean;
   examples?: Partial<Record<GameId, ScanExample>>;
   /** Server-rendered content shown under the scanner; the example card follows it on the idle screen only. */
   footer?: React.ReactNode;
@@ -113,7 +116,7 @@ export default function TrialScanner({
   const [last, setLast] = useState<LastResult | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "start" });
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [signedIn, setSignedIn] = useState(initialSignedIn);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PokemonCard[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -123,7 +126,7 @@ export default function TrialScanner({
   useEffect(() => {
     let alive = true;
     fetchCurrentUser()
-      .then((u) => alive && u && setSignedIn(true))
+      .then((u) => alive && setSignedIn(Boolean(u)))
       .catch(() => {});
     // After hydration (the server renders the start screen), off the effect body.
     const t = window.setTimeout(() => {

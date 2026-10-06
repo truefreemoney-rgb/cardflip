@@ -9,6 +9,7 @@ import type { ScanExample } from "@/components/TrialScanner";
 import type { GameId } from "@/lib/types";
 import LiveStatsStrip from "@/components/LiveStatsStrip";
 import { liveStats } from "@/lib/server/liveStats";
+import { getCurrentUser } from "@/lib/server/auth";
 
 /**
  * The ad landing page (10-05): the TikTok ads point here, not at the home
@@ -38,6 +39,8 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
   const initialGame = gameParam(Array.isArray(sp.game) ? sp.game[0] : sp.game);
   const label = await catalogSizeLabel().catch(() => "Every printing");
   const stats = await liveStats();
+  // No cookie (every ad visitor) = no DB read; a session = the signed-in screen from the first frame.
+  const signedIn = Boolean(await getCurrentUser().catch(() => null));
   // One real example card per game: the lead of the home page's stage reel (cached 6 h, guarded, $15-$300). None found = none shown.
   const examples: Partial<Record<GameId, ScanExample>> = {};
   await Promise.all(
@@ -64,6 +67,7 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
         </div>
         <TrialScanner
           initialGame={initialGame}
+          initialSignedIn={signedIn}
           examples={examples}
           footer={
             <>
