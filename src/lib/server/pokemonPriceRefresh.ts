@@ -135,12 +135,39 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
   return { groups: done, products };
 }
 
-const TCGDEX_TRIED_KEY = "tcgdex_price_tried";
+// v2 (10-05): the Cardmarket fallback came in, so every card the old memo parked is asked once more.
+const TCGDEX_TRIED_KEY = "tcgdex_price_tried_v2";
+/** Last day each card was asked of TCGdex, so the `max` a run rotates instead of re-asking the same cards. */
+const TCGDEX_FETCHED_KEY = "tcgdex_price_fetched";
+export const CONVERTED_SOURCE = "cardmarket-converted";
+
+/**
+ * Pure: TCGdex's Cardmarket block → today's dollar price, or null. Trend
+ * first, else the 30-day average; skipped when the figures disagree wildly
+ * (trend vs avg30 over 3×, the cheapest listing over 2× the trend, or €100+
+ * with no listing at all: Creator Pack Mudkip €2,912 trend / €10,000 low,
+ * Treecko €943 / €2,500, Torchic €1,199 / none, 10-05) or under 2 cents. Exported for scripts/test-pokemon-cardmarket-fill.mjs.
+ */
+export function cardmarketUsd(cm: unknown, usdPerEur: number | null): number | null {
+  if (!cm || typeof cm !== "object" || !usdPerEur || !(usdPerEur > 0)) return null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+  const { trend, avg30, low } = cm as { trend?: unknown; avg30?: unknown; low?: unknown };
+  const t = n(trend), a = n(avg30), l = n(low);
+  const eur = t ?? a;
+  if (eur == null || eur < 0.02) return null;
+  if (t != null && a != null && Math.max(t, a) > 3 * Math.min(t, a)) return null;
+  if (l != null && l > 2 * eur) return null;
+  if (l == null && eur >= 100) return null;
+  return Math.round(eur * usdPerEur * 100) / 100;
+}
 
 /**
  * Cards no TCGplayer product reaches (nor a twin of one): TCGdex's card
- * endpoint, pricing.tcgplayer.<variant>.marketPrice. Up to `max` a run; a
- * card TCGdex can't price waits 7 days before it's asked again.
+ * endpoint, pricing.tcgplayer.<variant>.marketPrice; when TCGdex has no
+ * TCGplayer price either, its Cardmarket figure converted to dollars
+ * (source "cardmarket-converted", variant "average"; 10-05, Chris: "use every
+ * resource available to get the cards priced"). Up to `max` a run, least
+ * recently asked first; a card TCGdex can't price at all waits 7 days.
  */
 async function tcgdexFill(
   day: string,
@@ -148,13 +175,22 @@ async function tcgdexFill(
   touched: Set<string>,
   reached: Set<string>,
   twinsOf: Map<string, string[]>,
-  max = 250,
+  max = 1200, // ~2 s per 300 cards (measured 10-05), so every gap fits one run
 ): Promise<SeriesUpsert[]> {
   const tried = JSON.parse((await getSetting(TCGDEX_TRIED_KEY)) ?? "{}") as Record<string, string>;
+  const fetched = JSON.parse((await getSetting(TCGDEX_FETCHED_KEY)) ?? "{}") as Record<string, string>;
   const due = (id: string) => !tried[id] || Date.parse(day) - Date.parse(tried[id]) >= 7 * 86_400_000;
+  const converted = await readSeriesMap("pokemon", CONVERTED_SOURCE);
+  let rate: number | null = null;
+  try {
+    rate = await (await import("@/lib/server/fx")).usdPerEur();
+  } catch {
+    rate = null;
+  }
   const ids = ((await db.prepare("SELECT id FROM en_cards WHERE id NOT LIKE '%-1st'").all()) as { id: string }[])
     .map((r) => r.id)
-    .filter((id) => !reached.has(id) && !(twinsOf.get(id) ?? []).some((t) => reached.has(t)) && due(id))
+    .filter((id) => !reached.has(id) && !(twinsOf.get(id) ?? []).some((t) => reached.has(t)) && due(id) && fetched[id] !== day)
+    .sort((a, b) => (fetched[a] ?? "").localeCompare(fetched[b] ?? ""))
     .slice(0, max);
   const out: SeriesUpsert[] = [];
   const queue = [...ids];
@@ -162,7 +198,8 @@ async function tcgdexFill(
     for (let id = queue.shift(); id; id = queue.shift()) {
       try {
         const res = await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`, { headers: HEADERS, signal: AbortSignal.timeout(15_000) });
-        const card = res.ok ? ((await res.json()) as { pricing?: { tcgplayer?: Record<string, unknown> } }) : null;
+        const card = res.ok ? ((await res.json()) as { pricing?: { tcgplayer?: Record<string, unknown>; cardmarket?: unknown } }) : null;
+        fetched[id] = day;
         let priced = false;
         for (const [k, v] of Object.entries(card?.pricing?.tcgplayer ?? {})) {
           const price = (v as { marketPrice?: unknown } | null)?.marketPrice;
@@ -177,6 +214,15 @@ async function tcgdexFill(
           touched.add(key);
           priced = true;
         }
+        if (!priced) {
+          const usd = cardmarketUsd(card?.pricing?.cardmarket, rate);
+          if (usd != null) {
+            const existing = converted.get(`${id}|average`);
+            const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, usd);
+            out.push({ cardId: id, game: "pokemon", variant: "average", source: CONVERTED_SOURCE, currency: "USD", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
+            priced = true;
+          }
+        }
         if (!priced) tried[id] = day;
       } catch {
         tried[id] = day;
@@ -184,7 +230,10 @@ async function tcgdexFill(
     }
   };
   await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
-  if (ids.length) await setSetting(TCGDEX_TRIED_KEY, JSON.stringify(tried));
+  if (ids.length) {
+    await setSetting(TCGDEX_TRIED_KEY, JSON.stringify(tried));
+    await setSetting(TCGDEX_FETCHED_KEY, JSON.stringify(fetched));
+  }
   return out;
 }
 

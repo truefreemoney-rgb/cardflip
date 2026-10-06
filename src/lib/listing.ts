@@ -259,6 +259,7 @@ export function formatMoney(
  * convert it honestly.
  */
 export function canPriceListing(price: CardPrice): boolean {
+  // A Cardmarket figure already in dollars (withEurMarket for Magic, "cardmarket-converted" for Pokémon) counts, as on 10-03.
   return price.currency === "USD";
 }
 

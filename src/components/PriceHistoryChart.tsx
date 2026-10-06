@@ -193,7 +193,7 @@ function shortDay(day: string, withYear = false): string {
   });
 }
 function sourceLabel(s: string): string {
-  return s === "tcgplayer" ? "Market" : s === "cardmarket" ? "Cardmarket" : s;
+  return s === "tcgplayer" ? "Market" : s === "cardmarket" ? "Cardmarket" : s === "cardmarket-converted" ? "Cardmarket (converted from €)" : s;
 }
 /** Axis-friendly price: whole dollars above $100, cents below. */
 function axisMoney(v: number, currency: Currency): string {

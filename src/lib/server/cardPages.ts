@@ -315,9 +315,12 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   const cmSince = addDays(today, -PRICE_TRUST.refMaxAgeDays);
   const series: TrustSeries[] = [];
   let cmEur: number | null = null;
+  let convertedUsd: number | null = null;
   for (const r of rows) {
     const prices = decodePrices(r.prices);
-    if (r.source === "cardmarket" && r.variant === "average") {
+    if (r.source === "cardmarket-converted") {
+      if (r.updated_day >= cmSince) convertedUsd = lastPriced(prices);
+    } else if (r.source === "cardmarket" && r.variant === "average") {
       if (r.updated_day >= cmSince) cmEur = lastPriced(prices);
     } else if (r.source === "tcgplayer" && r.currency === "USD" && prices.some((p) => p != null)) {
       series.push({ variant: r.variant, startDay: r.start_day, prices });
@@ -347,6 +350,11 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       const converted = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * 100) / 100, day: today, days: 0, flag: null }];
       return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
     }
+  }
+  // Pokémon's version of the same (10-05): the nightly job stored Cardmarket's figure in dollars for a card TCGplayer can't price.
+  if (prices.length === 0 && convertedUsd != null && convertedUsd > 0) {
+    const converted = [{ variant: "average", label: "Cardmarket (converted from €)", price: convertedUsd, day: today, days: 0, flag: null }];
+    return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
   }
   const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };

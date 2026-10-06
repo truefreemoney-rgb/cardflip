@@ -562,7 +562,8 @@ export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<Pok
     if (!isFirstEditionId(card.id)) {
       const base = card.prices.filter((p) => !isFirstEditionVariant(p.variant));
       const extra = (own.get(card.id) ?? []).filter(
-        (p) => !isFirstEditionVariant(p.variant) && !base.some((b) => b.variant === p.variant),
+        // Currency too: upstream's Cardmarket "average" is EUR; our converted "average" is its dollar twin (10-05).
+        (p) => !isFirstEditionVariant(p.variant) && !base.some((b) => b.variant === p.variant && b.currency === p.currency),
       );
       out.push({ ...card, prices: [...base, ...extra] });
       continue;
@@ -596,7 +597,7 @@ async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<str
       list.push({
         source: r.source as CardPrice["source"],
         variant: r.variant,
-        label: formatVariantLabel(r.variant),
+        label: r.source === "cardmarket-converted" ? "Cardmarket (converted from €)" : formatVariantLabel(r.variant),
         currency: "USD",
         market: last,
         low: null,
