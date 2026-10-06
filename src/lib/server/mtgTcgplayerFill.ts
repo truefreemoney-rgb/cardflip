@@ -53,7 +53,11 @@ const bareNumber = (n: string) => n.split("/")[0].trim().toLowerCase().replace(/
 /** Scryfall set code → TCGplayer group abbreviation, where neither rule finds it. */
 const GROUP_ALIASES: Record<string, string> = {
   asnc: "ASSNC", // "New Capenna Art Series" vs "Art Series: Streets of New Capenna"
+  plst: "LIST", // "The List" vs "The List Reprints" (numbers: see listNumber)
 };
+
+/** The List's Scryfall numbers carry the original set ("KLD-2"); TCGplayer prints only the number. */
+const listNumber = (setCode: string, number: string) => (setCode.toLowerCase() === "plst" ? number.replace(/^[a-z0-9]+-/i, "") : number);
 
 /**
  * Pure: Scryfall set → TCGplayer group. Abbreviation first (LEA, LEB, SUM,
@@ -98,7 +102,7 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
   const out: MtgFill[] = [];
   for (const r of rows) {
     const name = fold(r.name);
-    let num = bareNumber(r.number);
+    let num = bareNumber(listNumber(r.setCode, r.number));
     const stamped = /^\d+s$/.test(num);
     if (stamped) num = num.slice(0, -1);
     let hits = byKey.get(key(name, num, stamped)) ?? [];

@@ -46,6 +46,13 @@ assert.deepEqual(fills, [
   { id: "d", usd: null, foil: 3 },
 ]);
 
+// The List: Scryfall "KLD-2" is TCGplayer's "2" (and "006/274" is "6").
+assert.deepEqual(
+  matchMtgProducts([{ id: "l", name: "Aerial Responder", setCode: "plst", setName: "The List", number: "KLD-2", finishes: "nonfoil" }],
+    [{ name: "Aerial Responder", number: "002/264", prices: { Normal: 0.4 } }]),
+  [{ id: "l", usd: 0.4, foil: null }],
+);
+
 // No numbers in the group: a name unique on both sides still matches.
 assert.deepEqual(
   matchMtgProducts([row("e", "Black Lotus", "232"), row("f", "Island", "1"), row("g", "Island", "2")],
