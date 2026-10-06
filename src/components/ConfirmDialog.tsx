@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Sheet from "@/components/Sheet";
 
 /**
  * In-app replacement for window.confirm. iOS suppresses native confirm()
@@ -54,18 +55,6 @@ export default function ConfirmHost() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!req) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        req.resolve(false);
-        setReq(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [req]);
-
   if (!req) return null;
 
   const answer = (ok: boolean) => {
@@ -74,24 +63,17 @@ export default function ConfirmHost() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:pb-4"
-      onClick={() => answer(false)}
-      role="presentation"
-    >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-label="Confirm"
-        onClick={(e) => e.stopPropagation()}
-        className="animate-fade-up w-full max-w-sm rounded-2xl border border-edge bg-surface-2 p-5 shadow-2xl shadow-black/50"
-      >
-        <p className="text-sm leading-relaxed text-zinc-200">{req.message}</p>
-        <div className="mt-4 flex justify-end gap-2">
+    <Sheet
+      role="alertdialog"
+      label="Confirm"
+      maxWidth="max-w-sm"
+      onClose={() => answer(false)}
+      footer={
+        <div className="flex justify-end gap-2">
           <button
             autoFocus
             onClick={() => answer(false)}
-            className="rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
+            className="rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
           >
             Cancel
           </button>
@@ -99,14 +81,16 @@ export default function ConfirmHost() {
             onClick={() => answer(true)}
             className={
               req.danger === false
-                ? "rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition"
-                : "rounded-full border border-red-400/40 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/25"
+                ? "rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition"
+                : "rounded-full border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/25"
             }
           >
             {req.confirmLabel ?? "Confirm"}
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p className="pr-8 text-sm leading-relaxed text-zinc-200">{req.message}</p>
+    </Sheet>
   );
 }
