@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import CameraCapture from "@/components/CameraCapture";
+import ArtImg from "@/components/ArtImg";
 import CardImage from "@/components/CardImage";
 import GameToggle from "@/components/GameToggle";
 import { fetchCurrentUser } from "@/lib/client/auth";
@@ -90,7 +91,24 @@ function readDone(): boolean {
   }
 }
 
-export default function TrialScanner({ initialGame = "pokemon" }: { initialGame?: GameId }) {
+/** One real, priced card per game for the idle screen (server-picked, cached). */
+export interface ScanExample {
+  name: string;
+  setName: string;
+  image: string;
+  price: number;
+}
+
+export default function TrialScanner({
+  initialGame = "pokemon",
+  examples = {},
+  footer = null,
+}: {
+  initialGame?: GameId;
+  examples?: Partial<Record<GameId, ScanExample>>;
+  /** Server-rendered content shown under the scanner; the example card follows it on the idle screen only. */
+  footer?: React.ReactNode;
+}) {
   const [game, setGame] = useState<GameId>(initialGame);
   const [last, setLast] = useState<LastResult | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "start" });
@@ -168,14 +186,20 @@ export default function TrialScanner({ initialGame = "pokemon" }: { initialGame?
 
   if (signedIn) {
     return (
-      <Link href="/app" className={CTA}>
-        Open the Scanner
-      </Link>
+      <>
+        <Link href="/app" className={CTA}>
+          Open the Scanner
+        </Link>
+        {footer}
+      </>
     );
   }
 
   const found = phase.kind === "found" ? phase : null;
   const price = found ? trialPrice(found.card) : null;
+  // The example fills the idle screen only: no result, no search list, not the "used" screen.
+  const idle = phase.kind === "start" || phase.kind === "reading" || phase.kind === "miss";
+  const ex = idle && !results ? examples[game] : undefined;
 
   return (
     <div className={`flex w-full flex-col gap-4 ${found ? "pb-24 md:pb-0" : ""}`}>
@@ -342,6 +366,22 @@ export default function TrialScanner({ initialGame = "pokemon" }: { initialGame?
             Skip and get {SCANS.trial} free scans
           </Link>
         </>
+      )}
+
+      {footer}
+      {idle && ex && (
+        <section aria-label="Example" className="flex items-center gap-4 rounded-2xl border border-edge bg-surface-1 p-3">
+          <div className="aspect-[5/7] w-24 shrink-0 overflow-hidden rounded-lg bg-black/30">
+            <ArtImg src={ex.image} alt={`${ex.name}, ${ex.setName}`} loading="lazy" width={500} height={700} className="h-full w-full object-cover" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Example</p>
+            <p className="mt-1 font-display text-lg font-semibold leading-tight text-white">{ex.name}</p>
+            <p className="text-sm text-zinc-400">{ex.setName}</p>
+            <p className="holo-text mt-2 font-display text-3xl font-bold tabular-nums">{formatMoney(ex.price)}</p>
+            <p className="text-xs text-zinc-500">Market price today</p>
+          </div>
+        </section>
       )}
 
       {cameraOpen && <CameraCapture game={game} onGameChange={setGame} onCapture={(f) => void onCapture(f)} onClose={() => setCameraOpen(false)} />}
