@@ -17,7 +17,7 @@ import {
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf } from "@/lib/listing";
+import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, withEpnParams } from "@/lib/listing";
 import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
@@ -148,6 +148,9 @@ interface Repriced {
   /** item.id → today's market has not updated in 45+ days (10-02): the number shows, with a note under it. */
   stale: Record<string, PriceStale>;
 }
+
+/** eBay Partner Network campaign id (empty until the owner joins EPN: the Buy link is then a plain eBay link). */
+const EPN_CAMPAIGN_ID = process.env.NEXT_PUBLIC_EBAY_EPN_CAMPAIGN_ID ?? "";
 
 /** What the tile already knows about its card, shaped for the detail modal —
  * shown the instant a tile is tapped while the catalog row loads (09-04:
@@ -751,6 +754,16 @@ export default function WishlistPage() {
                           : `Saved ${formatShortDate(item.addedAt)}`}
                       </p>
                     </div>
+
+                    <a
+                      href={withEpnParams(ebaySearchUrl(stubCard(item), {}, { sort: "lowest" }), EPN_CAMPAIGN_ID, "wishlist")}
+                      target="_blank"
+                      rel={EPN_CAMPAIGN_ID ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-center text-xs font-semibold text-brand-300 transition hover:bg-brand-500/20"
+                    >
+                      Buy on eBay
+                    </a>
 
                     {(item.cardId ?? resolvedIds[item.id]) && (
                       <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} stretch />

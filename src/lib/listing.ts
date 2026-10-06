@@ -914,7 +914,7 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
  * Lives here rather than in the server eBay client because the UI links to it
  * even when there are no comps (or no eBay credentials) to show.
  */
-export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}): string {
+export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}, opts: { sort?: "best" | "lowest" } = {}): string {
   const params = new URLSearchParams({
     _nkw: ebayQuery(card, facts),
     // Best Match (Chris, 09-01 — was price+shipping lowest first): the
@@ -922,8 +922,23 @@ export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}): stri
     // relevance puts the listings the average is really made of up top.
     _sop: "12",
   });
+  // "lowest" (wishlist Buy on eBay): _sop 15 = Price + Shipping, lowest first. Callers that pass nothing keep Best Match.
+  if (opts.sort === "lowest") params.set("_sop", "15");
   if (!facts.sealed) params.set("_sacat", CCG_CARDS_CATEGORY_ID);
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;
+}
+
+/**
+ * An eBay link as an eBay Partner Network affiliate link. Returns the URL unchanged when `campaignId` is empty, so
+ * nothing changes until the owner has joined EPN and set NEXT_PUBLIC_EBAY_EPN_CAMPAIGN_ID (711-53200-19255-0 is the
+ * eBay US rotation id).
+ */
+export function withEpnParams(url: string, campaignId: string | null | undefined, customId: string): string {
+  if (!campaignId) return url;
+  const u = new URL(url);
+  const epn = { mkcid: "1", mkrid: "711-53200-19255-0", siteid: "0", campid: campaignId, toolid: "10001", mkevt: "1", customid: customId };
+  for (const [k, v] of Object.entries(epn)) u.searchParams.set(k, v);
+  return u.toString();
 }
 
 /**
