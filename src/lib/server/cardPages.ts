@@ -316,10 +316,15 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   const series: TrustSeries[] = [];
   let cmEur: number | null = null;
   let convertedUsd: number | null = null;
+  let convertedLabel = "Cardmarket (converted from €)";
   for (const r of rows) {
     const prices = decodePrices(r.prices);
-    if (r.source === "cardmarket-converted") {
-      if (r.updated_day >= cmSince) convertedUsd = lastPriced(prices);
+    if (r.source === "cardmarket-converted" || r.source === "cardtrader") {
+      // CardTrader (Yu-Gi-Oh listings, 10-06) outranks a converted Cardmarket figure when both are fresh.
+      if (r.updated_day >= cmSince && (convertedUsd == null || r.source === "cardtrader")) {
+        convertedUsd = lastPriced(prices);
+        if (r.source === "cardtrader") convertedLabel = "CardTrader (listings)";
+      }
     } else if (r.source === "cardmarket" && r.variant === "average") {
       if (r.updated_day >= cmSince) cmEur = lastPriced(prices);
     } else if (r.source === "tcgplayer" && r.currency === "USD" && prices.some((p) => p != null)) {
@@ -353,7 +358,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   }
   // Pokémon's version of the same (10-05): the nightly job stored Cardmarket's figure in dollars for a card TCGplayer can't price.
   if (prices.length === 0 && convertedUsd != null && convertedUsd > 0) {
-    const converted = [{ variant: "average", label: "Cardmarket (converted from €)", price: convertedUsd, day: today, days: 0, flag: null }];
+    const converted = [{ variant: "average", label: convertedLabel, price: convertedUsd, day: today, days: 0, flag: null }];
     return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
   }
   const decision = indexDecision(prices, indexFloorUsd(facts.game));

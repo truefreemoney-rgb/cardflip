@@ -12,7 +12,7 @@ export type ScanLanguage = "en" | "ja" | "zh";
 export type GameId = "pokemon" | "mtg" | "lorcana" | "onepiece" | "yugioh";
 
 /** "cardmarket-converted" = Cardmarket's EUR figure stored in dollars for a card TCGplayer can't price (10-05). */
-export type PriceSource = "tcgplayer" | "cardmarket" | "cardmarket-converted" | "ebay";
+export type PriceSource = "tcgplayer" | "cardmarket" | "cardmarket-converted" | "cardtrader" | "ebay";
 
 /**
  * Cardmarket quotes in euros while TCGplayer and eBay quote in dollars, and
