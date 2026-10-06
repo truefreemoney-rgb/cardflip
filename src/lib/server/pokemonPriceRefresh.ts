@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import { getSetting, setSetting } from "@/lib/server/settings";
+import { CONVERTED_SOURCE, cardmarketUsd } from "@/lib/server/cardmarket";
 import {
   kitHalves,
   mapKitProducts,
@@ -139,28 +140,6 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
 const TCGDEX_TRIED_KEY = "tcgdex_price_tried_v2";
 /** Last day each card was asked of TCGdex, so the `max` a run rotates instead of re-asking the same cards. */
 const TCGDEX_FETCHED_KEY = "tcgdex_price_fetched";
-export const CONVERTED_SOURCE = "cardmarket-converted";
-
-/**
- * Pure: TCGdex's Cardmarket block → today's dollar price, or null. Trend
- * first, else the 30-day average; skipped when the figures disagree wildly
- * (trend vs avg30 over 3×, the cheapest listing over 2× the trend, or €100+
- * with no listing at all: Creator Pack Mudkip €2,912 trend / €10,000 low,
- * Treecko €943 / €2,500, Torchic €1,199 / none, 10-05) or under 2 cents. Exported for scripts/test-pokemon-cardmarket-fill.mjs.
- */
-export function cardmarketUsd(cm: unknown, usdPerEur: number | null): number | null {
-  if (!cm || typeof cm !== "object" || !usdPerEur || !(usdPerEur > 0)) return null;
-  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
-  const { trend, avg30, low } = cm as { trend?: unknown; avg30?: unknown; low?: unknown };
-  const t = n(trend), a = n(avg30), l = n(low);
-  const eur = t ?? a;
-  if (eur == null || eur < 0.02) return null;
-  if (t != null && a != null && Math.max(t, a) > 3 * Math.min(t, a)) return null;
-  if (l != null && l > 2 * eur) return null;
-  if (l == null && eur >= 100) return null;
-  return Math.round(eur * usdPerEur * 100) / 100;
-}
-
 /**
  * Cards no TCGplayer product reaches (nor a twin of one): TCGdex's card
  * endpoint, pricing.tcgplayer.<variant>.marketPrice; when TCGdex has no

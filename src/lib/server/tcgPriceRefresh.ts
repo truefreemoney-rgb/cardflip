@@ -3,6 +3,48 @@ import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries"
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import type { TcgGame } from "@/lib/server/tcgCards";
 import { onePieceDonKey, parseOnePieceDon } from "@/lib/onepiece";
+import { CARDMARKET_GAME, CONVERTED_SOURCE, fetchPriceGuide, guideUsd } from "@/lib/server/cardmarket";
+import cardmarketYugioh from "@/data/cardmarket-yugioh.json" with { type: "json" };
+import cardmarketLorcana from "@/data/cardmarket-lorcana.json" with { type: "json" };
+
+/** Our card id → Cardmarket idProduct (scripts/build-cardmarket-map.mjs), for cards TCGplayer leaves unpriced. */
+const CARDMARKET_MAPS: Partial<Record<TcgGame, Record<string, number>>> = { yugioh: cardmarketYugioh, lorcana: cardmarketLorcana };
+
+/**
+ * Pure: the map's cards still without a dollar price today → Cardmarket's
+ * figure converted (lib/server/cardmarket.ts guards apply). Exported for
+ * scripts/test-tcg-prices.mjs.
+ */
+export function cardmarketPoints(
+  points: TcgPoint[],
+  map: Record<string, number>,
+  guide: Map<number, Parameters<typeof guideUsd>[0]>,
+  usdPerEur: number | null,
+): TcgPoint[] {
+  const priced = new Set(points.filter((p) => p.usd != null || p.foil != null).map((p) => p.id));
+  const out: TcgPoint[] = [];
+  for (const [id, product] of Object.entries(map)) {
+    if (priced.has(id)) continue;
+    const { usd, foil } = guideUsd(guide.get(product), usdPerEur);
+    if (usd != null || foil != null) out.push({ id, usd, foil, source: CONVERTED_SOURCE });
+  }
+  return out;
+}
+
+/** TCGplayer's points plus Cardmarket's (converted) for the mapped cards TCGplayer can't price. Never throws. */
+async function withCardmarket(game: TcgGame, base: { points: TcgPoint[]; failed: number }): Promise<{ points: TcgPoint[]; failed: number }> {
+  const map = CARDMARKET_MAPS[game];
+  if (!map || !Object.keys(map).length) return base;
+  try {
+    const rate = await (await import("@/lib/server/fx")).usdPerEur();
+    const fill = cardmarketPoints(base.points, map, await fetchPriceGuide(CARDMARKET_GAME[game as "yugioh" | "lorcana"]), rate);
+    const have = new Set(fill.map((p) => p.id));
+    return { ...base, points: [...base.points.filter((p) => !have.has(p.id)), ...fill] };
+  } catch (err) {
+    console.warn(`${game} cardmarket fill:`, err instanceof Error ? err.message : err);
+    return base;
+  }
+}
 
 /**
  * Daily Lorcana / One Piece / Yu-Gi-Oh! prices (09-30, Chris: "we need the
@@ -47,6 +89,8 @@ export interface TcgPoint {
   id: string;
   usd: number | null;
   foil: number | null;
+  /** Where the dollars came from when not TCGplayer (10-05: "cardmarket-converted" = Cardmarket EUR x the day's rate). */
+  source?: string;
   /** One Piece: the feed's set name + printing tag — an image id alone repeats across reprint sets. */
   setName?: string;
   variant?: string;
@@ -329,6 +373,8 @@ export function planTcgRefresh(
   mirror: Map<string, { usd: number | null; foil: number | null; setName?: string; variant?: string }>,
   existingSeries: Map<string, { startDay: string; prices: string }>,
   day: string,
+  /** Series of the non-TCGplayer sources, keyed "source|id|variant". */
+  otherSeries: Map<string, { startDay: string; prices: string }> = new Map(),
 ): { columns: TcgPoint[]; upserts: SeriesUpsert[] } {
   const byId = new Map(points.map((p) => [p.id, p]));
   // One Piece: an image id repeats across reprint sets (OP09-077 is also the
@@ -356,22 +402,27 @@ export function planTcgRefresh(
     if (p.usd !== held.usd || p.foil !== held.foil) columns.push({ id, usd: p.usd, foil: p.foil });
     for (const [variant, price] of [["normal", p.usd], ["foil", p.foil]] as const) {
       if (price == null) continue;
-      const existing = existingSeries.get(`${id}|${variant}`);
+      const source = p.source ?? "tcgplayer";
+      const existing = source === "tcgplayer" ? existingSeries.get(`${id}|${variant}`) : otherSeries.get(`${source}|${id}|${variant}`);
       if (!existing && price < MIN_TRACKED_USD) continue;
       const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
-      upserts.push({ cardId: id, game, variant, source: "tcgplayer", currency: "USD", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
+      upserts.push({ cardId: id, game, variant, source, currency: "USD", startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day });
     }
   }
   return { columns, upserts };
 }
 
 export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
-  const { points, failed } = game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
+  const { points, failed } = await withCardmarket(game, game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints());
   // A source that answered nothing at all must not look like "no prices".
   if (points.length === 0) throw new Error(`${game}: no prices fetched (${failed} source calls failed)`);
   const mirror = await mirrorIds(game);
   const existingSeries = await readSeriesMap(game, "tcgplayer");
-  const { columns, upserts } = planTcgRefresh(game, points, mirror, existingSeries, day);
+  const otherSeries = new Map<string, { startDay: string; prices: string }>();
+  for (const source of new Set(points.map((p) => p.source).filter((s): s is string => !!s))) {
+    for (const [k, v] of await readSeriesMap(game, source)) otherSeries.set(`${source}|${k}`, v);
+  }
+  const { columns, upserts } = planTcgRefresh(game, points, mirror, existingSeries, day, otherSeries);
   await updatePriceColumns(columns);
   await upsertSeriesRows(upserts);
   return { fetched: points.length, sourcesFailed: failed, pricesChanged: columns.length, seriesTouched: upserts.length, day };
