@@ -48,7 +48,8 @@ export default function AppTabs() {
   return (
     <nav className="foil-edge flex w-full items-center gap-0.5 rounded-full p-1 [--foil-fill:#101218] sm:w-auto sm:gap-1">
       {TABS.map((tab) => {
-        const active = pathname === tab.href;
+        const active =
+          tab.href === "/app" ? pathname === tab.href : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link
             key={tab.href}

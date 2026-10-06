@@ -22,17 +22,21 @@ export default function SalesReportPage() {
   const pricingOnly = Boolean(user?.pricingOnly);
   const [cards, setCards] = useState<ServerCard[] | null>(null);
   const [year, setYear] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (status !== "ready") return;
     let live = true;
     void fetchServerCards().then((c) => {
-      if (live) setCards(c ?? []);
+      if (!live) return;
+      if (c) setCards(c);
+      else setFailed(true);
     });
     return () => {
       live = false;
     };
-  }, [status]);
+  }, [status, tick]);
 
   const years = useMemo(() => (cards ? saleYears(cards) : []), [cards]);
   const shown = year ?? years[0] ?? Number(etDate(new Date(), "", { year: "numeric" }));
@@ -51,6 +55,24 @@ export default function SalesReportPage() {
     </span>
   );
 
+  if (failed && !cards) {
+    return (
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center gap-3 px-4 py-16 text-center">
+        <h1 className="font-display text-xl font-semibold text-white">Couldn&apos;t load your sales</h1>
+        <p className="text-sm text-zinc-400">Check your connection and try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setTick((n) => n + 1);
+          }}
+          className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+        >
+          Retry
+        </button>
+      </main>
+    );
+  }
   if (status !== "ready" || !cards || !totals) return <PageSkeleton />;
 
   return (

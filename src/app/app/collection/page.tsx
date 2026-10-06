@@ -15,7 +15,7 @@ import { pickPrinting } from "@/lib/cardNumber";
 import GameToggle from "@/components/GameToggle";
 import PricingModeToggle from "@/components/PricingModeToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
-import { GAME_IDS, readSavedGame, saveGame, parseGame } from "@/lib/games";
+import { GAME_IDS, GAMES, readSavedGame, saveGame, parseGame } from "@/lib/games";
 import type { GameId, PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
@@ -1156,6 +1156,9 @@ export default function CollectionPage() {
   const [autoOfferSaving, setAutoOfferSaving] = useState(false);
 
   const userId = user?.id;
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
+  const hadCards = useRef(false);
   const [saleNote, setSaleNote] = useState<string | null>(null);
   useEffect(() => {
     if (!userId) return;
@@ -1166,8 +1169,11 @@ export default function CollectionPage() {
         // null = the request failed (timeout, 5xx). Keep whatever rows are
         // showing and say so — an empty ledger here used to read as
         // "No cards yet" on a bad connection.
-        if (list) setCards(list);
-        else setSyncError("Couldn't load your cards — check your connection and pull to refresh.");
+        if (list) {
+          hadCards.current = list.length > 0;
+          setCards(list);
+        } else if (!hadCards.current) setLoadFailed(true);
+        else setSyncError("Couldn't load your cards — check your connection and try again.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -1206,7 +1212,7 @@ export default function CollectionPage() {
     // on every load.
     // Live prices: today's market from our own series, drafts repriced in
     // place (Chris, 09-07: the scan-time price never updated).
-    void fetchLivePrices().then((list) => {
+    void fetchLivePrices().catch(() => []).then((list) => {
       if (cancelled) return;
       setLiveLoaded(true);
       if (list.length === 0) return;
@@ -1236,7 +1242,7 @@ export default function CollectionPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, reloadTick]);
 
   async function applyReprice(card: ServerCard, nudge: RepriceNudge) {
     await setAskingPrice(card, nudge.target);
@@ -1457,6 +1463,19 @@ export default function CollectionPage() {
     for (const c of cards) counts[c.game ?? "pokemon"] = (counts[c.game ?? "pokemon"] ?? 0) + 1;
     return counts;
   }, [cards]);
+  // The remembered game can be empty while another has cards (Lorcana 0,
+  // Magic 25): open the fullest game once, after the first load.
+  const [openedGame, setOpenedGame] = useState(false);
+  if (!loading && !openedGame) {
+    setOpenedGame(true);
+    if ((gameCounts[gameView] ?? 0) === 0) {
+      let best: GameId | null = null;
+      for (const g of GAME_IDS) {
+        if ((gameCounts[g] ?? 0) > (best ? (gameCounts[best] ?? 0) : 0)) best = g;
+      }
+      if (best) setGameView(best);
+    }
+  }
   // Categories = the ones cards carry + the empty ones the seller created
   // (server table, 09-08 "add category"); both lists merge here.
   const [createdCategories, setCreatedCategories] = useState<string[]>([]);
@@ -1542,6 +1561,7 @@ export default function CollectionPage() {
   ]
     .filter(Boolean)
     .join(" · ");
+  const noNarrowing = narrowedBy === "";
   function switchGame(next: GameId) {
     setGameView(next);
     setSelected(new Set());
@@ -1639,8 +1659,13 @@ export default function CollectionPage() {
       const card = cards.find((c) => c.id === id);
       return card && (card.status !== "listed" || isEnded(card)) && card.status !== "sold";
     });
-    if (ids.length === 0) return;
-    if (!(await confirmAction({ message: `Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.`, confirmLabel: `Delete ${ids.length}` }))) return;
+    const skipped = selected.size - ids.length;
+    const skippedNote = skipped > 0 ? ` ${skipped} live or sold ${skipped === 1 ? "card was" : "cards were"} left in place.` : "";
+    if (ids.length === 0) {
+      toast("Live and sold cards can't be deleted here.", "err");
+      return;
+    }
+    if (!(await confirmAction({ message: `Remove ${ids.length} card${ids.length === 1 ? "" : "s"} from your collection? This can't be undone.${skippedNote}`, confirmLabel: `Delete ${ids.length}` }))) return;
     setBulkDeleting(true);
     setSyncError(null);
     setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
@@ -1654,7 +1679,7 @@ export default function CollectionPage() {
       setSyncError("Couldn't confirm the delete — check your connection. The list shows what is really there.");
       toast("Couldn't confirm the delete", "err");
     } else {
-      toast(`${result.removed} card${result.removed === 1 ? "" : "s"} removed`);
+      toast(`${result.removed} card${result.removed === 1 ? "" : "s"} removed.${skippedNote}`);
     }
     setSelected(new Set());
     setBulkDeleting(false);
@@ -1675,7 +1700,9 @@ export default function CollectionPage() {
     const shownPrice = (c: ServerCard) => c.soldPrice ?? marketById[c.id] ?? c.price;
     return [...shown].sort((a, b) => {
       if (sort === "price") {
-        return shownPrice(b) - shownPrice(a);
+        // Row total like the money tiles: price x copies (a sold row is one sale).
+        const rowTotal = (c: ServerCard) => shownPrice(c) * (c.soldPrice != null ? 1 : c.quantity || 1);
+        return rowTotal(b) - rowTotal(a);
       }
       if (sort === "rarity") {
         const byRarity = rarityRank(a.rarity) - rarityRank(b.rarity);
@@ -2450,25 +2477,49 @@ export default function CollectionPage() {
             ))}
           </ul>
         </div>
+      ) : loadFailed && cards.length === 0 ? (
+        <div role="alert" className="flex flex-col items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 py-16 text-center">
+          <p className="text-sm font-medium text-white">Couldn&apos;t load your cards</p>
+          <p className="max-w-xs text-xs text-zinc-400">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadFailed(false);
+              setLoading(true);
+              setReloadTick((n) => n + 1);
+            }}
+            className="mt-2 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+          >
+            Retry
+          </button>
+        </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-edge-strong bg-surface-1 py-16 text-center">
           <div className="text-3xl">{filter === "sealed" ? "📦" : "🃏"}</div>
           <p className="text-sm font-medium text-white">
-            {cards.length === 0 ? "No cards yet" : filter === "sealed" ? "No sealed products yet" : "Nothing matches"}
+            {cards.length === 0
+              ? "No cards yet"
+              : filter === "sealed"
+                ? "No sealed products yet"
+                : noNarrowing
+                  ? `No ${GAMES[gameView].label} cards yet`
+                  : "Nothing matches"}
           </p>
           <p className="max-w-xs text-xs text-zinc-500">
             {cards.length === 0
               ? "Scan a card and it will show up here, tracked from scan to sold."
               : filter === "sealed"
                 ? "Booster boxes, ETBs and tins land here. Add one from the scanner with Add Sealed Product."
-                : "Try a different filter or search."}
+                : noNarrowing
+                  ? "Scan one and it will show up here."
+                  : "Try a different filter or search."}
           </p>
-          {cards.length === 0 && (
+          {(cards.length === 0 || (noNarrowing && filter !== "sealed")) && (
             <Link
               href="/app"
               className="mt-2 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
             >
-              Scan Your First Card
+              {cards.length === 0 ? "Scan Your First Card" : "Scan a Card"}
             </Link>
           )}
         </div>
@@ -2614,7 +2665,7 @@ export default function CollectionPage() {
                 <div className="flex items-center justify-between gap-2 px-2.5 py-2">
                   <span className="truncate text-[11px] text-zinc-500">
                     {sold && card.soldPrice != null
-                      ? `sold ${formatMoney(card.soldPrice)} · net`
+                      ? `sold ${formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))} · net`
                       : live
                         ? "Awaiting sale"
                         : ended

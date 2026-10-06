@@ -6,6 +6,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
+import { fetchWishlist } from "@/lib/client/wishlistApi";
 import { formatMoney } from "@/lib/listing";
 
 /**
@@ -42,18 +43,38 @@ export default function SetCompletionPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [full, setFull] = useState<Record<string, MissingCard[] | "loading">>({});
   const [watched, setWatched] = useState<Set<string>>(new Set());
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (status !== "ready") return;
     let live = true;
     void fetch(apiPath("/api/cards/sets"), { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { sets: [] }))
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then((j) => {
         if (live) setSets(j.sets ?? []);
       })
       .catch(() => {
-        if (live) setSets([]);
+        if (live) setFailed(true);
       });
+    return () => {
+      live = false;
+    };
+  }, [status, tick]);
+
+  // Cards already on the watchlist show as watched. Best effort: if it
+  // fails the buttons just read "Watch".
+  useEffect(() => {
+    if (status !== "ready") return;
+    let live = true;
+    void fetchWishlist()
+      .then((items) => {
+        if (live) setWatched(new Set(items.map((i) => i.cardId).filter((id): id is string => Boolean(id))));
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -64,10 +85,16 @@ export default function SetCompletionPage() {
     setFull((f) => ({ ...f, [setId]: "loading" }));
     try {
       const r = await fetch(apiPath(`/api/cards/sets?set=${encodeURIComponent(setId)}`), { cache: "no-store" });
-      const j = r.ok ? await r.json() : { missing: [] };
+      if (!r.ok) throw new Error(String(r.status));
+      const j = await r.json();
       setFull((f) => ({ ...f, [setId]: j.missing ?? [] }));
     } catch {
-      setFull((f) => ({ ...f, [setId]: [] }));
+      // Drop the entry (don't cache []) so Show all can be tapped again.
+      setFull((f) => {
+        const next = { ...f };
+        delete next[setId];
+        return next;
+      });
       toast("Couldn't load the missing list — try again", "err");
     }
   }
@@ -105,6 +132,24 @@ export default function SetCompletionPage() {
     }
   }
 
+  if (failed && !sets) {
+    return (
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center gap-3 px-4 py-16 text-center">
+        <h1 className="font-display text-xl font-semibold text-white">Couldn&apos;t load your sets</h1>
+        <p className="text-sm text-zinc-400">Check your connection and try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setTick((n) => n + 1);
+          }}
+          className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+        >
+          Retry
+        </button>
+      </main>
+    );
+  }
   if (status !== "ready" || !sets) return <PageSkeleton />;
 
   const Card = ({ set, card }: { set: SetProgress; card: MissingCard }) => (
