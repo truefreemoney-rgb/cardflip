@@ -359,7 +359,7 @@ assert.ok(
 );
 assert.ok(has(signupPage, 'scansLeft === 1 ? "scan is"'), "one free scan reads in the singular");
 const helpPanel = read("src/components/HelpPanel.tsx");
-assert.ok(has(helpPanel, "useOptionalSession()?.user?.mustConfirmEmail"));
+assert.ok(has(helpPanel, "useOptionalSession()?.user") && has(helpPanel, "sessionUser?.mustConfirmEmail"), "help reads the unconfirmed flag from the session");
 for (const promise of ["and in your email", "to your email", "You get an email"]) {
   const at = helpPanel.indexOf(promise);
   assert.ok(at > 0, `"${promise}" is still offered to accounts that get mail`);
