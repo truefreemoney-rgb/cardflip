@@ -11,6 +11,8 @@ import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCaptureLazy";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
+import ShareImageButton from "@/components/ShareImageButton";
+import { cardKey } from "@/lib/cardPages";
 import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
@@ -1644,6 +1646,14 @@ export default function AppPage() {
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-sm text-zinc-500">
                   {user.pricingOnly ? "Select a card to see its price." : "Select a card to review its listing."}
+                </div>
+              )}
+              {selected && selected.kind !== "sealed" && selected.card?.id && !selected.grading && (
+                <div className="flex justify-end border-t border-edge px-4 py-2.5">
+                  <ShareImageButton
+                    path={`/api/share/card?game=${selected.card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(selected.card.game ?? "pokemon", { id: selected.card.id, setCode: selected.card.setCode, number: selected.card.number }))}`}
+                    fileName="cardflip-card"
+                  />
                 </div>
               )}
             </section>

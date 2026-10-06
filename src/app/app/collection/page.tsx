@@ -50,6 +50,7 @@ import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/Price
 import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
+import CollectorValueHeader from "@/components/CollectorValueHeader";
 import { etDate } from "@/lib/time";
 
 /**
@@ -1852,6 +1853,8 @@ export default function CollectionPage() {
       <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden [&>div]:min-w-max [&>div>button]:px-3.5 [&>div>button]:py-2 sm:[&>div]:min-w-0 sm:[&>div>button]:px-2">
         <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
       </div>
+
+      {pricingOnly && <CollectorValueHeader game={gameView} version={cards.length} />}
 
       {syncError && (
         <p

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import PageSkeleton from "@/components/PageSkeleton";
 import GameToggle from "@/components/GameToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
+import ShareImageButton from "@/components/ShareImageButton";
 import { useSession } from "@/components/SessionProvider";
 import { apiPath } from "@/lib/client/basePath";
 import { formatMoney } from "@/lib/listing";
@@ -182,7 +183,10 @@ export default function InsightsPage() {
           {/* Value hero: the one showpiece number on the page. */}
           <section className={panel}>
             <div className="px-4 pb-3 pt-4 sm:px-5">
-              <div className={heading}>Collection value</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className={heading}>Collection value</div>
+                <ShareImageButton path={`/api/share/collection?game=${game}`} fileName="cardflip-collection" />
+              </div>
               <div className="mt-0.5 font-display text-4xl font-bold tracking-tight text-white">{formatMoney(data.holding)}</div>
               <p className="mt-1 text-xs text-zinc-500">
                 Asking price of every unsold copy at today&apos;s market, {data.split.live.count + data.split.draft.count + data.split.ended.count} copies.
