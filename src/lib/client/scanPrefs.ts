@@ -78,10 +78,36 @@ export function saveCategory(userId: string | null | undefined, category: string
   }
 }
 
+/**
+ * The pack the seller is scanning pulls from (audit G8), kept with the owning user id like the
+ * category. Every card scanned while one is set is tied to it; "Done" clears it.
+ */
+const PACK_KEY = "cardflip.activePack";
+
+export function readActivePackId(userId: string | null | undefined): string | null {
+  if (typeof window === "undefined" || !userId) return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PACK_KEY) ?? "null") as { userId?: string; packId?: string } | null;
+    return parsed && parsed.userId === userId && parsed.packId ? parsed.packId : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveActivePackId(userId: string | null | undefined, packId: string | null): void {
+  try {
+    if (packId && userId) window.localStorage.setItem(PACK_KEY, JSON.stringify({ userId, packId }));
+    else window.localStorage.removeItem(PACK_KEY);
+  } catch {
+    // Private mode / quota — the pack just is not remembered.
+  }
+}
+
 /** Logout: forget every per-account preference so the next login starts clean. */
 export function clearAccountPrefs(): void {
   try {
     window.localStorage.removeItem(CATEGORY_KEY);
+    window.localStorage.removeItem(PACK_KEY);
   } catch {
     // ignore
   }

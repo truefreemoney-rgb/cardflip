@@ -91,6 +91,8 @@ export interface CreateCardInput {
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
+  /** The open pack this scan was pulled from (audit G8); the server ignores an id that is not the user's. */
+  packId?: string | null;
   variant?: string | null;
 }
 

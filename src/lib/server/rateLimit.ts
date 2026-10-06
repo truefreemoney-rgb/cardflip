@@ -158,6 +158,8 @@ export const LIMITS = {
   resetMail: [{ limit: 3, windowMs: 60 * MINUTE }, { limit: 6, windowMs: DAY }] as RateLimitRule[],
   /** Visitor pings (/api/visit), per IP: a reader opens a few hundred pages a day at most; a script writing rows does not stop. */
   visit: [{ limit: 300, windowMs: DAY }] as RateLimitRule[],
+  /** Pack tracker writes (create, rename, delete), per user: a person opens a few packs an hour. */
+  packWrite: [{ limit: 30, windowMs: 10 * MINUTE }, { limit: 200, windowMs: DAY }] as RateLimitRule[],
   /** Support tickets: a person opens one, not twenty. Per IP. */
   supportTicket: [{ limit: 3, windowMs: 10 * MINUTE }, { limit: 10, windowMs: DAY }] as RateLimitRule[],
   /** Notes added to an open ticket. Per IP. */

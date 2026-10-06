@@ -227,6 +227,8 @@ export interface NewCard {
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
+  /** Pack this card was pulled from (audit G8); the caller has already checked it is the user's own. */
+  packId?: string | null;
   /** Set at creation when the seller's own app already named the card (CSV import). */
   verifiedAt?: number | null;
   /** Why the identification is doubtful; null = clean. */
@@ -250,8 +252,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, verified_at, match_doubt, cost_basis, first_edition, variant, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, first_edition, variant, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -272,6 +274,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.catalogCardId ?? null,
       card.rarity ?? null,
       card.category ?? null,
+      card.packId ?? null,
       card.verifiedAt ?? null,
       card.matchDoubt ?? null,
       card.costBasis ?? null,

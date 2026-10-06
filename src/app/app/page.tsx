@@ -26,8 +26,9 @@ import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, t
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
-import { readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
+import { readActivePackId, readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
+import ActivePackBar from "@/components/ActivePackBar";
 import {
   createServerCard,
   type ServerCard,
@@ -225,6 +226,10 @@ export default function AppPage() {
     scanCategoryState.forUser === (user?.id ?? null) ? scanCategoryState.value : readSavedCategory(user?.id);
   const setScanCategory = (value: string | null) => setScanCategoryState({ forUser: user?.id ?? null, value });
   const scanCategoryRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user?.id]);
   useEffect(() => {
     scanCategoryRef.current = scanCategory;
   }, [scanCategory]);
@@ -710,6 +715,8 @@ export default function AppPage() {
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,
               category: scanCategoryRef.current,
+              // Pulls from an open pack (Open a Pack) are tied to it.
+              packId: readActivePackId(userIdRef.current),
               // The finish the scan read (Magic foil / etched), set on the
               // item just above — a foil saved as the default finish would
               // list on eBay as Regular and refresh off the nonfoil series.
@@ -1069,7 +1076,8 @@ export default function AppPage() {
    *  yet, ask "which category?" now, over the queue — never over the reveal. */
   const closeCamera = useCallback(() => {
     setCameraOpen(false);
-    if (sessionItemIdsRef.current.length > 0 && !categoryAskedRef.current) {
+    // A pack scan is filed under its pack, so no "which category?" over it.
+    if (sessionItemIdsRef.current.length > 0 && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
       categoryAskedRef.current = true;
       setCategoryPrompt({ existing: [] });
       void fetchCategories().then((list) => {
@@ -1434,6 +1442,8 @@ export default function AppPage() {
         </div>
       )}
 
+      <ActivePackBar userId={user?.id} refreshKey={items.length} onGame={setGame} />
+
       {resuming && items.length === 0 ? (
         // Reopening from My cards: a quiet loader instead of flashing the
         // first-scan hero for the second the rebuild takes.
@@ -1463,6 +1473,9 @@ export default function AppPage() {
             <PricingModeToggle />
           </div>
           <Uploader onOpenCamera={openCamera} showcase={showcase} game={game} />
+          <Link href="/app/packs" className="rounded-full border border-edge bg-surface-1 px-4 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white">
+            Open a Pack
+          </Link>
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris), photo uploads, binder pages and the
               sealed sheet 10-03: eBay listings must show the actual item, so

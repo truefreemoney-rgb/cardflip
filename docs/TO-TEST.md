@@ -110,3 +110,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Verify all sheet after a stack scan: doubtful ones first; Confirm marks the rest verified in Inventory.
 - [ ] Too many scans fast → "wait N seconds" message; daily limit → "try again tomorrow".
 - [ ] At 375px the "Not this card?" and Verify buttons fit side by side.
+
+- [ ] Account > Selling > Accept Offers (G10): turn on, push a card, confirm in Seller Hub the listing shows Best Offer with auto-accept 90% / auto-decline 70% of price; reprice and confirm the thresholds moved. Tracked Shipping (G9) only after EBAY_VALUE_SHIPPING=1 is set: card over the threshold shows the tracked postage price.
+
+- [ ] Packs (G8), real phone at 375px: scanner "Open a Pack" > pick game, name, price > scan 3 cards > banner shows pulls and value > Done opens the pack page (cost, value, profit, ROI, best pull, list with art). Share makes a 1080x1920 "My Pack" picture. Inventory > Packs shows past packs and the all-packs ROI. Delete a pack: its cards stay in Inventory.

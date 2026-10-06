@@ -2,6 +2,7 @@ import { parseGame } from "@/lib/games";
 import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
+import { ownsPack } from "@/lib/server/packs";
 import { ledgerFloorProblem } from "@/lib/server/ebayMarket";
 
 export async function GET() {
@@ -70,6 +71,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "cardName is required" }, { status: 400 });
     }
 
+    // A pack id that is not this user's is dropped, not trusted: the card still saves, just unlinked.
+    const packId = typeof body?.packId === "string" && body.packId.length <= 64 && (await ownsPack(user.id, body.packId)) ? body.packId : null;
+
     const card = await createCard(user.id, {
       kind,
       game: parseGame(body?.game),
@@ -84,6 +88,7 @@ export async function POST(req: Request) {
       catalogCardId: typeof body?.catalogCardId === "string" ? body.catalogCardId.slice(0, 80) : null,
       rarity: typeof body?.rarity === "string" ? body.rarity.slice(0, 60) : null,
       category: typeof body?.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null,
+      packId,
       variant: typeof body?.variant === "string" && body.variant.trim() ? body.variant.trim().slice(0, 40) : null,
     });
     return NextResponse.json({ card }, { status: 201 });

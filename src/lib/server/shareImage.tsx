@@ -6,6 +6,7 @@ import "server-only";
  * the holo gradient on the one number that matters. The art helper and fonts are the social pictures' own.
  *   card:       one catalog card, its market price (no user data)
  *   collection: the signed-in user's own total, copy count and top three
+ *   pack:       one of the signed-in user's opened packs (audit G8): paid, pulled, profit and best pulls
  */
 
 export const SHARE_SIZE = { width: 1080, height: 1920 } as const;
@@ -99,6 +100,61 @@ export function CollectionShare({ game, total, copies, top }: { game: string; to
         {top.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", marginTop: 64 }}>
             <div style={{ display: "flex", fontSize: 32, color: MUTED, textTransform: "uppercase", letterSpacing: 4 }}>Most valuable</div>
+            {top.map((c, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 36, marginTop: 28 }}>
+                <Art src={c.image} w={200} h={279} />
+                <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                  <div style={{ display: "flex", fontSize: 46, fontWeight: 700, lineHeight: 1.15 }}>{c.name.length > 34 ? `${c.name.slice(0, 33)}…` : c.name}</div>
+                  <div style={{ display: "flex", fontSize: 30, color: MUTED, marginTop: 6 }}>{c.setName}</div>
+                </div>
+                <div style={{ display: "flex", fontSize: 54, fontWeight: 800 }}>{shareMoney(c.value)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Frame>
+  );
+}
+
+export function PackShare({
+  game,
+  name,
+  cost,
+  value,
+  profit,
+  roiPct,
+  count,
+  top,
+}: {
+  game: string;
+  name: string;
+  cost: number;
+  value: number;
+  profit: number;
+  roiPct: number | null;
+  count: number;
+  top: ShareTop[];
+}) {
+  const up = profit >= 0;
+  return (
+    <Frame>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <div style={{ display: "flex", fontSize: 34, color: MUTED, textTransform: "uppercase", letterSpacing: 4 }}>My Pack · {game}</div>
+        <div style={{ display: "flex", fontSize: name.length > 30 ? 52 : 68, fontWeight: 800, marginTop: 16, lineHeight: 1.1 }}>{name.length > 44 ? `${name.slice(0, 43)}…` : name}</div>
+        <div style={{ display: "flex", marginTop: 36 }}>
+          <Holo size={190}>{`${up ? "+" : "-"}${shareMoney(Math.abs(profit))}`}</Holo>
+        </div>
+        <div style={{ display: "flex", fontSize: 40, color: MUTED, marginTop: 4 }}>
+          {roiPct != null ? `${roiPct > 0 ? "+" : ""}${roiPct}% back` : "Free pack"} · {count} {count === 1 ? "card" : "cards"}
+        </div>
+        <div style={{ display: "flex", gap: 56, marginTop: 28, fontSize: 40 }}>
+          <div style={{ display: "flex", color: MUTED }}>Paid {shareMoney(cost)}</div>
+          <div style={{ display: "flex", color: MUTED }}>Pulled {shareMoney(value)}</div>
+        </div>
+        {top.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 56 }}>
+            <div style={{ display: "flex", fontSize: 32, color: MUTED, textTransform: "uppercase", letterSpacing: 4 }}>Best pulls</div>
             {top.map((c, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 36, marginTop: 28 }}>
                 <Art src={c.image} w={200} h={279} />

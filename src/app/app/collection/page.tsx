@@ -1844,6 +1844,9 @@ export default function CollectionPage() {
             <Link href="/app/collection/insights" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
               Insights →
             </Link>
+            <Link href="/app/packs" className="text-xs font-medium text-brand-300 underline-offset-4 transition hover:text-brand-200 hover:underline">
+              Packs →
+            </Link>
         </div>
       </div>
       {/* Its own full-width row, counts inside the pills: the compact corner
