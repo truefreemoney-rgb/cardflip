@@ -9,7 +9,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Swipe the sheet handle down closes the card peek on the home page.
 - [ ] Loading skeletons show on slow 4G for Inventory, card pages, set pages.
 - [ ] Grey text is readable in sunlight (contrast lift on zinc-500/600).
-- [ ] Google shows the new home title "CardFlip: Trading Card Scanner and Price Checker".
+- [ ] Google shows the new home title "Pokémon & Yu-Gi-Oh! Card Scanner and Prices | CardFlip".
 
 ## 10-06 audit fixes (docs/AUDIT-2026-10-06.md)
 

@@ -307,8 +307,10 @@ check("card routes exist: index, game, set, card", ["page.tsx", "[game]/page.tsx
 for (const f of cardFiles) {
   const rel = path.relative(rootDir, f).replaceAll("\\", "/");
   const src = readFileSync(f, "utf8");
-  check(`${rel}: revalidate = 172800`, /export const revalidate = 172800;/.test(src), true);
-  if (rel.includes("[")) check(`${rel}: nothing prerendered at build`, /export const generateStaticParams = async \(\) => \[\];/.test(src), true);
+  // loading/error/not-found are UI files, not routes: they carry no route config.
+  const routeFile = !/\/(loading|error|not-found)\.tsx$/.test(rel);
+  if (routeFile) check(`${rel}: revalidate = 172800`, /export const revalidate = 172800;/.test(src), true);
+  if (routeFile && rel.includes("[")) check(`${rel}: nothing prerendered at build`, /export const generateStaticParams = async \(\) => \[\];/.test(src), true);
   check(`${rel}: no cookies(), headers() or next/image`, /cookies\(|headers\(|next\/image|force-dynamic/.test(src), false);
 }
 const cardPageSrc = read("src/app/cards/[game]/[set]/[card]/page.tsx");
