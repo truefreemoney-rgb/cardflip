@@ -12,7 +12,7 @@ import { clipDescription, noindexMetadata, pageMetadata } from "@/lib/seo";
  * build theirs with the same helper.
  */
 
-export const HOME_TITLE = "CardFlip: card scanner and price checker for Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh!";
+export const HOME_TITLE = "CardFlip: Trading Card Scanner and Price Checker";
 
 export const PUBLIC_META = {
   home: pageMetadata({ title: HOME_TITLE, absoluteTitle: true, description: DESCRIPTION, path: "/", ogTitle: "CardFlip — Scan. Price. List." }),

@@ -8,7 +8,7 @@ import JsonLd from "@/components/JsonLd";
 import ArtImg from "@/components/ArtImg";
 import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
-import { Crumbs, PriceCell, ScanCta, TileGrid } from "@/components/CardPagesUi";
+import { Crumbs, PriceCell, ScanCta, StickyPriceBar, TileGrid } from "@/components/CardPagesUi";
 import {
   canonicalRedirect,
   cardHeading,
@@ -238,7 +238,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const rank = standing && page.headline ? rankWords(f.name, f.setName, page.headline.price, standing) : null;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-foreground md:pb-0">
       <JsonLd
         data={breadcrumbGraph([
           { name: "CardFlip", path: "/" },
@@ -340,6 +340,10 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         )}
       </main>
       <Footer />
+      {/* Phones: today's price and the one button stay in reach (hidden from md up). */}
+      <StickyPriceBar price={page.headline?.price ?? null}>
+        <WatchPrice game={game} id={f.id} />
+      </StickyPriceBar>
     </div>
   );
 }

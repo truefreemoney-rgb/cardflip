@@ -56,6 +56,25 @@ export function PriceCell({ price, flagged, className = "" }: { price: number | 
   return <span className={`font-display font-semibold tabular-nums text-emerald-300 ${className}`}>{formatMoney(price)}</span>;
 }
 
+/**
+ * Phone-only bottom bar on a card page: today's price and the one button.
+ * Solid background, safe-area padding, hidden from md up. The page's main
+ * gets matching bottom padding so the footer is never covered.
+ */
+export function StickyPriceBar({ price, children }: { price: number | null; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-edge-strong bg-[#0f1119] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+      {price != null && (
+        <div className="shrink-0 leading-tight">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Market</p>
+          <p className="font-display text-xl font-bold tabular-nums text-emerald-300">{formatMoney(price)}</p>
+        </div>
+      )}
+      <div className="min-w-0 flex-1 [&>span]:w-full">{children}</div>
+    </div>
+  );
+}
+
 /** Bandwidth courtesy (optcgapi.com asks to go easy): its pictures are loaded one at a time on a card's own page, never in bulk on a list. */
 export const showsInLists = (imageUrl: string): boolean => Boolean(imageUrl) && !/(^|\.)optcgapi\.com/.test(new URL(imageUrl, "https://x.invalid").hostname);
 

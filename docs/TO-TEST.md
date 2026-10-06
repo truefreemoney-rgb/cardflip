@@ -3,6 +3,14 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-06 look and feel (audit section E)
+- [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
+- [ ] Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
+- [ ] Swipe the sheet handle down closes the card peek on the home page.
+- [ ] Loading skeletons show on slow 4G for Inventory, card pages, set pages.
+- [ ] Grey text is readable in sunlight (contrast lift on zinc-500/600).
+- [ ] Google shows the new home title "CardFlip: Trading Card Scanner and Price Checker".
+
 ## 10-06 audit fixes (docs/AUDIT-2026-10-06.md)
 
 ### Scanner (needs a real phone + a real scan)

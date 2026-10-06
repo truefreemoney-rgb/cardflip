@@ -1848,7 +1848,10 @@ export default function CollectionPage() {
       {/* Its own full-width row, counts inside the pills: the compact corner
           switch was invisible on a phone (Chris, 09-06: "inventory needs a
           button to switch between pokemon and magic" — it had one). */}
-      <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
+      {/* Phones: five pills with counts do not fit 375px, so the row scrolls sideways with real padding instead of squeezing ("One Piece · 1Yu-Gi-Oh! · 0"). */}
+      <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden [&>div]:min-w-max [&>div>button]:px-3.5 [&>div>button]:py-2 sm:[&>div]:min-w-0 sm:[&>div>button]:px-2">
+        <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
+      </div>
 
       {syncError && (
         <p

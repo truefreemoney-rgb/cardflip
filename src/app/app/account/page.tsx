@@ -579,10 +579,21 @@ function AccountSettings({
           </div>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              subscribed ? "bg-emerald-400/15 text-emerald-300" : "bg-holo-violet/15 text-holo-violet"
+              subscribed || user.tier === "owner" || user.tier === "legacy" ? "bg-emerald-400/15 text-emerald-300" : "bg-holo-violet/15 text-holo-violet"
             }`}
           >
-            {subscribed ? `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${user.plan === "pro" ? PRICE_SHORT.pro : PRICE_SHORT.standard}` : user.tier === "pack" ? "Scan Pack" : "Free trial"}
+            {/* Same order as the Plan row's status line below, so the two always agree. */}
+            {subscribed
+              ? `${user.plan === "pro" ? "Pro" : "CardFlip"} · ${user.plan === "pro" ? PRICE_SHORT.pro : PRICE_SHORT.standard}`
+              : user.tier === "owner"
+                ? "Owner"
+                : user.tier === "legacy"
+                  ? "Early account"
+                  : user.tier === "pack"
+                    ? "Scan Pack"
+                    : user.subStatus === "canceled"
+                      ? "Plan ended"
+                      : "Free trial"}
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
@@ -612,8 +623,8 @@ function AccountSettings({
               ["Sold", d.sold],
               ["Watchlist", d.wishlist],
             ].map(([k, v]) => (
-              <div key={k} className="bg-black/30 px-3 py-2.5">
-                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{k}</dt>
+              <div key={k} className="min-w-0 bg-black/30 px-2 py-2.5 sm:px-3">
+                <dt className="truncate text-[10px] font-medium uppercase tracking-normal text-zinc-500 sm:tracking-wide">{k}</dt>
                 <dd className="font-display text-lg font-semibold tabular-nums text-white">{v}</dd>
               </div>
             ))}
