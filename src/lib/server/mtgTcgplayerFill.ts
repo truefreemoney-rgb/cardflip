@@ -50,6 +50,11 @@ const STAMP = /gold[- ]stamped/i;
 const bareProduct = (n: string) => fold(n.replace(/\([^)]*\)/g, " ").replace(/\bart card\b/i, " "));
 const bareNumber = (n: string) => n.split("/")[0].trim().toLowerCase().replace(/^0+(?=\w)/, "");
 
+/** Scryfall set code → TCGplayer group abbreviation, where neither rule finds it. */
+const GROUP_ALIASES: Record<string, string> = {
+  asnc: "ASSNC", // "New Capenna Art Series" vs "Art Series: Streets of New Capenna"
+};
+
 /**
  * Pure: Scryfall set → TCGplayer group. Abbreviation first (LEA, LEB, SUM,
  * SLZ…), then the name; Scryfall's "Strixhaven Art Series" is TCGplayer's
@@ -58,6 +63,11 @@ const bareNumber = (n: string) => n.split("/")[0].trim().toLowerCase().replace(/
  * ":" segment. Several candidates = no match.
  */
 export function matchGroup(setCode: string, setName: string, groups: TcgGroup[]): TcgGroup | null {
+  const alias = GROUP_ALIASES[setCode.toLowerCase()];
+  if (alias) {
+    const a = groups.filter((g) => (g.abbreviation ?? "").toUpperCase() === alias);
+    if (a.length === 1) return a[0];
+  }
   const byAbbr = groups.filter((g) => (g.abbreviation ?? "").toLowerCase() === setCode.toLowerCase());
   if (byAbbr.length === 1) return byAbbr[0];
   const art = /\bart series$/i.test(setName.trim());

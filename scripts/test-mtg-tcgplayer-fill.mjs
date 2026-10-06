@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Magic printings Scryfall leaves unpriced → TCGplayer's price.
  * Run: npm run test:mtgfill
  *
@@ -25,6 +25,7 @@ assert.equal(matchGroup("astx", "Strixhaven Art Series", groups)?.groupId, 1);
 assert.equal(matchGroup("asos", "Secrets of Strixhaven Art Series", groups)?.groupId, 2);
 assert.equal(matchGroup("avow", "Crimson Vow Art Series", groups)?.groupId, 3);
 assert.equal(matchGroup("lea", "Limited Edition Alpha", groups)?.groupId, 4);
+assert.equal(matchGroup("asnc", "New Capenna Art Series", [...groups, { groupId: 6, name: "Art Series: Streets of New Capenna", abbreviation: "ASSNC" }])?.groupId, 6);
 assert.equal(matchGroup("zzz", "Nothing Like It", groups), null);
 
 const row = (id, name, number, finishes = "nonfoil") => ({ id, name, setCode: "astx", setName: "Strixhaven Art Series", number, finishes });
