@@ -9,6 +9,7 @@ import PricingModeToggle from "@/components/PricingModeToggle";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import { toast } from "@/components/Toaster";
+import ListingTermsRow from "@/components/ListingTermsRow";
 import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
 import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
@@ -718,6 +719,7 @@ function AccountSettings({
             ) : undefined
           }
         />}
+        {!user.pricingOnly && <ListingTermsRow />}
         <PlanSection
           user={overview?.user ?? user}
           quota={overview?.quota}

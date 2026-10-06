@@ -51,6 +51,12 @@ export interface User {
   /** Auto-offers to watchers: percent set = daily job may send on slow movers; NULL = off. */
   autoOfferPercent: number | null;
   autoOfferMessage: string | null;
+  /** Listing terms (opt-in, off by default): Best Offer floors and value-based postage. */
+  acceptOffers: boolean;
+  offerAcceptPercent: number | null;
+  offerDeclinePercent: number | null;
+  trackedShipOver: number | null;
+  trackedShipCost: number | null;
   /** First-login tutorial finished/skipped; NULL = still owed. */
   tourSeenAt: number | null;
   /** Admin plan override; NULL = automatic (Stripe / legacy / trial). */
@@ -101,6 +107,11 @@ export interface UserRow {
   trial_scans_used: number | null;
   auto_offer_percent: number | null;
   auto_offer_message: string | null;
+  accept_offers: number | null;
+  offer_accept_percent: number | null;
+  offer_decline_percent: number | null;
+  tracked_ship_over: number | null;
+  tracked_ship_cost: number | null;
   tour_seen_at: number | null;
   access_override: string | null;
   totp_backup_codes: string | null;
@@ -154,6 +165,11 @@ export function fromRow(row: UserRow): User {
     trialScansUsed: row.trial_scans_used ?? 0,
     autoOfferPercent: row.auto_offer_percent ?? null,
     autoOfferMessage: row.auto_offer_message ?? null,
+    acceptOffers: row.accept_offers === 1,
+    offerAcceptPercent: row.offer_accept_percent ?? null,
+    offerDeclinePercent: row.offer_decline_percent ?? null,
+    trackedShipOver: row.tracked_ship_over ?? null,
+    trackedShipCost: row.tracked_ship_cost ?? null,
     tourSeenAt: row.tour_seen_at ?? null,
     accessOverride: (ACCESS_OVERRIDES as readonly string[]).includes(row.access_override ?? "")
       ? (row.access_override as AccessOverride)
@@ -627,6 +643,11 @@ export async function createUser(
     trialScansUsed: 0,
     autoOfferPercent: null,
     autoOfferMessage: null,
+    acceptOffers: false,
+    offerAcceptPercent: null,
+    offerDeclinePercent: null,
+    trackedShipOver: null,
+    trackedShipCost: null,
     tourSeenAt: null,
     accessOverride: null,
     totpBackupCodes: [],
@@ -655,6 +676,19 @@ export async function setAutoOffer(
     message,
     userId,
   );
+}
+
+/** The seller's listing terms (Best Offer floors, tracked postage). Off = acceptOffers false / trackedShipOver null. */
+export async function setListingTerms(
+  userId: string,
+  terms: Pick<User, "acceptOffers" | "offerAcceptPercent" | "offerDeclinePercent" | "trackedShipOver" | "trackedShipCost">,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE users SET accept_offers = ?, offer_accept_percent = ?, offer_decline_percent = ?,
+              tracked_ship_over = ?, tracked_ship_cost = ? WHERE id = ?`,
+    )
+    .run(terms.acceptOffers ? 1 : 0, terms.offerAcceptPercent, terms.offerDeclinePercent, terms.trackedShipOver, terms.trackedShipCost, userId);
 }
 
 export async function setEbayConnected(userId: string, connected: boolean): Promise<void> {
@@ -765,6 +799,7 @@ export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) 
       "DELETE FROM login_codes WHERE user_id = ?",
       "DELETE FROM pending_scans WHERE user_id = ?",
       "DELETE FROM categories WHERE user_id = ?",
+      "DELETE FROM packs WHERE user_id = ?",
       // A signup that never confirmed could not scan, so deleting it must not
       // burn the device's free trial (typo the address, delete, sign up again).
       // Confirmed accounts keep their row: delete-and-resign-up stays a repeat.

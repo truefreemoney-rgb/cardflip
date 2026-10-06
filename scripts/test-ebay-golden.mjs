@@ -220,6 +220,34 @@ await ebayFetch(token, "GET", "/sell/finances/v1/transaction?limit=1", undefined
 const scrub = (v) => JSON.parse(JSON.stringify(v).split(c.id).join("CARDID"));
 pin("requests.json", scrub(log));
 
+// --- 3. the seller's opt-in terms, ON. (OFF is everything above: it must stay byte-identical.) ---------
+{
+  const { setListingTerms } = await import(at("lib/server/users.ts"));
+  const lastBody = (method, re) => [...log].reverse().find((r) => r.method === method && re.test(r.path))?.body;
+  const eq = (label, got, want) => (JSON.stringify(got) === JSON.stringify(want) ? pass(label) : fail(label, `got ${JSON.stringify(got)} want ${JSON.stringify(want)}`));
+  await setListingTerms(uid, { acceptOffers: true, offerAcceptPercent: 90, offerDeclinePercent: 70, trackedShipOver: 50, trackedShipCost: 5.99 });
+
+  // Offers on, EBAY_VALUE_SHIPPING unset: Best Offer rides along, postage untouched.
+  delete process.env.EBAY_VALUE_SHIPPING;
+  await pushDraft(uid, draft);
+  let lp = lastBody("PUT", /\/offer\//)?.listingPolicies;
+  eq("ON push: bestOfferTerms from the price", lp?.bestOfferTerms, { bestOfferEnabled: true, autoAcceptPrice: { currency: "USD", value: "736.20" }, autoDeclinePrice: { currency: "USD", value: "572.60" } });
+  eq("ON push, value shipping flag off: no override", lp?.shippingCostOverrides, undefined);
+
+  // Flag on: over the threshold the tracked price rides along.
+  process.env.EBAY_VALUE_SHIPPING = "1";
+  await pushDraft(uid, draft);
+  lp = lastBody("PUT", /\/offer\//)?.listingPolicies;
+  eq("ON push + flag: tracked override", lp?.shippingCostOverrides, [{ priority: 1, shippingServiceType: "DOMESTIC", shippingCost: { currency: "USD", value: "5.99" } }]);
+
+  // Reprice under the threshold: thresholds follow the price, the override is dropped.
+  await updateOfferPrice(uid, c.id, 40);
+  lp = lastBody("PUT", /\/offer\//)?.listingPolicies;
+  eq("ON reprice: accept follows price", lp?.bestOfferTerms?.autoAcceptPrice?.value, "36.00");
+  eq("ON reprice under threshold: override dropped", lp?.shippingCostOverrides, undefined);
+  delete process.env.EBAY_VALUE_SHIPPING;
+}
+
 if (failures) {
   console.log(`\n${failures} golden check(s) FAILED`);
   process.exit(1);

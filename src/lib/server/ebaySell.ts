@@ -32,6 +32,7 @@ import {
   offerUpdateBody,
   paymentPolicyBody,
   pickMerchantLocation,
+  repriceListingPolicies,
   returnPolicyBody,
   skuForCard,
   validateDraftInput,
@@ -39,9 +40,11 @@ import {
   type InventoryItemPayload,
   type InventoryLocationRow,
   type ListingPolicies,
+  type SellerListingPrefs,
 } from "@/lib/ebayInventory";
+import { findUserById } from "@/lib/server/users";
 import { FxUnavailableError, getFxRates } from "@/lib/server/fx";
-import { LocalPriceError, marketFor, resolveLocalAsk, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
+import { LocalPriceError, marketFor, resolveLocalAsk, sellerAccountType, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
 
 /**
  * Pushing a CardFlip draft into the seller's own eBay account, on the user
@@ -488,6 +491,26 @@ export async function createDraft(
   return { card: saved ?? card, draftId: json.itemDraftId, draftUrl };
 }
 
+/**
+ * The seller's opt-in listing terms as the payload builders take them: Best
+ * Offer floors (Account > Accept Offers) and tracked postage over a price.
+ * Both are null for a seller who hasn't turned them on, which leaves every
+ * payload exactly as it was. Tracked postage ALSO needs the owner's
+ * EBAY_VALUE_SHIPPING=1 on the server: it rewrites the shipping charge on
+ * the seller's live eBay listings, so nothing happens until the owner flips it.
+ */
+export async function sellerListingPrefs(userId: string): Promise<SellerListingPrefs | null> {
+  const user = await findUserById(userId);
+  if (!user) return null;
+  const offers = user.acceptOffers && user.offerAcceptPercent != null && user.offerDeclinePercent != null
+    ? { acceptPercent: user.offerAcceptPercent, declinePercent: user.offerDeclinePercent }
+    : null;
+  const trackedShipping = process.env.EBAY_VALUE_SHIPPING === "1" && user.trackedShipOver != null && user.trackedShipCost != null
+    ? { over: user.trackedShipOver, cost: user.trackedShipCost }
+    : null;
+  return offers || trackedShipping ? { offers, trackedShipping } : null;
+}
+
 /** The asking price on a local site, or a seller-readable EbaySellError (no usable FX rate, no trusted market). */
 async function priceOnSite(card: CardRecord, here: SellerMarket, strategy: DraftInput["strategy"]): Promise<LocalAsk> {
   try {
@@ -558,7 +581,7 @@ export async function pushDraft(
   const degraded = await putInventoryItem(token, itemPath, item, mp);
 
   const defaults = await sellerDefaults(token, mp);
-  const offer = buildOffer(input, defaults, mp);
+  const offer = buildOffer(input, { ...defaults, prefs: await sellerListingPrefs(userId), account: here.account }, mp);
 
   let offerId = existingOfferId;
   let updated = false;
@@ -683,8 +706,15 @@ export async function updateOfferPrice(
   if (!current) throw new EbaySellError("eBay returned no offer to update", 502);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { offerId, sku, marketplaceId, format, status, listing, ...rest } = current;
+  // Best Offer floors and the tracked-postage override are computed from the price, so they move with it
+  // (untouched, and byte-identical to before, for a seller with neither on).
+  const prefs = await sellerListingPrefs(userId);
+  const policies = prefs
+    ? repriceListingPolicies(rest.listingPolicies, price, prefs, mp, isLocalMarketplace(mp) ? await sellerAccountType(userId) : null)
+    : rest.listingPolicies;
   await ebayFetch(token, "PUT", offerPath, {
     ...rest,
+    ...(policies !== undefined ? { listingPolicies: policies } : {}),
     pricingSummary: { price: { currency: mp.currency, value: price.toFixed(2) } },
   }, undefined, mp);
   if (isLocalMarketplace(mp)) {

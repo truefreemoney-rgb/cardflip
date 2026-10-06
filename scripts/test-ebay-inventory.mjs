@@ -7,10 +7,13 @@
  * eBay's length limits gets sent, and that an update body never carries the
  * immutable offer fields.
  */
+import { listingFloor } from "../src/lib/fees.ts";
 import {
   buildInventoryItem,
   buildItemDraft,
   buildOffer,
+  bestOfferTermsFor,
+  repriceListingPolicies,
   descriptionHtml,
   gradeDescriptorValue,
   offerUpdateBody,
@@ -239,6 +242,46 @@ console.log("Validation");
   check("long title rejected", validateDraftInput({ ...base, listing: { ...base.listing, title: "x".repeat(81) } }), "Title is over eBay's 80-character limit");
   check("unknown category rejected", validateDraftInput({ ...base, listing: { ...base.listing, categoryId: "1" } }), "Unknown eBay category");
   check("no seller photo rejected", validateDraftInput({ ...base, hasPhoto: false }), "Add a photo of the actual item first — eBay requires your own photo, not catalogue art");
+}
+
+console.log("Seller listing terms (opt-in; OFF changes nothing)");
+{
+  const policies = { fulfillmentPolicyId: "f-1", paymentPolicyId: "p-1", returnPolicyId: "r-1" };
+  const plain = buildOffer(base, { policies, merchantLocationKey: "k" });
+  check("prefs null = same bytes", JSON.stringify(buildOffer(base, { policies, merchantLocationKey: "k", prefs: null })), JSON.stringify(plain));
+  check("prefs with both features off = same bytes", JSON.stringify(buildOffer(base, { policies, merchantLocationKey: "k", prefs: { offers: null, trackedShipping: null } })), JSON.stringify(plain));
+  check("no bestOfferTerms off", plain.listingPolicies.bestOfferTerms, undefined);
+
+  const offers = { acceptPercent: 90, declinePercent: 70 };
+  const price = base.listing.price;
+  const cents = (n) => (Math.round(n * 100) / 100).toFixed(2);
+  const on = buildOffer(base, { policies, prefs: { offers } });
+  check("best offer on: enabled", on.listingPolicies.bestOfferTerms.bestOfferEnabled, true);
+  check("auto-accept = 90% in cents", on.listingPolicies.bestOfferTerms.autoAcceptPrice, { currency: "USD", value: cents(price * 0.9) });
+  check("auto-decline = 70% in cents", on.listingPolicies.bestOfferTerms.autoDeclinePrice, { currency: "USD", value: cents(price * 0.7) });
+  check("policy ids kept", on.listingPolicies.fulfillmentPolicyId, "f-1");
+  check("offers alone still make a listingPolicies", Object.keys(buildOffer(base, { prefs: { offers } }).listingPolicies), ["bestOfferTerms"]);
+
+  // Cheap card: accept never drops under the fee floor, and never reaches the price.
+  const floor = listingFloor();
+  check("price at the floor: no accept threshold (nothing safe to accept below it)", bestOfferTermsFor(floor, offers).autoAcceptPrice, undefined);
+  const mid = bestOfferTermsFor(4, offers);
+  check("accept floored at break-even", mid.autoAcceptPrice === undefined || Number(mid.autoAcceptPrice.value) >= floor - 0.005, true);
+  check("decline below accept", mid.autoDeclinePrice === undefined || Number(mid.autoDeclinePrice.value) < Number(mid.autoAcceptPrice?.value ?? 99), true);
+  check("decline equal to accept is dropped", bestOfferTermsFor(100, { acceptPercent: 60, declinePercent: 60 }).autoDeclinePrice, undefined);
+
+  const ship = { over: 50, cost: 5.99 };
+  check("tracked: under threshold nothing", buildOffer(base, { policies, prefs: { trackedShipping: { ...ship, over: 900 } } }).listingPolicies.shippingCostOverrides, undefined);
+  check("tracked: over threshold override", buildOffer(base, { policies, prefs: { trackedShipping: ship } }).listingPolicies.shippingCostOverrides,
+    [{ priority: 1, shippingServiceType: "DOMESTIC", shippingCost: { currency: "USD", value: "5.99" } }]);
+
+  // Reprice moves the thresholds and adds/drops the override as the price crosses the line.
+  const live = on.listingPolicies;
+  check("reprice, prefs off: untouched", repriceListingPolicies(live, 40, null), live);
+  const cheaper = repriceListingPolicies({ ...live, shippingCostOverrides: [{ stale: true }] }, 40, { offers, trackedShipping: ship });
+  check("reprice under threshold: override dropped", cheaper.shippingCostOverrides, undefined);
+  check("reprice: accept follows price", cheaper.bestOfferTerms.autoAcceptPrice.value, "36.00");
+  check("reprice over threshold: override added", repriceListingPolicies(live, 60, { trackedShipping: ship }).shippingCostOverrides[0].shippingCost.value, "5.99");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nAll passed");

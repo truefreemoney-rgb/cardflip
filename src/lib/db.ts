@@ -550,6 +550,19 @@ const SCHEMA = `
     PRIMARY KEY (user_id, name)
   );
 
+  -- Pack-opening tracker (audit G8): a pack the collector opened, what they paid
+  -- for it, and (through cards.pack_id) the cards they pulled. Deleting a pack
+  -- only unlinks its cards.
+  CREATE TABLE IF NOT EXISTS packs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game TEXT NOT NULL,
+    name TEXT NOT NULL,
+    cost REAL NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_packs_user ON packs(user_id, created_at);
+
   CREATE TABLE IF NOT EXISTS help_messages (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -896,6 +909,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // Seller-chosen folder ("Binder 1", "For sale", ...) — free text, null =
       // uncategorized (Chris, 09-04: organise Inventory by category).
       "category TEXT",
+      // The pack this card was pulled from (packs.id, audit G8); null = not from a tracked pack.
+      "pack_id TEXT",
       // Per-country eBay listing (docs/EBAY_COUNTRIES_PLAN.md, increment 1):
       // which eBay site the listing lives on, the currency it was priced in
       // and the asking price actually sent, in that currency. All NULL =
@@ -983,6 +998,14 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // off (the default — sending emails real buyers, so it's strictly opt-in).
     "auto_offer_percent INTEGER",
     "auto_offer_message TEXT",
+    // Listing terms (G9/G10), all opt-in, 0/NULL = off. accept_offers: Best Offer with
+    // auto-accept/decline floors (percent of each listing's price); tracked_ship_over/cost:
+    // above that price the listing's postage is the tracked cost (needs EBAY_VALUE_SHIPPING=1).
+    "accept_offers INTEGER NOT NULL DEFAULT 0",
+    "offer_accept_percent INTEGER",
+    "offer_decline_percent INTEGER",
+    "tracked_ship_over REAL",
+    "tracked_ship_cost REAL",
     // First-login tutorial (09-04): when the coach-mark tour was finished or
     // skipped. NULL = show it on the next visit to the scanner.
     "tour_seen_at INTEGER",
@@ -1118,6 +1141,8 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
   // Admin overview per-game card counts; game is an added column, so after the probe.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_game ON cards(game)");
+  // A pack page lists its pulls; pack_id is an added column, so after the probe.
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_pack ON cards(pack_id)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

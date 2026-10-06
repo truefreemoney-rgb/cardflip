@@ -33,7 +33,7 @@ import type {
   ScanLanguage,
 } from "@/lib/types";
 import { SITE_URL } from "./siteUrl.ts";
-import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor } from "./fees.ts";
+import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor, listingFloorFor } from "./fees.ts";
 import { US_MARKETPLACE, currencySymbol, merchantLocationKeyFor, policyNameFor, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
 import { GAMES, printedCardNumber } from "./games.ts";
 import { ebayFeatures, ebayFinish, ebayRarityWord } from "./ebayVocab.ts";
@@ -381,6 +381,98 @@ export interface ListingPolicies {
   fulfillmentPolicyId?: string;
   paymentPolicyId?: string;
   returnPolicyId?: string;
+  bestOfferTerms?: BestOfferTerms;
+  shippingCostOverrides?: ShippingCostOverride[];
+}
+
+export interface BestOfferTerms {
+  bestOfferEnabled: true;
+  autoAcceptPrice?: { currency: string; value: string };
+  autoDeclinePrice?: { currency: string; value: string };
+}
+
+export interface ShippingCostOverride {
+  priority: number;
+  shippingServiceType: "DOMESTIC";
+  shippingCost: { currency: string; value: string };
+}
+
+/**
+ * The seller's opt-in listing terms (users.accept_offers / tracked_ship_*).
+ * Absent or null = off, and an off feature adds NOT ONE BYTE to any payload
+ * (scripts/test-ebay-golden.mjs pins that). `trackedShipping` is only ever
+ * filled in by the server when EBAY_VALUE_SHIPPING=1.
+ */
+export interface SellerListingPrefs {
+  offers?: { acceptPercent: number; declinePercent: number } | null;
+  trackedShipping?: { over: number; cost: number } | null;
+}
+
+/** Defaults offered when a seller turns Accept Offers on. */
+export const DEFAULT_OFFER_ACCEPT_PERCENT = 90;
+export const DEFAULT_OFFER_DECLINE_PERCENT = 70;
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Best Offer terms for ONE listing, computed from its price: auto-accept at
+ * acceptPercent (never under the fee floor, so a seller can't be auto-sold into
+ * a loss) and auto-decline under declinePercent. eBay needs accept < price and
+ * decline < accept, so a price too small to leave room for a distinct accept
+ * point just enables Best Offer without that threshold.
+ */
+export function bestOfferTermsFor(
+  price: number,
+  offers: { acceptPercent: number; declinePercent: number },
+  marketplace: Marketplace = US_MARKETPLACE,
+  account?: EbayAccountType | null,
+): BestOfferTerms {
+  const money = (n: number) => ({ currency: marketplace.currency, value: n.toFixed(2) });
+  const terms: BestOfferTerms = { bestOfferEnabled: true };
+  const accept = Math.max(cents((price * offers.acceptPercent) / 100), listingFloorFor(marketplace, account));
+  const hasAccept = accept < price - 0.005;
+  if (hasAccept) terms.autoAcceptPrice = money(accept);
+  const decline = cents((price * offers.declinePercent) / 100);
+  if (decline > 0 && decline < (hasAccept ? accept : price) - 0.005) terms.autoDeclinePrice = money(decline);
+  return terms;
+}
+
+/** The fields a seller's prefs put on an offer's listingPolicies at this price (empty when nothing applies). */
+export function sellerPolicyExtras(
+  price: number,
+  prefs: SellerListingPrefs | null | undefined,
+  marketplace: Marketplace = US_MARKETPLACE,
+  account?: EbayAccountType | null,
+): Pick<ListingPolicies, "bestOfferTerms" | "shippingCostOverrides"> {
+  const out: Pick<ListingPolicies, "bestOfferTerms" | "shippingCostOverrides"> = {};
+  if (prefs?.offers) out.bestOfferTerms = bestOfferTermsFor(price, prefs.offers, marketplace, account);
+  // The tracked rate is a US-dollar figure the seller typed; only the US site uses it.
+  if (prefs?.trackedShipping && marketplace.key === "US" && price > prefs.trackedShipping.over) {
+    out.shippingCostOverrides = [
+      { priority: 1, shippingServiceType: "DOMESTIC", shippingCost: { currency: marketplace.currency, value: prefs.trackedShipping.cost.toFixed(2) } },
+    ];
+  }
+  return out;
+}
+
+/**
+ * An existing offer's listingPolicies re-aimed at a new price (reprice): the
+ * seller's best-offer thresholds follow the price, and the tracked-postage
+ * override is added or dropped as the price crosses the threshold. Features the
+ * seller has off are left exactly as eBay returned them; with both off this
+ * returns the input untouched.
+ */
+export function repriceListingPolicies(
+  current: unknown,
+  price: number,
+  prefs: SellerListingPrefs | null | undefined,
+  marketplace: Marketplace = US_MARKETPLACE,
+  account?: EbayAccountType | null,
+): unknown {
+  if (!prefs?.offers && !prefs?.trackedShipping) return current;
+  const next: Record<string, unknown> = { ...((current as Record<string, unknown> | undefined) ?? {}) };
+  if (prefs.trackedShipping && marketplace.key === "US") delete next.shippingCostOverrides;
+  return { ...next, ...sellerPolicyExtras(price, prefs, marketplace, account) };
 }
 
 export interface OfferPayload {
@@ -403,12 +495,19 @@ export interface OfferPayload {
  */
 export function buildOffer(
   input: DraftInput,
-  extras: { policies?: ListingPolicies; merchantLocationKey?: string | null } = {},
+  extras: {
+    policies?: ListingPolicies;
+    merchantLocationKey?: string | null;
+    /** The seller's opt-in Best Offer / tracked-postage terms; off (absent) changes nothing. */
+    prefs?: SellerListingPrefs | null;
+    account?: EbayAccountType | null;
+  } = {},
   marketplace: Marketplace = US_MARKETPLACE,
 ): OfferPayload {
-  const policies = extras.policies
-    ? Object.fromEntries(Object.entries(extras.policies).filter(([, v]) => Boolean(v)))
-    : {};
+  const policies: Record<string, unknown> = {
+    ...(extras.policies ? Object.fromEntries(Object.entries(extras.policies).filter(([, v]) => Boolean(v))) : {}),
+    ...sellerPolicyExtras(input.listing.price, extras.prefs, marketplace, extras.account),
+  };
   return {
     sku: skuForCard(input.cardId),
     marketplaceId: marketplace.marketplaceId,
@@ -420,7 +519,7 @@ export function buildOffer(
     pricingSummary: {
       price: { currency: marketplace.currency, value: input.listing.price.toFixed(2) },
     },
-    ...(Object.keys(policies).length ? { listingPolicies: policies } : {}),
+    ...(Object.keys(policies).length ? { listingPolicies: policies as ListingPolicies } : {}),
     ...(extras.merchantLocationKey ? { merchantLocationKey: extras.merchantLocationKey } : {}),
   };
 }
