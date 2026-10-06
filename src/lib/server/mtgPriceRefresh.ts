@@ -2,7 +2,8 @@ import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
-import { readMtgGapRows, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
+import { guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
+import { CARDTRADER_SOURCE, cardtraderMtgPrices } from "@/lib/server/cardtrader";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import {
   readMtgCardPrices,
@@ -59,6 +60,8 @@ export interface RefreshResult {
   seriesSkipped?: number;
   /** Rows Scryfall left without a dollar price that took TCGplayer's. */
   tcgplayerFilled?: number;
+  /** Rows still blank that took CardTrader's cheapest NM listing. */
+  cardtraderFilled?: number;
 }
 
 /**
@@ -73,6 +76,7 @@ export function planMtgWrites(
   mirror: Map<string, MtgPriceRow>,
   series: Map<string, SeriesKeyed>,
   day: string,
+  ctSeries: Map<string, SeriesKeyed> = new Map(),
 ): { kept: MtgPriceRow[]; mirrorRows: MtgPriceRow[]; upserts: SeriesUpsert[]; seriesSkipped: number } {
   const kept = pending.filter((c) => mirror.has(c.id));
   const same = (a: MtgPriceRow, b: MtgPriceRow) => a.usd === b.usd && a.foil === b.foil && a.etched === b.etched && a.eur === b.eur && a.eurFoil === b.eurFoil;
@@ -82,7 +86,7 @@ export function planMtgWrites(
   for (const c of kept) {
     for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
       if (price == null) continue;
-      const existing = series.get(`${c.id}|${variant}`);
+      const existing = (c.source === CARDTRADER_SOURCE ? ctSeries : series).get(`${c.id}|${variant}`);
       if (!existing && price < MIN_TRACKED_USD) continue;
       if (existing?.updatedDay === day) {
         seriesSkipped++;
@@ -90,7 +94,7 @@ export function planMtgWrites(
       }
       const next = setDay(existing ? { startDay: existing.startDay, prices: decodePrices(existing.prices) } : null, day, price);
       upserts.push({
-        cardId: c.id, game: "mtg", variant, source: "tcgplayer", currency: "USD",
+        cardId: c.id, game: "mtg", variant, source: c.source ?? "tcgplayer", currency: "USD",
         startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
       });
     }
@@ -112,7 +116,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // interleaved into the stream callback; ~90k parsed rows are a few MB),
   // then everything is diffed in memory and written back in multi-row
   // batches — per-row statements were ~200k round trips on Turso.
-  const pending: { id: string; usd: number | null; foil: number | null; etched: number | null; eur: number | null; eurFoil: number | null }[] = [];
+  const pending: MtgPriceRow[] = [];
   const onCard = (obj: unknown) => {
     const c = obj as ScryfallCard;
     if (!c?.id || c.lang !== "en" || !c.prices) return;
@@ -136,7 +140,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   }
   // Only printings we carry get written (the mirror's id set), and only the
   // ones whose prices moved; series already written today are skipped.
-  const [mirror, existingSeries] = await Promise.all([readMtgCardPrices(), readSeriesMap("mtg", "tcgplayer")]);
+  const [mirror, existingSeries, ctSeries] = await Promise.all([readMtgCardPrices(), readSeriesMap("mtg", "tcgplayer"), readSeriesMap("mtg", CARDTRADER_SOURCE)]);
   // Printings Scryfall leaves without a dollar price (Art Series, Alpha/Beta,
   // Summer Magic…) take TCGplayer's (10-05). A failure only skips the fill.
   let tcgplayerFilled = 0;
@@ -156,7 +160,34 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } catch (err) {
     console.warn("mtg tcgplayer fill:", err instanceof Error ? err.message : err);
   }
-  const plan = planMtgWrites(pending, mirror, existingSeries, day);
+  // Still blank after TCGplayer (8th/9th Edition foil ★, Introductory Two-Player
+  // Set…): CardTrader's cheapest Near Mint English listing (10-06), same 15×
+  // guard. Needs CARDTRADER_TOKEN; capped at 45 s, biggest sets first.
+  let cardtraderFilled = 0;
+  const token = process.env.CARDTRADER_TOKEN?.trim();
+  if (token) {
+    try {
+      const left = pending.filter((c) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null);
+      const rows = (await readMtgGapRows(left.map((g) => g.id))).filter((r) => (r.released ?? "") <= day);
+      if (rows.length) {
+        const rate = await (await import("@/lib/server/fx")).usdPerEur().catch(() => null);
+        const raw = await cardtraderMtgPrices(rows, token, rate);
+        const fills = guardFills(raw, rows, await readOracleMaxUsd([...new Set(rows.map((r) => r.oracleId ?? "").filter(Boolean))]));
+        const byId = new Map(pending.map((c) => [c.id, c]));
+        for (const f of fills) {
+          const row = byId.get(f.id);
+          if (!row) continue;
+          row.usd = f.usd;
+          row.foil = f.foil;
+          row.source = CARDTRADER_SOURCE;
+          cardtraderFilled++;
+        }
+      }
+    } catch (err) {
+      console.warn("mtg cardtrader fill:", err instanceof Error ? err.message : err);
+    }
+  }
+  const plan = planMtgWrites(pending, mirror, existingSeries, day, ctSeries);
   await updateMtgPriceColumns(plan.mirrorRows);
   await upsertSeriesRows(plan.upserts);
   return {
@@ -167,5 +198,6 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
     mirrorChanged: plan.mirrorRows.length,
     seriesSkipped: plan.seriesSkipped,
     tcgplayerFilled,
+    cardtraderFilled,
   };
 }

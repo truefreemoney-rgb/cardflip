@@ -22,6 +22,8 @@ export interface MtgGapRow {
   number: string;
   finishes: string;
   oracleId?: string | null;
+  /** Set release day (YYYY-MM-DD). */
+  released?: string;
 }
 
 export interface TcgGroup {
@@ -164,10 +166,10 @@ export async function readMtgGapRows(ids: string[]): Promise<MtgGapRow[]> {
   for (let i = 0; i < ids.length; i += 500) {
     const chunk = ids.slice(i, i + 500);
     const rows = (await db
-      .prepare(`SELECT id, oracle_id, name, set_code, set_name, collector_number, finishes FROM mtg_cards WHERE id IN (${chunk.map(() => "?").join(",")})`)
-      .all(...chunk)) as { id: string; oracle_id: string | null; name: string; set_code: string; set_name: string; collector_number: string; finishes: string | null }[];
+      .prepare(`SELECT id, oracle_id, name, set_code, set_name, collector_number, finishes, set_release_date FROM mtg_cards WHERE id IN (${chunk.map(() => "?").join(",")})`)
+      .all(...chunk)) as { id: string; oracle_id: string | null; name: string; set_code: string; set_name: string; collector_number: string; finishes: string | null; set_release_date: string | null }[];
     for (const r of rows)
-      out.push({ id: r.id, name: r.name, setCode: r.set_code, setName: r.set_name, number: r.collector_number, finishes: r.finishes ?? "", oracleId: r.oracle_id });
+      out.push({ id: r.id, name: r.name, setCode: r.set_code, setName: r.set_name, number: r.collector_number, finishes: r.finishes ?? "", oracleId: r.oracle_id, released: r.set_release_date ?? "" });
   }
   return out;
 }

@@ -147,6 +147,80 @@ export async function cardtraderLorcanaPrices(rows: CtLorcanaRow[], token: strin
   return out;
 }
 
+const MTG_GAME_ID = 1;
+/** Scryfall set code → CardTrader expansion code, where they differ. */
+const MTG_EXPANSIONS: Record<string, string> = { plst: "plist" };
+
+export interface CtMtgRow {
+  id: string;
+  name: string;
+  setCode: string;
+  number: string;
+  /** Scryfall finishes, comma-separated ("nonfoil,foil", "foil"). */
+  finishes: string;
+}
+
+/** "249★" / "0249" → "249": a ★ foil printing is the same CardTrader blueprint, sold as foil. */
+const mtgNumber = (s: unknown) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").replace(/^0+(?=\d)/, "");
+
+/** Pure: Magic row → its one blueprint (same number and name), or null. */
+export function matchMtgBlueprint(row: CtMtgRow, blueprints: CtBlueprint[]): CtBlueprint | null {
+  const cand = blueprints.filter((b) => mtgNumber(b.fixed_properties?.collector_number) === mtgNumber(row.number) && norm(b.name) === norm(row.name));
+  return cand.length === 1 ? cand[0] : null;
+}
+
+/** Pure: Magic listings → cheapest NM English plain and foil, only for the finishes the printing has. */
+export function mtgListingUsd(listings: CtListing[], finishes: string, usdPerEur: number | null): { usd: number | null; foil: number | null } {
+  const has = new Set(finishes.split(",").map((f) => f.trim()));
+  const pick = (foil: boolean) =>
+    listingUsd(
+      listings.filter((l) => {
+        const p = (l.properties_hash ?? {}) as Record<string, unknown>;
+        return (p.mtg_language ?? "en") === "en" && !!p.mtg_foil === foil && !p.signed && !p.altered;
+      }),
+      false,
+      usdPerEur,
+    );
+  return { usd: has.has("nonfoil") ? pick(false) : null, foil: has.has("foil") ? pick(true) : null };
+}
+
+/** Live: Magic gap rows → plain/foil prices CardTrader lists. Stops starting new sets after `budgetMs`. */
+export async function cardtraderMtgPrices(
+  rows: CtMtgRow[],
+  token: string,
+  usdPerEur: number | null,
+  budgetMs = 45_000,
+): Promise<{ id: string; usd: number | null; foil: number | null }[]> {
+  const t0 = Date.now();
+  const expansions = (await ct<{ id: number; game_id: number; code: string }[]>("/expansions", token)).filter((e) => e.game_id === MTG_GAME_ID);
+  const byCode = new Map(expansions.map((e) => [e.code.toLowerCase(), e.id]));
+  const groups = new Map<number, CtMtgRow[]>();
+  for (const r of rows) {
+    const code = r.setCode.toLowerCase();
+    const id = byCode.get(MTG_EXPANSIONS[code] ?? code);
+    if (id != null) groups.set(id, [...(groups.get(id) ?? []), r]);
+  }
+  const out: { id: string; usd: number | null; foil: number | null }[] = [];
+  // Biggest gaps first, so the time budget goes where it fills the most.
+  for (const [expansionId, list] of [...groups].sort((a, b) => b[1].length - a[1].length)) {
+    if (Date.now() - t0 > budgetMs) break;
+    try {
+      const blueprints = await ct<CtBlueprint[]>(`/blueprints/export?expansion_id=${expansionId}`, token);
+      const market = await ct<Record<string, CtListing[]>>(`/marketplace/products?expansion_id=${expansionId}`, token);
+      for (const r of list) {
+        const b = matchMtgBlueprint(r, blueprints);
+        if (!b) continue;
+        const p = mtgListingUsd(market[String(b.id)] ?? [], r.finishes, usdPerEur);
+        if (p.usd != null || p.foil != null) out.push({ id: r.id, ...p });
+      }
+    } catch (err) {
+      console.warn(`cardtrader mtg expansion ${expansionId}:`, err instanceof Error ? err.message : err);
+    }
+    await new Promise((res) => setTimeout(res, 120));
+  }
+  return out;
+}
+
 /** Live: gap rows → { id, usd } for the ones CardTrader prices. Two calls per expansion, ~120 ms apart. */
 export async function cardtraderYugiohPrices(rows: CtGapRow[], token: string, usdPerEur: number | null): Promise<{ id: string; usd: number }[]> {
   const expansions = (await ct<{ id: number; game_id: number; code: string }[]>("/expansions", token)).filter((e) => e.game_id === YUGIOH_GAME_ID);

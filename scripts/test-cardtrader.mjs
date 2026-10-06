@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 
-const { matchBlueprint, listingUsd, expansionCodeOf, matchLorcanaBlueprint, lorcanaListingUsd } = await import("../src/lib/server/cardtrader.ts");
+const { matchBlueprint, listingUsd, expansionCodeOf, matchLorcanaBlueprint, lorcanaListingUsd, matchMtgBlueprint, mtgListingUsd } = await import("../src/lib/server/cardtrader.ts");
 
 assert.equal(expansionCodeOf("DCR-EN016"), "dcr");
 assert.equal(expansionCodeOf("SJC-EN002"), "sjcs");
@@ -41,6 +41,14 @@ assert.equal(matchLorcanaBlueprint({ id: "x", name: "Kronk", subtitle: "Other", 
 const lc = (cents, foil, lang = "en") => ({ price_cents: cents, price_currency: "USD", properties_hash: { condition: "Near Mint", lorcana_foil: foil, lorcana_language: lang } });
 assert.deepEqual(lorcanaListingUsd([lc(300, false), lc(900, true), lc(700, true), lc(100, true, "it")], 1.1), { usd: 3, foil: 7 });
 assert.deepEqual(lorcanaListingUsd([lc(6000, true)], 1.1), { usd: null, foil: null });
+
+// Magic (10-06): a ★ foil printing is the base blueprint sold as foil; only the printing's finishes get a price.
+const shivan = { id: 1, name: "Shivan Dragon", fixed_properties: { collector_number: "218" } };
+assert.equal(matchMtgBlueprint({ id: "s", name: "Shivan Dragon", setCode: "7ed", number: "218★", finishes: "foil" }, [shivan])?.id, 1);
+assert.equal(matchMtgBlueprint({ id: "s", name: "Kudzu", setCode: "7ed", number: "218", finishes: "nonfoil" }, [shivan]), null);
+const ml = (cents, foil, extra = {}) => ({ price_cents: cents, price_currency: "USD", properties_hash: { condition: "Near Mint", mtg_foil: foil, mtg_language: "en", ...extra } });
+assert.deepEqual(mtgListingUsd([ml(500, false), ml(4000, true), ml(3000, true), ml(100, true, { signed: true }), ml(50, true, { mtg_language: "de" })], "foil", 1.1), { usd: null, foil: 30 });
+assert.deepEqual(mtgListingUsd([ml(500, false), ml(700, false)], "nonfoil,foil", 1.1), { usd: 5, foil: null });
 
 console.log("cardtrader: all assertions passed");
 process.exit(0);

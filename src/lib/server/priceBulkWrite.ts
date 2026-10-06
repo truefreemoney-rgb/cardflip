@@ -117,6 +117,8 @@ export interface MtgPriceRow {
   etched: number | null;
   eur: number | null;
   eurFoil: number | null;
+  /** Series source when not Scryfall/TCGplayer (10-06: "cardtrader" fills). */
+  source?: "cardtrader";
 }
 
 /**
