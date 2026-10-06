@@ -1,9 +1,7 @@
 "use client";
 
-import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
-import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useEffect, useRef, useState } from "react";
-import { useFocusTrap } from "@/lib/client/useFocusTrap";
+import Sheet from "@/components/Sheet";
 
 import { CATEGORY_MAX } from "@/lib/categories";
 export { CATEGORY_MAX };
@@ -42,44 +40,13 @@ export default function CategorySheet({
   // the keyboard over the sheet before the seller saw it (Chris, 09-04).
   const [creating, setCreating] = useState(false);
   const [touched, setTouched] = useState(false);
-  // iOS keeps a fixed overlay under the keyboard; pad the bottom by the
-  // keyboard's height (layout viewport − visual viewport) so the sheet rides up.
-  const [kbd, setKbd] = useState(0);
   const [draft, setDraft] = useState("");
-  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  useFocusTrap(panelRef);
-  useEffect(() => {
-    // Capture phase + stopPropagation: the sheet stacks over the card detail
-    // modal, which also closes on Escape (QA, 09-04: one Esc closed both).
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
-  // Ref-counted: this sheet stacks over CardDetailModal, and the body stays
-  // pinned until the last one closes.
-  useBodyScrollLock();
-  useBackToClose("category", onClose);
+  // Sheet owns Escape (capture phase, so it closes alone over the card detail
+  // modal), Back, the ref-counted scroll lock and riding up over the iOS keyboard.
   useEffect(() => {
     if (creating && touched) inputRef.current?.focus();
   }, [creating, touched]);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => setKbd(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    update();
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
-
   const trimmed = draft.trim().slice(0, CATEGORY_MAX);
   const dup = trimmed && categories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
   const result = creating ? (trimmed || null) : choice;
@@ -93,38 +60,8 @@ export default function CategorySheet({
     }`;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      style={kbd > 0 ? { paddingBottom: kbd } : undefined}
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className="animate-fade-up max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl sm:p-6"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-base font-semibold text-white">{title}</p>
-            {hint && <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="-mr-1 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
-          >
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
+    <Sheet title={title} hint={hint} onClose={onClose} backId="category">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => {
@@ -195,8 +132,7 @@ export default function CategorySheet({
             {busy ? "Saving…" : confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

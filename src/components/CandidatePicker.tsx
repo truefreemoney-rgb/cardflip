@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import CardImage from "@/components/CardImage";
+import Sheet from "@/components/Sheet";
 import Spinner from "@/components/Spinner";
 import { searchTyped } from "@/lib/cards";
-import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanItem } from "@/lib/types";
 
@@ -26,22 +26,10 @@ export default function CandidatePicker({
   onPick: (card: PokemonCard, candidates: PokemonCard[]) => void;
   onClose: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef);
   const [term, setTerm] = useState("");
   const [found, setFound] = useState<PokemonCard[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
 
   const current = item.card;
   const others = item.candidates.filter((c) => c.id !== current?.id).slice(0, SHOWN);
@@ -63,23 +51,8 @@ export default function CandidatePicker({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/90 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Pick the right card"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className="panel-solid animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <p className="font-display text-lg font-semibold text-white">Which card is it?</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white">
-            ×
-          </button>
-        </div>
-        <div className="mt-3 flex gap-2">
+    <Sheet title="Which card is it?" onClose={onClose} z="z-[70]" bodyClassName="flex flex-col">
+        <div className="flex gap-2">
           <input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
@@ -101,7 +74,7 @@ export default function CandidatePicker({
         </div>
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
         {list.length === 0 && !error && <p className="mt-3 text-sm text-zinc-400">No other matches. Search by name above.</p>}
-        <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+        <ul className="mt-3 flex flex-col gap-2">
           {list.map((c) => (
             <li key={c.id}>
               <button
@@ -122,7 +95,6 @@ export default function CandidatePicker({
             </li>
           ))}
         </ul>
-      </div>
-    </div>
+    </Sheet>
   );
 }

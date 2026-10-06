@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import CardImage from "@/components/CardImage";
+import Sheet from "@/components/Sheet";
 import { normalizeNumber } from "@/lib/cardNumber";
-import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import { formatMoney, headlinePrice } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
 
@@ -86,17 +85,6 @@ export default function VerifyAllSheet({
   /** Leave for the queue to go through the rest one by one. */
   onReview: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
 
   const withCard = items.filter((i) => i.card);
   const verified = withCard.filter((i) => i.verifiedAt);
@@ -105,30 +93,41 @@ export default function VerifyAllSheet({
   const check = open.filter((i) => !canConfirmInBulk(i)).sort((a, b) => Number(Boolean(b.matchDoubt)) - Number(Boolean(a.matchDoubt)));
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/90 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scans waiting to verify"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className="panel-solid animate-fade-up flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-display text-lg font-semibold text-white">Scans waiting to verify</p>
-            <p className="mt-0.5 text-sm text-zinc-400 tabular-nums">
-              {withCard.length} {withCard.length === 1 ? "scan" : "scans"}
-              {total > 0 ? ` · ${formatMoney(total)}` : ""}
-            </p>
-            <p className="mt-0.5 text-xs text-zinc-500">Left: your photo. Right: the card we matched.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white">
-            ×
+    <Sheet
+      title="Scans waiting to verify"
+      hint={
+        <>
+          <span className="tabular-nums">
+            {withCard.length} {withCard.length === 1 ? "scan" : "scans"}
+            {total > 0 ? ` · ${formatMoney(total)}` : ""}
+          </span>
+          <span className="mt-0.5 block text-xs text-zinc-500">Left: your photo. Right: the card we matched.</span>
+        </>
+      }
+      onClose={onClose}
+      footer={
+        <>
+          {sure.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onConfirm(sure.map((i) => i.id))}
+              className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
+            >
+              {sure.length === open.length ? `Confirm all ${sure.length}` : `Confirm ${sure.length} that look right`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReview}
+            className={`mt-2 w-full rounded-full px-4 py-3 text-sm font-semibold transition ${
+              sure.length > 0 ? "border border-edge text-zinc-200 hover:border-edge-strong" : "bg-emerald-500 text-white hover:bg-emerald-400"
+            }`}
+          >
+            {check.length > 0 ? `Check ${check.length === 1 ? "it" : "them"} one by one` : "Done"}
           </button>
-        </div>
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        </>
+      }
+    >
           {check.length > 0 && (
             <section>
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-amber-300">Check these first ({check.length})</p>
@@ -150,26 +149,6 @@ export default function VerifyAllSheet({
             </section>
           )}
           {verified.length > 0 && <p className="mt-4 text-center text-xs text-zinc-500">{verified.length} already verified</p>}
-        </div>
-        {sure.length > 0 && (
-          <button
-            type="button"
-            onClick={() => onConfirm(sure.map((i) => i.id))}
-            className="mt-4 w-full shrink-0 rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
-          >
-            {sure.length === open.length ? `Confirm all ${sure.length}` : `Confirm ${sure.length} that look right`}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onReview}
-          className={`w-full shrink-0 rounded-full px-4 py-3 text-sm font-semibold transition ${
-            sure.length > 0 ? "mt-2 border border-edge text-zinc-200 hover:border-edge-strong" : "mt-4 bg-emerald-500 text-white hover:bg-emerald-400"
-          }`}
-        >
-          {check.length > 0 ? `Check ${check.length === 1 ? "it" : "them"} one by one` : "Done"}
-        </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }
