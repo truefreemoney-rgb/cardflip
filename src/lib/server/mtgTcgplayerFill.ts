@@ -54,6 +54,20 @@ const bareNumber = (n: string) => n.split("/")[0].trim().toLowerCase().replace(/
 const GROUP_ALIASES: Record<string, string> = {
   asnc: "ASSNC", // "New Capenna Art Series" vs "Art Series: Streets of New Capenna"
   plst: "LIST", // "The List" vs "The List Reprints" (numbers: see listNumber)
+  cst: "CTD", // Coldsnap Theme Decks
+  // Duel Decks Anthology is its own printing (TCGplayer "Duel Decks: Anthology"), never the original decks' price.
+  dvd: "DD3",
+  gvl: "DD3",
+  jvc: "DD3",
+  mgb: "GBP", // Multiverse Gift Box → Gift Boxes and Promos
+  p09: "MPRP", // Magic Player Rewards 2009 → Magic Player Rewards
+  pcmp: "CHAMPS",
+  pmei: "MEDIA",
+  afic: "FIC", // Final Fantasy Scene Box cards sit with the Commander decks
+};
+/** Scryfall set code → several TCGplayer groups searched as one (their abbreviation is shared). */
+const GROUP_IDS: Record<string, number[]> = {
+  who: [23165, 23166], // Universes Beyond: Doctor Who + its Planechase, both "WHO"
 };
 
 /** The List's Scryfall numbers carry the original set ("KLD-2"); TCGplayer prints only the number. */
@@ -191,11 +205,13 @@ export async function tcgplayerFills(rows: MtgGapRow[]): Promise<{ fills: MtgFil
   const groups = listOf<TcgGroup>(await getJson(`${API}/groups`));
   const bySet = new Map<string, MtgGapRow[]>();
   for (const r of rows) bySet.set(r.setCode, [...(bySet.get(r.setCode) ?? []), r]);
-  const work: { group: TcgGroup; rows: MtgGapRow[] }[] = [];
+  const work: { groupIds: number[]; rows: MtgGapRow[] }[] = [];
   const unmatchedSets: string[] = [];
   for (const [code, list] of bySet) {
-    const g = matchGroup(code, list[0].setName, groups);
-    if (g) work.push({ group: g, rows: list });
+    const ids = GROUP_IDS[code.toLowerCase()];
+    const g = ids ? null : matchGroup(code, list[0].setName, groups);
+    if (ids) work.push({ groupIds: ids, rows: list });
+    else if (g) work.push({ groupIds: [g.groupId], rows: list });
     else unmatchedSets.push(`${code} ${list[0].setName} (${list.length})`);
   }
   const fills: MtgFill[] = [];
@@ -203,9 +219,11 @@ export async function tcgplayerFills(rows: MtgGapRow[]): Promise<{ fills: MtgFil
   const worker = async () => {
     for (let w = queue.shift(); w; w = queue.shift()) {
       try {
-        fills.push(...matchMtgProducts(w.rows, await groupProducts(w.group.groupId)));
+        const products: TcgProduct[] = [];
+        for (const id of w.groupIds) products.push(...(await groupProducts(id)));
+        fills.push(...matchMtgProducts(w.rows, products));
       } catch (err) {
-        console.warn(`mtg tcgplayer group ${w.group.groupId}:`, err instanceof Error ? err.message : err);
+        console.warn(`mtg tcgplayer group ${w.groupIds.join("+")}:`, err instanceof Error ? err.message : err);
       }
       await new Promise((r) => setTimeout(r, 60));
     }
