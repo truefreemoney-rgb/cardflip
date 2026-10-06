@@ -95,6 +95,16 @@ export async function createCustomer(email: string, userId: string): Promise<str
   return c.id;
 }
 
+/** Keep the Stripe customer's email (receipts, invoices) in step with the account. Best effort: never throws. */
+export async function updateCustomerEmail(customerId: string | null, email: string): Promise<void> {
+  if (!customerId || !stripeConfigured()) return;
+  try {
+    await stripeRequest(`customers/${encodeURIComponent(customerId)}`, { email });
+  } catch (err) {
+    console.error("stripe: customer email update failed:", err instanceof Error ? err.message : err);
+  }
+}
+
 /**
  * Local-currency Checkout (Chris 09-30): `currency` picks one of the price's
  * currency_options (pricing.ts LOCAL_PRICING / checkoutCurrency). If Stripe

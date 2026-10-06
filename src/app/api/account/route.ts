@@ -16,7 +16,7 @@ import {
 import { handleProblem, normalizeHandle } from "@/lib/handle";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
-import { cancelAllSubscriptions } from "@/lib/server/stripe";
+import { cancelAllSubscriptions, updateCustomerEmail } from "@/lib/server/stripe";
 import { scanQuota } from "@/lib/server/scanQuota";
 import { isValidEmail } from "@/lib/emailAddress";
 import { isDisposableEmail } from "@/lib/server/signupGuard";
@@ -82,6 +82,8 @@ export async function PATCH(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
+    const mineLimited = await limitOrRespondAsync(`account:patch:acct:${user.id}`, LIMITS.authAccount);
+    if (mineLimited) return mineLimited;
     const body = await req.json().catch(() => ({}));
     const patch: { name?: string; email?: string; handle?: string | null; handlePublic?: boolean; pricingOnly?: boolean } = {};
 
@@ -181,6 +183,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
     if (Object.keys(patch).length > 0) await updateUserProfile(user.id, patch);
+    // Receipts go to the Stripe customer's email; a failure here must not block the change (it logs).
+    if (patch.email) await updateCustomerEmail(user.stripeCustomerId, patch.email);
 
     let current = user;
     const extra: Record<string, unknown> = {};

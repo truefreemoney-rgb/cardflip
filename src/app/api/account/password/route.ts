@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   try {
     const user = await requireUser();
+    const mine = await limitOrRespondAsync(`account:password:acct:${user.id}`, LIMITS.authAccount);
+    if (mine) return mine;
     const body = await req.json().catch(() => ({}));
     const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
     const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";

@@ -17,6 +17,7 @@ import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { getSetting } from "@/lib/server/settings";
 import { inboxKey, isDisposableEmail } from "@/lib/server/signupGuard";
 import { isTestNetwork } from "@/lib/server/trialScan";
+import { updateCustomerEmail } from "@/lib/server/stripe";
 import {
   TRIAL_SCANS,
   findUserByEmail,
@@ -542,6 +543,8 @@ async function applyRow(userId: string, row: VRow): Promise<ApplyOutcome> {
     throw err;
   }
   await revokeResetLinks(userId);
+  // Receipts and portal mail follow the new address (never blocks the change).
+  await updateCustomerEmail(user.stripeCustomerId ?? null, target);
   // Every mail sent for this address is spent with it (a resend left a sibling
   // live), so a stale screen typing the other code hears "already confirmed".
   await db

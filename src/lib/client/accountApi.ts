@@ -14,6 +14,7 @@ export interface AccountOverview {
   data: {
     cards: number;
     listed: number;
+    ebayLive?: number;
     sold: number;
     wishlist: number;
     priceChecks: number;

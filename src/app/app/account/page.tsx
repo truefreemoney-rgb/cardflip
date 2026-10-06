@@ -1171,6 +1171,11 @@ function AccountSettings({
           </div>
           {delOpen && (
             <form onSubmit={confirmDelete} className="mt-4 flex flex-col gap-3 border-t border-red-500/15 pt-4">
+              {(d?.ebayLive ?? 0) > 0 && (
+                <Notice kind="err">
+                  You have {d?.ebayLive} {d?.ebayLive === 1 ? "card" : "cards"} live on eBay. They stay up on eBay after you delete your account — end them first.
+                </Notice>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className={labelCls}>
                   Your password

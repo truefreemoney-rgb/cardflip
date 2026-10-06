@@ -706,6 +706,8 @@ export async function updateUserPassword(userId: string, password: string): Prom
 export async function userDataSummary(userId: string): Promise<{
   cards: number;
   listed: number;
+  /** Cards whose eBay listing is still up (a deleted account leaves these on eBay). */
+  ebayLive: number;
   sold: number;
   wishlist: number;
   priceChecks: number;
@@ -716,6 +718,9 @@ export async function userDataSummary(userId: string): Promise<{
   return {
     cards: await n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ?"),
     listed: await n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ? AND status = 'listed'"),
+    ebayLive: await n(
+      "SELECT COUNT(*) AS n FROM cards WHERE user_id = ? AND status = 'listed' AND ebay_listing_id IS NOT NULL AND ebay_ended_at IS NULL",
+    ),
     sold: await n("SELECT COUNT(*) AS n FROM cards WHERE user_id = ? AND status = 'sold'"),
     wishlist: await n("SELECT COUNT(*) AS n FROM wishlist_items WHERE user_id = ?"),
     priceChecks: await n("SELECT COUNT(*) AS n FROM price_checks WHERE user_id = ?"),
