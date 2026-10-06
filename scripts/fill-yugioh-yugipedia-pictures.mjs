@@ -13,8 +13,9 @@
 // (Joey found 10-03 via its Legendary Decks II print), Audhumla (SAMPLE stamp everywhere incl.
 // Konami's DB, 10-03), Clown Crew Cappello (Japanese only). Add them once an English scan exists;
 // English release is 2026-10-09.
-// Fairy Tale Tails (UP01): the only English scan is the Ghosts From the Past print, which carries
-// the card's OLD printed name, "Fairy Tail Tales". Not a stand-in for a row named the new way.
+// Fairy Tale Tails (UP01): Yugipedia only has the Ghosts From the Past print with the card's OLD
+// printed name, "Fairy Tail Tales". Hosted 10-06 by hand from CardTrader's UP01-EN045 scan
+// (blueprint 396200, new name): public/catalog/yugioh/up01-en045-fairytaletails.jpg.
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
