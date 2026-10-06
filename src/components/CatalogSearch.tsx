@@ -127,7 +127,7 @@ export default function CatalogSearch({
             aria-label="Game"
             value={pick}
             onChange={(e) => setPick(e.target.value as GameId)}
-            className="h-11 shrink-0 rounded-xl border border-edge bg-surface-2 px-2 text-sm text-zinc-200 sm:text-base"
+            className="h-11 w-[7.5rem] shrink-0 rounded-xl border border-edge bg-surface-2 px-2 text-sm text-zinc-200 sm:text-base"
           >
             {games.map((g) => (
               <option key={g} value={g}>
