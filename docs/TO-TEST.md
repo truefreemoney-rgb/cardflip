@@ -58,3 +58,30 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Organic signup still gets the question.
 - [ ] Admin funnel shows ad-page signups as landing /scan.
 - [ ] Signup with a first name only: welcome email greets them by it.
+
+## 10-06 quality-of-life batch (section D)
+
+### Catalog
+- [ ] Nav search icon (phone): opens a field, results readable, iPhone doesn't zoom on tap.
+- [ ] Watch this price, signed out: goes to signup, and after signing up the card lands on the watchlist with a toast.
+- [ ] Watch this price, signed in: adds to the watchlist.
+- [ ] A set with 300+ cards: page 2 link works, pager wraps on a phone.
+- [ ] Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).
+- [ ] Skyridge Charizard still headlines $2,999.99 "Reverse Holofoil" beside a doubted Holofoil — the 10-06 fix did not change it (needs a look at what the doubted price is).
+
+### Inventory
+- [ ] Delete one card → Undo brings it back; delete again and leave the page → it's gone for good.
+- [ ] Bulk delete including live cards: those stay, toast says how many.
+- [ ] Bulk Set condition / Set price on a few cards (price skips live/sold).
+- [ ] 60+ cards: "Show more" appears; Select all says the full count.
+- [ ] Duplicates and Missing price chips; Name A–Z and Set sorts.
+- [ ] Collector mode: Help chips and bulk bar never mention eBay.
+
+### Set Completion
+- [ ] Each of the five games opens and lists sets (Magic first load ~10 s, then cached a day). Magic totals count every printing (borderless etc.) so % looks low — Chris to say if base cards only.
+
+### Scanner (real phone)
+- [ ] "Not this card?" on the camera chip: other candidates + search by name; picking one updates name and price, no extra scan charged.
+- [ ] Verify all sheet after a stack scan: doubtful ones first; Confirm marks the rest verified in Inventory.
+- [ ] Too many scans fast → "wait N seconds" message; daily limit → "try again tomorrow".
+- [ ] At 375px the "Not this card?" and Verify buttons fit side by side.
