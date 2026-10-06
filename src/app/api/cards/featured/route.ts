@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, getStageCards } from "@/lib/server/stageCards";
 import { isGameId } from "@/lib/games";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+
+/** The reel is the same for every visitor and already cached six hours server-side. */
+const CDN_CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" };
 
 /**
  * The cards on the empty scanner's stage: ten real, priced catalog cards
@@ -19,11 +23,13 @@ import { isGameId } from "@/lib/games";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  if (limited) return limited;
   const game = req.nextUrl.searchParams.get("game");
   if (game && game !== "pokemon" && isGameId(game)) {
     const { cards, cached } = await getGameStageCards(game);
-    return NextResponse.json({ cards, cached });
+    return NextResponse.json({ cards, cached }, { headers: CDN_CACHE });
   }
   const { cards, cached } = await getStageCards(await magicPublic());
-  return NextResponse.json({ cards, cached });
+  return NextResponse.json({ cards, cached }, { headers: CDN_CACHE });
 }

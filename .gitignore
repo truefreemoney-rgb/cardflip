@@ -65,3 +65,8 @@ stripe2.txt
 # Playwright
 /playwright-report
 /test-results
+
+# Local one-off scripts (some read live secrets): never committed.
+scripts/.*-tmp.*
+scripts/.*.cache.json
+scripts/.don-sheets/

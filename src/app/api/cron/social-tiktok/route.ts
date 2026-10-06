@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { secretEqual } from "@/lib/server/secretEqual";
+import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { runSocialOptimize } from "@/lib/server/socialOptimize";
@@ -27,8 +27,7 @@ export const dynamic = "force-dynamic";
 /** The GitHub schedule's own key (secret SOCIAL_POST_KEY), so CRON_SECRET never leaves Vercel. */
 function postKeyOk(req: NextRequest): boolean {
   const k = process.env.SOCIAL_POST_KEY;
-  const given = req.nextUrl.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return secretEqual(given, k);
+  return secretEqual(presentedKey(req), k);
 }
 
 export async function GET(req: NextRequest) {

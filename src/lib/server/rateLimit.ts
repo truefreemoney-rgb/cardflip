@@ -138,6 +138,8 @@ export const LIMITS = {
   psaCertGlobal: [{ limit: 80, windowMs: DAY }] as RateLimitRule[],
   /** Unauthenticated (landing ticker uses it) — per IP, generous. */
   searchCard: [{ limit: 120, windowMs: MINUTE }] as RateLimitRule[],
+  /** Public catalogue reads (sets, set-cards, featured, sealed price): per IP; CDN hits never reach it. */
+  publicCatalog: [{ limit: 120, windowMs: MINUTE }] as RateLimitRule[],
   /** Sign-in / signup / reset: brute-force backstop, per IP. */
   authAttempt: [{ limit: 20, windowMs: 10 * MINUTE }] as RateLimitRule[],
   /** Same routes keyed by the ACCOUNT (email / admin username): an attacker

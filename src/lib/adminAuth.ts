@@ -42,17 +42,36 @@ export interface AdminCredentials {
 // default is visible to anyone reading the repo.
 const DEFAULTS: AdminCredentials = { user: "admin", password: "password" };
 
+/** Anywhere but local dev (production build, or any Vercel deploy incl. preview) the built-in password is not a login. */
+function deployedEnv(env: NodeJS.ProcessEnv): boolean {
+  return env.NODE_ENV === "production" || !!env.VERCEL_ENV;
+}
+
+let warnedNoPassword = false;
+
+/**
+ * An empty password means "no owner login": verifyAdminCredentials and the
+ * session checks refuse it. Only the PASSWORD default is dangerous (it is in
+ * the public repo), so deployed with ADMIN_PANEL_PASSWORD unset the password
+ * is empty (fail closed, one server warning); the username default stays.
+ */
 export function adminCredentials(env: NodeJS.ProcessEnv = process.env): AdminCredentials {
-  return {
-    user: env.ADMIN_PANEL_USER?.trim() || DEFAULTS.user,
-    password: env.ADMIN_PANEL_PASSWORD || DEFAULTS.password,
-  };
+  const user = env.ADMIN_PANEL_USER?.trim() || DEFAULTS.user;
+  if (env.ADMIN_PANEL_PASSWORD) return { user, password: env.ADMIN_PANEL_PASSWORD };
+  if (deployedEnv(env)) {
+    if (!warnedNoPassword) {
+      warnedNoPassword = true;
+      console.warn("ADMIN_PANEL_PASSWORD is not set: the admin console login is disabled (the built-in default password only works in local dev).");
+    }
+    return { user, password: "" };
+  }
+  return { user, password: DEFAULTS.password };
 }
 
 /** True when the panel still runs on the built-in credentials. */
 export function adminUsingDefaults(env: NodeJS.ProcessEnv = process.env): boolean {
   const c = adminCredentials(env);
-  return c.user === DEFAULTS.user && c.password === DEFAULTS.password;
+  return !c.password || (c.user === DEFAULTS.user && c.password === DEFAULTS.password);
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -67,6 +86,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export function verifyAdminCredentials(user: string, password: string, creds = adminCredentials()): boolean {
+  if (!creds.password) return false; // fail closed: no password configured
   const u = safeEqual(user.trim().toLowerCase(), creds.user.toLowerCase());
   const p = safeEqual(password, creds.password);
   return u && p;
@@ -117,7 +137,7 @@ export function signAdminToken(now = Date.now(), creds = adminCredentials(), env
 }
 
 export function verifyAdminToken(token: string | undefined | null, now = Date.now(), creds = adminCredentials(), env: NodeJS.ProcessEnv = process.env): boolean {
-  if (!token) return false;
+  if (!token || !creds.password) return false;
   const dot = token.indexOf(".");
   if (dot <= 0) return false;
   const expiresAt = Number(token.slice(0, dot));

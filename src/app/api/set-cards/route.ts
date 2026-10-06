@@ -6,6 +6,10 @@ import { isTcgGame, tcgCardsBySet } from "@/lib/server/tcgCards";
 import { heldPriceEntry } from "@/lib/server/priceHistory";
 import { latestUsdWithTrust, withPriceFlags } from "@/lib/server/priceTrustSite";
 import type { PokemonCard } from "@/lib/types";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+
+/** Same for everyone: the CDN holds a set 5 min, serves stale for a day while it refreshes. */
+const CDN_CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=86400" };
 
 /**
  * Every card in one set, with the latest price we hold — the set browser on
@@ -31,16 +35,18 @@ async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  if (limited) return limited;
   const set = (req.nextUrl.searchParams.get("set") ?? "").trim().slice(0, 120);
   if (!set) return NextResponse.json({ error: "Missing set" }, { status: 400 });
   try {
     const game = parseGame(req.nextUrl.searchParams.get("game"));
     if (game === "mtg") {
-      return NextResponse.json({ cards: await flagged(await mtgCardsBySet(set)) });
+      return NextResponse.json({ cards: await flagged(await mtgCardsBySet(set)) }, { headers: CDN_CACHE });
     }
     // Lorcana / One Piece / Yu-Gi-Oh!: ?set=<code|name> from /api/sets.
     if (isTcgGame(game)) {
-      return NextResponse.json({ cards: await flagged(await tcgCardsBySet(game, set)) });
+      return NextResponse.json({ cards: await flagged(await tcgCardsBySet(game, set)) }, { headers: CDN_CACHE });
     }
     const cards = await englishCardsBySet(set);
     const prices = await latestUsdWithTrust(cards.map((c) => c.id));
@@ -49,7 +55,7 @@ export async function GET(req: NextRequest) {
       if (!p) continue;
       card.prices = [{ ...heldPriceEntry(p), ...(p.flag ? { untrusted: p.flag } : {}), ...(p.stale ? { stale: p.stale } : {}) }];
     }
-    return NextResponse.json({ cards });
+    return NextResponse.json({ cards }, { headers: CDN_CACHE });
   } catch (err) {
     console.error("set-cards failed:", err);
     return NextResponse.json({ error: "Couldn't load that set" }, { status: 500 });

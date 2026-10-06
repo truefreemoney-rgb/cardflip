@@ -25,6 +25,16 @@ check("env credentials win", creds, { user: "ops", password: "s3cret" });
 check("defaults when unset", adminCredentials({}), { user: "admin", password: "password" });
 check("defaults flagged", adminUsingDefaults({}), true);
 check("custom not flagged", adminUsingDefaults(env), false);
+// F9: the built-in password only works in local dev.
+const prodEnv = { NODE_ENV: "production" };
+check("prod, password unset: no usable password", adminCredentials(prodEnv).password, "");
+check("prod, password unset: still flagged as defaults", adminUsingDefaults(prodEnv), true);
+check("prod, password unset: admin/password refused", verifyAdminCredentials("admin", "password", adminCredentials(prodEnv)), false);
+check("prod, password unset: empty login refused", verifyAdminCredentials("admin", "", adminCredentials(prodEnv)), false);
+check("vercel preview, password unset: refused", verifyAdminCredentials("admin", "password", adminCredentials({ VERCEL_ENV: "preview" })), false);
+check("prod, password unset: tokens never verify", (() => { const c = adminCredentials(prodEnv); return verifyAdminToken(signAdminToken(1_700_000_000_000, c, prodEnv).token, 1_700_000_001_000, c, prodEnv); })(), false);
+check("prod, user unset but password set: username default kept", adminCredentials({ NODE_ENV: "production", ADMIN_PANEL_PASSWORD: "pw" }), { user: "admin", password: "pw" });
+check("local dev keeps the defaults", adminCredentials({ NODE_ENV: "development" }), { user: "admin", password: "password" });
 check("correct login", verifyAdminCredentials("ops", "s3cret", creds), true);
 check("username case-insensitive, trimmed", verifyAdminCredentials("  OPS ", "s3cret", creds), true);
 check("password case-sensitive", verifyAdminCredentials("ops", "S3cret", creds), false);

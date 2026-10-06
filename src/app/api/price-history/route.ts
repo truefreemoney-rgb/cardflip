@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       const staleNote = tcgUsd && !untrusted ? stale.get(trustKey(cardId, s.variant)) : undefined;
       return { ...s, stats: summarize(s.points), ...(untrusted ? { untrusted } : {}), ...(staleNote ? { stale: staleNote } : {}) };
     });
-    return NextResponse.json({ cardId, series });
+    return NextResponse.json({ cardId, series }, { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } });
   } catch (err) {
     console.error("price history failed:", err);
     return NextResponse.json({ error: "Couldn't load price history" }, { status: 500 });

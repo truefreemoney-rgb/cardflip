@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseGame } from "@/lib/games";
 import { sealedProductTypesFor } from "@/lib/grading";
 import { sealedQuote } from "@/lib/server/sealedPrices";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
 /**
  * GET /api/sealed/price?set=<set name>&type=<product type>[&game=pokemon]
@@ -14,6 +15,8 @@ import { sealedQuote } from "@/lib/server/sealedPrices";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  if (limited) return limited;
   const game = parseGame(req.nextUrl.searchParams.get("game"));
   const setName = (req.nextUrl.searchParams.get("set") ?? "").trim().slice(0, 120);
   const type = (req.nextUrl.searchParams.get("type") ?? "").trim();
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
   }
   try {
     const quote = await sealedQuote(game, setName, type);
-    return NextResponse.json(quote, { headers: { "Cache-Control": "private, max-age=300" } });
+    return NextResponse.json(quote, { headers: { "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=3600" } });
   } catch (err) {
     console.error("Sealed price lookup failed:", err);
     return NextResponse.json({ error: "Couldn't look up the sealed price" }, { status: 500 });

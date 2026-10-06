@@ -5,6 +5,10 @@ import { parseGame } from "@/lib/games";
 import { listMtgSets } from "@/lib/server/mtgCards";
 import { isTcgGame, listTcgSets } from "@/lib/server/tcgCards";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+
+/** Same for everyone: the CDN holds it 10 min, serves stale for a day while it refreshes. */
+const CDN_CACHE = { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=86400" };
 
 /**
  * Every English set in the mirror, newest first — the catalogue behind the
@@ -20,6 +24,8 @@ interface SetRow {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  if (limited) return limited;
   try {
     return await listSets(req);
   } catch (err) {
@@ -32,11 +38,11 @@ async function listSets(req: NextRequest) {
   // ?game=mtg → the Scryfall mirror's sets (with their set icons).
   const game = parseGame(req.nextUrl.searchParams.get("game"));
   if (game === "mtg") {
-    return NextResponse.json({ sets: await listMtgSets() });
+    return NextResponse.json({ sets: await listMtgSets() }, { headers: CDN_CACHE });
   }
   // Lorcana / One Piece / Yu-Gi-Oh! — the shared tcg_cards mirror.
   if (isTcgGame(game)) {
-    return NextResponse.json({ sets: await listTcgSets(game) });
+    return NextResponse.json({ sets: await listTcgSets(game) }, { headers: CDN_CACHE });
   }
 
   // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06).
@@ -59,5 +65,5 @@ async function listSets(req: NextRequest) {
     }));
   });
 
-  return NextResponse.json({ sets });
+  return NextResponse.json({ sets }, { headers: CDN_CACHE });
 }
