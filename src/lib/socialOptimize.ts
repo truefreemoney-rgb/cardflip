@@ -11,16 +11,25 @@
  * then "random draw? thats not how an optimizer works"): no randomness in the
  * kind choice. 1pm is always the video (the shared file every site posts).
  *
- * Scoring (scoreKinds):
- * - Posts 2 to 28 days old only: views keep growing for two days, and a
- *   month-old result says little about now.
- * - Each post is scored against its own site's average (1.0 = an average
- *   post there), so TikTok's view counts cannot swamp the rest. A site that
- *   reports views is scored on views, one that does not (Bluesky, Facebook)
- *   on likes + comments + shares.
- * - One runaway post cannot carry a kind: a post counts for at most
- *   SCORE_CAP times its site's average.
- * - A kind needs MIN_POSTS posts over MIN_DAYS days or there is no opinion.
+ * Scoring (scoreKinds; 10-06 review, Chris: "something seems off", then "upgrade it"):
+ * - Posts 2 to 28 days old, and none before DATA_FROM (10-03, when every slot
+ *   became a video: older posts compare a 7am picture with a 1pm video).
+ * - Each post is scored against the average of its own site AND slot (1.0 =
+ *   an average post at that hour there), so 1pm beating 7am is not read as one
+ *   kind beating another. A thin site+slot (under SLOT_BASE_MIN posts) falls
+ *   back to the site's average. A site that reports views is scored on views,
+ *   one that does not (Bluesky, Facebook) on likes + comments + shares.
+ * - A post with no number from its site is left out, not scored 0 (Instagram
+ *   gives no views for a picture), and so is a post at 0 views on a views
+ *   site (deleted, or held back like the 10-05 music incident: delivery
+ *   failed, the kind was never tried).
+ * - Sites count by reach (SITE_WEIGHT: TikTok most, Bluesky/Facebook least),
+ *   and newer posts count more (half weight every HALF_LIFE_DAYS days).
+ * - One runaway post cannot carry a kind: SCORE_CAP times the average at most.
+ * - The score starts at the average (1.0) and moves toward the kind's own
+ *   results as weight builds (PRIOR_WEIGHT of pretend-average posts), so a
+ *   new kind earns an opinion in days and one lucky post cannot crown it. No
+ *   opinion at all under MIN_POSTS posts over MIN_DAYS days.
  *
  * The pick (rotate), deterministic so every reader agrees:
  * - Exploration first: a kind with no score yet comes before every scored one,
@@ -66,13 +75,23 @@ export const GAME_NAME: Record<AngleGame, string> = { pokemon: "Pokémon", mtg: 
 
 export const MIN_AGE_DAYS = 2;
 export const MAX_AGE_DAYS = 28;
-export const MIN_POSTS = 10;
-export const MIN_DAYS = 5;
+export const MIN_POSTS = 6;
+export const MIN_DAYS = 2;
+/** Posts before this Eastern day are not scored: before 10-03 only 1pm was a video. */
+export const DATA_FROM = "2026-10-03";
+/** How much each site's verdict counts: TikTok is where the views are; Bluesky and Facebook posts get 0-2 likes. */
+export const SITE_WEIGHT: Record<string, number> = { tiktok: 3, instagram: 1, threads: 1, x: 1, bluesky: 0.5, facebook: 0.5 };
+/** A post this many days old counts half as much as one from today. */
+export const HALF_LIFE_DAYS = 14;
+/** Shrinkage: the score is (weighted results + PRIOR_WEIGHT × 1.0) / (weight + PRIOR_WEIGHT). */
+export const PRIOR_WEIGHT = 4;
+/** A site+slot needs this many posts before posts there are judged against it instead of the whole site. */
+export const SLOT_BASE_MIN = 4;
 export const SCORE_CAP = 4;
 /** A kind is never weighted under this share of the mean: weak kinds air seldom, not never. */
 export const FLOOR = 0.25;
 /** A kind posted this many days back (either slot) is not drawn again. */
-export const NO_REPEAT_DAYS = 2;
+export const NO_REPEAT_DAYS = 1;
 /** The days of posts the fair rotation counts (10-06): how many slots each kind actually posted in this window. */
 export const USAGE_DAYS = 14;
 /** The evening run picks this many days out: tomorrow, whose videos it then renders in the same pass. */
@@ -124,32 +143,58 @@ interface Normed {
   norm: number;
   /** Eastern day it posted. */
   day: string;
+  /** Its say in the kind's score: site reach × recency. */
+  weight: number;
 }
 
-/** Every countable post with its score against its own site's average. */
+/** Every countable post with its score against its own site+slot average, and its weight. */
 function normalize(posts: ScoredPost[], now: number): Normed[] {
-  const bySite = new Map<string, ScoredPost[]>();
+  const bySite = new Map<string, { p: ScoredPost; age: number }[]>();
   for (const p of posts) {
     const t = Date.parse(p.at.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
     if (!isScored(p.kind) || Number.isNaN(t)) continue;
     const age = (now - t) / DAY_MS;
     if (age < MIN_AGE_DAYS || age > MAX_AGE_DAYS) continue;
-    bySite.set(p.site, [...(bySite.get(p.site) ?? []), p]);
+    if ((easternOf(p.at)?.day ?? "") < DATA_FROM) continue;
+    bySite.set(p.site, [...(bySite.get(p.site) ?? []), { p, age }]);
   }
   const out: Normed[] = [];
-  for (const sitePosts of bySite.values()) {
-    const hasViews = sitePosts.some((p) => (p.views ?? 0) > 0);
-    const metric = (p: ScoredPost) => (hasViews ? (p.views ?? 0) : (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0));
-    const mean = sitePosts.reduce((n, p) => n + metric(p), 0) / sitePosts.length;
-    if (!(mean > 0)) continue; // a site with no numbers at all says nothing about any kind
-    for (const p of sitePosts) out.push({ post: p, kind: p.kind as ScoredKind, norm: Math.min(metric(p) / mean, SCORE_CAP), day: easternOf(p.at)?.day ?? "" });
+  for (const [site, all] of bySite) {
+    const hasViews = all.some(({ p }) => (p.views ?? 0) > 0);
+    // null = no number for this post: left out, never a zero.
+    const metric = (p: ScoredPost): number | null => {
+      if (hasViews) return p.views == null || p.views <= 0 ? null : p.views;
+      if (p.likes == null && p.comments == null && p.shares == null) return null;
+      return (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0);
+    };
+    const counted = all.map((x) => ({ ...x, m: metric(x.p) })).filter((x): x is typeof x & { m: number } => x.m != null);
+    const mean = (xs: { m: number }[]) => (xs.length ? xs.reduce((n, x) => n + x.m, 0) / xs.length : 0);
+    const siteMean = mean(counted);
+    if (!(siteMean > 0)) continue; // a site with no numbers at all says nothing about any kind
+    const slotMean = new Map<string, number>();
+    for (const slot of new Set(counted.map((x) => x.p.slot ?? ""))) {
+      const xs = counted.filter((x) => (x.p.slot ?? "") === slot);
+      if (slot && xs.length >= SLOT_BASE_MIN && mean(xs) > 0) slotMean.set(slot, mean(xs));
+    }
+    const siteWeight = SITE_WEIGHT[site] ?? 1;
+    for (const { p, age, m } of counted) {
+      const base = slotMean.get(p.slot ?? "") ?? siteMean;
+      out.push({
+        post: p,
+        kind: p.kind as ScoredKind,
+        norm: Math.min(m / base, SCORE_CAP),
+        day: easternOf(p.at)?.day ?? "",
+        weight: siteWeight * Math.pow(0.5, age / HALF_LIFE_DAYS),
+      });
+    }
   }
   return out;
 }
 
 function scoreOf(list: Normed[]): { posts: number; days: number; score: number | null } {
   const days = new Set(list.map((n) => n.day).filter(Boolean)).size;
-  const score = list.length ? round2(list.reduce((s, n) => s + n.norm, 0) / list.length) : null;
+  const w = list.reduce((n, x) => n + x.weight, 0);
+  const score = list.length ? round2((list.reduce((n, x) => n + x.weight * x.norm, 0) + PRIOR_WEIGHT) / (w + PRIOR_WEIGHT)) : null;
   return { posts: list.length, days, score: list.length >= MIN_POSTS && days >= MIN_DAYS ? score : null };
 }
 
@@ -377,7 +422,7 @@ export function step(input: { posts: ScoredPost[]; now: number; day: string; off
     return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w, formats)}` }, entry: null };
   }
   const picks = rotate({ day: input.day, scores, games, formats, yesterday: input.yesterday, recent: input.recent, used: input.used, pool: input.pool });
-  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.midday)} at 1pm, ${describePick(picks.evening)} at 7pm. Never-scored styles first (least-used), then each style gets slots in proportion to its score; the pick is the one furthest behind its share (never a kind from the last ${NO_REPEAT_DAYS} days). ${scoreLine(scores, w, formats)}`;
+  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.midday)} at 1pm, ${describePick(picks.evening)} at 7pm. Never-scored styles first (least-used), then each style gets slots in proportion to its score; the pick is the one furthest behind its share (never a kind posted ${NO_REPEAT_DAYS === 1 ? "the day before" : `in the last ${NO_REPEAT_DAYS} days`}). ${scoreLine(scores, w, formats)}`;
   const entry: StandingEntry = {
     from: input.day,
     morning: picks.morning.kind,

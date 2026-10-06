@@ -13,7 +13,7 @@
  * off writes nothing.
  */
 import assert from "node:assert/strict";
-import { FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, NO_REPEAT_DAYS, PICTURE_PRIOR, USAGE_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
+import { DATA_FROM, FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, PRIOR_WEIGHT, SITE_WEIGHT, NO_REPEAT_DAYS, PICTURE_PRIOR, USAGE_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
 import { ANGLE_GAMES, angleCycle } from "../src/lib/socialPlan.ts";
 
 const NOW = Date.parse("2026-10-20T16:00:00Z"); // noon Eastern
@@ -40,21 +40,50 @@ r = scoreKinds([...run("set", 10), ...run("movers", 10), ...run("games", 10), ..
 assert.equal(score(r, "dips"), 1);
 // A better kind scores above 1, a worse one under.
 r = scoreKinds([...run("set", 6), ...run("games", 10), ...run("dips", 14)], NOW);
-assert.ok(score(r, "dips") > 1.3 && score(r, "set") < 0.7, `${score(r, "dips")} / ${score(r, "set")}`);
+assert.ok(score(r, "dips") > 1.15 && score(r, "set") < 0.85, `${score(r, "dips")} / ${score(r, "set")}`);
+// Shrinkage (10-06): the score sits between 1.0 and the raw result, closer to the raw as weight builds.
+const raw = (14 / 10) ; // dips vs the site mean
+assert.ok(score(r, "dips") < raw, "pulled toward the average by PRIOR_WEIGHT");
+assert.ok(PRIOR_WEIGHT === 4);
 
 // A site with no views is scored on likes + comments + shares; a site with no numbers at all is left out.
 r = scoreKinds([...run("set", 10), ...run("games", 10), ...run("dips", 10)].filter((p) => p.site === "bs").map((p) => (p.kind === "dips" ? { ...p, likes: 5, comments: 5, shares: 10 } : p)), NOW);
 assert.equal(r.counted, 18);
-assert.equal(r.scores.find((s) => s.kind === "dips").posts, 6); // 6 posts < MIN_POSTS: no opinion yet
-assert.equal(score(r, "dips"), null);
+assert.equal(r.scores.find((s) => s.kind === "dips").posts, 6); // 6 posts over 6 days: an opinion (10-06 thresholds)
+assert.ok(score(r, "dips") > 1);
 r = scoreKinds([...run("set", 10), ...run("games", 10), ...run("dips", 10)].map((p) => (p.site === "bs" ? { ...p, likes: 0 } : p)), NOW);
 assert.equal(r.counted, 18, "the all-zero site is not counted");
 
+// No number for a post = left out, never a zero (Instagram gives no views for a picture); 0 views on a views site = left out.
+r = scoreKinds([...run("set", 10), ...run("dips", 10)].map((p) => (p.site === "tt" && p.kind === "dips" ? { ...p, views: null } : p)), NOW);
+assert.equal(r.scores.find((s) => s.kind === "dips").posts, 6, "the six view-less TikTok rows are skipped, the likes site still counts");
+r = scoreKinds([...run("set", 10), ...run("dips", 10), post("tt", "dips", 3, { views: 0 })], NOW);
+assert.equal(r.scores.find((s) => s.kind === "dips").posts, 12, "the 0-view post (deleted / held back) is skipped");
+assert.equal(score(r, "dips"), 1);
+
+// Same-slot baseline: 1pm posts doing 3x the 7am ones do not make the 1pm kind a winner.
+const at = (site, kind, age, slot, views) => ({ ...post(site, kind, age, { views }), slot });
+const slotted = [];
+for (let i = 3; i < 9; i++) slotted.push(at("tt", "set", i, "morning", 1000), at("tt", "movers", i, "midday", 3000));
+r = scoreKinds(slotted, NOW);
+assert.deepEqual([score(r, "set"), score(r, "movers")], [1, 1], "each judged against its own slot");
+
+// Sites count by reach: a TikTok verdict outweighs a Bluesky one.
+assert.ok(SITE_WEIGHT.tiktok > SITE_WEIGHT.x && SITE_WEIGHT.x > SITE_WEIGHT.bluesky);
+const mixedSites = [];
+for (let i = 3; i < 9; i++) mixedSites.push(post("tiktok", "dips", i, { views: 2000 }), post("tiktok", "set", i, { views: 1000 }), post("bluesky", "dips", i, { likes: 1 }), post("bluesky", "set", i, { likes: 2 }));
+r = scoreKinds(mixedSites, NOW);
+assert.ok(score(r, "dips") > 1 && score(r, "set") < 1, `TikTok wins the argument: ${score(r, "dips")} / ${score(r, "set")}`);
+
+// Nothing from before DATA_FROM (when only 1pm was a video).
+assert.equal(DATA_FROM, "2026-10-03");
+assert.equal(scoreKinds([{ ...post("tt", "set", 5, { views: 9 }), at: "2026-10-02T11:00:00Z" }], Date.parse("2026-10-08T16:00:00Z")).counted, 0);
+
 // Too few posts or too few days: no opinion.
-assert.ok(MIN_POSTS === 10 && MIN_DAYS === 5);
-r = scoreKinds([...run("set", 10), ...run("dips", 50, 4)], NOW);
+assert.ok(MIN_POSTS === 6 && MIN_DAYS === 2);
+r = scoreKinds([...run("set", 10), ...run("dips", 50, 1)], NOW);
 assert.equal(score(r, "dips"), null);
-assert.deepEqual([r.scores.find((s) => s.kind === "dips").posts, r.scores.find((s) => s.kind === "dips").days], [8, 4]);
+assert.deepEqual([r.scores.find((s) => s.kind === "dips").posts, r.scores.find((s) => s.kind === "dips").days], [2, 1]);
 
 // The age window: yesterday's posts (views still growing) and month-old ones do not count.
 r = scoreKinds([...run("set", 10), ...run("dips", 10), ...run("dips", 999, 2, 0), ...run("dips", 999, 6, 29)], NOW);
@@ -198,7 +227,7 @@ assert.ok(goodDays.filter((d) => d.morning.format === "picture").length >= 35, "
 assert.deepEqual(formatWeights([{ format: "video", posts: 20, score: 1.5 }, { format: "picture", posts: 20, score: 0.3 }]), { video: 1.5, picture: 0.3 });
 
 // ---- One day of the loop (step) ----
-assert.ok(LEAD_DAYS === 1 && NO_REPEAT_DAYS === 2);
+assert.ok(LEAD_DAYS === 1 && NO_REPEAT_DAYS === 1);
 const posts = [...run("set", 6), ...run("movers", 10), ...run("games", 10), ...run("dips", 14)];
 let s = step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: yday, recent: ["set", "games", "dips", "set"] });
 assert.equal(s.report.day, "2026-10-20");
@@ -208,8 +237,8 @@ assert.equal(s.entry.middayGame, s.report.picks.midday.game ?? undefined, "the e
 assert.equal(s.entry.middayFormat, undefined);
 assert.ok(![s.entry.morning, s.entry.midday, s.entry.evening].some((k) => ["set", "games", "dips"].includes(k)), "the last two days' kinds sit out");
 assert.equal(s.entry.morningGame, s.report.picks.morning.game ?? undefined, "the entry carries the angle's game");
-assert.match(s.report.why, /^2026-10-21: .+ at 7am, .+ at 1pm, .+ at 7pm\. Never-scored styles first \(least-used\), then each style gets slots in proportion to its score; the pick is the one furthest behind its share \(never a kind from the last 2 days\)\. Scores \(1\.0 = an average post on its site\): set spotlight 0\.\d+, weekly gains \d+(\.\d+)?, all-games jumps 1(\.\d+)?, price drops 1\.\d+, guess the price – \(0 of 10 posts\)/);
-assert.match(s.report.why, /A kind with no score yet airs first \(least-used\) until it has 10 posts over 5 days\. Video 1 vs picture 0\.2 \(the picture's own score needs 10 posts on sites that post both; it has 0\)\.$/);
+assert.match(s.report.why, /^2026-10-21: .+ at 7am, .+ at 1pm, .+ at 7pm\. Never-scored styles first \(least-used\), then each style gets slots in proportion to its score; the pick is the one furthest behind its share \(never a kind posted the day before\)\. Scores \(1\.0 = an average post on its site\): set spotlight 0\.\d+, weekly gains \d+(\.\d+)?, all-games jumps 1(\.\d+)?, price drops 1\.\d+, guess the price – \(0 of 6 posts\)/);
+assert.match(s.report.why, /A kind with no score yet airs first \(least-used\) until it has 6 posts over 2 days\. Video 1 vs picture 0\.2 \(the picture's own score needs 6 posts on sites that post both; it has 0\)\.$/);
 // The entry carries "picture" only when drawn (absent = video), and the sentence says so.
 const pic = Array.from({ length: 60 }, (_, i) => step({ posts, now: NOW, day: `2027-06-${String((i % 28) + 1).padStart(2, "0")}`, off: false, yesterday: yday, recent: [] })).find((x) => x.report.picks.morning.format === "picture" || x.report.picks.evening.format === "picture");
 assert.ok(pic, "some day draws a picture");

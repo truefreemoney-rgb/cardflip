@@ -88,7 +88,12 @@ export async function runSocialOptimize(now = Date.now(), opts: { target?: strin
     await addScheduleEntry(entry, now);
     // Every change the optimizer makes is on the board's Completed list (Chris 10-03: "I need to be made aware of changes").
     const pick = (p: DayPicks["morning"]) => `${KIND_NAME[p.kind] ?? p.kind}${p.game ? ` (${GAME_NAME[p.game as keyof typeof GAME_NAME] ?? p.game})` : ""}${p.format === "picture" ? ", picture" : ""}`;
-    if (report.picks) await addCompletedLine(`Social optimizer ${day} — ${target}: 7am ${pick(report.picks.morning)}, 1pm ${pick(report.picks.midday)}, 7pm ${pick(report.picks.evening)}`, now);
+    // The scores ride along (10-06, Chris: "make the optimizer run at its best"): each style's score and post count,
+    // "new" while it is still being tried, so the pick can be checked against the numbers on the board itself.
+    const scoreText = report.scores
+      .map((s) => `${KIND_NAME[s.kind] ?? s.kind} ${s.score != null ? s.score : "new"} (${s.posts})`)
+      .join(", ");
+    if (report.picks) await addCompletedLine(`Social optimizer ${day} — ${target}: 7am ${pick(report.picks.morning)}, 1pm ${pick(report.picks.midday)}, 7pm ${pick(report.picks.evening)}. Scores (1.0 = average, posts): ${scoreText}`, now);
   }
 
   // Hashtags: the same once-a-day run, the same Off switch, its own trial (lib/socialTags.ts).

@@ -131,12 +131,18 @@ export interface PostTag {
 
 /** The kind a caption was written for, read off its opening words; null when it is none of the autopilot's formats. */
 export function kindOfCaption(text: string): PostKindTag | null {
-  // A TikTok caption opens on the link-in-bio line (10-02, tiktokLead); the kind is in the line after it.
-  const s = text.replace(/^scan a card[^\n]*\n+/i, "").slice(0, 90).toLowerCase();
+  // A TikTok caption opens on the lead line (10-02 "link in bio", 10-05 "type cardflip.io in your browser"); the kind is
+  // in the words after it. TikTok hands the caption back with its line breaks flattened (10-06: every hand post since
+  // 10-05 read as untagged), so the lead is cut on its own words, not on a newline.
+  const s = text
+    .replace(/^scan a card[^\n]*?(?:in your browser|link in bio)[.:!]?\s*/i, "")
+    .replace(/^scan a card[^\n]*\n+/i, "")
+    .slice(0, 120)
+    .toLowerCase();
   // The five angles (10-03) open on their own words; "most valuable" alone is still the set spotlight, so the
   // all-sets list says "across every set" / "in each game" and is read first.
   if (s.includes("across every set") || s.includes("most valuable card in each game")) return "top";
-  if (s.includes("what's it worth")) return "guess";
+  if (s.includes("what's it worth") || s.includes("guess the price")) return "guess";
   if (s.includes("then vs now")) return "thennow";
   if (s.includes("head to head")) return "versus";
   if (s.includes("under $5")) return "sleepers";
@@ -181,7 +187,13 @@ export function tagPost(
   const logged = log.find((l) => l.site === post.site && sameLogged(post, l.url));
   if (logged) return { kind: logged.kind, slot: logged.slot, game: logged.game ?? null, format: logged.format ?? null };
   const format: FormatTag | null = post.site === "tiktok" ? "video" : null;
-  const kind = kindOfCaption(post.text);
+  // A TikTok hand post (it opens on our lead line) whose words name no kind takes the kind of the video registered
+  // for its slot that day (10-06).
+  const tiktokVideo = (): PostKindTag | null => {
+    const when = easternOf(post.at);
+    return ((when && videos.find((v) => v.day === when.day && v.slot === slotOfHour(when.hour))?.kind) as PostKindTag | undefined) ?? null;
+  };
+  const kind = kindOfCaption(post.text) ?? (post.site === "tiktok" && /^scan a card/i.test(post.text) ? tiktokVideo() : null);
   if (!kind) return { kind: null, slot: null, game: null, format: null };
   const when = easternOf(post.at);
   if (!when) return { kind, slot: null, game: null, format };
