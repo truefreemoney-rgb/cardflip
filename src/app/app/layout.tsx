@@ -3,6 +3,7 @@ import SessionProvider from "@/components/SessionProvider";
 import AppHeader from "@/components/AppHeader";
 import BottomTabBar from "@/components/BottomTabBar";
 import SubscriptionGate from "@/components/SubscriptionGate";
+import OfflineWorker from "@/components/OfflineWorker";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
 import { PendingWatch } from "@/components/WatchPrice";
@@ -29,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SubscriptionGate>{children}</SubscriptionGate>
         <TourOverlay />
         <PendingWatch />
+        <OfflineWorker />
       </div>
       <Toaster />
       <BottomTabBar />

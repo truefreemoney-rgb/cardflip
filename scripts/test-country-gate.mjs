@@ -53,7 +53,7 @@ check("DE /api/fx → 403", outcome(hit("/api/fx", "DE")), "403");
 for (const p of [
   "/unavailable", "/api/waitlist", "/api/geo", "/login", "/api/auth/login", "/api/auth/me", "/api/auth/logout",
   "/forgot-password", "/reset-password", "/api/auth/forgot", "/api/auth/reset", "/confirm-email", "/api/auth/verify-email",
-  "/privacy", "/terms", "/robots.txt", "/sitemap.xml", "/sitemaps/cards-pokemon.xml", "/sw.js", "/manifest.webmanifest",
+  "/privacy", "/terms", "/robots.txt", "/sitemap.xml", "/sitemaps/cards-pokemon.xml", "/sw.js", "/offline.html", "/manifest.webmanifest",
   "/opengraph-image", "/googleb77c2796ee19a2c8.html", "/tiktokWwS7fGv6FYzU7e27YEIzjd4aMmjwnCOd.txt",
   "/api/stripe/webhook", "/api/ebay/callback", "/api/cron/pokemon-prices", "/api/social/publish", "/api/ops/alert",
   "/api/runner/status", "/api/digest/unsubscribe",

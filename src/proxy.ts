@@ -128,6 +128,7 @@ const GATE_EXEMPT_PAGES = new Set([
   "/robots.txt",
   "/sitemap.xml",
   "/sw.js",
+  "/offline.html",
   "/manifest.webmanifest",
 ]);
 /** Search engines and link previews crawl from anywhere; a foreign crawl must never index the waitlist screen on a card URL. */

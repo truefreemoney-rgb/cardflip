@@ -19,6 +19,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#0a0b11",
     theme_color: "#0a0b11",
     categories: ["shopping", "utilities"],
+    // Long-press the home-screen icon (Android; iOS ignores them).
+    shortcuts: [
+      { name: "Scan", short_name: "Scan", description: "Open the camera scanner", url: "/app", icons: [{ src: "/icon.png", sizes: "512x512", type: "image/png" }] },
+      { name: "Inventory", short_name: "Inventory", description: "Your scanned cards", url: "/app/collection", icons: [{ src: "/icon.png", sizes: "512x512", type: "image/png" }] },
+    ],
     icons: [
       { src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
       // Padded variant: launchers mask to the middle ~80%, and the edge-to-edge
