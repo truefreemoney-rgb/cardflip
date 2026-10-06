@@ -87,7 +87,8 @@ if (missing) throw new Error(`${missing} slot(s) not registered for ${day}; the 
   const { spawnSync } = await import("node:child_process");
   const ffmpeg = (await import("ffmpeg-static")).default;
   for (const [label] of caps) {
-    const mp4 = path.join(dir, `${label}.mp4`);
+    // The pack writes "<label> - TikTok (no music).mp4" + "<label> - Pinterest (music).mp4" since 10-05 (same frames).
+    const mp4 = path.join(dir, `${label} - TikTok (no music).mp4`);
     const grab = (t) => {
       const r = spawnSync(ffmpeg, ["-v", "error", "-ss", String(t), "-i", mp4, "-frames:v", "1", "-vf", "scale=90:160", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]);
       return r.status === 0 && r.stdout.length ? r.stdout : null;
