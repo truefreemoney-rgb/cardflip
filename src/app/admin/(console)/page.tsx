@@ -5,6 +5,7 @@ import NeedsYouList, { type NeedsYouItem } from "@/components/admin/NeedsYouList
 import { etDay } from "@/lib/time";
 import { ago, money, num } from "@/components/admin/format";
 import { getAdminOverview } from "@/lib/server/adminStats";
+import { reportStaleOnceADay, staleChecks } from "@/lib/server/healthChecks";
 import { getOverviewPulse, localTesterText } from "@/lib/server/overview";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
 import { ebayRateLimits, GROWTH_CHECK_LINE } from "@/lib/server/ebayRateLimits";
@@ -24,12 +25,15 @@ export const maxDuration = 60;
  */
 export default async function AdminOverviewPage() {
   await requireOwnerPage();
-  const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary(), ebayRateLimits()]);
+  const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits, stale] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary(), ebayRateLimits(), staleChecks()]);
+  // A visit also files the once-a-day Errors-page line if the backup or price run is stale.
+  if (stale.length) void reportStaleOnceADay();
   const s = o.stats;
   const now = p.now;
 
   // "Needs you": only rows with something behind them. Empty = all quiet.
   const attention: NeedsYouItem[] = [];
+  for (const st of stale) attention.push({ href: st.href, text: st.text, tone: st.tone });
   if (p.support.needsReply)
     attention.push({
       href: "/admin/support",

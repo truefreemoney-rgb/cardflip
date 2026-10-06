@@ -174,3 +174,14 @@ if (problems.length) {
   process.exit(1);
 }
 console.log("integrity_check ok, all table counts match");
+// Evidence for the admin overview (audit F6): stamp the finish time into the
+// live database so the site can warn when the nightly PC backup stops. Only
+// reached after integrity + count checks passed; a failed stamp never fails the backup.
+try {
+  const stamper = createClient({ url, authToken });
+  await stamper.execute({ sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES ('backup_last_ok', ?)", args: [String(Date.now())] });
+  stamper.close();
+  console.log("stamped backup_last_ok on the live database");
+} catch (err) {
+  console.warn(`could not stamp backup_last_ok: ${err?.message ?? err}`);
+}

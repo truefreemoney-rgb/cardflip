@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
+import { reportStaleOnceADay } from "@/lib/server/healthChecks";
 import { sweepSocialInbox } from "@/lib/server/socialInbox";
 import { refreshSocialPosts } from "@/lib/server/socialPosts";
 
@@ -26,6 +27,8 @@ export async function GET(req: NextRequest) {
     }
   }
   const started = Date.now();
+  // Backstop for a dead price cron: files the stale backup / price run line (once a day).
+  await reportStaleOnceADay();
   // Same ping also stores every post's counts for /admin/social/posts (the page never reads a platform itself).
   // The optimizer no longer rides this ping (10-03): it runs in the evening as the first step of the night render.
   const [report, posts] = await Promise.all([sweepSocialInbox(), refreshSocialPosts()]);

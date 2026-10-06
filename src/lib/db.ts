@@ -121,6 +121,9 @@ const SCHEMA = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_cards_user ON cards(user_id);
+  -- Admin overview aggregates (status counts, scans in a window) rode full scans of cards.
+  CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status);
+  CREATE INDEX IF NOT EXISTS idx_cards_created ON cards(created_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
   -- Mirror of TCGdex's Japanese card names/sets. TCGdex's own name-search
@@ -1113,6 +1116,8 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
   // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
+  // Admin overview per-game card counts; game is an added column, so after the probe.
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_game ON cards(game)");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

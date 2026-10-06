@@ -177,10 +177,38 @@ const EMPTY_CATALOG: CatalogHealth = {
   tcgplayerMap: 0,
 };
 
-export async function getAdminOverview(now = Date.now()): Promise<AdminOverview> {
-  const base = await getPlatformStats();
+/**
+ * The cards-table aggregates (platform totals + per-game / windowed scan counts) walk the biggest
+ * per-user table. Memoed in-process for two minutes (audit F3): the console is reloaded a lot and
+ * these numbers do not need to be live. Indexed on status / game / created_at (db.ts) as well.
+ */
+const CARD_AGG_TTL_MS = 2 * 60 * 1000;
+type CardAggregates = { base: PlatformStats; scans7d: number; scans30d: number; mtgCards: number; pokemonCards: number };
+let cardAggMemo: { at: number; value: CardAggregates } | null = null;
+
+/** Tests only: drop the memo. */
+export function _resetCardAggregates(): void {
+  cardAggMemo = null;
+}
+
+async function cardAggregates(now: number): Promise<CardAggregates> {
+  if (cardAggMemo && Date.now() - cardAggMemo.at < CARD_AGG_TTL_MS) return cardAggMemo.value;
   const week = now - 7 * DAY_MS;
   const month = now - 30 * DAY_MS;
+  const value: CardAggregates = {
+    base: await getPlatformStats(),
+    scans7d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", week),
+    scans30d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", month),
+    mtgCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'mtg'"),
+    pokemonCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'pokemon'"),
+  };
+  cardAggMemo = { at: Date.now(), value };
+  return value;
+}
+
+export async function getAdminOverview(now = Date.now()): Promise<AdminOverview> {
+  const { base, scans7d, scans30d, mtgCards, pokemonCards } = await cardAggregates(now);
+  const week = now - 7 * DAY_MS;
 
   const rollupRows = (await db
     .prepare(
@@ -269,12 +297,12 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
     stats: {
       ...base,
       newUsers7d: await count("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", week),
-      scans7d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", week),
-      scans30d: await count("SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", month),
+      scans7d,
+      scans30d,
       priceChecks7d: await count("SELECT COUNT(*) AS n FROM price_checks WHERE checked_at >= ?", week),
       wishlistItems: await count("SELECT COUNT(*) AS n FROM wishlist_items"),
-      mtgCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'mtg'"),
-      pokemonCards: await count("SELECT COUNT(*) AS n FROM cards WHERE game = 'pokemon'"),
+      mtgCards,
+      pokemonCards,
     },
     activity: {
       visitors: await visitorsPerDay(30, now),

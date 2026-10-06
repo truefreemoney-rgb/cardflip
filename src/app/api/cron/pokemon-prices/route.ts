@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { recordCronResult, runPokemonSteps } from "@/lib/server/dailyJobs";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { sendErrorDigestIfNeeded } from "@/lib/server/errorDigest";
+import { reportStaleOnceADay } from "@/lib/server/healthChecks";
 import { publishSocial } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
 
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
   const t0 = Date.now();
   const result = await runPokemonSteps();
   await recordCronResult({ ...result, ms: Date.now() - t0 }, false);
+  // Stale backup / price run lands on the Errors page (once a day) before the digest counts errors.
+  await reportStaleOnceADay();
   // Last step of the day: tell the owner if prod has been throwing.
   const errorDigest = await sendErrorDigestIfNeeded();
   // Then the social autopilot (docs/SOCIAL-AUTOPILOT.md): posts on Tue/Thu/

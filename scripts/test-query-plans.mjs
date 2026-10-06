@@ -181,6 +181,18 @@ await run("listMtgSets (cached)", [], () => mtg.listMtgSets());
 const cachedHit = violations.length === before && (seen.get("listMtgSets (cached)") ?? 0) === 1;
 if (!cachedHit) violations.push({ fn: "listMtgSets (cached)", sql: "(second call)", detail: "expected one card_cache read and no catalog walk" });
 
+// --- admin overview card counts (audit F3): each must SEARCH an index, never walk cards ---
+// (cards is not on BIG - the active-users page walks it on purpose - so these are pinned verbatim.)
+for (const [label, sql, args] of [
+  ["admin scans7d/30d (created_at)", "SELECT COUNT(*) AS n FROM cards WHERE created_at >= ?", [0]],
+  ["admin mtg count (game)", "SELECT COUNT(*) AS n FROM cards WHERE game = 'mtg'", []],
+  ["admin ready count (status)", "SELECT COUNT(*) AS n FROM cards WHERE status = 'ready'", []],
+]) {
+  const plan = (await origPrepare("EXPLAIN QUERY PLAN " + sql).all(...args)).map((r) => String(r.detail ?? ""));
+  seen.set(label, 1);
+  if (!plan.some((d) => /^SEARCH cards /.test(d))) violations.push({ fn: label, sql, detail: plan.join(" | ") });
+}
+
 // --- self-check: the detector must flag a known full scan ------------------------
 await run("self-check", [], () => db.prepare("SELECT COUNT(*) AS c FROM en_cards").get());
 const selfIdx = violations.findIndex((v) => v.fn === "self-check");
