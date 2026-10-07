@@ -177,11 +177,17 @@ console.log("integrity_check ok, all table counts match");
 // Evidence for the admin overview (audit F6): stamp the finish time into the
 // live database so the site can warn when the nightly PC backup stops. Only
 // reached after integrity + count checks passed; a failed stamp never fails the backup.
-try {
+// Retried like the copy: 10-07's stamp died once on "fetch failed" from the cloud runner.
+for (let attempt = 1; attempt <= 4; attempt++) {
   const stamper = createClient({ url, authToken });
-  await stamper.execute({ sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES ('backup_last_ok', ?)", args: [String(Date.now())] });
-  stamper.close();
-  console.log("stamped backup_last_ok on the live database");
-} catch (err) {
-  console.warn(`could not stamp backup_last_ok: ${err?.message ?? err}`);
+  try {
+    await stamper.execute({ sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES ('backup_last_ok', ?)", args: [String(Date.now())] });
+    console.log("stamped backup_last_ok on the live database");
+    break;
+  } catch (err) {
+    console.warn(`could not stamp backup_last_ok (try ${attempt} of 4): ${err?.message ?? err} ${err?.cause?.code ?? err?.cause?.message ?? ""}`);
+    if (attempt < 4) await new Promise((r) => setTimeout(r, 3000 * attempt));
+  } finally {
+    stamper.close();
+  }
 }

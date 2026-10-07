@@ -15,7 +15,7 @@ import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
 import { scanSealedProducts } from "@/lib/server/sealedPrices";
 import { refreshTcgPrices, type TcgRefreshResult } from "@/lib/server/tcgPriceRefresh";
-import { runLogCleanupIfDue } from "@/lib/server/logCleanup";
+import { runLogCleanupIfDue, type CleanupResult } from "@/lib/server/logCleanup";
 import type { TcgGame } from "@/lib/server/tcgCards";
 
 /**
@@ -111,6 +111,8 @@ export interface DailyResult {
   autoOffers?: { sellers: number; sent: number; failed: number } | { error: string };
   /** Missed-webhook catch-up: paid Stripe invoices with no scan credit (lib/server/billingCredits.ts). */
   billingReconcile?: ReconcileResult | { error: string };
+  /** Weekly retention pass (lib/server/logCleanup.ts); recorded so a run that never stamps shows why. */
+  logCleanup?: CleanupResult;
   ms?: number;
 }
 
@@ -300,7 +302,7 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     result.mtg = await runMtgStep();
     result.tcg = await runTcgStep();
     Object.assign(result, await runPokemonSteps(now));
-    await runLogCleanupIfDue(now); // weekly log retention; never throws
+    result.logCleanup = await runLogCleanupIfDue(now); // weekly log retention; never throws
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
     // failed download leaves it due again on the next trigger.

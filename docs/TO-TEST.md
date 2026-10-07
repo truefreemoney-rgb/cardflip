@@ -4,15 +4,15 @@ Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-07 Continue with Google on /signup and /login (dark until GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET are on Vercel)
-- [ ] Before the keys exist: /login and /signup show NO Google button and no "or" line (prod unchanged).
+- [x] Before the keys exist: n/a now, keys went live 10-07.
 - [ ] With keys, real phone, signed out: /signup shows the white "Continue with Google" button at the top, "or", then Username / Email / Password.
 - [ ] Sign UP with a Gmail never used here: lands on "You're in, <first name>" with the free-scan count; TikTok + Google Ads each log ONE CompleteRegistration (refresh the page: no second one). Welcome email arrives. Account page shows Password as "Set" (no current-password box).
 - [ ] Sign IN again with the same Google account from /login: goes straight to /app (or the page you were sent from), NO signup event, no second welcome email.
 - [ ] LINK: sign up with email + password first, log out, tap Continue with Google with the same address: same account, same scans and cards, password still works afterwards.
-- [ ] Cancel on Google's screen: back on the page with "Google sign-in didn't finish. Try again or use email."
+- [x] (10-07: prod callback with error=access_denied → /login?google_error=1; message itself seen in local test only) Cancel on Google's screen: back on the page with "Google sign-in didn't finish. Try again or use email."
 - [ ] A Google-only account typing a password on /login sees the "signs in with Google" message; Forgot Password lets it set one.
 - [ ] Second Google signup from the same phone/network starts with the free scans already used (same rule as email signup).
-- [ ] /admin and /admin/login look and behave exactly as before (code email, no Google button).
+- [x] /admin and /admin/login look and behave exactly as before (code email, no Google button). (10-07 prod: no Google button on /admin/login)
 
 ## 10-07 signup: "First name" box renamed "Username" (4 of 6 Google Ads visitors left the signup form)
 - [ ] Signed out on a phone: /signup shows Username / Email / Password; empty Username says "Enter a username."
@@ -27,17 +27,17 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Google Ads: signups from name pages show up in the 10-08 review.
 
 ## 10-07 "Works best on your phone" line on /scan and /app scanner
-- [ ] Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
+- [x] (10-07: on prod /scan; /app not checked) Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
 - [ ] Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
 
 ## 10-07 frozen-price guard (12297c12): cheapest-listing check + dead stale filter fixed
-- [ ] Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
+- [ ] **10-07 FAIL on the card page:** /cards/pokemon/unseen-forces/lugia-ex--ex10-105 still headlines $2,500.00 ("Old price · check eBay sold"), no "looks off" note. Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
 - [ ] Tomorrow's 09:45 UTC (5:45 AM ET) Pokemon run and 09:00 UTC (5 AM ET) Magic run write listing_lows for today (backfill wrote 2,837 rows on 10-07; readings older than 3 days stop counting).
 - [ ] /pokemon/lugia-card-value, /pokemon/charizard-card-value, /pokemon/mewtwo-card-value: no frozen ($100+, flat 45d+) card in the tiles once the 1-day tile cache turns over.
 
 ## 10-07 Charizard ad landing page + Skyridge headline fix
 - [ ] /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
-- [ ] Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
+- [ ] **10-07 half:** top now says "looks off", but the Reverse Holofoil row still shows $2,999.99. Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
 - [ ] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path).
 
 ## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
@@ -59,19 +59,19 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
 - [ ] Airplane mode on the phone inside the app shows the No Signal page; push still works after the worker update.
 - [ ] Home-screen icon long-press shows Scan and Inventory shortcuts (Android; iOS ignores them).
-- [ ] /cards/pokemon/movers and /cards/magic/movers listed in pages.xml after the sitemap cache turns over.
+- [x] (10-07) /cards/pokemon/movers and /cards/magic/movers listed in pages.xml after the sitemap cache turns over.
 
 ## 10-06 behind the scenes (audit section F)
-- [ ] 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
+- [ ] **10-07 FAIL:** backup ran fine but the stamp died on "fetch failed" (not a read-only token). Stamp now retries 4 times (backup-turso.mjs) — recheck 10-08. 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
 - [ ] TikTok Ads Manager still records ViewContent / ClickButton from /scan after the pixel moved to load after first paint (events queue up to 15 s).
 - [ ] Vercel logs: any "?key=" warning means something still sends the cron secret in the URL; once none for a week, drop ?key= support.
 - [ ] First Sunday digest after this still sends (prod mail env must be set; not checked).
-- [ ] Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
+- [ ] **10-07 FAIL:** log_cleanup_last not set after the 10-07 daily run (4 expired password_resets still there). Daily result now records logCleanup — read daily_last_result 10-08 to see why. Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
 
 ## 10-06 TCGdex price referee (56bb80f)
-- [ ] After the 10-07 nightly run: tcgdex-cm rows exist (~200 Pokemon cards).
-- [ ] Cresselia LV.X (dp4-103) card page shows $61-ish with no "looks off" note.
-- [ ] Rayquaza col1-20 still shows the "looks off" note, not $1,013.
+- [x] (10-07: 192 rows, last day 10-07) After the 10-07 nightly run: tcgdex-cm rows exist (~200 Pokemon cards).
+- [x] (10-07: $61.39) Cresselia LV.X (dp4-103) card page shows $61-ish with no "looks off" note.
+- [x] (10-07) Rayquaza col1-20 still shows the "looks off" note, not $1,013.
 - [ ] A card page chart shows no extra EUR line from the new source.
 
 ## 10-06 look and feel (audit section E)
@@ -104,11 +104,11 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Inventory tab stays highlighted on Insights / Report / Sets.
 
 ### Public pages
-- [ ] Skyridge Charizard page no longer shows a price beside "this price looks off" (was still the cached page at 11:40 AM ET 10-06).
-- [ ] Cavern of Souls ($10,000, stale) gone from Magic top cards.
+- [x] (10-07: Holofoil row shows the note with no price) Skyridge Charizard page no longer shows a price beside "this price looks off" (was still the cached page at 11:40 AM ET 10-06).
+- [x] (10-07) Cavern of Souls ($10,000, stale) gone from Magic top cards.
 - [ ] Yu-Gi-Oh / Lorcana / One Piece $1,000+ cards appear in top lists from ~10-14 (14 days of history).
 - [ ] Friendly "Something went wrong" page on a crash (can't force one on prod; check if one ever shows up in /admin/errors).
-- [ ] Star Trek (Magic) shows "Preorder · out Nov 2026".
+- [ ] **10-07 half:** set page says "out Nov 13, 2026 (preorder prices)", but card pages say "released Nov 13, 2026". Star Trek (Magic) shows "Preorder · out Nov 2026".
 - [ ] /scan doesn't flash the camera button for someone who already used the free scan.
 
 ### eBay (needs a real listing / sale)
@@ -145,7 +145,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Watch this price, signed out: goes to signup, and after signing up the card lands on the watchlist with a toast.
 - [ ] Watch this price, signed in: adds to the watchlist.
 - [ ] A set with 300+ cards: page 2 link works, pager wraps on a phone.
-- [ ] Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).
+- [x] (10-07: /app/zzz = 404) Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).
 - [ ] Skyridge Charizard still headlines $2,999.99 "Reverse Holofoil" beside a doubted Holofoil — the 10-06 fix did not change it (needs a look at what the doubted price is).
 
 ### Inventory
