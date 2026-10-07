@@ -6,6 +6,7 @@
 export const POKEMON_NAME_LANDINGS: Record<string, string> = {
   charizard: "Charizard",
   pikachu: "Pikachu",
+  dragonite: "Dragonite",
 };
 
 export const nameLandingPath = (slug: string) => `/pokemon/${slug}-card-value`;
