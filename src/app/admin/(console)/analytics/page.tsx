@@ -122,7 +122,11 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       <H2>Funnel</H2>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Funnel title={custom ? `Signed up ${windowLabel}` : `Signed up in the ${windowLabel.toLowerCase()}`} steps={a.funnel.cohort} />
-        <Funnel title="Everyone, all time" steps={a.funnel.allTime} />
+        <Funnel
+          title={custom ? `Everyone, ${windowLabel}` : `Everyone, ${windowLabel.toLowerCase()}`}
+          firstLabel="Had an account"
+          steps={a.funnel.everyone}
+        />
       </div>
 
       {/* Where people come from (lib/attribution.ts) */}
@@ -446,9 +450,9 @@ function Bars({ rows, total, color, empty }: { rows: { label: string; n: number 
   );
 }
 
-function Funnel({ title, steps }: { title: string; steps: { signedUp: number; scanned: number; listed: number; sold: number; paying: number } }) {
+function Funnel({ title, steps, firstLabel = "Signed up" }: { title: string; firstLabel?: string; steps: { signedUp: number; scanned: number; listed: number; sold: number; paying: number } }) {
   const order: [string, number][] = [
-    ["Signed up", steps.signedUp],
+    [firstLabel, steps.signedUp],
     ["Scanned a card", steps.scanned],
     ["Listed on eBay", steps.listed],
     ["Sold a card", steps.sold],
@@ -471,7 +475,7 @@ function Funnel({ title, steps }: { title: string; steps: { signedUp: number; sc
                   <span className="text-zinc-200">{label}</span>
                   <span className="tabular-nums text-zinc-400">
                     {num(n)}
-                    <span className="text-zinc-600"> · {Math.round((n / top) * 100)}%{stepPct !== null && prev !== n ? ` · ${stepPct}% of prior` : ""}</span>
+                    <span className="text-zinc-600"> · {Math.round((n / top) * 100)}%{stepPct !== null && prev !== n && stepPct <= 100 ? ` · ${stepPct}% of prior` : ""}</span>
                   </span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/5">

@@ -104,7 +104,8 @@ export interface Analytics {
   funnel: {
     /** Accounts created inside the range. */
     cohort: FunnelSteps;
-    allTime: FunnelSteps;
+    /** Accounts that existed by the range's end; scanned/listed/sold count activity inside the range. */
+    everyone: FunnelSteps;
   };
   pages: { path: string; views: number; visitors: number }[];
   referrers: { host: string; visitors: number }[];
@@ -277,17 +278,33 @@ async function attribution(since: number, end: number): Promise<Attribution> {
   };
 }
 
-async function funnel(since: number | null): Promise<FunnelSteps> {
-  // Users created in the window (or everyone when since is null).
-  const w = since === null ? "" : "AND u.created_at >= ?";
-  const args = since === null ? [] : [since];
+/** Accounts created in [since, end) and what they have done since (cohort). */
+async function funnel(since: number, end: number): Promise<FunnelSteps> {
   const q = (extra: string) =>
-    scalar(`SELECT COUNT(*) AS n FROM users u WHERE 1=1 ${w} ${extra}`, ...args);
+    scalar(`SELECT COUNT(*) AS n FROM users u WHERE u.created_at >= ? AND u.created_at < ? ${extra}`, since, end);
   const [signedUp, scanned, listed, sold, paying] = await Promise.all([
     q(""),
     q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id)"),
     q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id AND (c.listed_at IS NOT NULL OR c.status IN ('listed','sold')))"),
     q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id AND c.status = 'sold')"),
+    q("AND u.sub_status IN ('active','trialing')"),
+  ]);
+  return { signedUp, scanned, listed, sold, paying };
+}
+
+/**
+ * Every account that existed by the end of [since, end), and how many of them scanned,
+ * listed or sold INSIDE the range (Chris 10-07: the second funnel follows the date picker
+ * instead of all time). Paying is the subscription status now (no history is kept).
+ */
+async function activeFunnel(since: number, end: number): Promise<FunnelSteps> {
+  const q = (extra: string, ...args: number[]) =>
+    scalar(`SELECT COUNT(*) AS n FROM users u WHERE u.created_at < ? ${extra}`, end, ...args);
+  const [signedUp, scanned, listed, sold, paying] = await Promise.all([
+    q(""),
+    q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id AND c.created_at >= ? AND c.created_at < ?)", since, end),
+    q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id AND c.listed_at >= ? AND c.listed_at < ?)", since, end),
+    q("AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id AND c.status = 'sold' AND c.sold_at >= ? AND c.sold_at < ?)", since, end),
     q("AND u.sub_status IN ('active','trialing')"),
   ]);
   return { signedUp, scanned, listed, sold, paying };
@@ -304,7 +321,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
   const [
     visitors, pageViews, signups, scans, visionCalls, visionCostMicros, priceChecks, listed, sold, soldUsd,
     wishlist, helpMessages, errors,
-    cohort, allTime,
+    cohort, everyone,
     pages, referrers, devices, countries, detailRows,
     scansByGame, priceChecksByGame,
     subRows, ebayConnected, totalUsers,
@@ -325,8 +342,8 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     m({ table: "wishlist_items", ts: "added_at", agg: "COUNT(*)" }),
     m({ table: "help_messages", ts: "created_at", agg: "COUNT(*)", where: "role = 'user'" }),
     m({ table: "error_events", ts: "at", agg: "COUNT(*)" }),
-    funnel(since),
-    funnel(null),
+    funnel(since, now + 1),
+    activeFunnel(since, now + 1),
     rows<{ path: string; views: number; visitors: number }>(
       "SELECT path, COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors FROM page_views WHERE at >= ? GROUP BY path ORDER BY views DESC, path LIMIT 12",
       since,
@@ -397,7 +414,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     since,
     lifetime: { soldUsd: lifeSoldUsd, sold: lifeSold, listed: lifeListed },
     metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, priceChecks, listed, sold, soldUsd, wishlist, helpMessages, errors },
-    funnel: { cohort, allTime },
+    funnel: { cohort, everyone },
     pages: pages.map((p) => ({ path: p.path, views: Number(p.views), visitors: Number(p.visitors) })),
     referrers: referrers.map((r) => ({ host: r.host, visitors: Number(r.visitors) })),
     devices: devices.map((r) => ({ device: r.device, visitors: Number(r.visitors) })),
