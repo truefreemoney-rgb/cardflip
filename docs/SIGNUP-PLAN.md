@@ -37,13 +37,15 @@ Shipped 10-06 (bd792981):
 - [x] Scan Pack renamed Booster everywhere; trial card no longer lists eBay.
 
 Mine, next (no Chris needed), easiest first:
-1. Camera outcome step (/scan/camok, /scan/camdeny + error name) so "camera
-   blocked" is told apart from "left".
-2. Keep utm/gclid through to signup and store it on the account (paid vs organic).
+1. [x] Camera outcome steps /scan/cam-live|mirror|native|err-<name> (5e404653).
+2. [x] utm attribution already exists (AttributionCapture first touch -> signup);
+   only gclid is missing, add with item 3.
+   Also shipped 5e404653 (Chris asked): same /scan page signed in or out,
+   "Open App" header when signed in, live stats strip back under the steps.
 3. Google Ads tag + conversions (signup, price shown) behind
    NEXT_PUBLIC_GOOGLE_ADS_ID; Consent Mode defaults; privacy page line.
-4. Price result shows "You'd keep about $X after eBay fees" (no one answers
-   "worth selling?").
+4. ~~After-fees line on the price result~~: shipped then REVERTED 33eb22f3,
+   Chris didn't agree to it. Don't re-add without asking.
 5. Search landers for Google (free value first, search box on top):
    /sell-pokemon-cards-on-ebay (scan to listing), /pokemon-card-scanner
    ("no download"), /is-my-pokemon-card-1st-edition (exact printing),
