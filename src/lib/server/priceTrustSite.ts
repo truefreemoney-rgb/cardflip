@@ -66,6 +66,8 @@ export interface TrustData {
   eur: { nonfoil: number | null; foil: number | null } | null;
   /** The set's release date ("" = unknown), for the vintage exception. */
   released: string;
+  /** TCGplayer's cheapest live listing per variant (USD), read within the last LOW_MAX_AGE_DAYS (listing_lows, $100+ printings only). */
+  lows?: Record<string, number>;
 }
 
 export interface JudgeOpts {
@@ -153,7 +155,8 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   const cmSpeaks = data.game === "pokemon" && (s ? s === def : data.series.length === 0);
   const refEur = data.game === "mtg" ? (variant === "foil" || variant === "etched" ? (data.eur?.foil ?? null) : (data.eur?.nonfoil ?? null)) : cmSpeaks ? data.cmEur : null;
   const refAltEur = cmSpeaks ? (data.cmEurAlt ?? null) : null;
-  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null });
+  const listingLowUsd = data.lows?.[variant] ?? null;
+  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
   if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
@@ -183,6 +186,8 @@ interface SeriesRow {
   prices: string;
 }
 
+/** A cheapest-listing reading older than this is no evidence (the daily read missed it: delisted, or tcgcsv down). */
+const LOW_MAX_AGE_DAYS = 3;
 const MEMO_MS = 10 * 60 * 1000;
 const MEMO_CAP = 3000;
 const memo = new Map<string, { at: number; day: string; data: TrustData }>();
@@ -214,7 +219,10 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
             { id: string; set_release_date: string; price_eur: number | null; price_eur_foil: number | null }[]
           >)
         : Promise.resolve([]);
-  const [rows, metaRows] = (await Promise.all([seriesQ, metaQ])) as [SeriesRow[], MetaRow[]];
+  const lowsQ = (db
+    .prepare(`SELECT card_id, variant, low_usd FROM listing_lows WHERE game = ? AND card_id IN (${marks}) AND day >= ?`)
+    .all(game, ...chunk, addDays(day, -LOW_MAX_AGE_DAYS)) as unknown as Promise<{ card_id: string; variant: string; low_usd: number }[]>).catch(() => []);
+  const [rows, metaRows, lowRows] = (await Promise.all([seriesQ, metaQ, lowsQ])) as [SeriesRow[], MetaRow[], { card_id: string; variant: string; low_usd: number }[]];
   const meta = new Map<string, { released: string; eur: TrustData["eur"] }>();
   for (const m of metaRows) {
     meta.set(m.id, { released: m.set_release_date ?? "", eur: game === "mtg" ? { nonfoil: m.price_eur ?? null, foil: m.price_eur_foil ?? null } : null });
@@ -231,6 +239,10 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
     if (r.source === "cardmarket") d.cmEur = lastPriced(prices);
     else if (r.source === REF_ALT_SOURCE) d.cmEurAlt = lastPriced(prices);
     else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
+  }
+  for (const l of lowRows) {
+    const d = built.get(l.card_id);
+    if (d && l.low_usd > 0) d.lows = { ...(d.lows ?? {}), [l.variant]: Number(l.low_usd) };
   }
   const at = Date.now();
   for (const [id, d] of built) {

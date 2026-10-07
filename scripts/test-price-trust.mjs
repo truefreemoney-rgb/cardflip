@@ -26,7 +26,7 @@ const verdict = (series, extra) => {
 /** A liquid series: moves every day (a real market), ending on `to`. */
 const liquid = (to, days = 60) => Array.from({ length: days }, (_, i) => Math.round((to * (1 + ((i * 7) % 5) / 100) - (i % 3)) * 100) / 100).concat(to);
 
-// ---- real 09-30 rows (Pokémon, tcgplayer USD, oldest first, ending on 09-30)
+// ---- real 09-30 rows (PokÃ©mon, tcgplayer USD, oldest first, ending on 09-30)
 const RAYQUAZA = expand([[101.83, 12], [104.42, 44], [104.66, 13], [107.19, 10], [536.45, 7], [599.46, 3], [679.27, 12], [null, 2], [679.27, 4], [767.94, 1], [1035.13, 9], [1013.27, 19]]); // Call of Legends col1-20 holofoil
 const DEOXYS = expand([[174.15, 10], [180, 2], [240, 14], [500, 9], [310, 14], [500, 52], [null, 2], [500, 33]]); // col1-SL1 holofoil
 const PIKACHU_PROMO = expand([[999.95, 101], [null, 2], [999.95, 24], [499.99, 9]]); // Black Star promo basep-1 holofoil
@@ -104,6 +104,16 @@ check("... a 5x Cardmarket gap no longer hides it by itself (note stays), 12x st
 check("... and a spike that never came back still hides it (test 2 runs first)", [judge(RAYQUAZA).hard, judge(RAYQUAZA).stale], [true, undefined]);
 check("... and a 3x sibling still hides it (test 3 runs first)", judge(CHARIZARD_PLASMA, { siblings: [300] }).hard, true);
 check("the stale note is for a CURRENT price only: as an OLD price flat is still wrong", judge(flat(121, 45), { old: true }), { ok: false, hard: true, reason: "flat 45d" });
+// 10-07: Lugia ex Unseen Forces 105 (ex10-105): TCGplayer market $2,500 flat 49 days while the cheapest listing sat at $1,200
+// (PriceCharting ungraded $841). The market price is the last sale; a live listing under it says the frozen number is wrong.
+const LUGIA_EX = [...liquid(2400, 30), ...Array(49).fill(2500)];
+check("Lugia ex10-105 $2,500 flat 49d, cheapest listing $1,200: hidden, hard", judge(LUGIA_EX, { listingLowUsd: 1200 }), { ok: false, hard: true, reason: "flat 49d, 2.1x the cheapest listing" });
+check("... exactly 1.5x the cheapest listing hides it too", judge(LUGIA_EX, { listingLowUsd: 2500 / 1.5 }).hard, true);
+check("... under 1.5x keeps the note (a played copy listed a bit lower is normal)", judge(LUGIA_EX, { listingLowUsd: 1700 }).stale, 49);
+check("... listings ABOVE the frozen price keep the note (nobody undercuts it)", judge(CHARIZARD_PLASMA, { listingLowUsd: 1400 }).stale, 128);
+check("... no listing reading = the note as before", judge(LUGIA_EX, { listingLowUsd: null }).stale, 49);
+check("a price that is NOT stale ignores the cheapest listing (a liquid market price is a real one)", judge([...liquid(2400, 60), 2512.37], { listingLowUsd: 900 }).ok, true);
+check("the cheapest listing never touches an OLD price's reading (already wrong at 30 days)", judge(flat(121, 45), { old: true, listingLowUsd: 50 }).reason, "flat 45d");
 
 console.log("test 5: graded evidence ($100+)");
 check("$250 with one sign (round) passes", judge([...liquid(240, 40), 250]).ok);
@@ -168,7 +178,7 @@ check("a moving old price passes as before ($944 Base Charizard a week ago)", ol
 check("under $10 nothing is checked, old or not", priceTrust({ to: 8, prices: Array(60).fill(8), old: true }).ok);
 
 console.log("10-01 review: the step-jump rule for movers (stepJump, not part of priceTrust)");
-// ru1-13 Pokémon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).
+// ru1-13 PokÃ©mon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).
 const SKUNTANK = expand([[52.2, 70], [52.37, 6], [52.07, 4], [null, 2], [52.07, 14], [52.53, 4], [52.67, 7], [52.37, 3], [89.98, 3]]);
 // ex1-7 Ruby & Sapphire Gardevoir holofoil: a climb in stairs over four months, $75.19 -> $106.30 in the week. A genuine rise.
 const GARDEVOIR = expand([[50, 60], [57.14, 5], [64.79, 2], [69.15, 3], [null, 2], [71.84, 15], [75.19, 14], [78.4, 3], [106.3, 3]]);

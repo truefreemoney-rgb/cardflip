@@ -31,7 +31,9 @@
  *     in six weeks means the market has not updated: since 10-02 a NOTE
  *     (`stale` = the days, hard false, the screens show the number with
  *     "Market hasn't updated this in N months"), not a hide; tests 5-6 do not
- *     run on top of it. For an OLD price (see `old`) it stays a hide.
+ *     run on top of it. For an OLD price (see `old`) it stays a hide. Since
+ *     10-07 it IS a hide when a live source says the frozen number is too
+ *     high: >= 1.5x TCGplayer's cheapest live listing (same market).
  *  5. A fresh doubling (>= $100): a one-step rise >= 2x inside the last 10
  *     priced points that the price still stands >= 2x above, with no agreeing
  *     second source (Machamp $64 -> $146). A recovery from a short glitch-low
@@ -92,6 +94,12 @@ export const PRICE_TRUST = {
   gradedMinUsd: 100,
   /** Test 4: identical value this many calendar days. */
   stuckDays: 45,
+  /**
+   * Test 4 (10-07): a stale price this x or more above TCGplayer's cheapest live listing is wrong, not a note. The same
+   * market says it, so unlike Cardmarket (Europe runs 3-5x cheaper on US chase cards: Charizard bw8-136 $1,150 at 3.5x
+   * had eBay Near Mint solds of $1,276-$1,651) it needs no excuse band.
+   */
+  staleOverLow: 1.5,
   /** `old` prices: identical this many calendar days is stale, from refMinUsd up. */
   staleOldDays: 30,
   /** Test 5: a one-step rise that the price is still >= this x above the level before it, inside the last `doubleWindow` priced points, to gradedMinUsd or more. */
@@ -167,6 +175,8 @@ export interface PriceTrustInput {
   vintage?: boolean;
   /** The price is printed as the OLD side of a move (or another past reading): judged strictest, see the header. */
   old?: boolean;
+  /** TCGplayer's cheapest live listing (USD, any condition) for this printing, when fresh (listing_lows). Only read by test 4. */
+  listingLowUsd?: number | null;
 }
 
 export interface PriceTrust {
@@ -343,7 +353,7 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
 
 
 /** ok = the price may be printed; reason says why not (or, when a second source vouched, that it did). */
-export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false }: PriceTrustInput): PriceTrust {
+export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null }: PriceTrustInput): PriceTrust {
   const T = PRICE_TRUST;
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
@@ -379,6 +389,10 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   // when there is evidence; a 3-5x Cardmarket gap is named in the reason but does not hide it either (Europe runs far cheaper on US
   // chase cards). The soft signs (thin, round) are the same statement as flat, so they do not run on top of it.
   if (to >= T.gradedMinUsd && f.runDays >= T.stuckDays) {
+    // 10-07: a stale price a live source says is too high is wrong, not a note. TCGplayer's market price is its last sale, so a card
+    // nobody bought in months keeps it (Lugia ex Unseen Forces: $2,500 for 49 days with a copy listed at $1,200; PriceCharting $841).
+    const lowRatio = listingLowUsd != null && listingLowUsd > 0 ? to / listingLowUsd : null;
+    if (lowRatio != null && lowRatio >= T.staleOverLow) return wrong(`flat ${f.runDays}d, ${x(lowRatio)} the cheapest listing`);
     return { ok: false, hard: false, stale: f.runDays, reason: [`flat ${f.runDays}d`, ...(refRatio != null ? [`cardmarket ${x(refRatio)}`] : [])].join(", ") };
   }
 

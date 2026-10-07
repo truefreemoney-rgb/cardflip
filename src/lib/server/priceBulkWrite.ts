@@ -110,6 +110,28 @@ export async function upsertSeriesRows(rows: SeriesUpsert[]): Promise<void> {
   }
 }
 
+/** Printings priced from here up keep their cheapest live listing (listing_lows): the price guard's stale test starts at $100. */
+export const LOW_TRACKED_USD = 100;
+
+export interface ListingLow {
+  cardId: string;
+  game: string;
+  variant: string;
+  lowUsd: number;
+}
+
+/** TCGplayer's cheapest live listing per $100+ printing (listing_lows, the price guard's evidence against a frozen market price). */
+export async function upsertListingLows(rows: ListingLow[], day: string): Promise<void> {
+  const PER_STMT = 400;
+  for (let i = 0; i < rows.length; i += PER_STMT) {
+    const slice = rows.slice(i, i + PER_STMT);
+    const values = slice.map(() => "(?, ?, ?, ?, ?)").join(", ");
+    const args: (string | number)[] = [];
+    for (const r of slice) args.push(r.cardId, r.game, r.variant, r.lowUsd, day);
+    await withDbRetry(() => db.prepare(`INSERT OR REPLACE INTO listing_lows (card_id, game, variant, low_usd, day) VALUES ${values}`).run(...args));
+  }
+}
+
 export interface MtgPriceRow {
   id: string;
   usd: number | null;

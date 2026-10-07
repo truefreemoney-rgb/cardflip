@@ -77,6 +77,11 @@ check("the note wording: months from two months, weeks under", [priceStaleNote(1
 const CHARIZARD_PLASMA = [...liquid(1100, 30), ...Array(128).fill(1150)];
 check("Charizard bw8-136: shown", verdict(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), null);
 check("... with the 128-day note", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, released: "2013-02-06" })), { days: 128 });
+// 10-07: the variant's own cheapest live listing (listing_lows) reaches the rule: Lugia ex10-105 $2,500 flat 49 days, a copy listed at $1,200.
+const LUGIA_EX = [...liquid(2400, 30), ...Array(49).fill(2500)];
+check("Lugia ex10-105: the cheapest listing hides the frozen price", verdict(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { holofoil: 1200 } })), [true, "flat 49d, 2.1x the cheapest listing"]);
+check("... and it is no longer a stale note", judgeStale(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { holofoil: 1200 } })), null);
+check("... another printing's listing does not speak for it", judgeStale(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { reverseHolofoil: 1200 } })), { days: 49 });
 check("... nor clears a stale note (Charizard bw8-136, TCGdex EUR 378.97)", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, cmEurAlt: 378.97, released: "2013-02-06" })), { days: 128 });
 check("a liquid $300 card is fine", verdict(data("pokemon", [ser("holofoil", liquid(300))])), null);
 check("a $12 card is never looked at", verdict(data("pokemon", [ser("normal", [12, 12, 12])], { cmEur: 0.5 })), null);

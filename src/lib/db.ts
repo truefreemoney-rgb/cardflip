@@ -386,6 +386,18 @@ const SCHEMA = `
     PRIMARY KEY (card_id, variant, source)
   );
   CREATE INDEX IF NOT EXISTS idx_price_series_family ON price_series(game, source);
+  -- TCGplayer's cheapest live listing (any condition) for printings priced
+  -- $100+, refreshed with the daily tcgcsv read (10-07). Not a price: the price
+  -- guard's evidence against a market price frozen on an old sale (a $2,500
+  -- Lugia ex nobody bought in 49 days while a copy sat listed at $1,200).
+  CREATE TABLE IF NOT EXISTS listing_lows (
+    card_id TEXT NOT NULL,
+    game TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    low_usd REAL NOT NULL,
+    day TEXT NOT NULL,
+    PRIMARY KEY (card_id, variant, game)
+  );
   CREATE TABLE IF NOT EXISTS price_history_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

@@ -37,12 +37,17 @@ export interface TcgProduct {
   number: string;
   /** TCGplayer subtype → price ("Normal", "Foil"). */
   prices: Record<string, number>;
+  /** TCGplayer subtype → cheapest live listing (the price guard's check on a market frozen on an old sale). */
+  lows?: Record<string, number>;
 }
 
 export interface MtgFill {
   id: string;
   usd: number | null;
   foil: number | null;
+  /** Cheapest live listings beside those prices, when TCGplayer has one. */
+  usdLow?: number | null;
+  foilLow?: number | null;
 }
 
 const fold = (s: string) =>
@@ -128,7 +133,10 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
     const foilOnly = !/nonfoil/.test(r.finishes) && /foil/.test(r.finishes);
     const usd = foilOnly ? null : pr["Normal"] ?? null;
     const foil = pr["Foil"] ?? (foilOnly ? pr["Normal"] ?? null : null);
-    if (usd != null || foil != null) out.push({ id: r.id, usd, foil });
+    const lows = hits[0].lows ?? {};
+    const usdLow = usd == null ? null : (lows["Normal"] ?? null);
+    const foilLow = foil == null ? null : (lows["Foil"] ?? (foilOnly ? (lows["Normal"] ?? null) : null));
+    if (usd != null || foil != null) out.push({ id: r.id, usd, foil, ...(usdLow != null ? { usdLow } : {}), ...(foilLow != null ? { foilLow } : {}) });
   }
   return out;
 }
@@ -144,18 +152,21 @@ const pos = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 
 /** One TCGplayer group's products with a price (market, else mid — the Yu-Gi-Oh sync rule). */
 export async function groupProducts(groupId: number): Promise<TcgProduct[]> {
   const products = listOf<{ productId: number; name?: string; extendedData?: { name: string; value: string }[] }>(await getJson(`${API}/${groupId}/products`));
-  const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown }>(await getJson(`${API}/${groupId}/prices`));
+  const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown; lowPrice?: unknown }>(await getJson(`${API}/${groupId}/prices`));
   const byProduct = new Map<number, Record<string, number>>();
+  const lowByProduct = new Map<number, Record<string, number>>();
   for (const p of prices) {
     const v = pos(p.marketPrice) ?? pos(p.midPrice);
     if (v == null) continue;
     byProduct.set(p.productId, { ...(byProduct.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: v });
+    const low = pos(p.lowPrice);
+    if (low != null) lowByProduct.set(p.productId, { ...(lowByProduct.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: low });
   }
   const out: TcgProduct[] = [];
   for (const p of products) {
     const priced = byProduct.get(p.productId);
     if (!priced || !p.name) continue;
-    out.push({ name: p.name, number: p.extendedData?.find((e) => e.name === "Number")?.value ?? "", prices: priced });
+    out.push({ name: p.name, number: p.extendedData?.find((e) => e.name === "Number")?.value ?? "", prices: priced, lows: lowByProduct.get(p.productId) ?? {} });
   }
   return out;
 }

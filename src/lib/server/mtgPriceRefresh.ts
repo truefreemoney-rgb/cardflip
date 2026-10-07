@@ -4,12 +4,16 @@ import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
 import { guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
 import { CARDTRADER_SOURCE, cardtraderMtgPrices } from "@/lib/server/cardtrader";
+import { PRICE_TRUST } from "@/lib/server/priceTrust";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import {
   readMtgCardPrices,
+  LOW_TRACKED_USD,
   readSeriesMap,
   updateMtgPriceColumns,
+  upsertListingLows,
   upsertSeriesRows,
+  type ListingLow,
   type MtgPriceRow,
   type SeriesKeyed,
   type SeriesUpsert,
@@ -102,6 +106,22 @@ export function planMtgWrites(
   return { kept, mirrorRows, upserts, seriesSkipped };
 }
 
+/** A $100+ price whose last value has stood unchanged for PRICE_TRUST.stuckDays calendar days or more (the guard's test 4). */
+function isStuckDear(prices: (number | null)[]): boolean {
+  let i = prices.length - 1;
+  while (i >= 0 && prices[i] == null) i--;
+  if (i < 0) return false;
+  const v = prices[i] as number;
+  if (v < LOW_TRACKED_USD) return false;
+  let j = i;
+  for (let k = i - 1; k >= 0; k--) {
+    if (prices[k] == null) continue;
+    if (prices[k] !== v) break;
+    j = k;
+  }
+  return i - j + 1 >= PRICE_TRUST.stuckDays;
+}
+
 export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<RefreshResult> {
   const index = await fetch(BULK_INDEX, { headers: HEADERS });
   if (!index.ok) throw new Error(`Scryfall bulk index: HTTP ${index.status}`);
@@ -144,6 +164,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // Printings Scryfall leaves without a dollar price (Art Series, Alpha/Beta,
   // Summer Magic…) take TCGplayer's (10-05). A failure only skips the fill.
   let tcgplayerFilled = 0;
+  const lows: ListingLow[] = [];
   try {
     const gaps = pending.filter((c) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null);
     if (gaps.length) {
@@ -155,6 +176,9 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
         row.usd = f.usd;
         row.foil = f.foil;
         tcgplayerFilled++;
+        // The cheapest live listing beside a $100+ market price: the guard's check on a market frozen on an old sale.
+        if (f.usd != null && f.usd >= LOW_TRACKED_USD && f.usdLow) lows.push({ cardId: f.id, game: "mtg", variant: "nonfoil", lowUsd: f.usdLow });
+        if (f.foil != null && f.foil >= LOW_TRACKED_USD && f.foilLow) lows.push({ cardId: f.id, game: "mtg", variant: "foil", lowUsd: f.foilLow });
       }
     }
   } catch (err) {
@@ -190,6 +214,23 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   const plan = planMtgWrites(pending, mirror, existingSeries, day, ctSeries);
   await updateMtgPriceColumns(plan.mirrorRows);
   await upsertSeriesRows(plan.upserts);
+  // Scryfall's own dollar prices are TCGplayer's market too, so they freeze the same way: every $100+ printing stuck 45+ days
+  // also gets its cheapest live listing read (one tcgcsv pass over just their sets, ~400 cards on 10-07). A failure only skips it.
+  try {
+    const have = new Set(lows.map((l) => `${l.cardId}|${l.variant}`));
+    const stuck = [...existingSeries].filter(([key, s]) => !have.has(key) && isStuckDear(decodePrices(s.prices))).map(([key]) => key);
+    if (stuck.length) {
+      const want = new Set(stuck);
+      const { fills } = await tcgplayerFills(await readMtgGapRows([...new Set(stuck.map((k) => k.split("|")[0]))].slice(0, 1500)));
+      for (const f of fills) {
+        if (f.usdLow && want.has(`${f.id}|nonfoil`)) lows.push({ cardId: f.id, game: "mtg", variant: "nonfoil", lowUsd: f.usdLow });
+        if (f.foilLow && want.has(`${f.id}|foil`)) lows.push({ cardId: f.id, game: "mtg", variant: "foil", lowUsd: f.foilLow });
+      }
+    }
+  } catch (err) {
+    console.warn("mtg stuck listing lows:", err instanceof Error ? err.message : err);
+  }
+  await upsertListingLows(lows, day).catch((err) => console.warn("mtg listing lows:", err instanceof Error ? err.message : err));
   return {
     scanned,
     updated: plan.kept.length,

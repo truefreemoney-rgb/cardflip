@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
-import { readSeriesMap, upsertSeriesRows, type SeriesKeyed, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
+import { LOW_TRACKED_USD, readSeriesMap, upsertListingLows, upsertSeriesRows, type ListingLow, type SeriesKeyed, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { CONVERTED_SOURCE, cardmarketUsd } from "@/lib/server/cardmarket";
 import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
@@ -338,11 +338,12 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   let groupsFailed = 0;
   const upserts: SeriesUpsert[] = [];
   const touched = new Set<string>();
+  const lows: ListingLow[] = [];
   // Cards with a pattern product: every variant seen for them this run, so
   // the mislabelled "holofoil" rows earlier runs wrote can be dropped.
   const patternCardVariants = new Map<string, Set<string>>();
   for (const gid of groups) {
-    let results: { productId: number; marketPrice?: number | null; subTypeName?: string | null }[];
+    let results: { productId: number; marketPrice?: number | null; lowPrice?: number | null; subTypeName?: string | null }[];
     const patternOf = new Map<number, PatternVariant>();
     try {
       if (patternGroups.has(gid)) {
@@ -395,12 +396,15 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
           startDay: next.startDay, prices: encodePrices(next.prices), updatedDay: day,
         });
         touched.add(key);
+        // The cheapest live listing beside a $100+ market price: the guard's check on a market frozen on an old sale.
+        if (price >= LOW_TRACKED_USD && r.lowPrice != null && r.lowPrice > 0) lows.push({ cardId: id, game: "pokemon", variant, lowUsd: r.lowPrice });
       }
     }
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
   const sealedUpserts = sealedSeriesUpserts("pokemon", day, sealedPrices, sealedMap, existingSeries);
   await upsertSeriesRows([...upserts, ...sealedUpserts]);
+  await upsertListingLows(lows, day).catch((err) => console.warn("listing lows:", err instanceof Error ? err.message : err));
   // Last resort, TCGdex: our catalog's own source carries TCGplayer's market price per card id (the
   // Unseen Forces Unown Collection and a few promos no TCGplayer group lines up with, 10-05). After the
   // main write, so a slow TCGdex can never cost the day's prices.
