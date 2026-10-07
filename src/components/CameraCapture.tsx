@@ -149,6 +149,8 @@ interface Props {
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
   onOpen?: (id: string) => void;
+  /** How the camera came up (10-06, ad funnel): "live", "mirror", "native" (the phone's own camera) or "err-<DOMException name>". */
+  onCamera?: (state: string) => void;
   /** "Not this card?": swap the item to a card the seller picked. No new scan is spent. */
   onSwap?: (id: string, card: PokemonCard, candidates: PokemonCard[]) => void;
   /** "Confirm all" in the session sheet: verify these scans in one go. */
@@ -255,7 +257,11 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onVerifyMany }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onVerifyMany, onCamera }: Props) {
+  const onCameraRef = useRef(onCamera);
+  useEffect(() => {
+    onCameraRef.current = onCamera;
+  });
   const [picking, setPicking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -281,6 +287,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   );
   const [nativeCam, setNativeCam] = useState(() => appBrowser && !mirror && !/Android/.test(navigator.userAgent));
   const mirrorRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (nativeCam) onCameraRef.current?.("native");
+  }, [nativeCam]);
   const lastFrameAt = useRef(0);
   const photoInput = useRef<HTMLInputElement>(null);
   // No "open in Safari" anything (10-05, Chris: asking the user to leave the app "looks like our product is shit").
@@ -413,6 +422,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             return;
           }
           setReady(true);
+          onCameraRef.current?.("mirror");
           return;
         }
 
@@ -434,6 +444,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           await video.play();
         }
         setReady(true);
+        onCameraRef.current?.("live");
 
         // lib.dom doesn't type torch yet, but Android Chrome reports it in
         // the track capabilities; anything that doesn't gets no button.
@@ -455,6 +466,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // reappear until the site permission is reset.
         const denied = err instanceof DOMException && err.name === "NotAllowedError";
         const missing = err instanceof DOMException && err.name === "NotFoundError";
+        onCameraRef.current?.(`err-${(err instanceof Error ? err.name : "unknown").toLowerCase().replace(/[^a-z]/g, "").slice(0, 30)}`);
         // An app browser whose live camera won't open still has the phone's own camera (10-05).
         if (appBrowser) return setNativeCam(true);
         setError(

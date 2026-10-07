@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import TrialScanner from "@/components/TrialScanner";
-import { catalogSizeLabel } from "@/lib/server/catalogStats";
+import LiveStatsStrip from "@/components/LiveStatsStrip";
+import { liveStats } from "@/lib/server/liveStats";
 import { GAME_IDS, isGameId } from "@/lib/games";
 import { getGameStageCards } from "@/lib/server/stageCards";
 import type { ScanExample } from "@/components/TrialScanner";
@@ -37,7 +38,7 @@ function gameParam(v: string | undefined): GameId {
 export default async function ScanLandingPage({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
   const sp = await searchParams;
   const initialGame = gameParam(Array.isArray(sp.game) ? sp.game[0] : sp.game);
-  const label = await catalogSizeLabel().catch(() => "Every printing");
+  const stats = await liveStats();
   // No cookie (every ad visitor) = no DB read; a session = the signed-in screen from the first frame.
   const signedIn = Boolean(await getCurrentUser().catch(() => null));
   // One real example card per game: the lead of the home page's stage reel (cached 6 h, guarded, $15-$300). None found = none shown.
@@ -52,12 +53,13 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
     <div className="flex min-h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-md items-center justify-between px-4 pt-4">
         <Logo />
-        <Link href="/login" className="px-2 py-2 text-sm text-zinc-400 transition hover:text-white">
-          Log In
+        {/* 10-06 (Chris): a signed-in visitor was shown "Log In", and /login bounced him straight to /app. */}
+        <Link href={signedIn ? "/app" : "/login"} className="px-2 py-2 text-sm text-zinc-400 transition hover:text-white">
+          {signedIn ? "Open App" : "Log In"}
         </Link>
       </header>
-      {/* 10-06: the live stats strip left this page. 155 of 157 TikTok visitors left without one tap; the first
-          screen is now the question, the promise, and things to press. */}
+      {/* 10-06: 155 of 157 TikTok visitors left without one tap; the first screen is now the question, the promise,
+          and things to press. The live stats sit lower, in the footer. */}
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-4 px-4 pb-10 pt-4">
         <div className="text-center">
           <h1 className="font-display text-4xl font-bold leading-[1.05] text-white">
@@ -80,8 +82,9 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
                   </li>
                 ))}
               </ol>
-              <p className="text-center text-sm font-semibold text-zinc-300">{label.endsWith("+") ? `${label} cards with live prices` : "Live prices on every printing"}</p>
-              <p className="-mt-2 text-center text-xs text-zinc-600">Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh!</p>
+              {/* 10-06 (Chris): the live counts stay on this page, under the steps so Scan and the taps stay on top. */}
+              <LiveStatsStrip stats={stats} />
+              <p className="-mt-2 text-center text-xs text-zinc-500">Pokémon, Magic, Lorcana, One Piece and Yu-Gi-Oh!</p>
             </>
           }
         />

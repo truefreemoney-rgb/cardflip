@@ -40,11 +40,18 @@ const TRY: Record<GameId, string[]> = {
   yugioh: ["Blue-Eyes White Dragon", "Dark Magician", "Exodia", "Kuriboh"],
 };
 
+const CAMERA_ICON = (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
+
 const CTA =
   "flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-brand-400";
 
 /** Funnel step for the ad test (10-05): rides the visit counter as /scan/<step>, one row per visitor per day. */
-function step(name: "camera" | "searched" | "price" | "miss" | "signup" | "stay10" | "tap") {
+function step(name: "camera" | "searched" | "price" | "miss" | "signup" | "stay10" | "tap" | `cam-${string}`) {
   fetch("/api/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: `/scan/${name}` }), keepalive: true }).catch(() => {});
 }
 
@@ -208,17 +215,8 @@ export default function TrialScanner({
     setSearching(false);
   }
 
-  if (signedIn) {
-    return (
-      <>
-        <Link href="/app" className={CTA}>
-          Open the Scanner
-        </Link>
-        {footer}
-      </>
-    );
-  }
-
+  // 10-06 (Chris): signed-in visitors see the same page prospects do (the taps, the search, the example); only the
+  // Scan button changes, opening the real scanner instead of the one free scan. No trial or signup lines for them.
   const found = phase.kind === "found" ? phase : null;
   const price = found ? trialPrice(found.card) : null;
   // The example fills the idle screen only: no result, no search list, not the "used" screen.
@@ -252,11 +250,16 @@ export default function TrialScanner({
               )}
             </div>
           </div>
-          {!found.scanned && (
-            <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
-              Scan Your Own Cards Free
-            </Link>
-          )}
+          {!found.scanned &&
+            (signedIn ? (
+              <Link href="/app" className={`${CTA} mt-4`}>
+                Scan Your Own Cards
+              </Link>
+            ) : (
+              <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
+                Scan Your Own Cards Free
+              </Link>
+            ))}
           {found.scanned && (
             <>
               <Link href="/signup?from=scan" onClick={signupTap} className={`${CTA} mt-4`}>
@@ -267,7 +270,7 @@ export default function TrialScanner({
           )}
         </section>
       ) : null}
-      {found && (
+      {found && !signedIn && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-edge-strong bg-surface-1/95 px-4 pt-2.5 backdrop-blur md:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <p className="mb-2 text-center text-sm font-semibold text-white">Your card is waiting. Create an account to keep it.</p>
           <Link href="/signup?from=scan" onClick={signupTap} className={CTA}>
@@ -275,7 +278,7 @@ export default function TrialScanner({
           </Link>
         </div>
       )}
-      {found?.scanned ? null : phase.kind === "used" ? (
+      {found?.scanned ? null : phase.kind === "used" && !signedIn ? (
         <section className="rounded-3xl border border-edge bg-surface-1 p-5 text-center">
           {last ? (
             <>
@@ -298,16 +301,20 @@ export default function TrialScanner({
         <>
           {/* 10-06: the real button from the first paint. The old grey placeholder looked dead on a slow TikTok
               webview; a returning "used" visitor swaps to the used card a beat later, a fair trade. */}
-          <button type="button" onClick={() => {
-              step("camera");
-              setCameraOpen(true);
-            }} disabled={phase.kind === "reading"} className={`${CTA} py-4 text-lg disabled:opacity-60`}>
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-              <circle cx="12" cy="13" r="3.5" />
-            </svg>
-            {phase.kind === "reading" ? "Reading Your Card…" : phase.kind === "miss" ? "Try Again" : `Scan a ${GAMES[game].label} Card`}
-          </button>
+          {signedIn ? (
+            <Link href="/app" className={`${CTA} py-4 text-lg`}>
+              {CAMERA_ICON}
+              Open the Scanner
+            </Link>
+          ) : (
+            <button type="button" onClick={() => {
+                step("camera");
+                setCameraOpen(true);
+              }} disabled={phase.kind === "reading"} className={`${CTA} py-4 text-lg disabled:opacity-60`}>
+              {CAMERA_ICON}
+              {phase.kind === "reading" ? "Reading Your Card…" : phase.kind === "miss" ? "Try Again" : `Scan a ${GAMES[game].label} Card`}
+            </button>
+          )}
           {phase.kind === "miss" && (
             <p role="alert" className="-mt-1 text-center text-sm text-amber-300">
               {phase.message}
@@ -383,11 +390,15 @@ export default function TrialScanner({
             )}
           </form>
           <GameToggle game={game} onChange={setGame} block />
-          <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
-          {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
-          <Link href="/signup?from=scan" onClick={signupTap} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
-            Skip and get {SCANS.trial} free scans
-          </Link>
+          {!signedIn && (
+            <>
+              <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
+              {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
+              <Link href="/signup?from=scan" onClick={signupTap} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
+                Skip and get {SCANS.trial} free scans
+              </Link>
+            </>
+          )}
         </>
       )}
 
@@ -407,7 +418,8 @@ export default function TrialScanner({
         </section>
       )}
 
-      {cameraOpen && <CameraCapture game={game} onGameChange={setGame} onCapture={(f) => void onCapture(f)} onClose={() => setCameraOpen(false)} />}
+      {/* /scan/cam-live|mirror|native|err-<name> (10-06): "camera blocked" told apart from "left". */}
+      {cameraOpen && <CameraCapture game={game} onGameChange={setGame} onCapture={(f) => void onCapture(f)} onClose={() => setCameraOpen(false)} onCamera={(s) => step(`cam-${s}`)} />}
     </div>
   );
 }
