@@ -27,7 +27,10 @@ interface Insights {
   losers: Mover[];
 }
 
-export default function CollectorValueHeader({ game, version = 0 }: { game: GameId; version?: number }) {
+/** `value`: the page's own rows total (every unsold card at the market price its row shows), so this
+ *  hero and the Summary's Market Value are one number (10-07: $121.84 vs $111.78 side by side — insights
+ *  priced the default variant through the condition math and counted ended listings). null = still loading. */
+export default function CollectorValueHeader({ game, version = 0, value }: { game: GameId; version?: number; value?: number | null }) {
   // The answer remembers its game, so a switch shows nothing until the new one lands.
   const [result, setResult] = useState<{ game: GameId; version: number; data: Insights | null } | null>(null);
 
@@ -59,7 +62,7 @@ export default function CollectorValueHeader({ game, version = 0 }: { game: Game
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Collection Value</p>
-          <p className="font-display text-3xl font-bold tracking-tight text-white">{formatMoney(data.holding)}</p>
+          <p className="font-display text-3xl font-bold tracking-tight text-white">{value === null ? "…" : formatMoney(value ?? data.holding)}</p>
           <p className={`text-xs font-semibold ${delta == null || flat ? "text-zinc-500" : delta > 0 ? "text-emerald-400" : "text-rose-400"}`}>
             {delta == null ? "7-day change after a week of history" : flat ? "Unchanged over 7 days" : `${delta > 0 ? "▲" : "▼"} ${formatMoney(Math.abs(delta))} over 7 days`}
           </p>

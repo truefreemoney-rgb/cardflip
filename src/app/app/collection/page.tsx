@@ -693,32 +693,36 @@ export default function CollectionPage() {
     // Sold rows are the record: never deleted, never relisted, always
     // viewable (Chris, 09-08). Live rows end first; ended/drafts delete.
     const canDelete = (card.status !== "listed" || ended) && !sold;
+    // Status chips ride in the price box's corner, not a row of their own (Chris, 10-07: "a waste of a lot of space").
+    const chips = (
+      <>
+        {status}
+        {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
+          <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
+        )}
+        {card.matchDoubt && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">
+            <span aria-hidden>⚠</span> {card.matchDoubt}
+          </span>
+        )}
+      </>
+    );
     return (
       <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
-        {/* Status header */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-edge px-4 py-3">
-          {status}
-          {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
-            <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
-          )}
-          {card.matchDoubt && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">
-              <span aria-hidden>⚠</span> {card.matchDoubt}
-            </span>
-          )}
-        </div>
-
         {/* Price hero. Unsold (Chris, 10-02): the Market price leads, the
             price Build Listing would publish sits beside it. Sold rows keep
             the one sale figure. */}
         <div className="px-4 pb-4 pt-4">
           {!sold && (
             <dl className={`mb-1 grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
-              <div className="bg-black/25 px-3 py-2.5">
-                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
-                <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
-                  {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
-                </dd>
+              <div className="flex items-start justify-between gap-2 bg-black/25 px-3 py-2.5">
+                <div className="min-w-0">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
+                  <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
+                    {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
+                  </dd>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">{chips}</div>
               </div>
               {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                 <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</dt>
@@ -728,7 +732,12 @@ export default function CollectionPage() {
               </div>}
             </dl>
           )}
-          {sold && <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</div>}
+          {sold && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</span>
+              <span className="flex flex-wrap justify-end gap-1">{chips}</span>
+            </div>
+          )}
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             {sold && (
               <span className="font-display text-3xl font-bold tracking-tight text-emerald-400">
@@ -799,8 +808,9 @@ export default function CollectionPage() {
                 <div className="bg-black/25 px-3 py-2">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Change</dt>
                   <dd className={`font-display font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                    <span aria-hidden>{up ? "↑" : "↓"}</span> {formatMoney(Math.abs(delta))}
-                    <span className="ml-1 text-xs font-medium opacity-80">({pct.toFixed(1)}%)</span>
+                    {/* Arrow and amount stay on one line; the percent drops under them on a phone (10-07). */}
+                    <span className="whitespace-nowrap"><span aria-hidden>{up ? "↑" : "↓"}</span> {formatMoney(Math.abs(delta))}</span>
+                    <span className="ml-1 whitespace-nowrap text-xs font-medium opacity-80">({pct.toFixed(1)}%)</span>
                   </dd>
                 </div>
               </dl>
@@ -811,9 +821,10 @@ export default function CollectionPage() {
         {/* Facts strip */}
         <dl className="grid grid-cols-3 gap-px border-y border-edge bg-edge">
           {facts.map(([label, value]) => (
-            <div key={label} className="min-w-0 bg-surface-1 px-4 py-2.5">
+            <div key={label} className="min-w-0 bg-surface-1 px-3 py-2.5 sm:px-4">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</dt>
-              <dd className="truncate text-sm text-zinc-100">{value}</dd>
+              {/* Wraps, never truncates: "Oct 2, 20…" lost the year on a phone (10-07). */}
+              <dd className="break-words text-sm text-zinc-100">{value}</dd>
             </div>
           ))}
           {facts.length % 3 !== 0 &&
@@ -1652,6 +1663,12 @@ export default function CollectionPage() {
     .filter(Boolean)
     .join(" · ");
 
+  // The whole game's rows total, same rule as stats.inPlayMarket below but never scoped by a filter:
+  // drafts (minus flagged unlocked ones) + live listings, each at its row's Market price.
+  const gameMarketTotal = gameCards
+    .filter((c) => isLive(c) || (c.status === "ready" && (c.priceLocked || livePrices[c.id]?.flag == null)))
+    .reduce((sum, c) => sum + (marketById[c.id] ?? c.price) * (c.quantity || 1), 0);
+
   const leftOutKey = scopeCards
     .filter((c) => c.status === "ready" && !c.priceLocked && livePrices[c.id]?.flag != null)
     .map((c) => c.id)
@@ -1857,7 +1874,7 @@ export default function CollectionPage() {
         <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
       </div>
 
-      {pricingOnly && <CollectorValueHeader game={gameView} version={cards.length} />}
+      {pricingOnly && <CollectorValueHeader game={gameView} version={cards.length} value={liveLoaded ? gameMarketTotal : null} />}
 
       {syncError && (
         <p

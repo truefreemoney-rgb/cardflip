@@ -284,8 +284,14 @@ export default async function Home() {
                 below the copy, so left-aligned copy read as lopsided. */}
             <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
               <LiveStatsStrip stats={stats} className="text-left" />
-              <div className="animate-fade-up foil-edge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
-                {games.map((g) => (g === "pokemon" ? "Pokémon TCG" : GAMES[g].label)).join(" · ")}
+              {/* Each name stays whole; a phone wraps between names, never inside one ("Yu-Gi-" / "Oh!", 10-07). */}
+              <div className="animate-fade-up foil-edge inline-flex flex-wrap items-center justify-center gap-x-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
+                {games.map((g, i) => (
+                  <span key={g} className="whitespace-nowrap">
+                    {g === "pokemon" ? "Pokémon TCG" : GAMES[g].label}
+                    {i < games.length - 1 ? " ·" : ""}
+                  </span>
+                ))}
               </div>
 
               <h1
