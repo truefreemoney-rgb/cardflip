@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { apiFetch, apiPath } from "@/lib/client/basePath";
 import type { PackageDay, PackageRow } from "@/lib/socialTiktok";
 import { etDay } from "@/lib/time";
@@ -98,6 +98,10 @@ async function fetchVideoFile(day: string, row: PackageRow, signal: AbortSignal)
   return new File([blob], `cardflip-tiktok-${day}-${row.slot}.mp4`, { type: "video/mp4" });
 }
 
+const noSubscribe = () => () => {};
+/** A fine pointer (mouse) = a computer, where Share with a file is not the hand-over; read on the client only. */
+const isDesktop = () => typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches;
+
 const btn = "inline-flex min-h-10 items-center justify-center rounded-full border border-edge px-4 text-sm font-medium text-zinc-200 hover:text-white disabled:opacity-40";
 const primary = "inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand-500 px-5 text-base font-semibold text-white disabled:opacity-50";
 
@@ -105,6 +109,9 @@ function Row({ day, row }: { day: string; row: PackageRow }) {
   const [posted, setPosted] = useState(row.posted);
   const [file, setFile] = useState<File | null>(null);
   const [fetching, setFetching] = useState<"idle" | "loading" | "failed">("idle");
+  // A mouse-and-keyboard computer never fetches ahead (10-07, Chris: the Social tab was slow to open AND to leave):
+  // only a phone needs the MP4 in hand before the tap for navigator.share; a desktop gets Download Video at once.
+  const desktop = useSyncExternalStore(noSubscribe, isDesktop, () => false);
   const [canShare, setCanShare] = useState(false);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -114,7 +121,7 @@ function Row({ day, row }: { day: string; row: PackageRow }) {
 
   // Fetch the MP4 when the row comes into view, so the tap has a File in hand.
   useEffect(() => {
-    if (!ready || posted || file || fetching !== "idle") return;
+    if (!ready || posted || file || fetching !== "idle" || isDesktop()) return;
     const el = box.current;
     const ac = new AbortController();
     let started = false;
@@ -219,7 +226,7 @@ function Row({ day, row }: { day: string; row: PackageRow }) {
 
   const size = row.bytes ? `${(row.bytes / 1e6).toFixed(1)} MB` : null;
   // The one primary action: share the fetched file, wait for it, or (fetch failed / cannot share files) download it.
-  const mode = file && canShare ? "share" : fetching === "loading" || (fetching === "idle" && !file) ? "loading" : "download";
+  const mode = file && canShare ? "share" : !desktop && (fetching === "loading" || (fetching === "idle" && !file)) ? "loading" : "download";
   return (
     <article ref={box} className="rounded-xl border border-edge bg-surface-2 p-3">
       <div className="flex gap-3">
