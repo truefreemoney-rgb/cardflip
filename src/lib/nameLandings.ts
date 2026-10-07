@@ -10,6 +10,7 @@ export const POKEMON_NAME_LANDINGS: Record<string, string> = {
   mewtwo: "Mewtwo",
   umbreon: "Umbreon",
   rayquaza: "Rayquaza",
+  gengar: "Gengar",
 };
 
 export const nameLandingPath = (slug: string) => `/pokemon/${slug}-card-value`;
