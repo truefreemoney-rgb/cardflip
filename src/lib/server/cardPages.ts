@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cachedList } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
-import { judgeFull, judgeSeries, loadTrustData, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
+import { judgeFull, judgeSeries, loadTrustData, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
@@ -305,10 +305,14 @@ const NO_PRICE: Pick<CardPage, "prices" | "headline" | "chart" | "trackingSince"
 export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise<CardPage> {
   const { facts } = rec;
   let rows: SeriesRow[];
+  let lows: Record<string, number> | undefined;
   try {
-    rows = (await db
-      .prepare("SELECT variant, source, currency, start_day, prices, updated_day FROM price_series WHERE card_id = ?")
-      .all(facts.id)) as unknown as SeriesRow[];
+    const [seriesRows, lowsById] = await Promise.all([
+      db.prepare("SELECT variant, source, currency, start_day, prices, updated_day FROM price_series WHERE card_id = ?").all(facts.id) as unknown as Promise<SeriesRow[]>,
+      readListingLows(facts.game, [facts.id], today),
+    ]);
+    rows = seriesRows;
+    lows = lowsById.get(facts.id);
   } catch (err) {
     console.warn(`card pages: could not read the price series of ${facts.id}`, err);
     return { facts, decision: indexDecision([]), ...NO_PRICE };
@@ -335,7 +339,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       series.push({ variant: r.variant, startDay: r.start_day, prices });
     }
   }
-  const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released };
+  const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released, lows };
 
   let inputs: SeriesInput[];
   try {

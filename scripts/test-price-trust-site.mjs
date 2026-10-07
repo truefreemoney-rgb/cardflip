@@ -82,6 +82,11 @@ const LUGIA_EX = [...liquid(2400, 30), ...Array(49).fill(2500)];
 check("Lugia ex10-105: the cheapest listing hides the frozen price", verdict(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { holofoil: 1200 } })), [true, "flat 49d, 2.1x the cheapest listing"]);
 check("... and it is no longer a stale note", judgeStale(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { holofoil: 1200 } })), null);
 check("... another printing's listing does not speak for it", judgeStale(data("pokemon", [ser("holofoil", LUGIA_EX)], { lows: { reverseHolofoil: 1200 } })), { days: 49 });
+// 10-07 test 3b: Skyridge Charizard ecard3-146, both rows of the card page judged.
+const SKY = [ser("holofoil", Array(31).fill(10000)), ser("reverseHolofoil", Array(44).fill(2999.99))];
+check("Skyridge Charizard: Holofoil $10,000 hidden at 3.3x its reverse", verdict(data("pokemon", SKY, { released: "2003-05-12" }), { variant: "holofoil", exact: true }), [true, "sibling 3.3x"]);
+check("... and the unmoved $2,999.99 Reverse Holofoil it was measured against too", verdict(data("pokemon", SKY, { released: "2003-05-12" }), { variant: "reverseHolofoil", exact: true }), [true, "flat 44d, a sibling at 3.3x"]);
+check("... a lower third printing is not the anchor and is left alone", verdict(data("pokemon", [...SKY, ser("1stEditionHolofoil", Array(44).fill(900))], { released: "2003-05-12" }), { variant: "1stEditionHolofoil", exact: true }), null);
 check("... nor clears a stale note (Charizard bw8-136, TCGdex EUR 378.97)", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, cmEurAlt: 378.97, released: "2013-02-06" })), { days: 128 });
 check("a liquid $300 card is fine", verdict(data("pokemon", [ser("holofoil", liquid(300))])), null);
 check("a $12 card is never looked at", verdict(data("pokemon", [ser("normal", [12, 12, 12])], { cmEur: 0.5 })), null);

@@ -326,6 +326,9 @@ const serverSrc = read("src/lib/server/cardPages.ts");
 check("loaders: every game goes through gamePublic", /gamePublic\(/.test(serverSrc), true);
 check("loaders: the price guard runs on every read", [/judgeSeries\(/.test(serverSrc), /loadTrustData\(/.test(serverSrc)], [true, true]);
 check("loaders: no cookies/headers", /next\/headers/.test(serverSrc), false);
+// 10-07: the card page built its TrustData without listing_lows, so Lugia ex10-105 kept its frozen $2,500 there.
+check("card page price: the guard hears the cheapest listing", [/readListingLows\(facts\.game, \[facts\.id\]/.test(serverSrc), /released: rec\.released, lows \}/.test(serverSrc)], [true, true]);
+check("card page: a future release reads 'Preorder · out Mon YYYY', not 'released'", /f\.release > todayUtc\(\) \? ` · Preorder · out \$\{etDate\(`\$\{f\.release\}T12:00:00Z`, "", \{ month: "short", year: "numeric" \}\)\}`/.test(cardPageSrc), true);
 check("pages print prices only through PriceCell / the guarded view", /PriceFlagText/.test(read("src/components/CardPagesUi.tsx")), true);
 check("sitemap.xml route is the index", /indexXml\(/.test(read("src/app/sitemap.xml/route.ts")), true);
 check("child sitemaps: on-demand, cached a day", [/revalidate = 86400/.test(read("src/app/sitemaps/[name]/route.ts")), /generateStaticParams = async \(\) => \[\]/.test(read("src/app/sitemaps/[name]/route.ts"))], [true, true]);

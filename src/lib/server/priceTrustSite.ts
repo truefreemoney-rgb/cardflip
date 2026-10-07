@@ -156,7 +156,13 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   const refEur = data.game === "mtg" ? (variant === "foil" || variant === "etched" ? (data.eur?.foil ?? null) : (data.eur?.nonfoil ?? null)) : cmSpeaks ? data.cmEur : null;
   const refAltEur = cmSpeaks ? (data.cmEurAlt ?? null) : null;
   const listingLowUsd = data.lows?.[variant] ?? null;
-  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd });
+  // Test 3b: a non-default printing that is the highest sibling the default printing is measured against hears the default's price.
+  let anchorFor: number | null = null;
+  if (data.game === "pokemon" && s && def && s !== def && !opts.old) {
+    const others = data.series.filter((o) => o !== def && o !== s).map(lastIn);
+    if (others.every((v) => v == null || v <= to)) anchorFor = lastIn(def);
+  }
+  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, anchorFor });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
   if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
@@ -200,6 +206,21 @@ export function clearTrustMemo(): void {
   pending.clear();
 }
 
+/**
+ * TCGplayer's cheapest live listing per card and variant, fresh readings only (TrustData.lows). Every loader that builds
+ * TrustData reads it here: the card page built its own without it until 10-07, so the Lugia ex check never reached it.
+ * A failed read is no evidence (empty), never an error.
+ */
+export async function readListingLows(game: GameId, cardIds: string[], day = todayUtc()): Promise<Map<string, Record<string, number>>> {
+  const out = new Map<string, Record<string, number>>();
+  if (cardIds.length === 0) return out;
+  const rows = await (db
+    .prepare(`SELECT card_id, variant, low_usd FROM listing_lows WHERE game = ? AND card_id IN (${cardIds.map(() => "?").join(",")}) AND day >= ?`)
+    .all(game, ...cardIds, addDays(day, -LOW_MAX_AGE_DAYS)) as unknown as Promise<{ card_id: string; variant: string; low_usd: number }[]>).catch(() => []);
+  for (const l of rows) if (l.low_usd > 0) out.set(l.card_id, { ...(out.get(l.card_id) ?? {}), [l.variant]: Number(l.low_usd) });
+  return out;
+}
+
 /** One chunk (<= 400 cards of one game): the series query and the release-date / EUR query run together. */
 async function readChunk(game: GameId, chunk: string[], day: string): Promise<Map<string, TrustData>> {
   const marks = chunk.map(() => "?").join(",");
@@ -219,10 +240,7 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
             { id: string; set_release_date: string; price_eur: number | null; price_eur_foil: number | null }[]
           >)
         : Promise.resolve([]);
-  const lowsQ = (db
-    .prepare(`SELECT card_id, variant, low_usd FROM listing_lows WHERE game = ? AND card_id IN (${marks}) AND day >= ?`)
-    .all(game, ...chunk, addDays(day, -LOW_MAX_AGE_DAYS)) as unknown as Promise<{ card_id: string; variant: string; low_usd: number }[]>).catch(() => []);
-  const [rows, metaRows, lowRows] = (await Promise.all([seriesQ, metaQ, lowsQ])) as [SeriesRow[], MetaRow[], { card_id: string; variant: string; low_usd: number }[]];
+  const [rows, metaRows, lows] = (await Promise.all([seriesQ, metaQ, readListingLows(game, chunk, day)])) as [SeriesRow[], MetaRow[], Map<string, Record<string, number>>];
   const meta = new Map<string, { released: string; eur: TrustData["eur"] }>();
   for (const m of metaRows) {
     meta.set(m.id, { released: m.set_release_date ?? "", eur: game === "mtg" ? { nonfoil: m.price_eur ?? null, foil: m.price_eur_foil ?? null } : null });
@@ -240,9 +258,9 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
     else if (r.source === REF_ALT_SOURCE) d.cmEurAlt = lastPriced(prices);
     else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
   }
-  for (const l of lowRows) {
-    const d = built.get(l.card_id);
-    if (d && l.low_usd > 0) d.lows = { ...(d.lows ?? {}), [l.variant]: Number(l.low_usd) };
+  for (const [id, l] of lows) {
+    const d = built.get(id);
+    if (d) d.lows = l;
   }
   const at = Date.now();
   for (const [id, d] of built) {

@@ -27,6 +27,8 @@
  *     price is still >= 3x the level before it (the higher of the 7- and
  *     30-point medians, so a short glitch-low that recovers is not a spike).
  *  3. Sibling anchor (>= $50): >= 3x EVERY other variant of the same card.
+ *     3b (10-07): the anchor itself (the highest of those others) is wrong
+ *     too when it is $100+ and flat >= 21 days: neither side is trading.
  *  4. Stuck listing (>= $100): the identical value for >= 45 days. No sale
  *     in six weeks means the market has not updated: since 10-02 a NOTE
  *     (`stale` = the days, hard false, the screens show the number with
@@ -177,6 +179,8 @@ export interface PriceTrustInput {
   old?: boolean;
   /** TCGplayer's cheapest live listing (USD, any condition) for this printing, when fresh (listing_lows). Only read by test 4. */
   listingLowUsd?: number | null;
+  /** Pokemon, a non-default printing that is the default's highest sibling: the default's price (test 3b). */
+  anchorFor?: number | null;
 }
 
 export interface PriceTrust {
@@ -353,7 +357,7 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
 
 
 /** ok = the price may be printed; reason says why not (or, when a second source vouched, that it did). */
-export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null }: PriceTrustInput): PriceTrust {
+export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null, anchorFor = null }: PriceTrustInput): PriceTrust {
   const T = PRICE_TRUST;
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
@@ -382,6 +386,13 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);
   const sibRatio = sib > 0 ? to / sib : null;
   if (to >= T.spikeMinUsd && sibRatio != null && sibRatio >= T.siblingFail) return wrong(`sibling ${x(sibRatio)}`);
+  // 3b. The other side of that disagreement (10-07): the printing test 3 measured the default against only vouches for itself
+  // while it trades. Flat 21+ days at $100+, it is a parked number too, and two printings 3x apart with neither moving say
+  // nothing (Skyridge Charizard: Holofoil $10,000 hidden at 3.3x, Reverse Holofoil $2,999.99 unmoved 44 days, still printed).
+  const anchorRatio = !old && anchorFor != null && anchorFor > 0 ? anchorFor / to : null;
+  if (to >= T.gradedMinUsd && anchorRatio != null && anchorRatio >= T.siblingFail && f.runDays >= T.thinFlatDays) {
+    return wrong(`flat ${f.runDays}d, a sibling at ${x(anchorRatio)}`);
+  }
   // 4. Stuck listing. An OLD price is stale sooner, and from $10: a parked $15.50 that "dropped" to $10 is not a drop, so it is wrong.
   if (old && to >= T.refMinUsd && f.runDays >= T.staleOldDays) return wrong(`flat ${f.runDays}d`);
   // A CURRENT price flat >= 45 days is a note, not a hide (10-02): no sale in six weeks says the market has not updated, not that the

@@ -114,6 +114,16 @@ check("... listings ABOVE the frozen price keep the note (nobody undercuts it)",
 check("... no listing reading = the note as before", judge(LUGIA_EX, { listingLowUsd: null }).stale, 49);
 check("a price that is NOT stale ignores the cheapest listing (a liquid market price is a real one)", judge([...liquid(2400, 60), 2512.37], { listingLowUsd: 900 }).ok, true);
 check("the cheapest listing never touches an OLD price's reading (already wrong at 30 days)", judge(flat(121, 45), { old: true, listingLowUsd: 50 }).reason, "flat 45d");
+// 10-07 test 3b: Skyridge Charizard ecard3-146. Holofoil $10,000 is hidden at 3.3x its Reverse Holofoil; the reverse, $2,999.99
+// unmoved 44 days, was still printed. Two printings 3x apart with neither trading say nothing.
+const SKY_REVERSE = Array(44).fill(2999.99);
+check("Skyridge Charizard reverse $2,999.99 flat 44d, default at $10,000: hidden, hard", judge(SKY_REVERSE, { anchorFor: 10000 }), { ok: false, hard: true, reason: "flat 44d, a sibling at 3.3x" });
+const not3b = (t) => !/a sibling at/.test(t.reason);
+check("... the same anchor that trades is not touched by 3b (it vouches for itself)", not3b(judge([...liquid(2900, 60), 2999.99], { anchorFor: 10000, vintage: true })), true);
+check("... nor one flat under 21 days", not3b(judge([...liquid(2900, 60), ...Array(15).fill(2999.99)], { anchorFor: 10000, vintage: true })), true);
+check("... a default under 3x it says nothing (keeps the stale note)", judge(Array(50).fill(2999.99), { anchorFor: 8000 }).stale, 50);
+check("... under $100 is not looked at", judge(Array(44).fill(60), { anchorFor: 400 }).ok, true);
+check("... never on an OLD price (that reading is its own)", not3b(judge(Array(25).fill(2999.99), { anchorFor: 10000, old: true })), true);
 
 console.log("test 5: graded evidence ($100+)");
 check("$250 with one sign (round) passes", judge([...liquid(240, 40), 250]).ok);

@@ -28,7 +28,7 @@ import {
 import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setNeighbors, setStanding, setTopTiles, type CardPage, type Neighbor, type Tile } from "@/lib/server/cardPages";
 import { conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
-import { dayIndex } from "@/lib/priceSeries";
+import { dayIndex, todayUtc } from "@/lib/priceSeries";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
@@ -277,7 +277,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
               <Link href={setPath(game, f.setSlug)} className="text-brand-300 transition hover:text-brand-200">
                 {f.setName}
               </Link>
-              {f.release ? ` · released ${etDate(`${f.release}T12:00:00Z`)}` : ""}
+              {f.release ? (f.release > todayUtc() ? ` · Preorder · out ${etDate(`${f.release}T12:00:00Z`, "", { month: "short", year: "numeric" })}` : ` · released ${etDate(`${f.release}T12:00:00Z`)}`) : ""}
             </p>
 
             <PriceBlock page={page} />
@@ -306,7 +306,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
                 {[
                   ["Set", f.setName],
                   ["Number", f.number],
-                  ["Released", f.release ? etDate(`${f.release}T12:00:00Z`) : ""],
+                  [f.release > todayUtc() ? "Out" : "Released", f.release ? etDate(`${f.release}T12:00:00Z`) : ""],
                   ["Rarity", f.rarity],
                   ["Printing", f.tags.join(", ")],
                 ]
