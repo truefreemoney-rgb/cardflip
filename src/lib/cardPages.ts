@@ -275,9 +275,11 @@ export function variantPrices(game: GameId, series: SeriesInput[], today: string
 /** The price a page may print as THE price: the first printing (in display order) the guard believes. null = nothing printable. */
 export function headlinePrice(prices: VariantPrice[]): VariantPrice | null {
   // A doubted printing ranked above this one and worth about as much or more (Skyridge Charizard: Holofoil flagged, Reverse
-  // Holofoil $2,999.99 headlined beside "looks off", 10-06) makes the card's other figures suspect too.
+  // Holofoil $2,999.99 headlined beside "looks off", 10-06) makes the card's other figures suspect too. From $100 the ratio
+  // does not matter (10-07: the doubted Holofoil sat at a $10,000 sticker, so $2,999.99 passed the half test; both were
+  // single listings, Cardmarket said EUR 627): a doubted usual printing never hands the headline to a three-figure other one.
   const doubted = prices.filter((p) => p.flag && p.price > 0);
-  return prices.find((p) => !p.flag && !doubted.some((d) => variantRank(d.variant) < variantRank(p.variant) && p.price >= d.price * 0.5)) ?? null;
+  return prices.find((p) => !p.flag && !doubted.some((d) => variantRank(d.variant) < variantRank(p.variant) && (p.price >= d.price * 0.5 || p.price >= 100))) ?? null;
 }
 
 export interface IndexDecision {

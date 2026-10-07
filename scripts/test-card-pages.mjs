@@ -158,6 +158,8 @@ check("a flagged price is kept as a row but never the headline", [flagged.length
 check("a page with only flagged prices is noindex", cp.indexDecision(flagged), { index: false, reason: "flagged" });
 const mixed = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: false, reason: "flat" }), fresh(6, "reverseHolofoil")], today);
 check("the headline skips the flagged printing", cp.headlinePrice(mixed)?.variant, "reverseHolofoil");
+const skyridge = cp.variantPrices("pokemon", [fresh(10000, "holofoil", { hard: false, reason: "flat" }), fresh(2999.99, "reverseHolofoil")], today);
+check("Skyridge Charizard 10-07: a doubted $10,000 Holofoil never hands the headline to a $2,999.99 Reverse Holofoil", cp.headlinePrice(skyridge), null);
 check("a flagged $900 does not make a page indexable on its own", cp.indexDecision(cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "x" }), fresh(0.5, "reverseHolofoil")], today)).index, false);
 check("printings sort usual-first", cp.variantPrices("pokemon", [fresh(3, "reverseHolofoil"), fresh(9, "holofoil"), fresh(1, "normal")], today).map((p) => p.variant), ["normal", "holofoil", "reverseHolofoil"]);
 check("one price line for Yu-Gi-Oh! and One Piece", [cp.variantLabel("yugioh", "normal"), cp.variantLabel("onepiece", "normal")], ["Market price", "Market price"]);
