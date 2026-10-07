@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 Google Ads tracking (campaign "Signup Test - Search")
+- [ ] First real sign-up from an ad click shows under Google Ads Goals > Sign-up (label HuHPCKCx7JMdELLo2tVE) within ~48 h. Tag AW-18433356850 verified loading on prod 10-07.
+- [ ] First Stripe purchase shows under Goals > Purchase (page-load rule on /app/account/welcome?billing=success, fixed 10-07 from the wrong /app/account?billing=success).
+- [ ] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix).
+
 ## 10-06 new features (audit section G)
 - [ ] Phone: Share on a found card opens the share sheet with the picture (iPhone + Android); falls back to a download elsewhere.
 - [ ] Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
