@@ -3,6 +3,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import TrialScanner from "@/components/TrialScanner";
 import LiveStatsStrip from "@/components/LiveStatsStrip";
+import PhoneHint from "@/components/PhoneHint";
 import { liveStats } from "@/lib/server/liveStats";
 import { GAME_IDS, isGameId } from "@/lib/games";
 import { getGameStageCards } from "@/lib/server/stageCards";
@@ -67,6 +68,7 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
           </h1>
           <p className="mt-2 text-base text-zinc-300">No app. No account. Today&apos;s price in seconds.</p>
         </div>
+        <PhoneHint />
         <TrialScanner
           initialGame={initialGame}
           initialSignedIn={signedIn}

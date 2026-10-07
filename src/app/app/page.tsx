@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { lastRecordedPoint } from "@/lib/client/priceHistoryData";
 import Link from "next/link";
+import PhoneHint from "@/components/PhoneHint";
 import { useRouter } from "next/navigation";
 import Uploader from "@/components/Uploader";
 import GameToggle from "@/components/GameToggle";
@@ -1465,6 +1466,7 @@ export default function AppPage() {
               1-2-3 step chips are gone (the landing page sells; this screen
               scans): the game switch, then the viewfinder and its buttons. */}
           <h1 className="sr-only">Scanner</h1>
+          <PhoneHint />
           <div className="w-full max-w-md">
             <GameToggle game={game} onChange={setGame} block />
           </div>

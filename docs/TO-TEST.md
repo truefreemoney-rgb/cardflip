@@ -3,6 +3,10 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 "Works best on your phone" line on /scan and /app scanner
+- [ ] Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
+- [ ] Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
+
 ## 10-07 frozen-price guard (12297c12): cheapest-listing check + dead stale filter fixed
 - [ ] Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
 - [ ] Tomorrow's 09:45 UTC (5:45 AM ET) Pokemon run and 09:00 UTC (5 AM ET) Magic run write listing_lows for today (backfill wrote 2,837 rows on 10-07; readings older than 3 days stop counting).
