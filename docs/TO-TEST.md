@@ -31,13 +31,14 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
 
 ## 10-07 frozen-price guard (12297c12): cheapest-listing check + dead stale filter fixed
-- [ ] **10-07 FAIL on the card page:** /cards/pokemon/unseen-forces/lugia-ex--ex10-105 still headlines $2,500.00 ("Old price · check eBay sold"), no "looks off" note. Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
+- [x] (10-07 0b35cbad, prod fetch 2:45 PM ET: "This price looks off, check sold listings", no $2,500; the card page never read listing_lows) /cards/pokemon/unseen-forces/lugia-ex--ex10-105 no longer headlines $2,500.00.
+- [ ] Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
 - [ ] Tomorrow's 09:45 UTC (5:45 AM ET) Pokemon run and 09:00 UTC (5 AM ET) Magic run write listing_lows for today (backfill wrote 2,837 rows on 10-07; readings older than 3 days stop counting).
 - [ ] /pokemon/lugia-card-value, /pokemon/charizard-card-value, /pokemon/mewtwo-card-value: no frozen ($100+, flat 45d+) card in the tiles once the 1-day tile cache turns over.
 
 ## 10-07 Charizard ad landing page + Skyridge headline fix
 - [ ] /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
-- [ ] **10-07 half:** top now says "looks off", but the Reverse Holofoil row still shows $2,999.99. Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
+- [x] (10-07 0b35cbad test 3b, prod fetch 2:45 PM ET: top, Holofoil and Reverse Holofoil rows all "looks off", no price) Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
 - [ ] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path).
 
 ## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
@@ -108,7 +109,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] (10-07) Cavern of Souls ($10,000, stale) gone from Magic top cards.
 - [ ] Yu-Gi-Oh / Lorcana / One Piece $1,000+ cards appear in top lists from ~10-14 (14 days of history).
 - [ ] Friendly "Something went wrong" page on a crash (can't force one on prod; check if one ever shows up in /admin/errors).
-- [ ] **10-07 half:** set page says "out Nov 13, 2026 (preorder prices)", but card pages say "released Nov 13, 2026". Star Trek (Magic) shows "Preorder · out Nov 2026".
+- [x] (10-07 0b35cbad + d90a8315, prod fetch 2:50 PM ET: header "Preorder · out Nov 2026", About "out Nov 13, 2026", table "Out") Star Trek (Magic) card pages show "Preorder · out Nov 2026", not "released".
 - [ ] /scan doesn't flash the camera button for someone who already used the free scan.
 
 ### eBay (needs a real listing / sale)
@@ -146,7 +147,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Watch this price, signed in: adds to the watchlist.
 - [ ] A set with 300+ cards: page 2 link works, pager wraps on a phone.
 - [x] (10-07: /app/zzz = 404) Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).
-- [ ] Skyridge Charizard still headlines $2,999.99 "Reverse Holofoil" beside a doubted Holofoil — the 10-06 fix did not change it (needs a look at what the doubted price is).
+- [x] (10-07 0b35cbad: the reverse is now hidden too, test 3b) Skyridge Charizard still headlines $2,999.99 "Reverse Holofoil" beside a doubted Holofoil — the 10-06 fix did not change it (needs a look at what the doubted price is).
 
 ### Inventory
 - [ ] Delete one card → Undo brings it back; delete again and leave the page → it's gone for good.
