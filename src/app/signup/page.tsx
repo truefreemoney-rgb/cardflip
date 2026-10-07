@@ -87,7 +87,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) return setError("Enter your first name.");
+    if (!name.trim()) return setError("Enter a username.");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
     const pwProblem = passwordProblem(password);
     if (pwProblem) return setError(pwProblem);
@@ -177,13 +177,14 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="name" className="text-sm font-medium text-zinc-300">
-                First name
+                {/* Chris 10-07: "Username" reads lighter than "First name" (4 of 6 ad visitors left this form). Still the account's display name, not unique. */}
+                Username
               </label>
               <input
                 id="name"
                 name="name"
                 type="text"
-                autoComplete="given-name"
+                autoComplete="nickname"
                 autoFocus
                 enterKeyHint="next"
                 value={name}

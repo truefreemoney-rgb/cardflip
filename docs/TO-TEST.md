@@ -3,6 +3,10 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 signup: "First name" box renamed "Username" (4 of 6 Google Ads visitors left the signup form)
+- [ ] Signed out on a phone: /signup shows Username / Email / Password; empty Username says "Enter a username."
+- [ ] /admin/adtest over the next days: Google Ads "Opened the signup page" → "Made an account" rate improves.
+
 ## 10-07 7 hashtags on X / Facebook / Bluesky (was 2/2/3); Instagram 5 and Threads 1 are platform limits
 - [ ] Next 7am post: open the live X, Facebook and Bluesky posts — 5 to 7 tags, each a working link (Bluesky = facets), caption still reads OK.
 - [ ] X (257 chars) and Bluesky (300): tags are never cut below 5 on a long caption; if they are, raise fitText's floor.
