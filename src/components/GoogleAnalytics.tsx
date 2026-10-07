@@ -23,6 +23,13 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
  * Vercel. Conversion events are sent through lib/client/pixel.ts.
  */
 const TIKTOK_PIXEL_ID = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID;
+/**
+ * Google Ads (10-06, signup plan): the same gtag.js as GA4, configured for the
+ * AW- account too. Absent until NEXT_PUBLIC_GOOGLE_ADS_ID exists on Vercel.
+ * Conversions are sent through lib/client/pixel.ts.
+ */
+const ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
+const GTAG_ID = GA_ID || ADS_ID;
 const CONSENT_COOKIE = "cf_consent";
 const CONSENT_COUNTRIES = new Set(["GB", "IE"]);
 
@@ -42,7 +49,7 @@ export default function GoogleAnalytics() {
   const [mode, setMode] = useState<"load" | "ask" | "off" | null>(null);
 
   useEffect(() => {
-    if (!GA_ID && !TIKTOK_PIXEL_ID) return;
+    if (!GTAG_ID && !TIKTOK_PIXEL_ID) return;
     let alive = true;
     (async () => {
       const prior = readConsent();
@@ -56,7 +63,7 @@ export default function GoogleAnalytics() {
     };
   }, []);
 
-  if ((!GA_ID && !TIKTOK_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
+  if ((!GTAG_ID && !TIKTOK_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
 
   if (mode === "ask") {
     return (
@@ -100,14 +107,14 @@ export default function GoogleAnalytics() {
   if (mode !== "load") return null;
   return (
     <>
-      {GA_ID && (
+      {GTAG_ID && (
         <>
           <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${GTAG_ID}`}
             strategy="afterInteractive"
           />
           <Script id="ga4-init" strategy="afterInteractive">
-            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
+            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());${[GA_ID, ADS_ID].filter(Boolean).map((id) => `gtag('config','${id}');`).join("")}`}
           </Script>
         </>
       )}

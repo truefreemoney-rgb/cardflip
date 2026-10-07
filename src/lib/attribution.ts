@@ -77,6 +77,8 @@ const UTM_ALIASES: Record<string, string> = {
   threads: "threads",
   tiktok: "tiktok",
   pinterest: "pinterest", pin: "pinterest",
+  // Google Ads (10-06): the tracking template tags utm_source=googleads; an untagged ad click still carries gclid.
+  googleads: "googleads", "google-ads": "googleads", adwords: "googleads",
   google: "search", bing: "search", duckduckgo: "search", yahoo: "search", ecosia: "search", brave: "search",
 };
 
@@ -131,7 +133,7 @@ export function classifySource(utmSource: unknown, refHost: unknown, userAgent?:
   return `other:${host}`;
 }
 
-const SOURCE_OK = /^(direct|search|bluesky|x|facebook|instagram|threads|tiktok|pinterest|other:[a-z0-9._-]{1,80})$/;
+const SOURCE_OK = /^(direct|search|googleads|bluesky|x|facebook|instagram|threads|tiktok|pinterest|other:[a-z0-9._-]{1,80})$/;
 
 /** A stored/sent source, or "" when it is not one we classify to. */
 export function cleanSource(v: unknown): string {
@@ -143,7 +145,7 @@ export function cleanSource(v: unknown): string {
 export function sourceLabel(src: string): string {
   const fixed: Record<string, string> = {
     bluesky: "Bluesky", x: "X", facebook: "Facebook", instagram: "Instagram", threads: "Threads", tiktok: "TikTok",
-    pinterest: "Pinterest", search: "Search engines", direct: "Direct", unknown: "Not recorded",
+    pinterest: "Pinterest", search: "Search engines", googleads: "Google Ads", direct: "Direct", unknown: "Not recorded",
   };
   if (fixed[src]) return fixed[src];
   return src.startsWith("other:") ? src.slice(6) : src || fixed.unknown;
@@ -187,12 +189,21 @@ export function parseTouch(raw: unknown): Touch | null {
   return { s, m: clean(o.m, 20), c: clean(o.c), refHost: clean(o.refHost, 80), landing: cleanPath(o.landing), t };
 }
 
+/** utm_source, or the ad network an untagged ad click names by its click id (gclid/gbraid/wbraid = Google Ads, ttclid = TikTok). */
+export function sourceParam(q: URLSearchParams): string | null {
+  const utm = q.get("utm_source");
+  if (utm) return utm;
+  if (q.has("gclid") || q.has("gbraid") || q.has("wbraid")) return "googleads";
+  if (q.has("ttclid")) return "tiktok";
+  return null;
+}
+
 /** The touch this page load is: its tag and referrer, now. */
 export function touchFromPage(page: { search: string; referrer: string; pathname: string; userAgent?: string }, now = Date.now()): Touch {
   const q = new URLSearchParams(page.search);
   const refHost = referrerHost(page.referrer);
   return {
-    s: classifySource(q.get("utm_source"), refHost, page.userAgent),
+    s: classifySource(sourceParam(q), refHost, page.userAgent),
     m: clean(q.get("utm_medium"), 20),
     c: clean(q.get("utm_campaign")),
     refHost: clean(refHost, 80),

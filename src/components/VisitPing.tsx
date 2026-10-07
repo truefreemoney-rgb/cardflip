@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { sourceParam } from "@/lib/attribution";
 
 /**
  * Daily-visitor counter for the admin console (09-25). On every public page
@@ -23,7 +24,7 @@ export default function VisitPing() {
     referrerSent = true;
     // The tagged link's source and campaign ride the first ping too (lib/attribution.ts); the server keeps only the classified source.
     const q = first ? new URLSearchParams(window.location.search) : null;
-    const utm_source = q?.get("utm_source");
+    const utm_source = q ? sourceParam(q) : null;
     const utm_campaign = q?.get("utm_campaign");
     const body = JSON.stringify({ path: pathname, ...(first ? { first: true } : {}), ...(ref ? { ref } : {}), ...(utm_source ? { utm_source } : {}), ...(utm_campaign ? { utm_campaign } : {}) });
     try {

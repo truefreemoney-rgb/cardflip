@@ -73,6 +73,13 @@ const uaTable = [
   ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "direct"],
 ];
 for (const [ua, want] of uaTable) check(`no tag, no referrer, user agent …${ua.slice(-40)} -> ${want}`, A.classifySource("", "", ua), want);
+console.log("Google Ads (10-06): its own source, from the tag or an untagged click id");
+check("googleads tag", [A.classifySource("googleads", "google.com"), A.classifySource("google-ads", ""), A.cleanSource("googleads"), A.sourceLabel("googleads")], ["googleads", "googleads", "googleads", "Google Ads"]);
+check("sourceParam: utm wins, then gclid/gbraid/wbraid, then ttclid, else null",
+  ["?utm_source=bluesky&gclid=x", "?gclid=abc", "?wbraid=1", "?ttclid=z", "?q=1"].map((s) => A.sourceParam(new URLSearchParams(s))),
+  ["bluesky", "googleads", "googleads", "tiktok", null]);
+check("an untagged Google ad click lands as googleads, not organic search",
+  A.touchFromPage({ search: "?gclid=abc", referrer: "https://www.google.com/", pathname: "/scan" }, 1).s, "googleads");
 check("a tag or a referrer still wins over the app's user agent", [A.classifySource("bluesky", "", uaTable[0][0]), A.classifySource("", "google.com", uaTable[0][0]), A.classifySource("", "", 42)], ["bluesky", "search", "direct"]);
 check("the touch a browser keeps uses it too", A.touchFromPage({ search: "", referrer: "", pathname: "/", userAgent: uaTable[4][0] }, 1_800_000_000_000).s, "tiktok");
 check("source labels: plain words for the admin table", ["bluesky", "x", "search", "direct", "unknown", "other:reddit.com"].map(A.sourceLabel), ["Bluesky", "X", "Search engines", "Direct", "Not recorded", "reddit.com"]);
