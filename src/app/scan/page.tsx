@@ -7,8 +7,6 @@ import { GAME_IDS, isGameId } from "@/lib/games";
 import { getGameStageCards } from "@/lib/server/stageCards";
 import type { ScanExample } from "@/components/TrialScanner";
 import type { GameId } from "@/lib/types";
-import LiveStatsStrip from "@/components/LiveStatsStrip";
-import { liveStats } from "@/lib/server/liveStats";
 import { getCurrentUser } from "@/lib/server/auth";
 
 /**
@@ -22,10 +20,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+// 10-06 competitor sweep: no other scanner runs in the browser with no account, and only Ludex lists to eBay
+// (paid tiers, US only). Step 3 says the edge the ad's back half promises.
 const STEPS = [
-  { n: "1", t: "Scan", d: "Snap your card" },
-  { n: "2", t: "Price", d: "See its value" },
-  { n: "3", t: "Save", d: "Keep it free" },
+  { n: "1", t: "Scan", d: "No app needed" },
+  { n: "2", t: "Price", d: "Exact printing" },
+  { n: "3", t: "Sell", d: "On eBay, 1 tap" },
 ];
 
 /** /scan?game=magic (or mtg, pokemon, yugioh, lorcana, onepiece); anything else keeps the default. */
@@ -38,7 +38,6 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const initialGame = gameParam(Array.isArray(sp.game) ? sp.game[0] : sp.game);
   const label = await catalogSizeLabel().catch(() => "Every printing");
-  const stats = await liveStats();
   // No cookie (every ad visitor) = no DB read; a session = the signed-in screen from the first frame.
   const signedIn = Boolean(await getCurrentUser().catch(() => null));
   // One real example card per game: the lead of the home page's stage reel (cached 6 h, guarded, $15-$300). None found = none shown.
@@ -57,13 +56,14 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
           Log In
         </Link>
       </header>
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-5 px-4 pb-10 pt-6">
-        <LiveStatsStrip stats={stats} />
+      {/* 10-06: the live stats strip left this page. 155 of 157 TikTok visitors left without one tap; the first
+          screen is now the question, the promise, and things to press. */}
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-4 px-4 pb-10 pt-4">
         <div className="text-center">
           <h1 className="font-display text-4xl font-bold leading-[1.05] text-white">
             What&apos;s your card <span className="holo-text">worth?</span>
           </h1>
-          <p className="mt-3 text-base text-zinc-400">Scan it or type its name. Today&apos;s market price in seconds.</p>
+          <p className="mt-2 text-base text-zinc-300">No app. No account. Today&apos;s price in seconds.</p>
         </div>
         <TrialScanner
           initialGame={initialGame}

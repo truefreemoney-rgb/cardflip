@@ -120,8 +120,6 @@ export default function TrialScanner({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PokemonCard[] | null>(null);
   const [searching, setSearching] = useState(false);
-  // False until localStorage has been read: the camera button waits for it so "used" visitors never see it flash.
-  const [checked, setChecked] = useState(false);
 
   // Zero-taps question (10-06: 106 ad visitors, not one camera/search/price row): did they leave at once, or stay
   // and find nothing they could press? "stay10" = page visible 10 s; "tap" = any touch or click on the page.
@@ -158,7 +156,6 @@ export default function TrialScanner({
         setPhase({ kind: "used" });
         setLast(readLast());
       }
-      setChecked(true);
     }, 0);
     return () => {
       alive = false;
@@ -299,10 +296,8 @@ export default function TrialScanner({
         </section>
       ) : (
         <>
-          <GameToggle game={game} onChange={setGame} block />
-          {!checked ? (
-            <div aria-hidden className="h-[60px] w-full animate-pulse rounded-full bg-surface-1" />
-          ) : (
+          {/* 10-06: the real button from the first paint. The old grey placeholder looked dead on a slow TikTok
+              webview; a returning "used" visitor swaps to the used card a beat later, a fair trade. */}
           <button type="button" onClick={() => {
               step("camera");
               setCameraOpen(true);
@@ -313,7 +308,6 @@ export default function TrialScanner({
             </svg>
             {phase.kind === "reading" ? "Reading Your Card…" : phase.kind === "miss" ? "Try Again" : `Scan a ${GAMES[game].label} Card`}
           </button>
-          )}
           {phase.kind === "miss" && (
             <p role="alert" className="-mt-1 text-center text-sm text-amber-300">
               {phase.message}
@@ -324,8 +318,27 @@ export default function TrialScanner({
               Sign up free: {SCANS.trial} scans in the app
             </Link>
           )}
+          {/* 10-06: most ad viewers have no card in hand, so the no-card taps come right under Scan, labelled. */}
           <form onSubmit={search} className="flex flex-col gap-2">
-            <p className="flex items-center gap-3 text-xs text-zinc-500 before:flex-1 before:border-t before:border-edge after:flex-1 after:border-t after:border-edge">or type a name</p>
+            <p className="text-center text-sm font-semibold text-white">No card handy? Tap one to see its price</p>
+            {!results && (
+              <div className="grid grid-cols-2 gap-2">
+                {TRY[game].map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    disabled={searching}
+                    onClick={() => {
+                      setQuery(name);
+                      void runSearch(name, true);
+                    }}
+                    className="truncate rounded-full border border-edge-strong bg-surface-1 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-surface-2 disabled:opacity-60"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 value={query}
@@ -337,24 +350,6 @@ export default function TrialScanner({
                 {searching ? "…" : "Price It"}
               </button>
             </div>
-            {!results && (
-              <div className="flex flex-wrap gap-2">
-                {TRY[game].map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    disabled={searching}
-                    onClick={() => {
-                      setQuery(name);
-                      void runSearch(name, true);
-                    }}
-                    className="rounded-full border border-edge bg-surface-1 px-3 py-1.5 text-sm text-white transition hover:bg-surface-2 disabled:opacity-60"
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            )}
             {results && results.length === 0 && <p className="text-sm text-zinc-500">Nothing found. Try the name as printed.</p>}
             {results && results.length > 0 && (
               <ul className="flex flex-col divide-y divide-edge/60 overflow-hidden rounded-2xl border border-edge bg-surface-1">
@@ -387,6 +382,7 @@ export default function TrialScanner({
               </ul>
             )}
           </form>
+          <GameToggle game={game} onChange={setGame} block />
           <p className="-mt-1 text-center text-xs text-zinc-500">One free scan. No account, no card.</p>
           {/* 10-05 (Chris): a straight path to the trial for anyone who would rather sign up first. */}
           <Link href="/signup?from=scan" onClick={signupTap} className="-mt-1 text-center text-sm font-semibold text-brand-300 underline-offset-4 hover:underline">
