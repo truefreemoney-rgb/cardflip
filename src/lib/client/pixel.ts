@@ -63,11 +63,27 @@ const ADS_LABEL: Partial<Record<string, string | undefined>> = {
   CompletePayment: process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL,
 };
 
-function adsConversion(event: string, props?: Record<string, unknown>) {
+/** True once GoogleAnalytics.tsx's init has queued gtag('config', ADS_ID). */
+function adsConfigured(dl: unknown[]): boolean {
+  return dl.some((a) => {
+    const args = a as ArrayLike<unknown> | null;
+    return args != null && typeof args === "object" && args[0] === "config" && args[1] === ADS_ID;
+  });
+}
+
+function adsConversion(event: string, props?: Record<string, unknown>, waitedMs = 0) {
   const label = ADS_LABEL[event];
   if (!ADS_ID || !label || typeof window === "undefined") return;
   const w = window as unknown as { dataLayer?: unknown[] };
   w.dataLayer = w.dataLayer || [];
+  // The Google sign-in return (/signup?step=welcome) fires this on first paint, before the tag's
+  // js/config commands are queued (they wait on /api/geo). A conversion queued ahead of its
+  // config may never send, so hold it until config is there (10-07: 3 of the first 4 ad signups
+  // came this way and none showed in Google Ads). Gives up after 20 s (consent refused / no tag).
+  if (!adsConfigured(w.dataLayer)) {
+    if (waitedMs < 20_000) setTimeout(() => adsConversion(event, props, waitedMs + 250), 250);
+    return;
+  }
   const value = typeof props?.value === "number" ? props.value : undefined;
   // gtag() pushes its `arguments` object; the queue only reads that shape.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
