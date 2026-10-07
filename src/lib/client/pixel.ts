@@ -93,9 +93,42 @@ function adsConversion(event: string, props?: Record<string, unknown>, waitedMs 
   })("event", "conversion", { send_to: `${ADS_ID}/${label}`, ...(value != null ? { value, currency: typeof props?.currency === "string" ? props.currency : "USD" } : {}) });
 }
 
+/**
+ * GA4 recommended events for the same moments (10-07): a second signup count
+ * next to Google Ads, and importable into Ads as a conversion if the AW tag
+ * ever under-counts. Same wait-for-config rule as adsConversion.
+ */
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GA_EVENT: Partial<Record<string, string>> = { CompleteRegistration: "sign_up" };
+
+function gaEvent(event: string, waitedMs = 0) {
+  const name = GA_EVENT[event];
+  if (!GA_ID || !name || typeof window === "undefined") return;
+  const w = window as unknown as { dataLayer?: unknown[] };
+  w.dataLayer = w.dataLayer || [];
+  const ready = w.dataLayer.some((a) => {
+    const args = a as ArrayLike<unknown> | null;
+    return args != null && typeof args === "object" && args[0] === "config" && args[1] === GA_ID;
+  });
+  if (!ready) {
+    if (waitedMs < 20_000) setTimeout(() => gaEvent(event, waitedMs + 250), 250);
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  (function gtag(..._args: unknown[]) {
+    // eslint-disable-next-line prefer-rest-params
+    w.dataLayer!.push(arguments);
+  })("event", name, { send_to: GA_ID });
+}
+
 export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment" | "ViewContent" | "ClickButton", props?: Record<string, unknown>) {
   try {
     adsConversion(event, props);
+  } catch {
+    // Measurement never breaks the page.
+  }
+  try {
+    gaEvent(event);
   } catch {
     // Measurement never breaks the page.
   }
