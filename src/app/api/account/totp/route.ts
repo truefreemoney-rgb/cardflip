@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
+import { hasPassword } from "@/lib/googleAuth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { acceptTotpStep, disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
     if (action === "setup") {
       if (totpEnabled(user)) {
         return NextResponse.json({ error: "Two-step verification is already on" }, { status: 400 });
+      }
+      // Turning two-step off needs the password, so an account made with Google sets one first.
+      if (!hasPassword(user.passwordHash)) {
+        return NextResponse.json({ error: "Set a password first (Account > Password), then turn on two-step." }, { status: 400 });
       }
       const secret = generateTotpSecret();
       await setTotpSecret(user.id, secret);

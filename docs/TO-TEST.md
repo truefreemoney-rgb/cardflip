@@ -3,6 +3,17 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 Continue with Google on /signup and /login (dark until GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET are on Vercel)
+- [ ] Before the keys exist: /login and /signup show NO Google button and no "or" line (prod unchanged).
+- [ ] With keys, real phone, signed out: /signup shows the white "Continue with Google" button at the top, "or", then Username / Email / Password.
+- [ ] Sign UP with a Gmail never used here: lands on "You're in, <first name>" with the free-scan count; TikTok + Google Ads each log ONE CompleteRegistration (refresh the page: no second one). Welcome email arrives. Account page shows Password as "Set" (no current-password box).
+- [ ] Sign IN again with the same Google account from /login: goes straight to /app (or the page you were sent from), NO signup event, no second welcome email.
+- [ ] LINK: sign up with email + password first, log out, tap Continue with Google with the same address: same account, same scans and cards, password still works afterwards.
+- [ ] Cancel on Google's screen: back on the page with "Google sign-in didn't finish. Try again or use email."
+- [ ] A Google-only account typing a password on /login sees the "signs in with Google" message; Forgot Password lets it set one.
+- [ ] Second Google signup from the same phone/network starts with the free scans already used (same rule as email signup).
+- [ ] /admin and /admin/login look and behave exactly as before (code email, no Google button).
+
 ## 10-07 signup: "First name" box renamed "Username" (4 of 6 Google Ads visitors left the signup form)
 - [ ] Signed out on a phone: /signup shows Username / Email / Password; empty Username says "Enter a username."
 - [ ] /admin/adtest over the next days: Google Ads "Opened the signup page" → "Made an account" rate improves.

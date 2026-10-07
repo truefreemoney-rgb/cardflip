@@ -10,6 +10,7 @@ import Spinner from "@/components/Spinner";
 import OnboardingSteps, { CONFIRM_STEPS } from "@/components/OnboardingSteps";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
+import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
 import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
 import { updateProfile } from "@/lib/client/accountApi";
@@ -45,6 +46,16 @@ export default function SignupPage() {
   useEffect(() => {
     if (error) alertRef.current?.focus();
   }, [error]);
+  // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
+  useEffect(() => {
+    const fromGoogle = googleErrorFromUrl();
+    if (fromGoogle) setError(fromGoogle);
+  }, []);
+  // /signup?step=welcome&google=new: the Google callback just made this account. The server's
+  // free-scan count is the truth (a repeat device starts spent), and the registration event fires once.
+  const [googleNew] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("google") === "new",
+  );
 
   const [firstName, setFirstName] = useState("");
   // Ad-page signups (/scan -> /signup?from=scan): no mode question, straight to the scanner.
@@ -61,6 +72,18 @@ export default function SignupPage() {
     fetchCurrentUser().then((u) => {
       if (!alive || !u) return;
       if (welcomeStep) {
+        if (googleNew) {
+          // Once per account: a refresh or a second visit to this URL must not count another signup.
+          try {
+            const key = `cf.gsignup.${u.id}`;
+            if (!localStorage.getItem(key)) {
+              localStorage.setItem(key, "1");
+              pixelTrack("CompleteRegistration");
+            }
+          } catch {
+            pixelTrack("CompleteRegistration");
+          }
+        }
         setFirstName(u.name.split(" ")[0]);
         setAccount(u);
         // Still waiting on the emailed code (the phone was killed while the
@@ -81,7 +104,7 @@ export default function SignupPage() {
       // Offline / 5xx: the form still works — the signup POST reports its own error.
     });
     return () => { alive = false; };
-  }, [router]);
+  }, [router, googleNew]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,7 +156,7 @@ export default function SignupPage() {
   // confirmation: a second signup on a shared device or network starts with the
   // free scans spent. Without it (confirmation off) the screen is what it
   // always was, the full trial from the pricing constant.
-  const scansLeft = confirmFlow ? (account?.trialScansLeft ?? 0) : PRICING.trial.scans;
+  const scansLeft = googleNew ? (account?.trialScansLeft ?? 0) : confirmFlow ? (account?.trialScansLeft ?? 0) : PRICING.trial.scans;
 
   // The welcome question (10-04, docs/PRICING-ONLY-PLAN.md): asked once, here.
   // Either answer saves the mode and moves on; a failed save still moves on
@@ -174,7 +197,9 @@ export default function SignupPage() {
             {SCANS.trial} free scans, no card needed.
           </p>
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+          <GoogleButton mode="signup" />
+
+          <form onSubmit={handleSubmit} noValidate className="mt-5 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="name" className="text-sm font-medium text-zinc-300">
                 {/* Chris 10-07: "Username" reads lighter than "First name" (4 of 6 ad visitors left this form). Still the account's display name, not unique. */}

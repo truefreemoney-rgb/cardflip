@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, requireUser } from "@/lib/server/auth";
-import { verifyPassword } from "@/lib/server/password";
+import { confirmsPassword } from "@/lib/server/password";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { updateUserPassword } from "@/lib/server/users";
+import { hasPassword } from "@/lib/googleAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
 
 /**
@@ -25,7 +26,8 @@ export async function POST(req: NextRequest) {
     const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
     const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
 
-    if (!verifyPassword(currentPassword, user.passwordHash)) {
+    // An account made with Google has no current password: setting one needs only the session.
+    if (!confirmsPassword(currentPassword, user.passwordHash)) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
     }
     if (newPassword.length < PASSWORD_MIN) {
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (newPassword.length > PASSWORD_MAX) {
       return NextResponse.json({ error: "That password is too long" }, { status: 400 });
     }
-    if (newPassword === currentPassword) {
+    if (newPassword === currentPassword && hasPassword(user.passwordHash)) {
       return NextResponse.json({ error: "New password matches the current one" }, { status: 400 });
     }
 

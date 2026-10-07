@@ -7,6 +7,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DevLoginButton from "@/components/DevLoginButton";
+import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
 import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login } from "@/lib/client/auth";
 
 const FIELD =
@@ -26,6 +27,11 @@ export default function LoginPage() {
   useEffect(() => {
     if (error) alertRef.current?.focus();
   }, [error]);
+  // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
+  useEffect(() => {
+    const fromGoogle = googleErrorFromUrl();
+    if (fromGoogle) setError(fromGoogle);
+  }, []);
 
   // Already signed in? Straight to the app. Without this the page always
   // shows the empty form, which -- paired with the old always-logged-out
@@ -106,7 +112,9 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold text-white">Welcome back</h1>
         <p className="mt-1 text-sm text-zinc-400">Log in to your CardFlip account.</p>
 
-        <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+        <GoogleButton mode="login" />
+
+        <form onSubmit={handleSubmit} noValidate className="mt-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className="text-sm font-medium text-zinc-300">
               Email

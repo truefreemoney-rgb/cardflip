@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser } from "@/lib/server/auth";
-import { verifyPassword } from "@/lib/server/password";
+import { confirmsPassword } from "@/lib/server/password";
 import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import {
@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest) {
           // Changing the sign-in identity needs the password, like every other
           // account-recovery-relevant change.
           const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
-          if (!verifyPassword(currentPassword, user.passwordHash)) {
+          if (!confirmsPassword(currentPassword, user.passwordHash)) {
             return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
           }
         }
@@ -228,7 +228,7 @@ export async function DELETE(req: NextRequest) {
     if (mine) return mine;
     const body = await req.json().catch(() => ({}));
     const password = typeof body?.password === "string" ? body.password : "";
-    if (!verifyPassword(password, user.passwordHash)) {
+    if (!confirmsPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Password is incorrect" }, { status: 400 });
     }
     // Stop the billing first: a deleted account has no login left to cancel with, so it would be charged until it disputes.

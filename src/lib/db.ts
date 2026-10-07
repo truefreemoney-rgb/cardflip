@@ -1080,6 +1080,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // Country the account was created in (x-vercel-ip-country at signup, Chris
     // 09-30). Access abroad + display currency follow it; NULL = legacy = allowed.
     "home_country TEXT",
+    // "Continue with Google" (lib/googleAuth.ts): the Google account id (the id_token's sub)
+    // tied to this user; NULL = never signed in with Google. Unique index below.
+    "google_sub TEXT",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming
@@ -1149,6 +1152,8 @@ async function initSchema(): Promise<void> {
   // Every Stripe webhook finds its account by customer id (10-01 sweep: that
   // was a full scan of users). After the probe: the column is an added one.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)");
+  // One Google identity per account; an added column, so after the probe. Partial: most rows are NULL.
+  await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL");
   // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
   // Admin overview per-game card counts; game is an added column, so after the probe.

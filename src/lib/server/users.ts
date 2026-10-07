@@ -7,6 +7,7 @@ import { PRICE, PRICING } from "@/lib/pricing";
 import type { ScanQuota } from "@/lib/quotaTypes";
 import { CREDITS_FROM, SEED_WINDOW_ENDS_AT, seedAmount } from "@/lib/planSeed";
 import { emailConfirmActive } from "@/lib/server/mail";
+import { NO_PASSWORD, hasPassword } from "@/lib/googleAuth";
 
 export type { ScanQuota };
 
@@ -80,6 +81,8 @@ export interface User {
   emailVerifiedAt: number | null;
   /** ISO country the account was created in (x-vercel-ip-country); null = legacy/unknown = allowed. */
   homeCountry: string | null;
+  /** Google account id (id_token sub) when the account signs in with Google; null = never. */
+  googleSub: string | null;
 }
 
 export interface UserRow {
@@ -126,6 +129,7 @@ export interface UserRow {
   email_pending: number | null;
   email_verified_at: number | null;
   home_country: string | null;
+  google_sub: string | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -186,6 +190,7 @@ export function fromRow(row: UserRow): User {
     emailPending: row.email_pending === 1,
     emailVerifiedAt: row.email_verified_at ?? null,
     homeCountry: row.home_country ?? null,
+    googleSub: row.google_sub ?? null,
   };
 }
 
@@ -593,6 +598,28 @@ export async function findUserById(id: string): Promise<User | null> {
   return row ? fromRow(row) : null;
 }
 
+export async function findUserByGoogleSub(sub: string): Promise<User | null> {
+  const row = (await db.prepare("SELECT * FROM users WHERE google_sub = ?").get(sub)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
+/**
+ * Tie a Google id to an existing account (Google vouched for the email). Only into an empty slot, so a
+ * race or a replay can never re-point it. The caller lets a pending signup through
+ * (emailVerify.markEmailConfirmed). True when it wrote.
+ */
+export async function linkGoogleSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
+  // wipePassword: the inbox was never proven before now, so whoever typed the old password
+  // (maybe not the inbox owner) loses it; Google is the way in, or Forgot Password sets a new one.
+  const res = await db
+    .prepare(
+      `UPDATE users SET google_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?" : ""}
+        WHERE id = ? AND google_sub IS NULL`,
+    )
+    .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
+  return Number(res.changes) === 1;
+}
+
 export async function createUser(
   name: string,
   email: string,
@@ -602,21 +629,23 @@ export async function createUser(
    * emailPending: only the public signup route passes true, and only while email confirmation is on.
    * homeCountry: the signup route's x-vercel-ip-country; null off Vercel / admin-made accounts.
    */
-  opts: { emailPending?: boolean; homeCountry?: string | null } = {},
+  opts: { emailPending?: boolean; homeCountry?: string | null; googleSub?: string } = {},
 ): Promise<User> {
   const id = randomUUID();
   const createdAt = Date.now();
-  const passwordHash = hashPassword(password);
+  // Made through Google: no password to type, and Google already proved the inbox.
+  const googleSub = opts.googleSub ?? null;
+  const passwordHash = googleSub ? NO_PASSWORD : hashPassword(password);
   const normalizedEmail = email.trim().toLowerCase();
   const emailPending = opts.emailPending === true;
   const homeCountry = opts.homeCountry ?? null;
 
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country, google_sub, email_verified_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
     )
-    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry);
+    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry, googleSub, googleSub ? createdAt : null);
 
   return {
     id,
@@ -660,8 +689,9 @@ export async function createUser(
     pricingOnly: false,
     lastSeenAt: null,
     emailPending,
-    emailVerifiedAt: null,
+    emailVerifiedAt: googleSub ? createdAt : null,
     homeCountry,
+    googleSub,
   };
 }
 
@@ -898,6 +928,8 @@ export interface PublicUser {
   mustConfirmEmail: boolean;
   /** Signup country (ISO); drives the home-currency price hint. null = legacy/unknown (USD). */
   homeCountry: string | null;
+  /** False for an account made with Google: the account page then lets them set a password without a current one. */
+  hasPassword: boolean;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -922,5 +954,6 @@ export function toPublicUser(user: User): PublicUser {
     pricingOnly: Boolean(user.pricingOnly),
     mustConfirmEmail: needsEmailConfirm(user),
     homeCountry: user.homeCountry ?? null,
+    hasPassword: hasPassword(user.passwordHash),
   };
 }

@@ -240,6 +240,8 @@ function AccountSettings({
   // A walled account fixes its address in the code box above (Change Email),
   // so the profile form leaves the email alone until it is confirmed.
   const walled = Boolean(user.mustConfirmEmail);
+  // Made with Google: no password yet, so nothing to type for "current password".
+  const noPw = user.hasPassword === false;
   const emailChanged = !walled && email.trim().toLowerCase() !== user.email;
   const nameChanged = name.trim() !== user.name;
 
@@ -399,10 +401,11 @@ function AccountSettings({
     setPwBusy(true);
     try {
       const n = await changePassword(curPw, newPw);
+      if (noPw) setUser({ ...user, hasPassword: true });
       setCurPw(""); setNewPw(""); setNewPw2("");
       setPwMsg({
         kind: "ok",
-        text: n > 0 ? `Password changed. ${n} other device${n === 1 ? " was" : "s were"} signed out.` : "Password changed.",
+        text: noPw ? "Password set. You can still use Continue with Google." : n > 0 ? `Password changed. ${n} other device${n === 1 ? " was" : "s were"} signed out.` : "Password changed.",
       });
       setOverview((o) => (o ? { ...o, data: { ...o.data, sessions: 1 } } : o));
     } catch (err) {
@@ -736,19 +739,21 @@ function AccountSettings({
       <Group label="Security">
         <Row
           title="Password"
-          status={pwOpen ? "Changing it signs out every other device." : "Change it any time; every other device is signed out."}
+          status={pwOpen ? "Changing it signs out every other device." : noPw ? "You sign in with Google. Set a password if you also want to log in with email." : "Change it any time; every other device is signed out."}
           action={
             <button type="button" className={rowBtn} onClick={() => (pwOpen ? closePw() : setPwOpen(true))} disabled={pwBusy}>
-              {pwOpen ? "Cancel" : "Change"}
+              {pwOpen ? "Cancel" : noPw ? "Set" : "Change"}
             </button>
           }
           open={pwOpen}
         >
           <form onSubmit={savePassword} className="flex flex-col gap-3">
-            <label className={labelCls}>
-              Current password
-              <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={pwBusy} required autoComplete="current-password" />
-            </label>
+            {!noPw && (
+              <label className={labelCls}>
+                Current password
+                <input type={showPw ? "text" : "password"} className={`${inputCls} mt-1`} value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={pwBusy} required autoComplete="current-password" />
+              </label>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className={labelCls}>
                 New password
@@ -764,8 +769,8 @@ function AccountSettings({
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" className={primaryBtn} disabled={pwBusy || !curPw || !newPw || !newPw2}>
-                {pwBusy ? "Changing…" : "Change Password"}
+              <button type="submit" className={primaryBtn} disabled={pwBusy || (!noPw && !curPw) || !newPw || !newPw2}>
+                {pwBusy ? "Saving…" : noPw ? "Set Password" : "Change Password"}
               </button>
               <label className="flex items-center gap-2 text-xs text-zinc-500">
                 <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} className="accent-brand-500" />
@@ -977,7 +982,7 @@ function AccountSettings({
                   </label>
                 )}
               </div>
-              {emailChanged && (
+              {emailChanged && !noPw && (
                 <label className={labelCls}>
                   Current password <span className="text-zinc-600">(required to change email)</span>
                   <input type="password" className={`${inputCls} mt-1`} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} disabled={profileBusy} required autoComplete="current-password" />
@@ -1193,17 +1198,19 @@ function AccountSettings({
                 </Notice>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className={labelCls}>
-                  Your password
-                  <input type="password" className={`${inputCls} mt-1`} value={delPw} onChange={(e) => setDelPw(e.target.value)} required autoComplete="current-password" disabled={delBusy} />
-                </label>
+                {!noPw && (
+                  <label className={labelCls}>
+                    Your password
+                    <input type="password" className={`${inputCls} mt-1`} value={delPw} onChange={(e) => setDelPw(e.target.value)} required autoComplete="current-password" disabled={delBusy} />
+                  </label>
+                )}
                 <label className={labelCls}>
                   Type <span className="font-mono text-zinc-200">DELETE</span> to confirm
                   <input className={`${inputCls} mt-1`} value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} required disabled={delBusy} autoCapitalize="characters" />
                 </label>
               </div>
               <div className="flex items-center gap-3">
-                <button type="submit" className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60" disabled={delBusy || !delPw || delConfirm.trim().toUpperCase() !== "DELETE"}>
+                <button type="submit" className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60" disabled={delBusy || (!noPw && !delPw) || delConfirm.trim().toUpperCase() !== "DELETE"}>
                   {delBusy ? "Deleting…" : "Permanently Delete"}
                 </button>
                 <button type="button" className="text-sm text-zinc-500 hover:text-zinc-300" onClick={() => { setDelOpen(false); setDelPw(""); setDelConfirm(""); setDelMsg(null); }} disabled={delBusy}>

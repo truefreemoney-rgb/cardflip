@@ -11,6 +11,7 @@ function dummyHash(): string {
   return dummy;
 }
 import { SESSION_COOKIE } from "@/lib/server/auth";
+import { GOOGLE_ONLY_MESSAGE, hasPassword } from "@/lib/googleAuth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
@@ -45,6 +46,10 @@ export async function POST(req: Request) {
   // a login attempt can't be used to enumerate registered accounts.
   // An unknown email still pays for one hash (10-01 sweep): skipping scrypt made it answer measurably faster.
   if (!user) verifyPassword(password, dummyHash());
+  if (user && !hasPassword(user.passwordHash)) {
+    // Made with Google: no password exists. Say so instead of "incorrect".
+    return NextResponse.json({ error: GOOGLE_ONLY_MESSAGE }, { status: 401 });
+  }
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json(
       { error: "Incorrect email or password." },

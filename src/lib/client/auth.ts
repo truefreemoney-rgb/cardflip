@@ -53,6 +53,8 @@ export interface SessionUser {
   emailCodeExpiresAt?: number | null;
   /** Signup country (ISO): the home-currency price hint follows it, never the IP. null = legacy/unknown. */
   homeCountry?: string | null;
+  /** False for an account made with Google (no password until they set one). */
+  hasPassword?: boolean;
 }
 
 /** Login needs a 6-digit code: from the authenticator app (two-step), or, with `byEmail`, one we just mailed. */
