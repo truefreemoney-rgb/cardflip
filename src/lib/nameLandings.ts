@@ -16,6 +16,7 @@ export const POKEMON_NAME_LANDINGS: Record<string, string> = {
   mew: "Mew",
   gardevoir: "Gardevoir",
   sylveon: "Sylveon",
+  eevee: "Eevee",
 };
 
 export const nameLandingPath = (slug: string) => `/pokemon/${slug}-card-value`;
