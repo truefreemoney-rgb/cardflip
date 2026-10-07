@@ -1,6 +1,6 @@
 import "server-only";
 import { addDays } from "@/lib/priceSeries";
-import { GENERAL_TAGS, angleGameOrder, isAngleKind } from "@/lib/socialPlan";
+import { POST_TAGS, REACH_TAGS_BY_GAME, angleGameOrder, fillTags, isAngleKind } from "@/lib/socialPlan";
 import { etDate } from "@/lib/time";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
@@ -143,29 +143,14 @@ export function tiktokLead(caption: string): string {
  * then the general ones (#TCG #TradingCards #CardCollector) for the room left.
  * Other sites keep MAX_TAGS (Instagram stops at five).
  */
-export const TIKTOK_MAX_TAGS = 7;
+export const TIKTOK_MAX_TAGS = POST_TAGS;
 
-/**
- * TikTok-only reach tags that fill a single-game caption to seven (Chris 10-03,
- * after the 7am Pokémon post went out with five: "we need best with 7"). Counts
- * from TikTok's own suggestion list that morning: #Pokemon 26.1M posts,
- * #PokemonCommunity 4.2M. An all-games caption never reaches them (its five
- * game tags + #TCG #TradingCards already make seven).
- */
-export const TIKTOK_REACH_TAGS = ["Pokemon", "PokemonCommunity"];
-/** The reach tags of each game (10-04: a Yu-Gi-Oh head to head went out with #Pokemon topped on). A mixed post gets none. */
-export const TIKTOK_REACH_BY_GAME: Partial<Record<GameId | "mixed", string[]>> = {
-  pokemon: TIKTOK_REACH_TAGS,
-  yugioh: ["YuGiOhCards", "YugiohCommunity"],
-  mtg: ["MagicTheGathering", "MTGCommunity"],
-  lorcana: ["Lorcana", "LorcanaTCG"],
-  onepiece: ["OnePieceCardGame", "OnePieceTCG"],
-};
+/** The reach tags (10-03, 10-04) now live in lib/socialPlan.ts and fill every site's posts (10-07). */
+export const TIKTOK_REACH_BY_GAME = REACH_TAGS_BY_GAME;
+export const TIKTOK_REACH_TAGS = REACH_TAGS_BY_GAME.pokemon ?? [];
 
 export function tiktokTags(tags: readonly string[], game: GameId | "mixed" = "pokemon"): string[] {
-  const out: string[] = [];
-  for (const t of [...tags, ...GENERAL_TAGS, ...(TIKTOK_REACH_BY_GAME[game] ?? [])]) if (!out.includes(t)) out.push(t);
-  return out.slice(0, TIKTOK_MAX_TAGS);
+  return fillTags(tags, game, TIKTOK_MAX_TAGS);
 }
 
 /**

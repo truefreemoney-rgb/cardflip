@@ -154,8 +154,34 @@ export const GAME_HASHTAGS: Record<GameId, string[]> = {
 };
 /** The general tags that fill the room a post's game tags leave. */
 export const GENERAL_TAGS = ["TCG", "TradingCards", "CardCollector"];
-/** The most hashtags any post carries (TikTok and Instagram both stop at five). */
+/** The tags a post's builder picks (gamesTags, tagsFor); fillTags tops them up to POST_TAGS at publish time. */
 export const MAX_TAGS = 5;
+/**
+ * Every post goes out with 5 to 7 tags (Chris 10-07: "make sure to have 5 to
+ * 7 in each post" — the other sites were getting two or three). TikTok's
+ * seven-tag fill (10-02 test, the seven-tag post outran every five-tag one)
+ * now runs for every site; each site still cuts to its own maxTags.
+ */
+export const POST_TAGS = 7;
+/**
+ * Reach tags that fill a single-game post to seven (Chris 10-03, from TikTok's
+ * own suggestion list: #Pokemon 26.1M posts, #PokemonCommunity 4.2M). An
+ * all-games post never reaches them (its five game tags + #TCG #TradingCards make seven).
+ */
+export const REACH_TAGS_BY_GAME: Partial<Record<GameId | "mixed", string[]>> = {
+  pokemon: ["Pokemon", "PokemonCommunity"],
+  yugioh: ["YuGiOhCards", "YugiohCommunity"],
+  mtg: ["MagicTheGathering", "MTGCommunity"],
+  lorcana: ["Lorcana", "LorcanaTCG"],
+  onepiece: ["OnePieceCardGame", "OnePieceTCG"],
+};
+
+/** A post's own tags first, then the general ones, then its game's reach tags, to `max`. */
+export function fillTags(tags: readonly string[], game: GameId | "mixed" = "pokemon", max = POST_TAGS): string[] {
+  const out: string[] = [];
+  for (const t of [...tags, ...GENERAL_TAGS, ...(REACH_TAGS_BY_GAME[game] ?? [])]) if (!out.includes(t)) out.push(t);
+  return out.slice(0, max);
+}
 
 /**
  * The tags for a post that covers `games`: each game's own first tag (in the

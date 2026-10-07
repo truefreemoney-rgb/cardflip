@@ -3,6 +3,10 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 7 hashtags on X / Facebook / Bluesky (was 2/2/3); Instagram 5 and Threads 1 are platform limits
+- [ ] Next 7am post: open the live X, Facebook and Bluesky posts — 5 to 7 tags, each a working link (Bluesky = facets), caption still reads OK.
+- [ ] X (257 chars) and Bluesky (300): tags are never cut below 5 on a long caption; if they are, raise fitText's floor.
+
 ## 10-07 "Start Your Free Trial" button on /pokemon/<name>-card-value pages
 - [ ] Real phone: button sits under "Scan Your X Card Free", tap lands on /signup.
 - [ ] Google Ads: signups from name pages show up in the 10-08 review.

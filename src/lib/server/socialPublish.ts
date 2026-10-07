@@ -29,7 +29,7 @@ import {
   type PostKind,
   type SocialPost,
 } from "@/lib/server/social";
-import { dayPlan, gamesTags, isAngleKind, jumpsOn, plannedGame, questionFor, slotFormat } from "@/lib/socialPlan";
+import { dayPlan, fillTags, gamesTags, isAngleKind, jumpsOn, plannedGame, questionFor, slotFormat } from "@/lib/socialPlan";
 import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
@@ -696,7 +696,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       }
       const landed: Array<{ uri: string; game: string; format: "video" | "picture" }> = [];
       for (const d of drafts) {
-        const text = fitText(d, site.maxChars, site.maxTags);
+        // Filled to seven tags like TikTok (Chris 10-07: 5 to 7 on every post), then cut to the site's maxTags.
+        const text = fitText({ ...d, hashtags: fillTags(d.hashtags, d.mixed ? "mixed" : d.game) }, site.maxChars, site.maxTags);
         if (opts.dry) {
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && slotFormat(p.slot, day) === "video" && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;

@@ -253,8 +253,8 @@ export const facebook: SocialSite = {
   id: "facebook",
   label: "Facebook",
   maxChars: FACEBOOK_MAX_CHARS,
-  // Hashtags do little on Facebook; a long list reads as spam.
-  maxTags: 2,
+  // Chris 10-07: 5 to 7 tags on every post (was 2).
+  maxTags: 7,
   maxImageBytes: META_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => fbCreds() !== null,

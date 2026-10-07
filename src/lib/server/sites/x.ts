@@ -261,7 +261,8 @@ export const x: SocialSite = {
   id: "x",
   label: "X",
   maxChars: X_MAX_CHARS,
-  maxTags: 2,
+  // Chris 10-07: 5 to 7 tags on every post (was 2); fitText drops caption words before tags.
+  maxTags: 7,
   maxImageBytes: X_MAX_IMAGE_BYTES,
   postsVideo: true,
   connected: () => creds() !== null,

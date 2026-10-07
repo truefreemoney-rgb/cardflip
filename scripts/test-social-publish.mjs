@@ -230,15 +230,20 @@ check("keeps the tags: short caption + tags beats the long caption alone", fitTe
   }
   // Per-site caps (10-01): each site takes the first N tags, never the 13-tag list.
   const sites = { ...(await import(at("lib/server/sites/meta.ts"))), ...(await import(at("lib/server/sites/bluesky.ts"))), ...(await import(at("lib/server/sites/x.ts"))), ...(await import(at("lib/server/sites/pinterest.ts"))) };
-  const capped = (id) => fitText(games, sites[id].maxChars, sites[id].maxTags).split("\n\n").pop();
-  check("site tag caps: Threads 1 (its topic), X 2, Facebook 2, Bluesky 3, Instagram 5, Pinterest 5", ["threads", "x", "facebook", "bluesky", "instagram", "pinterest"].map(capped), [
+  // 10-07 (Chris: 5 to 7 tags on every post): the publish loop fills to seven like TikTok, then each site cuts.
+  const { fillTags } = await import(at("lib/socialPlan.ts"));
+  const filled = { ...games, hashtags: fillTags(games.hashtags, "mixed") };
+  const seven = `${firstFive} #TCG #TradingCards`;
+  const capped = (id) => fitText(filled, sites[id].maxChars, sites[id].maxTags).split("\n\n").pop();
+  check("site tag caps: Threads 1 (its topic), Instagram 5 (its limit), Pinterest 5, X / Facebook / Bluesky 7", ["threads", "x", "facebook", "bluesky", "instagram", "pinterest"].map(capped), [
     "#PokemonTCG",
-    "#PokemonTCG #MTG",
-    "#PokemonTCG #MTG",
-    "#PokemonTCG #MTG #DisneyLorcana",
+    seven,
+    seven,
+    seven,
     firstFive,
     firstFive,
   ]);
+  check("a single-game Pokémon post fills to seven with the reach tags", fillTags(["PokemonTCG", "PokemonCards", "TCG"], "pokemon"), ["PokemonTCG", "PokemonCards", "TCG", "TradingCards", "CardCollector", "Pokemon", "PokemonCommunity"]);
 }
 check("falls back to the short caption, tags kept when they fit", fitText(long, 290), `${leadSignOff(long.shortCaption)}
 
