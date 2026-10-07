@@ -806,11 +806,15 @@ export default function CollectionPage() {
                   <dd className="font-display font-semibold text-white">{formatMoney(market)}</dd>
                 </div>
                 <div className="bg-black/25 px-3 py-2">
-                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Change</dt>
-                  <dd className={`font-display font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                    {/* Arrow and amount stay on one line; the percent drops under them on a phone (10-07). */}
-                    <span className="whitespace-nowrap"><span aria-hidden>{up ? "↑" : "↓"}</span> {formatMoney(Math.abs(delta))}</span>
-                    <span className="ml-1 whitespace-nowrap text-xs font-medium opacity-80">({pct.toFixed(1)}%)</span>
+                  {/* Percent rides on the label row so the amount gets the value line to itself (10-07: "(5.4%)" beside it looked crammed). */}
+                  <dt className="flex items-baseline justify-between gap-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                    Change
+                    <span className={`whitespace-nowrap font-semibold normal-case tracking-normal ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                      {up ? "+" : "−"}{pct >= 10 ? Math.round(pct) : pct.toFixed(1)}%
+                    </span>
+                  </dt>
+                  <dd className={`whitespace-nowrap font-display font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                    <span aria-hidden>{up ? "▲" : "▼"}</span> {formatMoney(Math.abs(delta))}
                   </dd>
                 </div>
               </dl>

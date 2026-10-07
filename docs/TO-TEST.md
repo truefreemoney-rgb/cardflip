@@ -3,6 +3,12 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
+- [ ] Home game pill: "Yu-Gi-Oh!" never splits across lines.
+- [ ] Inventory > View card: Active chip sits in the Market Price box corner (no own row).
+- [ ] Inventory > View card: Added date not cut off; Change arrow + amount on one line.
+- [ ] Collector mode: Collection Value hero equals Summary Market Value (pane: Magic $111.78 = $111.78).
+
 ## 10-07 Google Ads tracking (campaign "Signup Test - Search")
 - [ ] First real sign-up from an ad click shows under Google Ads Goals > Sign-up (label HuHPCKCx7JMdELLo2tVE) within ~48 h. Tag AW-18433356850 verified loading on prod 10-07.
 - [ ] First Stripe purchase shows under Goals > Purchase (page-load rule on /app/account/welcome?billing=success, fixed 10-07 from the wrong /app/account?billing=success).
