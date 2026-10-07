@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchCurrentUser } from "@/lib/client/auth";
 import { SCANS } from "@/lib/pricing";
+import { landingStep } from "@/components/LandingSteps";
 
 /**
  * The landing page's "Try 5 Scans Free" button, session-aware (Chris,
@@ -31,7 +32,12 @@ export default function TrialCta({ className }: { className: string }) {
       Open the App
     </Link>
   ) : (
-    <Link href="/signup" className={className}>
+    <Link
+      href="/signup"
+      className={className}
+      // Split test (10-06): the home page's signup tap, the /scan/signup twin, for /admin/adtest.
+      onClick={() => window.location.pathname === "/" && landingStep("/home/signup")}
+    >
       Try {SCANS.trial} Scans Free
     </Link>
   );

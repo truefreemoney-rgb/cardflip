@@ -8,6 +8,7 @@ import JsonLd from "@/components/JsonLd";
 import { PUBLIC_META } from "@/lib/pageMeta";
 import { siteGraph } from "@/lib/structuredData";
 import HeroRelayout from "@/components/HeroRelayout";
+import LandingSteps from "@/components/LandingSteps";
 import CardWall from "@/components/CardWall";
 import DemoInventory from "@/components/DemoInventory";
 import PlanCard from "@/components/PlanCard";
@@ -273,6 +274,8 @@ export default async function Home() {
             sized to stay inside the viewport instead. */}
         <section id="hero" className="relative">
           <HeroRelayout targetId="hero" />
+          {/* /home/stay10 + /home/tap for the /scan vs home split test (/admin/adtest). Renders nothing. */}
+          <LandingSteps prefix="/home" />
           {/* Plain column on phones and tablets, grid only from lg: one less
               layout mode for iOS to get wrong on rotation. */}
           <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
