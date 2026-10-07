@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import SocialOptimizer from "@/components/admin/SocialOptimizer";
 import SocialPreview from "@/components/admin/SocialPreview";
 import SocialSites from "@/components/admin/SocialSites";
@@ -18,6 +19,8 @@ import { recentPublishCrash } from "@/lib/server/socialCrash";
 import { addDays } from "@/lib/priceSeries";
 
 export const dynamic = "force-dynamic";
+// The background rebuild of stale drafts (after() below) runs inside this function's time.
+export const maxDuration = 60;
 
 /**
  * Social autopilot preview (docs/SOCIAL-AUTOPILOT.md): today's drafts for
@@ -52,7 +55,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
   const showAll = all === "1";
   const [optimizer, built, sites, waiting, tiktokTomorrow, tiktokToday, crash] = await Promise.all([
     optimizerStatus(),
-    Promise.all(games.map((g) => cachedSocialDrafts(g, day, { fresh: fresh === "1", kinds: dayKinds(day), all: showAll }))),
+    Promise.all(games.map((g) => cachedSocialDrafts(g, day, { fresh: fresh === "1", kinds: dayKinds(day), all: showAll, staleOk: true }))),
     siteStatus(SOCIAL_SITES),
     countNew(),
     loadPackage(addDays(today, 1)),
@@ -60,6 +63,13 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
     recentPublishCrash(),
   ]);
   // The tags each draft will actually carry: the standing swaps and a running hashtag trial (lib/socialTags.ts), as the publisher applies them.
+  // A build older than 20 min was shown as is; rebuild those games after the response so the next visit is fresh.
+  const staleGames = games.filter((_, i) => built[i].stale);
+  if (staleGames.length > 0) {
+    after(async () => {
+      await Promise.all(staleGames.map((g) => cachedSocialDrafts(g, day, { fresh: true, kinds: dayKinds(day) }).catch(() => null)));
+    });
+  }
   const drafts = built.flatMap((b) => b.drafts).map((d) => ({ ...d, hashtags: tagsOn(d.hashtags, d.day) }));
   const builtAgo = minutesSince(Math.min(...built.map((b) => b.at)));
   // The rendered MP4 for any draft the render job registered (the 1pm movers go out as video), shown before it posts (one made under an older plan does not go out, so it is not shown).
