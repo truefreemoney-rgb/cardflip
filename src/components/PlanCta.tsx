@@ -20,12 +20,15 @@ export default function PlanCta({
   cta,
   primary,
   sessionUser,
+  tight = false,
 }: {
   plan: "trial" | "pack" | "standard" | "pro";
   cta: React.ReactNode;
   primary: boolean;
   /** Inside /app the session is already loaded (the out-of-scans wall): use it, so the button is never the signup link for a moment. */
   sessionUser?: SessionUser;
+  /** No top margin (the wall's quick-buy box stacks two buttons itself). */
+  tight?: boolean;
 }) {
   const [fetched, setUser] = useState<SessionUser | null | undefined>(undefined);
   const user = sessionUser ?? fetched;
@@ -56,7 +59,7 @@ export default function PlanCta({
     };
   }, [sessionUser]);
 
-  const cls = `mt-7 flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-center text-sm font-semibold transition ${
+  const cls = `${tight ? "" : "mt-7 "}flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-center text-sm font-semibold transition ${
     primary
       ? "sheen bg-brand-500 text-white shadow-lg shadow-brand-500/25 hover:bg-brand-400"
       : "border border-edge-strong bg-white/5 text-white hover:bg-white/10"

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PlanCard from "@/components/PlanCard";
+import PlanCta from "@/components/PlanCta";
+import PlanPrice from "@/components/PlanPrice";
 import { useSession } from "@/components/SessionProvider";
 import { logout } from "@/lib/client/auth";
 import { openBillingPortal } from "@/lib/client/accountApi";
-import { ROLLOVER_SENTENCE } from "@/lib/pricing";
+import { fetchServerCards } from "@/lib/client/cardsApi";
+import { ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 
 /**
  * What a signed-in seller without an active subscription sees on every app
@@ -28,6 +31,18 @@ export default function Paywall() {
   const lapsed = Boolean(user?.subStatus) && user?.tier !== "trial";
   // Plan scans banked before the plan ended: paused, not lost (they come back on resubscribe).
   const paused = user?.scans?.frozen ?? 0;
+  // Quick-buy box (10-07, first ad signup hit this wall): their card count up top, and
+  // both buy buttons on the first phone screen instead of 1-3 screens down.
+  const [cardCount, setCardCount] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchServerCards().then((cards) => {
+      if (alive && cards) setCardCount(cards.length);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function openPortal() {
     setBusy("portal");
@@ -64,6 +79,31 @@ export default function Paywall() {
           Your {paused.toLocaleString("en-US")} banked {paused === 1 ? "scan is" : "scans are"} paused. {paused === 1 ? "It comes" : "They come"} back when you resubscribe.
         </p>
       )}
+
+      <div className="mt-5 w-full max-w-md rounded-2xl border border-edge bg-surface-1 p-4">
+        {cardCount != null && cardCount > 0 && (
+          <p className="mb-3 text-center font-semibold text-white">
+            Your {cardCount.toLocaleString("en-US")} {cardCount === 1 ? "card is" : "cards are"} saved.
+          </p>
+        )}
+        <div className="flex flex-col gap-2">
+          <PlanCta
+            tight
+            plan="pack"
+            primary
+            sessionUser={user ?? undefined}
+            cta={<>Buy {SCANS.pack} Scans · <PlanPrice plan="pack" /></>}
+          />
+          <PlanCta
+            tight
+            plan="standard"
+            primary={false}
+            sessionUser={user ?? undefined}
+            cta={<>Subscribe · <PlanPrice plan="standard" />/mo</>}
+          />
+        </div>
+        <p className="mt-2 text-center text-xs text-zinc-500">Booster: pay once, scans never expire.</p>
+      </div>
 
       <PlanCard trial={false} sessionUser={user ?? undefined} className="mt-6 w-full text-left" />
 

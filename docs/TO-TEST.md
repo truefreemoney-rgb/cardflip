@@ -3,6 +3,12 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 out-of-scans wall: quick-buy box at the top (first ad signup ran out of free scans in an hour)
+- [ ] Real phone, trial account with 0 scans left: "Your N cards are saved." + "Buy 100 Scans · $4.99" + "Subscribe · $9.99/mo" all on the first screen, nothing behind the tab bar.
+- [ ] Booster button opens LIVE Stripe checkout for $4.99 (local can't: local Stripe price ids don't match; passed at 375 px in pane otherwise).
+- [ ] Subscribe button opens LIVE Stripe checkout for $9.99/mo.
+- [ ] /admin: first Booster or plan purchase from an ad signup.
+
 ## 10-07 Continue with Google on /signup and /login (dark until GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET are on Vercel)
 - [x] Before the keys exist: n/a now, keys went live 10-07.
 - [ ] With keys, real phone, signed out: /signup shows the white "Continue with Google" button at the top, "or", then Username / Email / Password.
