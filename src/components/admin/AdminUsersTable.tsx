@@ -74,7 +74,7 @@ const OVERRIDE_OPTIONS: { value: AccessOverride | ""; label: string }[] = [
 function automaticLabel(u: AdminUserRow): string {
   if (u.role === "admin") return "Owner (admin)";
   if (u.subStatus === "active" || u.subStatus === "trialing" || u.subStatus === "past_due") return u.plan === "pro" ? "Pro via Stripe" : "Subscribed via Stripe";
-  return u.tier === "legacy" ? "Legacy" : u.tier === "pack" ? "Scan Pack" : "Trial";
+  return u.tier === "legacy" ? "Legacy" : u.tier === "pack" ? "Booster" : "Trial";
 }
 
 function PlanSelect({ user, tierCls }: { user: AdminUserRow; tierCls: string }) {

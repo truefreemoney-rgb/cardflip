@@ -23,21 +23,21 @@ const covers = [
   { n: "1", label: "scan", body: "One camera shot, one card. A re-scan of the same card counts again; searching by name or number is free." },
   { n: String(PLAN.scans), label: "scans a month", body: `That's ${Math.floor(PLAN.scans / 9)} nine-pocket binder pages a month, or a few dozen cards a week with room to spare.` },
   { n: "0", label: "scans expire", body: `${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE}` },
-  { n: SCANS.pack, label: "in a Scan Pack", body: `${PRICE.pack} once, no subscription. Pack scans never expire, and on a subscription they are spent only after your plan scans.` },
+  { n: SCANS.pack, label: "in a Booster", body: `${PRICE.pack} once, no subscription. Booster scans never expire, and on a subscription they are spent only after your plan scans.` },
 ];
 
 const billing = [
   {
     q: "How does billing work?",
-    a: `Stripe charges the card on file ${PRICE.standard} (Pro: ${PRICE.pro}) each month from the day you subscribe, and each payment adds ${SCANS.standard} scans (Pro: ${SCANS.pro}). Invoices, card changes and cancellation are in Manage billing on your Account page. A Scan Pack is a single ${PRICE.pack} charge with nothing recurring.`,
+    a: `Stripe charges the card on file ${PRICE.standard} (Pro: ${PRICE.pro}) each month from the day you subscribe, and each payment adds ${SCANS.standard} scans (Pro: ${SCANS.pro}). Invoices, card changes and cancellation are in Manage billing on your Account page. A Booster is a single ${PRICE.pack} charge with nothing recurring.`,
   },
   {
     q: "Can I cancel any time?",
-    a: `Yes. Cancel from Manage Billing and the plan runs to the end of the period you've paid for. ${FROZEN_SENTENCE} Scan Pack scans keep working either way. Your cards, categories and watchlist stay on the account, and the app opens again the moment you resubscribe.`,
+    a: `Yes. Cancel from Manage Billing and the plan runs to the end of the period you've paid for. ${FROZEN_SENTENCE} Booster scans keep working either way. Your cards, categories and watchlist stay on the account, and the app opens again the moment you resubscribe.`,
   },
   {
     q: "What happens if I run out of scans?",
-    a: `The scanner pauses until your next payment adds more (${SCANS.standard} on CardFlip, ${SCANS.pro} on Pro), unless you have Scan Pack scans banked. A Scan Pack keeps you going right away. Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.`,
+    a: `The scanner pauses until your next payment adds more (${SCANS.standard} on CardFlip, ${SCANS.pro} on Pro), unless you have Booster scans banked. A Booster keeps you going right away. Everything else keeps working: inventory, pricing you've already pulled, eBay listings, repricing and the watchlist.`,
   },
   {
     q: "Does CardFlip take a cut of sales?",
@@ -75,7 +75,7 @@ export default function PricingPage() {
                 Start free. Pay for the volume you need.
               </h1>
               <p className="mt-4 text-lg text-zinc-400">
-                {SCANS.trial} scans free to start. Then a <PlanPrice plan="pack" /> Scan Pack with no subscription, <PlanPrice plan="standard" /> a month, or Pro at <PlanPrice plan="pro" /> when the binder outgrows it. Same product on all three.
+                {SCANS.trial} scans free to start. Then a <PlanPrice plan="pack" /> Booster with no subscription, <PlanPrice plan="standard" /> a month, or Pro at <PlanPrice plan="pro" /> when the binder outgrows it. Same product on all three.
               </p>
             </div>
             <PlanCard className="mx-auto mt-6 max-w-6xl" />

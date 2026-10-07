@@ -827,7 +827,7 @@ await confirmRoute.POST(jpost({ t: j2tok }));
 const jc2 = { body: { user: toPublicUser(await findUserById(j2.user.id)) } };
 await until(() => smtp.mails.length >= 4);
 const w2 = readMail(smtp.mails[3]);
-check("smtp: a repeat signup lands with no free scans and the welcome does not promise any", [jc2.body.user.trialScansLeft, !/scans are free/.test(words(w2.all)), w2.html.includes("Start Scanning"), !/Pick a Plan|pick one|Scan Pack/.test(w2.all)], [0, true, true, true]);
+check("smtp: a repeat signup lands with no free scans and the welcome does not promise any", [jc2.body.user.trialScansLeft, !/scans are free/.test(words(w2.all)), w2.html.includes("Start Scanning"), !/Pick a Plan|pick one|Booster/.test(w2.all)], [0, true, true, true]);
 
 await setSetting("email_confirm", "0");
 const offBefore = smtp.mails.length;

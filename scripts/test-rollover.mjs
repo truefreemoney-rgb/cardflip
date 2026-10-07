@@ -321,17 +321,17 @@ console.log("\nmessages");
   const next = Date.UTC(2026, 9, 25, 14);
   const sub = await mkUser({ plan_scans: 0, sub_period_end: next });
   const msg = outOfScansMessage(await get(sub));
-  check("a subscriber is told the next credit date (Eastern, no count: a downgrade may change it) and that a Scan Pack works now",
-    [msg.includes("Oct 25"), /\d{3}/.test(msg.replace(/\$\d+/g, "")), msg.includes("Scan Pack"), msg.includes("this month") || msg.includes("resets")], [true, false, true, false]);
+  check("a subscriber is told the next credit date (Eastern, no count: a downgrade may change it) and that a Booster works now",
+    [msg.includes("Oct 25"), /\d{3}/.test(msg.replace(/\$\d+/g, "")), msg.includes("Booster"), msg.includes("this month") || msg.includes("resets")], [true, false, true, false]);
   await setSubscription(sub, "active", next, "standard", next);
   const ending = outOfScansMessage(await get(sub));
-  check("a plan that is ending promises no credit, only a Scan Pack", [ending.includes("Oct 25"), ending.includes("Scan Pack")], [false, true]);
+  check("a plan that is ending promises no credit, only a Booster", [ending.includes("Oct 25"), ending.includes("Booster")], [false, true]);
   await setSubscription(sub, "canceled", null, "standard", null);
   await db.prepare("UPDATE users SET plan_scans = 388 WHERE id = ?").run(sub);
   const frozen = outOfScansMessage(await get(sub));
   check("a canceled account is told its banked scans come back on resubscribe", [frozen.includes("388"), frozen.includes("resubscribe")], [true, true]);
   const trial = await mkUser({ sub_status: null, plan: null });
-  check("a trial account keeps the plain wall message", outOfScansMessage(await get(trial)), "You're out of scans. Subscribe or buy a Scan Pack to keep scanning.");
+  check("a trial account keeps the plain wall message", outOfScansMessage(await get(trial)), "You're out of scans. Subscribe or buy a Booster to keep scanning.");
 }
 
 // --- route wiring ------------------------------------------------------------------------------

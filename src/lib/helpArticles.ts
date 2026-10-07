@@ -36,7 +36,7 @@ export const helpArticles: HelpArticle[] = [
     id: "scan-limits",
     heading: "Scan limits",
     paragraphs: [
-      `Each monthly payment on a subscription adds ${SCANS.standard} scans (${SCANS.pro} on Pro). ${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} The counter at the top shows how many you have left, and your Account page shows when the next scans arrive. A Scan Pack adds ${SCANS.pack} scans that never expire and work without a subscription. ${DRAW_ORDER_SENTENCE} A scan that fails isn't counted. New accounts get ${SCANS.trial} free scans first — scanning and pricing only; publishing to eBay starts with a Scan Pack or a subscription.`,
+      `Each monthly payment on a subscription adds ${SCANS.standard} scans (${SCANS.pro} on Pro). ${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} The counter at the top shows how many you have left, and your Account page shows when the next scans arrive. A Booster adds ${SCANS.pack} scans that never expire and work without a subscription. ${DRAW_ORDER_SENTENCE} A scan that fails isn't counted. New accounts get ${SCANS.trial} free scans first — scanning and pricing only; publishing to eBay starts with a Booster or a subscription.`,
       "There are also daily and per-minute caps that protect the service from abuse. If you hit one, wait and try again — a normal scanning session never gets near them.",
     ],
   },
@@ -118,7 +118,7 @@ export const helpArticles: HelpArticle[] = [
     id: "billing",
     heading: "Billing",
     paragraphs: [
-      `CardFlip is ${PRICE.standard} per month with ${SCANS.standard} scans, or Pro at ${PRICE.pro} per month with ${SCANS.pro}. Don't want a subscription? A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack}, paid once. Payment runs through Stripe; CardFlip never sees your card number.`,
+      `CardFlip is ${PRICE.standard} per month with ${SCANS.standard} scans, or Pro at ${PRICE.pro} per month with ${SCANS.pro}. Don't want a subscription? A Booster is ${SCANS.pack} scans for ${PRICE.pack}, paid once. Payment runs through Stripe; CardFlip never sees your card number.`,
       "Cancel any time from the billing portal in your account page — you keep access until the end of the period you've paid for.",
     ],
   },

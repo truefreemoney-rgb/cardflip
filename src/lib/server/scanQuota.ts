@@ -24,7 +24,7 @@ export { scanQuota, type ScanQuota };
 /**
  * Scan metering. A subscriber spends the plan balance (users.plan_scans:
  * every paid invoice adds the plan's scans, unused scans stack, nothing resets
- * on the 1st), then invite-a-friend bonus scans, then Scan Pack scans
+ * on the 1st), then invite-a-friend bonus scans, then Booster scans
  * (users.extra_scans, one-time buys that never expire). An account with no
  * subscription and a pack balance is the "pack" tier: the balance is its whole
  * allowance. Comped accounts (no payments) keep the calendar-month counter.
@@ -53,7 +53,7 @@ export function scanQuotaExhausted(user: User): boolean {
 
 /**
  * The 402 message when nothing is left to spend. A subscriber is told when the
- * next payment credits more (Eastern date), or that a Scan Pack works now; an
+ * next payment credits more (Eastern date), or that a Booster works now; an
  * account with paused plan scans is told they come back on resubscribe.
  */
 export function outOfScansMessage(user: User, q: ScanQuota = scanQuota(user)): string {
@@ -66,12 +66,12 @@ export function outOfScansMessage(user: User, q: ScanQuota = scanQuota(user)): s
   if (spendsPlanScans(user)) {
     const next = q.nextCreditAt ? etDate(q.nextCreditAt, "", { month: "short", day: "numeric" }) : "";
     return next
-      ? `You're out of scans. Your next scans arrive on ${next}, or add a Scan Pack (${PRICE.pack}) to keep scanning now.`
-      : `You're out of scans. Add a Scan Pack (${PRICE.pack}) to keep scanning.`;
+      ? `You're out of scans. Your next scans arrive on ${next}, or add a Booster (${PRICE.pack}) to keep scanning now.`
+      : `You're out of scans. Add a Booster (${PRICE.pack}) to keep scanning.`;
   }
   return q.frozen
-    ? `You're out of scans. Your ${q.frozen.toLocaleString("en-US")} banked plan scans come back when you resubscribe, or buy a Scan Pack to keep scanning.`
-    : "You're out of scans. Subscribe or buy a Scan Pack to keep scanning.";
+    ? `You're out of scans. Your ${q.frozen.toLocaleString("en-US")} banked plan scans come back when you resubscribe, or buy a Booster to keep scanning.`
+    : "You're out of scans. Subscribe or buy a Booster to keep scanning.";
 }
 
 type Bucket = "plan" | "bonus" | "pack" | "counter" | "trial";
@@ -170,7 +170,7 @@ function record(draw: ScanDraw, bucket: Bucket, k: number, counterKey: string | 
 
 /**
  * Take `n` scans BEFORE the paid work, in draw order (plan balance, then
- * bonus, then Scan Pack; comped: the month counter first). One scan is a blind
+ * bonus, then Booster; comped: the month counter first). One scan is a blind
  * guarded UPDATE per bucket; several (a CSV import) read the balances once as a
  * hint and take what each bucket can give, re-reading if another request got
  * there first. Every take is a single guarded statement, so a balance can never

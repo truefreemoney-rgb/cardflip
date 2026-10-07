@@ -86,7 +86,7 @@ assert.deepEqual(found, [], `customer-facing copy still promises a reset:\n${fou
 assert.equal(ROLLOVER_SENTENCE, "Unused scans carry over each month while your plan is active.");
 assert.match(FROZEN_SENTENCE, /pause/);
 assert.match(FROZEN_SENTENCE, /resubscribe/);
-assert.match(DRAW_ORDER_SENTENCE, /plan scans first.*bonus.*Scan Pack/);
+assert.match(DRAW_ORDER_SENTENCE, /plan scans first.*bonus.*Booster/);
 
 for (const file of ["src/app/pricing/page.tsx", "src/app/terms/page.tsx", "src/lib/helpArticles.ts", "src/lib/server/mail.ts", "src/components/Paywall.tsx", "src/app/app/account/page.tsx", "src/app/app/account/welcome/page.tsx"]) {
   assert.ok(has(read(file), "ROLLOVER_SENTENCE"), `${file} says the rollover rule from lib/pricing.ts`);
@@ -119,7 +119,7 @@ assert.equal(title, "488 scans left, 238 carried over. Your next scans arrive on
 assert.ok(!/ of 250|\/ 250|this month/.test(title), "no '/ 250' for a subscriber");
 
 title = copy.scanCounterTitle({ ...sub, remaining: 588, bonus: 40, pack: 60 }, "subscribed");
-assert.match(title, /^588 scans left, 238 carried over, 40 bonus, 60 in your Scan Pack\./);
+assert.match(title, /^588 scans left, 238 carried over, 40 bonus, 60 in your Booster\./);
 
 // Plan set to cancel: no promise of a credit that will not come, and the pause is named.
 const ending = { ...sub, remaining: 238, plan: 238, carried: 0, nextCreditAt: null, endsAt: OCT_25 };
@@ -133,12 +133,12 @@ assert.equal(copy.planEndsSentence(sub), null, "a plan that is not ending has no
 assert.equal(copy.nextCreditSentence(ending), null);
 assert.equal(copy.nextCreditSentence({ ...sub, nextCreditAt: null }), null, "a failed payment (no next date) promises nothing");
 
-// Out of scans: the next date, or a Scan Pack.
+// Out of scans: the next date, or a Booster.
 const out = { ...sub, remaining: 0, plan: 0, carried: 0 };
-assert.equal(copy.scanCounterTitle(out, "subscribed"), "No scans left. Your next scans arrive on Oct 25, or tap to add a Scan Pack");
-assert.equal(copy.scanCounterTitle({ ...out, nextCreditAt: null }, "subscribed"), "No scans left. Tap to add a Scan Pack");
-assert.equal(copy.moreScansSentence(out, "subscribed"), "Your next scans arrive on Oct 25, or add a Scan Pack to keep scanning now.");
-assert.equal(copy.moreScansSentence({ ...out, nextCreditAt: null }, "subscribed"), "Add a Scan Pack to keep scanning.");
+assert.equal(copy.scanCounterTitle(out, "subscribed"), "No scans left. Your next scans arrive on Oct 25, or tap to add a Booster");
+assert.equal(copy.scanCounterTitle({ ...out, nextCreditAt: null }, "subscribed"), "No scans left. Tap to add a Booster");
+assert.equal(copy.moreScansSentence(out, "subscribed"), "Your next scans arrive on Oct 25, or add a Booster to keep scanning now.");
+assert.equal(copy.moreScansSentence({ ...out, nextCreditAt: null }, "subscribed"), "Add a Booster to keep scanning.");
 
 // Canceled: banked scans are paused, not lost, and the wording says so.
 const canceled = { used: 5, included: 5, remaining: 0, frozen: 388 };
@@ -146,8 +146,8 @@ assert.equal(copy.frozenSentence(canceled), "388 banked plan scans are paused an
 assert.equal(copy.frozenSentence({ ...canceled, frozen: 1 }), "1 banked plan scan is paused and comes back when you resubscribe");
 assert.equal(copy.frozenSentence({ used: 5, included: 5, remaining: 0 }), null);
 assert.match(copy.scanCounterTitle(canceled, "trial"), /^No scans left on the free trial\. 388 banked plan scans are paused and come back when you resubscribe — get more$/);
-assert.match(copy.moreScansSentence(canceled, "trial"), /^388 banked plan scans are paused and come back when you resubscribe\. A Scan Pack works right away\.$/);
-assert.equal(copy.moreScansSentence({ used: 5, included: 5, remaining: 0 }, "trial"), "Subscribe or add a Scan Pack to keep scanning.");
+assert.match(copy.moreScansSentence(canceled, "trial"), /^388 banked plan scans are paused and come back when you resubscribe\. A Booster works right away\.$/);
+assert.equal(copy.moreScansSentence({ used: 5, included: 5, remaining: 0 }, "trial"), "Subscribe or add a Booster to keep scanning.");
 
 // Trial and legacy keep their own words ("3 of 5 free", "80 of 100 today"); pack stays "in your pack".
 assert.equal(copy.scanCounterTitle({ used: 2, included: 5, remaining: 3 }, "trial"), "3 of 5 free scans left — tap for more scans");
@@ -211,7 +211,7 @@ assert.ok(has(adjust, "Take Back") && has(adjust, 'pattern="[0-9]*"') && !has(ad
 // paymentCredited: the welcome page and the account poll wait for THIS payment's plan credit.
 const since = 1_000_000;
 assert.equal(copy.paymentCredited(undefined, since), false);
-assert.equal(copy.paymentCredited({ ...sub, plan: 0, remaining: 100, pack: 100, lastCreditAt: null }, since), false, "Scan Pack scans alone do not confirm a subscription payment");
+assert.equal(copy.paymentCredited({ ...sub, plan: 0, remaining: 100, pack: 100, lastCreditAt: null }, since), false, "Booster scans alone do not confirm a subscription payment");
 assert.equal(copy.paymentCredited({ ...sub, plan: 238, remaining: 238, lastCreditAt: since - 1 }, since), false, "a paused balance that unfroze, with an old credit, does not confirm it");
 assert.equal(copy.paymentCredited({ ...sub, lastCreditAt: since }, since), true, "a plan credit written since the checkout confirms it");
 assert.equal(copy.paymentCredited(comped, since), true, "a comped account (no plan balance) falls back to 'has scans'");

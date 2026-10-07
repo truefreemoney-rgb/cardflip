@@ -4,7 +4,7 @@ import { PRICING, SCANS } from "@/lib/pricing";
 import type { SessionUser } from "@/lib/client/auth";
 
 /**
- * Free trial · Scan Pack · CardFlip · Pro, as matching cards (Chris, 09-04,
+ * Free trial · Booster · CardFlip · Pro, as matching cards (Chris, 09-04,
  * pack added 09-25). Shared by the landing page and /pricing. Every number
  * comes from lib/pricing.ts so prices and scan counts can't drift apart.
  */
@@ -34,7 +34,7 @@ export const PRO = {
   ],
 };
 
-/** One-time Scan Pack (Chris, 09-25): no subscription, never expires, stacks. */
+/** One-time Booster (Chris, 09-25): no subscription, never expires, stacks. */
 export const PACK = {
   price: <PlanPrice plan="pack" />,
   scans: PRICING.pack.scans,
@@ -56,7 +56,6 @@ export const TRIAL = {
     "Inventory and watchlist",
     "No card on file",
     "Everything you scan stays on the account",
-    "Subscribe or buy a Scan Pack to publish on eBay",
   ],
 };
 
@@ -190,7 +189,7 @@ export default function PlanCard({
 }
 
 /**
- * The one-time Scan Pack as a wide strip under the three plans (Chris,
+ * The one-time Booster as a wide strip under the three plans (Chris,
  * 09-26: four cards side by side was "smashed together"). Same border and
  * type as the cards; the bullets run in two columns; the button at the right.
  */
@@ -198,7 +197,7 @@ function PackStrip({ sessionUser }: { sessionUser?: SessionUser }) {
   return (
     <div className="mt-3 flex flex-col gap-6 rounded-3xl border border-edge bg-surface-1 p-7 sm:p-8 md:flex-row md:items-center md:gap-8">
       <div className="md:w-52 md:shrink-0">
-        <p className="font-display text-lg font-semibold text-white">Scan Pack</p>
+        <p className="font-display text-lg font-semibold text-white">Booster</p>
         <p className="mt-1 text-sm text-zinc-500">{SCANS.pack} scans, no subscription</p>
         <p className="mt-3">
           <span className="font-display text-5xl font-bold tracking-tight text-white">{PACK.price}</span>

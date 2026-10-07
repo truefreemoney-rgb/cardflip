@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       const user = userId ? await findUserById(userId) : customerId ? await findUserByStripeCustomer(customerId) : null;
       const meta = (obj.metadata ?? {}) as Record<string, unknown>;
       if (user && obj.mode === "payment" && meta.pack === "1") {
-        // Scan Pack (09-25): a one-time payment, no subscription. Credit the
+        // Booster (09-25): a one-time payment, no subscription. Credit the
         // scans the session was sold with; the session id keys the credit.
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
         const paid = obj.payment_status === "paid" || obj.payment_status === "no_payment_required";

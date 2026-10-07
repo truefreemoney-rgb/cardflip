@@ -59,7 +59,7 @@ export const TIER_STYLE: Record<ScanTier, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-holo-gold/15 text-holo-gold" },
   subscribed: { label: "Subscribed", cls: "bg-emerald-400/10 text-emerald-300" },
   legacy: { label: "Legacy", cls: "bg-sky-400/10 text-sky-300" },
-  pack: { label: "Scan Pack", cls: "bg-amber-400/10 text-amber-300" },
+  pack: { label: "Booster", cls: "bg-amber-400/10 text-amber-300" },
   trial: { label: "Trial", cls: "bg-white/5 text-zinc-400" },
 };
 

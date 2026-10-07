@@ -13,7 +13,7 @@ import { ROLLOVER_SENTENCE } from "@/lib/pricing";
  * What a signed-in seller without an active subscription sees on every app
  * page (paid-only from 09-04). Chris, 10-01: "it should look more like our
  * pricing page", so the wall is the pricing page's own plan cards (CardFlip,
- * Pro, the Scan Pack strip) without the free card, each button opening its
+ * Pro, the Booster strip) without the free card, each button opening its
  * checkout directly. A lapsed subscriber also gets the billing portal as a
  * text link so a failed card is one tap to fix. Admins never land here
  * (SubscriptionGate lets them through).

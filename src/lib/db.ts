@@ -494,7 +494,7 @@ const SCHEMA = `
     updated_at INTEGER NOT NULL
   );
 
-  -- Scan Pack purchases (09-25): one row per Stripe Checkout session so a
+  -- Booster purchases (09-25): one row per Stripe Checkout session so a
   -- retried webhook never credits twice. users.extra_scans is the balance.
   CREATE TABLE IF NOT EXISTS scan_pack_purchases (
     session_id TEXT PRIMARY KEY,
@@ -503,7 +503,7 @@ const SCHEMA = `
     created_at INTEGER NOT NULL
   );
 
-  -- Scan Pack purchases (09-25): one row per Stripe Checkout session so a
+  -- Booster purchases (09-25): one row per Stripe Checkout session so a
   -- retried webhook never credits twice. users.extra_scans is the balance.
   CREATE TABLE IF NOT EXISTS scan_pack_purchases (
     session_id TEXT PRIMARY KEY,
@@ -958,7 +958,7 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // "where signups come from" tables; blank on accounts made before then.
   // inbox_key (10-01): signupGuard.inboxKey, the hashed inbox a signup belongs to (Gmail dot/plus spellings are one).
   ["signup_log", ["country TEXT", "src TEXT", "medium TEXT", "campaign TEXT", "landing TEXT", "ref_host TEXT", "inbox_key TEXT"]],
-  // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The payment intent finds the pack from the charge;
+  // 10-01 sweep: a refunded or disputed Booster kept its scans. The payment intent finds the pack from the charge;
   // reversed = scans already taken back, so partial refunds and a later dispute net out.
   ["scan_pack_purchases", ["payment_intent TEXT", "reversed INTEGER NOT NULL DEFAULT 0"]],
   // The optimization loop (10-02): the kind (set / movers / games / dips) and slot (morning / midday / evening) a

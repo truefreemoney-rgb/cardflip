@@ -276,7 +276,7 @@ check("help article: own canonical and the full block", [art.alternates?.canonic
 console.log("structured data");
 const graph = sd.siteGraph();
 const offers = graph["@graph"].find((n) => n["@type"] === "SoftwareApplication").offers;
-check("offers: free trial, Scan Pack, both plans, from pricing.ts", offers.map((o) => [o.name, o.price]), [["Free trial", "0.00"], ["Scan Pack", PRICING.pack.price.toFixed(2)], ["CardFlip", PRICING.standard.price.toFixed(2)], ["CardFlip Pro", PRICING.pro.price.toFixed(2)]]);
+check("offers: free trial, Booster, both plans, from pricing.ts", offers.map((o) => [o.name, o.price]), [["Free trial", "0.00"], ["Booster", PRICING.pack.price.toFixed(2)], ["CardFlip", PRICING.standard.price.toFixed(2)], ["CardFlip Pro", PRICING.pro.price.toFixed(2)]]);
 check("description names all five games", sd.DESCRIPTION, (d) => ["Pok", "Magic", "Lorcana", "Yu-Gi-Oh!", "One Piece"].every((g) => d.includes(g)));
 
 // --- 8. www redirect, robots -----------------------------------------------------

@@ -98,7 +98,7 @@ export default function PlanCta({
     }
   }
 
-  // The Scan Pack is a one-time buy for anyone signed in, subscribed or not
+  // The Booster is a one-time buy for anyone signed in, subscribed or not
   // (a subscriber's pack scans are spent after their plan scans and bonus scans).
   if (plan === "pack") {
     return (

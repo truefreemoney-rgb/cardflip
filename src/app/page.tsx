@@ -76,7 +76,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "What does it cost?",
-    a: `Your first ${SCANS.trial} scans are free, no card needed: scan, price, build your inventory. Then a ${PRICE.pack} Scan Pack buys ${SCANS.pack} scans with no subscription, or ${PRICE.standard} a month gets ${SCANS.standard} scans, live pricing, eBay publishing, inventory and the watchlist (Pro: ${SCANS.pro} scans for ${PRICE.pro}). Cancel any time. You keep 100% of every eBay payout.`,
+    a: `Your first ${SCANS.trial} scans are free, no card needed: scan, price, build your inventory. Then a ${PRICE.pack} Booster buys ${SCANS.pack} scans with no subscription, or ${PRICE.standard} a month gets ${SCANS.standard} scans, live pricing, eBay publishing, inventory and the watchlist (Pro: ${SCANS.pro} scans for ${PRICE.pro}). Cancel any time. You keep 100% of every eBay payout.`,
   },
 ];
 

@@ -11,7 +11,7 @@ import { isTestNetwork } from "@/lib/server/trialScan";
  *  - the FIRST signup on an IP, device (cf_dev cookie) or inbox (inboxKey:
  *    Gmail dot and plus spellings are one inbox, 10-01) gets the free
  *    trial; every later one, ever, is still created but starts with the
- *    trial spent, so it lands on the Scan Pack wall. A real person behind a
+ *    trial spent, so it lands on the Booster wall. A real person behind a
  *    shared IP (household, phone carrier) can still sign up and pay.
  * Accounts made before 09-29 have no signup_log row, so they count for nothing.
  */

@@ -31,7 +31,7 @@ const SCAN_DAILY_BUDGET = 500;
 /** Photos arrive downscaled by the client; this is a backstop, not the budget. */
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-/** The 402 for an empty balance (the message names the next credit date, a Scan Pack or the legacy reset: scanQuota.ts). */
+/** The 402 for an empty balance (the message names the next credit date, a Booster or the legacy reset: scanQuota.ts). */
 function outOfScans(user: User, usage: ScanQuota) {
   return NextResponse.json({ error: outOfScansMessage(user, usage), quota: true, usage }, { status: 402 });
 }
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
 
-    // A subscriber's balance (each payment adds the plan's scans, unused scans stack); the trial allowance lifetime; a Scan Pack balance until it is gone.
+    // A subscriber's balance (each payment adds the plan's scans, unused scans stack); the trial allowance lifetime; a Booster balance until it is gone.
     // Fast answer from the row already in hand; the reservation below is the real, atomic check.
     if (scanQuotaExhausted(user)) return outOfScans(user, scanQuota(user));
 

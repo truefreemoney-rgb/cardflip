@@ -95,7 +95,7 @@ function RewardsInner() {
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Rewards</p>
         <h1 className="holo-text mt-2 font-display text-4xl font-bold leading-tight sm:text-5xl">Unlock {BONUS} Free Scans</h1>
         <p className="mx-auto mt-3 max-w-md text-sm text-zinc-400">
-          Send a friend your link. When they subscribe, {BONUS} scans land in your account. That is a whole Scan Pack, for
+          Send a friend your link. When they subscribe, {BONUS} scans land in your account. That is a whole Booster, for
           one text message.
         </p>
       </section>
@@ -182,7 +182,7 @@ function RewardsInner() {
       <section className="rounded-2xl border border-edge bg-surface-1 p-5">
         <p className="text-sm font-medium text-white">The math</p>
         <p className="mt-1 text-sm text-zinc-400">
-          A Scan Pack is {SCANS.pack} scans for {PRICE.pack}. One friend is a free pack. Ten friends is {(BONUS * 10).toLocaleString("en-US")} scans. The scans
+          A Booster is {SCANS.pack} scans for {PRICE.pack}. One friend is a free Booster. Ten friends is {(BONUS * 10).toLocaleString("en-US")} scans. The scans
           stack, they wait behind your plan scans, and they never expire.
         </p>
       </section>

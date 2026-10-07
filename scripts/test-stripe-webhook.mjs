@@ -194,7 +194,7 @@ check("a live subscription.created for another subscription adopts it", [await s
 await send({ type: "customer.subscription.deleted", data: { object: { id: "sub_third", customer: "cus_re", status: "canceled" } } });
 check("deleting the pinned subscription cancels", (await state(resub.id)).status, "canceled");
 
-// --- Scan Pack (09-25): checkout.session.completed with mode=payment -------
+// --- Booster (09-25): checkout.session.completed with mode=payment -------
 {
   const { PRICING } = await import(at("lib/pricing.ts"));
   const buyer = await createUser("Pack", "pack@example.com", "hunter22");
@@ -543,9 +543,9 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   charges.set("ch_pack", { id: "ch_pack", customer: packBuyer.cus, payment_intent: "pi_pack" });
   await db.prepare("UPDATE users SET plan_scans = 7 WHERE id = ?").run(packBuyer.id);
   const packRefund = await send({ type: "charge.refunded", data: { object: { id: "ch_pack", customer: packBuyer.cus, amount: 499, amount_refunded: 499, payment_intent: "pi_pack" } } });
-  check("a refund that is not a subscription payment (a Scan Pack) is ignored", [packRefund.status, await planScans(packBuyer.id)], [200, 7]);
+  check("a refund that is not a subscription payment (a Booster) is ignored", [packRefund.status, await planScans(packBuyer.id)], [200, 7]);
 
-  // 10-01 sweep: a refunded or disputed Scan Pack kept its scans. The pack is found by its payment intent.
+  // 10-01 sweep: a refunded or disputed Booster kept its scans. The pack is found by its payment intent.
   {
     const pk = await createUser("PackBack", "packback@example.com", "hunter22");
     const extra = async () => (await findUserById(pk.id)).extraScans;

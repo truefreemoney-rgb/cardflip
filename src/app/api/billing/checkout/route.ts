@@ -8,7 +8,7 @@ import { createCheckoutSession, createCustomer, createPackCheckoutSession, packC
 
 /**
  * POST { plan: "standard" | "pro" | "pack" } — answers { url } to Stripe
- * Checkout. "pack" is the one-time Scan Pack (09-25): allowed for anyone,
+ * Checkout. "pack" is the one-time Booster (09-25): allowed for anyone,
  * subscribed or not (a subscriber's pack scans are spent after the month).
  */
 export async function POST(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => null)) as { plan?: unknown } | null;
     if (body?.plan === "pack") {
       if (!packConfigured()) {
-        return NextResponse.json({ error: "Scan Packs aren't available yet" }, { status: 503 });
+        return NextResponse.json({ error: "Boosters aren't available yet" }, { status: 503 });
       }
       const customerId = await ensureStripeCustomer(user, createCustomer);
       return NextResponse.json({ url: await createPackCheckoutSession(customerId, user.id, checkoutCurrency(user.homeCountry)) });

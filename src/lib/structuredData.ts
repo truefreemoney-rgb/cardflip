@@ -15,7 +15,7 @@ export const DESCRIPTION =
 
 const usd = (n: number) => n.toFixed(2);
 
-/** Every way in, from the same ladder the pricing page prints (lib/pricing.ts): the free trial, the Scan Pack, both plans. */
+/** Every way in, from the same ladder the pricing page prints (lib/pricing.ts): the free trial, the Booster, both plans. */
 function offers() {
   const offer = (name: string, price: number, description: string, extra: Record<string, unknown> = {}) => ({
     "@type": "Offer",
@@ -32,7 +32,7 @@ function offers() {
   });
   return [
     offer("Free trial", 0, `${PRICING.trial.scans} card scans, no card needed`),
-    offer("Scan Pack", PRICING.pack.price, `${PRICING.pack.scans.toLocaleString("en-US")} card scans, one time, no subscription`),
+    offer("Booster", PRICING.pack.price, `${PRICING.pack.scans.toLocaleString("en-US")} card scans, one time, no subscription`),
     offer("CardFlip", PRICING.standard.price, `${PRICING.standard.scans.toLocaleString("en-US")} card scans a month`, monthly(PRICING.standard.price)),
     offer("CardFlip Pro", PRICING.pro.price, `${PRICING.pro.scans.toLocaleString("en-US")} card scans a month`, monthly(PRICING.pro.price)),
   ];

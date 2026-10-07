@@ -220,7 +220,7 @@ export function isComped(user: Pick<User, "accessOverride">): boolean {
 export type Plan = "standard" | "pro";
 export const PLAN_SCANS: Record<Plan, number> = { standard: PRICING.standard.scans, pro: PRICING.pro.scans };
 export const PLAN_PRICE_USD: Record<Plan, string> = { standard: PRICE.standard, pro: PRICE.pro };
-/** One-time Scan Pack (09-25): banked in users.extra_scans, never expires. */
+/** One-time Booster (09-25): banked in users.extra_scans, never expires. */
 export const PACK_SCANS = PRICING.pack.scans;
 export function planOf(user: Pick<User, "plan" | "accessOverride">): Plan {
   if (user.accessOverride === "comp_pro") return "pro";
@@ -252,7 +252,7 @@ export function trialScansLeft(
  *    account keeps the calendar-month counter), then bonus, then pack scans.
  *  - legacy: accounts that existed before the switch get 100 scans a DAY,
  *    no subscription, no wall.
- *  - pack: no subscription but a Scan Pack balance (users.extra_scans > 0):
+ *  - pack: no subscription but a Booster balance (users.extra_scans > 0):
  *    every feature open, no wall, until the balance is gone (09-25).
  *  - trial: new accounts, PRICING.trial.scans lifetime, then the wall.
  */
@@ -346,7 +346,7 @@ export function scanQuota(user: User, now = Date.now()): ScanQuota {
   };
 }
 
-/** Scan Pack scans banked on the account (one-time buys, never expire). */
+/** Booster scans banked on the account (one-time buys, never expire). */
 export function packScans(user: Pick<User, "extraScans">): number {
   return Math.max(0, user.extraScans ?? 0);
 }
@@ -374,7 +374,7 @@ export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "crea
  * Email confirmation wall (lib/server/emailVerify.ts). Only a trial account
  * that signed up while the admin switch was on can be walled: scanTier already
  * exempts the owner, admins, every override but "trial", subscribers, legacy
- * and Scan Pack holders, and email_pending is 0 on every account that existed
+ * and Booster holders, and email_pending is 0 on every account that existed
  * before this shipped. Fails open when mail vanishes from the server's
  * environment, so a broken deploy can never wall people behind a code that
  * cannot be sent.
@@ -396,7 +396,7 @@ export async function setAccessOverride(userId: string, override: AccessOverride
 }
 
 /**
- * Credit a Scan Pack (09-25). Keyed by the Stripe Checkout session so a
+ * Credit a Booster (09-25). Keyed by the Stripe Checkout session so a
  * retried webhook credits once; answers false when that session was
  * already applied.
  */
@@ -414,7 +414,7 @@ export async function creditScanPack(userId: string, sessionId: string, scans: n
 }
 
 /**
- * Take a refunded or disputed Scan Pack's scans back (10-01 sweep: they were kept). `fraction` of the pack is the target
+ * Take a refunded or disputed Booster's scans back (10-01 sweep: they were kept). `fraction` of the pack is the target
  * (a partial refund a share, a dispute all of it); what earlier reversals took is netted, so a refund then a dispute
  * never takes more than the pack. Only scans still unspent can go (extra_scans floors at 0); `short` says how many
  * were already used. null = no pack was bought with that payment intent.
@@ -881,7 +881,7 @@ export interface PublicUser {
   totpBackupCodesLeft: number;
   /** Invite-a-friend scans banked, spent after the plan balance. */
   bonusScans: number;
-  /** Scan Pack scans banked (one-time buys, never expire), spent last. */
+  /** Booster scans banked (one-time buys, never expire), spent last. */
   packScans: number;
   /** The header counter (09-07) and account page: scans left plus, for subscribers, carried over, next credit and any pause. */
   scans: ScanQuota;

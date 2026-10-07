@@ -9,7 +9,7 @@ import { scanCounterTitle } from "@/lib/scanCopy";
  * scans left for users to easily keep track of scans, also if you click on
  * it, should lead to buying more scans"). Reads the session's scan snapshot
  * (server truth from /api/auth/me, patched after every scan by the scanner)
- * and links to /pricing (the next plan up, or a Scan Pack since 09-25).
+ * and links to /pricing (the next plan up, or a Booster since 09-25).
  * Owner/unlimited accounts see their count with no link. Turns amber at
  * 10% of one payment's scans left, red at zero.
  *

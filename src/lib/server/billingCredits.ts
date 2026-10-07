@@ -254,7 +254,7 @@ export interface ReversalOutcome {
  * Which credit a charge paid for. The ledger first (the charge or payment
  * intent saved at credit time), then what the event itself names, then Stripe
  * (the charge, then the invoice paid by its payment intent). null invoice =
- * not a subscription payment (a Scan Pack refund lands here).
+ * not a subscription payment (a Booster refund lands here).
  */
 async function creditBehind(chargeId: string | null, paymentIntent: string | null, invoiceId: string | null, customerId: string | null) {
   let row = await creditForCharge(chargeId, paymentIntent);
@@ -277,17 +277,17 @@ async function creditBehind(chargeId: string | null, paymentIntent: string | nul
   return { row, invoiceId: row?.credit_key ?? inv, customerId: cus, paymentIntent: pi };
 }
 
-/** Not a subscription payment: maybe a Scan Pack (10-01 sweep: its scans were kept on a refund or chargeback). */
+/** Not a subscription payment: maybe a Booster (10-01 sweep: its scans were kept on a refund or chargeback). */
 async function reversePack(kind: "refund" | "dispute", paymentIntent: string | null, fraction: number): Promise<ReversalOutcome> {
   const out = paymentIntent ? await reverseScanPack(paymentIntent, fraction) : null;
-  if (!out) return { result: "ignored", note: "not a subscription payment or a known Scan Pack" };
+  if (!out) return { result: "ignored", note: "not a subscription payment or a known Booster" };
   if (out.short > 0) {
     await reportServerError(
-      `stripe: ${kind} on Scan Pack scans already used`,
+      `stripe: ${kind} on Booster scans already used`,
       new Error(`${kind} on pack ${paymentIntent} for ${out.userId.slice(0, 8)}: ${out.took + out.short} scans to take back, only ${out.took} were unspent`),
     );
   }
-  console.info(`stripe: ${kind} on Scan Pack ${paymentIntent}: -${out.took} pack scans`);
+  console.info(`stripe: ${kind} on Booster ${paymentIntent}: -${out.took} pack scans`);
   return out.took + out.short > 0 ? { result: "reversed", scans: out.took } : { result: "nothing_more" };
 }
 

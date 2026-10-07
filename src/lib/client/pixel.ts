@@ -9,7 +9,7 @@
  * Standard TikTok event names, so Ads Manager can optimise on them:
  *   CompleteRegistration = an account was created
  *   Subscribe            = a plan was paid for
- *   CompletePayment      = a one-time Scan Pack was paid for
+ *   CompletePayment      = a one-time Booster was paid for
  *   ViewContent          = /scan showed a price
  *   ClickButton          = a signup button was tapped on /scan
  */

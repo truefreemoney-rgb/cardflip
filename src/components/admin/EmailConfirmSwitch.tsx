@@ -11,7 +11,7 @@ import type { EmailConfirmStats } from "@/lib/server/emailVerify";
  * Email confirmation switch (admin console). Off is how the site ships: new
  * signups go straight in, as before. On, a new signup types a 6-digit code
  * (or taps the button in the mail) before it can scan; existing accounts,
- * subscribers, Scan Pack holders, comped accounts and the owner are never
+ * subscribers, Booster holders, comped accounts and the owner are never
  * asked. Turning it Off is also the kill switch: everyone still waiting on a
  * code is let in at once (oldest first, so the one-free-trial rule still holds).
  */
@@ -62,7 +62,7 @@ export default function EmailConfirmSwitch({ stats: initial }: { stats: EmailCon
           <p className="text-sm font-medium text-zinc-200">Email confirmation</p>
           <p className="mt-0.5 text-xs text-zinc-500">
             {stats.on
-              ? "On. A new signup types a 6-digit code before it can scan. Existing accounts, subscribers and Scan Pack holders are never asked."
+              ? "On. A new signup types a 6-digit code before it can scan. Existing accounts, subscribers and Booster holders are never asked."
               : blocked
                 ? "Off. Email isn't set up on this server, so codes can't be sent."
                 : "Off. New signups go straight in, as before."}

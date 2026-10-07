@@ -180,7 +180,7 @@ the same: a collector cannot verify either. Sealed products are outside the rule
   under Name & email always has "Use a Different Email" (a mistyped new
   address must not hold the row for the code's hour), "Email changed" shows
   only when the address really moved (`changeLanded`), and a walled Plan row
-  offers no Subscribe or Scan Pack. The Change Email form counts down only what
+  offers no Subscribe or Booster. The Change Email form counts down only what
   the server said (a signup mails its first code without using the resend
   allowance). Help copy promises no email reply to an unconfirmed account. The
   switch ships Off (`/admin/switches`), so none of this shows until Chris flips
@@ -193,7 +193,7 @@ the same: a collector cannot verify either. Sealed products are outside the rule
   "488 scans" (no "/ 250": nothing resets; trial and legacy keep "3 / 5 free"
   and "80 / 100 today"); the tooltip names the carried-over scans and the next
   credit date. Every date is Eastern (`lib/time.ts`). The account Plan row lists
-  what is real (plan scans, carried over, bonus, Scan Pack, next credit) and no
+  what is real (plan scans, carried over, bonus, Booster, next credit) and no
   bar, since nothing divides by a monthly cap. A plan set to end says "Plan ends
   Oct 25; 238 banked scans pause until you resubscribe" in an amber line; an
   ended plan's banked scans show as "paused" in the header, the wall and the

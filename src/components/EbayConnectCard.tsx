@@ -139,7 +139,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
       "You'll sign in on eBay's own site — we never see your eBay password. Then every card you scan can become a listing on your account. Nothing goes live until you press Publish.";
   } else if (trialOnly) {
     title = "Subscribe to Sell on eBay";
-    body = `Selling on eBay comes with a Scan Pack (${PRICE.pack}) or a plan. Get one, then connect your eBay account here.`;
+    body = `Selling on eBay comes with a Booster (${PRICE.pack}) or a plan. Get one, then connect your eBay account here.`;
   } else {
     title = `eBay isn't available right now${who}`;
     body =
@@ -225,7 +225,7 @@ export default function EbayConnectCard({ firstName, doneLabel, onDone }: Props)
           onClick={() => router.push("/pricing")}
           className="mt-7 w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400"
         >
-          See Plans and Scan Pack
+          See Plans and Boosters
         </button>
       )}
 

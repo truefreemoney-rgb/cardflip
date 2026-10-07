@@ -21,7 +21,7 @@ export const PUBLIC_META = {
     // Just the ladder: the old two extra sentences pushed it to 248 characters, and search cuts a description near 155.
     description: clipDescription(LADDER_SENTENCE),
     path: "/pricing",
-    ogTitle: `CardFlip pricing — ${PRICE_LINE.standard}, or a ${PRICE.pack} Scan Pack`,
+    ogTitle: `CardFlip pricing — ${PRICE_LINE.standard}, or a ${PRICE.pack} Booster`,
   }),
   features: pageMetadata({
     title: "Features",

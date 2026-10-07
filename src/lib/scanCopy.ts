@@ -33,7 +33,7 @@ export function hasScansToUse(q: ScanQuota | null | undefined): boolean {
 
 /**
  * Has the payment the seller just made been credited? A rollover subscriber's
- * answer is a plan credit written since `sinceMs` (a Scan Pack, bonus scans or a
+ * answer is a plan credit written since `sinceMs` (a Booster, bonus scans or a
  * paused plan balance that unfreezes at once are spendable before the payment
  * lands, so "has scans" would confirm too early); anyone else falls back to
  * "has scans to use".
@@ -71,16 +71,16 @@ export function frozenSentence(q: ScanQuota): string | null {
 
 /**
  * How the seller gets more scans, in one sentence for a "you are out" line:
- * a subscriber is told the next credit date (or that a Scan Pack works now), an
+ * a subscriber is told the next credit date (or that a Booster works now), an
  * account with paused plan scans that they come back on resubscribe.
  */
 export function moreScansSentence(q: ScanQuota | null | undefined, tier: string | undefined): string {
   if (tier === "subscribed") {
     const next = q ? nextCreditSentence(q) : null;
-    return next ? `${next}, or add a Scan Pack to keep scanning now.` : "Add a Scan Pack to keep scanning.";
+    return next ? `${next}, or add a Booster to keep scanning now.` : "Add a Booster to keep scanning.";
   }
   const frozen = q ? frozenSentence(q) : null;
-  return frozen ? `${frozen[0].toUpperCase()}${frozen.slice(1)}. A Scan Pack works right away.` : "Subscribe or add a Scan Pack to keep scanning.";
+  return frozen ? `${frozen[0].toUpperCase()}${frozen.slice(1)}. A Booster works right away.` : "Subscribe or add a Booster to keep scanning.";
 }
 
 /** The header counter's tooltip. `tier` is the session's tier: only subscribers drop the "of N" and get the credit dates. */
@@ -89,12 +89,12 @@ export function scanCounterTitle(q: ScanQuota, tier: string | undefined): string
   const frozen = frozenSentence(q);
   if (tier === "subscribed") {
     if (remaining <= 0) {
-      return `No scans left. ${nextCreditSentence(q) ? `${nextCreditSentence(q)}, or tap to add a Scan Pack` : "Tap to add a Scan Pack"}`;
+      return `No scans left. ${nextCreditSentence(q) ? `${nextCreditSentence(q)}, or tap to add a Booster` : "Tap to add a Booster"}`;
     }
     const parts = [`${fmt(remaining)} ${remaining === 1 ? "scan" : "scans"} left`];
     if (q.carried) parts.push(`${fmt(q.carried)} carried over`);
     if (q.bonus) parts.push(`${fmt(q.bonus)} bonus`);
-    if (q.pack) parts.push(`${fmt(q.pack)} in your Scan Pack`);
+    if (q.pack) parts.push(`${fmt(q.pack)} in your Booster`);
     const next = nextCreditSentence(q);
     const ends = planEndsSentence(q);
     return `${parts.join(", ")}${next ? `. ${next}` : ends ? `. ${ends}` : ""} — tap for more scans`;

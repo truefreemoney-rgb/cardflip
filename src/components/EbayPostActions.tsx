@@ -274,7 +274,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             // Trial sellers see one thing here (Chris, 09-06): Subscribe now,
             // leading to the three plans. Connect-eBay comes after.
             <Link href="/pricing" className={ebayButton + " text-center"}>
-              Scan Pack or Plan to Sell
+              Booster or Plan to Sell
             </Link>
           ) : canPost && !verified ? (
             <button
@@ -306,7 +306,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
 
       <p className="-mt-3 text-[11px] text-zinc-600">
         {trialOnly
-          ? `Selling on eBay comes with a Scan Pack (${PRICE.pack}) or a plan. Get one and every ready card publishes from right here, photo included.`
+          ? `Selling on eBay comes with a Booster (${PRICE.pack}) or a plan. Get one and every ready card publishes from right here, photo included.`
           : item.ebayDraftUrl
           ? "The draft is in My eBay › Drafts — finish and publish it there, or publish from here. Publishing means eBay's selling fees apply."
           : canPost

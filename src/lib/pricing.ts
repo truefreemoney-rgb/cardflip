@@ -109,11 +109,11 @@ export const PRICE_SHORT = {
   pro: `${PRICE.pro}/mo`,
 } as const;
 
-export const PLAN_NAME = { trial: "Free trial", pack: "Scan Pack", standard: "CardFlip", pro: "Pro" } as const;
+export const PLAN_NAME = { trial: "Free trial", pack: "Booster", standard: "CardFlip", pro: "Pro" } as const;
 
 /** One sentence that states the whole ladder, for bots, emails and meta descriptions. */
 export const LADDER_SENTENCE =
-  `${SCANS.trial} scans free to start. Then a ${PRICE.pack} Scan Pack of ${SCANS.pack} scans with no subscription, ` +
+  `${SCANS.trial} scans free to start. Then a ${PRICE.pack} Booster of ${SCANS.pack} scans with no subscription, ` +
   `or ${PRICE.standard} a month for ${SCANS.standard} scans, or Pro at ${PRICE.pro} a month for ${SCANS.pro}.`;
 
 /**
@@ -127,14 +127,14 @@ export const ROLLOVER_SENTENCE = "Unused scans carry over each month while your 
 /**
  * What ending a plan does to banked scans (Chris, 09-30): plan scans pause
  * (they stay on the account, usable only while subscribed) and come back on
- * resubscribe with the new payment stacking on top. Scan Pack scans are not
+ * resubscribe with the new payment stacking on top. Booster scans are not
  * affected. Shared by the pricing FAQ, Terms, help, the help bot and the
  * account page, so nobody ever reads a promise the code does not keep.
  */
 export const FROZEN_SENTENCE = "If your plan ends, the scans you have banked pause and come back when you resubscribe.";
 
 /** The order scans are spent in, for the pages that explain bonus and pack scans. */
-export const DRAW_ORDER_SENTENCE = "Scans are used in this order: plan scans first, then bonus scans from friends, then Scan Pack scans.";
+export const DRAW_ORDER_SENTENCE = "Scans are used in this order: plan scans first, then bonus scans from friends, then Booster scans.";
 
 export const ROLLOVER = {
   /**

@@ -591,7 +591,7 @@ function AccountSettings({
                 : user.tier === "legacy"
                   ? "Early account"
                   : user.tier === "pack"
-                    ? "Scan Pack"
+                    ? "Booster"
                     : user.subStatus === "canceled"
                       ? "Plan ended"
                       : "Free trial"}
@@ -1314,12 +1314,12 @@ function PlanSection({
   ) : user.tier === "pack" ? (
     <>
       <Dot on />
-      {`Scan Pack · ${(user.packScans ?? 0).toLocaleString("en-US")} scans left, they never expire. Another pack is ${PRICE.pack}; a subscription is ${SCANS.standard} a month at ${PRICE.standard}.${pausedNote}`}
+      {`Booster · ${(user.packScans ?? 0).toLocaleString("en-US")} scans left, they never expire. Another Booster is ${PRICE.pack}; a subscription is ${SCANS.standard} a month at ${PRICE.standard}.${pausedNote}`}
     </>
   ) : user.subStatus === "canceled" ? (
-    `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Scan Pack, to keep scanning.${pausedNote}`
+    `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Booster, to keep scanning.${pausedNote}`
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Scan Pack is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.${pausedNote}`
+    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Booster is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.${pausedNote}`
   );
   const showBody = billingReturn !== null || (subscribed && !!q) || !!msg;
 
@@ -1335,7 +1335,7 @@ function PlanSection({
         ) : (
           <span className="flex flex-wrap items-center justify-end gap-2">
             <button type="button" className={rowBtn} onClick={() => go(() => startCheckout("pack"))} disabled={busy}>
-              {busy ? "Opening…" : `Scan Pack · ${PRICE.pack}`}
+              {busy ? "Opening…" : `Booster · ${PRICE.pack}`}
             </button>
             <button type="button" data-tour="subscribe" className={rowPrimary} onClick={() => go(() => startCheckout("standard"))} disabled={busy}>
               {busy ? "Opening…" : `Subscribe · ${PRICE_SHORT.standard}`}
@@ -1403,7 +1403,7 @@ function PlanSection({
               ) : null}
               {q.pack ? (
                 <>
-                  <dt>Scan Pack scans</dt>
+                  <dt>Booster scans</dt>
                   <dd className="text-right tabular-nums text-zinc-200">{q.pack.toLocaleString("en-US")}</dd>
                 </>
               ) : null}

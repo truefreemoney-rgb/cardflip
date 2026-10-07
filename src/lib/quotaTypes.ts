@@ -18,7 +18,7 @@ export interface ScanQuota {
   remaining: number | null;
   /** Invite-a-friend scans still banked (subscribers only); counted in remaining. */
   bonus?: number;
-  /** Scan Pack scans still banked (never expire); counted in remaining. */
+  /** Booster scans still banked (never expire); counted in remaining. */
   pack?: number;
   /** Subscribers: plan scans left (users.plan_scans); counted in remaining. */
   plan?: number;

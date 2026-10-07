@@ -411,7 +411,7 @@ export default function AppPage() {
           // SubscriptionGate swaps the scanner for the paywall.
           if (vision.status === "quota") void refresh();
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
-            // The server's 402 names the next credit date, a Scan Pack or the paused scans.
+            // The server's 402 names the next credit date, a Booster or the paused scans.
             setQuotaNote(vision.error ?? "You're out of scans.");
           }
 

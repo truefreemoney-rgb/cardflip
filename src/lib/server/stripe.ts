@@ -16,7 +16,7 @@ const env = () => ({
   priceId: process.env.STRIPE_PRICE_ID,
   /** Pro (lib/pricing.ts). Unset = Pro isn't offered yet. */
   proPriceId: process.env.STRIPE_PRO_PRICE_ID,
-  /** One-time Scan Pack (lib/pricing.ts). Unset = packs aren't offered yet. */
+  /** One-time Booster (lib/pricing.ts). Unset = packs aren't offered yet. */
   packPriceId: process.env.STRIPE_SCAN_PACK_PRICE_ID,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 });
@@ -147,7 +147,7 @@ export async function createCheckoutSession(
 }
 
 /**
- * Hosted Checkout for a one-time Scan Pack (09-25): mode=payment, no
+ * Hosted Checkout for a one-time Booster (09-25): mode=payment, no
  * subscription. The webhook credits users.extra_scans from
  * metadata.packScans (the credit follows what was sold, not what the code
  * says today), keyed by the session id so a retry never credits twice.
@@ -283,7 +283,7 @@ export async function fetchCharge(chargeId: string): Promise<StripeObject> {
 }
 
 /**
- * The invoice a payment intent paid, or null (a one-time Scan Pack has none).
+ * The invoice a payment intent paid, or null (a one-time Booster has none).
  * Basil-era API: GET /invoice_payments filtered by payment intent.
  */
 export async function invoiceIdForPaymentIntent(paymentIntent: string): Promise<string | null> {

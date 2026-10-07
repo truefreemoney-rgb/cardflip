@@ -346,7 +346,7 @@ assert.ok(has(account, "onCancel={pickDifferentEmail}"), "a mistyped new address
 assert.ok(has(account, "changeLanded(next, pendingChange)"), "'Email changed' only when the address moved");
 assert.ok(has(account, "That code ran out, so your email didn't change"));
 assert.ok(has(account, '"Confirm your email to start scanning. Plans open up right after."'), "the Plan row of a walled account offers no purchase");
-assert.ok(has(account, "walled ? null : subscribed"), "...no Subscribe or Scan Pack buttons");
+assert.ok(has(account, "walled ? null : subscribed"), "...no Subscribe or Booster buttons");
 assert.ok(has(panel, "Use a Different Email"));
 assert.doesNotMatch(panel, />\s*Close\s*</, "the change box's exit is not a bare Close");
 assert.ok(

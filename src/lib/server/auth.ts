@@ -82,7 +82,7 @@ export function sellingGate(user: User): NextResponse | null {
   if (unconfirmed) return unconfirmed;
   if (user.role !== "admin" && scanTier(user) === "trial") {
     return NextResponse.json(
-      { error: "Publishing on eBay starts with a Scan Pack or a subscription — the free scans are for pricing", paywall: true, selling: true },
+      { error: "Publishing on eBay starts with a Booster or a subscription — the free scans are for pricing", paywall: true, selling: true },
       { status: 402 },
     );
   }
@@ -94,7 +94,7 @@ export function subscriptionGate(user: User): NextResponse | null {
   if (unconfirmed) return unconfirmed;
   if (user.role === "admin" || canUseApp(user)) return null;
   return NextResponse.json(
-    { error: `You're out of scans — a Scan Pack is ${PRICE.pack}, or CardFlip is ${PRICE_LINE.standard}`, paywall: true, quota: true },
+    { error: `You're out of scans — a Booster is ${PRICE.pack}, or CardFlip is ${PRICE_LINE.standard}`, paywall: true, quota: true },
     { status: 402 },
   );
 }

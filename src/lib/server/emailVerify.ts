@@ -39,7 +39,7 @@ import {
  *
  * Who can be walled. Only users.email_pending = 1 accounts, which only the
  * public signup route creates while the switch is on; users.needsEmailConfirm
- * then also requires the trial tier, so subscribers, Scan Pack holders,
+ * then also requires the trial tier, so subscribers, Booster holders,
  * legacy, comped, owner, admin and every account from before this shipped
  * can never be walled. Turning the switch off releases everyone waiting.
  *

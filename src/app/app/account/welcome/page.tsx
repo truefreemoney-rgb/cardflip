@@ -24,7 +24,7 @@ export default function SubscribedPage() {
   const [phase, setPhase] = useState<"waiting" | "confirmed" | "stalled">("waiting");
   // Scans the seller can spend, as the server counted them when the page confirmed.
   const [ready, setReady] = useState<number | null>(null);
-  // ?billing=pack = a one-time Scan Pack just paid (09-25); anything else is
+  // ?billing=pack = a one-time Booster just paid (09-25); anything else is
   // a new subscription. Read before the URL is cleaned below.
   const [kind] = useState<"sub" | "pack">(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("billing") === "pack" ? "pack" : "sub",
@@ -95,7 +95,7 @@ export default function SubscribedPage() {
 
         <h1 className="mt-5 text-xl font-semibold text-white">
           {phase === "waiting"
-            ? kind === "pack" ? "Confirming your Scan Pack…" : "Confirming your subscription…"
+            ? kind === "pack" ? "Confirming your Booster…" : "Confirming your subscription…"
             : `You're all set${first ? `, ${first}` : ""}`}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400" role="status">

@@ -286,7 +286,7 @@ const ledger = async (id) =>
     const r = await reserveScan(await get(id));
     seen.push([r.taken, r.usage.plan, r.usage.bonus, r.usage.pack, r.usage.remaining]);
   }
-  check("draw order: plan balance, then referral bonus, then Scan Pack; nothing after that",
+  check("draw order: plan balance, then referral bonus, then Booster; nothing after that",
     seen, [[1, 1, 1, 2, 4], [1, 0, 1, 2, 3], [1, 0, 0, 2, 2], [1, 0, 0, 1, 1], [1, 0, 0, 0, 0], [0, 0, 0, 0, 0]]);
 }
 {
@@ -337,7 +337,7 @@ const ledger = async (id) =>
   const id = await mkSub({ plan_scans: 388, extra_scans: 5 });
   await setSubscription(id, "canceled", null, "standard", null);
   let c = await get(id);
-  check("cancel: banked plan scans stay on the account but pause; the Scan Pack tier shows them frozen",
+  check("cancel: banked plan scans stay on the account but pause; the Booster tier shows them frozen",
     [scanTier(c), scanQuota(c)], ["pack", { used: 0, included: 5, remaining: 5, pack: 5, frozen: 388 }]);
   const r = await reserveScans(c, 5);
   c = await get(id);
@@ -419,7 +419,7 @@ const ledger = async (id) =>
   check("trial snapshot after 3 scans", toPublicUser(u).scans, { used: 3, included: TRIAL_SCANS, remaining: TRIAL_SCANS - 3 });
 }
 
-// --- Scan Pack (09-25): one-time buys banked in extra_scans ------------------
+// --- Booster (09-25): one-time buys banked in extra_scans ------------------
 {
   const { creditScanPack, packScans } = await import(at("lib/server/users.ts"));
   const { PRICING } = await import(at("lib/pricing.ts"));

@@ -138,7 +138,7 @@ function accountFacts(user: User, tickets: Ticket[] = []): string {
     rollover ? nextCreditSentence(q) ?? planEndsSentence(q) : null,
     frozenSentence(q),
     tier === "trial" ? `Free-trial scans used (of ${PRICING.trial.scans}): ${user.trialScansUsed}` : null,
-    packScans(user) > 0 ? `Scan Pack scans banked (never expire): ${packScans(user)}` : null,
+    packScans(user) > 0 ? `Booster scans banked (never expire): ${packScans(user)}` : null,
     `Pricing today: ${LADDER_SENTENCE}`,
     `eBay connected: ${user.ebayConnected ? "yes" : "no"}`,
     `Two-step verification: ${user.totpEnabledAt ? "on" : "off"}`,

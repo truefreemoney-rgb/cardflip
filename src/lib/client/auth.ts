@@ -23,7 +23,7 @@ export interface SessionUser {
   monthlyScans?: number;
   /** owner | subscribed | legacy | pack | trial. */
   tier?: "owner" | "subscribed" | "legacy" | "pack" | "trial";
-  /** Scan Pack scans banked (one-time buys, never expire). */
+  /** Booster scans banked (one-time buys, never expire). */
   packScans?: number;
   /** Server truth: is the app open to this account right now. */
   appAccess?: boolean;
