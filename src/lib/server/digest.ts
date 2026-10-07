@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { isMailConfigured, sendWeeklyDigestEmail } from "@/lib/server/mail";
+import { OWNER_EMAIL } from "@/lib/server/users";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
@@ -21,6 +22,13 @@ import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
  * Sunday it last went out, so the job's repeated daily runs send once; the
  * unsubscribe link in the mail flips digest_off.
  */
+
+/**
+ * Chris 10-07: accounts made before 10-07 (Eastern midnight) get no optional
+ * mail at all, neither this digest nor the campaigns (campaigns.ts), except
+ * the owner, who keeps everything to look at.
+ */
+export const EMAIL_CUTOFF = Date.parse("2026-10-07T04:00:00Z");
 
 const ROW_CAP = 400;
 const USER_CAP = 500;
@@ -217,10 +225,10 @@ export async function sweepWeeklyDigest(
   const users = (await db
     .prepare(
       `SELECT u.id, u.email, u.digest_token, u.digest_sent_week FROM users u
-       WHERE u.digest_off = 0 AND u.email_pending = 0 AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id)
+       WHERE u.digest_off = 0 AND u.email_pending = 0 AND (u.created_at >= ? OR lower(u.email) = ?) AND EXISTS (SELECT 1 FROM cards c WHERE c.user_id = u.id)
        LIMIT ${USER_CAP}`,
     )
-    .all()) as unknown as UserRow[];
+    .all(EMAIL_CUTOFF, OWNER_EMAIL)) as unknown as UserRow[];
   let sent = 0;
   for (const u of users) {
     if (u.digest_sent_week === week && !opts.force) continue;

@@ -21,9 +21,9 @@ const realError = console.error;
 console.error = () => {};
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { buildDigest, sweepWeeklyDigest, unsubscribeDigest, isEasternSunday, easternDay } = await import(at("lib/server/digest.ts"));
+const { buildDigest, sweepWeeklyDigest, unsubscribeDigest, isEasternSunday, easternDay, EMAIL_CUTOFF } = await import(at("lib/server/digest.ts"));
 const { createCard } = await import(at("lib/server/cards.ts"));
-const { createUser } = await import(at("lib/server/users.ts"));
+const { createUser, OWNER_EMAIL } = await import(at("lib/server/users.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -123,6 +123,17 @@ console.log("unsubscribe");
 check("wrong token → false", await unsubscribeDigest(u.id, "nope"), false);
 check("right token → true", await unsubscribeDigest(u.id, sent[0].unsub.token), true);
 check("unsubscribed user is left out even when forced", await sweepWeeklyDigest(SUNDAY, { force: true }, { send, configured: on }), { users: 0, sent: 0 });
+
+console.log("accounts before 10-07 (Chris): no digest, except the owner");
+const oldie = await createUser("Old", "old@example.com", "hunter22", "user");
+const owner = await createUser("Chris", OWNER_EMAIL, "hunter22", "user");
+for (const x of [oldie, owner]) {
+  await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(EMAIL_CUTOFF - DAY, x.id);
+  await createCard(x.id, { cardName: "Hand", setName: "Base Set", cardNumber: "1", imageUrl: "", condition: "NM", price: 5, catalogCardId: null });
+}
+sent.length = 0;
+await sweepWeeklyDigest(SUNDAY, { force: true }, { send, configured: on });
+check("only the owner's old account is mailed", sent.map((s) => s.to), [OWNER_EMAIL]);
 
 console.error = realError;
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

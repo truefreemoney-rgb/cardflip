@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { PLAN_NAME, PRICE, SCANS } from "@/lib/pricing";
-import { digestTokenFor } from "@/lib/server/digest";
+import { EMAIL_CUTOFF, digestTokenFor } from "@/lib/server/digest";
 import { isMailConfigured, sendCampaignEmail } from "@/lib/server/mail";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { OWNER_EMAIL, listAllUsers, scanQuota, scanTier, type User } from "@/lib/server/users";
@@ -44,7 +44,7 @@ export const MAX_PER_CAMPAIGN = 3;
 /** A brand-new account gets the signup welcome, not a campaign. */
 const MIN_AGE_MS = 24 * 3_600_000;
 /** Chris 10-07: accounts made before 10-07 (Eastern midnight) never get campaign mail. The owner gets a copy of each mail that goes out instead. */
-export const SIGNUP_CUTOFF = Date.parse("2026-10-07T04:00:00Z");
+export const SIGNUP_CUTOFF = EMAIL_CUTOFF;
 const USER_CAP = 500;
 const DAY = 86_400_000;
 
