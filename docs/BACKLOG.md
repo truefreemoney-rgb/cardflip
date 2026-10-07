@@ -7,6 +7,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 ## 0.0 FULL SWEEP (09-04 night, Chris: "any tasks, even ship not tested, everything and anything") — the one list until it's re-swept
 
 ### Later (Chris parked)
+- [ ] **Separate link tags per Google Search campaign** (parked 10-07, "no big changes right now"): both "Traffic - Search" and "Leads - Search" carry utm_campaign=signup-search, so /admin can't tell their signups apart. Change each campaign's Final URL suffix to traffic-search / leads-search; confirm ads stay Eligible after.
 - [ ] **Pinterest API access DENIED (email 10-07 2:08 PM ET to support@cardflip.io).** Reasons given: demo video didn't show the Pinterest integration and didn't show the full OAuth flow. Redo: record a new demo showing the whole Connect Pinterest → Pinterest's consent screen → back in CardFlip → a pin actually created from CardFlip, check it against Pinterest's demo guidelines, resubmit (or open a ticket under Developer Tools → Pinterest API). Until then Pinterest stays posted by hand in the pane.
 
 ### Mobile QA 09-06 (two read-only audit agents + ~40 emulated page runs at 375x812 and 360x780, subscribed account; Chris judges on his iPhone)

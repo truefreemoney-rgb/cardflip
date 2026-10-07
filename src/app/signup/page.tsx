@@ -18,6 +18,7 @@ import { mergeUser } from "@/lib/client/emailConfirm";
 import { readReferralCode, readTouch } from "@/components/AttributionCapture";
 import { PRICING, SCANS } from "@/lib/pricing";
 import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
+import { suggestEmail } from "@/lib/emailTypo";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -38,6 +39,7 @@ export default function SignupPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailLeft, setEmailLeft] = useState(false);
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -233,9 +235,24 @@ export default function SignupPage() {
                 enterKeyHint="next"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmailLeft(true)}
                 className={FIELD}
                 placeholder="you@example.com"
               />
+              {/* 10-07: an ad signup typed @iclod.org, the welcome email bounced and they signed up twice.
+                  Only after they leave the box, so it doesn't flicker mid-typing (gm → gmx.com). */}
+              {(() => {
+                const fix = emailLeft ? suggestEmail(email) : null;
+                return fix ? (
+                  <button
+                    type="button"
+                    onClick={() => setEmail(fix)}
+                    className="text-left text-sm text-amber-300"
+                  >
+                    Did you mean <span className="font-semibold underline underline-offset-2">{fix}</span>?
+                  </button>
+                ) : null;
+              })()}
             </div>
 
             <div className="flex flex-col gap-1.5">

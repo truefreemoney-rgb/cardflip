@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)
+- [ ] Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
+- [ ] A correct gmail/icloud address and a @hotmail.co.uk address show no hint.
+- [ ] Fewer "Undelivered Mail Returned to Sender" bounces at support@ from signup welcome emails.
+
 ## 10-07 out-of-scans wall: quick-buy box at the top (first ad signup ran out of free scans in an hour)
 - [ ] Real phone, trial account with 0 scans left: "Your N cards are saved." + "Buy 100 Scans · $4.99" + "Subscribe · $9.99/mo" all on the first screen, nothing behind the tab bar.
 - [ ] Booster button opens LIVE Stripe checkout for $4.99 (local can't: local Stripe price ids don't match; passed at 375 px in pane otherwise).
