@@ -11,6 +11,7 @@ import { trialScanWithVision } from "@/lib/client/visionApi";
 import { TRIAL_DONE_KEY, matchTrialRead, savePendingScan, trialPrice } from "@/lib/client/trialScan";
 import { searchTyped } from "@/lib/cards";
 import { formatMoney } from "@/lib/listing";
+import { netAfterFees } from "@/lib/fees";
 import { GAMES } from "@/lib/games";
 import { pixelTrack } from "@/lib/client/pixel";
 import { SCANS } from "@/lib/pricing";
@@ -244,6 +245,10 @@ export default function TrialScanner({
                     )}
                   </div>
                   <p className="text-xs text-zinc-500">Market price today, Near Mint</p>
+                  {/* 10-06 SERP sweep: value pages stop at a number; nobody answers "worth selling?". US fee estimate (lib/fees.ts). */}
+                  {netAfterFees(price) >= 1 && (
+                    <p className="mt-1 text-sm text-emerald-300">Sell it on eBay, keep about {formatMoney(netAfterFees(price))} after fees</p>
+                  )}
                 </>
               ) : (
                 <p className="mt-3 text-sm text-amber-300">No trusted market price for this one yet</p>
