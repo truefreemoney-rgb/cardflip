@@ -49,6 +49,7 @@ export default function SignupPage() {
   // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
   useEffect(() => {
     const fromGoogle = googleErrorFromUrl();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is browser-only, read once after hydration
     if (fromGoogle) setError(fromGoogle);
   }, []);
   // /signup?step=welcome&google=new: the Google callback just made this account. The server's
