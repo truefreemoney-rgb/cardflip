@@ -506,6 +506,20 @@ const SCHEMA = `
     updated_at INTEGER NOT NULL
   );
 
+  -- Admin email campaigns (10-07, lib/server/campaigns.ts): one row per
+  -- campaign mail tried, test sends included. The send log on /admin/emails
+  -- and the per-user caps both read it.
+  CREATE TABLE IF NOT EXISTS email_sends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    email TEXT NOT NULL,
+    campaign TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    sent_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_email_sends_user ON email_sends (user_id, sent_at);
+
   -- Booster purchases (09-25): one row per Stripe Checkout session so a
   -- retried webhook never credits twice. users.extra_scans is the balance.
   CREATE TABLE IF NOT EXISTS scan_pack_purchases (

@@ -7,6 +7,7 @@ import { sendPushToUser } from "@/lib/server/push";
 import { soldPush } from "@/lib/pushMessages";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { sweepWeeklyDigest } from "@/lib/server/digest";
+import { sweepCampaigns } from "@/lib/server/campaigns";
 import { sweepCardAlerts } from "@/lib/server/cardAlerts";
 import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
@@ -108,6 +109,7 @@ export interface DailyResult {
   wishlistAlerts?: { checked: number; sent: number } | { error: string };
   cardAlerts?: { checked: number; sent: number; nudged: number } | { error: string };
   weeklyDigest?: { skipped?: string; users: number; sent: number } | { error: string };
+  emailCampaigns?: { skipped?: string; due: number; sent: number; failed: number } | { error: string };
   autoOffers?: { sellers: number; sent: number; failed: number } | { error: string };
   /** Missed-webhook catch-up: paid Stripe invoices with no scan credit (lib/server/billingCredits.ts). */
   billingReconcile?: ReconcileResult | { error: string };
@@ -155,8 +157,8 @@ export async function runTcgStep(): Promise<NonNullable<DailyResult["tcg"]>> {
 /** Steps 2+3+5: Pokémon TCGCSV refresh, history sweep, eBay sales. Never throws. */
 export async function runPokemonSteps(
   now = Date.now(),
-): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers" | "billingReconcile">> {
-  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "autoOffers" | "billingReconcile"> = {};
+): Promise<Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "emailCampaigns" | "autoOffers" | "billingReconcile">> {
+  const result: Pick<DailyResult, "pokemonTcgcsv" | "pokemon" | "ebaySales" | "ebayFees" | "wishlistAlerts" | "cardAlerts" | "weeklyDigest" | "emailCampaigns" | "autoOffers" | "billingReconcile"> = {};
   // Money first: scans are credited by Stripe's invoice.paid webhook, and this
   // walk of the recently paid invoices credits any that never arrived (by
   // invoice id, so it can never double a credit). Capped at 20 s, never throws,
@@ -209,6 +211,13 @@ export async function runPokemonSteps(
   } catch (err) {
     result.weeklyDigest = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: weekly digest failed:", err);
+  }
+  // Admin email campaigns (campaigns.ts): off until Chris flips it on /admin/emails.
+  try {
+    result.emailCampaigns = await sweepCampaigns(now);
+  } catch (err) {
+    result.emailCampaigns = { error: err instanceof Error ? err.message : String(err) };
+    console.error("daily: email campaigns failed:", err);
   }
   try {
     // Stop re-pricing held cards ~200s after the step started so the eBay

@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 admin email campaigns (/admin/emails), SHIPPED SWITCHED OFF
+- [ ] Prod /admin/emails: both "Send Test To Me" buttons land a [TEST] mail at truefreemoney@gmail.com; check it on the phone (button, prices, Stop link).
+- [ ] Chris approves both mails' wording before the switch goes on.
+- [ ] After switching on: the first Tue/Fri morning run shows in the Send Log, and "Stop these emails" shows the "No more update emails" page and stops digest + campaigns.
+
 ## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)
 - [ ] Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
 - [ ] A correct gmail/icloud address and a @hotmail.co.uk address show no hint.

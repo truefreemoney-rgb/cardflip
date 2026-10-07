@@ -13,10 +13,12 @@ const page = (title: string, body: string) => `<!doctype html><html><head><meta 
 export async function GET(req: NextRequest) {
   const u = req.nextUrl.searchParams.get("u") ?? "";
   const t = req.nextUrl.searchParams.get("t") ?? "";
+  // k=updates = the admin email campaigns (campaigns.ts): same flag, its own wording.
+  const updates = req.nextUrl.searchParams.get("k") === "updates";
   const ok = await unsubscribeDigest(u, t);
   return new NextResponse(
     ok
-      ? page("You're Unsubscribed", "No more Sunday digests. Price alerts and receipts still arrive.")
+      ? page("You're Unsubscribed", updates ? "No more update emails or Sunday digests. Price alerts and receipts still arrive." : "No more Sunday digests. Price alerts and receipts still arrive.")
       : page("That Link Didn't Work", "It may be from an older email. Write to support@cardflip.io and we'll sort it."),
     { status: ok ? 200 : 400, headers: { "content-type": "text/html; charset=utf-8" } },
   );

@@ -82,6 +82,7 @@ export const ADMIN_NAV = [
   ["/admin/analytics", "Analytics"],
   ["/admin/adtest", "Ad Test"],
   ["/admin/switches", "Switches"],
+  ["/admin/emails", "Emails"],
   ["/admin/board", "Tasks"],
   ["/admin/social", "Social"],
   ["/admin/users", "Users"],

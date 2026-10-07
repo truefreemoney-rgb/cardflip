@@ -349,6 +349,19 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
   });
 }
 
+/** Admin email campaigns (lib/server/campaigns.ts renders the copy; this only sends it). */
+export async function sendCampaignEmail(to: string, m: { subject: string; text: string; html: string; unsubUrl: string }): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: m.subject,
+    text: m.text,
+    html: m.html,
+    headers: { "List-Unsubscribe": `<${m.unsubUrl}>` },
+  });
+}
+
 /**
  * The welcome (Chris, 09-25: the site welcomes a new user; the subscription
  * mail below is a different moment). Goes out at signup while email
